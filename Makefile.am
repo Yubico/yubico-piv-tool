@@ -51,10 +51,6 @@ yubico-piv-tool.1: $(yubico_piv_tool_SOURCES) \
 
 # Maintainer rules.
 
-indent:
-	indent -linux *.c *.h
-	indent -linux *.c *.h
-
 ChangeLog:
 	cd $(srcdir) && git2cl > ChangeLog
 

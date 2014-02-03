@@ -38,42 +38,41 @@
 
 #include "cmdline.h"
 
-unsigned const char default_key[] =
-    { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x01, 0x02, 0x03, 0x04,
-	0x05, 0x06, 0x07, 0x08, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08
+unsigned const char default_key[] = {
+  0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+  0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+  0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08
 };
 
 typedef struct {
-	unsigned char cla;
-	unsigned char ins;
-	unsigned char p1;
-	unsigned char p2;
-	unsigned char lc;
-	unsigned char data[0xff];
+  unsigned char cla;
+  unsigned char ins;
+  unsigned char p1;
+  unsigned char p2;
+  unsigned char lc;
+  unsigned char data[0xff];
 } APDU;
 
-static void dump_hex(const unsigned char *buf, int len)
-{
-	int i;
-	printf("length: %d\n", len);
-	for (i = 0; i < len; i++) {
-		printf("0x%02x ", buf[i]);
-		if (i % 8 == 7) {
-			printf("\n");
-		}
-	}
-	printf("\n");
+static void dump_hex(const unsigned char *buf, int len) {
+  int i;
+  printf("length: %d\n", len);
+  for (i = 0; i < len; i++) {
+    printf("0x%02x ", buf[i]);
+    if (i % 8 == 7) {
+      printf("\n");
+    }
+  }
+  printf("\n");
 }
 
-int main(int argc, char *argv[])
-{
-	struct gengetopt_args_info args_info;
+int main(int argc, char *argv[]) {
+  struct gengetopt_args_info args_info;
 
-	if (cmdline_parser(argc, argv, &args_info) != 0) {
-		return EXIT_FAILURE;
+  if (cmdline_parser(argc, argv, &args_info) != 0) {
+    return EXIT_FAILURE;
   }
 
-	dump_hex(default_key, 24);
+  dump_hex(default_key, 24);
 
-	return EXIT_SUCCESS;
+  return EXIT_SUCCESS;
 }
