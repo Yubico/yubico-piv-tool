@@ -233,13 +233,13 @@ static void print_version(SCARDHANDLE *card, int verbose) {
 
 static bool generate_key(SCARDHANDLE *card, const char *slot, int verbose) {
   APDU apdu;
-  unsigned char data[0xff];
-  unsigned long recv_len = sizeof(data);
+  unsigned char data[1024];
+  unsigned long recv_len = 0xff;
+  unsigned long received = 0;
   int sw;
   int key = 0;
 
-  sscanf(slot, "%hhx", &key);
-  printf("slot: %x\n", key);
+  sscanf(slot, "%x", &key);
 
   memset(apdu.raw, 0, sizeof(apdu));
   apdu.st.ins = 0x47;
@@ -252,6 +252,18 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, int verbose) {
   apdu.st.data[4] = 0x07; /* rsa 2048 TODO: implement more */
   sw = send_data(card, apdu, 10, data, &recv_len, verbose);
 
+  /* chained response */
+  if((sw & 0x6100) == 0x6100) {
+    received += recv_len - 2;
+    recv_len = 0xff;
+    memset(apdu.raw, 0, sizeof(apdu));
+    apdu.st.ins = 0xc0;
+    sw = send_data(card, apdu, 4, data + received, &recv_len, verbose);
+    received += recv_len;
+  }
+  if(sw != 0x9000) {
+    return false;
+  }
   return true;
 }
 
