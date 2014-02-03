@@ -231,6 +231,30 @@ static void print_version(SCARDHANDLE *card, int verbose) {
   }
 }
 
+static bool generate_key(SCARDHANDLE *card, const char *slot, int verbose) {
+  APDU apdu;
+  unsigned char data[0xff];
+  unsigned long recv_len = sizeof(data);
+  int sw;
+  int key = 0;
+
+  sscanf(slot, "%hhx", &key);
+  printf("slot: %x\n", key);
+
+  memset(apdu.raw, 0, sizeof(apdu));
+  apdu.st.ins = 0x47;
+  apdu.st.p2 = key;
+  apdu.st.lc = 5;
+  apdu.st.data[0] = 0xac;
+  apdu.st.data[1] = 3;
+  apdu.st.data[2] = 0x80;
+  apdu.st.data[3] = 1;
+  apdu.st.data[4] = 0x07; /* rsa 2048 TODO: implement more */
+  sw = send_data(card, apdu, 10, data, &recv_len, verbose);
+
+  return true;
+}
+
 int send_data(SCARDHANDLE *card, APDU apdu, unsigned int send_len, unsigned char *data, unsigned long *recv_len, int verbose) {
   long rc;
   int sw;
@@ -320,6 +344,13 @@ int main(int argc, char *argv[]) {
 
   if(args_info.action_arg == action_arg_version) {
     print_version(&card, args_info.verbose_flag);
+  } else if(args_info.action_arg == action_arg_generate) {
+    if(args_info.slot_arg != slot__NULL) {
+      generate_key(&card, args_info.slot_orig, args_info.verbose_flag);
+    } else {
+      fprintf(stderr, "The generate command needs a slot (-s) to operate on.\n");
+      return EXIT_FAILURE;
+    }
   }
 
   return EXIT_SUCCESS;
