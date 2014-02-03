@@ -38,6 +38,7 @@ AM_MISSING_PROG(HELP2MAN, help2man, $missing_dir)
 PKG_PROG_PKG_CONFIG
 
 PKG_CHECK_MODULES(PCSC, libpcsclite)
+PKG_CHECK_MODULES(OPENSSL, openssl)
 
 AC_ARG_ENABLE([gcc-warnings],
   [AS_HELP_STRING([--enable-gcc-warnings],

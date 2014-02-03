@@ -32,6 +32,8 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include <openssl/des.h>
+
 #ifdef __APPLE__
 #include <PCSC/wintypes.h>
 #else
@@ -136,10 +138,9 @@ static bool select_applet(SCARDHANDLE *card, int verbose) {
   unsigned long recv_len = sizeof(data);
   int sw;
 
-  apdu.st.cla = 0x00;
+  memset(apdu.raw, 0, sizeof(apdu));
   apdu.st.ins = 0xa4;
   apdu.st.p1 = 0x04;
-  apdu.st.p2 = 0x00;
   apdu.st.lc = AID_LEN;
   memcpy(apdu.st.data, aid, AID_LEN);
 
@@ -148,6 +149,62 @@ static bool select_applet(SCARDHANDLE *card, int verbose) {
     return true;
   }
 
+  return false;
+}
+
+static bool authenticate(SCARDHANDLE *card, unsigned char *key, int verbose) {
+  APDU apdu;
+  unsigned char data[0xff];
+  unsigned char challenge[8];
+  unsigned long recv_len = sizeof(data);
+  int sw;
+
+  DES_key_schedule ks1, ks2, ks3;
+
+  {
+    DES_set_key_unchecked(key, &ks1);
+    DES_set_key_unchecked(key + 8, &ks2);
+    DES_set_key_unchecked(key + 16, &ks3);
+  }
+
+  {
+    memset(apdu.raw, 0, sizeof(apdu));
+    apdu.st.ins = 0x87;
+    apdu.st.p1 = 0x03; /* triple des */
+    apdu.st.p2 = 0x9b; /* management key */
+    apdu.st.lc = 0x04;
+    apdu.st.data[0] = 0x7c;
+    apdu.st.data[1] = 0x02;
+    apdu.st.data[2] = 0x80;
+    sw = send_data(card, apdu, 9, data, &recv_len, verbose);
+    if(sw != 0x9000) {
+      return false;
+    }
+    memcpy(challenge, data + 4, 8);
+    if(verbose) {
+      printf("received challenge:\n");
+      dump_hex(challenge, 8);
+    }
+  }
+
+  {
+    recv_len = 0xff;
+    memset(apdu.raw, 0, sizeof(apdu));
+    apdu.st.ins = 0x87;
+    apdu.st.p1 = 0x03; /* triple des */
+    apdu.st.p2 = 0x9b; /* management key */
+    apdu.st.lc = 12;
+    apdu.st.data[0] = 0x7c;
+    apdu.st.data[1] = 10;
+    apdu.st.data[2] = 0x80;
+    apdu.st.data[3] = 8;
+    DES_ecb3_encrypt(challenge, apdu.st.data + 4, &ks1, &ks2, &ks3, 0);
+    sw = send_data(card, apdu, 17, data, &recv_len, verbose);
+  }
+
+  if(sw == 0x9000) {
+    return true;
+  }
   return false;
 }
 
@@ -231,6 +288,10 @@ int main(int argc, char *argv[]) {
   }
 
   if(select_applet(&card, args_info.verbose_flag) == false) {
+    return EXIT_FAILURE;
+  }
+
+  if(authenticate(&card, key, args_info.verbose_flag) == false) {
     return EXIT_FAILURE;
   }
 
