@@ -40,17 +40,12 @@
 
 #include "cmdline.h"
 
-unsigned const char default_key[] = {
-  0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-  0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-  0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08
-};
-#define KEY_LEN 24
-
 unsigned const char aid[] = {
   0xa0, 0x00, 0x00, 0x03, 0x08
 };
 #define AID_LEN 5
+
+#define KEY_LEN 24
 
 union u_APDU {
   struct {
@@ -193,20 +188,49 @@ void dump_hex(const unsigned char *buf, unsigned int len) {
   printf("\n");
 }
 
+static bool parse_key(char *key_arg, unsigned char *key, int verbose) {
+  int i;
+  char key_part[2];
+  int key_len = strlen(key_arg);
+
+  if(key_len != KEY_LEN * 2) {
+    fprintf(stderr, "Wrong key size, should be %d characters (was %d).\n", KEY_LEN * 2, key_len);
+    return false;
+  }
+  for(i = 0; i < KEY_LEN; i++) {
+    key_part[0] = *key_arg++;
+    key_part[1] = *key_arg++;
+    if(sscanf(key_part, "%hhx", &key[i]) != 1) {
+      fprintf(stderr, "Failed parsing key at position %d.\n", i);
+      return false;
+    }
+  }
+  if(verbose) {
+    printf("parsed key:\n");
+    dump_hex(key, KEY_LEN);
+  }
+  return true;
+}
+
 int main(int argc, char *argv[]) {
   struct gengetopt_args_info args_info;
   SCARDHANDLE card;
   SCARDCONTEXT context;
+  unsigned char key[KEY_LEN];
 
-  if (cmdline_parser(argc, argv, &args_info) != 0) {
+  if(cmdline_parser(argc, argv, &args_info) != 0) {
     return EXIT_FAILURE;
   }
 
-  if (connect_reader(&card, &context, args_info.reader_arg, args_info.verbose_flag) == false) {
+  if(parse_key(args_info.key_arg, key, args_info.verbose_flag) == false) {
     return EXIT_FAILURE;
   }
 
-  if (select_applet(&card, args_info.verbose_flag) == false) {
+  if(connect_reader(&card, &context, args_info.reader_arg, args_info.verbose_flag) == false) {
+    return EXIT_FAILURE;
+  }
+
+  if(select_applet(&card, args_info.verbose_flag) == false) {
     return EXIT_FAILURE;
   }
 
