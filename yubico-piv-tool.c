@@ -318,7 +318,9 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  print_version(&card, args_info.verbose_flag);
+  if(args_info.action_arg == action_arg_version) {
+    print_version(&card, args_info.verbose_flag);
+  }
 
   return EXIT_SUCCESS;
 }
