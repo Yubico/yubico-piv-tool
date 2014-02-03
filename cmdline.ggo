@@ -25,3 +25,4 @@
 # for the parts of OpenSSL used as well as that of the covered work.
 
 option "verbose" v "Print more information" flag off
+option "reader" r "Only use a matching reader" string optional
