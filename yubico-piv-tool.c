@@ -231,7 +231,7 @@ static void print_version(SCARDHANDLE *card, int verbose) {
   }
 }
 
-static bool generate_key(SCARDHANDLE *card, const char *slot, int verbose) {
+static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorithm algorithm, int verbose) {
   APDU apdu;
   unsigned char data[1024];
   unsigned long recv_len = 0xff;
@@ -249,7 +249,20 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, int verbose) {
   apdu.st.data[1] = 3;
   apdu.st.data[2] = 0x80;
   apdu.st.data[3] = 1;
-  apdu.st.data[4] = 0x07; /* rsa 2048 TODO: implement more */
+  switch(algorithm) {
+    case algorithm_arg_RSA2048:
+      apdu.st.data[4] = 0x07;
+      break;
+    case algorithm_arg_RSA1024:
+      apdu.st.data[4] = 0x06;
+      break;
+    case algorithm_arg_ECCP256:
+      apdu.st.data[4] = 0x11;
+      break;
+    case algorithm__NULL:
+    default:
+      fprintf(stderr, "Unexepcted algorithm.\n");
+  }
   sw = send_data(card, apdu, 10, data, &recv_len, verbose);
 
   /* chained response */
@@ -261,9 +274,9 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, int verbose) {
     sw = send_data(card, apdu, 4, data + received, &recv_len, verbose);
     received += recv_len;
   }
-  if(sw != 0x9000) {
-    return false;
-  }
+
+  dump_hex(data, received);
+
   return true;
 }
 
@@ -358,7 +371,7 @@ int main(int argc, char *argv[]) {
     print_version(&card, args_info.verbose_flag);
   } else if(args_info.action_arg == action_arg_generate) {
     if(args_info.slot_arg != slot__NULL) {
-      generate_key(&card, args_info.slot_orig, args_info.verbose_flag);
+      generate_key(&card, args_info.slot_orig, args_info.algorithm_arg, args_info.verbose_flag);
     } else {
       fprintf(stderr, "The generate command needs a slot (-s) to operate on.\n");
       return EXIT_FAILURE;
