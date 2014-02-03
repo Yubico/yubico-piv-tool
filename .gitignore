@@ -19,4 +19,5 @@ m4/lt~obsolete.m4
 yubico-piv-tool
 yubico-piv-tool.1
 yubico-piv-tool.o
-
+*.c~
+*.h~
