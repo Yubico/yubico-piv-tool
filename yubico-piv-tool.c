@@ -208,6 +208,22 @@ static bool authenticate(SCARDHANDLE *card, unsigned char *key, int verbose) {
   return false;
 }
 
+static void print_version(SCARDHANDLE *card, int verbose) {
+  APDU apdu;
+  unsigned char data[0xff];
+  unsigned long recv_len = sizeof(data);
+  int sw;
+
+  memset(apdu.raw, 0, sizeof(apdu));
+  apdu.st.ins = 0xfd;
+  sw = send_data(card, apdu, 4, data, &recv_len, verbose);
+  if(sw == 0x9000) {
+    printf("Applet version %d.%d.%d found.\n", data[0], data[1], data[2]);
+  } else {
+    printf("Applet version not found. Status code: %x\n", sw);
+  }
+}
+
 int send_data(SCARDHANDLE *card, APDU apdu, unsigned int send_len, unsigned char *data, unsigned long *recv_len, int verbose) {
   long rc;
   int sw;
@@ -294,6 +310,8 @@ int main(int argc, char *argv[]) {
   if(authenticate(&card, key, args_info.verbose_flag) == false) {
     return EXIT_FAILURE;
   }
+
+  print_version(&card, args_info.verbose_flag);
 
   return EXIT_SUCCESS;
 }
