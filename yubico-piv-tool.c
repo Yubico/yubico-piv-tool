@@ -152,19 +152,23 @@ static bool select_applet(SCARDHANDLE *card, int verbose) {
   return false;
 }
 
-static bool authenticate(SCARDHANDLE *card, unsigned char *key, int verbose) {
+static bool authenticate(SCARDHANDLE *card, unsigned const char *key, int verbose) {
   APDU apdu;
   unsigned char data[0xff];
-  unsigned char challenge[8];
+  DES_cblock challenge;
   unsigned long recv_len = sizeof(data);
   int sw;
 
   DES_key_schedule ks1, ks2, ks3;
 
   {
-    DES_set_key_unchecked(key, &ks1);
-    DES_set_key_unchecked(key + 8, &ks2);
-    DES_set_key_unchecked(key + 16, &ks3);
+    const_DES_cblock key_tmp;
+    memcpy(key_tmp, key, 8);
+    DES_set_key_unchecked(&key_tmp, &ks1);
+    memcpy(key_tmp, key + 8, 8);
+    DES_set_key_unchecked(&key_tmp, &ks2);
+    memcpy(key_tmp, key + 16, 8);
+    DES_set_key_unchecked(&key_tmp, &ks3);
   }
 
   {
@@ -188,6 +192,9 @@ static bool authenticate(SCARDHANDLE *card, unsigned char *key, int verbose) {
   }
 
   {
+    DES_cblock response;
+    DES_ecb3_encrypt(&challenge, &response, &ks1, &ks2, &ks3, 0);
+
     recv_len = 0xff;
     memset(apdu.raw, 0, sizeof(apdu));
     apdu.st.ins = 0x87;
@@ -198,7 +205,7 @@ static bool authenticate(SCARDHANDLE *card, unsigned char *key, int verbose) {
     apdu.st.data[1] = 10;
     apdu.st.data[2] = 0x80;
     apdu.st.data[3] = 8;
-    DES_ecb3_encrypt(challenge, apdu.st.data + 4, &ks1, &ks2, &ks3, 0);
+    memcpy(apdu.st.data + 4, response, 8);
     sw = send_data(card, apdu, 17, data, &recv_len, verbose);
   }
 
