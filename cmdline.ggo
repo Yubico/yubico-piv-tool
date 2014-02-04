@@ -35,4 +35,4 @@ option "pin-retries" p "Number of retries before the pin code is blocked" int op
 option "puk-retries" P "Number of retries before the puk code is blocked" int optional
 option "input" i "Filename to use as input, - for stdin" string optional default="-"
 option "output" o "Filename to use as output, - for stdout" string optional default="-"
-option "key-format" K "Format of the private key being read" values="PEM" enum optional default="PEM"
+option "key-format" K "Format of the private key being read" values="PEM","PKCS12" enum optional default="PEM"

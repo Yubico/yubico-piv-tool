@@ -34,6 +34,7 @@
 
 #include <openssl/des.h>
 #include <openssl/pem.h>
+#include <openssl/pkcs12.h>
 
 #ifdef __APPLE__
 #include <PCSC/wintypes.h>
@@ -348,12 +349,17 @@ static bool set_pin_retries(SCARDHANDLE *card, int pin_retries, int puk_retries,
 static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format, const char *input_file_name, const char *slot, int verbose) {
   int key = 0;
   FILE *input_file;
-  EVP_PKEY *private_key;
+  EVP_PKEY *private_key = NULL;
+  PKCS12 *p12 = NULL;
+  X509 *cert = NULL;
+  bool in_stdin = false;
+  bool ret = true;
 
   sscanf(slot, "%x", &key);
 
   if(!strcmp(input_file_name, "-")) {
     input_file = stdin;
+    in_stdin = true;
   } else {
     input_file = fopen(input_file_name, "r");
     if(!input_file) {
@@ -367,6 +373,17 @@ static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format, const
     if(!private_key) {
       fprintf(stderr, "Failed loading private key for import.\n");
       return false;
+    }
+  } else if(key_format == key_format_arg_PKCS12) {
+    p12 = d2i_PKCS12_fp(input_file, NULL);
+    if(!p12) {
+      fprintf(stderr, "Failed to load PKCS12 from file.\n");
+      return false;
+    }
+    if(!PKCS12_parse(p12, NULL, &private_key, &cert, NULL)) {
+      fprintf(stderr, "Failed to parse PKCS12 structure.\n");
+      ret = false;
+      goto import_out;
     }
   } else {
     /* TODO: more formats go here */
@@ -386,7 +403,8 @@ static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format, const
         algorithm = 6;
       } else {
         fprintf(stderr, "Unuseable key of %d bits, only 1024 and 2048 is supported.\n", size * 8);
-        return false;
+        ret = false;
+        goto import_out;
       }
       {
         APDU apdu;
@@ -439,7 +457,8 @@ static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format, const
           sw = send_data(card, apdu, this_size + 5, data, &recv_len, verbose);
           if(sw != 0x9000) {
             fprintf(stderr, "Failed import command with code %x.", sw);
-            return false;
+            ret = false;
+            goto import_out;
           }
           in_ptr += this_size;
         }
@@ -448,10 +467,23 @@ static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format, const
     } else {
       /* TODO: ECC */
       fprintf(stderr, "Unknown type: %d\n", type);
-      return false;
+      ret = false;
     }
   }
-  return true;
+import_out:
+  if(private_key) {
+    EVP_PKEY_free(private_key);
+  }
+  if(p12) {
+    PKCS12_free(p12);
+  }
+  if(cert) {
+    X509_free(cert);
+  }
+  if(!in_stdin) {
+    fclose(input_file);
+  }
+  return ret;
 }
 
 static int send_data(SCARDHANDLE *card, APDU apdu, unsigned int send_len, unsigned char *data, unsigned long *recv_len, int verbose) {
