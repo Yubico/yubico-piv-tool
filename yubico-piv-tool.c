@@ -103,19 +103,19 @@ static bool connect_reader(SCARDHANDLE *card, SCARDCONTEXT *context, const char 
     while(*reader_ptr != '\0') {
       if(strstr(reader_ptr, wanted)) {
         if(verbose) {
-          printf("using reader '%s' matching '%s'.\n", reader_ptr, wanted);
+          fprintf(stderr, "using reader '%s' matching '%s'.\n", reader_ptr, wanted);
         }
         break;
       } else {
         if(verbose) {
-          printf("skipping reader '%s' since it doesn't match.\n", reader_ptr);
+          fprintf(stderr, "skipping reader '%s' since it doesn't match.\n", reader_ptr);
         }
         reader_ptr += strlen(reader_ptr) + 1;
       }
     }
   }
   if(*reader_ptr == '\0') {
-    fprintf (stderr, "error: no useable reader found.\n");
+    fprintf(stderr, "error: no useable reader found.\n");
     SCardReleaseContext(*context);
     return false;
   }
@@ -124,7 +124,7 @@ static bool connect_reader(SCARDHANDLE *card, SCARDCONTEXT *context, const char 
       SCARD_PROTOCOL_T1, card, &active_protocol);
   if(rc != SCARD_S_SUCCESS)
   {
-    fprintf (stderr, "error: SCardConnect failed, rc=%08lx\n", rc);
+    fprintf(stderr, "error: SCardConnect failed, rc=%08lx\n", rc);
     SCardReleaseContext(*context);
     return false;
   }
@@ -185,10 +185,6 @@ static bool authenticate(SCARDHANDLE *card, unsigned const char *key, int verbos
       return false;
     }
     memcpy(challenge, data + 4, 8);
-    if(verbose) {
-      printf("received challenge:\n");
-      dump_hex(challenge, 8);
-    }
   }
 
   {
@@ -307,9 +303,10 @@ int send_data(SCARDHANDLE *card, APDU apdu, unsigned int send_len, unsigned char
   long rc;
   int sw;
 
-  if(verbose) {
-    printf("sending data: (%d bytes)\n", send_len);
+  if(verbose > 1) {
+    fprintf(stderr, "> ");
     dump_hex(apdu.raw, send_len);
+    fprintf(stderr, "\n");
   }
   rc = SCardTransmit(*card, SCARD_PCI_T1, apdu.raw, send_len, NULL, data, recv_len);
   if(rc != SCARD_S_SUCCESS) {
@@ -317,9 +314,10 @@ int send_data(SCARDHANDLE *card, APDU apdu, unsigned int send_len, unsigned char
     return 0;
   }
 
-  if(verbose) {
-    printf("received data: (%ld bytes)\n", *recv_len);
+  if(verbose > 1) {
+    fprintf(stderr, "< ");
     dump_hex(data, *recv_len);
+    fprintf(stderr, "\n");
   }
   if(*recv_len >= 2) {
     sw = (data[*recv_len - 2] << 8) | data[*recv_len - 1];
@@ -332,12 +330,8 @@ int send_data(SCARDHANDLE *card, APDU apdu, unsigned int send_len, unsigned char
 void dump_hex(const unsigned char *buf, unsigned int len) {
   unsigned int i;
   for (i = 0; i < len; i++) {
-    printf("0x%02x ", buf[i]);
-    if (i % 8 == 7) {
-      printf("\n");
-    }
+    fprintf(stderr, "%02x ", buf[i]);
   }
-  printf("\n");
 }
 
 static bool parse_key(char *key_arg, unsigned char *key, int verbose) {
@@ -358,8 +352,9 @@ static bool parse_key(char *key_arg, unsigned char *key, int verbose) {
     }
   }
   if(verbose) {
-    printf("parsed key:\n");
+    fprintf(stderr, "parsed key: ");
     dump_hex(key, KEY_LEN);
+    fprintf(stderr, "\n");
   }
   return true;
 }
