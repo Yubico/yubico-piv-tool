@@ -316,6 +316,33 @@ static bool reset(SCARDHANDLE *card, int verbose) {
   return false;
 }
 
+static bool set_pin_retries(SCARDHANDLE *card, int pin_retries, int puk_retries, int verbose) {
+  APDU apdu;
+  unsigned char data[0xff];
+  unsigned long recv_len = sizeof(data);
+  int sw;
+
+  if(pin_retries > 0xff || puk_retries > 0xff || pin_retries < 1 || puk_retries < 1) {
+    fprintf(stderr, "pin and puk retries must be between 1 and 255.\n");
+    return false;
+  }
+
+  if(verbose) {
+    fprintf(stderr, "Setting pin retries to %d and puk retries to %d.\n", pin_retries, puk_retries);
+  }
+
+  memset(apdu.raw, 0, sizeof(apdu));
+  apdu.st.ins = 0xfa;
+  apdu.st.p1 = pin_retries;
+  apdu.st.p2 = puk_retries;
+  sw = send_data(card, apdu, 4, data, &recv_len, verbose);
+
+  if(sw == 0x9000) {
+    return true;
+  }
+  return false;
+}
+
 int send_data(SCARDHANDLE *card, APDU apdu, unsigned int send_len, unsigned char *data, unsigned long *recv_len, int verbose) {
   long rc;
   int sw;
@@ -429,6 +456,14 @@ int main(int argc, char *argv[]) {
     }
   } else if(args_info.action_arg == action_arg_reset) {
     if(reset(&card, verbosity) == false) {
+      return EXIT_FAILURE;
+    }
+  } else if(args_info.action_arg == action_arg_pinMINUS_retries) {
+    if(args_info.pin_retries_arg && args_info.puk_retries_arg) {
+      if(set_pin_retries(&card, args_info.pin_retries_arg, args_info.puk_retries_arg, verbosity) == false) {
+        return EXIT_FAILURE;
+      }
+    } else {
       return EXIT_FAILURE;
     }
   }
