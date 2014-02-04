@@ -25,14 +25,15 @@
 # for the parts of OpenSSL used as well as that of the covered work.
 
 AM_CFLAGS = $(WERROR_CFLAGS) $(WARN_CFLAGS)
-AM_CPPFLAGS = $(PCSC_CFLAGS) $(OPENSSL_CFLAGS)
+AM_CPPFLAGS = $(OPENSSL_CFLAGS) $(PCSC_CFLAGS)
 
 ACLOCAL_AMFLAGS = -I m4
 
 bin_PROGRAMS = yubico-piv-tool
 yubico_piv_tool_SOURCES = yubico-piv-tool.c
 yubico_piv_tool_SOURCES += cmdline.ggo cmdline.c cmdline.h
-yubico_piv_tool_LDADD = $(PCSC_LIBS) $(OPENSSL_LIBS)
+yubico_piv_tool_LDADD = $(OPENSSL_LIBS) $(PCSC_LIBS)
+yubico_piv_tool_LDADD += $(LTLIBWINSCARD) $(PCSC_MACOSX_LIBS)
 
 cmdline.c cmdline.h: cmdline.ggo Makefile.am
 	gengetopt --input $^
