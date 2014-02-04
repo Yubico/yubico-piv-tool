@@ -35,7 +35,6 @@
 #include <openssl/des.h>
 #include <openssl/pem.h>
 #include <openssl/pkcs12.h>
-#include <openssl/ec.h>
 
 #ifdef __APPLE__
 #include <PCSC/wintypes.h>
