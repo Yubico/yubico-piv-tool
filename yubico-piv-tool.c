@@ -478,7 +478,7 @@ static bool set_pin_retries(SCARDHANDLE *card, int pin_retries, int puk_retries,
 }
 
 static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format,
-    const char *input_file_name, const char *slot, int verbose) {
+    const char *input_file_name, const char *slot, char *password, int verbose) {
   int key = 0;
   FILE *input_file;
   EVP_PKEY *private_key = NULL;
@@ -499,7 +499,7 @@ static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format,
   }
 
   if(key_format == key_format_arg_PEM) {
-    private_key = PEM_read_PrivateKey(input_file, NULL, NULL, NULL);
+    private_key = PEM_read_PrivateKey(input_file, NULL, NULL, password);
     if(!private_key) {
       fprintf(stderr, "Failed loading private key for import.\n");
       ret = false;
@@ -512,8 +512,8 @@ static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format,
       ret = false;
       goto import_out;
     }
-    if(!PKCS12_parse(p12, NULL, &private_key, &cert, NULL)) {
-      fprintf(stderr, "Failed to parse PKCS12 structure.\n");
+    if(PKCS12_parse(p12, password, &private_key, &cert, NULL) == 0) {
+      fprintf(stderr, "Failed to parse PKCS12 structure. (password: %s)\n", password);
       ret = false;
       goto import_out;
     }
@@ -620,7 +620,7 @@ import_out:
 }
 
 static bool import_cert(SCARDHANDLE *card, enum enum_key_format cert_format,
-    const char *input_file_name, enum enum_slot slot, int verbose) {
+    const char *input_file_name, enum enum_slot slot, char *password, int verbose) {
   int object;
   bool ret = true;
   FILE *input_file;
@@ -658,7 +658,7 @@ static bool import_cert(SCARDHANDLE *card, enum enum_key_format cert_format,
   }
 
   if(cert_format == key_format_arg_PEM) {
-    cert = PEM_read_X509(input_file, NULL, NULL, NULL);
+    cert = PEM_read_X509(input_file, NULL, NULL, password);
     if(!cert) {
       fprintf(stderr, "Failed loading certificate for import.\n");
       goto import_cert_out;
@@ -671,7 +671,7 @@ static bool import_cert(SCARDHANDLE *card, enum enum_key_format cert_format,
       goto import_cert_out;
       ret = false;
     }
-    if(!PKCS12_parse(p12, NULL, &private_key, &cert, NULL)) {
+    if(!PKCS12_parse(p12, password, &private_key, &cert, NULL)) {
       fprintf(stderr, "Failed to parse PKCS12 structure.\n");
       ret = false;
       goto import_cert_out;
@@ -898,6 +898,9 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Successfull applet authentication.\n");
   }
 
+  /* openssl setup.. */
+  OpenSSL_add_all_algorithms();
+
   for(i = 0; i < args_info.action_given; i++) {
     action = *args_info.action_arg++;
     if(verbosity) {
@@ -950,7 +953,7 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_importMINUS_key:
         if(args_info.slot_arg != slot__NULL) {
-          if(import_key(&card, args_info.key_format_arg, args_info.input_arg, args_info.slot_orig, verbosity) == false) {
+          if(import_key(&card, args_info.key_format_arg, args_info.input_arg, args_info.slot_orig, args_info.password_arg, verbosity) == false) {
             return EXIT_FAILURE;
           }
           printf("Successfully imported a new private key.\n");
@@ -961,7 +964,7 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_importMINUS_certificate:
         if(args_info.slot_arg != slot__NULL) {
-          if(import_cert(&card, args_info.key_format_arg, args_info.input_arg, args_info.slot_arg, verbosity) == false) {
+          if(import_cert(&card, args_info.key_format_arg, args_info.input_arg, args_info.slot_arg, args_info.password_arg, verbosity) == false) {
             return EXIT_FAILURE;
           }
           printf("Successfully imported a new certificate.\n");
