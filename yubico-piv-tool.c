@@ -285,6 +285,7 @@ static bool set_mgm_key(SCARDHANDLE *card, unsigned const char *new_key, int ver
   unsigned long recv_len = sizeof(data);
   int sw;
 
+  /* TODO: check that it's a good key before setting. */
   memset(apdu.raw, 0, sizeof(apdu));
   apdu.st.ins = 0xff;
   apdu.st.p1 = 0xff;
