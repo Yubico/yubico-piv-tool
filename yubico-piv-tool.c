@@ -754,55 +754,66 @@ int main(int argc, char *argv[]) {
     if(verbosity) {
       fprintf(stderr, "Now processing for action %d.\n", action);
     }
-    if(action == action_arg_version) {
-      print_version(&card, verbosity);
-    } else if(action == action_arg_generate) {
-      if(args_info.slot_arg != slot__NULL) {
-        if(generate_key(&card, args_info.slot_orig, args_info.algorithm_arg, args_info.output_arg, args_info.key_format_arg, verbosity) == false) {
+    switch(action) {
+      case action_arg_version:
+        print_version(&card, verbosity);
+        break;
+      case action_arg_generate:
+        if(args_info.slot_arg != slot__NULL) {
+          if(generate_key(&card, args_info.slot_orig, args_info.algorithm_arg, args_info.output_arg, args_info.key_format_arg, verbosity) == false) {
+            return EXIT_FAILURE;
+          }
+        } else {
+          fprintf(stderr, "The generate action needs a slot (-s) to operate on.\n");
           return EXIT_FAILURE;
         }
-      } else {
-        fprintf(stderr, "The generate action needs a slot (-s) to operate on.\n");
-        return EXIT_FAILURE;
-      }
-    } else if(action == action_arg_setMINUS_mgmMINUS_key) {
-      if(args_info.new_key_arg) {
-        unsigned char new_key[KEY_LEN];
-        if(parse_key(args_info.new_key_arg, new_key, verbosity) == false) {
+        break;
+      case action_arg_setMINUS_mgmMINUS_key:
+        if(args_info.new_key_arg) {
+          unsigned char new_key[KEY_LEN];
+          if(parse_key(args_info.new_key_arg, new_key, verbosity) == false) {
+            return EXIT_FAILURE;
+          }
+          if(set_mgm_key(&card, new_key, verbosity) == false) {
+            return EXIT_FAILURE;
+          }
+          printf("Successfully set new management key.\n");
+        } else {
+          fprintf(stderr, "The set-mgm-key action needs the new-key (-n) argument.\n");
           return EXIT_FAILURE;
         }
-        if(set_mgm_key(&card, new_key, verbosity) == false) {
+        break;
+      case action_arg_reset:
+        if(reset(&card, verbosity) == false) {
           return EXIT_FAILURE;
         }
-        printf("Successfully set new management key.\n");
-      } else {
-        fprintf(stderr, "The set-mgm-key action needs the new-key (-n) argument.\n");
-        return EXIT_FAILURE;
-      }
-    } else if(action == action_arg_reset) {
-      if(reset(&card, verbosity) == false) {
-        return EXIT_FAILURE;
-      }
-      printf("Successfully reset the applet.\n");
-    } else if(action == action_arg_pinMINUS_retries) {
-      if(args_info.pin_retries_arg && args_info.puk_retries_arg) {
-        if(set_pin_retries(&card, args_info.pin_retries_arg, args_info.puk_retries_arg, verbosity) == false) {
+        printf("Successfully reset the applet.\n");
+        break;
+      case action_arg_pinMINUS_retries:
+        if(args_info.pin_retries_arg && args_info.puk_retries_arg) {
+          if(set_pin_retries(&card, args_info.pin_retries_arg, args_info.puk_retries_arg, verbosity) == false) {
+            return EXIT_FAILURE;
+          }
+          printf("Successfully changed pin retries to %d and puk retries to %d.\n", args_info.pin_retries_arg, args_info.puk_retries_arg);
+        } else {
           return EXIT_FAILURE;
         }
-        printf("Successfully changed pin retries to %d and puk retries to %d.\n", args_info.pin_retries_arg, args_info.puk_retries_arg);
-      } else {
-        return EXIT_FAILURE;
-      }
-    } else if(action == action_arg_importMINUS_key) {
-      if(args_info.slot_arg != slot__NULL) {
-        if(import_key(&card, args_info.key_format_arg, args_info.input_arg, args_info.slot_orig, verbosity) == false) {
+        break;
+      case action_arg_importMINUS_key:
+        if(args_info.slot_arg != slot__NULL) {
+          if(import_key(&card, args_info.key_format_arg, args_info.input_arg, args_info.slot_orig, verbosity) == false) {
+            return EXIT_FAILURE;
+          }
+          printf("Successfully imported a new private key.\n");
+        } else {
+          fprintf(stderr, "The import action needs a slot (-s) to operate on.\n");
           return EXIT_FAILURE;
         }
-        printf("Successfully imported a new private key.\n");
-      } else {
-        fprintf(stderr, "The import action needs a slot (-s) to operate on.\n");
+        break;
+      case action__NULL:
+      default:
+        fprintf(stderr, "Wrong action. %d.\n", action);
         return EXIT_FAILURE;
-      }
     }
   }
 
