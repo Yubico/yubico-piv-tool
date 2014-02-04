@@ -33,6 +33,7 @@
 #include <string.h>
 
 #include <openssl/des.h>
+#include <openssl/pem.h>
 
 #ifdef __APPLE__
 #include <PCSC/wintypes.h>
@@ -63,8 +64,9 @@ union u_APDU {
 
 typedef union u_APDU APDU;
 
-void dump_hex(unsigned const char*, unsigned int);
-int send_data(SCARDHANDLE*, APDU, unsigned int, unsigned char*, unsigned long*, int);
+static void dump_hex(unsigned const char*, unsigned int);
+static int send_data(SCARDHANDLE*, APDU, unsigned int, unsigned char*, unsigned long*, int);
+static int set_length(unsigned char*, int);
 
 static bool connect_reader(SCARDHANDLE *card, SCARDCONTEXT *context, const char *wanted, int verbose) {
   unsigned long num_readers;
@@ -343,7 +345,116 @@ static bool set_pin_retries(SCARDHANDLE *card, int pin_retries, int puk_retries,
   return false;
 }
 
-int send_data(SCARDHANDLE *card, APDU apdu, unsigned int send_len, unsigned char *data, unsigned long *recv_len, int verbose) {
+static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format, const char *input_file_name, const char *slot, int verbose) {
+  int key = 0;
+  FILE *input_file;
+  EVP_PKEY *private_key;
+
+  sscanf(slot, "%x", &key);
+
+  if(!strcmp(input_file_name, "-")) {
+    input_file = stdin;
+  } else {
+    input_file = fopen(input_file_name, "r");
+    if(!input_file) {
+      fprintf(stderr, "Failed opening '%s'!\n", input_file_name);
+      return false;
+    }
+  }
+
+  if(key_format == key_format_arg_PEM) {
+    private_key = PEM_read_PrivateKey(input_file, NULL, NULL, NULL);
+    if(!private_key) {
+      fprintf(stderr, "Failed loading private key for import.\n");
+      return false;
+    }
+  } else {
+    /* TODO: more formats go here */
+    fprintf(stderr, "Unknown key format.\n");
+    return false;
+  }
+
+  {
+    int type = EVP_PKEY_type(private_key->type);
+    if(type == EVP_PKEY_RSA) {
+      int algorithm;
+      RSA *rsa_private_key = EVP_PKEY_get1_RSA(private_key);
+      int size = RSA_size(rsa_private_key);
+      if(size == 256) {
+        algorithm = 7;
+      } else if(size == 128) {
+        algorithm = 6;
+      } else {
+        fprintf(stderr, "Unuseable key of %d bits, only 1024 and 2048 is supported.\n", size * 8);
+        return false;
+      }
+      {
+        APDU apdu;
+        unsigned char in_data[1024];
+        unsigned char *in_ptr = in_data;
+        int sw;
+        int in_size;
+
+        *in_ptr++ = 0x01;
+        in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->p));
+        in_ptr += BN_bn2bin(rsa_private_key->p, in_ptr);
+
+        *in_ptr++ = 0x02;
+        in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->q));
+        in_ptr += BN_bn2bin(rsa_private_key->q, in_ptr);
+
+        *in_ptr++ = 0x03;
+        in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->dmp1));
+        in_ptr += BN_bn2bin(rsa_private_key->dmp1, in_ptr);
+
+        *in_ptr++ = 0x04;
+        in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->dmq1));
+        in_ptr += BN_bn2bin(rsa_private_key->dmq1, in_ptr);
+
+        *in_ptr++ = 0x05;
+        in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->iqmp));
+        in_ptr += BN_bn2bin(rsa_private_key->iqmp, in_ptr);
+
+        in_size = in_ptr - in_data;
+        in_ptr = in_data;
+
+        while(in_ptr < in_data + in_size) {
+          unsigned char data[0xff];
+          unsigned long recv_len = sizeof(data);
+          size_t this_size = 0xff;
+          memset(apdu.raw, 0, sizeof(apdu));
+          if(in_ptr + 0xff < in_data + in_size) {
+            apdu.st.cla = 0x10;
+          } else {
+            this_size = (size_t)((in_data + in_size) - in_ptr);
+          }
+          if(verbose) {
+            fprintf(stderr, "going to send %zu bytes in this go.\n", this_size);
+          }
+          apdu.st.ins = 0xfe;
+          apdu.st.p1 = algorithm;
+          apdu.st.p2 = key;
+          apdu.st.lc = this_size;
+          memcpy(apdu.st.data, in_ptr, this_size);
+          sw = send_data(card, apdu, this_size + 5, data, &recv_len, verbose);
+          if(sw != 0x9000) {
+            fprintf(stderr, "Failed import command with code %x.", sw);
+            return false;
+          }
+          in_ptr += this_size;
+        }
+      }
+
+    } else {
+      /* TODO: ECC */
+      fprintf(stderr, "Unknown type: %d\n", type);
+      return false;
+    }
+  }
+  return true;
+}
+
+static int send_data(SCARDHANDLE *card, APDU apdu, unsigned int send_len, unsigned char *data, unsigned long *recv_len, int verbose) {
   long rc;
   int sw;
 
@@ -371,7 +482,7 @@ int send_data(SCARDHANDLE *card, APDU apdu, unsigned int send_len, unsigned char
   return sw;
 }
 
-void dump_hex(const unsigned char *buf, unsigned int len) {
+static void dump_hex(const unsigned char *buf, unsigned int len) {
   unsigned int i;
   for (i = 0; i < len; i++) {
     fprintf(stderr, "%02x ", buf[i]);
@@ -401,6 +512,22 @@ static bool parse_key(char *key_arg, unsigned char *key, int verbose) {
     fprintf(stderr, "\n");
   }
   return true;
+}
+
+static int set_length(unsigned char *buffer, int length) {
+  if(length < 0x80) {
+    *buffer++ = length;
+    return 1;
+  } else if(length < 0xff) {
+    *buffer++ = 0x81;
+    *buffer++ = length;
+    return 2;
+  } else {
+    *buffer++ = 0x82;
+    *buffer++ = (length >> 8) & 0xff;
+    *buffer++ = length & 0xff;
+    return 3;
+  }
 }
 
 int main(int argc, char *argv[]) {
@@ -464,6 +591,15 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
       }
     } else {
+      return EXIT_FAILURE;
+    }
+  } else if(args_info.action_arg == action_arg_importMINUS_key) {
+    if(args_info.slot_arg != slot__NULL) {
+      if(import_key(&card, args_info.key_format_arg, args_info.input_arg, args_info.slot_orig, verbosity) == false) {
+        return EXIT_FAILURE;
+      }
+    } else {
+      fprintf(stderr, "The generate action needs a slot (-s) to operate on.\n");
       return EXIT_FAILURE;
     }
   }
