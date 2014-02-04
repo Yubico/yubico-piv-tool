@@ -280,6 +280,29 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
   return true;
 }
 
+static bool set_mgm_key(SCARDHANDLE *card, unsigned const char *new_key, int verbose) {
+  APDU apdu;
+  unsigned char data[0xff];
+  unsigned long recv_len = sizeof(data);
+  int sw;
+
+  memset(apdu.raw, 0, sizeof(apdu));
+  apdu.st.ins = 0xff;
+  apdu.st.p1 = 0xff;
+  apdu.st.p2 = 0xff;
+  apdu.st.lc = KEY_LEN + 3;
+  apdu.st.data[0] = 0x03; // 3-DES
+  apdu.st.data[1] = 0x9b;
+  apdu.st.data[2] = KEY_LEN;
+  memcpy(apdu.st.data + 3, new_key, KEY_LEN);
+  sw = send_data(card, apdu, KEY_LEN + 8, data, &recv_len, verbose);
+
+  if(sw == 0x9000) {
+    return true;
+  }
+  return false;
+}
+
 int send_data(SCARDHANDLE *card, APDU apdu, unsigned int send_len, unsigned char *data, unsigned long *recv_len, int verbose) {
   long rc;
   int sw;
@@ -319,7 +342,7 @@ void dump_hex(const unsigned char *buf, unsigned int len) {
 
 static bool parse_key(char *key_arg, unsigned char *key, int verbose) {
   int i;
-  char key_part[2];
+  char key_part[4];
   int key_len = strlen(key_arg);
 
   if(key_len != KEY_LEN * 2) {
@@ -373,7 +396,20 @@ int main(int argc, char *argv[]) {
     if(args_info.slot_arg != slot__NULL) {
       generate_key(&card, args_info.slot_orig, args_info.algorithm_arg, args_info.verbose_flag);
     } else {
-      fprintf(stderr, "The generate command needs a slot (-s) to operate on.\n");
+      fprintf(stderr, "The generate action needs a slot (-s) to operate on.\n");
+      return EXIT_FAILURE;
+    }
+  } else if(args_info.action_arg == action_arg_setMINUS_mgmMINUS_key) {
+    if(args_info.new_key_arg) {
+      unsigned char new_key[KEY_LEN];
+      if(parse_key(args_info.new_key_arg, new_key, args_info.verbose_flag) == false) {
+        return EXIT_FAILURE;
+      }
+      if(set_mgm_key(&card, new_key, args_info.verbose_flag) == false) {
+        return EXIT_FAILURE;
+      }
+    } else {
+      fprintf(stderr, "The set-mgm-key action needs the new-key (-n) argument.\n");
       return EXIT_FAILURE;
     }
   }
