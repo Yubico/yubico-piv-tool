@@ -299,6 +299,23 @@ static bool set_mgm_key(SCARDHANDLE *card, unsigned const char *new_key, int ver
   return false;
 }
 
+static bool reset(SCARDHANDLE *card, int verbose) {
+  APDU apdu;
+  unsigned char data[0xff];
+  unsigned long recv_len = sizeof(data);
+  int sw;
+
+  memset(apdu.raw, 0, sizeof(apdu));
+  /* note: the reset function is only available when both pins are blocked. */
+  apdu.st.ins = 0xfb;
+  sw = send_data(card, apdu, 4, data, &recv_len, verbose);
+
+  if(sw == 0x9000) {
+    return true;
+  }
+  return false;
+}
+
 int send_data(SCARDHANDLE *card, APDU apdu, unsigned int send_len, unsigned char *data, unsigned long *recv_len, int verbose) {
   long rc;
   int sw;
@@ -408,6 +425,10 @@ int main(int argc, char *argv[]) {
       }
     } else {
       fprintf(stderr, "The set-mgm-key action needs the new-key (-n) argument.\n");
+      return EXIT_FAILURE;
+    }
+  } else if(args_info.action_arg == action_arg_reset) {
+    if(reset(&card, verbosity) == false) {
       return EXIT_FAILURE;
     }
   }
