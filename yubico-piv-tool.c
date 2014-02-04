@@ -369,32 +369,35 @@ int main(int argc, char *argv[]) {
   SCARDHANDLE card;
   SCARDCONTEXT context;
   unsigned char key[KEY_LEN];
+  int verbosity;
 
   if(cmdline_parser(argc, argv, &args_info) != 0) {
     return EXIT_FAILURE;
   }
 
-  if(parse_key(args_info.key_arg, key, args_info.verbose_flag) == false) {
+  verbosity = args_info.verbose_arg + (int)args_info.verbose_given;
+
+  if(parse_key(args_info.key_arg, key, verbosity) == false) {
     return EXIT_FAILURE;
   }
 
-  if(connect_reader(&card, &context, args_info.reader_arg, args_info.verbose_flag) == false) {
+  if(connect_reader(&card, &context, args_info.reader_arg, verbosity) == false) {
     return EXIT_FAILURE;
   }
 
-  if(select_applet(&card, args_info.verbose_flag) == false) {
+  if(select_applet(&card, verbosity) == false) {
     return EXIT_FAILURE;
   }
 
-  if(authenticate(&card, key, args_info.verbose_flag) == false) {
+  if(authenticate(&card, key, verbosity) == false) {
     return EXIT_FAILURE;
   }
 
   if(args_info.action_arg == action_arg_version) {
-    print_version(&card, args_info.verbose_flag);
+    print_version(&card, verbosity);
   } else if(args_info.action_arg == action_arg_generate) {
     if(args_info.slot_arg != slot__NULL) {
-      generate_key(&card, args_info.slot_orig, args_info.algorithm_arg, args_info.verbose_flag);
+      generate_key(&card, args_info.slot_orig, args_info.algorithm_arg, verbosity);
     } else {
       fprintf(stderr, "The generate action needs a slot (-s) to operate on.\n");
       return EXIT_FAILURE;
@@ -402,10 +405,10 @@ int main(int argc, char *argv[]) {
   } else if(args_info.action_arg == action_arg_setMINUS_mgmMINUS_key) {
     if(args_info.new_key_arg) {
       unsigned char new_key[KEY_LEN];
-      if(parse_key(args_info.new_key_arg, new_key, args_info.verbose_flag) == false) {
+      if(parse_key(args_info.new_key_arg, new_key, verbosity) == false) {
         return EXIT_FAILURE;
       }
-      if(set_mgm_key(&card, new_key, args_info.verbose_flag) == false) {
+      if(set_mgm_key(&card, new_key, verbosity) == false) {
         return EXIT_FAILURE;
       }
     } else {
