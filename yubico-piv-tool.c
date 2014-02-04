@@ -375,7 +375,7 @@ static bool set_mgm_key(SCARDHANDLE *card, unsigned const char *new_key, int ver
   apdu.st.p1 = 0xff;
   apdu.st.p2 = 0xff;
   apdu.st.lc = KEY_LEN + 3;
-  apdu.st.data[0] = 0x03; // 3-DES
+  apdu.st.data[0] = 0x03; /* 3-DES */
   apdu.st.data[1] = 0x9b;
   apdu.st.data[2] = KEY_LEN;
   memcpy(apdu.st.data + 3, new_key, KEY_LEN);
@@ -686,7 +686,7 @@ int main(int argc, char *argv[]) {
   }
 
   if(connect_reader(&card, &context, args_info.reader_arg, verbosity) == false) {
-    fprintf("Failed to connect to reader.\n");
+    fprintf(stderr, "Failed to connect to reader.\n");
     return EXIT_FAILURE;
   }
 
