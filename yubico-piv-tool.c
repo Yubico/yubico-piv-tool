@@ -477,7 +477,8 @@ static bool set_pin_retries(SCARDHANDLE *card, int pin_retries, int puk_retries,
   return false;
 }
 
-static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format, const char *input_file_name, const char *slot, int verbose) {
+static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format,
+    const char *input_file_name, const char *slot, int verbose) {
   int key = 0;
   FILE *input_file;
   EVP_PKEY *private_key = NULL;
@@ -501,13 +502,15 @@ static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format, const
     private_key = PEM_read_PrivateKey(input_file, NULL, NULL, NULL);
     if(!private_key) {
       fprintf(stderr, "Failed loading private key for import.\n");
-      return false;
+      ret = false;
+      goto import_out;
     }
   } else if(key_format == key_format_arg_PKCS12) {
     p12 = d2i_PKCS12_fp(input_file, NULL);
     if(!p12) {
       fprintf(stderr, "Failed to load PKCS12 from file.\n");
-      return false;
+      ret = false;
+      goto import_out;
     }
     if(!PKCS12_parse(p12, NULL, &private_key, &cert, NULL)) {
       fprintf(stderr, "Failed to parse PKCS12 structure.\n");
@@ -517,7 +520,8 @@ static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format, const
   } else {
     /* TODO: more formats go here */
     fprintf(stderr, "Unknown key format.\n");
-    return false;
+    ret = false;
+    goto import_out;
   }
 
   {
@@ -615,7 +619,152 @@ import_out:
   return ret;
 }
 
-static int send_data(SCARDHANDLE *card, APDU apdu, unsigned int send_len, unsigned char *data, unsigned long *recv_len, int verbose) {
+static bool import_cert(SCARDHANDLE *card, enum enum_key_format cert_format,
+    const char *input_file_name, enum enum_slot slot, int verbose) {
+  int object;
+  bool ret = true;
+  FILE *input_file;
+  X509 *cert = NULL;
+  PKCS12 *p12 = NULL;
+  EVP_PKEY *private_key = NULL;
+
+  switch(slot) {
+    case slot_arg_9a:
+      object = 0x5fc105;
+      break;
+    case slot_arg_9c:
+      object = 0x5fc10a;
+      break;
+    case slot_arg_9d:
+      object = 0x5fc10b;
+      break;
+    case slot_arg_9e:
+      object = 0x5fc101;
+      break;
+    case slot__NULL:
+    default:
+      fprintf(stderr, "wrong slot argument.\n");
+      return false;
+  }
+
+  if(!strcmp(input_file_name, "-")) {
+    input_file = stdin;
+  } else {
+    input_file = fopen(input_file_name, "r");
+    if(!input_file) {
+      fprintf(stderr, "Failed opening '%s'!\n", input_file_name);
+      return false;
+    }
+  }
+
+  if(cert_format == key_format_arg_PEM) {
+    cert = PEM_read_X509(input_file, NULL, NULL, NULL);
+    if(!cert) {
+      fprintf(stderr, "Failed loading certificate for import.\n");
+      goto import_cert_out;
+      ret = false;
+    }
+  } else if(cert_format == key_format_arg_PKCS12) {
+    p12 = d2i_PKCS12_fp(input_file, NULL);
+    if(!p12) {
+      fprintf(stderr, "Failed to load PKCS12 from file.\n");
+      goto import_cert_out;
+      ret = false;
+    }
+    if(!PKCS12_parse(p12, NULL, &private_key, &cert, NULL)) {
+      fprintf(stderr, "Failed to parse PKCS12 structure.\n");
+      ret = false;
+      goto import_cert_out;
+    }
+  } else {
+    /* TODO: more formats go here */
+    fprintf(stderr, "Unknown key format.\n");
+    ret = false;
+    goto import_cert_out;
+  }
+
+  {
+    unsigned char certdata[2100];
+    unsigned char *certptr = certdata;
+    int cert_len = i2d_X509(cert, NULL);
+    int bytes;
+    int cert_size;
+    int sw;
+
+    if(cert_len > 2048) {
+      fprintf(stderr, "Certificate to large, maximum 4096 bytes (was %d bytes).\n", cert_len);
+      ret = false;
+      goto import_cert_out;
+    }
+    *certptr++ = 0x5c;
+    *certptr++ = 0x03;
+    *certptr++ = (object >> 16) & 0xff;
+    *certptr++ = (object >> 8) & 0xff;
+    *certptr++ = object & 0xff;
+    *certptr++ = 0x53;
+    bytes = get_length_bytes(cert_len);
+    certptr += set_length(certptr, cert_len + bytes + 6);
+    *certptr++ = 0x70;
+    certptr += set_length(certptr, cert_len);
+    /* i2d_X509 increments certptr here.. */
+    i2d_X509(cert, &certptr);
+    *certptr++ = 0x71;
+    *certptr++ = 1;
+    *certptr++ = 0; /* certinfo (gzip etc) */
+    *certptr++ = 0xfe; /* LRC */
+    *certptr++ = 0;
+
+    cert_size = certptr - certdata;
+    certptr = certdata;
+    while(certptr < certdata + cert_size) {
+      unsigned char data[0xff];
+      unsigned long recv_len = sizeof(data);
+      size_t this_size = 0xff;
+      APDU apdu;
+
+      memset(apdu.raw, 0, sizeof(apdu));
+      if(certptr + 0xff < certdata + cert_size) {
+        apdu.st.cla = 0x10;
+      } else {
+        this_size = (size_t)((certdata + cert_size) - certptr);
+      }
+      if(verbose) {
+        fprintf(stderr, "going to send %zu bytes in this go.\n", this_size);
+      }
+      apdu.st.ins = 0xdb;
+      apdu.st.p1 = 0x3f;
+      apdu.st.p2 = 0xff;
+      apdu.st.lc = this_size;
+      memcpy(apdu.st.data, certptr, this_size);
+      sw = send_data(card, apdu, this_size + 5, data, &recv_len, verbose);
+      if(sw != 0x9000) {
+        fprintf(stderr, "Failed import command with code %x.", sw);
+        ret = false;
+        goto import_cert_out;
+      }
+      certptr += this_size;
+    }
+  }
+
+import_cert_out:
+  if(cert) {
+    X509_free(cert);
+  }
+  if(input_file != stdin) {
+    fclose(input_file);
+  }
+  if(p12) {
+    PKCS12_free(p12);
+  }
+  if(private_key) {
+    EVP_PKEY_free(private_key);
+  }
+
+  return ret;
+}
+
+static int send_data(SCARDHANDLE *card, APDU apdu, unsigned int send_len,
+    unsigned char *data, unsigned long *recv_len, int verbose) {
   long rc;
   int sw;
 
@@ -809,6 +958,19 @@ int main(int argc, char *argv[]) {
           fprintf(stderr, "The import action needs a slot (-s) to operate on.\n");
           return EXIT_FAILURE;
         }
+        break;
+      case action_arg_importMINUS_certificate:
+        if(args_info.slot_arg != slot__NULL) {
+          if(import_cert(&card, args_info.key_format_arg, args_info.input_arg, args_info.slot_arg, verbosity) == false) {
+            return EXIT_FAILURE;
+          }
+          printf("Successfully imported a new certificate.\n");
+        } else {
+          fprintf(stderr, "The import action needs a slot (-s) to operate on.\n");
+          return EXIT_FAILURE;
+        }
+        break;
+
         break;
       case action__NULL:
       default:
