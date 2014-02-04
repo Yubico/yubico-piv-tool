@@ -35,6 +35,7 @@
 #include <openssl/des.h>
 #include <openssl/pem.h>
 #include <openssl/pkcs12.h>
+#include <openssl/ec.h>
 
 #ifdef __APPLE__
 #include <PCSC/wintypes.h>
@@ -242,6 +243,11 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
   FILE *output_file;
   bool ret = true;
   EVP_PKEY *public_key = NULL;
+  RSA *rsa = NULL;
+  BIGNUM *bignum_n = NULL;
+  BIGNUM *bignum_e = NULL;
+  EC_KEY *eckey = NULL;
+  EC_POINT *point = NULL;
 
   sscanf(slot, "%x", &key);
 
@@ -302,8 +308,7 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
     if(algorithm == algorithm_arg_RSA1024 || algorithm == algorithm_arg_RSA2048) {
       unsigned char *data_ptr = data + 5;
       int len;
-      RSA *rsa = RSA_new();
-      BIGNUM *n, *e;
+      rsa = RSA_new();
 
       if(*data_ptr != 0x81) {
         fprintf(stderr, "Failed to parse public key structure.\n");
@@ -313,8 +318,8 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
       data_ptr++;
       len = get_length(data_ptr);
       data_ptr += get_length_bytes(len);
-      n = BN_bin2bn(data_ptr, len, NULL);
-      if(n == NULL) {
+      bignum_n = BN_bin2bn(data_ptr, len, NULL);
+      if(bignum_n == NULL) {
         fprintf(stderr, "Failed to parse public key modulus.\n");
         ret = false;
         goto generate_out;
@@ -329,19 +334,46 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
       data_ptr++;
       len = get_length(data_ptr);
       data_ptr += get_length_bytes(len);
-      e = BN_bin2bn(data_ptr, len, NULL);
-      if(e == NULL) {
+      bignum_e = BN_bin2bn(data_ptr, len, NULL);
+      if(bignum_e == NULL) {
         fprintf(stderr, "Failed to parse public key exponent.\n");
         ret = false;
         goto generate_out;
       }
 
-      rsa->n = n;
-      rsa->e = e;
-      EVP_PKEY_assign_RSA(public_key, rsa);
+      rsa->n = bignum_n;
+      rsa->e = bignum_e;
+      EVP_PKEY_set1_RSA(public_key, rsa);
+    } else if(algorithm == algorithm_arg_ECCP256) {
+      const EC_GROUP *group;
+      unsigned char *data_ptr = data + 3;
+
+      eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+      group = EC_KEY_get0_group(eckey);
+      point = EC_POINT_new(group);
+      if(*data_ptr++ != 0x86) {
+        fprintf(stderr, "Failed to parse public key structure.\n");
+        ret = false;
+        goto generate_out;
+      }
+      if(*data_ptr++ != 65) { /* the curve point should always be 65 bytes */
+        fprintf(stderr, "Unexpected length.\n");
+        ret = false;
+        goto generate_out;
+      }
+      if(!EC_POINT_oct2point(group, point, data_ptr, 65, NULL)) {
+        fprintf(stderr, "Failed to load public point.\n");
+        ret = false;
+        goto generate_out;
+      }
+      if(!EC_KEY_set_public_key(eckey, point)) {
+        fprintf(stderr, "Failed to set the public key.\n");
+        ret = false;
+        goto generate_out;
+      }
+      EVP_PKEY_set1_EC_KEY(public_key, eckey);
     } else {
-      /* TODO: ECC pubkey out */
-      fprintf(stderr, "only RSA gets an output..\n");
+      fprintf(stderr, "Wrong algorithm.\n");
       ret = false;
       goto generate_out;
     }
@@ -358,6 +390,21 @@ generate_out:
   }
   if(public_key) {
     EVP_PKEY_free(public_key);
+  }
+  if(rsa) {
+    RSA_free(rsa);
+  }
+  if(bignum_n) {
+    BN_free(bignum_n);
+  }
+  if(bignum_e) {
+    BN_free(bignum_e);
+  }
+  if(eckey) {
+    EC_KEY_free(eckey);
+  }
+  if(point) {
+    EC_POINT_free(point);
   }
 
   return ret;
