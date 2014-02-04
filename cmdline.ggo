@@ -28,5 +28,5 @@ option "verbose" v "Print more information" flag off
 option "reader" r "Only use a matching reader" string optional
 option "key" k "Authentication key to use" string optional default="010203040506070801020304050607080102030405060708"
 option "action" a "Action to take" values="version","generate" enum
-option "slot" s "What key slot to operate on" values="9a","9b","9c","9d","9e" enum optional
+option "slot" s "What key slot to operate on" values="9a","9c","9d","9e" enum optional
 option "algorithm" A "What algorithm to use" values="RSA1024","RSA2048","ECCP256" enum optional default="RSA2048"
