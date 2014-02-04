@@ -68,6 +68,8 @@ typedef union u_APDU APDU;
 static void dump_hex(unsigned const char*, unsigned int);
 static int send_data(SCARDHANDLE*, APDU, unsigned int, unsigned char*, unsigned long*, int);
 static int set_length(unsigned char*, int);
+static int get_length(unsigned char*);
+static int get_length_bytes(int);
 
 static bool connect_reader(SCARDHANDLE *card, SCARDCONTEXT *context, const char *wanted, int verbose) {
   unsigned long num_readers;
@@ -230,15 +232,28 @@ static void print_version(SCARDHANDLE *card, int verbose) {
   }
 }
 
-static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorithm algorithm, int verbose) {
+static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorithm algorithm, const char *output_file_name, enum enum_key_format key_format, int verbose) {
   APDU apdu;
   unsigned char data[1024];
   unsigned long recv_len = 0xff;
   unsigned long received = 0;
   int sw;
   int key = 0;
+  FILE *output_file;
+  bool ret = true;
+  EVP_PKEY *public_key = NULL;
 
   sscanf(slot, "%x", &key);
+
+  if(!strcmp(output_file_name, "-")) {
+    output_file = stdout;
+  } else {
+    output_file = fopen(output_file_name, "r");
+    if(!output_file) {
+      fprintf(stderr, "Failed opening '%s'!\n", output_file_name);
+      return false;
+    }
+  }
 
   memset(apdu.raw, 0, sizeof(apdu));
   apdu.st.ins = 0x47;
@@ -261,6 +276,8 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
     case algorithm__NULL:
     default:
       fprintf(stderr, "Unexepcted algorithm.\n");
+      ret = false;
+      goto generate_out;
   }
   sw = send_data(card, apdu, 10, data, &recv_len, verbose);
 
@@ -271,12 +288,79 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
     memset(apdu.raw, 0, sizeof(apdu));
     apdu.st.ins = 0xc0;
     sw = send_data(card, apdu, 4, data + received, &recv_len, verbose);
-    received += recv_len;
+  }
+  if(sw != 0x9000) {
+    fprintf(stderr, "Failed to generate new key.\n");
+    ret = false;
+    goto generate_out;
+  }
+  /* to drop the 90 00 and the 7f 49 at the start */
+  received += recv_len - 4;
+
+  if(key_format == key_format_arg_PEM) {
+    public_key = EVP_PKEY_new();
+    if(algorithm == algorithm_arg_RSA1024 || algorithm == algorithm_arg_RSA2048) {
+      unsigned char *data_ptr = data + 5;
+      int len;
+      RSA *rsa = RSA_new();
+      BIGNUM *n, *e;
+
+      if(*data_ptr != 0x81) {
+        fprintf(stderr, "Failed to parse public key structure.\n");
+        ret = false;
+        goto generate_out;
+      }
+      data_ptr++;
+      len = get_length(data_ptr);
+      data_ptr += get_length_bytes(len);
+      n = BN_bin2bn(data_ptr, len, NULL);
+      if(n == NULL) {
+        fprintf(stderr, "Failed to parse public key modulus.\n");
+        ret = false;
+        goto generate_out;
+      }
+      data_ptr += len;
+
+      if(*data_ptr != 0x82) {
+        fprintf(stderr, "Failed to parse public key structure.\n");
+        ret = false;
+        goto generate_out;
+      }
+      data_ptr++;
+      len = get_length(data_ptr);
+      data_ptr += get_length_bytes(len);
+      e = BN_bin2bn(data_ptr, len, NULL);
+      if(e == NULL) {
+        fprintf(stderr, "Failed to parse public key exponent.\n");
+        ret = false;
+        goto generate_out;
+      }
+
+      rsa->n = n;
+      rsa->e = e;
+      EVP_PKEY_assign_RSA(public_key, rsa);
+    } else {
+      /* TODO: ECC pubkey out */
+      fprintf(stderr, "only RSA gets an output..\n");
+      ret = false;
+      goto generate_out;
+    }
+    PEM_write_PUBKEY(output_file, public_key);
+  } else {
+    fprintf(stderr, "Only PEM is supported as public_key output.\n");
+    ret = false;
+    goto generate_out;
   }
 
-  dump_hex(data, received);
+generate_out:
+  if(output_file != stdout) {
+    fclose(output_file);
+  }
+  if(public_key) {
+    EVP_PKEY_free(public_key);
+  }
 
-  return true;
+  return ret;
 }
 
 static bool set_mgm_key(SCARDHANDLE *card, unsigned const char *new_key, int verbose) {
@@ -353,14 +437,12 @@ static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format, const
   EVP_PKEY *private_key = NULL;
   PKCS12 *p12 = NULL;
   X509 *cert = NULL;
-  bool in_stdin = false;
   bool ret = true;
 
   sscanf(slot, "%x", &key);
 
   if(!strcmp(input_file_name, "-")) {
     input_file = stdin;
-    in_stdin = true;
   } else {
     input_file = fopen(input_file_name, "r");
     if(!input_file) {
@@ -481,7 +563,7 @@ import_out:
   if(cert) {
     X509_free(cert);
   }
-  if(!in_stdin) {
+  if(input_file != stdin) {
     fclose(input_file);
   }
   return ret;
@@ -547,6 +629,27 @@ static bool parse_key(char *key_arg, unsigned char *key, int verbose) {
   return true;
 }
 
+static int get_length(unsigned char *buffer) {
+  if(buffer[0] < 0x81) {
+    return buffer[0];
+  } else if((*buffer & 0x7f) == 1) {
+    return buffer[1];
+  } else if((*buffer & 0x7f) == 2) {
+    return((buffer[1] << 8) + buffer[0]);
+  }
+  return 0;
+}
+
+static int get_length_bytes(int len) {
+  if(len < 0x81) {
+    return 1;
+  } else if(len < 0xff) {
+    return 2;
+  } else {
+    return 3;
+  }
+}
+
 static int set_length(unsigned char *buffer, int length) {
   if(length < 0x80) {
     *buffer++ = length;
@@ -607,7 +710,7 @@ int main(int argc, char *argv[]) {
       print_version(&card, verbosity);
     } else if(action == action_arg_generate) {
       if(args_info.slot_arg != slot__NULL) {
-        if(generate_key(&card, args_info.slot_orig, args_info.algorithm_arg, verbosity) == false) {
+        if(generate_key(&card, args_info.slot_orig, args_info.algorithm_arg, args_info.output_arg, args_info.key_format_arg, verbosity) == false) {
           return EXIT_FAILURE;
         }
       } else {
