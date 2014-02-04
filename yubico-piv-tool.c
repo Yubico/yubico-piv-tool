@@ -686,10 +686,12 @@ int main(int argc, char *argv[]) {
   }
 
   if(connect_reader(&card, &context, args_info.reader_arg, verbosity) == false) {
+    fprintf("Failed to connect to reader.\n");
     return EXIT_FAILURE;
   }
 
   if(select_applet(&card, verbosity) == false) {
+    fprintf(stderr, "Failed to select applet.\n");
     return EXIT_FAILURE;
   }
 
