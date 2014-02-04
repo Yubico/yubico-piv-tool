@@ -538,7 +538,7 @@ static bool parse_key(char *key_arg, unsigned char *key, int verbose) {
       return false;
     }
   }
-  if(verbose) {
+  if(verbose > 1) {
     fprintf(stderr, "parsed key: ");
     dump_hex(key, KEY_LEN);
     fprintf(stderr, "\n");
@@ -590,7 +590,11 @@ int main(int argc, char *argv[]) {
   }
 
   if(authenticate(&card, key, verbosity) == false) {
+    fprintf(stderr, "Failed authentication with the applet.\n");
     return EXIT_FAILURE;
+  }
+  if(verbosity) {
+    fprintf(stderr, "Successfull applet authentication.\n");
   }
 
   for(i = 0; i < args_info.action_given; i++) {
@@ -602,7 +606,9 @@ int main(int argc, char *argv[]) {
       print_version(&card, verbosity);
     } else if(action == action_arg_generate) {
       if(args_info.slot_arg != slot__NULL) {
-        generate_key(&card, args_info.slot_orig, args_info.algorithm_arg, verbosity);
+        if(generate_key(&card, args_info.slot_orig, args_info.algorithm_arg, verbosity) == false) {
+          return EXIT_FAILURE;
+        }
       } else {
         fprintf(stderr, "The generate action needs a slot (-s) to operate on.\n");
         return EXIT_FAILURE;
@@ -616,6 +622,7 @@ int main(int argc, char *argv[]) {
         if(set_mgm_key(&card, new_key, verbosity) == false) {
           return EXIT_FAILURE;
         }
+        printf("Successfully set new management key.\n");
       } else {
         fprintf(stderr, "The set-mgm-key action needs the new-key (-n) argument.\n");
         return EXIT_FAILURE;
@@ -624,11 +631,13 @@ int main(int argc, char *argv[]) {
       if(reset(&card, verbosity) == false) {
         return EXIT_FAILURE;
       }
+      printf("Successfully reset the applet.\n");
     } else if(action == action_arg_pinMINUS_retries) {
       if(args_info.pin_retries_arg && args_info.puk_retries_arg) {
         if(set_pin_retries(&card, args_info.pin_retries_arg, args_info.puk_retries_arg, verbosity) == false) {
           return EXIT_FAILURE;
         }
+        printf("Successfully changed pin retries to %d and puk retries to %d.\n", args_info.pin_retries_arg, args_info.puk_retries_arg);
       } else {
         return EXIT_FAILURE;
       }
@@ -637,8 +646,9 @@ int main(int argc, char *argv[]) {
         if(import_key(&card, args_info.key_format_arg, args_info.input_arg, args_info.slot_orig, verbosity) == false) {
           return EXIT_FAILURE;
         }
+        printf("Successfully imported a new private key.\n");
       } else {
-        fprintf(stderr, "The generate action needs a slot (-s) to operate on.\n");
+        fprintf(stderr, "The import action needs a slot (-s) to operate on.\n");
         return EXIT_FAILURE;
       }
     }
