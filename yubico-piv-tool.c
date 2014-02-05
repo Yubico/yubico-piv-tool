@@ -35,6 +35,7 @@
 #include <openssl/des.h>
 #include <openssl/pem.h>
 #include <openssl/pkcs12.h>
+#include <openssl/rand.h>
 
 #if BACKEND_PCSC
 #if defined HAVE_PCSC_WINSCARD_H
@@ -51,6 +52,19 @@ unsigned const char aid[] = {
   0xa0, 0x00, 0x00, 0x03, 0x08
 };
 #define AID_LEN 5
+
+/* FASC-N containing F9999F9999F999999F0F1F0000000000300001E encoded in
+ * 4-bit BCD with 1 bit parity. run through the tools/fasc.pl script to get
+ * bytes. */
+unsigned const char chuid_tmpl[] = {
+  0x5c, 0x03, 0x5f, 0xc1, 0x02, 0x53, 0x3b, 0x30, 0x19, 0xd4, 0xe7, 0x39, 0xea,
+  0x73, 0x9c, 0xf5, 0x39, 0xce, 0x73, 0x9e, 0x83, 0xa8, 0x68, 0x21, 0x08, 0x42,
+  0x10, 0x84, 0x21, 0x38, 0x42, 0x10, 0xc3, 0xf9, 0x34, 0x10, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x35, 0x08, 0x32, 0x30, 0x33, 0x30, 0x30, 0x31, 0x30, 0x31, 0x3e, 0x00, 0xfe,
+  0x00,
+};
+#define CHUID_GUID_OFFS 35
 
 #define KEY_LEN 24
 
@@ -766,6 +780,37 @@ import_cert_out:
   return ret;
 }
 
+static bool set_chuid(SCARDHANDLE *card, int verbose) {
+  APDU apdu;
+  unsigned char data[0xff];
+  unsigned char *dataptr = apdu.st.data;
+  unsigned long recv_len = sizeof(data);
+  int sw;
+
+  memset(apdu.raw, 0, sizeof(apdu));
+  memcpy(apdu.st.data, chuid_tmpl, sizeof(chuid_tmpl));
+  dataptr += CHUID_GUID_OFFS;
+  if(RAND_pseudo_bytes(dataptr, 0x10) == -1) {
+    fprintf(stderr, "error: no randomness.\n");
+    return false;
+  }
+  if(verbose) {
+    fprintf(stderr, "Setting the GUID to: ");
+    dump_hex(dataptr, 0x10);
+    fprintf(stderr, "\n");
+  }
+  apdu.st.ins = 0xdb;
+  apdu.st.p1 = 0x3f;
+  apdu.st.p2 = 0xff;
+  apdu.st.lc = sizeof(chuid_tmpl);
+  sw = send_data(card, &apdu, sizeof(chuid_tmpl) + 5, data, &recv_len, verbose);
+  if(sw != 0x9000) {
+    fprintf(stderr, "Failed setting CHUID.\n");
+    return false;
+  }
+  return true;
+}
+
 static int send_data(SCARDHANDLE *card, APDU *apdu, unsigned int send_len,
     unsigned char *data, unsigned long *recv_len, int verbose) {
   long rc;
@@ -976,7 +1021,11 @@ int main(int argc, char *argv[]) {
           return EXIT_FAILURE;
         }
         break;
-
+      case action_arg_setMINUS_chuid:
+        if(set_chuid(&card, verbosity) == false) {
+          return EXIT_FAILURE;
+        }
+        printf("Successfully set new CHUID.\n");
         break;
       case action__NULL:
       default:
