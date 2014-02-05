@@ -326,13 +326,12 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
       rsa = RSA_new();
 
       if(*data_ptr != 0x81) {
-        fprintf(stderr, "Failed to parse public key structure. (ptr was %02x)\n", *data_ptr);
+        fprintf(stderr, "Failed to parse public key structure.\n");
         ret = false;
         goto generate_out;
       }
       data_ptr++;
       data_ptr += get_length(data_ptr, &len);
-      printf("modulus is %d.\n", len);
       bignum_n = BN_bin2bn(data_ptr, len, NULL);
       if(bignum_n == NULL) {
         fprintf(stderr, "Failed to parse public key modulus.\n");
@@ -342,7 +341,7 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
       data_ptr += len;
 
       if(*data_ptr != 0x82) {
-        fprintf(stderr, "Failed to parse public key structure (2). (ptr was %02x)\n", *data_ptr);
+        fprintf(stderr, "Failed to parse public key structure (2).\n");
         ret = false;
         goto generate_out;
       }
