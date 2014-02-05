@@ -20,3 +20,15 @@ yubico-piv-tool.1
 yubico-piv-tool.o
 *.c~
 *.h~
+ChangeLog
+build-aux/config.guess
+build-aux/config.sub
+build-aux/depcomp
+build-aux/install-sh
+build-aux/ltmain.sh
+build-aux/missing
+tmp32/
+tmp64/
+yubico-piv-tool-*-win32.zip
+yubico-piv-tool-*-win64.zip
+yubico-piv-tool-*.tar.gz
