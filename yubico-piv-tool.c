@@ -996,6 +996,7 @@ int main(int argc, char *argv[]) {
           }
           printf("Successfully changed pin retries to %d and puk retries to %d.\n", args_info.pin_retries_arg, args_info.puk_retries_arg);
         } else {
+          fprintf(stderr, "The pin-retries action needs both --pin-retries and --puk-retries arguments.\n");
           return EXIT_FAILURE;
         }
         break;
