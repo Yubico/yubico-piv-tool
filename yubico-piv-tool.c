@@ -69,7 +69,7 @@ union u_APDU {
 typedef union u_APDU APDU;
 
 static void dump_hex(unsigned const char*, unsigned int);
-static int send_data(SCARDHANDLE*, APDU, unsigned int, unsigned char*, unsigned long*, int);
+static int send_data(SCARDHANDLE*, APDU*, unsigned int, unsigned char*, unsigned long*, int);
 static int set_length(unsigned char*, int);
 static int get_length(unsigned char*);
 static int get_length_bytes(int);
@@ -152,7 +152,7 @@ static bool select_applet(SCARDHANDLE *card, int verbose) {
   apdu.st.lc = AID_LEN;
   memcpy(apdu.st.data, aid, AID_LEN);
 
-  sw = send_data(card, apdu, AID_LEN + 5, data, &recv_len, verbose);
+  sw = send_data(card, &apdu, AID_LEN + 5, data, &recv_len, verbose);
   if(sw == 0x9000) {
     return true;
   }
@@ -188,7 +188,7 @@ static bool authenticate(SCARDHANDLE *card, unsigned const char *key, int verbos
     apdu.st.data[0] = 0x7c;
     apdu.st.data[1] = 0x02;
     apdu.st.data[2] = 0x80;
-    sw = send_data(card, apdu, 9, data, &recv_len, verbose);
+    sw = send_data(card, &apdu, 9, data, &recv_len, verbose);
     if(sw != 0x9000) {
       return false;
     }
@@ -210,7 +210,7 @@ static bool authenticate(SCARDHANDLE *card, unsigned const char *key, int verbos
     apdu.st.data[2] = 0x80;
     apdu.st.data[3] = 8;
     memcpy(apdu.st.data + 4, response, 8);
-    sw = send_data(card, apdu, 17, data, &recv_len, verbose);
+    sw = send_data(card, &apdu, 17, data, &recv_len, verbose);
   }
 
   if(sw == 0x9000) {
@@ -227,7 +227,7 @@ static void print_version(SCARDHANDLE *card, int verbose) {
 
   memset(apdu.raw, 0, sizeof(apdu));
   apdu.st.ins = 0xfd;
-  sw = send_data(card, apdu, 4, data, &recv_len, verbose);
+  sw = send_data(card, &apdu, 4, data, &recv_len, verbose);
   if(sw == 0x9000) {
     printf("Applet version %d.%d.%d found.\n", data[0], data[1], data[2]);
   } else {
@@ -287,7 +287,7 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
       ret = false;
       goto generate_out;
   }
-  sw = send_data(card, apdu, 10, data, &recv_len, verbose);
+  sw = send_data(card, &apdu, 10, data, &recv_len, verbose);
 
   /* chained response */
   if((sw & 0x6100) == 0x6100) {
@@ -295,7 +295,7 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
     recv_len = 0xff;
     memset(apdu.raw, 0, sizeof(apdu));
     apdu.st.ins = 0xc0;
-    sw = send_data(card, apdu, 4, data + received, &recv_len, verbose);
+    sw = send_data(card, &apdu, 4, data + received, &recv_len, verbose);
   }
   if(sw != 0x9000) {
     fprintf(stderr, "Failed to generate new key.\n");
@@ -428,7 +428,7 @@ static bool set_mgm_key(SCARDHANDLE *card, unsigned const char *new_key, int ver
   apdu.st.data[1] = 0x9b;
   apdu.st.data[2] = KEY_LEN;
   memcpy(apdu.st.data + 3, new_key, KEY_LEN);
-  sw = send_data(card, apdu, KEY_LEN + 8, data, &recv_len, verbose);
+  sw = send_data(card, &apdu, KEY_LEN + 8, data, &recv_len, verbose);
 
   if(sw == 0x9000) {
     return true;
@@ -445,7 +445,7 @@ static bool reset(SCARDHANDLE *card, int verbose) {
   memset(apdu.raw, 0, sizeof(apdu));
   /* note: the reset function is only available when both pins are blocked. */
   apdu.st.ins = 0xfb;
-  sw = send_data(card, apdu, 4, data, &recv_len, verbose);
+  sw = send_data(card, &apdu, 4, data, &recv_len, verbose);
 
   if(sw == 0x9000) {
     return true;
@@ -472,7 +472,7 @@ static bool set_pin_retries(SCARDHANDLE *card, int pin_retries, int puk_retries,
   apdu.st.ins = 0xfa;
   apdu.st.p1 = pin_retries;
   apdu.st.p2 = puk_retries;
-  sw = send_data(card, apdu, 4, data, &recv_len, verbose);
+  sw = send_data(card, &apdu, 4, data, &recv_len, verbose);
 
   if(sw == 0x9000) {
     return true;
@@ -590,7 +590,7 @@ static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format,
           apdu.st.p2 = key;
           apdu.st.lc = this_size;
           memcpy(apdu.st.data, in_ptr, this_size);
-          sw = send_data(card, apdu, this_size + 5, data, &recv_len, verbose);
+          sw = send_data(card, &apdu, this_size + 5, data, &recv_len, verbose);
           if(sw != 0x9000) {
             fprintf(stderr, "Failed import command with code %x.", sw);
             ret = false;
@@ -739,7 +739,7 @@ static bool import_cert(SCARDHANDLE *card, enum enum_key_format cert_format,
       apdu.st.p2 = 0xff;
       apdu.st.lc = this_size;
       memcpy(apdu.st.data, certptr, this_size);
-      sw = send_data(card, apdu, this_size + 5, data, &recv_len, verbose);
+      sw = send_data(card, &apdu, this_size + 5, data, &recv_len, verbose);
       if(sw != 0x9000) {
         fprintf(stderr, "Failed import command with code %x.", sw);
         ret = false;
@@ -766,17 +766,17 @@ import_cert_out:
   return ret;
 }
 
-static int send_data(SCARDHANDLE *card, APDU apdu, unsigned int send_len,
+static int send_data(SCARDHANDLE *card, APDU *apdu, unsigned int send_len,
     unsigned char *data, unsigned long *recv_len, int verbose) {
   long rc;
   int sw;
 
   if(verbose > 1) {
     fprintf(stderr, "> ");
-    dump_hex(apdu.raw, send_len);
+    dump_hex(apdu->raw, send_len);
     fprintf(stderr, "\n");
   }
-  rc = SCardTransmit(*card, SCARD_PCI_T1, apdu.raw, send_len, NULL, data, recv_len);
+  rc = SCardTransmit(*card, SCARD_PCI_T1, apdu->raw, send_len, NULL, data, recv_len);
   if(rc != SCARD_S_SUCCESS) {
     fprintf (stderr, "error: SCardTransmit failed, rc=%08lx\n", rc);
     return 0;
