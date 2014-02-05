@@ -51,7 +51,6 @@
 unsigned const char aid[] = {
   0xa0, 0x00, 0x00, 0x03, 0x08
 };
-#define AID_LEN 5
 
 /* FASC-N containing F9999F9999F999999F0F1F0000000000300001E encoded in
  * 4-bit BCD with 1 bit parity. run through the tools/fasc.pl script to get
@@ -164,10 +163,10 @@ static bool select_applet(SCARDHANDLE *card, int verbose) {
   memset(apdu.raw, 0, sizeof(apdu));
   apdu.st.ins = 0xa4;
   apdu.st.p1 = 0x04;
-  apdu.st.lc = AID_LEN;
-  memcpy(apdu.st.data, aid, AID_LEN);
+  apdu.st.lc = sizeof(aid);
+  memcpy(apdu.st.data, aid, sizeof(aid));
 
-  sw = send_data(card, &apdu, AID_LEN + 5, data, &recv_len, verbose);
+  sw = send_data(card, &apdu, sizeof(aid) + 5, data, &recv_len, verbose);
   if(sw == 0x9000) {
     return true;
   }
