@@ -85,8 +85,7 @@ typedef union u_APDU APDU;
 static void dump_hex(unsigned const char*, unsigned int);
 static int send_data(SCARDHANDLE*, APDU*, unsigned int, unsigned char*, unsigned long*, int);
 static int set_length(unsigned char*, int);
-static int get_length(unsigned char*);
-static int get_length_bytes(int);
+static int get_length(unsigned char*, int *);
 
 static bool connect_reader(SCARDHANDLE *card, SCARDCONTEXT *context, const char *wanted, int verbose) {
   unsigned long num_readers;
@@ -323,17 +322,17 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
     public_key = EVP_PKEY_new();
     if(algorithm == algorithm_arg_RSA1024 || algorithm == algorithm_arg_RSA2048) {
       unsigned char *data_ptr = data + 5;
-      int len;
+      int len = 0;
       rsa = RSA_new();
 
       if(*data_ptr != 0x81) {
-        fprintf(stderr, "Failed to parse public key structure.\n");
+        fprintf(stderr, "Failed to parse public key structure. (ptr was %02x)\n", *data_ptr);
         ret = false;
         goto generate_out;
       }
       data_ptr++;
-      len = get_length(data_ptr);
-      data_ptr += get_length_bytes(len);
+      data_ptr += get_length(data_ptr, &len);
+      printf("modulus is %d.\n", len);
       bignum_n = BN_bin2bn(data_ptr, len, NULL);
       if(bignum_n == NULL) {
         fprintf(stderr, "Failed to parse public key modulus.\n");
@@ -343,13 +342,12 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
       data_ptr += len;
 
       if(*data_ptr != 0x82) {
-        fprintf(stderr, "Failed to parse public key structure.\n");
+        fprintf(stderr, "Failed to parse public key structure (2). (ptr was %02x)\n", *data_ptr);
         ret = false;
         goto generate_out;
       }
       data_ptr++;
-      len = get_length(data_ptr);
-      data_ptr += get_length_bytes(len);
+      data_ptr += get_length(data_ptr, &len);
       bignum_e = BN_bin2bn(data_ptr, len, NULL);
       if(bignum_e == NULL) {
         fprintf(stderr, "Failed to parse public key exponent.\n");
@@ -404,23 +402,17 @@ generate_out:
   if(output_file != stdout) {
     fclose(output_file);
   }
-  if(public_key) {
-    EVP_PKEY_free(public_key);
-  }
-  if(rsa) {
-    RSA_free(rsa);
-  }
-  if(bignum_n) {
-    BN_free(bignum_n);
-  }
-  if(bignum_e) {
-    BN_free(bignum_e);
+  if(point) {
+    EC_POINT_free(point);
   }
   if(eckey) {
     EC_KEY_free(eckey);
   }
-  if(point) {
-    EC_POINT_free(point);
+  if(rsa) {
+    RSA_free(rsa);
+  }
+  if(public_key) {
+    EVP_PKEY_free(public_key);
   }
 
   return ret;
@@ -719,7 +711,13 @@ static bool import_cert(SCARDHANDLE *card, enum enum_key_format cert_format,
     *certptr++ = (object >> 8) & 0xff;
     *certptr++ = object & 0xff;
     *certptr++ = 0x53;
-    bytes = get_length_bytes(cert_len);
+    if(cert_len < 0x80) {
+      bytes = 1;
+    } else if(cert_len < 0xff) {
+      bytes = 2;
+    } else {
+      bytes = 3;
+    }
     certptr += set_length(certptr, cert_len + bytes + 6);
     *certptr++ = 0x70;
     certptr += set_length(certptr, cert_len);
@@ -872,25 +870,18 @@ static bool parse_key(char *key_arg, unsigned char *key, int verbose) {
   return true;
 }
 
-static int get_length(unsigned char *buffer) {
+static int get_length(unsigned char *buffer, int *len) {
   if(buffer[0] < 0x81) {
-    return buffer[0];
-  } else if((*buffer & 0x7f) == 1) {
-    return buffer[1];
-  } else if((*buffer & 0x7f) == 2) {
-    return((buffer[1] << 8) + buffer[0]);
-  }
-  return 0;
-}
-
-static int get_length_bytes(int len) {
-  if(len < 0x81) {
+    *len = buffer[0];
     return 1;
-  } else if(len < 0xff) {
+  } else if((*buffer & 0x7f) == 1) {
+    *len = buffer[1];
     return 2;
-  } else {
+  } else if((*buffer & 0x7f) == 2) {
+    *len = (buffer[1] << 8) + buffer[2];
     return 3;
   }
+  return 0;
 }
 
 static int set_length(unsigned char *buffer, int length) {
