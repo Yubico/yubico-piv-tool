@@ -547,6 +547,9 @@ static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format,
         ret = false;
         goto import_out;
       }
+      if(verbose) {
+        fprintf(stderr, "Found RSA-%d key.\n", size * 8);
+      }
       {
         APDU apdu;
         unsigned char in_data[1024];
