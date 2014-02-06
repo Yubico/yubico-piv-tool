@@ -521,7 +521,7 @@ static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format,
       goto import_out;
     }
     if(PKCS12_parse(p12, password, &private_key, &cert, NULL) == 0) {
-      fprintf(stderr, "Failed to parse PKCS12 structure. (password: %s)\n", password);
+      fprintf(stderr, "Failed to parse PKCS12 structure. (wrong password?)\n");
       ret = false;
       goto import_out;
     }
