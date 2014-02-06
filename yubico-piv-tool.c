@@ -87,6 +87,7 @@ static int send_data(SCARDHANDLE*, APDU*, unsigned int, unsigned char*, unsigned
 static int set_length(unsigned char*, int);
 static int get_length(unsigned char*, int *);
 static X509_NAME *parse_name(char*);
+static unsigned char get_algorithm(EVP_PKEY*);
 
 static bool connect_reader(SCARDHANDLE *card, SCARDCONTEXT *context, const char *wanted, int verbose) {
   unsigned long num_readers;
@@ -534,85 +535,72 @@ static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format,
   }
 
   {
-    int type = EVP_PKEY_type(private_key->type);
-    if(type == EVP_PKEY_RSA) {
-      int algorithm;
-      RSA *rsa_private_key = EVP_PKEY_get1_RSA(private_key);
-      int size = RSA_size(rsa_private_key);
-      if(size == 256) {
-        algorithm = 7;
-      } else if(size == 128) {
-        algorithm = 6;
-      } else {
-        fprintf(stderr, "Unuseable key of %d bits, only 1024 and 2048 is supported.\n", size * 8);
-        ret = false;
-        goto import_out;
-      }
-      if(verbose) {
-        fprintf(stderr, "Found RSA-%d key.\n", size * 8);
-      }
-      {
-        APDU apdu;
-        unsigned char in_data[1024];
-        unsigned char *in_ptr = in_data;
-        int sw;
-        int in_size;
-
-        *in_ptr++ = 0x01;
-        in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->p));
-        in_ptr += BN_bn2bin(rsa_private_key->p, in_ptr);
-
-        *in_ptr++ = 0x02;
-        in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->q));
-        in_ptr += BN_bn2bin(rsa_private_key->q, in_ptr);
-
-        *in_ptr++ = 0x03;
-        in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->dmp1));
-        in_ptr += BN_bn2bin(rsa_private_key->dmp1, in_ptr);
-
-        *in_ptr++ = 0x04;
-        in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->dmq1));
-        in_ptr += BN_bn2bin(rsa_private_key->dmq1, in_ptr);
-
-        *in_ptr++ = 0x05;
-        in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->iqmp));
-        in_ptr += BN_bn2bin(rsa_private_key->iqmp, in_ptr);
-
-        in_size = in_ptr - in_data;
-        in_ptr = in_data;
-
-        while(in_ptr < in_data + in_size) {
-          unsigned char data[0xff];
-          unsigned long recv_len = sizeof(data);
-          size_t this_size = 0xff;
-          memset(apdu.raw, 0, sizeof(apdu));
-          if(in_ptr + 0xff < in_data + in_size) {
-            apdu.st.cla = 0x10;
-          } else {
-            this_size = (size_t)((in_data + in_size) - in_ptr);
-          }
-          if(verbose) {
-            fprintf(stderr, "going to send %lu bytes in this go.\n", (unsigned long)this_size);
-          }
-          apdu.st.ins = 0xfe;
-          apdu.st.p1 = algorithm;
-          apdu.st.p2 = key;
-          apdu.st.lc = this_size;
-          memcpy(apdu.st.data, in_ptr, this_size);
-          sw = send_data(card, &apdu, this_size + 5, data, &recv_len, verbose);
-          if(sw != 0x9000) {
-            fprintf(stderr, "Failed import command with code %x.", sw);
-            ret = false;
-            goto import_out;
-          }
-          in_ptr += this_size;
-        }
-      }
-
-    } else {
-      /* TODO: ECC */
-      fprintf(stderr, "Unknown type: %d\n", type);
+    unsigned char algorithm = get_algorithm(private_key);
+    if(algorithm == 11) {
+      fprintf(stderr, "import key only supports RSA.\n");
       ret = false;
+      goto import_out;
+    } else if(algorithm == 0) {
+      ret = false;
+      goto import_out;
+    }
+    {
+      APDU apdu;
+      unsigned char in_data[1024];
+      unsigned char *in_ptr = in_data;
+      int sw;
+      int in_size;
+      RSA *rsa_private_key = EVP_PKEY_get1_RSA(private_key);
+
+      *in_ptr++ = 0x01;
+      in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->p));
+      in_ptr += BN_bn2bin(rsa_private_key->p, in_ptr);
+
+      *in_ptr++ = 0x02;
+      in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->q));
+      in_ptr += BN_bn2bin(rsa_private_key->q, in_ptr);
+
+      *in_ptr++ = 0x03;
+      in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->dmp1));
+      in_ptr += BN_bn2bin(rsa_private_key->dmp1, in_ptr);
+
+      *in_ptr++ = 0x04;
+      in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->dmq1));
+      in_ptr += BN_bn2bin(rsa_private_key->dmq1, in_ptr);
+
+      *in_ptr++ = 0x05;
+      in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->iqmp));
+      in_ptr += BN_bn2bin(rsa_private_key->iqmp, in_ptr);
+
+      in_size = in_ptr - in_data;
+      in_ptr = in_data;
+
+      while(in_ptr < in_data + in_size) {
+        unsigned char data[0xff];
+        unsigned long recv_len = sizeof(data);
+        size_t this_size = 0xff;
+        memset(apdu.raw, 0, sizeof(apdu));
+        if(in_ptr + 0xff < in_data + in_size) {
+          apdu.st.cla = 0x10;
+        } else {
+          this_size = (size_t)((in_data + in_size) - in_ptr);
+        }
+        if(verbose) {
+          fprintf(stderr, "going to send %lu bytes in this go.\n", (unsigned long)this_size);
+        }
+        apdu.st.ins = 0xfe;
+        apdu.st.p1 = algorithm;
+        apdu.st.p2 = key;
+        apdu.st.lc = this_size;
+        memcpy(apdu.st.data, in_ptr, this_size);
+        sw = send_data(card, &apdu, this_size + 5, data, &recv_len, verbose);
+        if(sw != 0x9000) {
+          fprintf(stderr, "Failed import command with code %x.", sw);
+          ret = false;
+          goto import_out;
+        }
+        in_ptr += this_size;
+      }
     }
   }
 import_out:
@@ -825,6 +813,7 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
   X509_ALGOR algor;
   unsigned char digest[20];
   unsigned int digest_len = sizeof(digest);
+  unsigned char algorithm;
 
   if(!strcmp(input_file_name, "-")) {
     input_file = stdin;
@@ -857,6 +846,8 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
     ret = false;
     goto request_out;
   }
+  algorithm = get_algorithm(public_key);
+
   req = X509_REQ_new();
   if(!req) {
     fprintf(stderr, "Failed to allocate request structure.\n");
@@ -900,6 +891,16 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
     dump_hex(digest, digest_len);
     fprintf(stderr, "\n");
   }
+  {
+    APDU apdu;
+    unsigned char data[0xff];
+    unsigned long recv_len = sizeof(data);
+    int sw;
+
+    memset(apdu.raw, 0, sizeof(apdu.raw));
+    apdu.st.ins = 0x87;
+    apdu.st.p1 = algorithm;
+  }
 
 request_out:
   if(input_file != stdin) {
@@ -918,6 +919,40 @@ request_out:
     X509_NAME_free(name);
   }
   return ret;
+}
+
+static unsigned char get_algorithm(EVP_PKEY *key) {
+  int type = EVP_PKEY_type(key->type);
+  switch(type) {
+    case EVP_PKEY_RSA:
+      {
+        RSA *rsa = EVP_PKEY_get1_RSA(key);
+        int size = RSA_size(rsa);
+        if(size == 256) {
+          return 7;
+        } else if(size == 128) {
+          return 6;
+        } else {
+          fprintf(stderr, "Unuseable key of %d bits, only 1024 and 2048 is supported.\n", size * 8);
+          return 0;
+        }
+      }
+    case EVP_PKEY_EC:
+      {
+        EC_KEY *ec = EVP_PKEY_get1_EC_KEY(key);
+        const EC_GROUP *group = EC_KEY_get0_group(ec);
+        int curve = EC_GROUP_get_curve_name(group);
+        if(curve == NID_X9_62_prime256v1) {
+          return 11;
+        } else {
+          fprintf(stderr, "Unknown EC curve %d\n", curve);
+          return 0;
+        }
+      }
+    default:
+      fprintf(stderr, "Unknown algorithm %d.\n", type);
+      return 0;
+  }
 }
 
 static X509_NAME *parse_name(char *name) {
