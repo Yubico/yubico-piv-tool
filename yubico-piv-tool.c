@@ -921,6 +921,33 @@ request_out:
   return ret;
 }
 
+static bool verify_pin(SCARDHANDLE *card, const char *pin, int verbose) {
+  APDU apdu;
+  unsigned char data[0xff];
+  unsigned long recv_len = sizeof(data);
+  int sw;
+  int len = strlen(pin);
+
+  if(len > 8) {
+    fprintf(stderr, "Maximum 8 digits of PIN supported.\n");
+  }
+
+  memset(apdu.raw, 0, sizeof(apdu.raw));
+  apdu.st.ins = 0x20;
+  apdu.st.p1 = 0x00;
+  apdu.st.p2 = 0x80;
+  apdu.st.lc = 0x08;
+  memcpy(apdu.st.data, pin, len);
+  if(len < 8) {
+    memset(apdu.st.data + len, 0xff, 8 - len);
+  }
+  sw = send_data(card, &apdu, apdu.st.lc + 5, data, &recv_len, verbose);
+  if(sw != 0x9000) {
+    return false;
+  }
+  return true;
+}
+
 static unsigned char get_algorithm(EVP_PKEY *key) {
   int type = EVP_PKEY_type(key->type);
   switch(type) {
@@ -1217,6 +1244,19 @@ int main(int argc, char *argv[]) {
                 args_info.slot_orig, args_info.subject_arg, args_info.output_arg, verbosity) == false) {
             return EXIT_FAILURE;
           }
+        }
+        break;
+      case action_arg_verifyMINUS_pin:
+        if(args_info.pin_arg) {
+          if(verify_pin(&card, args_info.pin_arg, verbosity)) {
+            printf("Successfully verified PIN.\n");
+          } else {
+            fprintf(stderr, "Failed to verify PIN.\n");
+            return EXIT_FAILURE;
+          }
+        } else {
+          fprintf(stderr, "The verify-pin action needs a pin (-P).\n");
+          return EXIT_FAILURE;
         }
         break;
       case action__NULL:
