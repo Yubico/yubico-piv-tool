@@ -813,14 +813,18 @@ static bool set_chuid(SCARDHANDLE *card, int verbose) {
 }
 
 static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_format,
-    const char *input_file_name, const char *slot, char *subject, int verbose) {
+    const char *input_file_name, const char *slot, char *subject,
+    const char *output_file_name, int verbose) {
   X509_REQ *req = NULL;
   X509_NAME *name = NULL;
   FILE *input_file;
+  FILE *output_file;
   EVP_PKEY *public_key = NULL;
   bool ret = true;
-  EVP_MD *md_alg = NULL;
+  const EVP_MD *md_alg = NULL;
   X509_ALGOR algor;
+  unsigned char digest[20];
+  unsigned int digest_len = sizeof(digest);
 
   if(!strcmp(input_file_name, "-")) {
     input_file = stdin;
@@ -828,6 +832,15 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
     input_file = fopen(input_file_name, "r");
     if(!input_file) {
       fprintf(stderr, "Failed opening '%s'!\n", input_file_name);
+      return false;
+    }
+  }
+  if(!strcmp(output_file_name, "-")) {
+    output_file = stdout;
+  } else {
+    output_file = fopen(output_file_name, "w");
+    if(!output_file) {
+      fprintf(stderr, "Failed opening '%s'!\n", output_file_name);
       return false;
     }
   }
@@ -870,18 +883,30 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
 
   md_alg = EVP_get_digestbyname("sha1");
   if(!md_alg) {
-    fprintf(stderr, "No digest.\n");
+    fprintf(stderr, "Unable to get a sha1 digest.\n");
+    ret = false;
+    goto request_out;
+  }
+  if(!X509_REQ_digest(req, md_alg, digest, &digest_len)) {
+    fprintf(stderr, "Failed doing digest of request.\n");
     ret = false;
     goto request_out;
   }
   X509_ALGOR_set_md(req->sig_alg, md_alg);
 
-  X509_REQ_print_fp(stdout,req);
-
+  X509_REQ_print_fp(output_file, req);
+  if(verbose) {
+    fprintf(stderr, "computed digest as: ");
+    dump_hex(digest, digest_len);
+    fprintf(stderr, "\n");
+  }
 
 request_out:
   if(input_file != stdin) {
     fclose(input_file);
+  }
+  if(output_file != stdout) {
+    fclose(output_file);
   }
   if(public_key) {
     EVP_PKEY_free(public_key);
@@ -1154,7 +1179,7 @@ int main(int argc, char *argv[]) {
           fprintf(stderr, "The request-certificate action needs a subject (-S) to operate on.\n");
         } else {
           if(request_certificate(&card, args_info.key_format_arg, args_info.input_arg,
-                args_info.slot_orig, args_info.subject_arg, verbosity) == false) {
+                args_info.slot_orig, args_info.subject_arg, args_info.output_arg, verbosity) == false) {
             return EXIT_FAILURE;
           }
         }
