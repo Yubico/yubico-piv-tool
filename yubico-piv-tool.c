@@ -86,6 +86,7 @@ static void dump_hex(unsigned const char*, unsigned int);
 static int send_data(SCARDHANDLE*, APDU*, unsigned int, unsigned char*, unsigned long*, int);
 static int set_length(unsigned char*, int);
 static int get_length(unsigned char*, int *);
+static X509_NAME *parse_name(char*);
 
 static bool connect_reader(SCARDHANDLE *card, SCARDCONTEXT *context, const char *wanted, int verbose) {
   unsigned long num_readers;
@@ -811,6 +812,130 @@ static bool set_chuid(SCARDHANDLE *card, int verbose) {
   return true;
 }
 
+static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_format,
+    const char *input_file_name, const char *slot, char *subject, int verbose) {
+  X509_REQ *req = NULL;
+  X509_NAME *name = NULL;
+  FILE *input_file;
+  EVP_PKEY *public_key = NULL;
+  bool ret = true;
+  EVP_MD *md_alg = NULL;
+  X509_ALGOR algor;
+
+  if(!strcmp(input_file_name, "-")) {
+    input_file = stdin;
+  } else {
+    input_file = fopen(input_file_name, "r");
+    if(!input_file) {
+      fprintf(stderr, "Failed opening '%s'!\n", input_file_name);
+      return false;
+    }
+  }
+
+  if(key_format == key_format_arg_PEM) {
+    public_key = PEM_read_PUBKEY(input_file, NULL, NULL, NULL);
+    if(!public_key) {
+      fprintf(stderr, "Failed loading private key for import.\n");
+      ret = false;
+      goto request_out;
+    }
+  } else {
+    fprintf(stderr, "Only PEM supported for public key input.\n");
+    ret = false;
+    goto request_out;
+  }
+  req = X509_REQ_new();
+  if(!req) {
+    fprintf(stderr, "Failed to allocate request structure.\n");
+    ret = false;
+    goto request_out;
+  }
+  if(!X509_REQ_set_pubkey(req, public_key)) {
+    fprintf(stderr, "Failed setting the request public key.\n");
+    ret = false;
+    goto request_out;
+  }
+
+  name = parse_name(subject);
+  if(!name) {
+    fprintf(stderr, "Failed encoding subject as name.\n");
+    ret = false;
+    goto request_out;
+  }
+  if(!X509_REQ_set_subject_name(req, name)) {
+    fprintf(stderr, "Failed setting the request subject.\n");
+    ret = false;
+    goto request_out;
+  }
+
+  md_alg = EVP_get_digestbyname("sha1");
+  if(!md_alg) {
+    fprintf(stderr, "No digest.\n");
+    ret = false;
+    goto request_out;
+  }
+  X509_ALGOR_set_md(req->sig_alg, md_alg);
+
+  X509_REQ_print_fp(stdout,req);
+
+
+request_out:
+  if(input_file != stdin) {
+    fclose(input_file);
+  }
+  if(public_key) {
+    EVP_PKEY_free(public_key);
+  }
+  if(req) {
+    X509_REQ_free(req);
+  }
+  if(name) {
+    X509_NAME_free(name);
+  }
+  return ret;
+}
+
+static X509_NAME *parse_name(char *name) {
+  X509_NAME *parsed = NULL;
+  char *ptr = name;
+  char *part;
+  char *saveptr = NULL;
+  if(*name != '/') {
+    fprintf(stderr, "Name does not start with '/'!\n");
+    return NULL;
+  }
+  parsed = X509_NAME_new();
+  if(!parsed) {
+    fprintf(stderr, "Failed to allocate memory\n");
+    return NULL;
+  }
+  while((part = strtok_r(ptr, "/", &saveptr))) {
+    char *key;
+    char *value;
+    char *innersave = NULL;
+
+    ptr = NULL;
+    key = strtok_r(part, "=", &innersave);
+    if(!key) {
+      fprintf(stderr, "Malformed name (%s)\n", part);
+      goto parse_err;
+    }
+    value = strtok_r(NULL, "=", &innersave);
+    if(!value) {
+      fprintf(stderr, "Malformed name (%s)\n", part);
+      goto parse_err;
+    }
+    if(!X509_NAME_add_entry_by_txt(parsed, key, MBSTRING_ASC, (unsigned char*)value, -1, -1, 0)) {
+      fprintf(stderr, "Failed adding %s=%s to name.\n", key, value);
+      goto parse_err;
+    }
+  }
+  return parsed;
+parse_err:
+  X509_NAME_free(parsed);
+  return NULL;
+}
+
 static int send_data(SCARDHANDLE *card, APDU *apdu, unsigned int send_len,
     unsigned char *data, unsigned long *recv_len, int verbose) {
   long rc;
@@ -1020,6 +1145,19 @@ int main(int argc, char *argv[]) {
           return EXIT_FAILURE;
         }
         printf("Successfully set new CHUID.\n");
+        break;
+      case action_arg_requestMINUS_certificate:
+        if(args_info.slot_arg == slot__NULL) {
+          fprintf(stderr, "The request-certificate action needs a slot (-s) to operate on.\n");
+          return EXIT_FAILURE;
+        } else if(!args_info.subject_arg) {
+          fprintf(stderr, "The request-certificate action needs a subject (-S) to operate on.\n");
+        } else {
+          if(request_certificate(&card, args_info.key_format_arg, args_info.input_arg,
+                args_info.slot_orig, args_info.subject_arg, verbosity) == false) {
+            return EXIT_FAILURE;
+          }
+        }
         break;
       case action__NULL:
       default:
