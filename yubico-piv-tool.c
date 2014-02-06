@@ -248,7 +248,8 @@ static void print_version(SCARDHANDLE *card, int verbose) {
   }
 }
 
-static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorithm algorithm, const char *output_file_name, enum enum_key_format key_format, int verbose) {
+static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorithm algorithm,
+    const char *output_file_name, enum enum_key_format key_format, int verbose) {
   APDU apdu;
   unsigned char data[1024];
   unsigned long recv_len = 0xff;
@@ -269,7 +270,7 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
   if(!strcmp(output_file_name, "-")) {
     output_file = stdout;
   } else {
-    output_file = fopen(output_file_name, "r");
+    output_file = fopen(output_file_name, "w");
     if(!output_file) {
       fprintf(stderr, "Failed opening '%s'!\n", output_file_name);
       return false;
