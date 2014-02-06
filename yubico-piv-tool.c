@@ -814,6 +814,9 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
   unsigned char digest[20];
   unsigned int digest_len = sizeof(digest);
   unsigned char algorithm;
+  int key = 0;
+
+  sscanf(slot, "%x", &key);
 
   if(!strcmp(input_file_name, "-")) {
     input_file = stdin;
@@ -847,6 +850,10 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
     goto request_out;
   }
   algorithm = get_algorithm(public_key);
+  if(algorithm == 0) {
+    ret = false;
+    goto request_out;
+  }
 
   req = X509_REQ_new();
   if(!req) {
@@ -894,12 +901,21 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
   {
     APDU apdu;
     unsigned char data[0xff];
+    unsigned char *dataptr = apdu.st.data;
     unsigned long recv_len = sizeof(data);
     int sw;
 
     memset(apdu.raw, 0, sizeof(apdu.raw));
     apdu.st.ins = 0x87;
     apdu.st.p1 = algorithm;
+    apdu.st.p2 = key;
+    apdu.st.lc = digest_len + 4;
+    *dataptr++ = 0x7c;
+    *dataptr++ = digest_len + 2;
+    *dataptr++ = 0x81;
+    *dataptr++ = digest_len;
+    memcpy(dataptr, digest, digest_len);
+    sw = send_data(card, &apdu, apdu.st.lc + 5, data, &recv_len, verbose);
   }
 
 request_out:
