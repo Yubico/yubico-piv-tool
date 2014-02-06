@@ -588,7 +588,7 @@ static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format,
             this_size = (size_t)((in_data + in_size) - in_ptr);
           }
           if(verbose) {
-            fprintf(stderr, "going to send %zu bytes in this go.\n", this_size);
+            fprintf(stderr, "going to send %lu bytes in this go.\n", (unsigned long)this_size);
           }
           apdu.st.ins = 0xfe;
           apdu.st.p1 = algorithm;
@@ -743,7 +743,7 @@ static bool import_cert(SCARDHANDLE *card, enum enum_key_format cert_format,
         this_size = (size_t)((certdata + cert_size) - certptr);
       }
       if(verbose) {
-        fprintf(stderr, "going to send %zu bytes in this go.\n", this_size);
+        fprintf(stderr, "going to send %lu bytes in this go.\n", (unsigned long)this_size);
       }
       apdu.st.ins = 0xdb;
       apdu.st.p1 = 0x3f;
