@@ -983,9 +983,10 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
       if((sw & 0x6100) == 0x6100) {
         received += recv_len - 2;
         recv_len = 0xff;
+        dataptr = data + received;
         memset(apdu.raw, 0, sizeof(apdu));
         apdu.st.ins = 0xc0;
-        sw = send_data(card, &apdu, data, &recv_len, verbose);
+        sw = send_data(card, &apdu, dataptr, &recv_len, verbose);
         if(sw == 0x9000) {
           received += recv_len - 2;
         } else {
