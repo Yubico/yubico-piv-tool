@@ -66,6 +66,10 @@ unsigned const char chuid_tmpl[] = {
 };
 #define CHUID_GUID_OFFS 35
 
+unsigned const char sha1oid[] = {
+  0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2B, 0x0E, 0x03, 0x02, 0x1A, 0x05, 0x00, 0x04, 0x14
+};
+
 #define KEY_LEN 24
 
 union u_APDU {
@@ -271,7 +275,7 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
   if(!strcmp(output_file_name, "-")) {
     output_file = stdout;
   } else {
-    output_file = fopen(output_file_name, "r");
+    output_file = fopen(output_file_name, "w");
     if(!output_file) {
       fprintf(stderr, "Failed opening '%s'!\n", output_file_name);
       return false;
@@ -805,16 +809,19 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
     const char *output_file_name, int verbose) {
   X509_REQ *req = NULL;
   X509_NAME *name = NULL;
+  X509_ALGOR *algor = NULL;
   FILE *input_file;
   FILE *output_file;
   EVP_PKEY *public_key = NULL;
   bool ret = true;
   const EVP_MD *md_alg = NULL;
-  X509_ALGOR algor;
-  unsigned char digest[20];
-  unsigned int digest_len = sizeof(digest);
+  unsigned char digest[35];
+  unsigned int digest_len = 20;
   unsigned char algorithm;
   int key = 0;
+  ASN1_STRING *sig = NULL;
+  unsigned char foo[256];
+  int len;
 
   sscanf(slot, "%x", &key);
 
@@ -867,6 +874,8 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
     goto request_out;
   }
 
+  X509_REQ_set_version(req, 0);
+
   name = parse_name(subject);
   if(!name) {
     fprintf(stderr, "Failed encoding subject as name.\n");
@@ -879,43 +888,133 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
     goto request_out;
   }
 
-  md_alg = EVP_get_digestbyname("sha1");
-  if(!md_alg) {
-    fprintf(stderr, "Unable to get a sha1 digest.\n");
-    ret = false;
-    goto request_out;
-  }
-  if(!X509_REQ_digest(req, md_alg, digest, &digest_len)) {
+  algor = sk_X509_ALGOR_new_null();
+  algor->parameter = sk_ASN1_TYPE_new_null();
+  algor->algorithm=OBJ_nid2obj(NID_sha1WithRSAEncryption);
+  algor->parameter->type = V_ASN1_NULL;
+
+  req->sig_alg = algor;
+
+  memset(digest, 0, sizeof(digest));
+  memcpy(digest, sha1oid, sizeof(sha1oid));
+  /* XXX: this should probably use X509_REQ_digest() but that's buggy */
+  if(!ASN1_item_digest(ASN1_ITEM_rptr(X509_REQ_INFO), EVP_sha1(), req->req_info,
+			  digest + 15, &digest_len)) {
     fprintf(stderr, "Failed doing digest of request.\n");
     ret = false;
     goto request_out;
   }
-  X509_ALGOR_set_md(req->sig_alg, md_alg);
 
-  X509_REQ_print_fp(output_file, req);
   if(verbose) {
     fprintf(stderr, "computed digest as: ");
-    dump_hex(digest, digest_len);
+    dump_hex(digest, sizeof(digest));
     fprintf(stderr, "\n");
   }
+  if(algorithm == 6) {
+    len = 128;
+  } else if(algorithm == 7) {
+    len = 256;
+  }
+  RSA_padding_add_PKCS1_type_1(foo, len, digest, sizeof(digest));
   {
-    APDU apdu;
-    unsigned char data[0xff];
-    unsigned char *dataptr = apdu.st.data;
-    unsigned long recv_len = sizeof(data);
+    unsigned char indata[1024];
+    unsigned char *dataptr = indata;
+    unsigned char data[1024];
+    unsigned long recv_len;
+    unsigned long received = 0;
     int sw;
+    int bytes;
+    int datasize;
 
-    memset(apdu.raw, 0, sizeof(apdu.raw));
-    apdu.st.ins = 0x87;
-    apdu.st.p1 = algorithm;
-    apdu.st.p2 = key;
-    apdu.st.lc = digest_len + 4;
+    if(len < 0x80) {
+      bytes = 1;
+    } else if(len < 0xff) {
+      bytes = 2;
+    } else {
+      bytes = 3;
+    }
+
     *dataptr++ = 0x7c;
-    *dataptr++ = digest_len + 2;
+    dataptr += set_length(dataptr, len + bytes + 3);
+    *dataptr++ = 0x82;
+    *dataptr++ = 0x00;
     *dataptr++ = 0x81;
-    *dataptr++ = digest_len;
-    memcpy(dataptr, digest, digest_len);
-    sw = send_data(card, &apdu, apdu.st.lc + 5, data, &recv_len, verbose);
+    dataptr += set_length(dataptr, len);
+    memcpy(dataptr, foo, len);
+    dataptr += len;
+
+    datasize = dataptr - indata;
+    fprintf(stderr, "size is %d\n", datasize);
+    dataptr = indata;
+    while(dataptr < indata + datasize) {
+      size_t this_size = 0xff;
+      APDU apdu;
+      recv_len = 0xff;
+
+      memset(apdu.raw, 0, sizeof(apdu.raw));
+      if(dataptr + 0xff < indata + datasize) {
+        apdu.st.cla = 0x10;
+      } else {
+        this_size = (size_t)((indata + datasize) - dataptr);
+      }
+      if(verbose) {
+        fprintf(stderr, "going to send %lu bytes in this go.\n", (unsigned long)this_size);
+      }
+
+      apdu.st.ins = 0x87;
+      apdu.st.p1 = algorithm;
+      apdu.st.p2 = key;
+      apdu.st.lc = this_size;
+      memcpy(apdu.st.data, dataptr, this_size);
+      sw = send_data(card, &apdu, apdu.st.lc + 5, data, &recv_len, verbose);
+      if((sw & 0x6100) == 0x6100) {
+        received += recv_len - 2;
+        recv_len = 0xff;
+        memset(apdu.raw, 0, sizeof(apdu));
+        apdu.st.ins = 0xc0;
+        sw = send_data(card, &apdu, 4, data + received, &recv_len, verbose);
+        if(sw == 0x9000) {
+          received += recv_len - 2;
+        } else {
+          fprintf(stderr, "Failed sign command with code %x.\n", sw);
+          ret = false;
+          goto request_out;
+        }
+      } else if(sw != 0x9000) {
+        fprintf(stderr, "Failed sign command with code %x.\n", sw);
+        ret = false;
+        goto request_out;
+      }
+      dataptr += this_size;
+    }
+
+    /* skip the first 7c tag */
+    if(data[0] != 0x7c) {
+      fprintf(stderr, "Failed parsing signature reply.\n");
+      ret = false;
+      goto request_out;
+    }
+    dataptr = data + 1;
+    dataptr += get_length(dataptr, &len);
+    /* skip the 82 tag */
+    if(*dataptr != 0x82) {
+      fprintf(stderr, "Failed parsing signature reply.\n");
+      ret = false;
+      goto request_out;
+    }
+    dataptr++;
+    dataptr += get_length(dataptr, &len);
+    sig = M_ASN1_BIT_STRING_new();
+    M_ASN1_BIT_STRING_set(sig, dataptr, len);
+    req->signature = sig;
+
+    if(key_format == key_format_arg_PEM) {
+      PEM_write_X509_REQ(output_file, req);
+    } else {
+      fprintf(stderr, "Only PEM support available for certificate requests.\n");
+      ret = false;
+      goto request_out;
+    }
   }
 
 request_out:
@@ -933,6 +1032,9 @@ request_out:
   }
   if(name) {
     X509_NAME_free(name);
+  }
+  if(algor) {
+    X509_ALGOR_free(algor);
   }
   return ret;
 }
@@ -972,8 +1074,10 @@ static unsigned char get_algorithm(EVP_PKEY *key) {
         RSA *rsa = EVP_PKEY_get1_RSA(key);
         int size = RSA_size(rsa);
         if(size == 256) {
+          printf("rsa 2048\n");
           return 7;
         } else if(size == 128) {
+          printf("rsa 1024\n");
           return 6;
         } else {
           fprintf(stderr, "Unuseable key of %d bits, only 1024 and 2048 is supported.\n", size * 8);
@@ -1028,7 +1132,7 @@ static X509_NAME *parse_name(char *name) {
       fprintf(stderr, "Malformed name (%s)\n", part);
       goto parse_err;
     }
-    if(!X509_NAME_add_entry_by_txt(parsed, key, MBSTRING_ASC, (unsigned char*)value, -1, -1, 0)) {
+    if(!X509_NAME_add_entry_by_txt(parsed, key, MBSTRING_UTF8, (unsigned char*)value, -1, -1, 0)) {
       fprintf(stderr, "Failed adding %s=%s to name.\n", key, value);
       goto parse_err;
     }
