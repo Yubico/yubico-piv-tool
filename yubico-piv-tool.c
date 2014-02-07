@@ -915,8 +915,13 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
     len = 128;
   } else if(algorithm == 7) {
     len = 256;
+  } else if(algorithm = 11) {
+    len = 20;
+    memcpy(foo, digest + 15, len);
   }
-  RSA_padding_add_PKCS1_type_1(foo, len, digest, sizeof(digest));
+  if(algorithm == 6 || algorithm == 7) {
+    RSA_padding_add_PKCS1_type_1(foo, len, digest, sizeof(digest));
+  }
   {
     unsigned char indata[1024];
     unsigned char *dataptr = indata;
