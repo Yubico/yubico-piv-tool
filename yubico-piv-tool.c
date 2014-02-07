@@ -1119,7 +1119,6 @@ static X509_NAME *parse_name(char *name) {
   X509_NAME *parsed = NULL;
   char *ptr = name;
   char *part;
-  char *saveptr = NULL;
   if(*name != '/') {
     fprintf(stderr, "Name does not start with '/'!\n");
     return NULL;
@@ -1129,18 +1128,23 @@ static X509_NAME *parse_name(char *name) {
     fprintf(stderr, "Failed to allocate memory\n");
     return NULL;
   }
-  while((part = strtok_r(ptr, "/", &saveptr))) {
+  while((part = strtok(ptr, "/"))) {
     char *key;
     char *value;
-    char *innersave = NULL;
+    char *equals = strchr(part, '=');
+    if(!equals) {
+      fprintf(stderr, "The part '%s' doesn't seem to contain a =.\n", part);
+      goto parse_err;
+    }
+    *equals++ = '\0';
+    value = equals;
+    key = part;
 
     ptr = NULL;
-    key = strtok_r(part, "=", &innersave);
     if(!key) {
       fprintf(stderr, "Malformed name (%s)\n", part);
       goto parse_err;
     }
-    value = strtok_r(NULL, "=", &innersave);
     if(!value) {
       fprintf(stderr, "Malformed name (%s)\n", part);
       goto parse_err;
