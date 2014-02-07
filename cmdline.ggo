@@ -31,11 +31,12 @@ option "action" a "Action to take" values="version","generate","set-mgm-key","re
 option "slot" s "What key slot to operate on" values="9a","9c","9d","9e" enum optional
 option "algorithm" A "What algorithm to use" values="RSA1024","RSA2048","ECCP256" enum optional default="RSA2048"
 option "new-key" n "New authentication key to use" string optional
-option "pin-retries" - "Number of retries before the pin code is blocked" int optional
-option "puk-retries" - "Number of retries before the puk code is blocked" int optional
+option "pin-retries" - "Number of retries before the pin code is blocked" int optional dependon="puk-retries"
+option "puk-retries" - "Number of retries before the puk code is blocked" int optional dependon="pin-retries"
 option "input" i "Filename to use as input, - for stdin" string optional default="-"
 option "output" o "Filename to use as output, - for stdout" string optional default="-"
 option "key-format" K "Format of the key being read/written" values="PEM","PKCS12" enum optional default="PEM"
 option "password" p "Password for decryption of private key file" string optional
 option "subject" S "The subject to use for certificate request" string optional
+         details="The subject must be written as /CN=host.example.com/OU=test/O=example.com/\n"
 option "pin" P "Pin code for verification" string optional
