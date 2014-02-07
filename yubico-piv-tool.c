@@ -1087,10 +1087,8 @@ static unsigned char get_algorithm(EVP_PKEY *key) {
         RSA *rsa = EVP_PKEY_get1_RSA(key);
         int size = RSA_size(rsa);
         if(size == 256) {
-          printf("rsa 2048\n");
           return 0x7;
         } else if(size == 128) {
-          printf("rsa 1024\n");
           return 0x6;
         } else {
           fprintf(stderr, "Unuseable key of %d bits, only 1024 and 2048 is supported.\n", size * 8);
