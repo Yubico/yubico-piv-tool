@@ -259,8 +259,9 @@ static void print_version(SCARDHANDLE *card, int verbose) {
 static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorithm algorithm,
     const char *output_file_name, enum enum_key_format key_format, int verbose) {
   APDU apdu;
+  unsigned char in_data[5];
   unsigned char data[1024];
-  unsigned long recv_len = 0xff;
+  unsigned long recv_len = sizeof(data);
   unsigned long received = 0;
   int sw;
   int key = 0;
@@ -288,20 +289,19 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
   memset(apdu.raw, 0, sizeof(apdu));
   apdu.st.ins = 0x47;
   apdu.st.p2 = key;
-  apdu.st.lc = 5;
-  apdu.st.data[0] = 0xac;
-  apdu.st.data[1] = 3;
-  apdu.st.data[2] = 0x80;
-  apdu.st.data[3] = 1;
+  in_data[0] = 0xac;
+  in_data[1] = 3;
+  in_data[2] = 0x80;
+  in_data[3] = 1;
   switch(algorithm) {
     case algorithm_arg_RSA2048:
-      apdu.st.data[4] = 0x07;
+      in_data[4] = 0x07;
       break;
     case algorithm_arg_RSA1024:
-      apdu.st.data[4] = 0x06;
+      in_data[4] = 0x06;
       break;
     case algorithm_arg_ECCP256:
-      apdu.st.data[4] = 0x11;
+      in_data[4] = 0x11;
       break;
     case algorithm__NULL:
     default:
@@ -309,16 +309,8 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
       ret = false;
       goto generate_out;
   }
-  sw = send_data(card, &apdu, data, &recv_len, verbose);
+  sw = transfer_data(card, &apdu, in_data, sizeof(in_data), data, &recv_len, verbose);
 
-  /* chained response */
-  if((sw & 0x6100) == 0x6100) {
-    received += recv_len - 2;
-    recv_len = 0xff;
-    memset(apdu.raw, 0, sizeof(apdu));
-    apdu.st.ins = 0xc0;
-    sw = send_data(card, &apdu, data + received, &recv_len, verbose);
-  }
   if(sw != 0x9000) {
     fprintf(stderr, "Failed to generate new key.\n");
     ret = false;
@@ -988,10 +980,6 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
     sig = M_ASN1_BIT_STRING_new();
     M_ASN1_BIT_STRING_set(sig, dataptr, len);
     req->signature = sig;
-
-    fprintf(stderr, "Whole data is: ");
-    dump_hex(dataptr, len);
-    fprintf(stderr, "\n");
 
     if(key_format == key_format_arg_PEM) {
       PEM_write_X509_REQ(output_file, req);
