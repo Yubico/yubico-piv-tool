@@ -815,13 +815,12 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
   FILE *output_file;
   EVP_PKEY *public_key = NULL;
   bool ret = true;
-  const EVP_MD *md_alg = NULL;
   unsigned char digest[35];
   unsigned int digest_len = 20;
   unsigned char algorithm;
   int key = 0;
   ASN1_STRING *sig = NULL;
-  unsigned char foo[256];
+  unsigned char signinput[256];
   int len;
 
   sscanf(slot, "%x", &key);
@@ -889,8 +888,8 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
     goto request_out;
   }
 
-  algor = sk_X509_ALGOR_new_null();
-  algor->parameter = sk_ASN1_TYPE_new_null();
+  algor = (X509_ALGOR*)sk_X509_ALGOR_new_null();
+  algor->parameter = (ASN1_TYPE*)sk_ASN1_TYPE_new_null();
   algor->algorithm=OBJ_nid2obj(NID_sha1WithRSAEncryption);
   algor->parameter->type = V_ASN1_NULL;
 
@@ -915,12 +914,12 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
     len = 128;
   } else if(algorithm == 7) {
     len = 256;
-  } else if(algorithm = 11) {
+  } else if(algorithm == 11) {
     len = 20;
-    memcpy(foo, digest + 15, len);
+    memcpy(signinput, digest + 15, 20);
   }
   if(algorithm == 6 || algorithm == 7) {
-    RSA_padding_add_PKCS1_type_1(foo, len, digest, sizeof(digest));
+    RSA_padding_add_PKCS1_type_1(signinput, len, digest, sizeof(digest));
   }
   {
     unsigned char indata[1024];
@@ -946,7 +945,7 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
     *dataptr++ = 0x00;
     *dataptr++ = 0x81;
     dataptr += set_length(dataptr, len);
-    memcpy(dataptr, foo, len);
+    memcpy(dataptr, signinput, (size_t)len);
     dataptr += len;
 
     datasize = dataptr - indata;
@@ -1050,7 +1049,7 @@ static bool verify_pin(SCARDHANDLE *card, const char *pin, int verbose) {
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
   int sw;
-  int len = strlen(pin);
+  size_t len = strlen(pin);
 
   if(len > 8) {
     fprintf(stderr, "Maximum 8 digits of PIN supported.\n");
