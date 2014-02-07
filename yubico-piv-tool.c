@@ -702,7 +702,7 @@ static bool import_cert(SCARDHANDLE *card, enum enum_key_format cert_format,
     int sw;
 
     if(cert_len > 2048) {
-      fprintf(stderr, "Certificate to large, maximum 4096 bytes (was %d bytes).\n", cert_len);
+      fprintf(stderr, "Certificate to large, maximum 2048 bytes (was %d bytes).\n", cert_len);
       ret = false;
       goto import_cert_out;
     }
