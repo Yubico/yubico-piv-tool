@@ -1021,6 +1021,7 @@ static bool verify_pin(SCARDHANDLE *card, const char *pin, int verbose) {
 
   if(len > 8) {
     fprintf(stderr, "Maximum 8 digits of PIN supported.\n");
+    return false;
   }
 
   memset(apdu.raw, 0, sizeof(apdu.raw));
@@ -1031,6 +1032,39 @@ static bool verify_pin(SCARDHANDLE *card, const char *pin, int verbose) {
   memcpy(apdu.st.data, pin, len);
   if(len < 8) {
     memset(apdu.st.data + len, 0xff, 8 - len);
+  }
+  sw = send_data(card, &apdu, data, &recv_len, verbose);
+  if(sw != 0x9000) {
+    return false;
+  }
+  return true;
+}
+
+static bool change_pin(SCARDHANDLE *card, enum enum_action action, const char *pin,
+    const char *new_pin, int verbose) {
+  APDU apdu;
+  unsigned char data[0xff];
+  unsigned long recv_len = sizeof(data);
+  int sw;
+  size_t pin_len = strlen(pin);
+  size_t new_len = strlen(new_pin);
+
+  if(pin_len > 8 || new_len > 8) {
+    fprintf(stderr, "Maximum 8 digits of PIN supported.\n");
+    return false;
+  }
+
+  memset(apdu.raw, 0, sizeof(apdu.raw));
+  apdu.st.ins = 0x24;
+  apdu.st.p2 = action == action_arg_changeMINUS_pin ? 0x80 : 0x81;
+  apdu.st.lc = 0x10;
+  memcpy(apdu.st.data, pin, pin_len);
+  if(pin_len < 8) {
+    memset(apdu.st.data + pin_len, 0xff, 8 - pin_len);
+  }
+  memcpy(apdu.st.data + 8, new_pin, new_len);
+  if(new_len < 8) {
+    memset(apdu.st.data + 8 + new_len, 0xff, 16 - new_len);
   }
   sw = send_data(card, &apdu, data, &recv_len, verbose);
   if(sw != 0x9000) {
@@ -1418,6 +1452,13 @@ int main(int argc, char *argv[]) {
           return EXIT_FAILURE;
         }
         break;
+      case action_arg_changeMINUS_pin:
+      case action_arg_changeMINUS_puk:
+        if(args_info.pin_arg && args_info.new_pin_arg) {
+          change_pin(&card, action, args_info.pin_arg, args_info.new_pin_arg, verbosity);
+        } else {
+          fprintf(stderr, "The change-%s action needs a pin (-P) and a new-pin (-N).\n", action == action_arg_changeMINUS_pin ? "pin" : "puk");
+        }
       case action__NULL:
       default:
         fprintf(stderr, "Wrong action. %d.\n", action);
