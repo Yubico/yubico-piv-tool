@@ -32,11 +32,6 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include <openssl/des.h>
-#include <openssl/pem.h>
-#include <openssl/pkcs12.h>
-#include <openssl/rand.h>
-
 #if BACKEND_PCSC
 #if defined HAVE_PCSC_WINSCARD_H
 # include <PCSC/wintypes.h>
@@ -45,6 +40,11 @@
 # include <winscard.h>
 #endif
 #endif
+
+#include <openssl/des.h>
+#include <openssl/pem.h>
+#include <openssl/pkcs12.h>
+#include <openssl/rand.h>
 
 #include "cmdline.h"
 
@@ -89,7 +89,7 @@ typedef union u_APDU APDU;
 static void dump_hex(unsigned const char*, unsigned int);
 static int send_data(SCARDHANDLE*, APDU*, unsigned char*, unsigned long*, int);
 static int set_length(unsigned char*, int);
-static int get_length(unsigned char*, int *);
+static int get_length(unsigned char*, int*);
 static X509_NAME *parse_name(char*);
 static unsigned char get_algorithm(EVP_PKEY*);
 
