@@ -87,6 +87,8 @@ union u_APDU {
 typedef union u_APDU APDU;
 
 static void dump_hex(unsigned const char*, unsigned int);
+static int transfer_data(SCARDHANDLE*, APDU*, unsigned char*, long,
+    unsigned char*, unsigned long*, int verbose);
 static int send_data(SCARDHANDLE*, APDU*, unsigned char*, unsigned long*, int);
 static int set_length(unsigned char*, int);
 static int get_length(unsigned char*, int*);
@@ -934,11 +936,15 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
     unsigned char indata[1024];
     unsigned char *dataptr = indata;
     unsigned char data[1024];
-    unsigned long recv_len;
-    unsigned long received = 0;
+    unsigned long recv_len = sizeof(data);
     int sw;
     int bytes;
-    int datasize;
+    APDU apdu;
+
+    memset(apdu.raw, 0, sizeof(apdu.raw));
+    apdu.st.ins = 0x87;
+    apdu.st.p1 = algorithm;
+    apdu.st.p2 = key;
 
     if(len < 0x80) {
       bytes = 1;
@@ -957,51 +963,12 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
     memcpy(dataptr, signinput, (size_t)len);
     dataptr += len;
 
-    datasize = dataptr - indata;
-    dataptr = indata;
-    while(dataptr < indata + datasize) {
-      size_t this_size = 0xff;
-      APDU apdu;
-      recv_len = 0xff;
-
-      memset(apdu.raw, 0, sizeof(apdu.raw));
-      if(dataptr + 0xff < indata + datasize) {
-        apdu.st.cla = 0x10;
-      } else {
-        this_size = (size_t)((indata + datasize) - dataptr);
-      }
-      if(verbose) {
-        fprintf(stderr, "going to send %lu bytes in this go.\n", (unsigned long)this_size);
-      }
-
-      apdu.st.ins = 0x87;
-      apdu.st.p1 = algorithm;
-      apdu.st.p2 = key;
-      apdu.st.lc = this_size;
-      memcpy(apdu.st.data, dataptr, this_size);
-      sw = send_data(card, &apdu, data, &recv_len, verbose);
-      if((sw & 0x6100) == 0x6100) {
-        received += recv_len - 2;
-        recv_len = 0xff;
-        dataptr = data + received;
-        memset(apdu.raw, 0, sizeof(apdu));
-        apdu.st.ins = 0xc0;
-        sw = send_data(card, &apdu, dataptr, &recv_len, verbose);
-        if(sw == 0x9000) {
-          received += recv_len - 2;
-        } else {
-          fprintf(stderr, "Failed sign command with code %x.\n", sw);
-          ret = false;
-          goto request_out;
-        }
-      } else if(sw != 0x9000) {
-        fprintf(stderr, "Failed sign command with code %x.\n", sw);
-        ret = false;
-        goto request_out;
-      }
-      dataptr += this_size;
+    sw = transfer_data(card, &apdu, indata, dataptr - indata, data, &recv_len, verbose);
+    if(sw != 0x9000) {
+      fprintf(stderr, "Failed sign command with code %x.\n", sw);
+      ret = false;
+      goto request_out;
     }
-
     /* skip the first 7c tag */
     if(data[0] != 0x7c) {
       fprintf(stderr, "Failed parsing signature reply.\n");
@@ -1021,6 +988,10 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
     sig = M_ASN1_BIT_STRING_new();
     M_ASN1_BIT_STRING_set(sig, dataptr, len);
     req->signature = sig;
+
+    fprintf(stderr, "Whole data is: ");
+    dump_hex(dataptr, len);
+    fprintf(stderr, "\n");
 
     if(key_format == key_format_arg_PEM) {
       PEM_write_X509_REQ(output_file, req);
@@ -1157,6 +1128,69 @@ static X509_NAME *parse_name(char *name) {
 parse_err:
   X509_NAME_free(parsed);
   return NULL;
+}
+
+static int transfer_data(SCARDHANDLE *card, APDU *apdu_tmpl, unsigned char *in_data,
+    long in_len, unsigned char *out_data, unsigned long *out_len,
+    int verbose) {
+  unsigned char *in_ptr = in_data;
+  unsigned long max_out = *out_len;
+  int sw = 0;
+  *out_len = 0;
+
+  while(in_ptr < in_data + in_len) {
+    size_t this_size = 0xff;
+    unsigned long recv_len = 0xff;
+    unsigned char data[0xff];
+    APDU apdu;
+
+    memset(apdu.raw, 0, sizeof(apdu.raw));
+    memcpy(apdu.raw, apdu_tmpl->raw, 4);
+    if(in_ptr + 0xff < in_data + in_len) {
+      apdu.st.cla = 0x10;
+    } else {
+      this_size = (size_t)((in_data + in_len) - in_ptr);
+    }
+    if(verbose > 2) {
+      fprintf(stderr, "Going to send %lu bytes in this go.\n", (unsigned long)this_size);
+    }
+    apdu.st.lc = this_size;
+    memcpy(apdu.st.data, in_ptr, this_size);
+    sw = send_data(card, &apdu, data, &recv_len, verbose);
+    if(sw != 0x9000 && sw >> 8 != 0x61) {
+      return sw;
+    }
+    if(*out_len + recv_len - 2 > max_out) {
+      fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.", *out_len + recv_len - 2, max_out);
+    }
+    memcpy(out_data, data, recv_len - 2);
+    out_data += recv_len - 2;
+    out_len += recv_len - 2;
+    in_ptr += this_size;
+  }
+  while(sw >> 8 == 0x61) {
+    APDU apdu;
+    unsigned long recv_len = 0xff;
+    unsigned char data[0xff];
+
+    if(verbose > 2) {
+      fprintf(stderr, "The card indicates there is %d bytes more data for us.\n", sw & 0xff);
+    }
+
+    memset(apdu.raw, 0, sizeof(apdu.raw));
+    apdu.st.ins = 0xc0;
+    sw = send_data(card, &apdu, data, &recv_len, verbose);
+    if(sw != 0x9000 && sw >> 8 != 0x61) {
+      return sw;
+    }
+    if(*out_len + recv_len - 2 > max_out) {
+      fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.", *out_len + recv_len - 2, max_out);
+    }
+    memcpy(out_data, data, recv_len - 2);
+    out_data += recv_len - 2;
+    out_len += recv_len - 2;
+  }
+  return sw;
 }
 
 static int send_data(SCARDHANDLE *card, APDU *apdu, unsigned char *data,
