@@ -66,6 +66,10 @@ unsigned const char chuid_tmpl[] = {
 };
 #define CHUID_GUID_OFFS 35
 
+unsigned const char sha1oid[] = {
+  0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2B, 0x0E, 0x03, 0x02, 0x1A, 0x05, 0x00, 0x04, 0x14
+};
+
 #define KEY_LEN 24
 
 union u_APDU {
@@ -86,6 +90,8 @@ static void dump_hex(unsigned const char*, unsigned int);
 static int send_data(SCARDHANDLE*, APDU*, unsigned int, unsigned char*, unsigned long*, int);
 static int set_length(unsigned char*, int);
 static int get_length(unsigned char*, int *);
+static X509_NAME *parse_name(char*);
+static unsigned char get_algorithm(EVP_PKEY*);
 
 static bool connect_reader(SCARDHANDLE *card, SCARDCONTEXT *context, const char *wanted, int verbose) {
   unsigned long num_readers;
@@ -534,85 +540,72 @@ static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format,
   }
 
   {
-    int type = EVP_PKEY_type(private_key->type);
-    if(type == EVP_PKEY_RSA) {
-      int algorithm;
-      RSA *rsa_private_key = EVP_PKEY_get1_RSA(private_key);
-      int size = RSA_size(rsa_private_key);
-      if(size == 256) {
-        algorithm = 7;
-      } else if(size == 128) {
-        algorithm = 6;
-      } else {
-        fprintf(stderr, "Unuseable key of %d bits, only 1024 and 2048 is supported.\n", size * 8);
-        ret = false;
-        goto import_out;
-      }
-      if(verbose) {
-        fprintf(stderr, "Found RSA-%d key.\n", size * 8);
-      }
-      {
-        APDU apdu;
-        unsigned char in_data[1024];
-        unsigned char *in_ptr = in_data;
-        int sw;
-        int in_size;
-
-        *in_ptr++ = 0x01;
-        in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->p));
-        in_ptr += BN_bn2bin(rsa_private_key->p, in_ptr);
-
-        *in_ptr++ = 0x02;
-        in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->q));
-        in_ptr += BN_bn2bin(rsa_private_key->q, in_ptr);
-
-        *in_ptr++ = 0x03;
-        in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->dmp1));
-        in_ptr += BN_bn2bin(rsa_private_key->dmp1, in_ptr);
-
-        *in_ptr++ = 0x04;
-        in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->dmq1));
-        in_ptr += BN_bn2bin(rsa_private_key->dmq1, in_ptr);
-
-        *in_ptr++ = 0x05;
-        in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->iqmp));
-        in_ptr += BN_bn2bin(rsa_private_key->iqmp, in_ptr);
-
-        in_size = in_ptr - in_data;
-        in_ptr = in_data;
-
-        while(in_ptr < in_data + in_size) {
-          unsigned char data[0xff];
-          unsigned long recv_len = sizeof(data);
-          size_t this_size = 0xff;
-          memset(apdu.raw, 0, sizeof(apdu));
-          if(in_ptr + 0xff < in_data + in_size) {
-            apdu.st.cla = 0x10;
-          } else {
-            this_size = (size_t)((in_data + in_size) - in_ptr);
-          }
-          if(verbose) {
-            fprintf(stderr, "going to send %lu bytes in this go.\n", (unsigned long)this_size);
-          }
-          apdu.st.ins = 0xfe;
-          apdu.st.p1 = algorithm;
-          apdu.st.p2 = key;
-          apdu.st.lc = this_size;
-          memcpy(apdu.st.data, in_ptr, this_size);
-          sw = send_data(card, &apdu, this_size + 5, data, &recv_len, verbose);
-          if(sw != 0x9000) {
-            fprintf(stderr, "Failed import command with code %x.", sw);
-            ret = false;
-            goto import_out;
-          }
-          in_ptr += this_size;
-        }
-      }
-
-    } else {
-      /* TODO: ECC */
-      fprintf(stderr, "Unknown type: %d\n", type);
+    unsigned char algorithm = get_algorithm(private_key);
+    if(algorithm == 11) {
+      fprintf(stderr, "import key only supports RSA.\n");
       ret = false;
+      goto import_out;
+    } else if(algorithm == 0) {
+      ret = false;
+      goto import_out;
+    }
+    {
+      APDU apdu;
+      unsigned char in_data[1024];
+      unsigned char *in_ptr = in_data;
+      int sw;
+      int in_size;
+      RSA *rsa_private_key = EVP_PKEY_get1_RSA(private_key);
+
+      *in_ptr++ = 0x01;
+      in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->p));
+      in_ptr += BN_bn2bin(rsa_private_key->p, in_ptr);
+
+      *in_ptr++ = 0x02;
+      in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->q));
+      in_ptr += BN_bn2bin(rsa_private_key->q, in_ptr);
+
+      *in_ptr++ = 0x03;
+      in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->dmp1));
+      in_ptr += BN_bn2bin(rsa_private_key->dmp1, in_ptr);
+
+      *in_ptr++ = 0x04;
+      in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->dmq1));
+      in_ptr += BN_bn2bin(rsa_private_key->dmq1, in_ptr);
+
+      *in_ptr++ = 0x05;
+      in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->iqmp));
+      in_ptr += BN_bn2bin(rsa_private_key->iqmp, in_ptr);
+
+      in_size = in_ptr - in_data;
+      in_ptr = in_data;
+
+      while(in_ptr < in_data + in_size) {
+        unsigned char data[0xff];
+        unsigned long recv_len = sizeof(data);
+        size_t this_size = 0xff;
+        memset(apdu.raw, 0, sizeof(apdu));
+        if(in_ptr + 0xff < in_data + in_size) {
+          apdu.st.cla = 0x10;
+        } else {
+          this_size = (size_t)((in_data + in_size) - in_ptr);
+        }
+        if(verbose) {
+          fprintf(stderr, "going to send %lu bytes in this go.\n", (unsigned long)this_size);
+        }
+        apdu.st.ins = 0xfe;
+        apdu.st.p1 = algorithm;
+        apdu.st.p2 = key;
+        apdu.st.lc = this_size;
+        memcpy(apdu.st.data, in_ptr, this_size);
+        sw = send_data(card, &apdu, this_size + 5, data, &recv_len, verbose);
+        if(sw != 0x9000) {
+          fprintf(stderr, "Failed import command with code %x.", sw);
+          ret = false;
+          goto import_out;
+        }
+        in_ptr += this_size;
+      }
     }
   }
 import_out:
@@ -810,6 +803,345 @@ static bool set_chuid(SCARDHANDLE *card, int verbose) {
     return false;
   }
   return true;
+}
+
+static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_format,
+    const char *input_file_name, const char *slot, char *subject,
+    const char *output_file_name, int verbose) {
+  X509_REQ *req = NULL;
+  X509_NAME *name = NULL;
+  X509_ALGOR *algor = NULL;
+  FILE *input_file;
+  FILE *output_file;
+  EVP_PKEY *public_key = NULL;
+  bool ret = true;
+  const EVP_MD *md_alg = NULL;
+  unsigned char digest[35];
+  unsigned int digest_len = 20;
+  unsigned char algorithm;
+  int key = 0;
+  ASN1_STRING *sig = NULL;
+  unsigned char foo[256];
+  int len;
+
+  sscanf(slot, "%x", &key);
+
+  if(!strcmp(input_file_name, "-")) {
+    input_file = stdin;
+  } else {
+    input_file = fopen(input_file_name, "r");
+    if(!input_file) {
+      fprintf(stderr, "Failed opening '%s'!\n", input_file_name);
+      return false;
+    }
+  }
+  if(!strcmp(output_file_name, "-")) {
+    output_file = stdout;
+  } else {
+    output_file = fopen(output_file_name, "w");
+    if(!output_file) {
+      fprintf(stderr, "Failed opening '%s'!\n", output_file_name);
+      return false;
+    }
+  }
+
+  if(key_format == key_format_arg_PEM) {
+    public_key = PEM_read_PUBKEY(input_file, NULL, NULL, NULL);
+    if(!public_key) {
+      fprintf(stderr, "Failed loading private key for import.\n");
+      ret = false;
+      goto request_out;
+    }
+  } else {
+    fprintf(stderr, "Only PEM supported for public key input.\n");
+    ret = false;
+    goto request_out;
+  }
+  algorithm = get_algorithm(public_key);
+  if(algorithm == 0) {
+    ret = false;
+    goto request_out;
+  }
+
+  req = X509_REQ_new();
+  if(!req) {
+    fprintf(stderr, "Failed to allocate request structure.\n");
+    ret = false;
+    goto request_out;
+  }
+  if(!X509_REQ_set_pubkey(req, public_key)) {
+    fprintf(stderr, "Failed setting the request public key.\n");
+    ret = false;
+    goto request_out;
+  }
+
+  X509_REQ_set_version(req, 0);
+
+  name = parse_name(subject);
+  if(!name) {
+    fprintf(stderr, "Failed encoding subject as name.\n");
+    ret = false;
+    goto request_out;
+  }
+  if(!X509_REQ_set_subject_name(req, name)) {
+    fprintf(stderr, "Failed setting the request subject.\n");
+    ret = false;
+    goto request_out;
+  }
+
+  algor = sk_X509_ALGOR_new_null();
+  algor->parameter = sk_ASN1_TYPE_new_null();
+  algor->algorithm=OBJ_nid2obj(NID_sha1WithRSAEncryption);
+  algor->parameter->type = V_ASN1_NULL;
+
+  req->sig_alg = algor;
+
+  memset(digest, 0, sizeof(digest));
+  memcpy(digest, sha1oid, sizeof(sha1oid));
+  /* XXX: this should probably use X509_REQ_digest() but that's buggy */
+  if(!ASN1_item_digest(ASN1_ITEM_rptr(X509_REQ_INFO), EVP_sha1(), req->req_info,
+			  digest + 15, &digest_len)) {
+    fprintf(stderr, "Failed doing digest of request.\n");
+    ret = false;
+    goto request_out;
+  }
+
+  if(verbose) {
+    fprintf(stderr, "computed digest as: ");
+    dump_hex(digest, sizeof(digest));
+    fprintf(stderr, "\n");
+  }
+  if(algorithm == 6) {
+    len = 128;
+  } else if(algorithm == 7) {
+    len = 256;
+  }
+  RSA_padding_add_PKCS1_type_1(foo, len, digest, sizeof(digest));
+  {
+    unsigned char indata[1024];
+    unsigned char *dataptr = indata;
+    unsigned char data[1024];
+    unsigned long recv_len;
+    unsigned long received = 0;
+    int sw;
+    int bytes;
+    int datasize;
+
+    if(len < 0x80) {
+      bytes = 1;
+    } else if(len < 0xff) {
+      bytes = 2;
+    } else {
+      bytes = 3;
+    }
+
+    *dataptr++ = 0x7c;
+    dataptr += set_length(dataptr, len + bytes + 3);
+    *dataptr++ = 0x82;
+    *dataptr++ = 0x00;
+    *dataptr++ = 0x81;
+    dataptr += set_length(dataptr, len);
+    memcpy(dataptr, foo, len);
+    dataptr += len;
+
+    datasize = dataptr - indata;
+    fprintf(stderr, "size is %d\n", datasize);
+    dataptr = indata;
+    while(dataptr < indata + datasize) {
+      size_t this_size = 0xff;
+      APDU apdu;
+      recv_len = 0xff;
+
+      memset(apdu.raw, 0, sizeof(apdu.raw));
+      if(dataptr + 0xff < indata + datasize) {
+        apdu.st.cla = 0x10;
+      } else {
+        this_size = (size_t)((indata + datasize) - dataptr);
+      }
+      if(verbose) {
+        fprintf(stderr, "going to send %lu bytes in this go.\n", (unsigned long)this_size);
+      }
+
+      apdu.st.ins = 0x87;
+      apdu.st.p1 = algorithm;
+      apdu.st.p2 = key;
+      apdu.st.lc = this_size;
+      memcpy(apdu.st.data, dataptr, this_size);
+      sw = send_data(card, &apdu, apdu.st.lc + 5, data, &recv_len, verbose);
+      if((sw & 0x6100) == 0x6100) {
+        received += recv_len - 2;
+        recv_len = 0xff;
+        memset(apdu.raw, 0, sizeof(apdu));
+        apdu.st.ins = 0xc0;
+        sw = send_data(card, &apdu, 4, data + received, &recv_len, verbose);
+        if(sw == 0x9000) {
+          received += recv_len - 2;
+        } else {
+          fprintf(stderr, "Failed sign command with code %x.\n", sw);
+          ret = false;
+          goto request_out;
+        }
+      } else if(sw != 0x9000) {
+        fprintf(stderr, "Failed sign command with code %x.\n", sw);
+        ret = false;
+        goto request_out;
+      }
+      dataptr += this_size;
+    }
+
+    /* skip the first 7c tag */
+    if(data[0] != 0x7c) {
+      fprintf(stderr, "Failed parsing signature reply.\n");
+      ret = false;
+      goto request_out;
+    }
+    dataptr = data + 1;
+    dataptr += get_length(dataptr, &len);
+    /* skip the 82 tag */
+    if(*dataptr != 0x82) {
+      fprintf(stderr, "Failed parsing signature reply.\n");
+      ret = false;
+      goto request_out;
+    }
+    dataptr++;
+    dataptr += get_length(dataptr, &len);
+    sig = M_ASN1_BIT_STRING_new();
+    M_ASN1_BIT_STRING_set(sig, dataptr, len);
+    req->signature = sig;
+
+    if(key_format == key_format_arg_PEM) {
+      PEM_write_X509_REQ(output_file, req);
+    } else {
+      fprintf(stderr, "Only PEM support available for certificate requests.\n");
+      ret = false;
+      goto request_out;
+    }
+  }
+
+request_out:
+  if(input_file != stdin) {
+    fclose(input_file);
+  }
+  if(output_file != stdout) {
+    fclose(output_file);
+  }
+  if(public_key) {
+    EVP_PKEY_free(public_key);
+  }
+  if(req) {
+    X509_REQ_free(req);
+  }
+  if(name) {
+    X509_NAME_free(name);
+  }
+  if(algor) {
+    X509_ALGOR_free(algor);
+  }
+  return ret;
+}
+
+static bool verify_pin(SCARDHANDLE *card, const char *pin, int verbose) {
+  APDU apdu;
+  unsigned char data[0xff];
+  unsigned long recv_len = sizeof(data);
+  int sw;
+  int len = strlen(pin);
+
+  if(len > 8) {
+    fprintf(stderr, "Maximum 8 digits of PIN supported.\n");
+  }
+
+  memset(apdu.raw, 0, sizeof(apdu.raw));
+  apdu.st.ins = 0x20;
+  apdu.st.p1 = 0x00;
+  apdu.st.p2 = 0x80;
+  apdu.st.lc = 0x08;
+  memcpy(apdu.st.data, pin, len);
+  if(len < 8) {
+    memset(apdu.st.data + len, 0xff, 8 - len);
+  }
+  sw = send_data(card, &apdu, apdu.st.lc + 5, data, &recv_len, verbose);
+  if(sw != 0x9000) {
+    return false;
+  }
+  return true;
+}
+
+static unsigned char get_algorithm(EVP_PKEY *key) {
+  int type = EVP_PKEY_type(key->type);
+  switch(type) {
+    case EVP_PKEY_RSA:
+      {
+        RSA *rsa = EVP_PKEY_get1_RSA(key);
+        int size = RSA_size(rsa);
+        if(size == 256) {
+          printf("rsa 2048\n");
+          return 7;
+        } else if(size == 128) {
+          printf("rsa 1024\n");
+          return 6;
+        } else {
+          fprintf(stderr, "Unuseable key of %d bits, only 1024 and 2048 is supported.\n", size * 8);
+          return 0;
+        }
+      }
+    case EVP_PKEY_EC:
+      {
+        EC_KEY *ec = EVP_PKEY_get1_EC_KEY(key);
+        const EC_GROUP *group = EC_KEY_get0_group(ec);
+        int curve = EC_GROUP_get_curve_name(group);
+        if(curve == NID_X9_62_prime256v1) {
+          return 11;
+        } else {
+          fprintf(stderr, "Unknown EC curve %d\n", curve);
+          return 0;
+        }
+      }
+    default:
+      fprintf(stderr, "Unknown algorithm %d.\n", type);
+      return 0;
+  }
+}
+
+static X509_NAME *parse_name(char *name) {
+  X509_NAME *parsed = NULL;
+  char *ptr = name;
+  char *part;
+  char *saveptr = NULL;
+  if(*name != '/') {
+    fprintf(stderr, "Name does not start with '/'!\n");
+    return NULL;
+  }
+  parsed = X509_NAME_new();
+  if(!parsed) {
+    fprintf(stderr, "Failed to allocate memory\n");
+    return NULL;
+  }
+  while((part = strtok_r(ptr, "/", &saveptr))) {
+    char *key;
+    char *value;
+    char *innersave = NULL;
+
+    ptr = NULL;
+    key = strtok_r(part, "=", &innersave);
+    if(!key) {
+      fprintf(stderr, "Malformed name (%s)\n", part);
+      goto parse_err;
+    }
+    value = strtok_r(NULL, "=", &innersave);
+    if(!value) {
+      fprintf(stderr, "Malformed name (%s)\n", part);
+      goto parse_err;
+    }
+    if(!X509_NAME_add_entry_by_txt(parsed, key, MBSTRING_UTF8, (unsigned char*)value, -1, -1, 0)) {
+      fprintf(stderr, "Failed adding %s=%s to name.\n", key, value);
+      goto parse_err;
+    }
+  }
+  return parsed;
+parse_err:
+  X509_NAME_free(parsed);
+  return NULL;
 }
 
 static int send_data(SCARDHANDLE *card, APDU *apdu, unsigned int send_len,
@@ -1021,6 +1353,32 @@ int main(int argc, char *argv[]) {
           return EXIT_FAILURE;
         }
         printf("Successfully set new CHUID.\n");
+        break;
+      case action_arg_requestMINUS_certificate:
+        if(args_info.slot_arg == slot__NULL) {
+          fprintf(stderr, "The request-certificate action needs a slot (-s) to operate on.\n");
+          return EXIT_FAILURE;
+        } else if(!args_info.subject_arg) {
+          fprintf(stderr, "The request-certificate action needs a subject (-S) to operate on.\n");
+        } else {
+          if(request_certificate(&card, args_info.key_format_arg, args_info.input_arg,
+                args_info.slot_orig, args_info.subject_arg, args_info.output_arg, verbosity) == false) {
+            return EXIT_FAILURE;
+          }
+        }
+        break;
+      case action_arg_verifyMINUS_pin:
+        if(args_info.pin_arg) {
+          if(verify_pin(&card, args_info.pin_arg, verbosity)) {
+            printf("Successfully verified PIN.\n");
+          } else {
+            fprintf(stderr, "Failed to verify PIN.\n");
+            return EXIT_FAILURE;
+          }
+        } else {
+          fprintf(stderr, "The verify-pin action needs a pin (-P).\n");
+          return EXIT_FAILURE;
+        }
         break;
       case action__NULL:
       default:
