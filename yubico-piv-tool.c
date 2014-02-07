@@ -541,11 +541,7 @@ static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format,
 
   {
     unsigned char algorithm = get_algorithm(private_key);
-    if(algorithm == 11) {
-      fprintf(stderr, "import key only supports RSA.\n");
-      ret = false;
-      goto import_out;
-    } else if(algorithm == 0) {
+    if(algorithm == 0) {
       ret = false;
       goto import_out;
     }
@@ -555,27 +551,36 @@ static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format,
       unsigned char *in_ptr = in_data;
       int sw;
       int in_size;
-      RSA *rsa_private_key = EVP_PKEY_get1_RSA(private_key);
+      if(algorithm == 0x06 || algorithm == 0x07) {
+        RSA *rsa_private_key = EVP_PKEY_get1_RSA(private_key);
 
-      *in_ptr++ = 0x01;
-      in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->p));
-      in_ptr += BN_bn2bin(rsa_private_key->p, in_ptr);
+        *in_ptr++ = 0x01;
+        in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->p));
+        in_ptr += BN_bn2bin(rsa_private_key->p, in_ptr);
 
-      *in_ptr++ = 0x02;
-      in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->q));
-      in_ptr += BN_bn2bin(rsa_private_key->q, in_ptr);
+        *in_ptr++ = 0x02;
+        in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->q));
+        in_ptr += BN_bn2bin(rsa_private_key->q, in_ptr);
 
-      *in_ptr++ = 0x03;
-      in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->dmp1));
-      in_ptr += BN_bn2bin(rsa_private_key->dmp1, in_ptr);
+        *in_ptr++ = 0x03;
+        in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->dmp1));
+        in_ptr += BN_bn2bin(rsa_private_key->dmp1, in_ptr);
 
-      *in_ptr++ = 0x04;
-      in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->dmq1));
-      in_ptr += BN_bn2bin(rsa_private_key->dmq1, in_ptr);
+        *in_ptr++ = 0x04;
+        in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->dmq1));
+        in_ptr += BN_bn2bin(rsa_private_key->dmq1, in_ptr);
 
-      *in_ptr++ = 0x05;
-      in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->iqmp));
-      in_ptr += BN_bn2bin(rsa_private_key->iqmp, in_ptr);
+        *in_ptr++ = 0x05;
+        in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->iqmp));
+        in_ptr += BN_bn2bin(rsa_private_key->iqmp, in_ptr);
+      } else if(algorithm == 0x11) {
+        EC_KEY *ec = EVP_PKEY_get1_EC_KEY(private_key);
+        const BIGNUM *s = EC_KEY_get0_private_key(ec);
+
+        *in_ptr++ = 0x06;
+        in_ptr += set_length(in_ptr, BN_num_bytes(s));
+        in_ptr += BN_bn2bin(s, in_ptr);
+      }
 
       in_size = in_ptr - in_data;
       in_ptr = in_data;
@@ -910,13 +915,17 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
     dump_hex(digest, sizeof(digest));
     fprintf(stderr, "\n");
   }
-  if(algorithm == 6) {
+  if(algorithm == 0x6) {
     len = 128;
-  } else if(algorithm == 7) {
+  } else if(algorithm == 0x7) {
     len = 256;
-  } else if(algorithm == 11) {
+  } else if(algorithm == 0x11) {
     len = 20;
     memcpy(signinput, digest + 15, 20);
+  } else {
+    fprintf(stderr, "Unsupported algorithm %x.\n", algorithm);
+    ret = false;
+    goto request_out;
   }
   if(algorithm == 6 || algorithm == 7) {
     RSA_padding_add_PKCS1_type_1(signinput, len, digest, sizeof(digest));
@@ -949,7 +958,6 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
     dataptr += len;
 
     datasize = dataptr - indata;
-    fprintf(stderr, "size is %d\n", datasize);
     dataptr = indata;
     while(dataptr < indata + datasize) {
       size_t this_size = 0xff;
@@ -1080,10 +1088,10 @@ static unsigned char get_algorithm(EVP_PKEY *key) {
         int size = RSA_size(rsa);
         if(size == 256) {
           printf("rsa 2048\n");
-          return 7;
+          return 0x7;
         } else if(size == 128) {
           printf("rsa 1024\n");
-          return 6;
+          return 0x6;
         } else {
           fprintf(stderr, "Unuseable key of %d bits, only 1024 and 2048 is supported.\n", size * 8);
           return 0;
@@ -1095,7 +1103,7 @@ static unsigned char get_algorithm(EVP_PKEY *key) {
         const EC_GROUP *group = EC_KEY_get0_group(ec);
         int curve = EC_GROUP_get_curve_name(group);
         if(curve == NID_X9_62_prime256v1) {
-          return 11;
+          return 0x11;
         } else {
           fprintf(stderr, "Unknown EC curve %d\n", curve);
           return 0;
