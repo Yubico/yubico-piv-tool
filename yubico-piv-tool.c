@@ -1265,7 +1265,7 @@ static void dump_hex(const unsigned char *buf, unsigned int len) {
 
 static bool parse_key(char *key_arg, unsigned char *key, int verbose) {
   int i;
-  char key_part[4];
+  char key_part[4] = {0};
   int key_len = strlen(key_arg);
 
   if(key_len != KEY_LEN * 2) {
