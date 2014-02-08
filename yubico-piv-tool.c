@@ -914,12 +914,6 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
     goto request_out;
   }
 
-  if(verbose) {
-    fprintf(stderr, "computed digest as: ");
-    dump_hex(digest, sizeof(digest));
-    fprintf(stderr, "\n");
-  }
-
   algor = (X509_ALGOR*)sk_X509_ALGOR_new_null();
   algor->parameter = (ASN1_TYPE*)sk_ASN1_TYPE_new_null();
   algor->parameter->type = V_ASN1_NULL;
