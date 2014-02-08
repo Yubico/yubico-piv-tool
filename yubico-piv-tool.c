@@ -423,8 +423,19 @@ static bool set_mgm_key(SCARDHANDLE *card, unsigned const char *new_key, int ver
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
   int sw;
+  size_t i;
 
-  /* TODO: check that it's a good key before setting. */
+  for(i = 0; i < KEY_LEN; i += 8) {
+    const_DES_cblock key_tmp;
+    memcpy(key_tmp, new_key + i, 8);
+    if(DES_is_weak_key(&key_tmp) == 1) {
+      fprintf(stderr, "Won't set new key '");
+      dump_hex(new_key + i, 8);
+      fprintf(stderr, "' since it's considered weak.\n");
+      return false;
+    }
+  }
+
   memset(apdu.raw, 0, sizeof(apdu));
   apdu.st.ins = 0xff;
   apdu.st.p1 = 0xff;
