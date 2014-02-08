@@ -676,15 +676,15 @@ static bool import_cert(SCARDHANDLE *card, enum enum_key_format cert_format,
     cert = PEM_read_X509(input_file, NULL, NULL, password);
     if(!cert) {
       fprintf(stderr, "Failed loading certificate for import.\n");
-      goto import_cert_out;
       ret = false;
+      goto import_cert_out;
     }
   } else if(cert_format == key_format_arg_PKCS12) {
     p12 = d2i_PKCS12_fp(input_file, NULL);
     if(!p12) {
       fprintf(stderr, "Failed to load PKCS12 from file.\n");
-      goto import_cert_out;
       ret = false;
+      goto import_cert_out;
     }
     if(!PKCS12_parse(p12, password, &private_key, &cert, NULL)) {
       fprintf(stderr, "Failed to parse PKCS12 structure.\n");
