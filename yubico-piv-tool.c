@@ -66,9 +66,11 @@ unsigned const char chuid_tmpl[] = {
 };
 #define CHUID_GUID_OFFS 35
 
-unsigned const char sha1oid[] = {
-  0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2B, 0x0E, 0x03, 0x02, 0x1A, 0x05, 0x00, 0x04, 0x14
+unsigned const char sha256oid[] = {
+  0x30, 0x31, 0x30, 0x0D, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04,
+  0x02, 0x01, 0x05, 0x00, 0x04, 0x20
 };
+#define DIGEST_LEN 32
 
 #define KEY_LEN 24
 
@@ -825,13 +827,13 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
   FILE *output_file;
   EVP_PKEY *public_key = NULL;
   bool ret = true;
-  unsigned char digest[35];
-  unsigned int digest_len = 20;
+  unsigned char digest[DIGEST_LEN + sizeof(sha256oid)];
+  unsigned int digest_len = DIGEST_LEN;
   unsigned char algorithm;
   int key = 0;
   ASN1_STRING *sig = NULL;
   unsigned char signinput[256];
-  int len;
+  int len = 0;
 
   sscanf(slot, "%x", &key);
 
@@ -898,18 +900,13 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
     goto request_out;
   }
 
-  algor = (X509_ALGOR*)sk_X509_ALGOR_new_null();
-  algor->parameter = (ASN1_TYPE*)sk_ASN1_TYPE_new_null();
-  algor->algorithm=OBJ_nid2obj(NID_sha1WithRSAEncryption);
-  algor->parameter->type = V_ASN1_NULL;
 
-  req->sig_alg = algor;
 
   memset(digest, 0, sizeof(digest));
-  memcpy(digest, sha1oid, sizeof(sha1oid));
+  memcpy(digest, sha256oid, sizeof(sha256oid));
   /* XXX: this should probably use X509_REQ_digest() but that's buggy */
-  if(!ASN1_item_digest(ASN1_ITEM_rptr(X509_REQ_INFO), EVP_sha1(), req->req_info,
-			  digest + 15, &digest_len)) {
+  if(!ASN1_item_digest(ASN1_ITEM_rptr(X509_REQ_INFO), EVP_sha256(), req->req_info,
+			  digest + sizeof(sha256oid), &digest_len)) {
     fprintf(stderr, "Failed doing digest of request.\n");
     ret = false;
     goto request_out;
@@ -920,21 +917,31 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
     dump_hex(digest, sizeof(digest));
     fprintf(stderr, "\n");
   }
-  if(algorithm == 0x6) {
-    len = 128;
-  } else if(algorithm == 0x7) {
-    len = 256;
-  } else if(algorithm == 0x11) {
-    len = 20;
-    memcpy(signinput, digest + 15, 20);
-  } else {
-    fprintf(stderr, "Unsupported algorithm %x.\n", algorithm);
-    ret = false;
-    goto request_out;
+
+  algor = (X509_ALGOR*)sk_X509_ALGOR_new_null();
+  algor->parameter = (ASN1_TYPE*)sk_ASN1_TYPE_new_null();
+  algor->parameter->type = V_ASN1_NULL;
+  switch(algorithm) {
+    case 0x6:
+      len = 128;
+    case 0x7:
+      if(len == 0) {
+        len = 256;
+      }
+      RSA_padding_add_PKCS1_type_1(signinput, len, digest, sizeof(digest));
+      algor->algorithm = OBJ_nid2obj(NID_sha256WithRSAEncryption);
+      break;
+    case 0x11:
+      algor->algorithm = OBJ_nid2obj(NID_ecdsa_with_SHA256);
+      len = DIGEST_LEN;
+      memcpy(signinput, digest + sizeof(sha256oid), DIGEST_LEN);
+      break;
+    default:
+      fprintf(stderr, "Unsupported algorithm %x.\n", algorithm);
+      ret = false;
+      goto request_out;
   }
-  if(algorithm == 6 || algorithm == 7) {
-    RSA_padding_add_PKCS1_type_1(signinput, len, digest, sizeof(digest));
-  }
+  req->sig_alg = algor;
   {
     unsigned char indata[1024];
     unsigned char *dataptr = indata;
