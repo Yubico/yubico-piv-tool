@@ -1048,10 +1048,16 @@ static bool verify_pin(SCARDHANDLE *card, const char *pin, int verbose) {
     memset(apdu.st.data + len, 0xff, 8 - len);
   }
   sw = send_data(card, &apdu, data, &recv_len, verbose);
-  if(sw != 0x9000) {
-    return false;
+  if(sw == 0x9000) {
+    return true;
+  } else if((sw >> 8) == 0x63) {
+    fprintf(stderr, "Pin verification failed, %d tries left before pin is blocked.\n", sw & 0xff);
+  } else if(sw == 0x6983) {
+    fprintf(stderr, "Pin code blocked, use unblock-pin action to unblock.\n");
+  } else {
+    fprintf(stderr, "Pin code verification failed with code %x.\n", sw);
   }
-  return true;
+  return false;
 }
 
 /* this function is called for all three of change-pin, change-puk and unblock pin
@@ -1473,7 +1479,6 @@ int main(int argc, char *argv[]) {
           if(verify_pin(&card, args_info.pin_arg, verbosity)) {
             printf("Successfully verified PIN.\n");
           } else {
-            fprintf(stderr, "Failed to verify PIN.\n");
             return EXIT_FAILURE;
           }
         } else {
