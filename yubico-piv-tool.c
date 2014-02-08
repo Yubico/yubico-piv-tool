@@ -361,11 +361,13 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
       rsa->e = bignum_e;
       EVP_PKEY_set1_RSA(public_key, rsa);
     } else if(algorithm == algorithm_arg_ECCP256) {
-      const EC_GROUP *group;
+      EC_GROUP *group;
       unsigned char *data_ptr = data + 3;
 
-      eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
-      group = EC_KEY_get0_group(eckey);
+      eckey = EC_KEY_new();
+      group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+      EC_GROUP_set_asn1_flag(group, NID_X9_62_prime256v1);
+      EC_KEY_set_group(eckey, group);
       point = EC_POINT_new(group);
       if(*data_ptr++ != 0x86) {
         fprintf(stderr, "Failed to parse public key structure.\n");
