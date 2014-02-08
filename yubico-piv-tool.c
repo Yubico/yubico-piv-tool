@@ -1051,6 +1051,8 @@ static bool verify_pin(SCARDHANDLE *card, const char *pin, int verbose) {
   return true;
 }
 
+/* this function is called for all three of change-pin, change-puk and unblock pin
+ * since they're very similar in what data they use. */
 static bool change_pin(SCARDHANDLE *card, enum enum_action action, const char *pin,
     const char *new_pin, int verbose) {
   APDU apdu;
@@ -1066,8 +1068,8 @@ static bool change_pin(SCARDHANDLE *card, enum enum_action action, const char *p
   }
 
   memset(apdu.raw, 0, sizeof(apdu.raw));
-  apdu.st.ins = 0x24;
-  apdu.st.p2 = action == action_arg_changeMINUS_pin ? 0x80 : 0x81;
+  apdu.st.ins = action == action_arg_unblockMINUS_pin ? 0x2c : 0x24;
+  apdu.st.p2 = action == action_arg_changeMINUS_puk ? 0x81 : 0x80;
   apdu.st.lc = 0x10;
   memcpy(apdu.st.data, pin, pin_len);
   if(pin_len < 8) {
@@ -1079,6 +1081,19 @@ static bool change_pin(SCARDHANDLE *card, enum enum_action action, const char *p
   }
   sw = send_data(card, &apdu, data, &recv_len, verbose);
   if(sw != 0x9000) {
+    if((sw >> 8) == 0x63) {
+      int tries = sw & 0xff;
+      fprintf(stderr, "Failed verifying %s code, now %d tries left before blocked.\n",
+          action == action_arg_changeMINUS_pin ? "pin" : "puk", tries);
+    } else if(sw == 0x6983) {
+      if(action == action_arg_changeMINUS_pin) {
+        fprintf(stderr, "The pin code is blocked, use the unblock-pin action to unblock it.\n");
+      } else {
+        fprintf(stderr, "The puk code is blocked, you will have to reinitialize the applet.\n");
+      }
+    } else {
+      fprintf(stderr, "Failed changing/unblocking code, error: %x\n", sw);
+    }
     return false;
   }
   return true;
@@ -1465,11 +1480,26 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_changeMINUS_pin:
       case action_arg_changeMINUS_puk:
+      case action_arg_unblockMINUS_pin:
         if(args_info.pin_arg && args_info.new_pin_arg) {
-          change_pin(&card, action, args_info.pin_arg, args_info.new_pin_arg, verbosity);
+          if(change_pin(&card, action, args_info.pin_arg, args_info.new_pin_arg, verbosity)) {
+            if(action == action_arg_unblockMINUS_pin) {
+              printf("Successfully unblocked the pin code.\n");
+            } else {
+              printf("Successfully changed the %s code.\n",
+                  action == action_arg_changeMINUS_pin ? "pin" : "puk");
+            }
+            return EXIT_SUCCESS;
+          } else {
+            return EXIT_FAILURE;
+          }
         } else {
-          fprintf(stderr, "The change-%s action needs a pin (-P) and a new-pin (-N).\n", action == action_arg_changeMINUS_pin ? "pin" : "puk");
+          fprintf(stderr, "The %s action needs a pin (-P) and a new-pin (-N).\n",
+              action == action_arg_changeMINUS_pin ? "change-pin" :
+              action == action_arg_changeMINUS_puk ? "change-puk" : "unblock-pin");
+          return EXIT_FAILURE;
         }
+        break;
       case action__NULL:
       default:
         fprintf(stderr, "Wrong action. %d.\n", action);
