@@ -1370,7 +1370,7 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
   if(verbosity) {
-    fprintf(stderr, "Successfull applet authentication.\n");
+    fprintf(stderr, "Successful applet authentication.\n");
   }
 
   /* openssl setup.. */
