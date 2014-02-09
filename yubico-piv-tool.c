@@ -556,10 +556,11 @@ static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format,
     }
     {
       APDU apdu;
+      unsigned char data[0xff];
+      unsigned long recv_len = sizeof(data);
       unsigned char in_data[1024];
       unsigned char *in_ptr = in_data;
       int sw;
-      int in_size;
       if(algorithm == 0x06 || algorithm == 0x07) {
         RSA *rsa_private_key = EVP_PKEY_get1_RSA(private_key);
 
@@ -591,34 +592,14 @@ static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format,
         in_ptr += BN_bn2bin(s, in_ptr);
       }
 
-      in_size = in_ptr - in_data;
-      in_ptr = in_data;
-
-      while(in_ptr < in_data + in_size) {
-        unsigned char data[0xff];
-        unsigned long recv_len = sizeof(data);
-        size_t this_size = 0xff;
-        memset(apdu.raw, 0, sizeof(apdu));
-        if(in_ptr + 0xff < in_data + in_size) {
-          apdu.st.cla = 0x10;
-        } else {
-          this_size = (size_t)((in_data + in_size) - in_ptr);
-        }
-        if(verbose) {
-          fprintf(stderr, "going to send %lu bytes in this go.\n", (unsigned long)this_size);
-        }
-        apdu.st.ins = 0xfe;
-        apdu.st.p1 = algorithm;
-        apdu.st.p2 = key;
-        apdu.st.lc = this_size;
-        memcpy(apdu.st.data, in_ptr, this_size);
-        sw = send_data(card, &apdu, data, &recv_len, verbose);
-        if(sw != 0x9000) {
-          fprintf(stderr, "Failed import command with code %x.", sw);
-          ret = false;
-          goto import_out;
-        }
-        in_ptr += this_size;
+      apdu.st.ins = 0xfe;
+      apdu.st.p1 = algorithm;
+      apdu.st.p2 = key;
+      sw = transfer_data(card, &apdu, in_data, in_ptr - in_data, data, &recv_len, verbose);
+      if(sw != 0x9000) {
+        fprintf(stderr, "Failed import command with code %x.", sw);
+        ret = false;
+        goto import_out;
       }
     }
   }
@@ -749,6 +730,7 @@ static bool import_cert(SCARDHANDLE *card, enum enum_key_format cert_format,
     if(sw != 0x9000) {
       fprintf(stderr, "Failed loading certificate to device with code %x.\n", sw);
       ret = false;
+      goto import_cert_out;
     }
   }
 
