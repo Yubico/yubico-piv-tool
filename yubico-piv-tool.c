@@ -592,6 +592,7 @@ static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format,
         in_ptr += BN_bn2bin(s, in_ptr);
       }
 
+      memset(apdu.raw, 0, sizeof(apdu.raw));
       apdu.st.ins = 0xfe;
       apdu.st.p1 = algorithm;
       apdu.st.p2 = key;
@@ -722,6 +723,7 @@ static bool import_cert(SCARDHANDLE *card, enum enum_key_format cert_format,
     *certptr++ = 0xfe; /* LRC */
     *certptr++ = 0;
 
+    memset(apdu.raw, 0, sizeof(apdu.raw));
     apdu.st.ins = 0xdb;
     apdu.st.p1 = 0x3f;
     apdu.st.p2 = 0xff;
