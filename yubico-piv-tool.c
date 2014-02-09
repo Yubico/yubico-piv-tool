@@ -703,11 +703,13 @@ static bool import_cert(SCARDHANDLE *card, enum enum_key_format cert_format,
   }
 
   {
+    APDU apdu;
     unsigned char certdata[2100];
     unsigned char *certptr = certdata;
+    unsigned char data[0xff];
+    unsigned long recv_len = sizeof(data);
     int cert_len = i2d_X509(cert, NULL);
     int bytes;
-    int cert_size;
     int sw;
 
     if(cert_len > 2048) {
@@ -739,35 +741,14 @@ static bool import_cert(SCARDHANDLE *card, enum enum_key_format cert_format,
     *certptr++ = 0xfe; /* LRC */
     *certptr++ = 0;
 
-    cert_size = certptr - certdata;
-    certptr = certdata;
-    while(certptr < certdata + cert_size) {
-      unsigned char data[0xff];
-      unsigned long recv_len = sizeof(data);
-      size_t this_size = 0xff;
-      APDU apdu;
+    apdu.st.ins = 0xdb;
+    apdu.st.p1 = 0x3f;
+    apdu.st.p2 = 0xff;
 
-      memset(apdu.raw, 0, sizeof(apdu));
-      if(certptr + 0xff < certdata + cert_size) {
-        apdu.st.cla = 0x10;
-      } else {
-        this_size = (size_t)((certdata + cert_size) - certptr);
-      }
-      if(verbose) {
-        fprintf(stderr, "going to send %lu bytes in this go.\n", (unsigned long)this_size);
-      }
-      apdu.st.ins = 0xdb;
-      apdu.st.p1 = 0x3f;
-      apdu.st.p2 = 0xff;
-      apdu.st.lc = this_size;
-      memcpy(apdu.st.data, certptr, this_size);
-      sw = send_data(card, &apdu, data, &recv_len, verbose);
-      if(sw != 0x9000) {
-        fprintf(stderr, "Failed import command with code %x.", sw);
-        ret = false;
-        goto import_cert_out;
-      }
-      certptr += this_size;
+    sw = transfer_data(card, &apdu, certdata, certptr - certdata, data, &recv_len, verbose);
+    if(sw != 0x9000) {
+      fprintf(stderr, "Failed loading certificate to device with code %x.\n", sw);
+      ret = false;
     }
   }
 
