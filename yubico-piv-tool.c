@@ -1390,7 +1390,8 @@ int main(int argc, char *argv[]) {
           if(set_pin_retries(&card, args_info.pin_retries_arg, args_info.puk_retries_arg, verbosity) == false) {
             return EXIT_FAILURE;
           }
-          printf("Successfully changed pin retries to %d and puk retries to %d.\n", args_info.pin_retries_arg, args_info.puk_retries_arg);
+          printf("Successfully changed pin retries to %d and puk retries to %d, both codes have been reset to default now.\n",
+              args_info.pin_retries_arg, args_info.puk_retries_arg);
         } else {
           fprintf(stderr, "The pin-retries action needs both --pin-retries and --puk-retries arguments.\n");
           return EXIT_FAILURE;
