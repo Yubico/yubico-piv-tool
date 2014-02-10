@@ -136,6 +136,7 @@ fi
 
 AC_CONFIG_FILES([
   Makefile
+  tests/Makefile
 ])
 AC_OUTPUT
 

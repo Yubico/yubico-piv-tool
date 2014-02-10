@@ -24,6 +24,8 @@
 # non-source form of such a combination shall include the source code
 # for the parts of OpenSSL used as well as that of the covered work.
 
+SUBDIRS = . tests
+
 AM_CFLAGS = $(WERROR_CFLAGS) $(WARN_CFLAGS)
 AM_CPPFLAGS = $(OPENSSL_CFLAGS) $(PCSC_CFLAGS)
 

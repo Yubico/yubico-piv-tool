@@ -27,8 +27,12 @@ build-aux/depcomp
 build-aux/install-sh
 build-aux/ltmain.sh
 build-aux/missing
+build-aux/test-driver
 tmp32/
 tmp64/
 yubico-piv-tool-*-win32.zip
 yubico-piv-tool-*-win64.zip
 yubico-piv-tool-*.tar.gz
+tests/basic.sh.log
+tests/basic.sh.trs
+tests/test-suite.log
