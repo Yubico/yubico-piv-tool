@@ -1,0 +1,7 @@
+Author: Yubico
+Basename: yubico-piv-tool
+Homepage: http://opensource.yubico.com/yubico-piv-tool/
+License: GPL-3.0+
+Name: yubico-piv-tool
+Project: yubico-piv-tool
+Summary: Command line tool for the YubiKey NEO PIV applet
