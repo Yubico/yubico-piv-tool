@@ -48,7 +48,7 @@ MAINTAINERCLEANFILES = $(BUILT_SOURCES)
 dist_man_MANS = yubico-piv-tool.1
 MAINTAINERCLEANFILES += $(dist_man_MANS)
 
-EXTRA_DIST = windows.mk mac.mk
+EXTRA_DIST = windows.mk mac.mk tests/basic.sh
 
 yubico-piv-tool.1: $(yubico_piv_tool_SOURCES) \
 		$(top_srcdir)/configure.ac
