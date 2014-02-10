@@ -141,8 +141,19 @@ AC_OUTPUT
 
 AC_MSG_NOTICE([summary of build options:
 
-  version:          ${VERSION}
+  Version:          ${VERSION}
   Host type:        ${host}
   Install prefix:   ${prefix}
   Compiler:         ${CC}
+  CFLAGS:           ${CFLAGS}
+  CPPFLAGS:         ${CPPFLAGS}
+  Warnings:         ${WARN_CFLAGS}
+  Backend:          ${with_backend}
+  PCSC
+          CFLAGS:   ${PCSC_CFLAGS}
+            LIBS:   ${PCSC_LIBS}
+  Winscard
+            LIBS:   ${LTLIBWINSCARD}
+  Mac PCSC
+            LIBS:   ${PCSC_MACOSX_LIBS}
 ])
