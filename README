@@ -1,0 +1,108 @@
+Yubico PIV Tool
+===============
+
+Introduction
+------------
+
+This is a command line tool to interact with the PIV applet on a YubiKey NEO.
+Among other functions it supports, generating keys on device, importing keys
+and certificates and creating certificate requests.
+
+For more information about Yubico and the YubiKey, see:
+https://www.yubico.com
+
+License
+-------
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+Additional permission under GNU GPL version 3 section 7
+
+If you modify this program, or any covered work, by linking or
+combining it with the OpenSSL project's OpenSSL library (or a
+modified version of that library), containing parts covered by the
+terms of the OpenSSL or SSLeay licenses, We grant you additional 
+permission to convey the resulting work. Corresponding Source for a
+non-source form of such a combination shall include the source code
+for the parts of OpenSSL used as well as that of the covered work.
+
+Building
+--------
+
+After downloading and unpacking the package tarball, you build it as
+follows.
+
+  ./configure
+  make
+  sudo make install
+
+The backend to use is decided at compile time, see the summary at the
+end of the ./configure output.  Use --with-backend=foo to chose
+backend, replacing foo with the backend you want to use.  The backends
+available are "pcsc", "macscard", and "winscard" using the PCSC
+interface, with slightly different shared library linkage and
+header file names: "pcsc" is used under GNU-like systems, "macscard"
+under Mac OS X, and "winscard" is used under Windows.  In most
+situations, running ./configure should automatically find the proper
+backend to use.
+
+Building from Git
+-----------------
+
+Recent versions of autoconf, automake, pkg-config and libtool must
+be installed.  Help2man is used to generate the manpages.  Gengetopt
+is needed for command line parameter handling.
+
+Generate the build system using:
+
+  autoreconf --install
+
+Then you follow the normal build instructions, see above.
+To turn on all warnings add --enable-gcc-warnings to ./configure
+
+Portability
+-----------
+
+The main development platform is Debian GNU/Linux.  The project is
+cross-compiled to Windows using MinGW (see windows.mk) using the PCSC
+backend.  It may also be built for Mac OS X (see mac.mk), also using
+the PCSC backend.
+
+Example Usage
+-------------
+
+For help text on all commands --help can be given to the command, for more
+output --verbose or --verbose=2 may be added.
+
+Generate a new ECC-P256 key on device in slot 9a, will send the public
+key on stdout:
+
+  yubico-piv-tool -s 9a -A ECCP256 -a generate
+
+Generate a certificate request with public key given on stdin, will give
+the resulting request on stdout:
+
+  yubico-piv-tool -s 9a -S '/CN=foo/OU=test/O=example.com/' -P 123456 \
+    -a verify -a request
+
+Set a random chuid, import a key and import a certificate from a PKCS12
+file with password test, into slot 9c:
+
+  yubico-piv-tool -s 9c -i test.pfx -K PKCS12 -p test -a set-chuid \
+    -a import-key -a import-cert
+
+Change the management key used for administrative authentication:
+
+  yubico-piv-tool -n 0807605403020108070605040302010807060504030201 \
+    -a set-mgm-key
