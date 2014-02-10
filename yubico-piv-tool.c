@@ -970,6 +970,214 @@ request_out:
   return ret;
 }
 
+static bool selfsign_certificate(SCARDHANDLE *card, enum enum_key_format key_format,
+    const char *input_file_name, const char *slot, char *subject,
+    const char *output_file_name, int verbose) {
+  FILE *input_file = NULL;
+  FILE *output_file = NULL;
+  bool ret = true;
+  EVP_PKEY *public_key = NULL;
+  X509 *x509 = NULL;
+  X509_NAME *name = NULL;
+  X509_ALGOR *algor = NULL;
+  unsigned char digest[DIGEST_LEN + sizeof(sha256oid)];
+  unsigned int digest_len = DIGEST_LEN;
+  unsigned char algorithm;
+  int key = 0;
+  ASN1_STRING *sig = NULL;
+  unsigned char signinput[256];
+  int len = 0;
+
+  sscanf(slot, "%x", &key);
+
+  input_file = open_file(input_file_name, INPUT);
+  output_file = open_file(output_file_name, OUTPUT);
+  if(!input_file || !output_file) {
+    ret = false;
+    goto selfsign_out;
+  }
+
+  if(key_format == key_format_arg_PEM) {
+    public_key = PEM_read_PUBKEY(input_file, NULL, NULL, NULL);
+    if(!public_key) {
+      fprintf(stderr, "Failed loading public key for certificate.\n");
+      ret = false;
+      goto selfsign_out;
+    }
+  } else {
+    fprintf(stderr, "Only PEM supported for public key input.\n");
+    ret = false;
+  }
+  algorithm = get_algorithm(public_key);
+  if(algorithm == 0) {
+    ret = false;
+    goto selfsign_out;
+  }
+
+  x509 = X509_new();
+  if(!x509) {
+    fprintf(stderr, "Failed to allocate certificate structure.\n");
+    ret = false;
+    goto selfsign_out;
+  }
+  if(!X509_set_pubkey(x509, public_key)) {
+    fprintf(stderr, "Failed to set the certificate public key.\n");
+    ret = false;
+    goto selfsign_out;
+  }
+  if(!ASN1_INTEGER_set(X509_get_serialNumber(x509), 1)) {
+    fprintf(stderr, "Failed to set certificate serial.\n");
+    ret = false;
+    goto selfsign_out;
+  }
+  if(!X509_gmtime_adj(X509_get_notBefore(x509), 0)) {
+    fprintf(stderr, "Failed to set certificate notBefore.\n");
+    ret = false;
+    goto selfsign_out;
+  }
+  if(!X509_gmtime_adj(X509_get_notAfter(x509), 31536000L)) {
+    fprintf(stderr, "Failed to set certificate notAfter.\n");
+    ret = false;
+    goto selfsign_out;
+  }
+  name = parse_name(subject);
+  if(!name) {
+    fprintf(stderr, "Failed encoding subject as name.\n");
+    ret = false;
+    goto selfsign_out;
+  }
+  if(!X509_set_subject_name(x509, name)) {
+    fprintf(stderr, "Failed setting certificate subject.\n");
+    ret = false;
+    goto selfsign_out;
+  }
+  if(!X509_set_issuer_name(x509, name)) {
+    fprintf(stderr, "Failed setting certificate issuer.\n");
+    ret = false;
+    goto selfsign_out;
+  }
+  memset(digest, 0, sizeof(digest));
+  memcpy(digest, sha256oid, sizeof(sha256oid));
+  /* XXX: this should probably use X509_digest() but that looks buggy */
+  if(!ASN1_item_digest(ASN1_ITEM_rptr(X509_CINF), EVP_sha256(), x509->cert_info,
+			  digest + sizeof(sha256oid), &digest_len)) {
+    fprintf(stderr, "Failed doing digest of certificate.\n");
+    ret = false;
+    goto selfsign_out;
+  }
+  algor = (X509_ALGOR*)sk_X509_ALGOR_new_null();
+  algor->parameter = (ASN1_TYPE*)sk_ASN1_TYPE_new_null();
+  algor->parameter->type = V_ASN1_NULL;
+  switch(algorithm) {
+    case 0x6:
+      len = 128;
+    case 0x7:
+      if(len == 0) {
+        len = 256;
+      }
+      RSA_padding_add_PKCS1_type_1(signinput, len, digest, sizeof(digest));
+      algor->algorithm = OBJ_nid2obj(NID_sha256WithRSAEncryption);
+      break;
+    case 0x11:
+      algor->algorithm = OBJ_nid2obj(NID_ecdsa_with_SHA256);
+      len = DIGEST_LEN;
+      memcpy(signinput, digest + sizeof(sha256oid), DIGEST_LEN);
+      break;
+    default:
+      fprintf(stderr, "Unsupported algorithm %x.\n", algorithm);
+      ret = false;
+      goto selfsign_out;
+  }
+  x509->sig_alg = algor;
+  {
+    unsigned char indata[1024];
+    unsigned char *dataptr = indata;
+    unsigned char data[1024];
+    unsigned long recv_len = sizeof(data);
+    int sw;
+    int bytes;
+    APDU apdu;
+
+    memset(apdu.raw, 0, sizeof(apdu.raw));
+    apdu.st.ins = 0x87;
+    apdu.st.p1 = algorithm;
+    apdu.st.p2 = key;
+
+    if(len < 0x80) {
+      bytes = 1;
+    } else if(len < 0xff) {
+      bytes = 2;
+    } else {
+      bytes = 3;
+    }
+
+    *dataptr++ = 0x7c;
+    dataptr += set_length(dataptr, len + bytes + 3);
+    *dataptr++ = 0x82;
+    *dataptr++ = 0x00;
+    *dataptr++ = 0x81;
+    dataptr += set_length(dataptr, len);
+    memcpy(dataptr, signinput, (size_t)len);
+    dataptr += len;
+
+    sw = transfer_data(card, &apdu, indata, dataptr - indata, data, &recv_len, verbose);
+    if(sw != 0x9000) {
+      fprintf(stderr, "Failed sign command with code %x.\n", sw);
+      ret = false;
+      goto selfsign_out;
+    }
+    /* skip the first 7c tag */
+    if(data[0] != 0x7c) {
+      fprintf(stderr, "Failed parsing signature reply.\n");
+      ret = false;
+      goto selfsign_out;
+    }
+    dataptr = data + 1;
+    dataptr += get_length(dataptr, &len);
+    /* skip the 82 tag */
+    if(*dataptr != 0x82) {
+      fprintf(stderr, "Failed parsing signature reply.\n");
+      ret = false;
+      goto selfsign_out;
+    }
+    dataptr++;
+    dataptr += get_length(dataptr, &len);
+    sig = M_ASN1_BIT_STRING_new();
+    M_ASN1_BIT_STRING_set(sig, dataptr, len);
+    x509->signature = sig;
+
+    if(key_format == key_format_arg_PEM) {
+      fprintf(stderr, "going to print..\n");
+      PEM_write_X509(output_file, x509);
+    } else {
+      fprintf(stderr, "Only PEM support available for certificate requests.\n");
+      ret = false;
+      goto selfsign_out;
+    }
+  }
+
+selfsign_out:
+  if(input_file && input_file != stdin) {
+    fclose(input_file);
+  }
+  if(output_file && output_file != stdout) {
+    fclose(output_file);
+  }
+  if(x509) {
+    X509_free(x509);
+  }
+  if(public_key) {
+    EVP_PKEY_free(public_key);
+  }
+  if(name) {
+    X509_NAME_free(name);
+  }
+  if(algor) {
+    X509_ALGOR_free(algor);
+  }
+  return ret;
+}
+
 static bool verify_pin(SCARDHANDLE *card, const char *pin, int verbose) {
   APDU apdu;
   unsigned char data[0xff];
@@ -1466,6 +1674,19 @@ int main(int argc, char *argv[]) {
               action == action_arg_changeMINUS_pin ? "change-pin" :
               action == action_arg_changeMINUS_puk ? "change-puk" : "unblock-pin");
           return EXIT_FAILURE;
+        }
+        break;
+      case action_arg_selfsignMINUS_certificate:
+        if(args_info.slot_arg == slot__NULL) {
+          fprintf(stderr, "The selfsign-certificate action needs a slot (-s) to operate on.\n");
+          return EXIT_FAILURE;
+        } else if(!args_info.subject_arg) {
+          fprintf(stderr, "The selfsign-certificate action needs a subject (-S) to operate on.\n");
+        } else {
+          if(selfsign_certificate(&card, args_info.key_format_arg, args_info.input_arg,
+                args_info.slot_orig, args_info.subject_arg, args_info.output_arg, verbosity) == false) {
+            return EXIT_FAILURE;
+          }
         }
         break;
       case action__NULL:
