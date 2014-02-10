@@ -1184,11 +1184,12 @@ static int transfer_data(SCARDHANDLE *card, APDU *apdu_tmpl, unsigned char *in_d
       return sw;
     }
     if(*out_len + recv_len - 2 > max_out) {
-      fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.", *out_len + recv_len - 2, max_out);
+      fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.\n", *out_len + recv_len - 2, max_out);
+      return 0;
     }
     memcpy(out_data, data, recv_len - 2);
     out_data += recv_len - 2;
-    out_len += recv_len - 2;
+    *out_len += recv_len - 2;
     in_ptr += this_size;
   }
   while(sw >> 8 == 0x61) {
@@ -1211,7 +1212,7 @@ static int transfer_data(SCARDHANDLE *card, APDU *apdu_tmpl, unsigned char *in_d
     }
     memcpy(out_data, data, recv_len - 2);
     out_data += recv_len - 2;
-    out_len += recv_len - 2;
+    *out_len += recv_len - 2;
   }
   return sw;
 }
