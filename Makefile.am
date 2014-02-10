@@ -52,7 +52,6 @@ yubico-piv-tool.1: $(yubico_piv_tool_SOURCES) \
 		$(top_srcdir)/configure.ac
 	$(HELP2MAN) --no-info \
 		--name="Yubico PIV tool" \
-		--help-option="--detailed-help" \
 		--output=$@ $(top_builddir)/yubico-piv-tool$(EXEEXT)
 
 # Maintainer rules.
