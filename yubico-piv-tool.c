@@ -101,6 +101,8 @@ static int get_length(unsigned char*, int*);
 static X509_NAME *parse_name(char*);
 static unsigned char get_algorithm(EVP_PKEY*);
 static FILE *open_file(const char*, int);
+static bool sign_data(SCARDHANDLE*, unsigned char*, int, unsigned char, unsigned char,
+    ASN1_BIT_STRING*, int);
 
 static bool connect_reader(SCARDHANDLE *card, SCARDCONTEXT *context, const char *wanted, int verbose) {
   unsigned long num_readers;
@@ -984,7 +986,6 @@ static bool selfsign_certificate(SCARDHANDLE *card, enum enum_key_format key_for
   unsigned int digest_len = DIGEST_LEN;
   unsigned char algorithm;
   int key = 0;
-  ASN1_STRING *sig = NULL;
   unsigned char signinput[256];
   int len = 0;
 
@@ -1089,71 +1090,18 @@ static bool selfsign_certificate(SCARDHANDLE *card, enum enum_key_format key_for
       goto selfsign_out;
   }
   x509->sig_alg = algor;
-  {
-    unsigned char indata[1024];
-    unsigned char *dataptr = indata;
-    unsigned char data[1024];
-    unsigned long recv_len = sizeof(data);
-    int sw;
-    int bytes;
-    APDU apdu;
+  x509->signature = M_ASN1_BIT_STRING_new();
+  if(sign_data(card, signinput, len, algorithm, key, x509->signature, verbose) == false) {
+    ret = false;
+    goto selfsign_out;
+  }
 
-    memset(apdu.raw, 0, sizeof(apdu.raw));
-    apdu.st.ins = 0x87;
-    apdu.st.p1 = algorithm;
-    apdu.st.p2 = key;
-
-    if(len < 0x80) {
-      bytes = 1;
-    } else if(len < 0xff) {
-      bytes = 2;
-    } else {
-      bytes = 3;
-    }
-
-    *dataptr++ = 0x7c;
-    dataptr += set_length(dataptr, len + bytes + 3);
-    *dataptr++ = 0x82;
-    *dataptr++ = 0x00;
-    *dataptr++ = 0x81;
-    dataptr += set_length(dataptr, len);
-    memcpy(dataptr, signinput, (size_t)len);
-    dataptr += len;
-
-    sw = transfer_data(card, &apdu, indata, dataptr - indata, data, &recv_len, verbose);
-    if(sw != 0x9000) {
-      fprintf(stderr, "Failed sign command with code %x.\n", sw);
-      ret = false;
-      goto selfsign_out;
-    }
-    /* skip the first 7c tag */
-    if(data[0] != 0x7c) {
-      fprintf(stderr, "Failed parsing signature reply.\n");
-      ret = false;
-      goto selfsign_out;
-    }
-    dataptr = data + 1;
-    dataptr += get_length(dataptr, &len);
-    /* skip the 82 tag */
-    if(*dataptr != 0x82) {
-      fprintf(stderr, "Failed parsing signature reply.\n");
-      ret = false;
-      goto selfsign_out;
-    }
-    dataptr++;
-    dataptr += get_length(dataptr, &len);
-    sig = M_ASN1_BIT_STRING_new();
-    M_ASN1_BIT_STRING_set(sig, dataptr, len);
-    x509->signature = sig;
-
-    if(key_format == key_format_arg_PEM) {
-      fprintf(stderr, "going to print..\n");
-      PEM_write_X509(output_file, x509);
-    } else {
-      fprintf(stderr, "Only PEM support available for certificate requests.\n");
-      ret = false;
-      goto selfsign_out;
-    }
+  if(key_format == key_format_arg_PEM) {
+    PEM_write_X509(output_file, x509);
+  } else {
+    fprintf(stderr, "Only PEM support available for certificate requests.\n");
+    ret = false;
+    goto selfsign_out;
   }
 
 selfsign_out:
@@ -1257,6 +1205,62 @@ static bool change_pin(SCARDHANDLE *card, enum enum_action action, const char *p
     }
     return false;
   }
+  return true;
+}
+
+static bool sign_data(SCARDHANDLE *card, unsigned char *signinput, int in_len,
+    unsigned char algorithm, unsigned char key, ASN1_BIT_STRING *sig, int verbose) {
+  unsigned char indata[1024];
+  unsigned char *dataptr = indata;
+  unsigned char data[1024];
+  unsigned long recv_len = sizeof(data);
+  int sw;
+  int bytes;
+  APDU apdu;
+  int len;
+
+  memset(apdu.raw, 0, sizeof(apdu.raw));
+  apdu.st.ins = 0x87;
+  apdu.st.p1 = algorithm;
+  apdu.st.p2 = key;
+
+  if(in_len < 0x80) {
+    bytes = 1;
+  } else if(in_len < 0xff) {
+    bytes = 2;
+  } else {
+    bytes = 3;
+  }
+
+  *dataptr++ = 0x7c;
+  dataptr += set_length(dataptr, in_len + bytes + 3);
+  *dataptr++ = 0x82;
+  *dataptr++ = 0x00;
+  *dataptr++ = 0x81;
+  dataptr += set_length(dataptr, in_len);
+  memcpy(dataptr, signinput, (size_t)in_len);
+  dataptr += in_len;
+
+  sw = transfer_data(card, &apdu, indata, dataptr - indata, data, &recv_len, verbose);
+  if(sw != 0x9000) {
+    fprintf(stderr, "Failed sign command with code %x.\n", sw);
+    return false;
+  }
+  /* skip the first 7c tag */
+  if(data[0] != 0x7c) {
+    fprintf(stderr, "Failed parsing signature reply.\n");
+    return false;
+  }
+  dataptr = data + 1;
+  dataptr += get_length(dataptr, &len);
+  /* skip the 82 tag */
+  if(*dataptr != 0x82) {
+    fprintf(stderr, "Failed parsing signature reply.\n");
+    return false;
+  }
+  dataptr++;
+  dataptr += get_length(dataptr, &len);
+  M_ASN1_BIT_STRING_set(sig, dataptr, len);
   return true;
 }
 
