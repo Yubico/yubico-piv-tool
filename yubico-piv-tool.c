@@ -75,6 +75,9 @@ unsigned const char sha256oid[] = {
 
 #define KEY_LEN 24
 
+#define INPUT 1
+#define OUTPUT 2
+
 union u_APDU {
   struct {
     unsigned char cla;
@@ -97,6 +100,7 @@ static int set_length(unsigned char*, int);
 static int get_length(unsigned char*, int*);
 static X509_NAME *parse_name(char*);
 static unsigned char get_algorithm(EVP_PKEY*);
+static FILE *open_file(const char*, int);
 
 static bool connect_reader(SCARDHANDLE *card, SCARDCONTEXT *context, const char *wanted, int verbose) {
   unsigned long num_readers;
@@ -268,7 +272,7 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
   unsigned long received = 0;
   int sw;
   int key = 0;
-  FILE *output_file;
+  FILE *output_file = NULL;
   bool ret = true;
   EVP_PKEY *public_key = NULL;
   RSA *rsa = NULL;
@@ -279,14 +283,10 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
 
   sscanf(slot, "%x", &key);
 
-  if(!strcmp(output_file_name, "-")) {
-    output_file = stdout;
-  } else {
-    output_file = fopen(output_file_name, "w");
-    if(!output_file) {
-      fprintf(stderr, "Failed opening '%s'!\n", output_file_name);
-      return false;
-    }
+  output_file = open_file(output_file_name, OUTPUT);
+  if(!output_file) {
+    ret = false;
+    goto generate_out;
   }
 
   memset(apdu.raw, 0, sizeof(apdu));
@@ -505,7 +505,7 @@ static bool set_pin_retries(SCARDHANDLE *card, int pin_retries, int puk_retries,
 static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format,
     const char *input_file_name, const char *slot, char *password, int verbose) {
   int key = 0;
-  FILE *input_file;
+  FILE *input_file = NULL;
   EVP_PKEY *private_key = NULL;
   PKCS12 *p12 = NULL;
   X509 *cert = NULL;
@@ -513,14 +513,10 @@ static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format,
 
   sscanf(slot, "%x", &key);
 
-  if(!strcmp(input_file_name, "-")) {
-    input_file = stdin;
-  } else {
-    input_file = fopen(input_file_name, "r");
-    if(!input_file) {
-      fprintf(stderr, "Failed opening '%s'!\n", input_file_name);
-      return false;
-    }
+  input_file = open_file(input_file_name, INPUT);
+  if(!input_file) {
+    ret = false;
+    goto import_out;
   }
 
   if(key_format == key_format_arg_PEM) {
@@ -625,7 +621,7 @@ static bool import_cert(SCARDHANDLE *card, enum enum_key_format cert_format,
     const char *input_file_name, enum enum_slot slot, char *password, int verbose) {
   int object;
   bool ret = true;
-  FILE *input_file;
+  FILE *input_file = NULL;
   X509 *cert = NULL;
   PKCS12 *p12 = NULL;
   EVP_PKEY *private_key = NULL;
@@ -649,14 +645,10 @@ static bool import_cert(SCARDHANDLE *card, enum enum_key_format cert_format,
       return false;
   }
 
-  if(!strcmp(input_file_name, "-")) {
-    input_file = stdin;
-  } else {
-    input_file = fopen(input_file_name, "r");
-    if(!input_file) {
-      fprintf(stderr, "Failed opening '%s'!\n", input_file_name);
-      return false;
-    }
+  input_file = open_file(input_file_name, INPUT);
+  if(!input_file) {
+    ret = false;
+    goto import_cert_out;
   }
 
   if(cert_format == key_format_arg_PEM) {
@@ -791,8 +783,8 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
   X509_REQ *req = NULL;
   X509_NAME *name = NULL;
   X509_ALGOR *algor = NULL;
-  FILE *input_file;
-  FILE *output_file;
+  FILE *input_file = NULL;
+  FILE *output_file = NULL;
   EVP_PKEY *public_key = NULL;
   bool ret = true;
   unsigned char digest[DIGEST_LEN + sizeof(sha256oid)];
@@ -805,23 +797,11 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
 
   sscanf(slot, "%x", &key);
 
-  if(!strcmp(input_file_name, "-")) {
-    input_file = stdin;
-  } else {
-    input_file = fopen(input_file_name, "r");
-    if(!input_file) {
-      fprintf(stderr, "Failed opening '%s'!\n", input_file_name);
-      return false;
-    }
-  }
-  if(!strcmp(output_file_name, "-")) {
-    output_file = stdout;
-  } else {
-    output_file = fopen(output_file_name, "w");
-    if(!output_file) {
-      fprintf(stderr, "Failed opening '%s'!\n", output_file_name);
-      return false;
-    }
+  input_file = open_file(input_file_name, INPUT);
+  output_file = open_file(output_file_name, OUTPUT);
+  if(!input_file || !output_file) {
+    ret = false;
+    goto request_out;
   }
 
   if(key_format == key_format_arg_PEM) {
@@ -867,8 +847,6 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
     ret = false;
     goto request_out;
   }
-
-
 
   memset(digest, 0, sizeof(digest));
   memcpy(digest, sha256oid, sizeof(sha256oid));
@@ -971,10 +949,10 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
   }
 
 request_out:
-  if(input_file != stdin) {
+  if(input_file && input_file != stdin) {
     fclose(input_file);
   }
-  if(output_file != stdout) {
+  if(output_file && output_file != stdout) {
     fclose(output_file);
   }
   if(public_key) {
@@ -1072,6 +1050,20 @@ static bool change_pin(SCARDHANDLE *card, enum enum_action action, const char *p
     return false;
   }
   return true;
+}
+
+static FILE *open_file(const char *file_name, int mode) {
+  FILE *file;
+  if(!strcmp(file_name, "-")) {
+    file = mode == INPUT ? stdin : stdout;
+  } else {
+    file = fopen(file_name, mode == INPUT ? "r" : "w");
+    if(!file) {
+      fprintf(stderr, "Failed opening '%s'!\n", file_name);
+      return NULL;
+    }
+  }
+  return file;
 }
 
 static unsigned char get_algorithm(EVP_PKEY *key) {
