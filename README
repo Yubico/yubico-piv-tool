@@ -85,16 +85,22 @@ Example Usage
 For help text on all commands --help can be given to the command, for more
 output --verbose or --verbose=2 may be added.
 
-Generate a new ECC-P256 key on device in slot 9a, will send the public
+Generate a new ECC-P256 key on device in slot 9a, will print the public
 key on stdout:
 
   yubico-piv-tool -s 9a -A ECCP256 -a generate
 
-Generate a certificate request with public key given on stdin, will give
+Generate a certificate request with public key from stdin, will print
 the resulting request on stdout:
 
   yubico-piv-tool -s 9a -S '/CN=foo/OU=test/O=example.com/' -P 123456 \
     -a verify -a request
+
+Generate a self-signed certificate with publick key from stdin, will print
+the certificate, for later import, on stdout:
+
+  yubico-piv-tool -s 9a -S '/CN=bar/OU=test/O=example.com/' -P 123456 \
+    -a verify -a selfsign
 
 Set a random chuid, import a key and import a certificate from a PKCS12
 file with password test, into slot 9c:
