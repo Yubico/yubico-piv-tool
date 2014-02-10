@@ -26,6 +26,12 @@
 # non-source form of such a combination shall include the source code
 # for the parts of OpenSSL used as well as that of the covered work.
 
+# This little perl program takes an input like:
+#  S9999F9999F999999F0F1F0000000000300001E
+# and outputs that in hex, encoded in the 5-bit form described in
+# "Technical Implementation Guidance: Smart Card Enabled Physical Access
+#  Control Systems"
+
 use strict;
 use Bit::Vector;
 
@@ -40,8 +46,8 @@ my %encoding = (
   7 => "01110",
   8 => "10000",
   9 => "10011",
-  S => "10110",
-  F => "11010",
+  S => "11010", # the examples and definitions of S and F differ
+  F => "10110", # but we'll go with the examples here..
   E => "11111",
 );
 
