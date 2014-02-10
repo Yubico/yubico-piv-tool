@@ -827,7 +827,7 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
   if(key_format == key_format_arg_PEM) {
     public_key = PEM_read_PUBKEY(input_file, NULL, NULL, NULL);
     if(!public_key) {
-      fprintf(stderr, "Failed loading private key for import.\n");
+      fprintf(stderr, "Failed loading public key for request.\n");
       ret = false;
       goto request_out;
     }
