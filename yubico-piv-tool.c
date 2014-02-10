@@ -793,7 +793,6 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
   unsigned int digest_len = DIGEST_LEN;
   unsigned char algorithm;
   int key = 0;
-  ASN1_STRING *sig = NULL;
   unsigned char signinput[256];
   int len = 0;
 
@@ -884,70 +883,19 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
       goto request_out;
   }
   req->sig_alg = algor;
-  {
-    unsigned char indata[1024];
-    unsigned char *dataptr = indata;
-    unsigned char data[1024];
-    unsigned long recv_len = sizeof(data);
-    int sw;
-    int bytes;
-    APDU apdu;
+  req->signature = M_ASN1_BIT_STRING_new();
+  if(sign_data(card, signinput, len, algorithm, key, req->signature,
+        verbose) == false) {
+    ret = false;
+    goto request_out;
+  }
 
-    memset(apdu.raw, 0, sizeof(apdu.raw));
-    apdu.st.ins = 0x87;
-    apdu.st.p1 = algorithm;
-    apdu.st.p2 = key;
-
-    if(len < 0x80) {
-      bytes = 1;
-    } else if(len < 0xff) {
-      bytes = 2;
-    } else {
-      bytes = 3;
-    }
-
-    *dataptr++ = 0x7c;
-    dataptr += set_length(dataptr, len + bytes + 3);
-    *dataptr++ = 0x82;
-    *dataptr++ = 0x00;
-    *dataptr++ = 0x81;
-    dataptr += set_length(dataptr, len);
-    memcpy(dataptr, signinput, (size_t)len);
-    dataptr += len;
-
-    sw = transfer_data(card, &apdu, indata, dataptr - indata, data, &recv_len, verbose);
-    if(sw != 0x9000) {
-      fprintf(stderr, "Failed sign command with code %x.\n", sw);
-      ret = false;
-      goto request_out;
-    }
-    /* skip the first 7c tag */
-    if(data[0] != 0x7c) {
-      fprintf(stderr, "Failed parsing signature reply.\n");
-      ret = false;
-      goto request_out;
-    }
-    dataptr = data + 1;
-    dataptr += get_length(dataptr, &len);
-    /* skip the 82 tag */
-    if(*dataptr != 0x82) {
-      fprintf(stderr, "Failed parsing signature reply.\n");
-      ret = false;
-      goto request_out;
-    }
-    dataptr++;
-    dataptr += get_length(dataptr, &len);
-    sig = M_ASN1_BIT_STRING_new();
-    M_ASN1_BIT_STRING_set(sig, dataptr, len);
-    req->signature = sig;
-
-    if(key_format == key_format_arg_PEM) {
-      PEM_write_X509_REQ(output_file, req);
-    } else {
-      fprintf(stderr, "Only PEM support available for certificate requests.\n");
-      ret = false;
-      goto request_out;
-    }
+  if(key_format == key_format_arg_PEM) {
+    PEM_write_X509_REQ(output_file, req);
+  } else {
+    fprintf(stderr, "Only PEM support available for certificate requests.\n");
+    ret = false;
+    goto request_out;
   }
 
 request_out:
@@ -1091,7 +1039,8 @@ static bool selfsign_certificate(SCARDHANDLE *card, enum enum_key_format key_for
   }
   x509->sig_alg = algor;
   x509->signature = M_ASN1_BIT_STRING_new();
-  if(sign_data(card, signinput, len, algorithm, key, x509->signature, verbose) == false) {
+  if(sign_data(card, signinput, len, algorithm, key, x509->signature,
+        verbose) == false) {
     ret = false;
     goto selfsign_out;
   }
