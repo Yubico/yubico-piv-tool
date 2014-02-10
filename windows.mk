@@ -61,7 +61,7 @@ doit:
 	zip -r ../../$(PACKAGE)-$(VERSION)-win$(ARCH).zip *
 
 32bit:
-	$(MAKE) -f windows.mk doit ARCH=32 HOST=i686-w64-mingw32 CHECK=CHECK
+	$(MAKE) -f windows.mk doit ARCH=32 HOST=i686-w64-mingw32 CHECK=check
 
 64bit:
-	$(MAKE) -f windows.mk doit ARCH=64 HOST=x86_64-w64-mingw32 CHECK=CHECK
+	$(MAKE) -f windows.mk doit ARCH=64 HOST=x86_64-w64-mingw32 CHECK=check

@@ -52,4 +52,4 @@ doit:
 	zip -r ../../$(PACKAGE)-$(VERSION)-$(ARCH).zip *
 
 mac:
-	$(MAKE) -f mac.mk doit
+	$(MAKE) -f mac.mk doit CHECK=check
