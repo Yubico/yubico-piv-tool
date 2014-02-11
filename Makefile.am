@@ -79,15 +79,4 @@ release:
 	git tag -sm "$(PACKAGE)-$(VERSION)" $(PACKAGE)-$(VERSION)
 	git push
 	git push --tags
-	git add $(PACKAGE)-$(VERSION).tar.gz
-	git add $(PACKAGE)-$(VERSION).tar.gz.sig
-	git stash
-	git checkout gh-pages
-	git stash pop
-	git mv $(PACKAGE)-$(VERSION).tar.gz releases/
-	git mv $(PACKAGE)-$(VERSION).tar.gz.sig releases/
-	x=$$(ls -1 releases/*.tar.gz | awk -F\- '{print $$4}' | sed 's/.tar.gz//' | paste -sd ',' -); sed -i -e "2s/\[.*\]/[$$x]/" releases.html
-	git add releases.html
-	git commit -m "Added tarball for release $(VERSION)."
-	git push
-	git checkout master
+	$(YUBICO_GITHUB_REPO)/publish $(PROJECT) $(VERSION) $(PACKAGE)-$(VERSION).tar.gz*
