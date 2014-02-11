@@ -105,7 +105,7 @@ static bool sign_data(SCARDHANDLE*, unsigned char*, int, unsigned char, unsigned
     ASN1_BIT_STRING*, int);
 
 static bool connect_reader(SCARDHANDLE *card, SCARDCONTEXT *context, const char *wanted, int verbose) {
-  unsigned long num_readers;
+  unsigned long num_readers = 0;
   unsigned long active_protocol;
   char reader_buf[1024];
   long rc;
