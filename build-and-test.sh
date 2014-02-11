@@ -8,6 +8,7 @@ autoreconf -i
 if [ "x$ARCH" != "x" ]; then
     ./configure
     touch ChangeLog
+    touch yubico-piv-tool.1
     make dist
 
     if [ "x$ARCH" = "x32" ]; then
