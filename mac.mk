@@ -49,7 +49,18 @@ doit:
 	cp COPYING $(PWD)/tmp/root/licenses/$(PACKAGE).txt && \
 	cd .. && \
 	cd root && \
-	zip -r ../../$(PACKAGE)-$(VERSION)-$(ARCH).zip *
+	zip -r ../../$(PACKAGE)-$(VERSION)-mac.zip *
 
 mac:
 	$(MAKE) -f mac.mk doit CHECK=check
+
+upload-mac:
+	@if test ! -d "$(YUBICO_GITHUB_REPO)"; then \
+		echo "yubico.github.com repo not found!"; \
+		echo "Make sure that YUBICO_GITHUB_REPO is set"; \
+		exit 1; \
+		fi
+	gpg --detach-sign --default-key $(PGPKEYID) \
+		$(PACKAGE)-$(VERSION)-mac.zip
+	gpg --verify $(PACKAGE)-$(VERSION)-mac.zip.sig
+	$(YUBICO_GITHUB_REPO)/publish $(PACKAGE) $(VERSION) $(PACKAGE)-$(VERSION)-mac.zip*
