@@ -1,0 +1,17 @@
+language: c
+compiler:
+  - gcc
+  - clang
+script:
+  - ./build-and-test.sh
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get remove -qq -y $REMOVE
+  - sudo apt-get autoremove -qq
+  - sudo apt-get install -qq -y libpcslite-dev $EXTRA
+matrix:
+  include:
+    - compiler: gcc
+      env: EXTRA="wine mingw-w64" REMOVE=mingw32 ARCH=32
+    - compiler: gcc
+      env: EXTRA="wine mingw-w64" REMOVE=mingw32 ARCH=64
