@@ -31,8 +31,13 @@ build-aux/test-driver
 tmp32/
 tmp64/
 yubico-piv-tool-*-win32.zip
+yubico-piv-tool-*-win32.zip.sig
 yubico-piv-tool-*-win64.zip
+yubico-piv-tool-*-win64.zip.sig
 yubico-piv-tool-*.tar.gz
+yubico-piv-tool-*.tar.gz.sig
+yubico-piv-tool-*-mac.zip
+yubico-piv-tool-*-mac.zip.sig
 tests/basic.sh.log
 tests/basic.sh.trs
 tests/test-suite.log
