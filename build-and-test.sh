@@ -5,7 +5,7 @@ set -x
 
 autoreconf -i
 
-if [ "x$LIBUSB" = "xwindows" ]; then
+if [ "x$ARCH" != "x" ]; then
     ./configure
     touch ChangeLog
     make dist
