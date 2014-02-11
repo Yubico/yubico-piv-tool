@@ -6,17 +6,12 @@ set -x
 autoreconf -i
 
 if [ "x$ARCH" != "x" ]; then
-    ./configure
-    touch ChangeLog
-    touch yubico-piv-tool.1
-    make dist
+    version=`cat NEWS  | grep unreleased | cut -d' ' -f3`
+    set +e
+    tar --exclude .git --transform="s/^\./yubico-piv-tool-${version}/" -czf yubico-piv-tool-${version}.tar.gz .
+    set -e
 
-    if [ "x$ARCH" = "x32" ]; then
-        export CC=i686-w64-mingw32-gcc
-    else
-        export CC=x86_64-w64-mingw32-gcc
-    fi
-    make -f windows.mk ${ARCH}bit `grep ^VERSION Makefile|sed 's/ = /=/'`
+    make -f windows.mk ${ARCH}bit VERSION=$version
 else
     ./configure
     make check
