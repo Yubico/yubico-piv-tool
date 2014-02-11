@@ -784,7 +784,6 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
     const char *output_file_name, int verbose) {
   X509_REQ *req = NULL;
   X509_NAME *name = NULL;
-  X509_ALGOR *algor = NULL;
   FILE *input_file = NULL;
   FILE *output_file = NULL;
   EVP_PKEY *public_key = NULL;
@@ -859,9 +858,6 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
     goto request_out;
   }
 
-  algor = (X509_ALGOR*)sk_X509_ALGOR_new_null();
-  algor->parameter = (ASN1_TYPE*)sk_ASN1_TYPE_new_null();
-  algor->parameter->type = V_ASN1_NULL;
   switch(algorithm) {
     case 0x6:
       len = 128;
@@ -870,10 +866,10 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
         len = 256;
       }
       RSA_padding_add_PKCS1_type_1(signinput, len, digest, sizeof(digest));
-      algor->algorithm = OBJ_nid2obj(NID_sha256WithRSAEncryption);
+      req->sig_alg->algorithm = OBJ_nid2obj(NID_sha256WithRSAEncryption);
       break;
     case 0x11:
-      algor->algorithm = OBJ_nid2obj(NID_ecdsa_with_SHA256);
+      req->sig_alg->algorithm = OBJ_nid2obj(NID_ecdsa_with_SHA256);
       len = DIGEST_LEN;
       memcpy(signinput, digest + sizeof(sha256oid), DIGEST_LEN);
       break;
@@ -882,8 +878,6 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
       ret = false;
       goto request_out;
   }
-  req->sig_alg = algor;
-  req->signature = M_ASN1_BIT_STRING_new();
   if(sign_data(card, signinput, len, algorithm, key, req->signature,
         verbose) == false) {
     ret = false;
@@ -914,9 +908,6 @@ request_out:
   if(name) {
     X509_NAME_free(name);
   }
-  if(algor) {
-    X509_ALGOR_free(algor);
-  }
   return ret;
 }
 
@@ -929,7 +920,6 @@ static bool selfsign_certificate(SCARDHANDLE *card, enum enum_key_format key_for
   EVP_PKEY *public_key = NULL;
   X509 *x509 = NULL;
   X509_NAME *name = NULL;
-  X509_ALGOR *algor = NULL;
   unsigned char digest[DIGEST_LEN + sizeof(sha256oid)];
   unsigned int digest_len = DIGEST_LEN;
   unsigned char algorithm;
@@ -1014,9 +1004,6 @@ static bool selfsign_certificate(SCARDHANDLE *card, enum enum_key_format key_for
     ret = false;
     goto selfsign_out;
   }
-  algor = (X509_ALGOR*)sk_X509_ALGOR_new_null();
-  algor->parameter = (ASN1_TYPE*)sk_ASN1_TYPE_new_null();
-  algor->parameter->type = V_ASN1_NULL;
   switch(algorithm) {
     case 0x6:
       len = 128;
@@ -1025,10 +1012,10 @@ static bool selfsign_certificate(SCARDHANDLE *card, enum enum_key_format key_for
         len = 256;
       }
       RSA_padding_add_PKCS1_type_1(signinput, len, digest, sizeof(digest));
-      algor->algorithm = OBJ_nid2obj(NID_sha256WithRSAEncryption);
+      x509->sig_alg->algorithm = OBJ_nid2obj(NID_sha256WithRSAEncryption);
       break;
     case 0x11:
-      algor->algorithm = OBJ_nid2obj(NID_ecdsa_with_SHA256);
+      x509->sig_alg->algorithm = OBJ_nid2obj(NID_ecdsa_with_SHA256);
       len = DIGEST_LEN;
       memcpy(signinput, digest + sizeof(sha256oid), DIGEST_LEN);
       break;
@@ -1037,8 +1024,6 @@ static bool selfsign_certificate(SCARDHANDLE *card, enum enum_key_format key_for
       ret = false;
       goto selfsign_out;
   }
-  x509->sig_alg = algor;
-  x509->signature = M_ASN1_BIT_STRING_new();
   if(sign_data(card, signinput, len, algorithm, key, x509->signature,
         verbose) == false) {
     ret = false;
@@ -1068,9 +1053,6 @@ selfsign_out:
   }
   if(name) {
     X509_NAME_free(name);
-  }
-  if(algor) {
-    X509_ALGOR_free(algor);
   }
   return ret;
 }
