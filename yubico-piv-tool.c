@@ -1452,6 +1452,7 @@ int main(int argc, char *argv[]) {
   int verbosity;
   enum enum_action action;
   unsigned int i;
+  int ret = EXIT_SUCCESS;
 
   if(cmdline_parser(argc, argv, &args_info) != 0) {
     return EXIT_FAILURE;
@@ -1496,84 +1497,90 @@ int main(int argc, char *argv[]) {
       case action_arg_generate:
         if(args_info.slot_arg != slot__NULL) {
           if(generate_key(&card, args_info.slot_orig, args_info.algorithm_arg, args_info.output_arg, args_info.key_format_arg, verbosity) == false) {
-            return EXIT_FAILURE;
+            ret = EXIT_FAILURE;
           }
         } else {
           fprintf(stderr, "The generate action needs a slot (-s) to operate on.\n");
-          return EXIT_FAILURE;
+          ret = EXIT_FAILURE;
         }
         break;
       case action_arg_setMINUS_mgmMINUS_key:
         if(args_info.new_key_arg) {
           unsigned char new_key[KEY_LEN];
           if(parse_key(args_info.new_key_arg, new_key, verbosity) == false) {
-            return EXIT_FAILURE;
+            ret = EXIT_FAILURE;
+          } else if(set_mgm_key(&card, new_key, verbosity) == false) {
+            ret = EXIT_FAILURE;
+          } else {
+            printf("Successfully set new management key.\n");
           }
-          if(set_mgm_key(&card, new_key, verbosity) == false) {
-            return EXIT_FAILURE;
-          }
-          printf("Successfully set new management key.\n");
         } else {
           fprintf(stderr, "The set-mgm-key action needs the new-key (-n) argument.\n");
-          return EXIT_FAILURE;
+          ret = EXIT_FAILURE;
         }
         break;
       case action_arg_reset:
         if(reset(&card, verbosity) == false) {
-          return EXIT_FAILURE;
+          ret = EXIT_FAILURE;
+        } else {
+          printf("Successfully reset the applet.\n");
         }
-        printf("Successfully reset the applet.\n");
         break;
       case action_arg_pinMINUS_retries:
         if(args_info.pin_retries_arg && args_info.puk_retries_arg) {
           if(set_pin_retries(&card, args_info.pin_retries_arg, args_info.puk_retries_arg, verbosity) == false) {
-            return EXIT_FAILURE;
+            ret = EXIT_FAILURE;
+          } else {
+            printf("Successfully changed pin retries to %d and puk retries to %d, both codes have been reset to default now.\n",
+                args_info.pin_retries_arg, args_info.puk_retries_arg);
           }
-          printf("Successfully changed pin retries to %d and puk retries to %d, both codes have been reset to default now.\n",
-              args_info.pin_retries_arg, args_info.puk_retries_arg);
         } else {
           fprintf(stderr, "The pin-retries action needs both --pin-retries and --puk-retries arguments.\n");
-          return EXIT_FAILURE;
+          ret = EXIT_FAILURE;
         }
         break;
       case action_arg_importMINUS_key:
         if(args_info.slot_arg != slot__NULL) {
           if(import_key(&card, args_info.key_format_arg, args_info.input_arg, args_info.slot_orig, args_info.password_arg, verbosity) == false) {
-            return EXIT_FAILURE;
+            ret = EXIT_FAILURE;
+          } else {
+            printf("Successfully imported a new private key.\n");
           }
-          printf("Successfully imported a new private key.\n");
         } else {
           fprintf(stderr, "The import action needs a slot (-s) to operate on.\n");
-          return EXIT_FAILURE;
+          ret = EXIT_FAILURE;
         }
         break;
       case action_arg_importMINUS_certificate:
         if(args_info.slot_arg != slot__NULL) {
           if(import_cert(&card, args_info.key_format_arg, args_info.input_arg, args_info.slot_arg, args_info.password_arg, verbosity) == false) {
-            return EXIT_FAILURE;
+            ret = EXIT_FAILURE;
+          } else {
+            printf("Successfully imported a new certificate.\n");
           }
-          printf("Successfully imported a new certificate.\n");
         } else {
           fprintf(stderr, "The import action needs a slot (-s) to operate on.\n");
-          return EXIT_FAILURE;
+          ret = EXIT_FAILURE;
         }
         break;
       case action_arg_setMINUS_chuid:
         if(set_chuid(&card, verbosity) == false) {
-          return EXIT_FAILURE;
+          ret = EXIT_FAILURE;
+        } else {
+          printf("Successfully set new CHUID.\n");
         }
-        printf("Successfully set new CHUID.\n");
         break;
       case action_arg_requestMINUS_certificate:
         if(args_info.slot_arg == slot__NULL) {
           fprintf(stderr, "The request-certificate action needs a slot (-s) to operate on.\n");
-          return EXIT_FAILURE;
+          ret = EXIT_FAILURE;
         } else if(!args_info.subject_arg) {
           fprintf(stderr, "The request-certificate action needs a subject (-S) to operate on.\n");
+          ret = EXIT_FAILURE;
         } else {
           if(request_certificate(&card, args_info.key_format_arg, args_info.input_arg,
                 args_info.slot_orig, args_info.subject_arg, args_info.output_arg, verbosity) == false) {
-            return EXIT_FAILURE;
+            ret = EXIT_FAILURE;
           }
         }
         break;
@@ -1582,11 +1589,11 @@ int main(int argc, char *argv[]) {
           if(verify_pin(&card, args_info.pin_arg, verbosity)) {
             printf("Successfully verified PIN.\n");
           } else {
-            return EXIT_FAILURE;
+            ret = EXIT_FAILURE;
           }
         } else {
           fprintf(stderr, "The verify-pin action needs a pin (-P).\n");
-          return EXIT_FAILURE;
+          ret = EXIT_FAILURE;
         }
         break;
       case action_arg_changeMINUS_pin:
@@ -1600,36 +1607,37 @@ int main(int argc, char *argv[]) {
               printf("Successfully changed the %s code.\n",
                   action == action_arg_changeMINUS_pin ? "pin" : "puk");
             }
-            return EXIT_SUCCESS;
           } else {
-            return EXIT_FAILURE;
+            ret = EXIT_FAILURE;
           }
         } else {
           fprintf(stderr, "The %s action needs a pin (-P) and a new-pin (-N).\n",
               action == action_arg_changeMINUS_pin ? "change-pin" :
               action == action_arg_changeMINUS_puk ? "change-puk" : "unblock-pin");
-          return EXIT_FAILURE;
+          ret = EXIT_FAILURE;
         }
         break;
       case action_arg_selfsignMINUS_certificate:
         if(args_info.slot_arg == slot__NULL) {
           fprintf(stderr, "The selfsign-certificate action needs a slot (-s) to operate on.\n");
-          return EXIT_FAILURE;
+          ret = EXIT_FAILURE;
         } else if(!args_info.subject_arg) {
           fprintf(stderr, "The selfsign-certificate action needs a subject (-S) to operate on.\n");
+          ret = EXIT_FAILURE;
         } else {
           if(selfsign_certificate(&card, args_info.key_format_arg, args_info.input_arg,
                 args_info.slot_orig, args_info.subject_arg, args_info.output_arg, verbosity) == false) {
-            return EXIT_FAILURE;
+            ret = EXIT_FAILURE;
           }
         }
         break;
       case action__NULL:
       default:
         fprintf(stderr, "Wrong action. %d.\n", action);
-        return EXIT_FAILURE;
+        ret = EXIT_FAILURE;
     }
   }
 
-  return EXIT_SUCCESS;
+  EVP_cleanup();
+  return ret;
 }
