@@ -32,7 +32,7 @@ AM_CPPFLAGS = $(OPENSSL_CFLAGS) $(PCSC_CFLAGS)
 ACLOCAL_AMFLAGS = -I m4
 
 bin_PROGRAMS = yubico-piv-tool
-yubico_piv_tool_SOURCES = yubico-piv-tool.c
+yubico_piv_tool_SOURCES = yubico-piv-tool.c yubico-piv-tool.h2m
 yubico_piv_tool_SOURCES += cmdline.ggo cmdline.c cmdline.h
 yubico_piv_tool_LDADD = $(OPENSSL_LIBS) $(PCSC_LIBS)
 yubico_piv_tool_LDADD += $(LTLIBWINSCARD) $(PCSC_MACOSX_LIBS)
@@ -54,6 +54,7 @@ yubico-piv-tool.1: $(yubico_piv_tool_SOURCES) \
 		$(top_srcdir)/configure.ac
 	$(HELP2MAN) --no-info \
 		--name="Yubico PIV tool" \
+		--include=$(top_srcdir)/yubico-piv-tool.h2m \
 		--output=$@ $(top_builddir)/yubico-piv-tool$(EXEEXT)
 
 # Maintainer rules.
