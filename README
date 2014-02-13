@@ -96,7 +96,7 @@ the resulting request on stdout:
   yubico-piv-tool -s 9a -S '/CN=foo/OU=test/O=example.com/' -P 123456 \
     -a verify -a request
 
-Generate a self-signed certificate with publick key from stdin, will print
+Generate a self-signed certificate with public key from stdin, will print
 the certificate, for later import, on stdout:
 
   yubico-piv-tool -s 9a -S '/CN=bar/OU=test/O=example.com/' -P 123456 \
