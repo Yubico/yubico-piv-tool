@@ -5,3 +5,4 @@ License: GPL-3.0+
 Name: yubico-piv-tool
 Project: yubico-piv-tool
 Summary: Command line tool for the YubiKey NEO PIV applet
+Travis: https://travis-ci.org/Yubico/yubico-piv-tool
