@@ -199,6 +199,7 @@ static bool authenticate(SCARDHANDLE *card, unsigned const char *key, int verbos
 
   DES_key_schedule ks1, ks2, ks3;
 
+  /* set up our key */
   {
     const_DES_cblock key_tmp;
     memcpy(key_tmp, key, 8);
@@ -209,6 +210,7 @@ static bool authenticate(SCARDHANDLE *card, unsigned const char *key, int verbos
     DES_set_key_unchecked(&key_tmp, &ks3);
   }
 
+  /* get a challenge from the card */
   {
     memset(apdu.raw, 0, sizeof(apdu));
     apdu.st.ins = 0x87;
@@ -225,7 +227,9 @@ static bool authenticate(SCARDHANDLE *card, unsigned const char *key, int verbos
     memcpy(challenge, data + 4, 8);
   }
 
+  /* send a response to the cards challenge and a challenge of our own. */
   {
+    unsigned char *dataptr = apdu.st.data;
     DES_cblock response;
     DES_ecb3_encrypt(&challenge, &response, &ks1, &ks2, &ks3, 0);
 
@@ -234,19 +238,37 @@ static bool authenticate(SCARDHANDLE *card, unsigned const char *key, int verbos
     apdu.st.ins = 0x87;
     apdu.st.p1 = 0x03; /* triple des */
     apdu.st.p2 = 0x9b; /* management key */
-    apdu.st.lc = 12;
-    apdu.st.data[0] = 0x7c;
-    apdu.st.data[1] = 10;
-    apdu.st.data[2] = 0x80;
-    apdu.st.data[3] = 8;
-    memcpy(apdu.st.data + 4, response, 8);
+    *dataptr++ = 0x7c;
+    *dataptr++ = 20; /* 2 + 8 + 2 +8 */
+    *dataptr++ = 0x80;
+    *dataptr++ = 8;
+    memcpy(dataptr, response, 8);
+    dataptr += 8;
+    *dataptr++ = 0x81;
+    *dataptr++ = 8;
+    if(RAND_pseudo_bytes(dataptr, 8) == -1) {
+      fprintf(stderr, "Failed getting randomness for authentication.\n");
+      return false;
+    }
+    memcpy(challenge, dataptr, 8);
+    dataptr += 8;
+    apdu.st.lc = dataptr - apdu.st.data;
     sw = send_data(card, &apdu, data, &recv_len, verbose);
+    if(sw != 0x9000) {
+      return false;
+    }
   }
 
-  if(sw == 0x9000) {
-    return true;
+  /* compare the response from the card with our challenge */
+  {
+    DES_cblock response;
+    DES_ecb3_encrypt(&challenge, &response, &ks1, &ks2, &ks3, 1);
+    if(memcmp(response, data + 4, 8) == 0) {
+      return true;
+    } else {
+      return false;
+    }
   }
-  return false;
 }
 
 static void print_version(SCARDHANDLE *card, int verbose) {
