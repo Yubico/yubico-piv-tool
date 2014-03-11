@@ -1,4 +1,4 @@
-/*
+ /*
  * Copyright (c) 2014 Yubico AB
  * All rights reserved.
  *
@@ -297,7 +297,7 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
   int sw;
   int key = 0;
   FILE *output_file = NULL;
-  bool ret = true;
+  bool ret = false;
   EVP_PKEY *public_key = NULL;
   RSA *rsa = NULL;
   BIGNUM *bignum_n = NULL;
@@ -332,14 +332,12 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
     case algorithm__NULL:
     default:
       fprintf(stderr, "Unexepcted algorithm.\n");
-      ret = false;
       goto generate_out;
   }
   sw = transfer_data(card, &apdu, in_data, sizeof(in_data), data, &recv_len, verbose);
 
   if(sw != 0x9000) {
     fprintf(stderr, "Failed to generate new key.\n");
-    ret = false;
     goto generate_out;
   }
   /* to drop the 90 00 and the 7f 49 at the start */
@@ -354,7 +352,6 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
 
       if(*data_ptr != 0x81) {
         fprintf(stderr, "Failed to parse public key structure.\n");
-        ret = false;
         goto generate_out;
       }
       data_ptr++;
@@ -362,14 +359,12 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
       bignum_n = BN_bin2bn(data_ptr, len, NULL);
       if(bignum_n == NULL) {
         fprintf(stderr, "Failed to parse public key modulus.\n");
-        ret = false;
         goto generate_out;
       }
       data_ptr += len;
 
       if(*data_ptr != 0x82) {
         fprintf(stderr, "Failed to parse public key structure (2).\n");
-        ret = false;
         goto generate_out;
       }
       data_ptr++;
@@ -377,7 +372,6 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
       bignum_e = BN_bin2bn(data_ptr, len, NULL);
       if(bignum_e == NULL) {
         fprintf(stderr, "Failed to parse public key exponent.\n");
-        ret = false;
         goto generate_out;
       }
 
@@ -395,34 +389,29 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
       point = EC_POINT_new(group);
       if(*data_ptr++ != 0x86) {
         fprintf(stderr, "Failed to parse public key structure.\n");
-        ret = false;
         goto generate_out;
       }
       if(*data_ptr++ != 65) { /* the curve point should always be 65 bytes */
         fprintf(stderr, "Unexpected length.\n");
-        ret = false;
         goto generate_out;
       }
       if(!EC_POINT_oct2point(group, point, data_ptr, 65, NULL)) {
         fprintf(stderr, "Failed to load public point.\n");
-        ret = false;
         goto generate_out;
       }
       if(!EC_KEY_set_public_key(eckey, point)) {
         fprintf(stderr, "Failed to set the public key.\n");
-        ret = false;
         goto generate_out;
       }
       EVP_PKEY_set1_EC_KEY(public_key, eckey);
     } else {
       fprintf(stderr, "Wrong algorithm.\n");
-      ret = false;
       goto generate_out;
     }
     PEM_write_PUBKEY(output_file, public_key);
+    ret = true;
   } else {
     fprintf(stderr, "Only PEM is supported as public_key output.\n");
-    ret = false;
     goto generate_out;
   }
 
@@ -532,7 +521,7 @@ static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format,
   EVP_PKEY *private_key = NULL;
   PKCS12 *p12 = NULL;
   X509 *cert = NULL;
-  bool ret = true;
+  bool ret = false;
 
   sscanf(slot, "%x", &key);
 
@@ -545,32 +534,27 @@ static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format,
     private_key = PEM_read_PrivateKey(input_file, NULL, NULL, password);
     if(!private_key) {
       fprintf(stderr, "Failed loading private key for import.\n");
-      ret = false;
       goto import_out;
     }
   } else if(key_format == key_format_arg_PKCS12) {
     p12 = d2i_PKCS12_fp(input_file, NULL);
     if(!p12) {
       fprintf(stderr, "Failed to load PKCS12 from file.\n");
-      ret = false;
       goto import_out;
     }
     if(PKCS12_parse(p12, password, &private_key, &cert, NULL) == 0) {
       fprintf(stderr, "Failed to parse PKCS12 structure. (wrong password?)\n");
-      ret = false;
       goto import_out;
     }
   } else {
     /* TODO: more formats go here */
     fprintf(stderr, "Unknown key format.\n");
-    ret = false;
     goto import_out;
   }
 
   {
     unsigned char algorithm = get_algorithm(private_key);
     if(algorithm == 0) {
-      ret = false;
       goto import_out;
     }
     {
@@ -618,8 +602,8 @@ static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format,
       sw = transfer_data(card, &apdu, in_data, in_ptr - in_data, data, &recv_len, verbose);
       if(sw != 0x9000) {
         fprintf(stderr, "Failed import command with code %x.", sw);
-        ret = false;
-        goto import_out;
+      } else {
+	ret = true;
       }
     }
   }
@@ -642,7 +626,7 @@ import_out:
 static bool import_cert(SCARDHANDLE *card, enum enum_key_format cert_format,
     const char *input_file_name, enum enum_slot slot, char *password, int verbose) {
   int object;
-  bool ret = true;
+  bool ret = false;
   FILE *input_file = NULL;
   X509 *cert = NULL;
   PKCS12 *p12 = NULL;
@@ -676,25 +660,21 @@ static bool import_cert(SCARDHANDLE *card, enum enum_key_format cert_format,
     cert = PEM_read_X509(input_file, NULL, NULL, password);
     if(!cert) {
       fprintf(stderr, "Failed loading certificate for import.\n");
-      ret = false;
       goto import_cert_out;
     }
   } else if(cert_format == key_format_arg_PKCS12) {
     p12 = d2i_PKCS12_fp(input_file, NULL);
     if(!p12) {
       fprintf(stderr, "Failed to load PKCS12 from file.\n");
-      ret = false;
       goto import_cert_out;
     }
     if(!PKCS12_parse(p12, password, &private_key, &cert, NULL)) {
       fprintf(stderr, "Failed to parse PKCS12 structure.\n");
-      ret = false;
       goto import_cert_out;
     }
   } else {
     /* TODO: more formats go here */
     fprintf(stderr, "Unknown key format.\n");
-    ret = false;
     goto import_cert_out;
   }
 
@@ -710,7 +690,6 @@ static bool import_cert(SCARDHANDLE *card, enum enum_key_format cert_format,
 
     if(cert_len > 2048) {
       fprintf(stderr, "Certificate to large, maximum 2048 bytes (was %d bytes).\n", cert_len);
-      ret = false;
       goto import_cert_out;
     }
     *certptr++ = 0x5c;
@@ -745,8 +724,8 @@ static bool import_cert(SCARDHANDLE *card, enum enum_key_format cert_format,
     sw = transfer_data(card, &apdu, certdata, certptr - certdata, data, &recv_len, verbose);
     if(sw != 0x9000) {
       fprintf(stderr, "Failed loading certificate to device with code %x.\n", sw);
-      ret = false;
-      goto import_cert_out;
+    } else {
+      ret = true;
     }
   }
 
@@ -806,7 +785,7 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
   FILE *input_file = NULL;
   FILE *output_file = NULL;
   EVP_PKEY *public_key = NULL;
-  bool ret = true;
+  bool ret = false;
   unsigned char digest[DIGEST_LEN + sizeof(sha256oid)];
   unsigned int digest_len = DIGEST_LEN;
   unsigned char algorithm;
@@ -819,7 +798,6 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
   input_file = open_file(input_file_name, INPUT);
   output_file = open_file(output_file_name, OUTPUT);
   if(!input_file || !output_file) {
-    ret = false;
     goto request_out;
   }
 
@@ -827,29 +805,24 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
     public_key = PEM_read_PUBKEY(input_file, NULL, NULL, NULL);
     if(!public_key) {
       fprintf(stderr, "Failed loading public key for request.\n");
-      ret = false;
       goto request_out;
     }
   } else {
     fprintf(stderr, "Only PEM supported for public key input.\n");
-    ret = false;
     goto request_out;
   }
   algorithm = get_algorithm(public_key);
   if(algorithm == 0) {
-    ret = false;
     goto request_out;
   }
 
   req = X509_REQ_new();
   if(!req) {
     fprintf(stderr, "Failed to allocate request structure.\n");
-    ret = false;
     goto request_out;
   }
   if(!X509_REQ_set_pubkey(req, public_key)) {
     fprintf(stderr, "Failed setting the request public key.\n");
-    ret = false;
     goto request_out;
   }
 
@@ -858,12 +831,10 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
   name = parse_name(subject);
   if(!name) {
     fprintf(stderr, "Failed encoding subject as name.\n");
-    ret = false;
     goto request_out;
   }
   if(!X509_REQ_set_subject_name(req, name)) {
     fprintf(stderr, "Failed setting the request subject.\n");
-    ret = false;
     goto request_out;
   }
 
@@ -873,7 +844,6 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
   if(!ASN1_item_digest(ASN1_ITEM_rptr(X509_REQ_INFO), EVP_sha256(), req->req_info,
 			  digest + sizeof(sha256oid), &digest_len)) {
     fprintf(stderr, "Failed doing digest of request.\n");
-    ret = false;
     goto request_out;
   }
 
@@ -894,21 +864,18 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
       break;
     default:
       fprintf(stderr, "Unsupported algorithm %x.\n", algorithm);
-      ret = false;
       goto request_out;
   }
   if(sign_data(card, signinput, len, algorithm, key, req->signature,
         verbose) == false) {
-    ret = false;
     goto request_out;
   }
 
   if(key_format == key_format_arg_PEM) {
     PEM_write_X509_REQ(output_file, req);
+    ret = true;
   } else {
     fprintf(stderr, "Only PEM support available for certificate requests.\n");
-    ret = false;
-    goto request_out;
   }
 
 request_out:
@@ -935,7 +902,7 @@ static bool selfsign_certificate(SCARDHANDLE *card, enum enum_key_format key_for
     const char *output_file_name, int verbose) {
   FILE *input_file = NULL;
   FILE *output_file = NULL;
-  bool ret = true;
+  bool ret = false;
   EVP_PKEY *public_key = NULL;
   X509 *x509 = NULL;
   X509_NAME *name = NULL;
@@ -951,7 +918,6 @@ static bool selfsign_certificate(SCARDHANDLE *card, enum enum_key_format key_for
   input_file = open_file(input_file_name, INPUT);
   output_file = open_file(output_file_name, OUTPUT);
   if(!input_file || !output_file) {
-    ret = false;
     goto selfsign_out;
   }
 
@@ -959,60 +925,49 @@ static bool selfsign_certificate(SCARDHANDLE *card, enum enum_key_format key_for
     public_key = PEM_read_PUBKEY(input_file, NULL, NULL, NULL);
     if(!public_key) {
       fprintf(stderr, "Failed loading public key for certificate.\n");
-      ret = false;
       goto selfsign_out;
     }
   } else {
     fprintf(stderr, "Only PEM supported for public key input.\n");
-    ret = false;
     goto selfsign_out;
   }
   algorithm = get_algorithm(public_key);
   if(algorithm == 0) {
-    ret = false;
     goto selfsign_out;
   }
 
   x509 = X509_new();
   if(!x509) {
     fprintf(stderr, "Failed to allocate certificate structure.\n");
-    ret = false;
     goto selfsign_out;
   }
   if(!X509_set_pubkey(x509, public_key)) {
     fprintf(stderr, "Failed to set the certificate public key.\n");
-    ret = false;
     goto selfsign_out;
   }
   if(!ASN1_INTEGER_set(X509_get_serialNumber(x509), 1)) {
     fprintf(stderr, "Failed to set certificate serial.\n");
-    ret = false;
     goto selfsign_out;
   }
   if(!X509_gmtime_adj(X509_get_notBefore(x509), 0)) {
     fprintf(stderr, "Failed to set certificate notBefore.\n");
-    ret = false;
     goto selfsign_out;
   }
   if(!X509_gmtime_adj(X509_get_notAfter(x509), 31536000L)) {
     fprintf(stderr, "Failed to set certificate notAfter.\n");
-    ret = false;
     goto selfsign_out;
   }
   name = parse_name(subject);
   if(!name) {
     fprintf(stderr, "Failed encoding subject as name.\n");
-    ret = false;
     goto selfsign_out;
   }
   if(!X509_set_subject_name(x509, name)) {
     fprintf(stderr, "Failed setting certificate subject.\n");
-    ret = false;
     goto selfsign_out;
   }
   if(!X509_set_issuer_name(x509, name)) {
     fprintf(stderr, "Failed setting certificate issuer.\n");
-    ret = false;
     goto selfsign_out;
   }
   memset(digest, 0, sizeof(digest));
@@ -1021,7 +976,6 @@ static bool selfsign_certificate(SCARDHANDLE *card, enum enum_key_format key_for
   if(!ASN1_item_digest(ASN1_ITEM_rptr(X509_CINF), EVP_sha256(), x509->cert_info,
 			  digest + sizeof(sha256oid), &digest_len)) {
     fprintf(stderr, "Failed doing digest of certificate.\n");
-    ret = false;
     goto selfsign_out;
   }
   switch(algorithm) {
@@ -1041,21 +995,18 @@ static bool selfsign_certificate(SCARDHANDLE *card, enum enum_key_format key_for
       break;
     default:
       fprintf(stderr, "Unsupported algorithm %x.\n", algorithm);
-      ret = false;
       goto selfsign_out;
   }
   if(sign_data(card, signinput, len, algorithm, key, x509->signature,
         verbose) == false) {
-    ret = false;
     goto selfsign_out;
   }
 
   if(key_format == key_format_arg_PEM) {
     PEM_write_X509(output_file, x509);
+    ret = true;
   } else {
     fprintf(stderr, "Only PEM support available for certificate requests.\n");
-    ret = false;
-    goto selfsign_out;
   }
 
 selfsign_out:
