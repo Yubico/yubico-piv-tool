@@ -309,8 +309,7 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
 
   output_file = open_file(output_file_name, OUTPUT);
   if(!output_file) {
-    ret = false;
-    goto generate_out;
+    return false;
   }
 
   memset(apdu.raw, 0, sizeof(apdu));
@@ -539,8 +538,7 @@ static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format,
 
   input_file = open_file(input_file_name, INPUT);
   if(!input_file) {
-    ret = false;
-    goto import_out;
+    return false;
   }
 
   if(key_format == key_format_arg_PEM) {
@@ -671,8 +669,7 @@ static bool import_cert(SCARDHANDLE *card, enum enum_key_format cert_format,
 
   input_file = open_file(input_file_name, INPUT);
   if(!input_file) {
-    ret = false;
-    goto import_cert_out;
+    return false;
   }
 
   if(cert_format == key_format_arg_PEM) {
@@ -968,6 +965,7 @@ static bool selfsign_certificate(SCARDHANDLE *card, enum enum_key_format key_for
   } else {
     fprintf(stderr, "Only PEM supported for public key input.\n");
     ret = false;
+    goto selfsign_out;
   }
   algorithm = get_algorithm(public_key);
   if(algorithm == 0) {
