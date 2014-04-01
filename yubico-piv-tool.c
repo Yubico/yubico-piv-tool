@@ -1607,6 +1607,9 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Wrong action. %d.\n", action);
         ret = EXIT_FAILURE;
     }
+    if(ret == EXIT_FAILURE) {
+      break;
+    }
   }
 
   EVP_cleanup();
