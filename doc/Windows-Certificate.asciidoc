@@ -21,8 +21,8 @@ Steps
 
 2. Request a certificate:
 
-  yubico-piv-tool -a verify-pin -P 123456 -s 9a -a request-certificate -S "/CN=example/O=test/" \
-		-i public.pem -o request.csr
+  yubico-piv-tool -a verify-pin -P 123456 -s 9a -a request-certificate \
+	-S "/CN=example/O=test/" -i public.pem -o request.csr
 
 3. Submit the request to the Windows CA:
    (this step must be run on a windows machine that know about the CA)
