@@ -91,15 +91,3 @@ for(my $i = 0; $i < length($hex); $i += 2) {
 }
 
 print "\n";
-__END__
-
-for(my $i = 0; $i < length($in); $i += 8) {
-  my $part = substr($in, $i, $i + 8);
-  my $bits = "0b";
-  foreach my $char (split(//, $part)) {
-    $bits .= $encoding{$char};
-  }
-
-  my $num = eval($bits);
-  warn $num;
-}
