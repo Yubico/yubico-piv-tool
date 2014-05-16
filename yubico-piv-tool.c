@@ -103,6 +103,7 @@ static unsigned char get_algorithm(EVP_PKEY*);
 static FILE *open_file(const char*, int);
 static bool sign_data(SCARDHANDLE*, unsigned char*, int, unsigned char, unsigned char,
     ASN1_BIT_STRING*, int);
+static int get_object_id(enum enum_slot slot);
 
 static bool connect_reader(SCARDHANDLE *card, SCARDCONTEXT *context, const char *wanted, int verbose) {
   unsigned long num_readers = 0;
@@ -625,31 +626,12 @@ import_out:
 
 static bool import_cert(SCARDHANDLE *card, enum enum_key_format cert_format,
     const char *input_file_name, enum enum_slot slot, char *password, int verbose) {
-  int object;
   bool ret = false;
   FILE *input_file = NULL;
   X509 *cert = NULL;
   PKCS12 *p12 = NULL;
   EVP_PKEY *private_key = NULL;
-
-  switch(slot) {
-    case slot_arg_9a:
-      object = 0x5fc105;
-      break;
-    case slot_arg_9c:
-      object = 0x5fc10a;
-      break;
-    case slot_arg_9d:
-      object = 0x5fc10b;
-      break;
-    case slot_arg_9e:
-      object = 0x5fc101;
-      break;
-    case slot__NULL:
-    default:
-      fprintf(stderr, "wrong slot argument.\n");
-      return false;
-  }
+  int object = get_object_id(slot);
 
   input_file = open_file(input_file_name, INPUT);
   if(!input_file) {
@@ -1110,6 +1092,38 @@ static bool change_pin(SCARDHANDLE *card, enum enum_action action, const char *p
   return true;
 }
 
+static bool delete_certificate(SCARDHANDLE *card, enum enum_slot slot, int verbose) {
+  APDU apdu;
+  unsigned char objdata[7];
+  unsigned char *ptr = objdata;
+  unsigned char data[0xff];
+  unsigned long recv_len = sizeof(data);
+  int sw;
+  bool ret = false;
+  int object = get_object_id(slot);
+
+  *ptr++ = 0x5c;
+  *ptr++ = 0x03;
+  *ptr++ = (object >> 16) & 0xff;
+  *ptr++ = (object >> 8) & 0xff;
+  *ptr++ = object & 0xff;
+  *ptr++ = 0x53;
+  *ptr++ = 0x00; /* length 0 means we'll delete the object */
+
+  memset(apdu.raw, 0, sizeof(apdu.raw));
+  apdu.st.ins = 0xdb;
+  apdu.st.p1 = 0x3f;
+  apdu.st.p2 = 0xff;
+
+  sw = transfer_data(card, &apdu, objdata, 7, data, &recv_len, verbose);
+  if(sw != 0x9000) {
+    fprintf(stderr, "Failed loading certificate to device with code %x.\n", sw);
+  } else {
+    ret = true;
+  }
+  return ret;
+}
+
 static bool sign_data(SCARDHANDLE *card, unsigned char *signinput, int in_len,
     unsigned char algorithm, unsigned char key, ASN1_BIT_STRING *sig, int verbose) {
   unsigned char indata[1024];
@@ -1415,6 +1429,29 @@ static int set_length(unsigned char *buffer, int length) {
   }
 }
 
+static int get_object_id(enum enum_slot slot) {
+  int object;
+
+  switch(slot) {
+    case slot_arg_9a:
+      object = 0x5fc105;
+      break;
+    case slot_arg_9c:
+      object = 0x5fc10a;
+      break;
+    case slot_arg_9d:
+      object = 0x5fc10b;
+      break;
+    case slot_arg_9e:
+      object = 0x5fc101;
+      break;
+    case slot__NULL:
+    default:
+      object = 0;
+  }
+  return object;
+}
+
 int main(int argc, char *argv[]) {
   struct gengetopt_args_info args_info;
   SCARDHANDLE card;
@@ -1602,6 +1639,16 @@ int main(int argc, char *argv[]) {
           }
         }
         break;
+      case action_arg_deleteMINUS_certificate:
+	if(args_info.slot_arg == slot__NULL) {
+	  fprintf(stderr, "The delete-certificate action needs a slot (-s) to operate on.\n");
+	  ret = EXIT_FAILURE;
+	} else {
+	  if(delete_certificate(&card, args_info.slot_arg, verbosity) == false) {
+	    ret = EXIT_FAILURE;
+	  }
+	}
+	break;
       case action__NULL:
       default:
         fprintf(stderr, "Wrong action. %d.\n", action);
