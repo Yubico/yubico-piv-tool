@@ -50,6 +50,10 @@ the certificate, for later import, on stdout:
    yubico-piv-tool -s 9a -S '/CN=bar/OU=test/O=example.com/' -P 123456 \\\n
      -a verify -a selfsign
 
+Import a certificate from stdin:
+
+   yubico-piv-tool -s 9a -a import-certificate
+
 Set a random chuid, import a key and import a certificate from a PKCS12
 file with password test, into slot 9c:
 
