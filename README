@@ -104,7 +104,7 @@ the certificate, for later import, on stdout:
 
 Import a certificate from stdin:
 
-  yubico-pin-tool -s 9a -a import-certificate
+  yubico-piv-tool -s 9a -a import-certificate
 
 Set a random chuid, import a key and import a certificate from a PKCS12
 file with password test, into slot 9c:
