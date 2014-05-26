@@ -1,5 +1,7 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
+* Version 0.0.4 (unreleased)
+
 * Version 0.0.3 (released 2014-05-26)
 
 ** Add delete-certificate action.
