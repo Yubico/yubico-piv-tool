@@ -24,33 +24,31 @@
 # non-source form of such a combination shall include the source code
 # for the parts of OpenSSL used as well as that of the covered work.
 
-SUBDIRS = tool tests
+AM_CFLAGS = $(WERROR_CFLAGS) $(WARN_CFLAGS)
+AM_CPPFLAGS = $(OPENSSL_CFLAGS) $(PCSC_CFLAGS)
 
-ACLOCAL_AMFLAGS = -I m4
+bin_PROGRAMS = yubico-piv-tool
+yubico_piv_tool_SOURCES = yubico-piv-tool.c yubico-piv-tool.h2m
+yubico_piv_tool_SOURCES += cmdline.ggo cmdline.c cmdline.h
+yubico_piv_tool_LDADD = $(OPENSSL_LIBS) $(PCSC_LIBS)
+yubico_piv_tool_LDADD += $(LTLIBWINSCARD) $(PCSC_MACOSX_LIBS)
+
+cmdline.c cmdline.h: cmdline.ggo Makefile.am
+	gengetopt --input $^
+
+BUILT_SOURCES = cmdline.c cmdline.h
+MAINTAINERCLEANFILES = $(BUILT_SOURCES)
+
+# Doc.
+
+dist_man_MANS = yubico-piv-tool.1
+MAINTAINERCLEANFILES += $(dist_man_MANS)
 
 EXTRA_DIST = windows.mk mac.mk tests/basic.sh
 
-# Maintainer rules.
-
-ChangeLog:
-	cd $(srcdir) && git2cl > ChangeLog
-
-release:
-	@if test -z "$(KEYID)"; then \
-		echo "Try this instead:"; \
-		echo "  make release KEYID=[PGPKEYID]"; \
-		echo "For example:"; \
-		echo "  make release KEYID=2117364A"; \
-		exit 1; \
-	fi
-	head -3 $(srcdir)/NEWS | \
-		grep -q "Version $(VERSION) .released `date -I`" || \
-		(echo 'error: Update date/version in $(srcdir)/NEWS.'; exit 1)
-	rm -f $(srcdir)/ChangeLog
-	make ChangeLog distcheck
-	gpg --detach-sign --default-key $(KEYID) $(PACKAGE)-$(VERSION).tar.gz
-	gpg --verify $(PACKAGE)-$(VERSION).tar.gz.sig
-	git tag -sm "$(PACKAGE)-$(VERSION)" $(PACKAGE)-$(VERSION)
-	git push
-	git push --tags
-	$(YUBICO_GITHUB_REPO)/publish $(PACKAGE) $(VERSION) $(PACKAGE)-$(VERSION).tar.gz*
+yubico-piv-tool.1: $(yubico_piv_tool_SOURCES) \
+		$(top_srcdir)/configure.ac
+	$(HELP2MAN) --no-info \
+		--name="Yubico PIV tool" \
+		--include=$(srcdir)/yubico-piv-tool.h2m \
+		--output=$@ $(builddir)/yubico-piv-tool$(EXEEXT)

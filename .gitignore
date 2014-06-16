@@ -21,6 +21,7 @@ yubico-piv-tool.o
 *.c~
 *.h~
 ChangeLog
+build-aux/compile
 build-aux/config.guess
 build-aux/config.sub
 build-aux/depcomp
