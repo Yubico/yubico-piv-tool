@@ -27,32 +27,12 @@
  *
  */
 
-#include <stdlib.h>
-#include <string.h>
+#ifndef YKPIV_INTERNAL_H
+#define YKPIV_INTERNAL_H
 
-#if BACKEND_PCSC
-#if defined HAVE_PCSC_WINSCARD_H
-# include <PCSC/wintypes.h>
-# include <PCSC/winscard.h>
-#else
-# include <winscard.h>
+struct ykpiv_state {
+	SCARDCONTEXT card;
+	SCARDHANDLE cardHandle;
+};
+
 #endif
-#endif
-
-#include "internal.h"
-#include "ykpiv.h"
-
-int ykpiv_init(ykpiv_state **state) {
-	ykpiv_state *s = malloc(sizeof(ykpiv_state));
-	if(s == NULL) {
-		return -1;
-	}
-	memset(s, 0, sizeof(ykpiv_state));
-	*state = s;
-	return 0;
-}
-
-int ykpiv_done(ykpiv_state *state) {
-	free(state);
-	return 0;
-}

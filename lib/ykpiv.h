@@ -35,6 +35,11 @@ extern "C"
 {
 #endif
 
+	typedef struct ykpiv_state ykpiv_state;
+
+	int ykpiv_init(ykpiv_state **state);
+	int ykpiv_done(ykpiv_state *state);
+
 #ifdef __cplusplus
 }
 #endif
