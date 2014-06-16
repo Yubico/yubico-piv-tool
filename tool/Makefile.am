@@ -36,7 +36,7 @@ yubico_piv_tool_LDADD += $(LTLIBWINSCARD) $(PCSC_MACOSX_LIBS)
 yubico_piv_tool_LDADD += ../lib/libykpiv.la
 
 cmdline.c cmdline.h: cmdline.ggo Makefile.am
-	gengetopt --input $^
+	$(GENGETOPT) --input $^
 
 BUILT_SOURCES = cmdline.c cmdline.h
 MAINTAINERCLEANFILES = $(BUILT_SOURCES)
