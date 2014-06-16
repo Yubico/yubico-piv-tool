@@ -28,6 +28,8 @@ YKPIV_0.1.0
 {
 global:
 	ykpiv_check_version;
+	ykpiv_strerror_name;
+	ykpiv_strerror;
 	ykpiv_init;
 	ykpiv_map;
 

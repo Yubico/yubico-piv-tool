@@ -37,6 +37,8 @@ yubico-piv-tool-*-mac.zip.sig
 tests/basic.sh.log
 tests/basic.sh.trs
 tests/test-suite.log
+lib/error.lo
+lib/error.o
 lib/libykpiv.la
 lib/version.lo
 lib/version.o

@@ -29,30 +29,99 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-#if BACKEND_PCSC
-#if defined HAVE_PCSC_WINSCARD_H
-# include <PCSC/wintypes.h>
-# include <PCSC/winscard.h>
-#else
-# include <winscard.h>
-#endif
-#endif
+#include <stdio.h>
 
 #include "internal.h"
 #include "ykpiv.h"
 
-int ykpiv_init(ykpiv_state **state) {
-	ykpiv_state *s = malloc(sizeof(ykpiv_state));
-	if(s == NULL) {
-		return -1;
-	}
-	memset(s, 0, sizeof(ykpiv_state));
-	*state = s;
-	return 0;
+ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose) {
+  ykpiv_state *s = malloc(sizeof(ykpiv_state));
+  if(s == NULL) {
+    return YKPIV_MEMORY_ERROR;
+  }
+  memset(s, 0, sizeof(ykpiv_state));
+  s->verbose = verbose;
+  *state = s;
+  return YKPIV_OK;
 }
 
-int ykpiv_done(ykpiv_state *state) {
-	free(state);
-	return 0;
+ykpiv_rc ykpiv_done(ykpiv_state *state) {
+  free(state);
+  return YKPIV_OK;
+}
+
+ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
+  unsigned long num_readers = 0;
+  unsigned long active_protocol;
+  char reader_buf[1024];
+  long rc;
+  char *reader_ptr;
+
+  rc = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &state->context);
+  if (rc != SCARD_S_SUCCESS) {
+    if(state->verbose) {
+      fprintf (stderr, "error: SCardEstablishContext failed, rc=%08lx\n", rc);
+    }
+    return YKPIV_PCSC_ERROR;
+  }
+
+  rc = SCardListReaders(state->context, NULL, NULL, &num_readers);
+  if (rc != SCARD_S_SUCCESS) {
+    if(state->verbose) {
+      fprintf (stderr, "error: SCardListReaders failed, rc=%08lx\n", rc);
+    }
+    SCardReleaseContext(state->context);
+    return YKPIV_PCSC_ERROR;
+  }
+
+  if (num_readers > sizeof(reader_buf)) {
+    num_readers = sizeof(reader_buf);
+  }
+
+  rc = SCardListReaders(state->context, NULL, reader_buf, &num_readers);
+  if (rc != SCARD_S_SUCCESS)
+  {
+    if(state->verbose) {
+      fprintf (stderr, "error: SCardListReaders failed, rc=%08lx\n", rc);
+    }
+    SCardReleaseContext(state->context);
+    return YKPIV_PCSC_ERROR;
+  }
+
+  reader_ptr = reader_buf;
+  if(wanted) {
+    while(*reader_ptr != '\0') {
+      if(strstr(reader_ptr, wanted)) {
+	if(state->verbose) {
+	  fprintf(stderr, "using reader '%s' matching '%s'.\n", reader_ptr, wanted);
+	}
+	break;
+      } else {
+	if(state->verbose) {
+	  fprintf(stderr, "skipping reader '%s' since it doesn't match.\n", reader_ptr);
+	}
+	reader_ptr += strlen(reader_ptr) + 1;
+      }
+    }
+  }
+  if(*reader_ptr == '\0') {
+    if(state->verbose) {
+      fprintf(stderr, "error: no useable reader found.\n");
+    }
+    SCardReleaseContext(state->context);
+    return YKPIV_PCSC_ERROR;
+  }
+
+  rc = SCardConnect(state->context, reader_ptr, SCARD_SHARE_SHARED,
+      SCARD_PROTOCOL_T1, &state->card, &active_protocol);
+  if(rc != SCARD_S_SUCCESS)
+  {
+    if(state->verbose) {
+      fprintf(stderr, "error: SCardConnect failed, rc=%08lx\n", rc);
+    }
+    SCardReleaseContext(state->context);
+    return YKPIV_PCSC_ERROR;
+  }
+
+  return YKPIV_OK;
 }

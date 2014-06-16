@@ -30,9 +30,25 @@
 #ifndef YKPIV_INTERNAL_H
 #define YKPIV_INTERNAL_H
 
+#include <stdbool.h>
+
+#if BACKEND_PCSC
+#if defined HAVE_PCSC_WINSCARD_H
+# include <PCSC/wintypes.h>
+# include <PCSC/winscard.h>
+#else
+# include <winscard.h>
+#endif
+#endif
+
 struct ykpiv_state {
-	SCARDCONTEXT card;
-	SCARDHANDLE cardHandle;
+	SCARDCONTEXT context;
+	SCARDHANDLE card;
+	int verbose;
+};
+
+unsigned const char aid[] = {
+	0xa0, 0x00, 0x00, 0x03, 0x08
 };
 
 #endif

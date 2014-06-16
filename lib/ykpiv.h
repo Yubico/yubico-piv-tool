@@ -37,8 +37,20 @@ extern "C"
 
 	typedef struct ykpiv_state ykpiv_state;
 
-	int ykpiv_init(ykpiv_state **state);
-	int ykpiv_done(ykpiv_state *state);
+	typedef enum {
+		YKPIV_OK = 0,
+		YKPIV_MEMORY_ERROR = -1,
+		YKPIV_PCSC_ERROR = -2,
+	} ykpiv_rc;
+
+	const char *ykpiv_strerror(ykpiv_rc err);
+	const char *ykpiv_strerror_name(ykpiv_rc err);
+
+	ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose);
+	ykpiv_rc ykpiv_done(ykpiv_state *state);
+	ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted);
+
+
 
 #ifdef __cplusplus
 }
