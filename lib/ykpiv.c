@@ -30,9 +30,31 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdint.h>
 
 #include "internal.h"
 #include "ykpiv.h"
+
+union u_APDU {
+  struct {
+    unsigned char cla;
+    unsigned char ins;
+    unsigned char p1;
+    unsigned char p2;
+    unsigned char lc;
+    unsigned char data[0xff];
+  } st;
+  unsigned char raw[0xff + 5];
+};
+
+typedef union u_APDU APDU;
+
+static void dump_hex(const unsigned char *buf, unsigned int len) {
+  unsigned int i;
+  for (i = 0; i < len; i++) {
+    fprintf(stderr, "%02x ", buf[i]);
+  }
+}
 
 ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose) {
   ykpiv_state *s = malloc(sizeof(ykpiv_state));
@@ -123,5 +145,106 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
     return YKPIV_PCSC_ERROR;
   }
 
+  return YKPIV_OK;
+}
+
+ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, uint32_t template,
+    unsigned char *in_data, long in_len,
+    unsigned char *out_data, unsigned long *out_len, int *sw) {
+  unsigned char *in_ptr = in_data;
+  unsigned long max_out = *out_len;
+  ykpiv_rc res;
+  *out_len = 0;
+
+  while(in_ptr < in_data + in_len) {
+    size_t this_size = 0xff;
+    unsigned long recv_len = 0xff;
+    unsigned char data[0xff];
+    APDU apdu;
+
+    memset(apdu.raw, 0, sizeof(apdu.raw));
+    YKPIV_APDU_UNPACK(apdu.raw, template);
+    if(in_ptr + 0xff < in_data + in_len) {
+      apdu.st.cla = 0x10;
+    } else {
+      this_size = (size_t)((in_data + in_len) - in_ptr);
+    }
+    if(state->verbose > 2) {
+      fprintf(stderr, "Going to send %lu bytes in this go.\n", (unsigned long)this_size);
+    }
+    apdu.st.lc = this_size;
+    memcpy(apdu.st.data, in_ptr, this_size);
+    res = ykpiv_send_data(state, apdu.raw, data, &recv_len, sw);
+    if(res != YKPIV_OK) {
+      return res;
+    } else if(*sw != 0x9000 && *sw >> 8 != 0x61) {
+      return YKPIV_OK;
+    }
+    if(*out_len + recv_len - 2 > max_out) {
+      if(state->verbose) {
+	fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.\n", *out_len + recv_len - 2, max_out);
+      }
+      return YKPIV_SIZE_ERROR;
+    }
+    memcpy(out_data, data, recv_len - 2);
+    out_data += recv_len - 2;
+    *out_len += recv_len - 2;
+    in_ptr += this_size;
+  }
+  while(*sw >> 8 == 0x61) {
+    APDU apdu;
+    unsigned long recv_len = 0xff;
+    unsigned char data[0xff];
+
+    if(state->verbose > 2) {
+      fprintf(stderr, "The card indicates there is %d bytes more data for us.\n", *sw & 0xff);
+    }
+
+    memset(apdu.raw, 0, sizeof(apdu.raw));
+    apdu.st.ins = 0xc0;
+    res = ykpiv_send_data(state, apdu.raw, data, &recv_len, sw);
+    if(res != YKPIV_OK) {
+      return res;
+    } else if(*sw != 0x9000 && *sw >> 8 != 0x61) {
+      return YKPIV_OK;
+    }
+    if(*out_len + recv_len - 2 > max_out) {
+      fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.", *out_len + recv_len - 2, max_out);
+    }
+    memcpy(out_data, data, recv_len - 2);
+    out_data += recv_len - 2;
+    *out_len += recv_len - 2;
+  }
+  return YKPIV_OK;
+}
+
+ykpiv_rc ykpiv_send_data(ykpiv_state *state, unsigned char *apdu,
+    unsigned char *data, unsigned long *recv_len, int *sw) {
+  long rc;
+  unsigned int send_len = (unsigned int)(apdu[4] + 5); /* magic numbers.. */
+
+  if(state->verbose > 1) {
+    fprintf(stderr, "> ");
+    dump_hex(apdu, send_len);
+    fprintf(stderr, "\n");
+  }
+  rc = SCardTransmit(state->card, SCARD_PCI_T1, apdu, send_len, NULL, data, recv_len);
+  if(rc != SCARD_S_SUCCESS) {
+    if(state->verbose) {
+      fprintf (stderr, "error: SCardTransmit failed, rc=%08lx\n", rc);
+    }
+    return YKPIV_PCSC_ERROR;
+  }
+
+  if(state->verbose > 1) {
+    fprintf(stderr, "< ");
+    dump_hex(data, *recv_len);
+    fprintf(stderr, "\n");
+  }
+  if(*recv_len >= 2) {
+    *sw = (data[*recv_len - 2] << 8) | data[*recv_len - 1];
+  } else {
+    *sw = 0;
+  }
   return YKPIV_OK;
 }

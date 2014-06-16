@@ -30,6 +30,8 @@
 #ifndef YKPIV_H
 #define YKPIV_H
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -41,6 +43,7 @@ extern "C"
 		YKPIV_OK = 0,
 		YKPIV_MEMORY_ERROR = -1,
 		YKPIV_PCSC_ERROR = -2,
+		YKPIV_SIZE_ERROR = -3,
 	} ykpiv_rc;
 
 	const char *ykpiv_strerror(ykpiv_rc err);
@@ -49,8 +52,15 @@ extern "C"
 	ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose);
 	ykpiv_rc ykpiv_done(ykpiv_state *state);
 	ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted);
+	ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, uint32_t template,
+			unsigned char *in_data, long in_len,
+			unsigned char *out_data, unsigned long *out_len, int *sw);
+	ykpiv_rc ykpiv_send_data(ykpiv_state *state, unsigned char *apdu,
+			unsigned char *data, unsigned long *recv_len, int *sw);
 
-
+#define YKPIV_APDU_TEMPLATE(i,j,k,l) ((i & 0xff) << 24 | (j & 0xff) << 16 | (k & 0xff) << 8 | (l & 0xff))
+#define YKPIV_APDU_UNPACK(c, t) (c[0] = ((t >> 24) & 0xff), \
+		c[1] = ((t >> 16) & 0xff), c[2] = ((t >> 8) & 0xff), c[3] = (t & 0xff))
 
 #ifdef __cplusplus
 }

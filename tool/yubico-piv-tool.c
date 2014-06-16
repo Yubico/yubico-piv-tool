@@ -32,6 +32,8 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "ykpiv.h"
+
 #if BACKEND_PCSC
 #if defined HAVE_PCSC_WINSCARD_H
 # include <PCSC/wintypes.h>
@@ -93,15 +95,12 @@ union u_APDU {
 typedef union u_APDU APDU;
 
 static void dump_hex(unsigned const char*, unsigned int);
-static int transfer_data(SCARDHANDLE*, APDU*, unsigned char*, long,
-    unsigned char*, unsigned long*, int verbose);
-static int send_data(SCARDHANDLE*, APDU*, unsigned char*, unsigned long*, int);
 static int set_length(unsigned char*, int);
 static int get_length(unsigned char*, int*);
 static X509_NAME *parse_name(char*);
 static unsigned char get_algorithm(EVP_PKEY*);
 static FILE *open_file(const char*, int);
-static bool sign_data(SCARDHANDLE*, unsigned char*, int, unsigned char, unsigned char,
+static bool sign_data(ykpiv_state*, unsigned char*, int, unsigned char, unsigned char,
     ASN1_BIT_STRING*, int);
 static int get_object_id(enum enum_slot slot);
 
@@ -171,7 +170,7 @@ static bool connect_reader(SCARDHANDLE *card, SCARDCONTEXT *context, const char 
   return true;
 }
 
-static bool select_applet(SCARDHANDLE *card, int verbose) {
+static bool select_applet(ykpiv_state *state, int verbose) {
   APDU apdu;
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
@@ -183,15 +182,16 @@ static bool select_applet(SCARDHANDLE *card, int verbose) {
   apdu.st.lc = sizeof(aid);
   memcpy(apdu.st.data, aid, sizeof(aid));
 
-  sw = send_data(card, &apdu, data, &recv_len, verbose);
-  if(sw == 0x9000) {
+  if(ykpiv_send_data(state, apdu.raw, data, &recv_len, &sw) != YKPIV_OK) {
+    return false;
+  } else if(sw == 0x9000) {
     return true;
   }
 
   return false;
 }
 
-static bool authenticate(SCARDHANDLE *card, unsigned const char *key, int verbose) {
+static bool authenticate(ykpiv_state *state, unsigned const char *key, int verbose) {
   APDU apdu;
   unsigned char data[0xff];
   DES_cblock challenge;
@@ -221,8 +221,9 @@ static bool authenticate(SCARDHANDLE *card, unsigned const char *key, int verbos
     apdu.st.data[0] = 0x7c;
     apdu.st.data[1] = 0x02;
     apdu.st.data[2] = 0x80;
-    sw = send_data(card, &apdu, data, &recv_len, verbose);
-    if(sw != 0x9000) {
+    if(ykpiv_send_data(state, apdu.raw, data, &recv_len, &sw) != YKPIV_OK) {
+      return false;
+    } else if(sw != 0x9000) {
       return false;
     }
     memcpy(challenge, data + 4, 8);
@@ -254,8 +255,9 @@ static bool authenticate(SCARDHANDLE *card, unsigned const char *key, int verbos
     memcpy(challenge, dataptr, 8);
     dataptr += 8;
     apdu.st.lc = dataptr - apdu.st.data;
-    sw = send_data(card, &apdu, data, &recv_len, verbose);
-    if(sw != 0x9000) {
+    if(ykpiv_send_data(state, apdu.raw, data, &recv_len, &sw) != YKPIV_OK) {
+      return false;
+    } else if(sw != 0x9000) {
       return false;
     }
   }
@@ -272,7 +274,7 @@ static bool authenticate(SCARDHANDLE *card, unsigned const char *key, int verbos
   }
 }
 
-static void print_version(SCARDHANDLE *card, int verbose) {
+static void print_version(ykpiv_state *state, int verbose) {
   APDU apdu;
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
@@ -280,17 +282,17 @@ static void print_version(SCARDHANDLE *card, int verbose) {
 
   memset(apdu.raw, 0, sizeof(apdu));
   apdu.st.ins = 0xfd;
-  sw = send_data(card, &apdu, data, &recv_len, verbose);
-  if(sw == 0x9000) {
+  if(ykpiv_send_data(state, apdu.raw, data, &recv_len, &sw) != YKPIV_OK) {
+    printf("Failed to retreive apple version.\n");
+  } else if(sw == 0x9000) {
     printf("Applet version %d.%d.%d found.\n", data[0], data[1], data[2]);
   } else {
     printf("Applet version not found. Status code: %x\n", sw);
   }
 }
 
-static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorithm algorithm,
+static bool generate_key(ykpiv_state *state, const char *slot, enum enum_algorithm algorithm,
     const char *output_file_name, enum enum_key_format key_format, int verbose) {
-  APDU apdu;
   unsigned char in_data[5];
   unsigned char data[1024];
   unsigned long recv_len = sizeof(data);
@@ -313,9 +315,6 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
     return false;
   }
 
-  memset(apdu.raw, 0, sizeof(apdu));
-  apdu.st.ins = 0x47;
-  apdu.st.p2 = key;
   in_data[0] = 0xac;
   in_data[1] = 3;
   in_data[2] = 0x80;
@@ -335,9 +334,10 @@ static bool generate_key(SCARDHANDLE *card, const char *slot, enum enum_algorith
       fprintf(stderr, "Unexepcted algorithm.\n");
       goto generate_out;
   }
-  sw = transfer_data(card, &apdu, in_data, sizeof(in_data), data, &recv_len, verbose);
-
-  if(sw != 0x9000) {
+  if(ykpiv_transfer_data(state, YKPIV_APDU_TEMPLATE(0, 0x47, 0, key), in_data, sizeof(in_data), data, &recv_len, &sw) != YKPIV_OK) {
+    fprintf(stderr, "Failed to communicate.\n");
+    goto generate_out;
+  } else if(sw != 0x9000) {
     fprintf(stderr, "Failed to generate new key.\n");
     goto generate_out;
   }
@@ -436,7 +436,7 @@ generate_out:
   return ret;
 }
 
-static bool set_mgm_key(SCARDHANDLE *card, unsigned const char *new_key, int verbose) {
+static bool set_mgm_key(ykpiv_state *state, unsigned const char *new_key, int verbose) {
   APDU apdu;
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
@@ -463,15 +463,15 @@ static bool set_mgm_key(SCARDHANDLE *card, unsigned const char *new_key, int ver
   apdu.st.data[1] = 0x9b;
   apdu.st.data[2] = KEY_LEN;
   memcpy(apdu.st.data + 3, new_key, KEY_LEN);
-  sw = send_data(card, &apdu, data, &recv_len, verbose);
-
-  if(sw == 0x9000) {
+  if(ykpiv_send_data(state, apdu.raw, data, &recv_len, &sw) != YKPIV_OK) {
+    return false;
+  } else if(sw == 0x9000) {
     return true;
   }
   return false;
 }
 
-static bool reset(SCARDHANDLE *card, int verbose) {
+static bool reset(ykpiv_state *state, int verbose) {
   APDU apdu;
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
@@ -480,15 +480,15 @@ static bool reset(SCARDHANDLE *card, int verbose) {
   memset(apdu.raw, 0, sizeof(apdu));
   /* note: the reset function is only available when both pins are blocked. */
   apdu.st.ins = 0xfb;
-  sw = send_data(card, &apdu, data, &recv_len, verbose);
-
-  if(sw == 0x9000) {
+  if(ykpiv_send_data(state, apdu.raw, data, &recv_len, &sw) != YKPIV_OK) {
+    return false;
+  } else if(sw == 0x9000) {
     return true;
   }
   return false;
 }
 
-static bool set_pin_retries(SCARDHANDLE *card, int pin_retries, int puk_retries, int verbose) {
+static bool set_pin_retries(ykpiv_state *state, int pin_retries, int puk_retries, int verbose) {
   APDU apdu;
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
@@ -507,15 +507,15 @@ static bool set_pin_retries(SCARDHANDLE *card, int pin_retries, int puk_retries,
   apdu.st.ins = 0xfa;
   apdu.st.p1 = pin_retries;
   apdu.st.p2 = puk_retries;
-  sw = send_data(card, &apdu, data, &recv_len, verbose);
-
-  if(sw == 0x9000) {
+  if(ykpiv_send_data(state, apdu.raw, data, &recv_len, &sw) != YKPIV_OK) {
+    return false;
+  } else if(sw == 0x9000) {
     return true;
   }
   return false;
 }
 
-static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format,
+static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
     const char *input_file_name, const char *slot, char *password, int verbose) {
   int key = 0;
   FILE *input_file = NULL;
@@ -600,11 +600,12 @@ static bool import_key(SCARDHANDLE *card, enum enum_key_format key_format,
       apdu.st.ins = 0xfe;
       apdu.st.p1 = algorithm;
       apdu.st.p2 = key;
-      sw = transfer_data(card, &apdu, in_data, in_ptr - in_data, data, &recv_len, verbose);
-      if(sw != 0x9000) {
+      if(ykpiv_transfer_data(state, YKPIV_APDU_TEMPLATE(0x00, 0xfe, algorithm, key), in_data, in_ptr - in_data, data, &recv_len, &sw) != YKPIV_OK) {
+        return false;
+      } else if(sw != 0x9000) {
         fprintf(stderr, "Failed import command with code %x.", sw);
       } else {
-	ret = true;
+        ret = true;
       }
     }
   }
@@ -624,7 +625,7 @@ import_out:
   return ret;
 }
 
-static bool import_cert(SCARDHANDLE *card, enum enum_key_format cert_format,
+static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
     const char *input_file_name, enum enum_slot slot, char *password, int verbose) {
   bool ret = false;
   FILE *input_file = NULL;
@@ -703,8 +704,9 @@ static bool import_cert(SCARDHANDLE *card, enum enum_key_format cert_format,
     apdu.st.p1 = 0x3f;
     apdu.st.p2 = 0xff;
 
-    sw = transfer_data(card, &apdu, certdata, certptr - certdata, data, &recv_len, verbose);
-    if(sw != 0x9000) {
+    if(ykpiv_transfer_data(state, YKPIV_APDU_TEMPLATE(0, 0xdb, 0x3f, 0xff), certdata, certptr - certdata, data, &recv_len, &sw) != YKPIV_OK) {
+      fprintf(stderr, "Failed commands with device.\n");
+    } else if(sw != 0x9000) {
       fprintf(stderr, "Failed loading certificate to device with code %x.\n", sw);
     } else {
       ret = true;
@@ -728,7 +730,7 @@ import_cert_out:
   return ret;
 }
 
-static bool set_chuid(SCARDHANDLE *card, int verbose) {
+static bool set_chuid(ykpiv_state *state, int verbose) {
   APDU apdu;
   unsigned char data[0xff];
   unsigned char *dataptr = apdu.st.data;
@@ -751,15 +753,17 @@ static bool set_chuid(SCARDHANDLE *card, int verbose) {
   apdu.st.p1 = 0x3f;
   apdu.st.p2 = 0xff;
   apdu.st.lc = sizeof(chuid_tmpl);
-  sw = send_data(card, &apdu, data, &recv_len, verbose);
-  if(sw != 0x9000) {
+  if(ykpiv_send_data(state, apdu.raw, data, &recv_len, &sw) != YKPIV_OK) {
+    fprintf(stderr, "Failed communicating with device.\n");
+    return false;
+  } else if(sw != 0x9000) {
     fprintf(stderr, "Failed setting CHUID.\n");
     return false;
   }
   return true;
 }
 
-static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_format,
+static bool request_certificate(ykpiv_state *state, enum enum_key_format key_format,
     const char *input_file_name, const char *slot, char *subject,
     const char *output_file_name, int verbose) {
   X509_REQ *req = NULL;
@@ -848,7 +852,7 @@ static bool request_certificate(SCARDHANDLE *card, enum enum_key_format key_form
       fprintf(stderr, "Unsupported algorithm %x.\n", algorithm);
       goto request_out;
   }
-  if(sign_data(card, signinput, len, algorithm, key, req->signature,
+  if(sign_data(state, signinput, len, algorithm, key, req->signature,
         verbose) == false) {
     goto request_out;
   }
@@ -879,7 +883,7 @@ request_out:
   return ret;
 }
 
-static bool selfsign_certificate(SCARDHANDLE *card, enum enum_key_format key_format,
+static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_format,
     const char *input_file_name, const char *slot, char *subject,
     const char *output_file_name, int verbose) {
   FILE *input_file = NULL;
@@ -979,7 +983,7 @@ static bool selfsign_certificate(SCARDHANDLE *card, enum enum_key_format key_for
       fprintf(stderr, "Unsupported algorithm %x.\n", algorithm);
       goto selfsign_out;
   }
-  if(sign_data(card, signinput, len, algorithm, key, x509->signature,
+  if(sign_data(state, signinput, len, algorithm, key, x509->signature,
         verbose) == false) {
     goto selfsign_out;
   }
@@ -1010,7 +1014,7 @@ selfsign_out:
   return ret;
 }
 
-static bool verify_pin(SCARDHANDLE *card, const char *pin, int verbose) {
+static bool verify_pin(ykpiv_state *state, const char *pin, int verbose) {
   APDU apdu;
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
@@ -1031,8 +1035,9 @@ static bool verify_pin(SCARDHANDLE *card, const char *pin, int verbose) {
   if(len < 8) {
     memset(apdu.st.data + len, 0xff, 8 - len);
   }
-  sw = send_data(card, &apdu, data, &recv_len, verbose);
-  if(sw == 0x9000) {
+  if(ykpiv_send_data(state, apdu.raw, data, &recv_len, &sw) != YKPIV_OK) {
+    return false;
+  } else if(sw == 0x9000) {
     return true;
   } else if((sw >> 8) == 0x63) {
     fprintf(stderr, "Pin verification failed, %d tries left before pin is blocked.\n", sw & 0xff);
@@ -1046,7 +1051,7 @@ static bool verify_pin(SCARDHANDLE *card, const char *pin, int verbose) {
 
 /* this function is called for all three of change-pin, change-puk and unblock pin
  * since they're very similar in what data they use. */
-static bool change_pin(SCARDHANDLE *card, enum enum_action action, const char *pin,
+static bool change_pin(ykpiv_state *state, enum enum_action action, const char *pin,
     const char *new_pin, int verbose) {
   APDU apdu;
   unsigned char data[0xff];
@@ -1072,8 +1077,9 @@ static bool change_pin(SCARDHANDLE *card, enum enum_action action, const char *p
   if(new_len < 8) {
     memset(apdu.st.data + 8 + new_len, 0xff, 16 - new_len);
   }
-  sw = send_data(card, &apdu, data, &recv_len, verbose);
-  if(sw != 0x9000) {
+  if(ykpiv_send_data(state, apdu.raw, data, &recv_len, &sw) != YKPIV_OK) {
+    return false;
+  } else if(sw != 0x9000) {
     if((sw >> 8) == 0x63) {
       int tries = sw & 0xff;
       fprintf(stderr, "Failed verifying %s code, now %d tries left before blocked.\n",
@@ -1092,7 +1098,7 @@ static bool change_pin(SCARDHANDLE *card, enum enum_action action, const char *p
   return true;
 }
 
-static bool delete_certificate(SCARDHANDLE *card, enum enum_slot slot, int verbose) {
+static bool delete_certificate(ykpiv_state *state, enum enum_slot slot, int verbose) {
   APDU apdu;
   unsigned char objdata[7];
   unsigned char *ptr = objdata;
@@ -1115,16 +1121,17 @@ static bool delete_certificate(SCARDHANDLE *card, enum enum_slot slot, int verbo
   apdu.st.p1 = 0x3f;
   apdu.st.p2 = 0xff;
 
-  sw = transfer_data(card, &apdu, objdata, 7, data, &recv_len, verbose);
-  if(sw != 0x9000) {
-    fprintf(stderr, "Failed loading certificate to device with code %x.\n", sw);
+  if(ykpiv_transfer_data(state, YKPIV_APDU_TEMPLATE(0, 0xdb, 0x3f, 0xff), objdata, 7, data, &recv_len, &sw) != YKPIV_OK) {
+    return false;
+  } else if(sw != 0x9000) {
+    fprintf(stderr, "Failed deleting certificate to device with code %x.\n", sw);
   } else {
     ret = true;
   }
   return ret;
 }
 
-static bool sign_data(SCARDHANDLE *card, unsigned char *signinput, int in_len,
+static bool sign_data(ykpiv_state *state, unsigned char *signinput, int in_len,
     unsigned char algorithm, unsigned char key, ASN1_BIT_STRING *sig, int verbose) {
   unsigned char indata[1024];
   unsigned char *dataptr = indata;
@@ -1157,8 +1164,10 @@ static bool sign_data(SCARDHANDLE *card, unsigned char *signinput, int in_len,
   memcpy(dataptr, signinput, (size_t)in_len);
   dataptr += in_len;
 
-  sw = transfer_data(card, &apdu, indata, dataptr - indata, data, &recv_len, verbose);
-  if(sw != 0x9000) {
+  if(ykpiv_transfer_data(state, YKPIV_APDU_TEMPLATE(0, 0x87, algorithm, key), indata, dataptr - indata, data, &recv_len, &sw) != YKPIV_OK) {
+    fprintf(stderr, "Sign command failed to communicate.\n");
+    return false;
+  } else if(sw != 0x9000) {
     fprintf(stderr, "Failed sign command with code %x.\n", sw);
     return false;
   }
@@ -1273,100 +1282,6 @@ parse_err:
   return NULL;
 }
 
-static int transfer_data(SCARDHANDLE *card, APDU *apdu_tmpl, unsigned char *in_data,
-    long in_len, unsigned char *out_data, unsigned long *out_len,
-    int verbose) {
-  unsigned char *in_ptr = in_data;
-  unsigned long max_out = *out_len;
-  int sw = 0;
-  *out_len = 0;
-
-  while(in_ptr < in_data + in_len) {
-    size_t this_size = 0xff;
-    unsigned long recv_len = 0xff;
-    unsigned char data[0xff];
-    APDU apdu;
-
-    memset(apdu.raw, 0, sizeof(apdu.raw));
-    memcpy(apdu.raw, apdu_tmpl->raw, 4);
-    if(in_ptr + 0xff < in_data + in_len) {
-      apdu.st.cla = 0x10;
-    } else {
-      this_size = (size_t)((in_data + in_len) - in_ptr);
-    }
-    if(verbose > 2) {
-      fprintf(stderr, "Going to send %lu bytes in this go.\n", (unsigned long)this_size);
-    }
-    apdu.st.lc = this_size;
-    memcpy(apdu.st.data, in_ptr, this_size);
-    sw = send_data(card, &apdu, data, &recv_len, verbose);
-    if(sw != 0x9000 && sw >> 8 != 0x61) {
-      return sw;
-    }
-    if(*out_len + recv_len - 2 > max_out) {
-      fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.\n", *out_len + recv_len - 2, max_out);
-      return 0;
-    }
-    memcpy(out_data, data, recv_len - 2);
-    out_data += recv_len - 2;
-    *out_len += recv_len - 2;
-    in_ptr += this_size;
-  }
-  while(sw >> 8 == 0x61) {
-    APDU apdu;
-    unsigned long recv_len = 0xff;
-    unsigned char data[0xff];
-
-    if(verbose > 2) {
-      fprintf(stderr, "The card indicates there is %d bytes more data for us.\n", sw & 0xff);
-    }
-
-    memset(apdu.raw, 0, sizeof(apdu.raw));
-    apdu.st.ins = 0xc0;
-    sw = send_data(card, &apdu, data, &recv_len, verbose);
-    if(sw != 0x9000 && sw >> 8 != 0x61) {
-      return sw;
-    }
-    if(*out_len + recv_len - 2 > max_out) {
-      fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.", *out_len + recv_len - 2, max_out);
-    }
-    memcpy(out_data, data, recv_len - 2);
-    out_data += recv_len - 2;
-    *out_len += recv_len - 2;
-  }
-  return sw;
-}
-
-static int send_data(SCARDHANDLE *card, APDU *apdu, unsigned char *data,
-    unsigned long *recv_len, int verbose) {
-  long rc;
-  int sw;
-  unsigned int send_len = (unsigned int)(apdu->st.lc + 5);
-
-  if(verbose > 1) {
-    fprintf(stderr, "> ");
-    dump_hex(apdu->raw, send_len);
-    fprintf(stderr, "\n");
-  }
-  rc = SCardTransmit(*card, SCARD_PCI_T1, apdu->raw, send_len, NULL, data, recv_len);
-  if(rc != SCARD_S_SUCCESS) {
-    fprintf (stderr, "error: SCardTransmit failed, rc=%08lx\n", rc);
-    return 0;
-  }
-
-  if(verbose > 1) {
-    fprintf(stderr, "< ");
-    dump_hex(data, *recv_len);
-    fprintf(stderr, "\n");
-  }
-  if(*recv_len >= 2) {
-    sw = (data[*recv_len - 2] << 8) | data[*recv_len - 1];
-  } else {
-    sw = 0;
-  }
-  return sw;
-}
-
 static void dump_hex(const unsigned char *buf, unsigned int len) {
   unsigned int i;
   for (i = 0; i < len; i++) {
@@ -1454,8 +1369,7 @@ static int get_object_id(enum enum_slot slot) {
 
 int main(int argc, char *argv[]) {
   struct gengetopt_args_info args_info;
-  SCARDHANDLE card;
-  SCARDCONTEXT context;
+  ykpiv_state *state;
   unsigned char key[KEY_LEN];
   int verbosity;
   enum enum_action action;
@@ -1472,17 +1386,22 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  if(connect_reader(&card, &context, args_info.reader_arg, verbosity) == false) {
+  if(ykpiv_init(&state, verbosity) != YKPIV_OK) {
+    fprintf(stderr, "Failed initializing library.\n");
+    return EXIT_FAILURE;
+  }
+
+  if(ykpiv_connect(state, args_info.reader_arg) != YKPIV_OK) {
     fprintf(stderr, "Failed to connect to reader.\n");
     return EXIT_FAILURE;
   }
 
-  if(select_applet(&card, verbosity) == false) {
+  if(select_applet(state, verbosity) == false) {
     fprintf(stderr, "Failed to select applet.\n");
     return EXIT_FAILURE;
   }
 
-  if(authenticate(&card, key, verbosity) == false) {
+  if(authenticate(state, key, verbosity) == false) {
     fprintf(stderr, "Failed authentication with the applet.\n");
     return EXIT_FAILURE;
   }
@@ -1500,11 +1419,11 @@ int main(int argc, char *argv[]) {
     }
     switch(action) {
       case action_arg_version:
-        print_version(&card, verbosity);
+        print_version(state, verbosity);
         break;
       case action_arg_generate:
         if(args_info.slot_arg != slot__NULL) {
-          if(generate_key(&card, args_info.slot_orig, args_info.algorithm_arg, args_info.output_arg, args_info.key_format_arg, verbosity) == false) {
+          if(generate_key(state, args_info.slot_orig, args_info.algorithm_arg, args_info.output_arg, args_info.key_format_arg, verbosity) == false) {
             ret = EXIT_FAILURE;
           }
         } else {
@@ -1517,7 +1436,7 @@ int main(int argc, char *argv[]) {
           unsigned char new_key[KEY_LEN];
           if(parse_key(args_info.new_key_arg, new_key, verbosity) == false) {
             ret = EXIT_FAILURE;
-          } else if(set_mgm_key(&card, new_key, verbosity) == false) {
+          } else if(set_mgm_key(state, new_key, verbosity) == false) {
             ret = EXIT_FAILURE;
           } else {
             printf("Successfully set new management key.\n");
@@ -1528,7 +1447,7 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_reset:
-        if(reset(&card, verbosity) == false) {
+        if(reset(state, verbosity) == false) {
           ret = EXIT_FAILURE;
         } else {
           printf("Successfully reset the applet.\n");
@@ -1536,7 +1455,7 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_pinMINUS_retries:
         if(args_info.pin_retries_arg && args_info.puk_retries_arg) {
-          if(set_pin_retries(&card, args_info.pin_retries_arg, args_info.puk_retries_arg, verbosity) == false) {
+          if(set_pin_retries(state, args_info.pin_retries_arg, args_info.puk_retries_arg, verbosity) == false) {
             ret = EXIT_FAILURE;
           } else {
             printf("Successfully changed pin retries to %d and puk retries to %d, both codes have been reset to default now.\n",
@@ -1549,7 +1468,7 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_importMINUS_key:
         if(args_info.slot_arg != slot__NULL) {
-          if(import_key(&card, args_info.key_format_arg, args_info.input_arg, args_info.slot_orig, args_info.password_arg, verbosity) == false) {
+          if(import_key(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_orig, args_info.password_arg, verbosity) == false) {
             ret = EXIT_FAILURE;
           } else {
             printf("Successfully imported a new private key.\n");
@@ -1561,7 +1480,7 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_importMINUS_certificate:
         if(args_info.slot_arg != slot__NULL) {
-          if(import_cert(&card, args_info.key_format_arg, args_info.input_arg, args_info.slot_arg, args_info.password_arg, verbosity) == false) {
+          if(import_cert(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_arg, args_info.password_arg, verbosity) == false) {
             ret = EXIT_FAILURE;
           } else {
             printf("Successfully imported a new certificate.\n");
@@ -1572,7 +1491,7 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_setMINUS_chuid:
-        if(set_chuid(&card, verbosity) == false) {
+        if(set_chuid(state, verbosity) == false) {
           ret = EXIT_FAILURE;
         } else {
           printf("Successfully set new CHUID.\n");
@@ -1586,7 +1505,7 @@ int main(int argc, char *argv[]) {
           fprintf(stderr, "The request-certificate action needs a subject (-S) to operate on.\n");
           ret = EXIT_FAILURE;
         } else {
-          if(request_certificate(&card, args_info.key_format_arg, args_info.input_arg,
+          if(request_certificate(state, args_info.key_format_arg, args_info.input_arg,
                 args_info.slot_orig, args_info.subject_arg, args_info.output_arg, verbosity) == false) {
             ret = EXIT_FAILURE;
           }
@@ -1594,7 +1513,7 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_verifyMINUS_pin:
         if(args_info.pin_arg) {
-          if(verify_pin(&card, args_info.pin_arg, verbosity)) {
+          if(verify_pin(state, args_info.pin_arg, verbosity)) {
             printf("Successfully verified PIN.\n");
           } else {
             ret = EXIT_FAILURE;
@@ -1608,7 +1527,7 @@ int main(int argc, char *argv[]) {
       case action_arg_changeMINUS_puk:
       case action_arg_unblockMINUS_pin:
         if(args_info.pin_arg && args_info.new_pin_arg) {
-          if(change_pin(&card, action, args_info.pin_arg, args_info.new_pin_arg, verbosity)) {
+          if(change_pin(state, action, args_info.pin_arg, args_info.new_pin_arg, verbosity)) {
             if(action == action_arg_unblockMINUS_pin) {
               printf("Successfully unblocked the pin code.\n");
             } else {
@@ -1633,7 +1552,7 @@ int main(int argc, char *argv[]) {
           fprintf(stderr, "The selfsign-certificate action needs a subject (-S) to operate on.\n");
           ret = EXIT_FAILURE;
         } else {
-          if(selfsign_certificate(&card, args_info.key_format_arg, args_info.input_arg,
+          if(selfsign_certificate(state, args_info.key_format_arg, args_info.input_arg,
                 args_info.slot_orig, args_info.subject_arg, args_info.output_arg, verbosity) == false) {
             ret = EXIT_FAILURE;
           }
@@ -1644,7 +1563,7 @@ int main(int argc, char *argv[]) {
 	  fprintf(stderr, "The delete-certificate action needs a slot (-s) to operate on.\n");
 	  ret = EXIT_FAILURE;
 	} else {
-	  if(delete_certificate(&card, args_info.slot_arg, verbosity) == false) {
+	  if(delete_certificate(state, args_info.slot_arg, verbosity) == false) {
 	    ret = EXIT_FAILURE;
 	  }
 	}
