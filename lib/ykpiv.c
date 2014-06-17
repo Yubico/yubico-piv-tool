@@ -159,10 +159,10 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
   return YKPIV_OK;
 }
 
-ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, unsigned char *templ,
-    unsigned char *in_data, long in_len,
+ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
+    const unsigned char *in_data, long in_len,
     unsigned char *out_data, unsigned long *out_len, int *sw) {
-  unsigned char *in_ptr = in_data;
+  const unsigned char *in_ptr = in_data;
   unsigned long max_out = *out_len;
   ykpiv_rc res;
   *out_len = 0;

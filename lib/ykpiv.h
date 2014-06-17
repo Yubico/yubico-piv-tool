@@ -55,8 +55,8 @@ extern "C"
 	ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose);
 	ykpiv_rc ykpiv_done(ykpiv_state *state);
 	ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted);
-	ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, unsigned char *templ,
-			unsigned char *in_data, long in_len,
+	ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
+			const unsigned char *in_data, long in_len,
 			unsigned char *out_data, unsigned long *out_len, int *sw);
 	ykpiv_rc ykpiv_send_data(ykpiv_state *state, unsigned char *apdu,
 			unsigned char *data, unsigned long *recv_len, int *sw);
