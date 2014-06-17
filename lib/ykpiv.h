@@ -31,6 +31,8 @@
 #define YKPIV_H
 
 #include <stdint.h>
+#include <stddef.h>
+
 #include <ykpiv-version.h>
 
 #ifdef __cplusplus
@@ -72,6 +74,7 @@ extern "C"
 	ykpiv_rc ykpiv_sign_data(ykpiv_state *state, const unsigned char *sign_in,
 			int in_len,unsigned char *sign_out, int *out_len,
 			unsigned char algorithm, unsigned char key);
+	ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len);
 
 #define YKPIV_ALGO_3DES 0x03
 #define YKPIV_ALGO_RSA1024 0x06
@@ -88,6 +91,7 @@ extern "C"
 
 	/* Yubico vendor specific instructions */
 #define YKPIV_INS_SET_MGMKEY 0xff
+#define YKPIV_INS_GET_VERSION 0xfd
 
 #ifdef __cplusplus
 }

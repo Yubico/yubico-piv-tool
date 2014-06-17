@@ -40,6 +40,7 @@ global:
 	ykpiv_set_mgmkey;
 	ykpiv_parse_key;
 	ykpiv_sign_data;
+	ykpiv_get_version;
 
 local:
 	*;

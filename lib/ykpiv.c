@@ -535,3 +535,25 @@ ykpiv_rc ykpiv_sign_data(ykpiv_state *state,
   memcpy(sign_out, dataptr, len);
   return YKPIV_OK;
 }
+
+ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len) {
+  APDU apdu;
+  unsigned char data[0xff];
+  unsigned long recv_len = sizeof(data);
+  int sw;
+  ykpiv_rc res;
+
+  memset(apdu.raw, 0, sizeof(apdu));
+  apdu.st.ins = YKPIV_INS_GET_VERSION;
+  if((res = ykpiv_send_data(state, apdu.raw, data, &recv_len, &sw)) != YKPIV_OK) {
+    return res;
+  } else if(sw == 0x9000) {
+    int result = snprintf(version, len, "%d.%d.%d", data[0], data[1], data[2]);
+    if(result < 0) {
+      return YKPIV_SIZE_ERROR;
+    }
+    return YKPIV_OK;
+  } else {
+    return YKPIV_GENERIC_ERROR;
+  }
+}

@@ -93,19 +93,11 @@ static FILE *open_file(const char*, int);
 static int get_object_id(enum enum_slot slot);
 
 static void print_version(ykpiv_state *state) {
-  APDU apdu;
-  unsigned char data[0xff];
-  unsigned long recv_len = sizeof(data);
-  int sw;
-
-  memset(apdu.raw, 0, sizeof(apdu));
-  apdu.st.ins = 0xfd;
-  if(ykpiv_send_data(state, apdu.raw, data, &recv_len, &sw) != YKPIV_OK) {
-    printf("Failed to retreive apple version.\n");
-  } else if(sw == 0x9000) {
-    printf("Applet version %d.%d.%d found.\n", data[0], data[1], data[2]);
+  char version[7];
+  if(ykpiv_get_version(state, version, sizeof(version)) == YKPIV_OK) {
+    printf("Applet version %s found.\n", version);
   } else {
-    printf("Applet version not found. Status code: %x\n", sw);
+    printf("Failed to retreive apple version.\n");
   }
 }
 
