@@ -1505,6 +1505,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  ykpiv_done(state);
   EVP_cleanup();
   return ret;
 }
