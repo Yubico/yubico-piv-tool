@@ -32,6 +32,9 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#include <openssl/des.h>
+#include <openssl/rand.h>
+
 #include "internal.h"
 #include "ykpiv.h"
 
@@ -269,4 +272,90 @@ ykpiv_rc ykpiv_send_data(ykpiv_state *state, unsigned char *apdu,
     *sw = 0;
   }
   return YKPIV_OK;
+}
+
+ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
+  APDU apdu;
+  unsigned char data[0xff];
+  DES_cblock challenge;
+  unsigned long recv_len = sizeof(data);
+  int sw;
+  ykpiv_rc res;
+
+  DES_key_schedule ks1, ks2, ks3;
+
+  /* set up our key */
+  {
+    const_DES_cblock key_tmp;
+    memcpy(key_tmp, key, 8);
+    DES_set_key_unchecked(&key_tmp, &ks1);
+    memcpy(key_tmp, key + 8, 8);
+    DES_set_key_unchecked(&key_tmp, &ks2);
+    memcpy(key_tmp, key + 16, 8);
+    DES_set_key_unchecked(&key_tmp, &ks3);
+  }
+
+  /* get a challenge from the card */
+  {
+    memset(apdu.raw, 0, sizeof(apdu));
+    apdu.st.ins = 0x87;
+    apdu.st.p1 = 0x03; /* triple des */
+    apdu.st.p2 = 0x9b; /* management key */
+    apdu.st.lc = 0x04;
+    apdu.st.data[0] = 0x7c;
+    apdu.st.data[1] = 0x02;
+    apdu.st.data[2] = 0x80;
+    if((res = ykpiv_send_data(state, apdu.raw, data, &recv_len, &sw)) != YKPIV_OK) {
+      return res;
+    } else if(sw != 0x9000) {
+      return YKPIV_AUTHENTICATION_ERROR;
+    }
+    memcpy(challenge, data + 4, 8);
+  }
+
+  /* send a response to the cards challenge and a challenge of our own. */
+  {
+    unsigned char *dataptr = apdu.st.data;
+    DES_cblock response;
+    DES_ecb3_encrypt(&challenge, &response, &ks1, &ks2, &ks3, 0);
+
+    recv_len = 0xff;
+    memset(apdu.raw, 0, sizeof(apdu));
+    apdu.st.ins = 0x87;
+    apdu.st.p1 = 0x03; /* triple des */
+    apdu.st.p2 = 0x9b; /* management key */
+    *dataptr++ = 0x7c;
+    *dataptr++ = 20; /* 2 + 8 + 2 +8 */
+    *dataptr++ = 0x80;
+    *dataptr++ = 8;
+    memcpy(dataptr, response, 8);
+    dataptr += 8;
+    *dataptr++ = 0x81;
+    *dataptr++ = 8;
+    if(RAND_pseudo_bytes(dataptr, 8) == -1) {
+      if(state->verbose) {
+	fprintf(stderr, "Failed getting randomness for authentication.\n");
+      }
+      return YKPIV_RANDOMNESS_ERROR;
+    }
+    memcpy(challenge, dataptr, 8);
+    dataptr += 8;
+    apdu.st.lc = dataptr - apdu.st.data;
+    if((res = ykpiv_send_data(state, apdu.raw, data, &recv_len, &sw)) != YKPIV_OK) {
+      return res;
+    } else if(sw != 0x9000) {
+      return YKPIV_AUTHENTICATION_ERROR;
+    }
+  }
+
+  /* compare the response from the card with our challenge */
+  {
+    DES_cblock response;
+    DES_ecb3_encrypt(&challenge, &response, &ks1, &ks2, &ks3, 1);
+    if(memcmp(response, data + 4, 8) == 0) {
+      return YKPIV_OK;
+    } else {
+      return YKPIV_AUTHENTICATION_ERROR;
+    }
+  }
 }

@@ -46,6 +46,8 @@ static const err_t errors[] = {
   ERR (YKPIV_PCSC_ERROR, "Error in PCSC call"),
   ERR (YKPIV_SIZE_ERROR, "Wrong buffer size"),
   ERR (YKPIV_APPLET_ERROR, "No PIV applet found"),
+  ERR (YKPIV_AUTHENTICATION_ERROR, "Error during authentication"),
+  ERR (YKPIV_RANDOMNESS_ERROR, "Error getting randomness"),
 };
 
 /**

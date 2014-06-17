@@ -35,6 +35,7 @@ global:
 	ykpiv_connect;
 	ykpiv_send_data;
 	ykpiv_transfer_data;
+	ykpiv_authenticate;
 
 local:
 	*;

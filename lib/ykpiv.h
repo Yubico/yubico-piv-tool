@@ -45,6 +45,8 @@ extern "C"
 		YKPIV_PCSC_ERROR = -2,
 		YKPIV_SIZE_ERROR = -3,
 		YKPIV_APPLET_ERROR = -4,
+		YKPIV_AUTHENTICATION_ERROR = -5,
+		YKPIV_RANDOMNESS_ERROR = -6,
 	} ykpiv_rc;
 
 	const char *ykpiv_strerror(ykpiv_rc err);
@@ -58,6 +60,7 @@ extern "C"
 			unsigned char *out_data, unsigned long *out_len, int *sw);
 	ykpiv_rc ykpiv_send_data(ykpiv_state *state, unsigned char *apdu,
 			unsigned char *data, unsigned long *recv_len, int *sw);
+	ykpiv_rc ykpiv_authenticate(ykpiv_state *state, const unsigned char *key);
 
 #ifdef __cplusplus
 }
