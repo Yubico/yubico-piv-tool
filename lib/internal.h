@@ -47,6 +47,20 @@ struct ykpiv_state {
 	int verbose;
 };
 
+union u_APDU {
+  struct {
+    unsigned char cla;
+    unsigned char ins;
+    unsigned char p1;
+    unsigned char p2;
+    unsigned char lc;
+    unsigned char data[0xff];
+  } st;
+  unsigned char raw[0xff + 5];
+};
+
+typedef union u_APDU APDU;
+
 unsigned const char aid[] = {
 	0xa0, 0x00, 0x00, 0x03, 0x08
 };

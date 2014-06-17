@@ -38,20 +38,6 @@
 #include "internal.h"
 #include "ykpiv.h"
 
-union u_APDU {
-  struct {
-    unsigned char cla;
-    unsigned char ins;
-    unsigned char p1;
-    unsigned char p2;
-    unsigned char lc;
-    unsigned char data[0xff];
-  } st;
-  unsigned char raw[0xff + 5];
-};
-
-typedef union u_APDU APDU;
-
 static void dump_hex(const unsigned char *buf, unsigned int len) {
   unsigned int i;
   for (i = 0; i < len; i++) {
