@@ -31,6 +31,7 @@
 #define YKPIV_H
 
 #include <stdint.h>
+#include <ykpiv-version.h>
 
 #ifdef __cplusplus
 extern "C"
