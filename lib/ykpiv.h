@@ -47,6 +47,7 @@ extern "C"
 		YKPIV_APPLET_ERROR = -4,
 		YKPIV_AUTHENTICATION_ERROR = -5,
 		YKPIV_RANDOMNESS_ERROR = -6,
+		YKPIV_GENERIC_ERROR = -7,
 	} ykpiv_rc;
 
 	const char *ykpiv_strerror(ykpiv_rc err);
@@ -61,6 +62,7 @@ extern "C"
 	ykpiv_rc ykpiv_send_data(ykpiv_state *state, unsigned char *apdu,
 			unsigned char *data, unsigned long *recv_len, int *sw);
 	ykpiv_rc ykpiv_authenticate(ykpiv_state *state, const unsigned char *key);
+	ykpiv_rc ykpiv_set_mgmkey(ykpiv_state *state, const unsigned char *new_key);
 
 #define YKPIV_ALGO_3DES 0x03;
 #define YKPIV_ALGO_RSA1024 0x06;
@@ -74,6 +76,9 @@ extern "C"
 #define YKPIV_KEY_CARDAUTH 0x9e;
 
 #define YKPIV_INS_AUTHENTICATE 0x87;
+
+	/* Yubico vendor specific instructions */
+#define YKPIV_INS_SET_MGMKEY 0xff;
 
 #ifdef __cplusplus
 }

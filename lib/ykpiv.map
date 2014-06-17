@@ -36,6 +36,7 @@ global:
 	ykpiv_send_data;
 	ykpiv_transfer_data;
 	ykpiv_authenticate;
+	ykpiv_set_mgmkey;
 
 local:
 	*;

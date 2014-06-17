@@ -345,3 +345,41 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
     }
   }
 }
+
+ykpiv_rc ykpiv_set_mgmkey(ykpiv_state *state, const unsigned char *new_key) {
+  APDU apdu;
+  unsigned char data[0xff];
+  unsigned long recv_len = sizeof(data);
+  int sw;
+  size_t i;
+  ykpiv_rc res;
+
+  for(i = 0; i < 3; i++) {
+    const_DES_cblock key_tmp;
+    memcpy(key_tmp, new_key + i * 8, 8);
+    if(DES_is_weak_key(&key_tmp) == 1) {
+      if(state->verbose) {
+	fprintf(stderr, "Won't set new key '");
+	dump_hex(new_key + i, 8);
+	fprintf(stderr, "' since it's considered weak.\n");
+      }
+      return YKPIV_GENERIC_ERROR;
+    }
+  }
+
+  memset(apdu.raw, 0, sizeof(apdu));
+  apdu.st.ins = YKPIV_INS_SET_MGMKEY;
+  apdu.st.p1 = 0xff;
+  apdu.st.p2 = 0xff;
+  apdu.st.lc = DES_KEY_SZ * 3 + 3;
+  apdu.st.data[0] = YKPIV_ALGO_3DES;
+  apdu.st.data[1] = YKPIV_KEY_CARDMGM;
+  apdu.st.data[2] = DES_KEY_SZ * 3;
+  memcpy(apdu.st.data + 3, new_key, DES_KEY_SZ * 3);
+  if((res = ykpiv_send_data(state, apdu.raw, data, &recv_len, &sw)) != YKPIV_OK) {
+    return res;
+  } else if(sw == 0x9000) {
+    return YKPIV_OK;
+  }
+  return YKPIV_GENERIC_ERROR;
+}

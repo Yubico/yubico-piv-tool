@@ -256,41 +256,6 @@ generate_out:
   return ret;
 }
 
-static bool set_mgm_key(ykpiv_state *state, unsigned const char *new_key) {
-  APDU apdu;
-  unsigned char data[0xff];
-  unsigned long recv_len = sizeof(data);
-  int sw;
-  size_t i;
-
-  for(i = 0; i < KEY_LEN; i += 8) {
-    const_DES_cblock key_tmp;
-    memcpy(key_tmp, new_key + i, 8);
-    if(DES_is_weak_key(&key_tmp) == 1) {
-      fprintf(stderr, "Won't set new key '");
-      dump_hex(new_key + i, 8);
-      fprintf(stderr, "' since it's considered weak.\n");
-      return false;
-    }
-  }
-
-  memset(apdu.raw, 0, sizeof(apdu));
-  apdu.st.ins = 0xff;
-  apdu.st.p1 = 0xff;
-  apdu.st.p2 = 0xff;
-  apdu.st.lc = KEY_LEN + 3;
-  apdu.st.data[0] = 0x03; /* 3-DES */
-  apdu.st.data[1] = 0x9b;
-  apdu.st.data[2] = KEY_LEN;
-  memcpy(apdu.st.data + 3, new_key, KEY_LEN);
-  if(ykpiv_send_data(state, apdu.raw, data, &recv_len, &sw) != YKPIV_OK) {
-    return false;
-  } else if(sw == 0x9000) {
-    return true;
-  }
-  return false;
-}
-
 static bool reset(ykpiv_state *state) {
   APDU apdu;
   unsigned char data[0xff];
@@ -1240,7 +1205,7 @@ int main(int argc, char *argv[]) {
           unsigned char new_key[KEY_LEN];
           if(parse_key(args_info.new_key_arg, new_key, verbosity) == false) {
             ret = EXIT_FAILURE;
-          } else if(set_mgm_key(state, new_key) == false) {
+          } else if(ykpiv_set_mgmkey(state, new_key) != YKPIV_OK) {
             ret = EXIT_FAILURE;
           } else {
             printf("Successfully set new management key.\n");
