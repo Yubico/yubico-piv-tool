@@ -33,6 +33,7 @@ libykpiv_la_SOURCES = ykpiv.c version.c ykpiv.pc.in ykpiv.map internal.h
 libykpiv_la_SOURCES += error.c
 libykpiv_la_includedir = $(includedir)/ykpiv
 libykpiv_la_include_HEADERS = ykpiv.h ykpiv-version.h
+EXTRA_libykpiv_la_DEPENDENCIES = ykpiv.map
 
 libykpiv_la_LIBADD = $(OPENSSL_LIBS) $(PCSC_LIBS)
 libykpiv_la_LIBADD += $(LTLIBWINSCARD) $(PCSC_MACOSX_LIBS)

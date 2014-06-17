@@ -45,6 +45,36 @@ static void dump_hex(const unsigned char *buf, unsigned int len) {
   }
 }
 
+static int set_length(unsigned char *buffer, int length) {
+  if(length < 0x80) {
+    *buffer++ = length;
+    return 1;
+  } else if(length < 0xff) {
+    *buffer++ = 0x81;
+    *buffer++ = length;
+    return 2;
+  } else {
+    *buffer++ = 0x82;
+    *buffer++ = (length >> 8) & 0xff;
+    *buffer++ = length & 0xff;
+    return 3;
+  }
+}
+
+static int get_length(unsigned char *buffer, int *len) {
+  if(buffer[0] < 0x81) {
+    *len = buffer[0];
+    return 1;
+  } else if((*buffer & 0x7f) == 1) {
+    *len = buffer[1];
+    return 2;
+  } else if((*buffer & 0x7f) == 2) {
+    *len = (buffer[1] << 8) + buffer[2];
+    return 3;
+  }
+  return 0;
+}
+
 ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose) {
   ykpiv_state *s = malloc(sizeof(ykpiv_state));
   if(s == NULL) {
@@ -426,5 +456,82 @@ ykpiv_rc ykpiv_parse_key(ykpiv_state *state,
     dump_hex(key_out, DES_KEY_SZ * 3);
     fprintf(stderr, "\n");
   }
+  return YKPIV_OK;
+}
+
+ykpiv_rc ykpiv_sign_data(ykpiv_state *state,
+    const unsigned char *sign_in, int in_len,
+    unsigned char *sign_out, int *out_len,
+    unsigned char algorithm, unsigned char key) {
+
+  unsigned char indata[1024];
+  unsigned char *dataptr = indata;
+  unsigned char data[1024];
+  unsigned char templ[] = {0, YKPIV_INS_AUTHENTICATE, algorithm, key};
+  unsigned long recv_len = sizeof(data);
+  int sw;
+  int bytes;
+  int len = 0;
+  ykpiv_rc res;
+
+  if(in_len > 1000) {
+    return YKPIV_SIZE_ERROR;
+  }
+
+  if(in_len < 0x80) {
+    bytes = 1;
+  } else if(in_len < 0xff) {
+    bytes = 2;
+  } else {
+    bytes = 3;
+  }
+
+  *dataptr++ = 0x7c;
+  dataptr += set_length(dataptr, in_len + bytes + 3);
+  *dataptr++ = 0x82;
+  *dataptr++ = 0x00;
+  *dataptr++ = 0x81;
+  dataptr += set_length(dataptr, in_len);
+  memcpy(dataptr, sign_in, (size_t)in_len);
+  dataptr += in_len;
+
+  if((res = ykpiv_transfer_data(state, templ, indata, dataptr - indata, data,
+        &recv_len, &sw)) != YKPIV_OK) {
+    if(state->verbose) {
+      fprintf(stderr, "Sign command failed to communicate.\n");
+    }
+    return res;
+  } else if(sw != 0x9000) {
+    if(state->verbose) {
+      fprintf(stderr, "Failed sign command with code %x.\n", sw);
+    }
+    return YKPIV_GENERIC_ERROR;
+  }
+  /* skip the first 7c tag */
+  if(data[0] != 0x7c) {
+    if(state->verbose) {
+      fprintf(stderr, "Failed parsing signature reply.\n");
+    }
+    return YKPIV_PARSE_ERROR;
+  }
+  dataptr = data + 1;
+  dataptr += get_length(dataptr, &len);
+  /* skip the 82 tag */
+  if(*dataptr != 0x82) {
+    if(state->verbose) {
+      fprintf(stderr, "Failed parsing signature reply.\n");
+    }
+    return YKPIV_PARSE_ERROR;
+  }
+  dataptr++;
+  dataptr += get_length(dataptr, &len);
+  if(len > *out_len) {
+    if(state->verbose) {
+      fprintf(stderr, "Wrong size on output buffer.\n");
+    }
+    return YKPIV_SIZE_ERROR;
+  }
+  *out_len = len;
+  memcpy(sign_out, dataptr, len);
   return YKPIV_OK;
 }

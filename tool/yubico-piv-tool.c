@@ -90,8 +90,6 @@ static int get_length(unsigned char*, int*);
 static X509_NAME *parse_name(char*);
 static unsigned char get_algorithm(EVP_PKEY*);
 static FILE *open_file(const char*, int);
-static bool sign_data(ykpiv_state*, unsigned char*, int, unsigned char, unsigned char,
-    ASN1_BIT_STRING*);
 static int get_object_id(enum enum_slot slot);
 
 static void print_version(ykpiv_state *state) {
@@ -634,8 +632,14 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
       fprintf(stderr, "Unsupported algorithm %x.\n", algorithm);
       goto request_out;
   }
-  if(sign_data(state, signinput, len, algorithm, key, req->signature) == false) {
-    goto request_out;
+  {
+    unsigned char signature[1024];
+    int sig_len = sizeof(signature);
+    if(ykpiv_sign_data(state, signinput, len, signature, &sig_len, algorithm, key)
+        != YKPIV_OK) {
+      goto request_out;
+    }
+    M_ASN1_BIT_STRING_set(req->signature, signature, sig_len);
   }
 
   if(key_format == key_format_arg_PEM) {
@@ -764,8 +768,14 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
       fprintf(stderr, "Unsupported algorithm %x.\n", algorithm);
       goto selfsign_out;
   }
-  if(sign_data(state, signinput, len, algorithm, key, x509->signature)) {
-    goto selfsign_out;
+  {
+    unsigned char signature[1024];
+    int sig_len = sizeof(signature);
+    if(ykpiv_sign_data(state, signinput, len, signature, &sig_len, algorithm, key)
+        != YKPIV_OK) {
+      goto selfsign_out;
+    }
+    M_ASN1_BIT_STRING_set(x509->signature, signature, sig_len);
   }
 
   if(key_format == key_format_arg_PEM) {
@@ -911,60 +921,6 @@ static bool delete_certificate(ykpiv_state *state, enum enum_slot slot) {
     ret = true;
   }
   return ret;
-}
-
-static bool sign_data(ykpiv_state *state, unsigned char *signinput, int in_len,
-    unsigned char algorithm, unsigned char key, ASN1_BIT_STRING *sig) {
-  unsigned char indata[1024];
-  unsigned char *dataptr = indata;
-  unsigned char data[1024];
-  unsigned char templ[] = {0, 0x87, algorithm, key};
-  unsigned long recv_len = sizeof(data);
-  int sw;
-  int bytes;
-  int len;
-
-  if(in_len < 0x80) {
-    bytes = 1;
-  } else if(in_len < 0xff) {
-    bytes = 2;
-  } else {
-    bytes = 3;
-  }
-
-  *dataptr++ = 0x7c;
-  dataptr += set_length(dataptr, in_len + bytes + 3);
-  *dataptr++ = 0x82;
-  *dataptr++ = 0x00;
-  *dataptr++ = 0x81;
-  dataptr += set_length(dataptr, in_len);
-  memcpy(dataptr, signinput, (size_t)in_len);
-  dataptr += in_len;
-
-  if(ykpiv_transfer_data(state, templ, indata, dataptr - indata, data,
-        &recv_len, &sw) != YKPIV_OK) {
-    fprintf(stderr, "Sign command failed to communicate.\n");
-    return false;
-  } else if(sw != 0x9000) {
-    fprintf(stderr, "Failed sign command with code %x.\n", sw);
-    return false;
-  }
-  /* skip the first 7c tag */
-  if(data[0] != 0x7c) {
-    fprintf(stderr, "Failed parsing signature reply.\n");
-    return false;
-  }
-  dataptr = data + 1;
-  dataptr += get_length(dataptr, &len);
-  /* skip the 82 tag */
-  if(*dataptr != 0x82) {
-    fprintf(stderr, "Failed parsing signature reply.\n");
-    return false;
-  }
-  dataptr++;
-  dataptr += get_length(dataptr, &len);
-  M_ASN1_BIT_STRING_set(sig, dataptr, len);
-  return true;
 }
 
 static FILE *open_file(const char *file_name, int mode) {

@@ -50,6 +50,7 @@ extern "C"
 		YKPIV_RANDOMNESS_ERROR = -6,
 		YKPIV_GENERIC_ERROR = -7,
 		YKPIV_KEY_ERROR = -8,
+		YKPIV_PARSE_ERROR = -9,
 	} ykpiv_rc;
 
 	const char *ykpiv_strerror(ykpiv_rc err);
@@ -68,22 +69,25 @@ extern "C"
 	ykpiv_rc ykpiv_set_mgmkey(ykpiv_state *state, const unsigned char *new_key);
 	ykpiv_rc ykpiv_parse_key(ykpiv_state *state,
 			const char *key_in, unsigned char *key_out);
+	ykpiv_rc ykpiv_sign_data(ykpiv_state *state, const unsigned char *sign_in,
+			int in_len,unsigned char *sign_out, int *out_len,
+			unsigned char algorithm, unsigned char key);
 
-#define YKPIV_ALGO_3DES 0x03;
-#define YKPIV_ALGO_RSA1024 0x06;
-#define YKPIV_ALGO_RSA2048 0x07;
-#define YKPIV_ALGO_ECCP256 0x11;
+#define YKPIV_ALGO_3DES 0x03
+#define YKPIV_ALGO_RSA1024 0x06
+#define YKPIV_ALGO_RSA2048 0x07
+#define YKPIV_ALGO_ECCP256 0x11
 
-#define YKPIV_KEY_AUTHENTICATION 0x9a;
-#define YKPIV_KEY_CARDMGM 0x9b;
-#define YKPIV_KEY_SIGNATURE 0x9c;
-#define YKPIV_KEY_KEYMGM 0x9d;
-#define YKPIV_KEY_CARDAUTH 0x9e;
+#define YKPIV_KEY_AUTHENTICATION 0x9a
+#define YKPIV_KEY_CARDMGM 0x9b
+#define YKPIV_KEY_SIGNATURE 0x9c
+#define YKPIV_KEY_KEYMGM 0x9d
+#define YKPIV_KEY_CARDAUTH 0x9e
 
-#define YKPIV_INS_AUTHENTICATE 0x87;
+#define YKPIV_INS_AUTHENTICATE 0x87
 
 	/* Yubico vendor specific instructions */
-#define YKPIV_INS_SET_MGMKEY 0xff;
+#define YKPIV_INS_SET_MGMKEY 0xff
 
 #ifdef __cplusplus
 }
