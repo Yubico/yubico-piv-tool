@@ -52,15 +52,11 @@ extern "C"
 	ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose);
 	ykpiv_rc ykpiv_done(ykpiv_state *state);
 	ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted);
-	ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, uint32_t template,
+	ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, unsigned char *templ,
 			unsigned char *in_data, long in_len,
 			unsigned char *out_data, unsigned long *out_len, int *sw);
 	ykpiv_rc ykpiv_send_data(ykpiv_state *state, unsigned char *apdu,
 			unsigned char *data, unsigned long *recv_len, int *sw);
-
-#define YKPIV_APDU_TEMPLATE(i,j,k,l) ((i & 0xff) << 24 | (j & 0xff) << 16 | (k & 0xff) << 8 | (l & 0xff))
-#define YKPIV_APDU_UNPACK(c, t) (c[0] = ((t >> 24) & 0xff), \
-		c[1] = ((t >> 16) & 0xff), c[2] = ((t >> 8) & 0xff), c[3] = (t & 0xff))
 
 #ifdef __cplusplus
 }

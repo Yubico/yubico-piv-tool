@@ -148,7 +148,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
   return YKPIV_OK;
 }
 
-ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, uint32_t template,
+ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, unsigned char *templ,
     unsigned char *in_data, long in_len,
     unsigned char *out_data, unsigned long *out_len, int *sw) {
   unsigned char *in_ptr = in_data;
@@ -163,7 +163,7 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, uint32_t template,
     APDU apdu;
 
     memset(apdu.raw, 0, sizeof(apdu.raw));
-    YKPIV_APDU_UNPACK(apdu.raw, template);
+    memcpy(apdu.raw, templ, 4);
     if(in_ptr + 0xff < in_data + in_len) {
       apdu.st.cla = 0x10;
     } else {

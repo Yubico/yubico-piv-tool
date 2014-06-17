@@ -291,10 +291,12 @@ static void print_version(ykpiv_state *state, int verbose) {
   }
 }
 
-static bool generate_key(ykpiv_state *state, const char *slot, enum enum_algorithm algorithm,
-    const char *output_file_name, enum enum_key_format key_format, int verbose) {
+static bool generate_key(ykpiv_state *state, const char *slot,
+    enum enum_algorithm algorithm, const char *output_file_name,
+    enum enum_key_format key_format, int verbose) {
   unsigned char in_data[5];
   unsigned char data[1024];
+  unsigned char templ[] = {0, 0x47, 0, 0};
   unsigned long recv_len = sizeof(data);
   unsigned long received = 0;
   int sw;
@@ -309,6 +311,7 @@ static bool generate_key(ykpiv_state *state, const char *slot, enum enum_algorit
   EC_POINT *point = NULL;
 
   sscanf(slot, "%x", &key);
+  templ[3] = key;
 
   output_file = open_file(output_file_name, OUTPUT);
   if(!output_file) {
@@ -334,7 +337,8 @@ static bool generate_key(ykpiv_state *state, const char *slot, enum enum_algorit
       fprintf(stderr, "Unexepcted algorithm.\n");
       goto generate_out;
   }
-  if(ykpiv_transfer_data(state, YKPIV_APDU_TEMPLATE(0, 0x47, 0, key), in_data, sizeof(in_data), data, &recv_len, &sw) != YKPIV_OK) {
+  if(ykpiv_transfer_data(state, templ, in_data, sizeof(in_data), data,
+        &recv_len, &sw) != YKPIV_OK) {
     fprintf(stderr, "Failed to communicate.\n");
     goto generate_out;
   } else if(sw != 0x9000) {
@@ -559,11 +563,11 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
       goto import_out;
     }
     {
-      APDU apdu;
       unsigned char data[0xff];
       unsigned long recv_len = sizeof(data);
       unsigned char in_data[1024];
       unsigned char *in_ptr = in_data;
+      unsigned char templ[] = {0, 0xfe, algorithm, key};
       int sw;
       if(algorithm == 0x06 || algorithm == 0x07) {
         RSA *rsa_private_key = EVP_PKEY_get1_RSA(private_key);
@@ -596,11 +600,8 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
         in_ptr += BN_bn2bin(s, in_ptr);
       }
 
-      memset(apdu.raw, 0, sizeof(apdu.raw));
-      apdu.st.ins = 0xfe;
-      apdu.st.p1 = algorithm;
-      apdu.st.p2 = key;
-      if(ykpiv_transfer_data(state, YKPIV_APDU_TEMPLATE(0x00, 0xfe, algorithm, key), in_data, in_ptr - in_data, data, &recv_len, &sw) != YKPIV_OK) {
+      if(ykpiv_transfer_data(state, templ, in_data, in_ptr - in_data, data,
+            &recv_len, &sw) != YKPIV_OK) {
         return false;
       } else if(sw != 0x9000) {
         fprintf(stderr, "Failed import command with code %x.", sw);
@@ -662,10 +663,10 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
   }
 
   {
-    APDU apdu;
     unsigned char certdata[2100];
     unsigned char *certptr = certdata;
     unsigned char data[0xff];
+    unsigned char templ[] = {0, 0xdb, 0x3f, 0xff};
     unsigned long recv_len = sizeof(data);
     int cert_len = i2d_X509(cert, NULL);
     int bytes;
@@ -699,12 +700,8 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
     *certptr++ = 0xfe; /* LRC */
     *certptr++ = 0;
 
-    memset(apdu.raw, 0, sizeof(apdu.raw));
-    apdu.st.ins = 0xdb;
-    apdu.st.p1 = 0x3f;
-    apdu.st.p2 = 0xff;
-
-    if(ykpiv_transfer_data(state, YKPIV_APDU_TEMPLATE(0, 0xdb, 0x3f, 0xff), certdata, certptr - certdata, data, &recv_len, &sw) != YKPIV_OK) {
+    if(ykpiv_transfer_data(state, templ, certdata, certptr - certdata, data,
+          &recv_len, &sw) != YKPIV_OK) {
       fprintf(stderr, "Failed commands with device.\n");
     } else if(sw != 0x9000) {
       fprintf(stderr, "Failed loading certificate to device with code %x.\n", sw);
@@ -1104,6 +1101,7 @@ static bool delete_certificate(ykpiv_state *state, enum enum_slot slot, int verb
   unsigned char *ptr = objdata;
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
+  unsigned char templ[] = {0, 0xdb, 0x3f, 0xff};
   int sw;
   bool ret = false;
   int object = get_object_id(slot);
@@ -1121,7 +1119,8 @@ static bool delete_certificate(ykpiv_state *state, enum enum_slot slot, int verb
   apdu.st.p1 = 0x3f;
   apdu.st.p2 = 0xff;
 
-  if(ykpiv_transfer_data(state, YKPIV_APDU_TEMPLATE(0, 0xdb, 0x3f, 0xff), objdata, 7, data, &recv_len, &sw) != YKPIV_OK) {
+  if(ykpiv_transfer_data(state, templ, objdata, 7, data, &recv_len, &sw)
+      != YKPIV_OK) {
     return false;
   } else if(sw != 0x9000) {
     fprintf(stderr, "Failed deleting certificate to device with code %x.\n", sw);
@@ -1136,16 +1135,11 @@ static bool sign_data(ykpiv_state *state, unsigned char *signinput, int in_len,
   unsigned char indata[1024];
   unsigned char *dataptr = indata;
   unsigned char data[1024];
+  unsigned char templ[] = {0, 0x87, algorithm, key};
   unsigned long recv_len = sizeof(data);
   int sw;
   int bytes;
-  APDU apdu;
   int len;
-
-  memset(apdu.raw, 0, sizeof(apdu.raw));
-  apdu.st.ins = 0x87;
-  apdu.st.p1 = algorithm;
-  apdu.st.p2 = key;
 
   if(in_len < 0x80) {
     bytes = 1;
@@ -1164,7 +1158,8 @@ static bool sign_data(ykpiv_state *state, unsigned char *signinput, int in_len,
   memcpy(dataptr, signinput, (size_t)in_len);
   dataptr += in_len;
 
-  if(ykpiv_transfer_data(state, YKPIV_APDU_TEMPLATE(0, 0x87, algorithm, key), indata, dataptr - indata, data, &recv_len, &sw) != YKPIV_OK) {
+  if(ykpiv_transfer_data(state, templ, indata, dataptr - indata, data,
+        &recv_len, &sw) != YKPIV_OK) {
     fprintf(stderr, "Sign command failed to communicate.\n");
     return false;
   } else if(sw != 0x9000) {
