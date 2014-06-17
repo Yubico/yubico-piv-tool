@@ -34,6 +34,10 @@
 
 #include "ykpiv.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #include <openssl/des.h>
 #include <openssl/pem.h>
 #include <openssl/pkcs12.h>
