@@ -307,9 +307,9 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
 
     recv_len = 0xff;
     memset(apdu.raw, 0, sizeof(apdu));
-    apdu.st.ins = 0x87;
-    apdu.st.p1 = 0x03; /* triple des */
-    apdu.st.p2 = 0x9b; /* management key */
+    apdu.st.ins = YKPIV_INS_AUTHENTICATE;
+    apdu.st.p1 = YKPIV_ALGO_3DES; /* triple des */
+    apdu.st.p2 = YKPIV_KEY_CARDMGM; /* management key */
     *dataptr++ = 0x7c;
     *dataptr++ = 20; /* 2 + 8 + 2 +8 */
     *dataptr++ = 0x80;

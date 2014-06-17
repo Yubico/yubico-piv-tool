@@ -62,6 +62,19 @@ extern "C"
 			unsigned char *data, unsigned long *recv_len, int *sw);
 	ykpiv_rc ykpiv_authenticate(ykpiv_state *state, const unsigned char *key);
 
+#define YKPIV_ALGO_3DES 0x03;
+#define YKPIV_ALGO_RSA1024 0x06;
+#define YKPIV_ALGO_RSA2048 0x07;
+#define YKPIV_ALGO_ECCP256 0x11;
+
+#define YKPIV_KEY_AUTHENTICATION 0x9a;
+#define YKPIV_KEY_CARDMGM 0x9b;
+#define YKPIV_KEY_SIGNATURE 0x9c;
+#define YKPIV_KEY_KEYMGM 0x9d;
+#define YKPIV_KEY_CARDAUTH 0x9e;
+
+#define YKPIV_INS_AUTHENTICATE 0x87;
+
 #ifdef __cplusplus
 }
 #endif
