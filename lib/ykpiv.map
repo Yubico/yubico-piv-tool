@@ -33,6 +33,7 @@ global:
 	ykpiv_init;
 	ykpiv_done;
 	ykpiv_connect;
+	ykpiv_disconnect;
 	ykpiv_send_data;
 	ykpiv_transfer_data;
 	ykpiv_authenticate;

@@ -57,7 +57,22 @@ ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose) {
 }
 
 ykpiv_rc ykpiv_done(ykpiv_state *state) {
+  ykpiv_disconnect(state);
   free(state);
+  return YKPIV_OK;
+}
+
+ykpiv_rc ykpiv_disconnect(ykpiv_state *state) {
+  if(state->card) {
+    SCardDisconnect(state->card, SCARD_RESET_CARD);
+    state->card = 0;
+  }
+
+  if(state->context) {
+    SCardReleaseContext(state->context);
+    state->context = 0;
+  }
+
   return YKPIV_OK;
 }
 
