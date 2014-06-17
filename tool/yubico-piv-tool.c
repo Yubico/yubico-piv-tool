@@ -101,10 +101,10 @@ static X509_NAME *parse_name(char*);
 static unsigned char get_algorithm(EVP_PKEY*);
 static FILE *open_file(const char*, int);
 static bool sign_data(ykpiv_state*, unsigned char*, int, unsigned char, unsigned char,
-    ASN1_BIT_STRING*, int);
+    ASN1_BIT_STRING*);
 static int get_object_id(enum enum_slot slot);
 
-static bool select_applet(ykpiv_state *state, int verbose) {
+static bool select_applet(ykpiv_state *state) {
   APDU apdu;
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
@@ -125,7 +125,7 @@ static bool select_applet(ykpiv_state *state, int verbose) {
   return false;
 }
 
-static bool authenticate(ykpiv_state *state, unsigned const char *key, int verbose) {
+static bool authenticate(ykpiv_state *state, unsigned const char *key) {
   APDU apdu;
   unsigned char data[0xff];
   DES_cblock challenge;
@@ -208,7 +208,7 @@ static bool authenticate(ykpiv_state *state, unsigned const char *key, int verbo
   }
 }
 
-static void print_version(ykpiv_state *state, int verbose) {
+static void print_version(ykpiv_state *state) {
   APDU apdu;
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
@@ -227,7 +227,7 @@ static void print_version(ykpiv_state *state, int verbose) {
 
 static bool generate_key(ykpiv_state *state, const char *slot,
     enum enum_algorithm algorithm, const char *output_file_name,
-    enum enum_key_format key_format, int verbose) {
+    enum enum_key_format key_format) {
   unsigned char in_data[5];
   unsigned char data[1024];
   unsigned char templ[] = {0, 0x47, 0, 0};
@@ -374,7 +374,7 @@ generate_out:
   return ret;
 }
 
-static bool set_mgm_key(ykpiv_state *state, unsigned const char *new_key, int verbose) {
+static bool set_mgm_key(ykpiv_state *state, unsigned const char *new_key) {
   APDU apdu;
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
@@ -409,7 +409,7 @@ static bool set_mgm_key(ykpiv_state *state, unsigned const char *new_key, int ve
   return false;
 }
 
-static bool reset(ykpiv_state *state, int verbose) {
+static bool reset(ykpiv_state *state) {
   APDU apdu;
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
@@ -454,7 +454,7 @@ static bool set_pin_retries(ykpiv_state *state, int pin_retries, int puk_retries
 }
 
 static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
-    const char *input_file_name, const char *slot, char *password, int verbose) {
+    const char *input_file_name, const char *slot, char *password) {
   int key = 0;
   FILE *input_file = NULL;
   EVP_PKEY *private_key = NULL;
@@ -561,7 +561,7 @@ import_out:
 }
 
 static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
-    const char *input_file_name, enum enum_slot slot, char *password, int verbose) {
+    const char *input_file_name, enum enum_slot slot, char *password) {
   bool ret = false;
   FILE *input_file = NULL;
   X509 *cert = NULL;
@@ -696,7 +696,7 @@ static bool set_chuid(ykpiv_state *state, int verbose) {
 
 static bool request_certificate(ykpiv_state *state, enum enum_key_format key_format,
     const char *input_file_name, const char *slot, char *subject,
-    const char *output_file_name, int verbose) {
+    const char *output_file_name) {
   X509_REQ *req = NULL;
   X509_NAME *name = NULL;
   FILE *input_file = NULL;
@@ -783,8 +783,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
       fprintf(stderr, "Unsupported algorithm %x.\n", algorithm);
       goto request_out;
   }
-  if(sign_data(state, signinput, len, algorithm, key, req->signature,
-        verbose) == false) {
+  if(sign_data(state, signinput, len, algorithm, key, req->signature) == false) {
     goto request_out;
   }
 
@@ -816,7 +815,7 @@ request_out:
 
 static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_format,
     const char *input_file_name, const char *slot, char *subject,
-    const char *output_file_name, int verbose) {
+    const char *output_file_name) {
   FILE *input_file = NULL;
   FILE *output_file = NULL;
   bool ret = false;
@@ -914,8 +913,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
       fprintf(stderr, "Unsupported algorithm %x.\n", algorithm);
       goto selfsign_out;
   }
-  if(sign_data(state, signinput, len, algorithm, key, x509->signature,
-        verbose) == false) {
+  if(sign_data(state, signinput, len, algorithm, key, x509->signature)) {
     goto selfsign_out;
   }
 
@@ -945,7 +943,7 @@ selfsign_out:
   return ret;
 }
 
-static bool verify_pin(ykpiv_state *state, const char *pin, int verbose) {
+static bool verify_pin(ykpiv_state *state, const char *pin) {
   APDU apdu;
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
@@ -983,7 +981,7 @@ static bool verify_pin(ykpiv_state *state, const char *pin, int verbose) {
 /* this function is called for all three of change-pin, change-puk and unblock pin
  * since they're very similar in what data they use. */
 static bool change_pin(ykpiv_state *state, enum enum_action action, const char *pin,
-    const char *new_pin, int verbose) {
+    const char *new_pin) {
   APDU apdu;
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
@@ -1029,7 +1027,7 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
   return true;
 }
 
-static bool delete_certificate(ykpiv_state *state, enum enum_slot slot, int verbose) {
+static bool delete_certificate(ykpiv_state *state, enum enum_slot slot) {
   APDU apdu;
   unsigned char objdata[7];
   unsigned char *ptr = objdata;
@@ -1065,7 +1063,7 @@ static bool delete_certificate(ykpiv_state *state, enum enum_slot slot, int verb
 }
 
 static bool sign_data(ykpiv_state *state, unsigned char *signinput, int in_len,
-    unsigned char algorithm, unsigned char key, ASN1_BIT_STRING *sig, int verbose) {
+    unsigned char algorithm, unsigned char key, ASN1_BIT_STRING *sig) {
   unsigned char indata[1024];
   unsigned char *dataptr = indata;
   unsigned char data[1024];
@@ -1325,12 +1323,12 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  if(select_applet(state, verbosity) == false) {
+  if(select_applet(state) == false) {
     fprintf(stderr, "Failed to select applet.\n");
     return EXIT_FAILURE;
   }
 
-  if(authenticate(state, key, verbosity) == false) {
+  if(authenticate(state, key) == false) {
     fprintf(stderr, "Failed authentication with the applet.\n");
     return EXIT_FAILURE;
   }
@@ -1348,11 +1346,11 @@ int main(int argc, char *argv[]) {
     }
     switch(action) {
       case action_arg_version:
-        print_version(state, verbosity);
+        print_version(state);
         break;
       case action_arg_generate:
         if(args_info.slot_arg != slot__NULL) {
-          if(generate_key(state, args_info.slot_orig, args_info.algorithm_arg, args_info.output_arg, args_info.key_format_arg, verbosity) == false) {
+          if(generate_key(state, args_info.slot_orig, args_info.algorithm_arg, args_info.output_arg, args_info.key_format_arg) == false) {
             ret = EXIT_FAILURE;
           }
         } else {
@@ -1365,7 +1363,7 @@ int main(int argc, char *argv[]) {
           unsigned char new_key[KEY_LEN];
           if(parse_key(args_info.new_key_arg, new_key, verbosity) == false) {
             ret = EXIT_FAILURE;
-          } else if(set_mgm_key(state, new_key, verbosity) == false) {
+          } else if(set_mgm_key(state, new_key) == false) {
             ret = EXIT_FAILURE;
           } else {
             printf("Successfully set new management key.\n");
@@ -1376,7 +1374,7 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_reset:
-        if(reset(state, verbosity) == false) {
+        if(reset(state) == false) {
           ret = EXIT_FAILURE;
         } else {
           printf("Successfully reset the applet.\n");
@@ -1397,7 +1395,7 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_importMINUS_key:
         if(args_info.slot_arg != slot__NULL) {
-          if(import_key(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_orig, args_info.password_arg, verbosity) == false) {
+          if(import_key(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_orig, args_info.password_arg) == false) {
             ret = EXIT_FAILURE;
           } else {
             printf("Successfully imported a new private key.\n");
@@ -1409,7 +1407,7 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_importMINUS_certificate:
         if(args_info.slot_arg != slot__NULL) {
-          if(import_cert(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_arg, args_info.password_arg, verbosity) == false) {
+          if(import_cert(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_arg, args_info.password_arg) == false) {
             ret = EXIT_FAILURE;
           } else {
             printf("Successfully imported a new certificate.\n");
@@ -1435,14 +1433,14 @@ int main(int argc, char *argv[]) {
           ret = EXIT_FAILURE;
         } else {
           if(request_certificate(state, args_info.key_format_arg, args_info.input_arg,
-                args_info.slot_orig, args_info.subject_arg, args_info.output_arg, verbosity) == false) {
+                args_info.slot_orig, args_info.subject_arg, args_info.output_arg) == false) {
             ret = EXIT_FAILURE;
           }
         }
         break;
       case action_arg_verifyMINUS_pin:
         if(args_info.pin_arg) {
-          if(verify_pin(state, args_info.pin_arg, verbosity)) {
+          if(verify_pin(state, args_info.pin_arg)) {
             printf("Successfully verified PIN.\n");
           } else {
             ret = EXIT_FAILURE;
@@ -1456,7 +1454,7 @@ int main(int argc, char *argv[]) {
       case action_arg_changeMINUS_puk:
       case action_arg_unblockMINUS_pin:
         if(args_info.pin_arg && args_info.new_pin_arg) {
-          if(change_pin(state, action, args_info.pin_arg, args_info.new_pin_arg, verbosity)) {
+          if(change_pin(state, action, args_info.pin_arg, args_info.new_pin_arg)) {
             if(action == action_arg_unblockMINUS_pin) {
               printf("Successfully unblocked the pin code.\n");
             } else {
@@ -1482,7 +1480,7 @@ int main(int argc, char *argv[]) {
           ret = EXIT_FAILURE;
         } else {
           if(selfsign_certificate(state, args_info.key_format_arg, args_info.input_arg,
-                args_info.slot_orig, args_info.subject_arg, args_info.output_arg, verbosity) == false) {
+                args_info.slot_orig, args_info.subject_arg, args_info.output_arg) == false) {
             ret = EXIT_FAILURE;
           }
         }
@@ -1492,7 +1490,7 @@ int main(int argc, char *argv[]) {
 	  fprintf(stderr, "The delete-certificate action needs a slot (-s) to operate on.\n");
 	  ret = EXIT_FAILURE;
 	} else {
-	  if(delete_certificate(state, args_info.slot_arg, verbosity) == false) {
+	  if(delete_certificate(state, args_info.slot_arg) == false) {
 	    ret = EXIT_FAILURE;
 	  }
 	}
