@@ -31,10 +31,12 @@
 
 set -e
 
-HELP_OUTPUT=$(../yubico-piv-tool$EXEEXT --help)
+BIN="../tool/yubico-piv-tool${EXEEXT}"
+
+HELP_OUTPUT=$($BIN --help)
 
 expected="yubico-piv-tool $VERSION"
-VERSION_OUTPUT=$(../yubico-piv-tool$EXEEXT --version | sed 's/\r//')
+VERSION_OUTPUT=$($BIN --version | sed 's/\r//')
 if [ "x$VERSION_OUTPUT" != "x$expected" ]; then
   echo "Version ($VERSION_OUTPUT) not matching expected output $expected."
   exit 1
