@@ -41,11 +41,6 @@
 
 #include "cmdline.h"
 
-unsigned const char aid[] = {
-  0xa0, 0x00, 0x00, 0x03, 0x08
-};
-
-
 /* FASC-N containing S9999F9999F999999F0F1F0000000000300001E encoded in
  * 4-bit BCD with 1 bit parity. run through the tools/fasc.pl script to get
  * bytes. */
@@ -94,27 +89,6 @@ static FILE *open_file(const char*, int);
 static bool sign_data(ykpiv_state*, unsigned char*, int, unsigned char, unsigned char,
     ASN1_BIT_STRING*);
 static int get_object_id(enum enum_slot slot);
-
-static bool select_applet(ykpiv_state *state) {
-  APDU apdu;
-  unsigned char data[0xff];
-  unsigned long recv_len = sizeof(data);
-  int sw;
-
-  memset(apdu.raw, 0, sizeof(apdu));
-  apdu.st.ins = 0xa4;
-  apdu.st.p1 = 0x04;
-  apdu.st.lc = sizeof(aid);
-  memcpy(apdu.st.data, aid, sizeof(aid));
-
-  if(ykpiv_send_data(state, apdu.raw, data, &recv_len, &sw) != YKPIV_OK) {
-    return false;
-  } else if(sw == 0x9000) {
-    return true;
-  }
-
-  return false;
-}
 
 static bool authenticate(ykpiv_state *state, unsigned const char *key) {
   APDU apdu;
@@ -1311,11 +1285,6 @@ int main(int argc, char *argv[]) {
 
   if(ykpiv_connect(state, args_info.reader_arg) != YKPIV_OK) {
     fprintf(stderr, "Failed to connect to reader.\n");
-    return EXIT_FAILURE;
-  }
-
-  if(select_applet(state) == false) {
-    fprintf(stderr, "Failed to select applet.\n");
     return EXIT_FAILURE;
   }
 

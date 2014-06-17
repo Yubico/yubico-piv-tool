@@ -145,6 +145,28 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
     return YKPIV_PCSC_ERROR;
   }
 
+  {
+    APDU apdu;
+    unsigned char data[0xff];
+    unsigned long recv_len = sizeof(data);
+    int sw;
+    ykpiv_rc res;
+
+    memset(apdu.raw, 0, sizeof(apdu));
+    apdu.st.ins = 0xa4;
+    apdu.st.p1 = 0x04;
+    apdu.st.lc = sizeof(aid);
+    memcpy(apdu.st.data, aid, sizeof(aid));
+
+    if((res = ykpiv_send_data(state, apdu.raw, data, &recv_len, &sw) != YKPIV_OK)) {
+      return res;
+    } else if(sw == 0x9000) {
+      return YKPIV_OK;
+    }
+
+    return YKPIV_APPLET_ERROR;
+  }
+
   return YKPIV_OK;
 }
 

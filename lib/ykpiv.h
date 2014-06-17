@@ -44,6 +44,7 @@ extern "C"
 		YKPIV_MEMORY_ERROR = -1,
 		YKPIV_PCSC_ERROR = -2,
 		YKPIV_SIZE_ERROR = -3,
+		YKPIV_APPLET_ERROR = -4,
 	} ykpiv_rc;
 
 	const char *ykpiv_strerror(ykpiv_rc err);
