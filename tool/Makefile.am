@@ -25,14 +25,13 @@
 # for the parts of OpenSSL used as well as that of the covered work.
 
 AM_CFLAGS = $(WERROR_CFLAGS) $(WARN_CFLAGS)
-AM_CPPFLAGS = $(OPENSSL_CFLAGS) $(PCSC_CFLAGS)
+AM_CPPFLAGS = $(OPENSSL_CFLAGS)
 AM_CPPFLAGS += -I$(top_srcdir)/lib -I$(top_builddir)/lib
 
 bin_PROGRAMS = yubico-piv-tool
 yubico_piv_tool_SOURCES = yubico-piv-tool.c yubico-piv-tool.h2m
 yubico_piv_tool_SOURCES += cmdline.ggo cmdline.c cmdline.h
-yubico_piv_tool_LDADD = $(OPENSSL_LIBS) $(PCSC_LIBS)
-yubico_piv_tool_LDADD += $(LTLIBWINSCARD) $(PCSC_MACOSX_LIBS)
+yubico_piv_tool_LDADD = $(OPENSSL_LIBS)
 yubico_piv_tool_LDADD += ../lib/libykpiv.la
 
 cmdline.c cmdline.h: cmdline.ggo Makefile.am

@@ -34,15 +34,6 @@
 
 #include "ykpiv.h"
 
-#if BACKEND_PCSC
-#if defined HAVE_PCSC_WINSCARD_H
-# include <PCSC/wintypes.h>
-# include <PCSC/winscard.h>
-#else
-# include <winscard.h>
-#endif
-#endif
-
 #include <openssl/des.h>
 #include <openssl/pem.h>
 #include <openssl/pkcs12.h>
