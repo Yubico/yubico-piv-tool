@@ -1063,31 +1063,6 @@ static void dump_hex(const unsigned char *buf, unsigned int len) {
   }
 }
 
-static bool parse_key(char *key_arg, unsigned char *key, int verbose) {
-  int i;
-  char key_part[4] = {0};
-  int key_len = strlen(key_arg);
-
-  if(key_len != KEY_LEN * 2) {
-    fprintf(stderr, "Wrong key size, should be %d characters (was %d).\n", KEY_LEN * 2, key_len);
-    return false;
-  }
-  for(i = 0; i < KEY_LEN; i++) {
-    key_part[0] = *key_arg++;
-    key_part[1] = *key_arg++;
-    if(sscanf(key_part, "%hhx", &key[i]) != 1) {
-      fprintf(stderr, "Failed parsing key at position %d.\n", i);
-      return false;
-    }
-  }
-  if(verbose > 1) {
-    fprintf(stderr, "parsed key: ");
-    dump_hex(key, KEY_LEN);
-    fprintf(stderr, "\n");
-  }
-  return true;
-}
-
 static int get_length(unsigned char *buffer, int *len) {
   if(buffer[0] < 0x81) {
     *len = buffer[0];
@@ -1156,10 +1131,6 @@ int main(int argc, char *argv[]) {
 
   verbosity = args_info.verbose_arg + (int)args_info.verbose_given;
 
-  if(parse_key(args_info.key_arg, key, verbosity) == false) {
-    return EXIT_FAILURE;
-  }
-
   if(ykpiv_init(&state, verbosity) != YKPIV_OK) {
     fprintf(stderr, "Failed initializing library.\n");
     return EXIT_FAILURE;
@@ -1167,6 +1138,10 @@ int main(int argc, char *argv[]) {
 
   if(ykpiv_connect(state, args_info.reader_arg) != YKPIV_OK) {
     fprintf(stderr, "Failed to connect to reader.\n");
+    return EXIT_FAILURE;
+  }
+
+  if(ykpiv_parse_key(state, args_info.key_arg, key) != YKPIV_OK) {
     return EXIT_FAILURE;
   }
 
@@ -1203,7 +1178,7 @@ int main(int argc, char *argv[]) {
       case action_arg_setMINUS_mgmMINUS_key:
         if(args_info.new_key_arg) {
           unsigned char new_key[KEY_LEN];
-          if(parse_key(args_info.new_key_arg, new_key, verbosity) == false) {
+          if(ykpiv_parse_key(state, args_info.new_key_arg, new_key) != YKPIV_OK) {
             ret = EXIT_FAILURE;
           } else if(ykpiv_set_mgmkey(state, new_key) != YKPIV_OK) {
             ret = EXIT_FAILURE;

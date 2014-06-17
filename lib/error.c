@@ -49,6 +49,7 @@ static const err_t errors[] = {
   ERR (YKPIV_AUTHENTICATION_ERROR, "Error during authentication"),
   ERR (YKPIV_RANDOMNESS_ERROR, "Error getting randomness"),
   ERR (YKPIV_GENERIC_ERROR, "Something went wrong."),
+  ERR (YKPIV_KEY_ERROR, "Error in key"),
 };
 
 /**

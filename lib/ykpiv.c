@@ -383,3 +383,33 @@ ykpiv_rc ykpiv_set_mgmkey(ykpiv_state *state, const unsigned char *new_key) {
   }
   return YKPIV_GENERIC_ERROR;
 }
+
+ykpiv_rc ykpiv_parse_key(ykpiv_state *state,
+    const char *key_in, unsigned char *key_out) {
+  unsigned int i;
+  char key_part[4] = {0};
+  int key_len = strlen(key_in);
+
+  if(key_len != DES_KEY_SZ * 3 * 2) {
+    if(state->verbose) {
+      fprintf(stderr, "Wrong key size, should be %lu characters (was %d).\n", DES_KEY_SZ * 3 * 2, key_len);
+    }
+    return YKPIV_SIZE_ERROR;
+  }
+  for(i = 0; i < DES_KEY_SZ * 3; i++) {
+    key_part[0] = *key_in++;
+    key_part[1] = *key_in++;
+    if(sscanf(key_part, "%hhx", &key_out[i]) != 1) {
+      if(state->verbose) {
+	fprintf(stderr, "Failed parsing key at position %d.\n", i);
+      }
+      return YKPIV_KEY_ERROR;
+    }
+  }
+  if(state->verbose > 1) {
+    fprintf(stderr, "parsed key: ");
+    dump_hex(key_out, DES_KEY_SZ * 3);
+    fprintf(stderr, "\n");
+  }
+  return YKPIV_OK;
+}

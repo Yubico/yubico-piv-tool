@@ -48,6 +48,7 @@ extern "C"
 		YKPIV_AUTHENTICATION_ERROR = -5,
 		YKPIV_RANDOMNESS_ERROR = -6,
 		YKPIV_GENERIC_ERROR = -7,
+		YKPIV_KEY_ERROR = -8,
 	} ykpiv_rc;
 
 	const char *ykpiv_strerror(ykpiv_rc err);
@@ -63,6 +64,8 @@ extern "C"
 			unsigned char *data, unsigned long *recv_len, int *sw);
 	ykpiv_rc ykpiv_authenticate(ykpiv_state *state, const unsigned char *key);
 	ykpiv_rc ykpiv_set_mgmkey(ykpiv_state *state, const unsigned char *new_key);
+	ykpiv_rc ykpiv_parse_key(ykpiv_state *state,
+			const char *key_in, unsigned char *key_out);
 
 #define YKPIV_ALGO_3DES 0x03;
 #define YKPIV_ALGO_RSA1024 0x06;
