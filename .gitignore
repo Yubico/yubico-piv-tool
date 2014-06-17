@@ -62,4 +62,7 @@ tool/yubico-piv-tool
 tool/yubico-piv-tool.1
 tool/yubico-piv-tool.o
 tool/.libs/
+tool/libpiv_cmd.la
+tool/libpiv_cmd_la-cmdline.lo
+tool/libpiv_cmd_la-cmdline.o
 
