@@ -106,7 +106,7 @@ static bool generate_key(ykpiv_state *state, const char *slot,
     enum enum_key_format key_format) {
   unsigned char in_data[5];
   unsigned char data[1024];
-  unsigned char templ[] = {0, 0x47, 0, 0};
+  unsigned char templ[] = {0, YKPIV_INS_GENERATE_ASYMMERTRIC, 0, 0};
   unsigned long recv_len = sizeof(data);
   unsigned long received = 0;
   int sw;
@@ -258,7 +258,7 @@ static bool reset(ykpiv_state *state) {
 
   memset(apdu.raw, 0, sizeof(apdu));
   /* note: the reset function is only available when both pins are blocked. */
-  apdu.st.ins = 0xfb;
+  apdu.st.ins = YKPIV_INS_RESET;
   if(ykpiv_send_data(state, apdu.raw, data, &recv_len, &sw) != YKPIV_OK) {
     return false;
   } else if(sw == 0x9000) {
@@ -283,7 +283,7 @@ static bool set_pin_retries(ykpiv_state *state, int pin_retries, int puk_retries
   }
 
   memset(apdu.raw, 0, sizeof(apdu));
-  apdu.st.ins = 0xfa;
+  apdu.st.ins = YKPIV_INS_SET_PIN_RETRIES;
   apdu.st.p1 = pin_retries;
   apdu.st.p2 = puk_retries;
   if(ykpiv_send_data(state, apdu.raw, data, &recv_len, &sw) != YKPIV_OK) {
@@ -342,7 +342,7 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
       unsigned long recv_len = sizeof(data);
       unsigned char in_data[1024];
       unsigned char *in_ptr = in_data;
-      unsigned char templ[] = {0, 0xfe, algorithm, key};
+      unsigned char templ[] = {0, YKPIV_INS_IMPORT_KEY, algorithm, key};
       int sw;
       if(algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048) {
         RSA *rsa_private_key = EVP_PKEY_get1_RSA(private_key);
@@ -441,7 +441,7 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
     unsigned char certdata[2100];
     unsigned char *certptr = certdata;
     unsigned char data[0xff];
-    unsigned char templ[] = {0, 0xdb, 0x3f, 0xff};
+    unsigned char templ[] = {0, YKPIV_INS_PUT_DATA, 0x3f, 0xff};
     unsigned long recv_len = sizeof(data);
     int cert_len = i2d_X509(cert, NULL);
     int bytes;
@@ -521,7 +521,7 @@ static bool set_chuid(ykpiv_state *state, int verbose) {
     dump_hex(dataptr, 0x10);
     fprintf(stderr, "\n");
   }
-  apdu.st.ins = 0xdb;
+  apdu.st.ins = YKPIV_INS_PUT_DATA;
   apdu.st.p1 = 0x3f;
   apdu.st.p2 = 0xff;
   apdu.st.lc = sizeof(chuid_tmpl);
@@ -809,7 +809,7 @@ static bool verify_pin(ykpiv_state *state, const char *pin) {
   }
 
   memset(apdu.raw, 0, sizeof(apdu.raw));
-  apdu.st.ins = 0x20;
+  apdu.st.ins = YKPIV_INS_VERIFY;
   apdu.st.p1 = 0x00;
   apdu.st.p2 = 0x80;
   apdu.st.lc = 0x08;
@@ -848,7 +848,8 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
   }
 
   memset(apdu.raw, 0, sizeof(apdu.raw));
-  apdu.st.ins = action == action_arg_unblockMINUS_pin ? 0x2c : 0x24;
+  apdu.st.ins = action == action_arg_unblockMINUS_pin ?
+    YKPIV_INS_RESET_RETRY : YKPIV_INS_CHANGE_REFERENCE;
   apdu.st.p2 = action == action_arg_changeMINUS_puk ? 0x81 : 0x80;
   apdu.st.lc = 0x10;
   memcpy(apdu.st.data, pin, pin_len);
@@ -886,7 +887,7 @@ static bool delete_certificate(ykpiv_state *state, enum enum_slot slot) {
   unsigned char *ptr = objdata;
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
-  unsigned char templ[] = {0, 0xdb, 0x3f, 0xff};
+  unsigned char templ[] = {0, YKPIV_INS_PUT_DATA, 0x3f, 0xff};
   int sw;
   bool ret = false;
   int object = get_object_id(slot);
@@ -900,7 +901,7 @@ static bool delete_certificate(ykpiv_state *state, enum enum_slot slot) {
   *ptr++ = 0x00; /* length 0 means we'll delete the object */
 
   memset(apdu.raw, 0, sizeof(apdu.raw));
-  apdu.st.ins = 0xdb;
+  apdu.st.ins = YKPIV_INS_PUT_DATA;
   apdu.st.p1 = 0x3f;
   apdu.st.p2 = 0xff;
 

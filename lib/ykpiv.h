@@ -87,11 +87,20 @@ extern "C"
 #define YKPIV_KEY_KEYMGM 0x9d
 #define YKPIV_KEY_CARDAUTH 0x9e
 
+#define YKPIV_INS_VERIFY 0x20
+#define YKPIV_INS_CHANGE_REFERENCE 0x24
+#define YKPIV_INS_RESET_RETRY 0x2c
+#define YKPIV_INS_GENERATE_ASYMMERTRIC 0x47
 #define YKPIV_INS_AUTHENTICATE 0x87
+#define YKPIV_INS_GET_DATA 0xcb
+#define YKPIV_INS_PUT_DATA 0xdb
 
 	/* Yubico vendor specific instructions */
 #define YKPIV_INS_SET_MGMKEY 0xff
+#define YKPIV_INS_IMPORT_KEY 0xfe
 #define YKPIV_INS_GET_VERSION 0xfd
+#define YKPIV_INS_RESET 0xfb
+#define YKPIV_INS_SET_PIN_RETRIES 0xfa
 
 #ifdef __cplusplus
 }
