@@ -134,13 +134,13 @@ static bool generate_key(ykpiv_state *state, const char *slot,
   in_data[3] = 1;
   switch(algorithm) {
     case algorithm_arg_RSA2048:
-      in_data[4] = 0x07;
+      in_data[4] = YKPIV_ALGO_RSA2048;
       break;
     case algorithm_arg_RSA1024:
-      in_data[4] = 0x06;
+      in_data[4] = YKPIV_ALGO_RSA1024;
       break;
     case algorithm_arg_ECCP256:
-      in_data[4] = 0x11;
+      in_data[4] = YKPIV_ALGO_ECCP256;
       break;
     case algorithm__NULL:
     default:
@@ -344,7 +344,7 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
       unsigned char *in_ptr = in_data;
       unsigned char templ[] = {0, 0xfe, algorithm, key};
       int sw;
-      if(algorithm == 0x06 || algorithm == 0x07) {
+      if(algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048) {
         RSA *rsa_private_key = EVP_PKEY_get1_RSA(private_key);
 
         *in_ptr++ = 0x01;
@@ -366,7 +366,7 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
         *in_ptr++ = 0x05;
         in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->iqmp));
         in_ptr += BN_bn2bin(rsa_private_key->iqmp, in_ptr);
-      } else if(algorithm == 0x11) {
+      } else if(algorithm == YKPIV_ALGO_ECCP256) {
         EC_KEY *ec = EVP_PKEY_get1_EC_KEY(private_key);
         const BIGNUM *s = EC_KEY_get0_private_key(ec);
 
@@ -606,16 +606,16 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
   }
 
   switch(algorithm) {
-    case 0x6:
+    case YKPIV_ALGO_RSA1024:
       len = 128;
-    case 0x7:
+    case YKPIV_ALGO_RSA2048:
       if(len == 0) {
         len = 256;
       }
       RSA_padding_add_PKCS1_type_1(signinput, len, digest, sizeof(digest));
       req->sig_alg->algorithm = OBJ_nid2obj(NID_sha256WithRSAEncryption);
       break;
-    case 0x11:
+    case YKPIV_ALGO_ECCP256:
       req->sig_alg->algorithm = OBJ_nid2obj(NID_ecdsa_with_SHA256);
       len = DIGEST_LEN;
       memcpy(signinput, digest + sizeof(sha256oid), DIGEST_LEN);
@@ -742,16 +742,16 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     goto selfsign_out;
   }
   switch(algorithm) {
-    case 0x6:
+    case YKPIV_ALGO_RSA1024:
       len = 128;
-    case 0x7:
+    case YKPIV_ALGO_RSA2048:
       if(len == 0) {
         len = 256;
       }
       RSA_padding_add_PKCS1_type_1(signinput, len, digest, sizeof(digest));
       x509->sig_alg->algorithm = OBJ_nid2obj(NID_sha256WithRSAEncryption);
       break;
-    case 0x11:
+    case YKPIV_ALGO_ECCP256:
       x509->sig_alg->algorithm = OBJ_nid2obj(NID_ecdsa_with_SHA256);
       len = DIGEST_LEN;
       memcpy(signinput, digest + sizeof(sha256oid), DIGEST_LEN);
@@ -937,9 +937,9 @@ static unsigned char get_algorithm(EVP_PKEY *key) {
         RSA *rsa = EVP_PKEY_get1_RSA(key);
         int size = RSA_size(rsa);
         if(size == 256) {
-          return 0x7;
+          return YKPIV_ALGO_RSA2048;
         } else if(size == 128) {
-          return 0x6;
+          return YKPIV_ALGO_RSA1024;
         } else {
           fprintf(stderr, "Unuseable key of %d bits, only 1024 and 2048 is supported.\n", size * 8);
           return 0;
@@ -951,7 +951,7 @@ static unsigned char get_algorithm(EVP_PKEY *key) {
         const EC_GROUP *group = EC_KEY_get0_group(ec);
         int curve = EC_GROUP_get_curve_name(group);
         if(curve == NID_X9_62_prime256v1) {
-          return 0x11;
+          return YKPIV_ALGO_ECCP256;
         } else {
           fprintf(stderr, "Unknown EC curve %d\n", curve);
           return 0;
