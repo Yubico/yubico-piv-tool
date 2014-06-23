@@ -53,6 +53,7 @@ extern "C"
 		YKPIV_GENERIC_ERROR = -7,
 		YKPIV_KEY_ERROR = -8,
 		YKPIV_PARSE_ERROR = -9,
+		YKPIV_WRONG_PIN = -10,
 	} ykpiv_rc;
 
 	const char *ykpiv_strerror(ykpiv_rc err);
@@ -75,6 +76,7 @@ extern "C"
 			int in_len,unsigned char *sign_out, int *out_len,
 			unsigned char algorithm, unsigned char key);
 	ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len);
+	ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries);
 
 #define YKPIV_ALGO_3DES 0x03
 #define YKPIV_ALGO_RSA1024 0x06

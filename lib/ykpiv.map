@@ -41,6 +41,7 @@ global:
 	ykpiv_parse_key;
 	ykpiv_sign_data;
 	ykpiv_get_version;
+	ykpiv_verify;
 
 local:
 	*;

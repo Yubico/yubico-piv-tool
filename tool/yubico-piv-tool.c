@@ -797,36 +797,25 @@ selfsign_out:
 }
 
 static bool verify_pin(ykpiv_state *state, const char *pin) {
-  APDU apdu;
-  unsigned char data[0xff];
-  unsigned long recv_len = sizeof(data);
-  int sw;
-  size_t len = strlen(pin);
+  int tries = -1;
+  ykpiv_rc res;
+  int len = strlen(pin);
 
   if(len > 8) {
     fprintf(stderr, "Maximum 8 digits of PIN supported.\n");
-    return false;
   }
 
-  memset(apdu.raw, 0, sizeof(apdu.raw));
-  apdu.st.ins = YKPIV_INS_VERIFY;
-  apdu.st.p1 = 0x00;
-  apdu.st.p2 = 0x80;
-  apdu.st.lc = 0x08;
-  memcpy(apdu.st.data, pin, len);
-  if(len < 8) {
-    memset(apdu.st.data + len, 0xff, 8 - len);
-  }
-  if(ykpiv_send_data(state, apdu.raw, data, &recv_len, &sw) != YKPIV_OK) {
-    return false;
-  } else if(sw == 0x9000) {
+  res = ykpiv_verify(state, pin, &tries);
+  if(res == YKPIV_OK) {
     return true;
-  } else if((sw >> 8) == 0x63) {
-    fprintf(stderr, "Pin verification failed, %d tries left before pin is blocked.\n", sw & 0xff);
-  } else if(sw == 0x6983) {
-    fprintf(stderr, "Pin code blocked, use unblock-pin action to unblock.\n");
+  } else if(res == YKPIV_WRONG_PIN) {
+    if(tries > 0) {
+      fprintf(stderr, "Pin verification failed, %d tries left before pin is blocked.\n", tries);
+    } else {
+      fprintf(stderr, "Pin code blocked, use unblock-pin action to unblock.\n");
+    }
   } else {
-    fprintf(stderr, "Pin code verification failed with code %x.\n", sw);
+    fprintf(stderr, "Pin code verification failed: '%s'\n", ykpiv_strerror(res));
   }
   return false;
 }

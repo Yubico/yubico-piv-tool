@@ -557,3 +557,48 @@ ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len) {
     return YKPIV_GENERIC_ERROR;
   }
 }
+
+ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
+  APDU apdu;
+  unsigned char data[0xff];
+  unsigned long recv_len = sizeof(data);
+  int sw;
+  size_t len = strlen(pin);
+  ykpiv_rc res;
+
+  if(len > 8) {
+    return YKPIV_SIZE_ERROR;
+  }
+
+  memset(apdu.raw, 0, sizeof(apdu.raw));
+  apdu.st.ins = YKPIV_INS_VERIFY;
+  apdu.st.p1 = 0x00;
+  apdu.st.p2 = 0x80;
+  apdu.st.lc = 0x08;
+  memcpy(apdu.st.data, pin, len);
+  if(len < 8) {
+    memset(apdu.st.data + len, 0xff, 8 - len);
+  }
+  if((res = ykpiv_send_data(state, apdu.raw, data, &recv_len, &sw)) != YKPIV_OK) {
+    return res;
+  } else if(sw == 0x9000) {
+    return YKPIV_OK;
+  } else if((sw >> 8) == 0x63) {
+    if(state->verbose) {
+      fprintf(stderr, "Pin verification failed, %d tries left before pin is blocked.\n", sw & 0xff);
+    }
+    *tries = (sw & 0xff);
+    return YKPIV_WRONG_PIN;
+  } else if(sw == 0x6983) {
+    if(state->verbose) {
+      fprintf(stderr, "Pin code blocked, use unblock-pin action to unblock.\n");
+    }
+    *tries = 0;
+    return YKPIV_WRONG_PIN;
+  } else {
+    if(state->verbose) {
+      fprintf(stderr, "Pin code verification failed with code %x.\n", sw);
+    }
+    return YKPIV_GENERIC_ERROR;
+  }
+}
