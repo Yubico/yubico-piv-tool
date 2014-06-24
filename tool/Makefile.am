@@ -39,7 +39,7 @@ noinst_LTLIBRARIES = libpiv_cmd.la libpiv_util.la
 libpiv_cmd_la_SOURCES = cmdline.ggo cmdline.c cmdline.h
 libpiv_cmd_la_CFLAGS =
 
-libpiv_util_la_SOURCES = util.c internal.h
+libpiv_util_la_SOURCES = util.c util.h
 
 cmdline.c cmdline.h: cmdline.ggo Makefile.am
 	$(GENGETOPT) --input $^

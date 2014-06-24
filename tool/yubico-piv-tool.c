@@ -44,7 +44,7 @@
 #include <openssl/rand.h>
 
 #include "cmdline.h"
-#include "internal.h"
+#include "util.h"
 
 /* FASC-N containing S9999F9999F999999F0F1F0000000000300001E encoded in
  * 4-bit BCD with 1 bit parity. run through the tools/fasc.pl script to get

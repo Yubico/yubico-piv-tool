@@ -41,7 +41,7 @@
 #include <ykpiv.h>
 
 #include "cmdline.h"
-#include "internal.h"
+#include "util.h"
 
 FILE *open_file(const char *file_name, int mode) {
   FILE *file;
