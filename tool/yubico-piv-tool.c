@@ -1067,15 +1067,15 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_deleteMINUS_certificate:
-	if(args_info.slot_arg == slot__NULL) {
-	  fprintf(stderr, "The delete-certificate action needs a slot (-s) to operate on.\n");
-	  ret = EXIT_FAILURE;
-	} else {
-	  if(delete_certificate(state, args_info.slot_arg) == false) {
-	    ret = EXIT_FAILURE;
-	  }
-	}
-	break;
+        if(args_info.slot_arg == slot__NULL) {
+          fprintf(stderr, "The delete-certificate action needs a slot (-s) to operate on.\n");
+          ret = EXIT_FAILURE;
+        } else {
+          if(delete_certificate(state, args_info.slot_arg) == false) {
+            ret = EXIT_FAILURE;
+          }
+        }
+        break;
       case action__NULL:
       default:
         fprintf(stderr, "Wrong action. %d.\n", action);
