@@ -610,6 +610,7 @@ ykpiv_rc ykpiv_fetch_object(ykpiv_state *state, int object_id,
   unsigned char indata[5];
   unsigned char templ[] = {0, YKPIV_INS_GET_DATA, 0x3b, 0xff};
   long inlen = 5;
+  ykpiv_rc res;
 
   indata[0] = 0x5c;
   if(object_id == YKPIV_OBJ_DISCOVERY) {
@@ -625,5 +626,16 @@ ykpiv_rc ykpiv_fetch_object(ykpiv_state *state, int object_id,
     return YKPIV_INVALID_OBJECT;
   }
 
-  return ykpiv_transfer_data(state, templ, indata, inlen, data, len, &sw);
+  if((res = ykpiv_transfer_data(state, templ, indata, inlen, data, len, &sw))
+      != YKPIV_OK) {
+    return res;
+  }
+
+  {
+    size_t outlen;
+    int offs = get_length(data + 1, &outlen);
+    memmove(data, data + 1 + offs, outlen);
+    *len = outlen;
+  }
+  return YKPIV_OK;
 }
