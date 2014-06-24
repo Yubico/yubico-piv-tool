@@ -61,7 +61,7 @@ static int set_length(unsigned char *buffer, int length) {
   }
 }
 
-static int get_length(unsigned char *buffer, int *len) {
+static int get_length(unsigned char *buffer, size_t *len) {
   if(buffer[0] < 0x81) {
     *len = buffer[0];
     return 1;
@@ -69,7 +69,8 @@ static int get_length(unsigned char *buffer, int *len) {
     *len = buffer[1];
     return 2;
   } else if((*buffer & 0x7f) == 2) {
-    *len = (buffer[1] << 8) + buffer[2];
+    size_t tmp = buffer[1];
+    *len = (tmp << 8) + buffer[2];
     return 3;
   }
   return 0;
@@ -461,7 +462,7 @@ ykpiv_rc ykpiv_parse_key(ykpiv_state *state,
 
 ykpiv_rc ykpiv_sign_data(ykpiv_state *state,
     const unsigned char *sign_in, int in_len,
-    unsigned char *sign_out, int *out_len,
+    unsigned char *sign_out, size_t *out_len,
     unsigned char algorithm, unsigned char key) {
 
   unsigned char indata[1024];
@@ -471,7 +472,7 @@ ykpiv_rc ykpiv_sign_data(ykpiv_state *state,
   unsigned long recv_len = sizeof(data);
   int sw;
   int bytes;
-  int len = 0;
+  size_t len = 0;
   ykpiv_rc res;
 
   if(in_len > 1000) {

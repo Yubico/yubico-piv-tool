@@ -74,7 +74,7 @@ extern "C"
 	ykpiv_rc ykpiv_parse_key(ykpiv_state *state,
 			const char *key_in, unsigned char *key_out);
 	ykpiv_rc ykpiv_sign_data(ykpiv_state *state, const unsigned char *sign_in,
-			int in_len,unsigned char *sign_out, int *out_len,
+			int in_len,unsigned char *sign_out, size_t *out_len,
 			unsigned char algorithm, unsigned char key);
 	ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len);
 	ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries);

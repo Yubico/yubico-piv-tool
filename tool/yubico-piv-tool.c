@@ -601,7 +601,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
   }
   {
     unsigned char signature[1024];
-    int sig_len = sizeof(signature);
+    size_t sig_len = sizeof(signature);
     if(ykpiv_sign_data(state, signinput, len, signature, &sig_len, algorithm, key)
         != YKPIV_OK) {
       goto request_out;
@@ -737,7 +737,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   }
   {
     unsigned char signature[1024];
-    int sig_len = sizeof(signature);
+    size_t sig_len = sizeof(signature);
     if(ykpiv_sign_data(state, signinput, len, signature, &sig_len, algorithm, key)
         != YKPIV_OK) {
       goto selfsign_out;
