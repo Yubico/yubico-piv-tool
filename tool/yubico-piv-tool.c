@@ -43,7 +43,6 @@
 #include <openssl/pkcs12.h>
 #include <openssl/rand.h>
 
-#include "cmdline.h"
 #include "util.h"
 
 /* FASC-N containing S9999F9999F999999F0F1F0000000000300001E encoded in

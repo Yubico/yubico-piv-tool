@@ -30,6 +30,8 @@
 #ifndef YUBICO_PIV_TOOL_INTERNAL_H
 #define YUBICO_PIV_TOOL_INTERNAL_H
 
+#include "cmdline.h"
+
 #define INPUT 1
 #define OUTPUT 2
 
