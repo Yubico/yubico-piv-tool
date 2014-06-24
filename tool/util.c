@@ -91,10 +91,18 @@ unsigned char get_algorithm(EVP_PKEY *key) {
   }
 }
 
-X509_NAME *parse_name(char *name) {
+X509_NAME *parse_name(const char *orig_name) {
+  char name[1025];
   X509_NAME *parsed = NULL;
   char *ptr = name;
   char *part;
+
+  if(strlen(orig_name) > 1024) {
+    fprintf(stderr, "Name is to long!\n");
+    return NULL;
+  }
+  strcpy(name, orig_name);
+
   if(*name != '/') {
     fprintf(stderr, "Name does not start with '/'!\n");
     return NULL;

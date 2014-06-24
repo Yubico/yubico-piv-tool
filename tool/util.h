@@ -50,7 +50,7 @@ typedef union u_APDU APDU;
 void dump_hex(unsigned const char*, unsigned int);
 int set_length(unsigned char*, int);
 int get_length(unsigned char*, int*);
-X509_NAME *parse_name(char*);
+X509_NAME *parse_name(const char*);
 unsigned char get_algorithm(EVP_PKEY*);
 FILE *open_file(const char*, int);
 int get_object_id(enum enum_slot slot);
