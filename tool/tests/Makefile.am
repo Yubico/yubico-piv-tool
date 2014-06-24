@@ -1,5 +1,3 @@
-#!/bin/sh
-
 # Copyright (c) 2014 Yubico AB
 # All rights reserved.
 # 
@@ -26,18 +24,6 @@
 # non-source form of such a combination shall include the source code
 # for the parts of OpenSSL used as well as that of the covered work.
 
-# This is a _very_ simple test shell script, really only verifying
-#  that we managed to build a binary and it can execute.
+TESTS_ENVIRONMENT = export VERSION=$(VERSION); export EXEEXT=$(EXEEXT);
 
-set -e
-
-BIN="../tool/yubico-piv-tool${EXEEXT}"
-
-HELP_OUTPUT=$($BIN --help)
-
-expected="yubico-piv-tool $VERSION"
-VERSION_OUTPUT=$($BIN --version | sed 's/\r//')
-if [ "x$VERSION_OUTPUT" != "x$expected" ]; then
-  echo "Version ($VERSION_OUTPUT) not matching expected output $expected."
-  exit 1
-fi
+TESTS = basic.sh

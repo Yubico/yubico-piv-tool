@@ -24,8 +24,6 @@
 # non-source form of such a combination shall include the source code
 # for the parts of OpenSSL used as well as that of the covered work.
 
-TESTS_ENVIRONMENT = export VERSION=$(VERSION); export EXEEXT=$(EXEEXT);
-
 AM_CFLAGS = $(WARN_CFLAGS)
 AM_CPPFLAGS = -I$(top_srcdir)/lib -I$(top_builddir)/lib
 
@@ -33,4 +31,4 @@ AM_LDFLAGS = -no-install
 LDADD = ../lib/libykpiv.la
 
 check_PROGRAMS = basic parse_key
-TESTS = basic.sh $(check_PROGRAMS)
+TESTS = $(check_PROGRAMS)

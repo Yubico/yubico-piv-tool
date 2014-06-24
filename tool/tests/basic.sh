@@ -1,3 +1,5 @@
+#!/bin/sh
+
 # Copyright (c) 2014 Yubico AB
 # All rights reserved.
 # 
@@ -24,37 +26,18 @@
 # non-source form of such a combination shall include the source code
 # for the parts of OpenSSL used as well as that of the covered work.
 
-SUBDIRS = . tests
+# This is a _very_ simple test shell script, really only verifying
+#  that we managed to build a binary and it can execute.
 
-AM_CFLAGS = $(WERROR_CFLAGS) $(WARN_CFLAGS)
-AM_CPPFLAGS = $(OPENSSL_CFLAGS)
-AM_CPPFLAGS += -I$(top_srcdir)/lib -I$(top_builddir)/lib
+set -e
 
-bin_PROGRAMS = yubico-piv-tool
-yubico_piv_tool_SOURCES = yubico-piv-tool.c yubico-piv-tool.h2m
-yubico_piv_tool_LDADD = $(OPENSSL_LIBS) ../lib/libykpiv.la
-yubico_piv_tool_LDADD += libpiv_cmd.la libpiv_util.la
+BIN="../yubico-piv-tool${EXEEXT}"
 
-noinst_LTLIBRARIES = libpiv_cmd.la libpiv_util.la
-libpiv_cmd_la_SOURCES = cmdline.ggo cmdline.c cmdline.h
-libpiv_cmd_la_CFLAGS =
+HELP_OUTPUT=$($BIN --help)
 
-libpiv_util_la_SOURCES = util.c internal.h
-
-cmdline.c cmdline.h: cmdline.ggo Makefile.am
-	$(GENGETOPT) --input $^
-
-BUILT_SOURCES = cmdline.c cmdline.h
-MAINTAINERCLEANFILES = $(BUILT_SOURCES)
-
-# Doc.
-
-dist_man_MANS = yubico-piv-tool.1
-MAINTAINERCLEANFILES += $(dist_man_MANS)
-
-yubico-piv-tool.1: $(yubico_piv_tool_SOURCES) \
-		$(top_srcdir)/configure.ac
-	$(HELP2MAN) --no-info \
-		--name="Yubico PIV tool" \
-		--include=$(srcdir)/yubico-piv-tool.h2m \
-		--output=$@ $(builddir)/yubico-piv-tool$(EXEEXT)
+expected="yubico-piv-tool $VERSION"
+VERSION_OUTPUT=$($BIN --version | sed 's/\r//')
+if [ "x$VERSION_OUTPUT" != "x$expected" ]; then
+  echo "Version ($VERSION_OUTPUT) not matching expected output $expected."
+  exit 1
+fi
