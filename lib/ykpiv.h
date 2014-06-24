@@ -89,6 +89,20 @@ extern "C"
 #define YKPIV_KEY_KEYMGM 0x9d
 #define YKPIV_KEY_CARDAUTH 0x9e
 
+#define YKPIV_OBJ_CAPABILITY 0x5fc107
+#define YKPIV_OBJ_CHUID 0x5fc102
+#define YKPIV_OBJ_AUTHENTICATION 0x5fc105 /* cert for 9a key */
+#define YKPIV_OBJ_FINGERPRINTS 0x5fc103
+#define YKPIV_OBJ_SECURITY 0x5fc106
+#define YKPIV_OBJ_FACIAL 0x5fc108
+#define YKPIV_OBJ_PRINTED 0x5fc109
+#define YKPIV_OBJ_SIGNATURE 0x5fc10a /* cert for 9c key */
+#define YKPIV_OBJ_KEY_MANAGEMENT 0x5fc10b /* cert for 9d key */
+#define YKPIV_OBJ_CARD_AUTH 0x5fc101 /* cert for 9e key */
+#define YKPIV_OBJ_DISCOVERY 0x7e
+#define YKPIV_OBJ_KEY_HISTORY 0x5fc10c
+#define YKPIV_OBJ_IRIS 0x5fc121
+
 #define YKPIV_INS_VERIFY 0x20
 #define YKPIV_INS_CHANGE_REFERENCE 0x24
 #define YKPIV_INS_RESET_RETRY 0x2c

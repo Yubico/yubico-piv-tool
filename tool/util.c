@@ -185,16 +185,16 @@ int get_object_id(enum enum_slot slot) {
 
   switch(slot) {
     case slot_arg_9a:
-      object = 0x5fc105;
+      object = YKPIV_OBJ_AUTHENTICATION;
       break;
     case slot_arg_9c:
-      object = 0x5fc10a;
+      object = YKPIV_OBJ_SIGNATURE;
       break;
     case slot_arg_9d:
-      object = 0x5fc10b;
+      object = YKPIV_OBJ_KEY_MANAGEMENT;
       break;
     case slot_arg_9e:
-      object = 0x5fc101;
+      object = YKPIV_OBJ_CARD_AUTH;
       break;
     case slot__NULL:
     default:
