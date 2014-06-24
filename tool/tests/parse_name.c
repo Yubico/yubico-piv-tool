@@ -27,6 +27,7 @@
  */
 
 #include <string.h>
+#include <stdbool.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -36,11 +37,21 @@
 
 #include "util.h"
 
-static void test_name(const char *name, const char *expected) {
+static void test_name(const char *name, const char *expected, bool fail) {
   char buf[1024];
-  X509_NAME *parsed = parse_name(name);
-  BIO *bio = BIO_new(BIO_s_mem());
+  BIO *bio;
   const char none[] = {0};
+  X509_NAME *parsed = parse_name(name);
+  if(parsed == NULL) {
+    if(fail) {
+      return;
+    } else {
+      printf("Failed parsing of '%s'!\n", name);
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  bio = BIO_new(BIO_s_mem());
 
   X509_NAME_print_ex(bio, parsed, 0, XN_FLAG_ONELINE);
   BIO_write(bio, none, 1);
@@ -54,7 +65,11 @@ static void test_name(const char *name, const char *expected) {
 }
 
 int main(void) {
-  test_name("/CN=test foo/", "CN = test foo");
-  test_name("/CN=test/OU=bar/O=EXAMPLE/", "CN = test, OU = bar, O = EXAMPLE");
+  test_name("/CN=test foo/", "CN = test foo", false);
+  test_name("/CN=test/OU=bar/O=EXAMPLE/", "CN = test, OU = bar, O = EXAMPLE", false);
+  test_name("/foo/", "", true);
+  test_name("/CN=test/foobar/", "", true);
+  test_name("/CN=test/foo=bar/", "", true);
+
   return EXIT_SUCCESS;
 }
