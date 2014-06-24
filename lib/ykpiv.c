@@ -602,3 +602,27 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
     return YKPIV_GENERIC_ERROR;
   }
 }
+
+ykpiv_rc ykpiv_fetch_object(ykpiv_state *state, int object_id,
+    unsigned char *data, unsigned long *len) {
+  int sw;
+  unsigned char indata[5];
+  unsigned char templ[] = {0, YKPIV_INS_GET_DATA, 0x3b, 0xff};
+  long inlen = 5;
+
+  indata[0] = 0x5c;
+  if(object_id == YKPIV_OBJ_DISCOVERY) {
+    indata[1] = 1;
+    indata[2] = YKPIV_OBJ_DISCOVERY;
+    inlen = 3;
+  } else if(object_id > 0xffff && object_id <= 0xffffff) {
+    indata[1] = 3;
+    indata[2] = (object_id >> 16) & 0xff;
+    indata[3] = (object_id >> 8) & 0xff;
+    indata[4] = object_id & 0xff;
+  } else {
+    return YKPIV_INVALID_OBJECT;
+  }
+
+  return ykpiv_transfer_data(state, templ, indata, inlen, data, len, &sw);
+}
