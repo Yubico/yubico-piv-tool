@@ -608,7 +608,7 @@ ykpiv_rc ykpiv_fetch_object(ykpiv_state *state, int object_id,
     unsigned char *data, unsigned long *len) {
   int sw;
   unsigned char indata[5];
-  unsigned char templ[] = {0, YKPIV_INS_GET_DATA, 0x3b, 0xff};
+  unsigned char templ[] = {0, YKPIV_INS_GET_DATA, 0x3f, 0xff};
   long inlen = 5;
   ykpiv_rc res;
 
