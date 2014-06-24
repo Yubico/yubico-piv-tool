@@ -7,7 +7,6 @@ Algorithms and Key Sizes for PIV".  This enables you to perform RSA or
 ECC sign/decrypt operations using a private key stored on the
 smartcard, through common interfaces like PKCS#11.
 
-References:
 * SP 800-73-3 http://csrc.nist.gov/publications/PubsSPs.html
 * NIST SP 800-73-4 (draft) 
   http://csrc.nist.gov/publications/PubsDrafts.html#800-73-4
