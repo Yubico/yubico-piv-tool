@@ -150,9 +150,9 @@ fi
 AC_CONFIG_FILES([
   Makefile
   lib/Makefile
+  lib/tests/Makefile
   tool/Makefile
   tool/tests/Makefile
-  tests/Makefile
   lib/ykpiv-version.h
   lib/ykpiv.pc
 ])

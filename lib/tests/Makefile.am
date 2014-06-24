@@ -28,7 +28,7 @@ AM_CFLAGS = $(WARN_CFLAGS)
 AM_CPPFLAGS = -I$(top_srcdir)/lib -I$(top_builddir)/lib
 
 AM_LDFLAGS = -no-install
-LDADD = ../lib/libykpiv.la
+LDADD = ../libykpiv.la
 
 check_PROGRAMS = basic parse_key
 TESTS = $(check_PROGRAMS)
