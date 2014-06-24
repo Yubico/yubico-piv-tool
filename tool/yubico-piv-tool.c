@@ -44,6 +44,7 @@
 #include <openssl/rand.h>
 
 #include "cmdline.h"
+#include "internal.h"
 
 /* FASC-N containing S9999F9999F999999F0F1F0000000000300001E encoded in
  * 4-bit BCD with 1 bit parity. run through the tools/fasc.pl script to get
@@ -66,31 +67,6 @@ unsigned const char sha256oid[] = {
 #define DIGEST_LEN 32
 
 #define KEY_LEN 24
-
-#define INPUT 1
-#define OUTPUT 2
-
-union u_APDU {
-  struct {
-    unsigned char cla;
-    unsigned char ins;
-    unsigned char p1;
-    unsigned char p2;
-    unsigned char lc;
-    unsigned char data[0xff];
-  } st;
-  unsigned char raw[0xff + 5];
-};
-
-typedef union u_APDU APDU;
-
-static void dump_hex(unsigned const char*, unsigned int);
-static int set_length(unsigned char*, int);
-static int get_length(unsigned char*, int*);
-static X509_NAME *parse_name(char*);
-static unsigned char get_algorithm(EVP_PKEY*);
-static FILE *open_file(const char*, int);
-static int get_object_id(enum enum_slot slot);
 
 static void print_version(ykpiv_state *state) {
   char version[7];
@@ -903,159 +879,6 @@ static bool delete_certificate(ykpiv_state *state, enum enum_slot slot) {
     ret = true;
   }
   return ret;
-}
-
-static FILE *open_file(const char *file_name, int mode) {
-  FILE *file;
-  if(!strcmp(file_name, "-")) {
-    file = mode == INPUT ? stdin : stdout;
-  } else {
-    file = fopen(file_name, mode == INPUT ? "r" : "w");
-    if(!file) {
-      fprintf(stderr, "Failed opening '%s'!\n", file_name);
-      return NULL;
-    }
-  }
-  return file;
-}
-
-static unsigned char get_algorithm(EVP_PKEY *key) {
-  int type = EVP_PKEY_type(key->type);
-  switch(type) {
-    case EVP_PKEY_RSA:
-      {
-        RSA *rsa = EVP_PKEY_get1_RSA(key);
-        int size = RSA_size(rsa);
-        if(size == 256) {
-          return YKPIV_ALGO_RSA2048;
-        } else if(size == 128) {
-          return YKPIV_ALGO_RSA1024;
-        } else {
-          fprintf(stderr, "Unuseable key of %d bits, only 1024 and 2048 is supported.\n", size * 8);
-          return 0;
-        }
-      }
-    case EVP_PKEY_EC:
-      {
-        EC_KEY *ec = EVP_PKEY_get1_EC_KEY(key);
-        const EC_GROUP *group = EC_KEY_get0_group(ec);
-        int curve = EC_GROUP_get_curve_name(group);
-        if(curve == NID_X9_62_prime256v1) {
-          return YKPIV_ALGO_ECCP256;
-        } else {
-          fprintf(stderr, "Unknown EC curve %d\n", curve);
-          return 0;
-        }
-      }
-    default:
-      fprintf(stderr, "Unknown algorithm %d.\n", type);
-      return 0;
-  }
-}
-
-static X509_NAME *parse_name(char *name) {
-  X509_NAME *parsed = NULL;
-  char *ptr = name;
-  char *part;
-  if(*name != '/') {
-    fprintf(stderr, "Name does not start with '/'!\n");
-    return NULL;
-  }
-  parsed = X509_NAME_new();
-  if(!parsed) {
-    fprintf(stderr, "Failed to allocate memory\n");
-    return NULL;
-  }
-  while((part = strtok(ptr, "/"))) {
-    char *key;
-    char *value;
-    char *equals = strchr(part, '=');
-    if(!equals) {
-      fprintf(stderr, "The part '%s' doesn't seem to contain a =.\n", part);
-      goto parse_err;
-    }
-    *equals++ = '\0';
-    value = equals;
-    key = part;
-
-    ptr = NULL;
-    if(!key) {
-      fprintf(stderr, "Malformed name (%s)\n", part);
-      goto parse_err;
-    }
-    if(!value) {
-      fprintf(stderr, "Malformed name (%s)\n", part);
-      goto parse_err;
-    }
-    if(!X509_NAME_add_entry_by_txt(parsed, key, MBSTRING_UTF8, (unsigned char*)value, -1, -1, 0)) {
-      fprintf(stderr, "Failed adding %s=%s to name.\n", key, value);
-      goto parse_err;
-    }
-  }
-  return parsed;
-parse_err:
-  X509_NAME_free(parsed);
-  return NULL;
-}
-
-static void dump_hex(const unsigned char *buf, unsigned int len) {
-  unsigned int i;
-  for (i = 0; i < len; i++) {
-    fprintf(stderr, "%02x ", buf[i]);
-  }
-}
-
-static int get_length(unsigned char *buffer, int *len) {
-  if(buffer[0] < 0x81) {
-    *len = buffer[0];
-    return 1;
-  } else if((*buffer & 0x7f) == 1) {
-    *len = buffer[1];
-    return 2;
-  } else if((*buffer & 0x7f) == 2) {
-    *len = (buffer[1] << 8) + buffer[2];
-    return 3;
-  }
-  return 0;
-}
-
-static int set_length(unsigned char *buffer, int length) {
-  if(length < 0x80) {
-    *buffer++ = length;
-    return 1;
-  } else if(length < 0xff) {
-    *buffer++ = 0x81;
-    *buffer++ = length;
-    return 2;
-  } else {
-    *buffer++ = 0x82;
-    *buffer++ = (length >> 8) & 0xff;
-    *buffer++ = length & 0xff;
-    return 3;
-  }
-}
-
-static int get_object_id(enum enum_slot slot) {
-  int object;
-
-  switch(slot) {
-    case slot_arg_9a:
-      object = 0x5fc105;
-      break;
-    case slot_arg_9c:
-      object = 0x5fc10a;
-      break;
-    case slot_arg_9d:
-      object = 0x5fc10b;
-      break;
-    case slot_arg_9e:
-      object = 0x5fc101;
-      break;
-    case slot__NULL:
-    default:
-      object = 0;
-  }
-  return object;
 }
 
 int main(int argc, char *argv[]) {

@@ -65,4 +65,7 @@ tool/.libs/
 tool/libpiv_cmd.la
 tool/libpiv_cmd_la-cmdline.lo
 tool/libpiv_cmd_la-cmdline.o
+tool/libpiv_util.la
+tool/util.lo
+tool/util.o
 
