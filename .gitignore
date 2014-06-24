@@ -69,3 +69,7 @@ tool/util.o
 tool/tests/basic.sh.log
 tool/tests/basic.sh.trs
 tool/tests/test-suite.log
+tool/tests/parse_name
+tool/tests/parse_name.log
+tool/tests/parse_name.o
+tool/tests/parse_name.trs

@@ -26,4 +26,14 @@
 
 TESTS_ENVIRONMENT = export VERSION=$(VERSION); export EXEEXT=$(EXEEXT);
 
-TESTS = basic.sh
+AM_CFLAGS = $(WARN_CFLAGS)
+AM_CPPFLAGS = -I$(top_srcdir)/lib -I$(top_builddir)/lib
+AM_CPPFLAGS += -I$(top_srcdir)/tool -I$(top_builddir)/tool
+AM_CPPFLAGS += $(OPENSSL_CFLAGS)
+
+AM_LDFLAGS = -no-install
+
+parse_name_LDADD = ../libpiv_util.la $(OPENSSL_LIBS)
+
+check_PROGRAMS = parse_name
+TESTS = basic.sh $(check_PROGRAMS)
