@@ -36,7 +36,7 @@
 
 #include "util.h"
 
-static void test_name(char *name, char *expected) {
+static void test_name(const char *name, const char *expected) {
   char buf[1024];
   X509_NAME *parsed = parse_name(name);
   BIO *bio = BIO_new(BIO_s_mem());
