@@ -68,8 +68,6 @@ extern "C"
 	ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
 			const unsigned char *in_data, long in_len,
 			unsigned char *out_data, unsigned long *out_len, int *sw);
-	ykpiv_rc ykpiv_send_data(ykpiv_state *state, unsigned char *apdu,
-			unsigned char *data, unsigned long *recv_len, int *sw);
 	ykpiv_rc ykpiv_authenticate(ykpiv_state *state, const unsigned char *key);
 	ykpiv_rc ykpiv_set_mgmkey(ykpiv_state *state, const unsigned char *new_key);
 	ykpiv_rc ykpiv_parse_key(ykpiv_state *state,

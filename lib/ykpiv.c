@@ -38,6 +38,9 @@
 #include "internal.h"
 #include "ykpiv.h"
 
+static ykpiv_rc ykpiv_send_data(ykpiv_state *state, unsigned char *apdu,
+    unsigned char *data, unsigned long *recv_len, int *sw);
+
 static void dump_hex(const unsigned char *buf, unsigned int len) {
   unsigned int i;
   for (i = 0; i < len; i++) {
@@ -275,7 +278,7 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
   return YKPIV_OK;
 }
 
-ykpiv_rc ykpiv_send_data(ykpiv_state *state, unsigned char *apdu,
+static ykpiv_rc ykpiv_send_data(ykpiv_state *state, unsigned char *apdu,
     unsigned char *data, unsigned long *recv_len, int *sw) {
   long rc;
   unsigned int send_len = (unsigned int)(apdu[4] + 5); /* magic numbers.. */
