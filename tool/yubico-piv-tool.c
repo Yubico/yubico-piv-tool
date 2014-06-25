@@ -226,15 +226,13 @@ generate_out:
 }
 
 static bool reset(ykpiv_state *state) {
-  APDU apdu;
+  unsigned char templ[] = {0, YKPIV_INS_RESET, 0, 0};
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
   int sw;
 
-  memset(apdu.raw, 0, sizeof(apdu));
   /* note: the reset function is only available when both pins are blocked. */
-  apdu.st.ins = YKPIV_INS_RESET;
-  if(ykpiv_send_data(state, apdu.raw, data, &recv_len, &sw) != YKPIV_OK) {
+  if(ykpiv_transfer_data(state, templ, NULL, 0, data, &recv_len, &sw) != YKPIV_OK) {
     return false;
   } else if(sw == 0x9000) {
     return true;
@@ -954,6 +952,7 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_reset:
         if(reset(state) == false) {
+	  fprintf(stderr, "Reset failed, are pincodes blocked?\n");
           ret = EXIT_FAILURE;
         } else {
           printf("Successfully reset the applet.\n");
