@@ -49,7 +49,7 @@ static void dump_hex(const unsigned char *buf, unsigned int len) {
   }
 }
 
-static int set_length(unsigned char *buffer, int length) {
+static int set_length(unsigned char *buffer, size_t length) {
   if(length < 0x80) {
     *buffer++ = length;
     return 1;
@@ -477,7 +477,7 @@ ykpiv_rc ykpiv_sign_data(ykpiv_state *state,
   unsigned char sign_in[256];
   size_t pad_len = 0;
   int sw;
-  int bytes;
+  size_t bytes;
   size_t len = 0;
   ykpiv_rc res;
 
