@@ -55,6 +55,7 @@ extern "C"
 		YKPIV_PARSE_ERROR = -9,
 		YKPIV_WRONG_PIN = -10,
 		YKPIV_INVALID_OBJECT = -11,
+		YKPIV_ALGORITHM_ERROR = -12,
 	} ykpiv_rc;
 
 	const char *ykpiv_strerror(ykpiv_rc err);

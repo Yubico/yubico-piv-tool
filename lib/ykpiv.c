@@ -461,7 +461,7 @@ ykpiv_rc ykpiv_parse_key(ykpiv_state *state,
 }
 
 ykpiv_rc ykpiv_sign_data(ykpiv_state *state,
-    const unsigned char *sign_in, int in_len,
+    const unsigned char *raw_in, int in_len,
     unsigned char *sign_out, size_t *out_len,
     unsigned char algorithm, unsigned char key) {
 
@@ -470,13 +470,34 @@ ykpiv_rc ykpiv_sign_data(ykpiv_state *state,
   unsigned char data[1024];
   unsigned char templ[] = {0, YKPIV_INS_AUTHENTICATE, algorithm, key};
   unsigned long recv_len = sizeof(data);
+  unsigned char sign_in[256];
+  size_t pad_len = 0;
   int sw;
   int bytes;
   size_t len = 0;
   ykpiv_rc res;
 
-  if(in_len > 1000) {
-    return YKPIV_SIZE_ERROR;
+  switch(algorithm) {
+    case YKPIV_ALGO_RSA1024:
+      pad_len = 128;
+    case YKPIV_ALGO_RSA2048:
+      if(pad_len == 0) {
+	pad_len = 256;
+      }
+      if(in_len > pad_len) {
+	return YKPIV_SIZE_ERROR;
+      }
+      RSA_padding_add_PKCS1_type_1(sign_in, pad_len, raw_in, in_len);
+      in_len = pad_len;
+      break;
+    case YKPIV_ALGO_ECCP256:
+      if(in_len > 32) {
+	return YKPIV_SIZE_ERROR;
+      }
+      memcpy(sign_in, raw_in, in_len);
+      break;
+    default:
+      return YKPIV_ALGORITHM_ERROR;
   }
 
   if(in_len < 0x80) {

@@ -523,7 +523,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
   unsigned int digest_len = DIGEST_LEN;
   unsigned char algorithm;
   int key = 0;
-  unsigned char signinput[256];
+  unsigned char *signinput;
   int len = 0;
 
   sscanf(slot, "%x", &key);
@@ -582,18 +582,15 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
 
   switch(algorithm) {
     case YKPIV_ALGO_RSA1024:
-      len = 128;
     case YKPIV_ALGO_RSA2048:
-      if(len == 0) {
-        len = 256;
-      }
-      RSA_padding_add_PKCS1_type_1(signinput, len, digest, sizeof(digest));
+      signinput = digest;
+      len = sizeof(digest);
       req->sig_alg->algorithm = OBJ_nid2obj(NID_sha256WithRSAEncryption);
       break;
     case YKPIV_ALGO_ECCP256:
-      req->sig_alg->algorithm = OBJ_nid2obj(NID_ecdsa_with_SHA256);
+      signinput = digest + sizeof(sha256oid);
       len = DIGEST_LEN;
-      memcpy(signinput, digest + sizeof(sha256oid), DIGEST_LEN);
+      req->sig_alg->algorithm = OBJ_nid2obj(NID_ecdsa_with_SHA256);
       break;
     default:
       fprintf(stderr, "Unsupported algorithm %x.\n", algorithm);
@@ -648,7 +645,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   unsigned int digest_len = DIGEST_LEN;
   unsigned char algorithm;
   int key = 0;
-  unsigned char signinput[256];
+  unsigned char *signinput;
   int len = 0;
 
   sscanf(slot, "%x", &key);
@@ -718,18 +715,15 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   }
   switch(algorithm) {
     case YKPIV_ALGO_RSA1024:
-      len = 128;
     case YKPIV_ALGO_RSA2048:
-      if(len == 0) {
-        len = 256;
-      }
-      RSA_padding_add_PKCS1_type_1(signinput, len, digest, sizeof(digest));
+      signinput = digest;
+      len = sizeof(digest);
       x509->sig_alg->algorithm = OBJ_nid2obj(NID_sha256WithRSAEncryption);
       break;
     case YKPIV_ALGO_ECCP256:
-      x509->sig_alg->algorithm = OBJ_nid2obj(NID_ecdsa_with_SHA256);
+      signinput = digest + sizeof(sha256oid);
       len = DIGEST_LEN;
-      memcpy(signinput, digest + sizeof(sha256oid), DIGEST_LEN);
+      x509->sig_alg->algorithm = OBJ_nid2obj(NID_ecdsa_with_SHA256);
       break;
     default:
       fprintf(stderr, "Unsupported algorithm %x.\n", algorithm);
