@@ -61,7 +61,7 @@ static int set_length(unsigned char *buffer, int length) {
   }
 }
 
-static int get_length(unsigned char *buffer, size_t *len) {
+static int get_length(const unsigned char *buffer, size_t *len) {
   if(buffer[0] < 0x81) {
     *len = buffer[0];
     return 1;

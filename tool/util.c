@@ -150,7 +150,7 @@ void dump_hex(const unsigned char *buf, unsigned int len) {
   }
 }
 
-int get_length(unsigned char *buffer, int *len) {
+int get_length(const unsigned char *buffer, int *len) {
   if(buffer[0] < 0x81) {
     *len = buffer[0];
     return 1;
