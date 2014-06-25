@@ -676,6 +676,10 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     fprintf(stderr, "Failed to allocate certificate structure.\n");
     goto selfsign_out;
   }
+  if(!X509_set_version(x509, 2)) {
+    fprintf(stderr, "Failed to set certificate version.\n");
+    goto selfsign_out;
+  }
   if(!X509_set_pubkey(x509, public_key)) {
     fprintf(stderr, "Failed to set the certificate public key.\n");
     goto selfsign_out;
