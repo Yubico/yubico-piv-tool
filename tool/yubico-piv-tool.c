@@ -787,7 +787,8 @@ static bool verify_pin(ykpiv_state *state, const char *pin) {
  * since they're very similar in what data they use. */
 static bool change_pin(ykpiv_state *state, enum enum_action action, const char *pin,
     const char *new_pin) {
-  APDU apdu;
+  unsigned char templ[] = {0, YKPIV_INS_CHANGE_REFERENCE, 0, 0x81};
+  unsigned char indata[0x10];
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
   int sw;
@@ -799,20 +800,21 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
     return false;
   }
 
-  memset(apdu.raw, 0, sizeof(apdu.raw));
-  apdu.st.ins = action == action_arg_unblockMINUS_pin ?
-    YKPIV_INS_RESET_RETRY : YKPIV_INS_CHANGE_REFERENCE;
-  apdu.st.p2 = action == action_arg_changeMINUS_puk ? 0x81 : 0x80;
-  apdu.st.lc = 0x10;
-  memcpy(apdu.st.data, pin, pin_len);
+  if(action == action_arg_unblockMINUS_pin) {
+    templ[1] = YKPIV_INS_RESET_RETRY;
+  }
+  else if(action == action_arg_changeMINUS_pin) {
+    templ[3] = 0x80;
+  }
+  memcpy(indata, pin, pin_len);
   if(pin_len < 8) {
-    memset(apdu.st.data + pin_len, 0xff, 8 - pin_len);
+    memset(indata + pin_len, 0xff, 8 - pin_len);
   }
-  memcpy(apdu.st.data + 8, new_pin, new_len);
+  memcpy(indata + 8, new_pin, new_len);
   if(new_len < 8) {
-    memset(apdu.st.data + 8 + new_len, 0xff, 16 - new_len);
+    memset(indata + 8 + new_len, 0xff, 16 - new_len);
   }
-  if(ykpiv_send_data(state, apdu.raw, data, &recv_len, &sw) != YKPIV_OK) {
+  if(ykpiv_transfer_data(state, templ, indata, sizeof(indata), data, &recv_len, &sw) != YKPIV_OK) {
     return false;
   } else if(sw != 0x9000) {
     if((sw >> 8) == 0x63) {
