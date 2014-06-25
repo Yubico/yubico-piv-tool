@@ -35,20 +35,6 @@
 #define INPUT 1
 #define OUTPUT 2
 
-union u_APDU {
-  struct {
-    unsigned char cla;
-    unsigned char ins;
-    unsigned char p1;
-    unsigned char p2;
-    unsigned char lc;
-    unsigned char data[0xff];
-  } st;
-  unsigned char raw[0xff + 5];
-};
-
-typedef union u_APDU APDU;
-
 void dump_hex(unsigned const char*, unsigned int);
 int set_length(unsigned char*, int);
 int get_length(const unsigned char*, int*);
