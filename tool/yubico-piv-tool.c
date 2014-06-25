@@ -241,7 +241,7 @@ static bool reset(ykpiv_state *state) {
 }
 
 static bool set_pin_retries(ykpiv_state *state, int pin_retries, int puk_retries, int verbose) {
-  APDU apdu;
+  unsigned char templ[] = {0, YKPIV_INS_SET_PIN_RETRIES, pin_retries, puk_retries};
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
   int sw;
@@ -255,11 +255,7 @@ static bool set_pin_retries(ykpiv_state *state, int pin_retries, int puk_retries
     fprintf(stderr, "Setting pin retries to %d and puk retries to %d.\n", pin_retries, puk_retries);
   }
 
-  memset(apdu.raw, 0, sizeof(apdu));
-  apdu.st.ins = YKPIV_INS_SET_PIN_RETRIES;
-  apdu.st.p1 = pin_retries;
-  apdu.st.p2 = puk_retries;
-  if(ykpiv_send_data(state, apdu.raw, data, &recv_len, &sw) != YKPIV_OK) {
+  if(ykpiv_transfer_data(state, templ, NULL, 0, data, &recv_len, &sw) != YKPIV_OK) {
     return false;
   } else if(sw == 0x9000) {
     return true;
