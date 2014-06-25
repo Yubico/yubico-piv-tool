@@ -213,7 +213,7 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
   ykpiv_rc res;
   *out_len = 0;
 
-  while(in_ptr < in_data + in_len) {
+  do {
     size_t this_size = 0xff;
     unsigned long recv_len = 0xff;
     unsigned char data[0xff];
@@ -247,7 +247,7 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
     out_data += recv_len - 2;
     *out_len += recv_len - 2;
     in_ptr += this_size;
-  }
+  } while(in_ptr < in_data + in_len);
   while(*sw >> 8 == 0x61) {
     APDU apdu;
     unsigned long recv_len = 0xff;
