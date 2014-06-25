@@ -472,14 +472,14 @@ import_cert_out:
 }
 
 static bool set_chuid(ykpiv_state *state, int verbose) {
-  APDU apdu;
+  unsigned char templ[] = {0, YKPIV_INS_PUT_DATA, 0x3f, 0xff};
   unsigned char data[0xff];
-  unsigned char *dataptr = apdu.st.data;
+  unsigned char chuid[sizeof(chuid_tmpl)];
+  unsigned char *dataptr = chuid;
   unsigned long recv_len = sizeof(data);
   int sw;
 
-  memset(apdu.raw, 0, sizeof(apdu));
-  memcpy(apdu.st.data, chuid_tmpl, sizeof(chuid_tmpl));
+  memcpy(chuid, chuid_tmpl, sizeof(chuid));
   dataptr += CHUID_GUID_OFFS;
   if(RAND_pseudo_bytes(dataptr, 0x10) == -1) {
     fprintf(stderr, "error: no randomness.\n");
@@ -490,11 +490,7 @@ static bool set_chuid(ykpiv_state *state, int verbose) {
     dump_hex(dataptr, 0x10);
     fprintf(stderr, "\n");
   }
-  apdu.st.ins = YKPIV_INS_PUT_DATA;
-  apdu.st.p1 = 0x3f;
-  apdu.st.p2 = 0xff;
-  apdu.st.lc = sizeof(chuid_tmpl);
-  if(ykpiv_send_data(state, apdu.raw, data, &recv_len, &sw) != YKPIV_OK) {
+  if(ykpiv_transfer_data(state, templ, chuid, sizeof(chuid), data, &recv_len, &sw) != YKPIV_OK) {
     fprintf(stderr, "Failed communicating with device.\n");
     return false;
   } else if(sw != 0x9000) {
