@@ -464,7 +464,7 @@ ykpiv_rc ykpiv_parse_key(ykpiv_state *state,
 }
 
 ykpiv_rc ykpiv_sign_data(ykpiv_state *state,
-    const unsigned char *raw_in, int in_len,
+    const unsigned char *raw_in, size_t in_len,
     unsigned char *sign_out, size_t *out_len,
     unsigned char algorithm, unsigned char key) {
 

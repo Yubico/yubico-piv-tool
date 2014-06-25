@@ -514,7 +514,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
   unsigned char algorithm;
   int key = 0;
   unsigned char *signinput;
-  int len = 0;
+  size_t len = 0;
 
   sscanf(slot, "%x", &key);
 
@@ -636,7 +636,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   unsigned char algorithm;
   int key = 0;
   unsigned char *signinput;
-  int len = 0;
+  size_t len = 0;
 
   sscanf(slot, "%x", &key);
 
