@@ -836,7 +836,6 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
 }
 
 static bool delete_certificate(ykpiv_state *state, enum enum_slot slot) {
-  APDU apdu;
   unsigned char objdata[7];
   unsigned char *ptr = objdata;
   unsigned char data[0xff];
@@ -853,11 +852,6 @@ static bool delete_certificate(ykpiv_state *state, enum enum_slot slot) {
   *ptr++ = object & 0xff;
   *ptr++ = 0x53;
   *ptr++ = 0x00; /* length 0 means we'll delete the object */
-
-  memset(apdu.raw, 0, sizeof(apdu.raw));
-  apdu.st.ins = YKPIV_INS_PUT_DATA;
-  apdu.st.p1 = 0x3f;
-  apdu.st.p2 = 0xff;
 
   if(ykpiv_transfer_data(state, templ, objdata, 7, data, &recv_len, &sw)
       != YKPIV_OK) {
