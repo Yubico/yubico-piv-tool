@@ -34,6 +34,7 @@
 
 #include <openssl/des.h>
 #include <openssl/rand.h>
+#include <openssl/rsa.h>
 
 #include "internal.h"
 #include "ykpiv.h"
