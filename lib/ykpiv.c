@@ -682,6 +682,7 @@ ykpiv_rc ykpiv_save_object(ykpiv_state *state, int object_id,
   unsigned char templ[] = {0, YKPIV_INS_PUT_DATA, 0x3f, 0xff};
   int sw;
   ykpiv_rc res;
+  unsigned long outlen = 0;
 
   if(len > sizeof(data) - 9) {
     return YKPIV_SIZE_ERROR;
@@ -696,7 +697,7 @@ ykpiv_rc ykpiv_save_object(ykpiv_state *state, int object_id,
   memcpy(dataptr, indata, len);
   dataptr += len;
 
-  if((res = ykpiv_transfer_data(state, templ, data, dataptr - data, NULL, 0,
+  if((res = ykpiv_transfer_data(state, templ, data, dataptr - data, NULL, &outlen,
 	  &sw)) != YKPIV_OK) {
     return res;
   }

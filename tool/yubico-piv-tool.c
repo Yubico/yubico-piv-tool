@@ -807,32 +807,15 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
 }
 
 static bool delete_certificate(ykpiv_state *state, enum enum_slot slot) {
-  unsigned char objdata[7];
-  unsigned char *ptr = objdata;
-  unsigned char data[0xff];
-  unsigned long recv_len = sizeof(data);
-  unsigned char templ[] = {0, YKPIV_INS_PUT_DATA, 0x3f, 0xff};
-  int sw;
-  bool ret = false;
   int object = get_object_id(slot);
 
-  *ptr++ = 0x5c;
-  *ptr++ = 0x03;
-  *ptr++ = (object >> 16) & 0xff;
-  *ptr++ = (object >> 8) & 0xff;
-  *ptr++ = object & 0xff;
-  *ptr++ = 0x53;
-  *ptr++ = 0x00; /* length 0 means we'll delete the object */
-
-  if(ykpiv_transfer_data(state, templ, objdata, 7, data, &recv_len, &sw)
-      != YKPIV_OK) {
+  if(ykpiv_save_object(state, object, NULL, 0) != YKPIV_OK) {
+    fprintf(stderr, "Failed deleting object.\n");
     return false;
-  } else if(sw != 0x9000) {
-    fprintf(stderr, "Failed deleting certificate to device with code %x.\n", sw);
   } else {
-    ret = true;
+    fprintf(stdout, "Certificate deleted.\n");
+    return true;
   }
-  return ret;
 }
 
 int main(int argc, char *argv[]) {
