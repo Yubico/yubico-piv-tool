@@ -39,7 +39,7 @@
 #include "internal.h"
 #include "ykpiv.h"
 
-static ykpiv_rc send_data(ykpiv_state *state, unsigned char *apdu,
+static ykpiv_rc send_data(ykpiv_state *state, APDU *apdu,
     unsigned char *data, unsigned long *recv_len, int *sw);
 
 static void dump_hex(const unsigned char *buf, unsigned int len) {
@@ -197,7 +197,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
     apdu.st.lc = sizeof(aid);
     memcpy(apdu.st.data, aid, sizeof(aid));
 
-    if((res = send_data(state, apdu.raw, data, &recv_len, &sw) != YKPIV_OK)) {
+    if((res = send_data(state, &apdu, data, &recv_len, &sw) != YKPIV_OK)) {
       return res;
     } else if(sw == 0x9000) {
       return YKPIV_OK;
@@ -235,7 +235,7 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
     }
     apdu.st.lc = this_size;
     memcpy(apdu.st.data, in_ptr, this_size);
-    res = send_data(state, apdu.raw, data, &recv_len, sw);
+    res = send_data(state, &apdu, data, &recv_len, sw);
     if(res != YKPIV_OK) {
       return res;
     } else if(*sw != 0x9000 && *sw >> 8 != 0x61) {
@@ -263,7 +263,7 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
 
     memset(apdu.raw, 0, sizeof(apdu.raw));
     apdu.st.ins = 0xc0;
-    res = send_data(state, apdu.raw, data, &recv_len, sw);
+    res = send_data(state, &apdu, data, &recv_len, sw);
     if(res != YKPIV_OK) {
       return res;
     } else if(*sw != 0x9000 && *sw >> 8 != 0x61) {
@@ -279,17 +279,17 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
   return YKPIV_OK;
 }
 
-static ykpiv_rc send_data(ykpiv_state *state, unsigned char *apdu,
+static ykpiv_rc send_data(ykpiv_state *state, APDU *apdu,
     unsigned char *data, unsigned long *recv_len, int *sw) {
   long rc;
-  unsigned int send_len = (unsigned int)(apdu[4] + 5); /* magic numbers.. */
+  unsigned int send_len = (unsigned int)apdu->st.lc + 5;
 
   if(state->verbose > 1) {
     fprintf(stderr, "> ");
-    dump_hex(apdu, send_len);
+    dump_hex(apdu->raw, send_len);
     fprintf(stderr, "\n");
   }
-  rc = SCardTransmit(state->card, SCARD_PCI_T1, apdu, send_len, NULL, data, recv_len);
+  rc = SCardTransmit(state->card, SCARD_PCI_T1, apdu->raw, send_len, NULL, data, recv_len);
   if(rc != SCARD_S_SUCCESS) {
     if(state->verbose) {
       fprintf (stderr, "error: SCardTransmit failed, rc=%08lx\n", rc);
@@ -341,7 +341,7 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
     apdu.st.data[0] = 0x7c;
     apdu.st.data[1] = 0x02;
     apdu.st.data[2] = 0x80;
-    if((res = send_data(state, apdu.raw, data, &recv_len, &sw)) != YKPIV_OK) {
+    if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
       return res;
     } else if(sw != 0x9000) {
       return YKPIV_AUTHENTICATION_ERROR;
@@ -377,7 +377,7 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
     memcpy(challenge, dataptr, 8);
     dataptr += 8;
     apdu.st.lc = dataptr - apdu.st.data;
-    if((res = send_data(state, apdu.raw, data, &recv_len, &sw)) != YKPIV_OK) {
+    if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
       return res;
     } else if(sw != 0x9000) {
       return YKPIV_AUTHENTICATION_ERROR;
@@ -426,7 +426,7 @@ ykpiv_rc ykpiv_set_mgmkey(ykpiv_state *state, const unsigned char *new_key) {
   apdu.st.data[1] = YKPIV_KEY_CARDMGM;
   apdu.st.data[2] = DES_KEY_SZ * 3;
   memcpy(apdu.st.data + 3, new_key, DES_KEY_SZ * 3);
-  if((res = send_data(state, apdu.raw, data, &recv_len, &sw)) != YKPIV_OK) {
+  if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
     return res;
   } else if(sw == 0x9000) {
     return YKPIV_OK;
@@ -571,7 +571,7 @@ ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len) {
 
   memset(apdu.raw, 0, sizeof(apdu));
   apdu.st.ins = YKPIV_INS_GET_VERSION;
-  if((res = send_data(state, apdu.raw, data, &recv_len, &sw)) != YKPIV_OK) {
+  if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
     return res;
   } else if(sw == 0x9000) {
     int result = snprintf(version, len, "%d.%d.%d", data[0], data[1], data[2]);
@@ -605,7 +605,7 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
   if(len < 8) {
     memset(apdu.st.data + len, 0xff, 8 - len);
   }
-  if((res = send_data(state, apdu.raw, data, &recv_len, &sw)) != YKPIV_OK) {
+  if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
     return res;
   } else if(sw == 0x9000) {
     return YKPIV_OK;
