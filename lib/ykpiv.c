@@ -80,6 +80,19 @@ static int get_length(const unsigned char *buffer, size_t *len) {
   return 0;
 }
 
+static unsigned char *set_object(int object_id, unsigned char *buffer) {
+  if(object_id == YKPIV_OBJ_DISCOVERY) {
+    *buffer++ = 1;
+    *buffer++ = YKPIV_OBJ_DISCOVERY;
+  } else if(object_id > 0xffff && object_id <= 0xffffff) {
+    *buffer++ = 3;
+    *buffer++ = (object_id >> 16) & 0xff;
+    *buffer++ = (object_id >> 8) & 0xff;
+    *buffer++ = object_id & 0xff;
+  }
+  return buffer;
+}
+
 ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose) {
   ykpiv_state *s = malloc(sizeof(ykpiv_state));
   if(s == NULL) {
@@ -633,25 +646,17 @@ ykpiv_rc ykpiv_fetch_object(ykpiv_state *state, int object_id,
     unsigned char *data, unsigned long *len) {
   int sw;
   unsigned char indata[5];
+  unsigned char *inptr = indata;
   unsigned char templ[] = {0, YKPIV_INS_GET_DATA, 0x3f, 0xff};
-  long inlen = 5;
   ykpiv_rc res;
 
-  indata[0] = 0x5c;
-  if(object_id == YKPIV_OBJ_DISCOVERY) {
-    indata[1] = 1;
-    indata[2] = YKPIV_OBJ_DISCOVERY;
-    inlen = 3;
-  } else if(object_id > 0xffff && object_id <= 0xffffff) {
-    indata[1] = 3;
-    indata[2] = (object_id >> 16) & 0xff;
-    indata[3] = (object_id >> 8) & 0xff;
-    indata[4] = object_id & 0xff;
-  } else {
+  *inptr++ = 0x5c;
+  inptr = set_object(object_id, inptr);
+  if(inptr == NULL) {
     return YKPIV_INVALID_OBJECT;
   }
 
-  if((res = ykpiv_transfer_data(state, templ, indata, inlen, data, len, &sw))
+  if((res = ykpiv_transfer_data(state, templ, indata, inptr - indata, data, len, &sw))
       != YKPIV_OK) {
     return res;
   }
@@ -662,5 +667,43 @@ ykpiv_rc ykpiv_fetch_object(ykpiv_state *state, int object_id,
     memmove(data, data + 1 + offs, outlen);
     *len = outlen;
   }
-  return YKPIV_OK;
+  if(sw == 0x9000) {
+    return YKPIV_OK;
+  } else {
+    return YKPIV_GENERIC_ERROR;
+  }
+}
+
+ykpiv_rc ykpiv_save_object(ykpiv_state *state, int object_id,
+    unsigned char *indata, size_t len) {
+
+  unsigned char data[2048];
+  unsigned char *dataptr = data;
+  unsigned char templ[] = {0, YKPIV_INS_PUT_DATA, 0x3f, 0xff};
+  int sw;
+  ykpiv_rc res;
+
+  if(len > sizeof(data) - 9) {
+    return YKPIV_SIZE_ERROR;
+  }
+  *dataptr++ = 0x5c;
+  dataptr = set_object(object_id, dataptr);
+  if(dataptr == NULL) {
+    return YKPIV_INVALID_OBJECT;
+  }
+  *dataptr++ = 0x53;
+  dataptr += set_length(dataptr, len);
+  memcpy(dataptr, indata, len);
+  dataptr += len;
+
+  if((res = ykpiv_transfer_data(state, templ, data, dataptr - data, NULL, 0,
+	  &sw)) != YKPIV_OK) {
+    return res;
+  }
+
+  if(sw == 0x9000) {
+    return YKPIV_OK;
+  } else {
+    return YKPIV_GENERIC_ERROR;
+  }
 }

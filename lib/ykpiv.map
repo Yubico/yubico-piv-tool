@@ -42,6 +42,7 @@ global:
 	ykpiv_get_version;
 	ykpiv_verify;
 	ykpiv_fetch_object;
+  ykpiv_save_object;
 
 local:
 	*;

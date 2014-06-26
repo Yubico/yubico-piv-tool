@@ -377,7 +377,6 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
   X509 *cert = NULL;
   PKCS12 *p12 = NULL;
   EVP_PKEY *private_key = NULL;
-  int object = get_object_id(slot);
 
   input_file = open_file(input_file_name, INPUT);
   if(!input_file) {
@@ -409,31 +408,14 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
   {
     unsigned char certdata[2100];
     unsigned char *certptr = certdata;
-    unsigned char data[0xff];
-    unsigned char templ[] = {0, YKPIV_INS_PUT_DATA, 0x3f, 0xff};
-    unsigned long recv_len = sizeof(data);
+    int object = get_object_id(slot);
     int cert_len = i2d_X509(cert, NULL);
-    int bytes;
-    int sw;
+    ykpiv_rc res;
 
     if(cert_len > 2048) {
       fprintf(stderr, "Certificate to large, maximum 2048 bytes (was %d bytes).\n", cert_len);
       goto import_cert_out;
     }
-    *certptr++ = 0x5c;
-    *certptr++ = 0x03;
-    *certptr++ = (object >> 16) & 0xff;
-    *certptr++ = (object >> 8) & 0xff;
-    *certptr++ = object & 0xff;
-    *certptr++ = 0x53;
-    if(cert_len < 0x80) {
-      bytes = 1;
-    } else if(cert_len < 0xff) {
-      bytes = 2;
-    } else {
-      bytes = 3;
-    }
-    certptr += set_length(certptr, cert_len + bytes + 6);
     *certptr++ = 0x70;
     certptr += set_length(certptr, cert_len);
     /* i2d_X509 increments certptr here.. */
@@ -444,11 +426,8 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
     *certptr++ = 0xfe; /* LRC */
     *certptr++ = 0;
 
-    if(ykpiv_transfer_data(state, templ, certdata, certptr - certdata, data,
-          &recv_len, &sw) != YKPIV_OK) {
-      fprintf(stderr, "Failed commands with device.\n");
-    } else if(sw != 0x9000) {
-      fprintf(stderr, "Failed loading certificate to device with code %x.\n", sw);
+    if((res = ykpiv_save_object(state, object, certdata, (size_t)(certptr - certdata))) != YKPIV_OK) {
+      fprintf(stderr, "Failed commands with device: %s\n", ykpiv_strerror(res));
     } else {
       ret = true;
     }

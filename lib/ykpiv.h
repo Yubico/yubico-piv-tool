@@ -79,6 +79,8 @@ extern "C"
 	ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries);
 	ykpiv_rc ykpiv_fetch_object(ykpiv_state *state, int object_id,
 			unsigned char *data, unsigned long *len);
+  ykpiv_rc ykpiv_save_object(ykpiv_state *state, int object_id,
+      unsigned char *indata, size_t len);
 
 #define YKPIV_ALGO_3DES 0x03
 #define YKPIV_ALGO_RSA1024 0x06
