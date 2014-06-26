@@ -24,33 +24,30 @@
 # non-source form of such a combination shall include the source code
 # for the parts of OpenSSL used as well as that of the covered work.
 
-SUBDIRS = lib tool
+SUBDIRS = . tests
 
-ACLOCAL_AMFLAGS = -I m4
+AM_CFLAGS = $(WERROR_CFLAGS) $(WARN_CFLAGS)
+AM_CPPFLAGS = $(OPENSSL_CFLAGS) $(PCSC_CFLAGS)
 
-EXTRA_DIST = windows.mk mac.mk tests/basic.sh
+lib_LTLIBRARIES = libykpiv.la
 
-# Maintainer rules.
+libykpiv_la_SOURCES = ykpiv.c version.c ykpiv.pc.in ykpiv.map internal.h
+libykpiv_la_SOURCES += error.c
+libykpiv_la_includedir = $(includedir)/ykpiv
+libykpiv_la_include_HEADERS = ykpiv.h ykpiv-version.h
+EXTRA_libykpiv_la_DEPENDENCIES = ykpiv.map
 
-ChangeLog:
-	cd $(srcdir) && git2cl > ChangeLog
+libykpiv_la_LIBADD = $(OPENSSL_LIBS) $(PCSC_LIBS)
+libykpiv_la_LIBADD += $(LTLIBWINSCARD) $(PCSC_MACOSX_LIBS)
 
-release:
-	@if test -z "$(KEYID)"; then \
-		echo "Try this instead:"; \
-		echo "  make release KEYID=[PGPKEYID]"; \
-		echo "For example:"; \
-		echo "  make release KEYID=2117364A"; \
-		exit 1; \
-	fi
-	head -3 $(srcdir)/NEWS | \
-		grep -q "Version $(VERSION) .released `date -I`" || \
-		(echo 'error: Update date/version in $(srcdir)/NEWS.'; exit 1)
-	rm -f $(srcdir)/ChangeLog
-	make ChangeLog distcheck
-	gpg --detach-sign --default-key $(KEYID) $(PACKAGE)-$(VERSION).tar.gz
-	gpg --verify $(PACKAGE)-$(VERSION).tar.gz.sig
-	git tag -sm "$(PACKAGE)-$(VERSION)" $(PACKAGE)-$(VERSION)
-	git push
-	git push --tags
-	$(YUBICO_GITHUB_REPO)/publish $(PACKAGE) $(VERSION) $(PACKAGE)-$(VERSION).tar.gz*
+libykpiv_la_LDFLAGS = -no-undefined
+libykpiv_la_LDFLAGS += -version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE)
+
+if HAVE_LD_VERSION_SCRIPT
+libykpiv_la_LDFLAGS += -Wl,--version-script=$(srcdir)/ykpiv.map
+else
+libykpiv_la_LDFLAGS += -export-symbols-regex '^ykpiv_.*'
+endif
+
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = ykpiv.pc

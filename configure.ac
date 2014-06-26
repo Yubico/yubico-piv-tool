@@ -24,20 +24,32 @@
 # non-source form of such a combination shall include the source code
 # for the parts of OpenSSL used as well as that of the covered work.
 
-AC_INIT([yubico-piv-tool], [0.0.4])
+AC_INIT([yubico-piv-tool], [0.1.0])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
+
+# Library code modified:                              REVISION++
+# Interfaces changed/added/removed:   CURRENT++       REVISION=0
+# Interfaces added:                             AGE++
+# Interfaces removed:                           AGE=0
+AC_SUBST([LT_CURRENT], 0)
+AC_SUBST([LT_REVISION], 0)
+AC_SUBST([LT_AGE], 0)
 
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AM_SILENT_RULES([yes])
 AC_PROG_CC
+m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 
 AC_LIBTOOL_WIN32_DLL
 AC_PROG_LIBTOOL
 AM_MISSING_PROG(HELP2MAN, help2man, $missing_dir)
+AM_MISSING_PROG(GENGETOPT, gengetopt, $missing_dir)
 PKG_PROG_PKG_CONFIG
 
 PKG_CHECK_MODULES(OPENSSL, openssl)
+
+gl_LD_VERSION_SCRIPT
 
 AC_ARG_WITH([backend],
   [AS_HELP_STRING([--with-backend=ARG],
@@ -124,6 +136,7 @@ if test "$gl_gcc_warnings" = yes; then
   nw="$nw -Wtraditional-conversion" # Too many warnings for now
   nw="$nw -Wconversion"             # Too many warnings for now
   nw="$nw -Wsuggest-attribute=pure" # Is it worth using attributes?
+  nw="$nw -Wsuggest-attribute=const" # Is it worth using attributes?
 
   gl_MANYWARN_ALL_GCC([ws])
   gl_MANYWARN_COMPLEMENT(ws, [$ws], [$nw])
@@ -136,7 +149,12 @@ fi
 
 AC_CONFIG_FILES([
   Makefile
-  tests/Makefile
+  lib/Makefile
+  lib/tests/Makefile
+  tool/Makefile
+  tool/tests/Makefile
+  lib/ykpiv-version.h
+  lib/ykpiv.pc
 ])
 AC_OUTPUT
 

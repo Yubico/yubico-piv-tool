@@ -1,3 +1,5 @@
+#!/bin/sh
+
 # Copyright (c) 2014 Yubico AB
 # All rights reserved.
 # 
@@ -24,33 +26,18 @@
 # non-source form of such a combination shall include the source code
 # for the parts of OpenSSL used as well as that of the covered work.
 
-SUBDIRS = lib tool
+# This is a _very_ simple test shell script, really only verifying
+#  that we managed to build a binary and it can execute.
 
-ACLOCAL_AMFLAGS = -I m4
+set -e
 
-EXTRA_DIST = windows.mk mac.mk tests/basic.sh
+BIN="../yubico-piv-tool${EXEEXT}"
 
-# Maintainer rules.
+HELP_OUTPUT=$($BIN --help)
 
-ChangeLog:
-	cd $(srcdir) && git2cl > ChangeLog
-
-release:
-	@if test -z "$(KEYID)"; then \
-		echo "Try this instead:"; \
-		echo "  make release KEYID=[PGPKEYID]"; \
-		echo "For example:"; \
-		echo "  make release KEYID=2117364A"; \
-		exit 1; \
-	fi
-	head -3 $(srcdir)/NEWS | \
-		grep -q "Version $(VERSION) .released `date -I`" || \
-		(echo 'error: Update date/version in $(srcdir)/NEWS.'; exit 1)
-	rm -f $(srcdir)/ChangeLog
-	make ChangeLog distcheck
-	gpg --detach-sign --default-key $(KEYID) $(PACKAGE)-$(VERSION).tar.gz
-	gpg --verify $(PACKAGE)-$(VERSION).tar.gz.sig
-	git tag -sm "$(PACKAGE)-$(VERSION)" $(PACKAGE)-$(VERSION)
-	git push
-	git push --tags
-	$(YUBICO_GITHUB_REPO)/publish $(PACKAGE) $(VERSION) $(PACKAGE)-$(VERSION).tar.gz*
+expected="yubico-piv-tool $VERSION"
+VERSION_OUTPUT=$($BIN --version | sed 's/\r//')
+if [ "x$VERSION_OUTPUT" != "x$expected" ]; then
+  echo "Version ($VERSION_OUTPUT) not matching expected output $expected."
+  exit 1
+fi

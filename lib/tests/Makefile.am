@@ -1,5 +1,3 @@
-#!/bin/sh
-
 # Copyright (c) 2014 Yubico AB
 # All rights reserved.
 # 
@@ -26,16 +24,11 @@
 # non-source form of such a combination shall include the source code
 # for the parts of OpenSSL used as well as that of the covered work.
 
-# This is a _very_ simple test shell script, really only verifying
-#  that we managed to build a binary and it can execute.
+AM_CFLAGS = $(WARN_CFLAGS)
+AM_CPPFLAGS = -I$(top_srcdir)/lib -I$(top_builddir)/lib
 
-set -e
+AM_LDFLAGS = -no-install
+LDADD = ../libykpiv.la
 
-HELP_OUTPUT=$(../yubico-piv-tool$EXEEXT --help)
-
-expected="yubico-piv-tool $VERSION"
-VERSION_OUTPUT=$(../yubico-piv-tool$EXEEXT --version | sed 's/\r//')
-if [ "x$VERSION_OUTPUT" != "x$expected" ]; then
-  echo "Version ($VERSION_OUTPUT) not matching expected output $expected."
-  exit 1
-fi
+check_PROGRAMS = basic parse_key
+TESTS = $(check_PROGRAMS)
