@@ -28,7 +28,7 @@ SUBDIRS = lib tool
 
 ACLOCAL_AMFLAGS = -I m4
 
-EXTRA_DIST = windows.mk mac.mk tests/basic.sh
+EXTRA_DIST = windows.mk mac.mk tool/tests/basic.sh
 
 # Maintainer rules.
 
