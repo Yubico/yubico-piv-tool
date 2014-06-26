@@ -81,6 +81,7 @@ static int get_length(const unsigned char *buffer, size_t *len) {
 }
 
 static unsigned char *set_object(int object_id, unsigned char *buffer) {
+  *buffer++ = 0x5c;
   if(object_id == YKPIV_OBJ_DISCOVERY) {
     *buffer++ = 1;
     *buffer++ = YKPIV_OBJ_DISCOVERY;
@@ -650,7 +651,6 @@ ykpiv_rc ykpiv_fetch_object(ykpiv_state *state, int object_id,
   unsigned char templ[] = {0, YKPIV_INS_GET_DATA, 0x3f, 0xff};
   ykpiv_rc res;
 
-  *inptr++ = 0x5c;
   inptr = set_object(object_id, inptr);
   if(inptr == NULL) {
     return YKPIV_INVALID_OBJECT;
@@ -687,7 +687,6 @@ ykpiv_rc ykpiv_save_object(ykpiv_state *state, int object_id,
   if(len > sizeof(data) - 9) {
     return YKPIV_SIZE_ERROR;
   }
-  *dataptr++ = 0x5c;
   dataptr = set_object(object_id, dataptr);
   if(dataptr == NULL) {
     return YKPIV_INVALID_OBJECT;
