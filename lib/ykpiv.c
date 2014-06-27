@@ -448,37 +448,31 @@ ykpiv_rc ykpiv_set_mgmkey(ykpiv_state *state, const unsigned char *new_key) {
   return YKPIV_GENERIC_ERROR;
 }
 
-/* FIXME: this function should be removed and replaced by
- * a real hex encoder.. */
-ykpiv_rc ykpiv_parse_key(ykpiv_state *state,
-    const char *key_in, unsigned char *key_out) {
-  unsigned int i;
-  char key_part[4] = {0};
-  int key_len = strlen(key_in);
-  unsigned char tmp_key[DES_KEY_SZ * 3]; /* since sscanf sometimes write 32 bits */
+static char hex_translate[] = "0123456789abcdef";
 
-  if(key_len != DES_KEY_SZ * 3 * 2) {
-    if(state->verbose) {
-      fprintf(stderr, "Wrong key size, should be %lu characters (was %d).\n", DES_KEY_SZ * 3 * 2, key_len);
-    }
+ykpiv_rc ykpiv_hex_decode(const char *hex_in, size_t in_len,
+    unsigned char *hex_out, size_t *out_len) {
+
+  size_t i;
+  bool first = true;
+  if(*out_len < in_len / 2) {
+    return YKPIV_SIZE_ERROR;
+  } else if(in_len % 2 != 0) {
     return YKPIV_SIZE_ERROR;
   }
-  for(i = 0; i < DES_KEY_SZ * 3; i++) {
-    key_part[0] = *key_in++;
-    key_part[1] = *key_in++;
-    if(sscanf(key_part, "%hhx", &tmp_key[i]) != 1) {
-      if(state->verbose) {
-	fprintf(stderr, "Failed parsing key at position %d.\n", i);
-      }
-      return YKPIV_KEY_ERROR;
+  *out_len = in_len / 2;
+  for(i = 0; i < in_len; i++) {
+    char *ind_ptr = strchr(hex_translate, *hex_in++);
+    int index = 0;
+    if(ind_ptr) {
+      index = ind_ptr - hex_translate;
     }
-  }
-  memcpy(key_out, tmp_key, DES_KEY_SZ * 3);
-
-  if(state->verbose > 1) {
-    fprintf(stderr, "parsed key: ");
-    dump_hex(key_out, DES_KEY_SZ * 3);
-    fprintf(stderr, "\n");
+    if(first) {
+      *hex_out = index << 4;
+    } else {
+      *hex_out++ |= index;
+    }
+    first = !first;
   }
   return YKPIV_OK;
 }

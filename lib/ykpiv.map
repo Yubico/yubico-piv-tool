@@ -37,12 +37,12 @@ global:
 	ykpiv_transfer_data;
 	ykpiv_authenticate;
 	ykpiv_set_mgmkey;
-	ykpiv_parse_key;
 	ykpiv_sign_data;
 	ykpiv_get_version;
 	ykpiv_verify;
 	ykpiv_fetch_object;
   ykpiv_save_object;
+	ykpiv_hex_decode;
 
 local:
 	*;

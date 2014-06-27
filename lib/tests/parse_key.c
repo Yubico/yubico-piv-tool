@@ -48,9 +48,10 @@ struct key keys[] = {
 		1}
 };
 
-static int parse_key(ykpiv_state *state, const char *text, const unsigned char *expected, int valid) {
+static int parse_key(const char *text, const unsigned char *expected, int valid) {
 	unsigned char key[24];
-	ykpiv_rc res = ykpiv_parse_key(state, text, key);
+	size_t len = sizeof(key);
+	ykpiv_rc res = ykpiv_hex_decode(text, strlen(text), key, &len);
 	if(res != YKPIV_OK && valid == 1) {
 		printf("key check failed for %s!\n", text);
 		return EXIT_FAILURE;
@@ -67,24 +68,13 @@ static int parse_key(ykpiv_state *state, const char *text, const unsigned char *
 }
 
 int main(void) {
-	ykpiv_state *state;
 	size_t i;
 
-	if(ykpiv_init(&state, 0) != YKPIV_OK) {
-		printf("Failed initializing library!\n");
-		return EXIT_FAILURE;
-	}
-
 	for(i = 0; i < sizeof(keys) / sizeof(struct key); i++) {
-		int res = parse_key(state, keys[i].text, keys[i].formatted, keys[i].valid);
+		int res = parse_key(keys[i].text, keys[i].formatted, keys[i].valid);
 		if(res != EXIT_SUCCESS) {
 			return res;
 		}
-	}
-
-	if(ykpiv_done(state) != YKPIV_OK) {
-		printf("Failed de-initializing library!\n");
-		return EXIT_FAILURE;
 	}
 
 	return EXIT_SUCCESS;

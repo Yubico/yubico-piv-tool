@@ -822,6 +822,7 @@ int main(int argc, char *argv[]) {
   struct gengetopt_args_info args_info;
   ykpiv_state *state;
   unsigned char key[KEY_LEN];
+  size_t key_len = sizeof(key);
   int verbosity;
   enum enum_action action;
   unsigned int i;
@@ -843,7 +844,7 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  if(ykpiv_parse_key(state, args_info.key_arg, key) != YKPIV_OK) {
+  if(ykpiv_hex_decode(args_info.key_arg, strlen(args_info.key_arg), key, &key_len) != YKPIV_OK) {
     return EXIT_FAILURE;
   }
 
@@ -880,7 +881,8 @@ int main(int argc, char *argv[]) {
       case action_arg_setMINUS_mgmMINUS_key:
         if(args_info.new_key_arg) {
           unsigned char new_key[KEY_LEN];
-          if(ykpiv_parse_key(state, args_info.new_key_arg, new_key) != YKPIV_OK) {
+          size_t new_key_len = sizeof(new_key);
+          if(ykpiv_hex_decode(args_info.new_key_arg, strlen(args_info.new_key_arg), new_key, &new_key_len) != YKPIV_OK) {
             ret = EXIT_FAILURE;
           } else if(ykpiv_set_mgmkey(state, new_key) != YKPIV_OK) {
             ret = EXIT_FAILURE;
