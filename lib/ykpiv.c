@@ -448,11 +448,14 @@ ykpiv_rc ykpiv_set_mgmkey(ykpiv_state *state, const unsigned char *new_key) {
   return YKPIV_GENERIC_ERROR;
 }
 
+/* FIXME: this function should be removed and replaced by
+ * a real hex encoder.. */
 ykpiv_rc ykpiv_parse_key(ykpiv_state *state,
     const char *key_in, unsigned char *key_out) {
   unsigned int i;
   char key_part[4] = {0};
   int key_len = strlen(key_in);
+  unsigned char tmp_key[DES_KEY_SZ * 3]; /* since sscanf sometimes write 32 bits */
 
   if(key_len != DES_KEY_SZ * 3 * 2) {
     if(state->verbose) {
@@ -463,13 +466,15 @@ ykpiv_rc ykpiv_parse_key(ykpiv_state *state,
   for(i = 0; i < DES_KEY_SZ * 3; i++) {
     key_part[0] = *key_in++;
     key_part[1] = *key_in++;
-    if(sscanf(key_part, "%hhx", &key_out[i]) != 1) {
+    if(sscanf(key_part, "%hhx", &tmp_key[i]) != 1) {
       if(state->verbose) {
 	fprintf(stderr, "Failed parsing key at position %d.\n", i);
       }
       return YKPIV_KEY_ERROR;
     }
   }
+  memcpy(key_out, tmp_key, DES_KEY_SZ * 3);
+
   if(state->verbose > 1) {
     fprintf(stderr, "parsed key: ");
     dump_hex(key_out, DES_KEY_SZ * 3);
