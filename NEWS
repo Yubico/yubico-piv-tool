@@ -1,6 +1,10 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
-* Version 0.1.0 (unreleased)
+* Version 0.1.0 (released 2014-08-25)
+
+** Break out functionality into a library.
+
+** More testing.
 
 * Version 0.0.3 (released 2014-05-26)
 
