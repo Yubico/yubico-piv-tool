@@ -25,7 +25,7 @@
 # for the parts of OpenSSL used as well as that of the covered work.
 
 PACKAGE=yubico-piv-tool
-OPENSSLVERSION=1.0.1h
+OPENSSLVERSION=1.0.1i
 
 all: usage 32bit 64bit
 
@@ -46,7 +46,7 @@ doit:
 		wget --no-check-certificate "https://www.openssl.org/source/openssl-$(OPENSSLVERSION).tar.gz" && \
 	tar xfa openssl-$(OPENSSLVERSION).tar.gz && \
 	cd openssl-$(OPENSSLVERSION) && \
-	CROSS_COMPILE="$(HOST)-" ./Configure mingw64 no-asm shared --prefix=$(PWD)/tmp$(ARCH)/root && \
+	CROSS_COMPILE="$(HOST)-" ./Configure mingw64 no-asm shared --prefix=$(PWD)/tmp$(ARCH)/root -static-libgcc && \
 	make all install_sw && \
 	cp LICENSE $(PWD)/tmp$(ARCH)/root/licenses/openssl.txt && \
 	cd .. && \
