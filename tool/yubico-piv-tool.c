@@ -670,14 +670,6 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     fprintf(stderr, "Failed setting certificate issuer.\n");
     goto selfsign_out;
   }
-  memset(digest, 0, sizeof(digest));
-  memcpy(digest, sha256oid, sizeof(sha256oid));
-  /* XXX: this should probably use X509_digest() but that looks buggy */
-  if(!ASN1_item_digest(ASN1_ITEM_rptr(X509_CINF), EVP_sha256(), x509->cert_info,
-			  digest + sizeof(sha256oid), &digest_len)) {
-    fprintf(stderr, "Failed doing digest of certificate.\n");
-    goto selfsign_out;
-  }
   switch(algorithm) {
     case YKPIV_ALGO_RSA1024:
     case YKPIV_ALGO_RSA2048:
@@ -693,6 +685,15 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     default:
       fprintf(stderr, "Unsupported algorithm %x.\n", algorithm);
       goto selfsign_out;
+  }
+  x509->cert_info->signature->algorithm = x509->sig_alg->algorithm;
+  memset(digest, 0, sizeof(digest));
+  memcpy(digest, sha256oid, sizeof(sha256oid));
+  /* XXX: this should probably use X509_digest() but that looks buggy */
+  if(!ASN1_item_digest(ASN1_ITEM_rptr(X509_CINF), EVP_sha256(), x509->cert_info,
+			  digest + sizeof(sha256oid), &digest_len)) {
+    fprintf(stderr, "Failed doing digest of certificate.\n");
+    goto selfsign_out;
   }
   {
     unsigned char signature[1024];
