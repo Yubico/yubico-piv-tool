@@ -24,7 +24,7 @@
 # non-source form of such a combination shall include the source code
 # for the parts of OpenSSL used as well as that of the covered work.
 
-TESTS_ENVIRONMENT = export VERSION=$(VERSION); export EXEEXT=$(EXEEXT);
+TESTS_ENVIRONMENT = export VERSION=$(PACKAGE_VERSION); export EXEEXT=$(EXEEXT);
 
 AM_CFLAGS = $(WARN_CFLAGS)
 AM_CPPFLAGS = -I$(top_srcdir)/lib -I$(top_builddir)/lib
