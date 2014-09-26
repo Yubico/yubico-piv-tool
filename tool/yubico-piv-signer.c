@@ -38,6 +38,7 @@
 #include <windows.h>
 #endif
 
+#include "cmdline-signer.h"
 #include "util.h"
 
 static bool verify_pin(ykpiv_state *state, const char *pin) {
@@ -56,7 +57,7 @@ static bool verify_pin(ykpiv_state *state, const char *pin) {
     if(tries > 0) {
       fprintf(stderr, "Pin verification failed, %d tries left before pin is blocked.\n", tries);
     } else {
-      fprintf(stderr, "Pin code blocked, use unblock-pin action to unblock.\n");
+      fprintf(stderr, "Pin code blocked.\n");
     }
   } else {
     fprintf(stderr, "Pin code verification failed: '%s'\n", ykpiv_strerror(res));
@@ -64,11 +65,77 @@ static bool verify_pin(ykpiv_state *state, const char *pin) {
   return false;
 }
 
+static bool sign_file(ykpiv_state *state, const char *input, const char *output,
+    const char *slot, enum enum_algorithm algorithm, enum enum_hash hash,
+    int verbosity) {
+  FILE *input_file = NULL;
+  FILE *output_file = NULL;
+  int key;
+  const EVP_MD *md;
+  EVP_MD_CTX *mdctx = NULL;
+  unsigned int hash_len;
+  unsigned char hashed[EVP_MAX_MD_SIZE];
+  bool ret = false;
+
+  sscanf(slot, "%x", &key);
+
+  input_file = open_file(input, INPUT);
+  if(!input_file) {
+    return false;
+  }
+
+  output_file = open_file(output, OUTPUT);
+  if(!output_file) {
+    return false;
+  }
+
+  switch(hash) {
+    case hash_arg_SHA1:
+      md = EVP_sha1();
+      break;
+    case hash_arg_SHA256:
+      md = EVP_sha256();
+      break;
+    case hash__NULL:
+    default:
+      goto out;
+  }
+
+  mdctx = EVP_MD_CTX_create();
+  EVP_DigestInit_ex(mdctx, md, NULL);
+  while(!feof(input_file)) {
+    char buf[1024];
+    size_t len = fread(buf, 1, 1024, input_file);
+    EVP_DigestUpdate(mdctx, buf, len);
+  }
+  EVP_DigestFinal_ex(mdctx, hashed, &hash_len);
+
+  if(verbosity) {
+    fprintf(stderr, "file hashed as: ");
+    dump_hex(hashed, hash_len);
+    fprintf(stderr, "\n");
+  }
+
+out:
+  if(input_file && input_file != stdin) {
+    fclose(input_file);
+  }
+
+  if(output_file && output_file != stdout) {
+    fclose(output_file);
+  }
+
+  if(mdctx) {
+    EVP_MD_CTX_destroy(mdctx);
+  }
+
+  return ret;
+}
+
 int main(int argc, char *argv[]) {
   struct gengetopt_args_info args_info;
   ykpiv_state *state;
   int verbosity;
-  enum enum_action action;
   int ret = EXIT_SUCCESS;
 
   if(cmdline_parser(argc, argv, &args_info) != 0) {
@@ -95,6 +162,9 @@ int main(int argc, char *argv[]) {
 
   /* openssl setup.. */
   OpenSSL_add_all_algorithms();
+
+  sign_file(state, args_info.input_arg, args_info.output_arg, args_info.slot_orig,
+      args_info.algorithm_arg, args_info.hash_arg, verbosity);
 
   ykpiv_done(state);
   EVP_cleanup();

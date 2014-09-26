@@ -30,8 +30,6 @@
 #ifndef YUBICO_PIV_TOOL_INTERNAL_H
 #define YUBICO_PIV_TOOL_INTERNAL_H
 
-#include "cmdline.h"
-
 #include <openssl/x509.h>
 
 #define INPUT 1
