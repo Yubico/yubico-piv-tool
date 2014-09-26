@@ -1,0 +1,39 @@
+# Copyright (c) 2014 Yubico AB
+# All rights reserved.
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
+# Additional permission under GNU GPL version 3 section 7
+#
+# If you modify this program, or any covered work, by linking or
+# combining it with the OpenSSL project's OpenSSL library (or a
+# modified version of that library), containing parts covered by the
+# terms of the OpenSSL or SSLeay licenses, We grant you additional 
+# permission to convey the resulting work. Corresponding Source for a
+# non-source form of such a combination shall include the source code
+# for the parts of OpenSSL used as well as that of the covered work.
+
+option "verbose" v "Print more information" int optional default="0" argoptional
+option "reader" r "Only use a matching reader" string optional default="Yubikey"
+option "slot" s "What key slot to operate on" values="9a","9c","9d","9e" enum
+text   "
+       9a is for PIV Authentication
+       9c is for Digital Signature (PIN always checked)
+       9d is for Key Management
+       9e is for Card Authentication (PIN never checked)\n"
+option "algorithm" A "What algorithm to use" values="RSA1024","RSA2048","ECCP256" enum optional default="RSA2048"
+option "input" i "Filename to use as input, - for stdin" string optional default="-"
+option "output" o "Filename to use as output, - for stdout" string optional default="-"
+option "pin" P "Pin code for verification" string
+option "hash" H "Hash to use for the signature" values="SHA1","SHA256" enum optional default="SHA1"
