@@ -76,6 +76,7 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
   unsigned int hash_len;
   unsigned char hashed[EVP_MAX_MD_SIZE];
   bool ret = false;
+  int algo;
 
   sscanf(slot, "%x", &key);
 
@@ -101,6 +102,21 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
       goto out;
   }
 
+  switch(algorithm) {
+    case algorithm_arg_RSA2048:
+      algo = YKPIV_ALGO_RSA2048;
+      break;
+    case algorithm_arg_RSA1024:
+      algo = YKPIV_ALGO_RSA1024;
+      break;
+    case algorithm_arg_ECCP256:
+      algo = YKPIV_ALGO_ECCP256;
+      break;
+    case algorithm__NULL:
+    default:
+      goto out;
+  }
+
   mdctx = EVP_MD_CTX_create();
   EVP_DigestInit_ex(mdctx, md, NULL);
   while(!feof(input_file)) {
@@ -114,6 +130,23 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
     fprintf(stderr, "file hashed as: ");
     dump_hex(hashed, hash_len);
     fprintf(stderr, "\n");
+  }
+
+  {
+    unsigned char buf[1024];
+    size_t len = sizeof(buf);
+    if(ykpiv_sign_data(state, hashed, hash_len, buf, &len, algo, key) != YKPIV_OK) {
+      fprintf(stderr, "failed signing file\n");
+      goto out;
+    }
+
+    if(verbosity) {
+      fprintf(stderr, "file signed as: ");
+      dump_hex(buf, len);
+      fprintf(stderr, "\n");
+    }
+    fwrite(buf, 1, len, output_file);
+    ret = true;
   }
 
 out:
