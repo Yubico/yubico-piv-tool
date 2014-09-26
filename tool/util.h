@@ -32,6 +32,8 @@
 
 #include "cmdline.h"
 
+#include <openssl/x509.h>
+
 #define INPUT 1
 #define OUTPUT 2
 
