@@ -71,12 +71,11 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
   FILE *input_file = NULL;
   FILE *output_file = NULL;
   int key;
-  const EVP_MD *md;
-  EVP_MD_CTX *mdctx = NULL;
   unsigned int hash_len;
   unsigned char hashed[EVP_MAX_MD_SIZE];
   bool ret = false;
   int algo;
+  int nid;
 
   sscanf(slot, "%x", &key);
 
@@ -88,18 +87,6 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
   output_file = open_file(output, OUTPUT);
   if(!output_file) {
     return false;
-  }
-
-  switch(hash) {
-    case hash_arg_SHA1:
-      md = EVP_sha1();
-      break;
-    case hash_arg_SHA256:
-      md = EVP_sha256();
-      break;
-    case hash__NULL:
-    default:
-      goto out;
   }
 
   switch(algorithm) {
@@ -117,19 +104,60 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
       goto out;
   }
 
-  mdctx = EVP_MD_CTX_create();
-  EVP_DigestInit_ex(mdctx, md, NULL);
-  while(!feof(input_file)) {
-    char buf[1024];
-    size_t len = fread(buf, 1, 1024, input_file);
-    EVP_DigestUpdate(mdctx, buf, len);
-  }
-  EVP_DigestFinal_ex(mdctx, hashed, &hash_len);
+  {
+    const EVP_MD *md;
+    EVP_MD_CTX *mdctx;
 
-  if(verbosity) {
-    fprintf(stderr, "file hashed as: ");
-    dump_hex(hashed, hash_len);
-    fprintf(stderr, "\n");
+    switch(hash) {
+      case hash_arg_SHA1:
+        md = EVP_sha1();
+        nid = NID_sha1;
+        break;
+      case hash_arg_SHA256:
+        md = EVP_sha256();
+        nid = NID_sha256;
+        break;
+      case hash__NULL:
+      default:
+        goto out;
+    }
+
+    mdctx = EVP_MD_CTX_create();
+    EVP_DigestInit_ex(mdctx, md, NULL);
+    while(!feof(input_file)) {
+      char buf[1024];
+      size_t len = fread(buf, 1, 1024, input_file);
+      EVP_DigestUpdate(mdctx, buf, len);
+    }
+    EVP_DigestFinal_ex(mdctx, hashed, &hash_len);
+
+    if(verbosity) {
+      fprintf(stderr, "file hashed as: ");
+      dump_hex(hashed, hash_len);
+      fprintf(stderr, "\n");
+    }
+    EVP_MD_CTX_destroy(mdctx);
+  }
+
+  if(algo == YKPIV_ALGO_RSA1024 || algo == YKPIV_ALGO_RSA2048) {
+    X509_SIG digestInfo;
+    X509_ALGOR algor;
+    ASN1_TYPE parameter;
+    ASN1_OCTET_STRING digest;
+    unsigned char buf[1024];
+    unsigned char *ptr = hashed;
+
+    memcpy(buf, hashed, hash_len);
+
+    digestInfo.algor = &algor;
+    digestInfo.algor->algorithm = OBJ_nid2obj(nid);
+    digestInfo.algor->parameter = &parameter;
+    digestInfo.algor->parameter->type = V_ASN1_NULL;
+    digestInfo.algor->parameter->value.ptr = NULL;
+    digestInfo.digest = &digest;
+    digestInfo.digest->data = buf;
+    digestInfo.digest->length = (int)hash_len;
+    hash_len = (unsigned int)i2d_X509_SIG(&digestInfo, &ptr);
   }
 
   {
@@ -158,10 +186,6 @@ out:
     fclose(output_file);
   }
 
-  if(mdctx) {
-    EVP_MD_CTX_destroy(mdctx);
-  }
-
   return ret;
 }
 
@@ -188,7 +212,9 @@ int main(int argc, char *argv[]) {
   }
 
   if(verify_pin(state, args_info.pin_arg)) {
-    printf("Successfully verified PIN.\n");
+    if(verbosity) {
+      fprintf(stderr, "Successfully verified PIN.\n");
+    }
   } else {
     return EXIT_FAILURE;
   }
