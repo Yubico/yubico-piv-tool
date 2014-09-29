@@ -167,8 +167,9 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
   {
     unsigned char buf[1024];
     size_t len = sizeof(buf);
-    if(ykpiv_sign_data(state, hashed, hash_len, buf, &len, algo, key) != YKPIV_OK) {
-      fprintf(stderr, "failed signing file\n");
+    ykpiv_rc rc = ykpiv_sign_data(state, hashed, hash_len, buf, &len, algo, key);
+    if(rc != YKPIV_OK) {
+      fprintf(stderr, "failed signing file: %s\n", ykpiv_strerror(rc));
       goto out;
     }
 
