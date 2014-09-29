@@ -234,6 +234,8 @@ int main(int argc, char *argv[]) {
   if(rc == false) {
     fprintf(stderr, "Failed signing!\n");
     ret = EXIT_FAILURE;
+  } else {
+    fprintf(stderr, "Signature successful!\n");
   }
 
   ykpiv_done(state);
