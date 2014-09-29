@@ -117,6 +117,10 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
         md = EVP_sha256();
         nid = NID_sha256;
         break;
+      case hash_arg_SHA512:
+        md = EVP_sha512();
+        nid = NID_sha512;
+        break;
       case hash__NULL:
       default:
         goto out;
