@@ -49,7 +49,7 @@ libpiv_util_la_LIBADD = $(OPENSSL_LIBS)
 cmdline.c cmdline.h: cmdline.ggo Makefile.am
 	$(GENGETOPT) --input $^
 
-libpivsigner_cmd_la_SOURCES = cmdline-signer.c cmdline-signer.h
+libpivsigner_cmd_la_SOURCES = cmdline-signer.ggo cmdline-signer.c cmdline-signer.h
 libpivsigner_cmd_la_CFLAGS =
 
 cmdline-signer.c cmdline-signer.h: cmdline-signer.ggo Makefile.am
