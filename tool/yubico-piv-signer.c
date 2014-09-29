@@ -198,6 +198,7 @@ int main(int argc, char *argv[]) {
   ykpiv_state *state;
   int verbosity;
   int ret = EXIT_SUCCESS;
+  bool rc;
 
   if(cmdline_parser(argc, argv, &args_info) != 0) {
     return EXIT_FAILURE;
@@ -226,8 +227,14 @@ int main(int argc, char *argv[]) {
   /* openssl setup.. */
   OpenSSL_add_all_algorithms();
 
-  sign_file(state, args_info.input_arg, args_info.output_arg, args_info.slot_orig,
-      args_info.algorithm_arg, args_info.hash_arg, verbosity);
+  rc = sign_file(state, args_info.input_arg, args_info.output_arg,
+      args_info.slot_orig, args_info.algorithm_arg, args_info.hash_arg,
+      verbosity);
+
+  if(rc == false) {
+    fprintf(stderr, "Failed signing!\n");
+    ret = EXIT_FAILURE;
+  }
 
   ykpiv_done(state);
   EVP_cleanup();
