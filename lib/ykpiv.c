@@ -501,7 +501,7 @@ ykpiv_rc ykpiv_sign_data(ykpiv_state *state,
       if(pad_len == 0) {
 	pad_len = 256;
       }
-      if(in_len > pad_len) {
+      if(in_len + RSA_PKCS1_PADDING_SIZE > pad_len) {
 	return YKPIV_SIZE_ERROR;
       }
       RSA_padding_add_PKCS1_type_1(sign_in, pad_len, raw_in, in_len);
