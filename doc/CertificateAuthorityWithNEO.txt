@@ -172,6 +172,10 @@ Sub-CA used to sign the EE, so set it first:
   host=munin
   user=Simon
 
+We first need to load the PIN code from the previous section.
+
+  pin=`cat yubico-internal-https-$user-pin.txt`
+
 Then generate a new private key and certificate request:
 
   openssl genrsa -out yubico-internal-https-ee-$host-key.pem 2048
