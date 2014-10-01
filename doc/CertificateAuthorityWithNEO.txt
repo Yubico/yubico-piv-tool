@@ -67,7 +67,7 @@ counter as follows:
   CN=Yubico Internal HTTPS CA
   [ v3_ca ]
   subjectKeyIdentifier=hash
-  basicConstraints = CA:true, pathlen:1
+  basicConstraints=critical, CA:true, pathlen:1
   keyUsage=critical, keyCertSign, cRLSign
   nameConstraints=@nc
   [ nc ]
@@ -145,7 +145,7 @@ Generate the Sub-CA certificate request:
 Generate the Sub-CA certificate:
 
   cat>yubico-internal-https-subca-$user-crt.conf<<EOF
-  basicConstraints = CA:true, pathlen:0
+  basicConstraints = critical, CA:true, pathlen:0
   keyUsage=critical, keyCertSign
   EOF
   openssl x509 -sha256 -CA yubico-internal-https-ca-crt.pem -CAkey yubico-internal-https-ca-key.pem -req -in yubico-internal-https-subca-$user-csr.pem -extfile yubico-internal-https-subca-$user-crt.conf -out yubico-internal-https-subca-$user-crt.pem
