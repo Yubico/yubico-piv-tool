@@ -31,6 +31,54 @@ The maximum size of stored objects is 2005 bytes.
 Currently all functionality are available over both contact and
 contactless interfaces (contrary to what the specifications mandate).
 
+Preparing a NEO for real use
+----------------------------
+
+You would typically change the management key to make sure nobody but
+you can modify the state of the PIV applet on the NEO.  Make sure to
+keep a copy of the key around for later use.
+
+  key=`dd if=/dev/random bs=1 count=24 2>/dev/null | hexdump -v -e '/1 "%02X"'`
+  echo $key
+  yubico-piv-tool -a set-mgm-key -n $key
+
+The PIN and PUK should be changed as well.
+
+  pin=`dd if=/dev/random bs=1 count=6 2>/dev/null | hexdump -v -e '/1 "%u"'|cut -c1-6`
+  echo $pin
+
+  puk=`dd if=/dev/random bs=1 count=6 2>/dev/null | hexdump -v -e '/1 "%u"'|cut -c1-8`
+  echo $puk
+
+  yubico-piv-tool -k $key -a change-pin -P 123456 -N $pin
+  yubico-piv-tool -k $key -a change-puk -P 12345678 -N $puk
+
+Other useful commands
+---------------------
+
+To generate a new private key:
+
+  yubico-piv-tool -k $key -a generate -s 9c
+
+To reset PIN/PUK retry counter AND codes (default pin 123456 puk
+12345678):
+
+  yubico-piv-tool -k $key -a pin-retries --pin-retries 3 --puk-retries 3
+
+To reset the applet (PIN/PUK need to be blocked hence trying a couple
+of times -- you need to modify this if you have changed the default
+number of PIN/PUK retries).
+
+  yubico-piv-tool -k $key -a verify-pin -P 4711 
+  yubico-piv-tool -k $key -a verify-pin -P 4711 
+  yubico-piv-tool -k $key -a verify-pin -P 4711 
+  yubico-piv-tool -k $key -a verify-pin -P 4711 
+  yubico-piv-tool -k $key -a change-puk -P 4711 -N 67567
+  yubico-piv-tool -k $key -a change-puk -P 4711 -N 67567
+  yubico-piv-tool -k $key -a change-puk -P 4711 -N 67567
+  yubico-piv-tool -k $key -a change-puk -P 4711 -N 67567
+  yubico-piv-tool -k $key -a reset
+
 Software
 --------
 
