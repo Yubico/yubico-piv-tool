@@ -823,8 +823,6 @@ static bool delete_certificate(ykpiv_state *state, enum enum_slot slot) {
 int main(int argc, char *argv[]) {
   struct gengetopt_args_info args_info;
   ykpiv_state *state;
-  unsigned char key[KEY_LEN];
-  size_t key_len = sizeof(key);
   int verbosity;
   enum enum_action action;
   unsigned int i;
@@ -846,16 +844,47 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  if(ykpiv_hex_decode(args_info.key_arg, strlen(args_info.key_arg), key, &key_len) != YKPIV_OK) {
-    return EXIT_FAILURE;
-  }
+  for(i = 0; i < args_info.action_given; i++) {
+    bool needs_auth = false;
+    action = *args_info.action_arg++;
+    switch(action) {
+      case action_arg_generate:
+      case action_arg_setMINUS_mgmMINUS_key:
+      case action_arg_pinMINUS_retries:
+      case action_arg_importMINUS_key:
+      case action_arg_importMINUS_certificate:
+      case action_arg_setMINUS_chuid:
+      case action_arg_deleteMINUS_certificate:
+        needs_auth = true;
+        break;
+      case action_arg_version:
+      case action_arg_reset:
+      case action_arg_requestMINUS_certificate:
+      case action_arg_verifyMINUS_pin:
+      case action_arg_changeMINUS_pin:
+      case action_arg_changeMINUS_puk:
+      case action_arg_unblockMINUS_pin:
+      case action_arg_selfsignMINUS_certificate:
+      case action__NULL:
+      default:
+        continue;
+    }
+    if(needs_auth) {
+      unsigned char key[KEY_LEN];
+      size_t key_len = sizeof(key);
+      if(ykpiv_hex_decode(args_info.key_arg, strlen(args_info.key_arg), key, &key_len) != YKPIV_OK) {
+        return EXIT_FAILURE;
+      }
 
-  if(ykpiv_authenticate(state, key) != YKPIV_OK) {
-    fprintf(stderr, "Failed authentication with the applet.\n");
-    return EXIT_FAILURE;
-  }
-  if(verbosity) {
-    fprintf(stderr, "Successful applet authentication.\n");
+      if(ykpiv_authenticate(state, key) != YKPIV_OK) {
+        fprintf(stderr, "Failed authentication with the applet.\n");
+        return EXIT_FAILURE;
+      }
+      if(verbosity) {
+        fprintf(stderr, "Successful applet authentication.\n");
+      }
+      break;
+    }
   }
 
   /* openssl setup.. */
