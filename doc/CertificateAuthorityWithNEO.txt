@@ -184,7 +184,7 @@ Then generate a new private key and certificate request:
   distinguished_name = req_distinguished_name
   prompt = no
   [ req_distinguished_name ]
-  CN=ee-$host.yubico.com
+  CN=$host.yubico.com
   EOF
   openssl req -sha256 -new -config yubico-internal-https-ee-$host-csr.conf -key yubico-internal-https-ee-$host-key.pem -nodes -out yubico-internal-https-ee-$host-csr.pem
 
