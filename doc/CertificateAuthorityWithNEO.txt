@@ -80,9 +80,7 @@ counter as follows:
   permitted;IP.0=0.0.0.0/255.255.255.255
   permitted;IP.1=::/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
   EOF
-
   openssl req -new -sha256 -x509 -set_serial 1 -days 1 -config yubico-internal-https-ca.conf -key yubico-internal-https-ca-key.pem -out yubico-internal-https-ca-crt.pem
-
   echo 01 > yubico-internal-https-ca-crt.srl
 
 You may inspect the newly generated root CA with:
@@ -101,13 +99,10 @@ This step is parametrized with the name of the YubiKey NEO user.
 Generate new management code, PIN and PUK as follows:
 
   user=Simon
-
   key=`dd if=/dev/random bs=1 count=24 2>/dev/null | hexdump -v -e '/1 "%02X"'`
   echo $key > yubico-internal-https-$user-key.txt
-
   pin=`dd if=/dev/random bs=1 count=6 2>/dev/null | hexdump -v -e '/1 "%u"'|cut -c1-6`
   echo $pin > yubico-internal-https-$user-pin.txt
-
   puk=`dd if=/dev/random bs=1 count=6 2>/dev/null | hexdump -v -e '/1 "%u"'|cut -c1-8`
   echo $puk > yubico-internal-https-$user-puk.txt
 
@@ -136,7 +131,7 @@ Generate the private key:
 
   openssl genrsa -out yubico-internal-https-subca-$user-key.pem 2048
 
-Generate the Sub-CA certificate:
+Generate the Sub-CA certificate request:
 
   cat>yubico-internal-https-subca-$user-csr.conf<<EOF
   [ req ]
@@ -145,16 +140,15 @@ Generate the Sub-CA certificate:
   [ req_distinguished_name ]
   CN=Yubico Internal HTTPS $user Sub-CA
   EOF
-
   openssl req -sha256 -new -config yubico-internal-https-subca-$user-csr.conf -key yubico-internal-https-subca-$user-key.pem -nodes -out yubico-internal-https-subca-$user-csr.pem
+
+Generate the Sub-CA certificate:
 
   cat>yubico-internal-https-subca-$user-crt.conf<<EOF
   basicConstraints = CA:true, pathlen:0
   keyUsage=critical, keyCertSign
   EOF
-
   openssl x509 -sha256 -CA yubico-internal-https-ca-crt.pem -CAkey yubico-internal-https-ca-key.pem -req -in yubico-internal-https-subca-$user-csr.pem -extfile yubico-internal-https-subca-$user-crt.conf -out yubico-internal-https-subca-$user-crt.pem
-
   echo 00 > yubico-internal-https-subca-$user-crt.srl
 
 You may inspect the newly generated EE cert with this command:
@@ -181,7 +175,6 @@ Sub-CA used to sign the EE, so set it first:
 Then generate a new private key and certificate request:
 
   openssl genrsa -out yubico-internal-https-ee-$host-key.pem 2048
-
   cat>yubico-internal-https-ee-$host-csr.conf<<EOF
   [ req ]
   distinguished_name = req_distinguished_name
@@ -195,11 +188,10 @@ Then sign the certificate using the NEO:
 
   cat>yubico-internal-https-ee-$host-crt.conf<<EOF
   EOF
-
-openssl << EOT
-engine dynamic -pre SO_PATH:/usr/lib/engines/engine_pkcs11.so -pre ID:pkcs11 -pre NO_VCHECK:1 -pre LIST_ADD:1 -pre LOAD -pre MODULE_PATH:/usr/lib/x86_64-linux-gnu/opensc-pkcs11.so -pre VERBOSE
-x509 -engine pkcs11 -CAkeyform engine -CAkey slot_1-id_2 -sha256 -CA yubico-internal-https-subca-$user-crt.pem -req -passin pass:$pin -in yubico-internal-https-ee-$host-csr.pem -extfile yubico-internal-https-ee-$host-crt.conf -out yubico-internal-https-ee-$host-crt.pem
-EOT
+  openssl << EOF
+  engine dynamic -pre SO_PATH:/usr/lib/engines/engine_pkcs11.so -pre ID:pkcs11 -pre NO_VCHECK:1 -pre LIST_ADD:1 -pre LOAD -pre MODULE_PATH:/usr/lib/x86_64-linux-gnu/opensc-pkcs11.so -pre VERBOSE
+  x509 -engine pkcs11 -CAkeyform engine -CAkey slot_1-id_2 -sha256 -CA yubico-internal-https-subca-$user-crt.pem -req -passin pass:$pin -in yubico-internal-https-ee-$host-csr.pem -extfile yubico-internal-https-ee-$host-crt.conf -out yubico-internal-https-ee-$host-crt.pem
+  EOF
 
 You may inspect the newly generated EE cert with this command:
 
