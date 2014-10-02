@@ -628,6 +628,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     size_t sig_len = sizeof(signature);
     if(ykpiv_sign_data(state, signinput, len, signature, &sig_len, algorithm, key)
         != YKPIV_OK) {
+      fprintf(stderr, "Failed signing request.\n");
       goto request_out;
     }
     M_ASN1_BIT_STRING_set(req->signature, signature, sig_len);
@@ -822,6 +823,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     size_t sig_len = sizeof(signature);
     if(ykpiv_sign_data(state, signinput, len, signature, &sig_len, algorithm, key)
         != YKPIV_OK) {
+      fprintf(stderr, "Failed signing certificate.\n");
       goto selfsign_out;
     }
     M_ASN1_BIT_STRING_set(x509->signature, signature, sig_len);
