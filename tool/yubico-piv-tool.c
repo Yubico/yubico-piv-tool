@@ -546,7 +546,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
       goto request_out;
   }
 
-  md_len = (unsigned int)EVP_MD_block_size(md);
+  md_len = (unsigned int)EVP_MD_size(md);
   digest_len = sizeof(digest) - md_len;
 
   req = X509_REQ_new();
@@ -725,7 +725,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
       goto selfsign_out;
   }
 
-  md_len = (unsigned int)EVP_MD_block_size(md);
+  md_len = (unsigned int)EVP_MD_size(md);
   digest_len = sizeof(digest) - md_len;
 
   x509 = X509_new();
