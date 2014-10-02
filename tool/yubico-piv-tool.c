@@ -1105,6 +1105,9 @@ int main(int argc, char *argv[]) {
       case action_arg_importMINUS_certificate:
       case action_arg_setMINUS_chuid:
       case action_arg_deleteMINUS_certificate:
+        if(verbosity) {
+          fprintf(stderr, "Authenticating since action %d needs that.\n", action);
+        }
         needs_auth = true;
         break;
       case action_arg_version:
@@ -1117,6 +1120,9 @@ int main(int argc, char *argv[]) {
       case action_arg_selfsignMINUS_certificate:
       case action__NULL:
       default:
+        if(verbosity) {
+          fprintf(stderr, "Action %d does not need authentication.\n", action);
+        }
         continue;
     }
     if(needs_auth) {
