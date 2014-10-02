@@ -73,10 +73,3 @@ tool/tests/parse_name
 tool/tests/parse_name.log
 tool/tests/parse_name.o
 tool/tests/parse_name.trs
-tool/cmdline-signer.c
-tool/cmdline-signer.h
-tool/libpivsigner_cmd.la
-tool/libpivsigner_cmd_la-cmdline-signer.lo
-tool/libpivsigner_cmd_la-cmdline-signer.o
-tool/yubico-piv-signer
-tool/yubico-piv-signer.o

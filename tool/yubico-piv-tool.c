@@ -820,6 +820,135 @@ static bool delete_certificate(ykpiv_state *state, enum enum_slot slot) {
   }
 }
 
+static bool sign_file(ykpiv_state *state, const char *input, const char *output,
+    const char *slot, enum enum_algorithm algorithm, enum enum_hash hash,
+    int verbosity) {
+  FILE *input_file = NULL;
+  FILE *output_file = NULL;
+  int key;
+  unsigned int hash_len;
+  unsigned char hashed[EVP_MAX_MD_SIZE];
+  bool ret = false;
+  int algo;
+  int nid;
+
+  sscanf(slot, "%x", &key);
+
+  input_file = open_file(input, INPUT);
+  if(!input_file) {
+    return false;
+  }
+
+  output_file = open_file(output, OUTPUT);
+  if(!output_file) {
+    return false;
+  }
+
+  switch(algorithm) {
+    case algorithm_arg_RSA2048:
+      algo = YKPIV_ALGO_RSA2048;
+      break;
+    case algorithm_arg_RSA1024:
+      algo = YKPIV_ALGO_RSA1024;
+      break;
+    case algorithm_arg_ECCP256:
+      algo = YKPIV_ALGO_ECCP256;
+      break;
+    case algorithm__NULL:
+    default:
+      goto out;
+  }
+
+  {
+    const EVP_MD *md;
+    EVP_MD_CTX *mdctx;
+
+    switch(hash) {
+      case hash_arg_SHA1:
+        md = EVP_sha1();
+        nid = NID_sha1;
+        break;
+      case hash_arg_SHA256:
+        md = EVP_sha256();
+        nid = NID_sha256;
+        break;
+      case hash_arg_SHA512:
+        md = EVP_sha512();
+        nid = NID_sha512;
+        break;
+      case hash__NULL:
+      default:
+        goto out;
+    }
+
+    mdctx = EVP_MD_CTX_create();
+    EVP_DigestInit_ex(mdctx, md, NULL);
+    while(!feof(input_file)) {
+      char buf[1024];
+      size_t len = fread(buf, 1, 1024, input_file);
+      EVP_DigestUpdate(mdctx, buf, len);
+    }
+    EVP_DigestFinal_ex(mdctx, hashed, &hash_len);
+
+    if(verbosity) {
+      fprintf(stderr, "file hashed as: ");
+      dump_hex(hashed, hash_len);
+      fprintf(stderr, "\n");
+    }
+    EVP_MD_CTX_destroy(mdctx);
+  }
+
+  if(algo == YKPIV_ALGO_RSA1024 || algo == YKPIV_ALGO_RSA2048) {
+    X509_SIG digestInfo;
+    X509_ALGOR algor;
+    ASN1_TYPE parameter;
+    ASN1_OCTET_STRING digest;
+    unsigned char buf[1024];
+    unsigned char *ptr = hashed;
+
+    memcpy(buf, hashed, hash_len);
+
+    digestInfo.algor = &algor;
+    digestInfo.algor->algorithm = OBJ_nid2obj(nid);
+    digestInfo.algor->parameter = &parameter;
+    digestInfo.algor->parameter->type = V_ASN1_NULL;
+    digestInfo.algor->parameter->value.ptr = NULL;
+    digestInfo.digest = &digest;
+    digestInfo.digest->data = buf;
+    digestInfo.digest->length = (int)hash_len;
+    hash_len = (unsigned int)i2d_X509_SIG(&digestInfo, &ptr);
+  }
+
+  {
+    unsigned char buf[1024];
+    size_t len = sizeof(buf);
+    ykpiv_rc rc = ykpiv_sign_data(state, hashed, hash_len, buf, &len, algo, key);
+    if(rc != YKPIV_OK) {
+      fprintf(stderr, "failed signing file: %s\n", ykpiv_strerror(rc));
+      goto out;
+    }
+
+    if(verbosity) {
+      fprintf(stderr, "file signed as: ");
+      dump_hex(buf, len);
+      fprintf(stderr, "\n");
+    }
+    fwrite(buf, 1, len, output_file);
+    ret = true;
+  }
+
+out:
+  if(input_file && input_file != stdin) {
+    fclose(input_file);
+  }
+
+  if(output_file && output_file != stdout) {
+    fclose(output_file);
+  }
+
+  return ret;
+}
+
 int main(int argc, char *argv[]) {
   struct gengetopt_args_info args_info;
   ykpiv_state *state;
@@ -1055,6 +1184,21 @@ int main(int argc, char *argv[]) {
     }
     if(ret == EXIT_FAILURE) {
       break;
+    }
+  }
+
+  if(ret == EXIT_SUCCESS && args_info.sign_flag) {
+    if(args_info.slot_arg == slot__NULL) {
+      fprintf(stderr, "The sign action needs a slot (-s) to operate on.\n");
+      ret = EXIT_FAILURE;
+    }
+    else if(sign_file(state, args_info.input_arg, args_info.output_arg,
+        args_info.slot_orig, args_info.algorithm_arg, args_info.hash_arg,
+        verbosity)) {
+      fprintf(stderr, "Signature successful!\n");
+    } else {
+      fprintf(stderr, "Failed signing!\n");
+      ret = EXIT_FAILURE;
     }
   }
 
