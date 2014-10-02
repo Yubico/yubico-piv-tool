@@ -1072,7 +1072,6 @@ out:
 
 int main(int argc, char *argv[]) {
   struct gengetopt_args_info args_info;
-  struct gengetopt_args_info args_info_tmp;
   ykpiv_state *state;
   int verbosity;
   enum enum_action action;
@@ -1082,8 +1081,6 @@ int main(int argc, char *argv[]) {
   if(cmdline_parser(argc, argv, &args_info) != 0) {
     return EXIT_FAILURE;
   }
-
-  args_info_tmp = args_info;
 
   verbosity = args_info.verbose_arg + (int)args_info.verbose_given;
 
@@ -1097,9 +1094,9 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  for(i = 0; i < args_info_tmp.action_given; i++) {
+  for(i = 0; i < args_info.action_given; i++) {
     bool needs_auth = false;
-    action = *args_info_tmp.action_arg++;
+    action = *(args_info.action_arg + i);
     switch(action) {
       case action_arg_generate:
       case action_arg_setMINUS_mgmMINUS_key:
@@ -1144,7 +1141,7 @@ int main(int argc, char *argv[]) {
   OpenSSL_add_all_algorithms();
 
   for(i = 0; i < args_info.action_given; i++) {
-    action = *args_info.action_arg++;
+    action = *(args_info.action_arg + i);
     if(verbosity) {
       fprintf(stderr, "Now processing for action %d.\n", action);
     }
