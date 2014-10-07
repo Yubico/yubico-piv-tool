@@ -26,8 +26,10 @@ should do no harm, and may be useful in some environments.
 The root also has a path length constraint of 1 to prevent the Sub-CAs
 from issuing further Sub-Sub-CAs.
 
-We'll also set a short lifelength on the root CA to signal that expiry
-dates on root CAs are not relevant.
+We also set a expiry date far away in the future on the root CA
+(expiring in 1000000 days) and use datefudge to set an arbitrary start
+date for the CA, to avoid leaking the time of CA creation which would
+leak some bits if information going into the randomness generation.
 
 Preparations
 ------------
@@ -67,9 +69,9 @@ counter as follows:
   CN=Yubico Internal HTTPS CA
   [ v3_ca ]
   subjectKeyIdentifier=hash
-  basicConstraints=critical, CA:true, pathlen:1
-  keyUsage=critical, keyCertSign, cRLSign
-  nameConstraints=@nc
+  basicConstraints=critical,CA:true,pathlen:1
+  keyUsage=critical,keyCertSign,cRLSign
+  nameConstraints=critical,@nc
   [ nc ]
   permitted;otherName=1.3.6.1.5.5.7.8.7;IA5:yubico.com
   permitted;email.0=yubico.com
@@ -80,7 +82,7 @@ counter as follows:
   permitted;IP.0=0.0.0.0/255.255.255.255
   permitted;IP.1=::/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
   EOF
-  openssl req -new -sha256 -x509 -set_serial 1 -days 1 -config yubico-internal-https-ca.conf -key yubico-internal-https-ca-key.pem -out yubico-internal-https-ca-crt.pem
+  datefudge "2014-01-01 UTC" openssl req -new -sha256 -x509 -set_serial 1 -days 1000000 -config yubico-internal-https-ca.conf -key yubico-internal-https-ca-key.pem -out yubico-internal-https-ca-crt.pem
   echo 01 > yubico-internal-https-ca-crt.srl
 
 You may inspect the newly generated root CA with:
