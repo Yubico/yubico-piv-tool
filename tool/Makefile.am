@@ -30,16 +30,12 @@ AM_CFLAGS = $(WERROR_CFLAGS) $(WARN_CFLAGS)
 AM_CPPFLAGS = $(OPENSSL_CFLAGS)
 AM_CPPFLAGS += -I$(top_srcdir)/lib -I$(top_builddir)/lib
 
-bin_PROGRAMS = yubico-piv-tool yubico-piv-signer
+bin_PROGRAMS = yubico-piv-tool
 yubico_piv_tool_SOURCES = yubico-piv-tool.c yubico-piv-tool.h2m
 yubico_piv_tool_LDADD = $(OPENSSL_LIBS) ../lib/libykpiv.la
 yubico_piv_tool_LDADD += libpiv_cmd.la libpiv_util.la
 
-yubico_piv_signer_SOURCES = yubico-piv-signer.c
-yubico_piv_signer_LDADD = $(OPENSSL_LIBS) ../lib/libykpiv.la
-yubico_piv_signer_LDADD += libpivsigner_cmd.la libpiv_util.la
-
-noinst_LTLIBRARIES = libpiv_cmd.la libpiv_util.la libpivsigner_cmd.la
+noinst_LTLIBRARIES = libpiv_cmd.la libpiv_util.la
 libpiv_cmd_la_SOURCES = cmdline.ggo cmdline.c cmdline.h
 libpiv_cmd_la_CFLAGS =
 
@@ -48,12 +44,6 @@ libpiv_util_la_LIBADD = $(OPENSSL_LIBS)
 
 cmdline.c cmdline.h: cmdline.ggo Makefile.am
 	$(GENGETOPT) --input $^
-
-libpivsigner_cmd_la_SOURCES = cmdline-signer.ggo cmdline-signer.c cmdline-signer.h
-libpivsigner_cmd_la_CFLAGS =
-
-cmdline-signer.c cmdline-signer.h: cmdline-signer.ggo Makefile.am
-	$(GENGETOPT) --input $^ -F cmdline-signer
 
 BUILT_SOURCES = cmdline.c cmdline.h
 MAINTAINERCLEANFILES = $(BUILT_SOURCES)
