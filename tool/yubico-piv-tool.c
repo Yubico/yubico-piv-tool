@@ -1169,15 +1169,19 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_setMINUS_mgmMINUS_key:
         if(args_info.new_key_arg) {
-          unsigned char new_key[KEY_LEN];
-          size_t new_key_len = sizeof(new_key);
-          if(ykpiv_hex_decode(args_info.new_key_arg, strlen(args_info.new_key_arg), new_key, &new_key_len) != YKPIV_OK) {
-            ret = EXIT_FAILURE;
-          } else if(ykpiv_set_mgmkey(state, new_key) != YKPIV_OK) {
-            ret = EXIT_FAILURE;
+          if(strlen(args_info.new_key_arg) == (KEY_LEN * 2)){
+            unsigned char new_key[KEY_LEN];
+            size_t new_key_len = sizeof(new_key);
+            if(ykpiv_hex_decode(args_info.new_key_arg, strlen(args_info.new_key_arg), new_key, &new_key_len) != YKPIV_OK) {
+              ret = EXIT_FAILURE;
+            } else if(ykpiv_set_mgmkey(state, new_key) != YKPIV_OK) {
+              ret = EXIT_FAILURE;
+            } else {
+              printf("Successfully set new management key.\n");
+            }
           } else {
-            printf("Successfully set new management key.\n");
-          }
+            ret = EXIT_FAILURE;
+          } 
         } else {
           fprintf(stderr, "The set-mgm-key action needs the new-key (-n) argument.\n");
           ret = EXIT_FAILURE;
