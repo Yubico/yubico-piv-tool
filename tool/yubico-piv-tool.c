@@ -1180,8 +1180,9 @@ int main(int argc, char *argv[]) {
               printf("Successfully set new management key.\n");
             }
           } else {
+            fprintf(stderr, "The new management key has to be exactly %d character.\n", KEY_LEN * 2);
             ret = EXIT_FAILURE;
-          } 
+          }
         } else {
           fprintf(stderr, "The set-mgm-key action needs the new-key (-n) argument.\n");
           ret = EXIT_FAILURE;
