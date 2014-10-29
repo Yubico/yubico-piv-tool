@@ -883,7 +883,7 @@ static bool verify_pin(ykpiv_state *state, const char *pin) {
  * since they're very similar in what data they use. */
 static bool change_pin(ykpiv_state *state, enum enum_action action, const char *pin,
     const char *new_pin) {
-  unsigned char templ[] = {0, YKPIV_INS_CHANGE_REFERENCE, 0, 0x81};
+  unsigned char templ[] = {0, YKPIV_INS_CHANGE_REFERENCE, 0, 0x80};
   unsigned char indata[0x10];
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
@@ -899,8 +899,8 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
   if(action == action_arg_unblockMINUS_pin) {
     templ[1] = YKPIV_INS_RESET_RETRY;
   }
-  else if(action == action_arg_changeMINUS_pin) {
-    templ[3] = 0x80;
+  else if(action == action_arg_changeMINUS_puk) {
+    templ[3] = 0x81;
   }
   memcpy(indata, pin, pin_len);
   if(pin_len < 8) {
