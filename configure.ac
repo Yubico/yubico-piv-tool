@@ -87,11 +87,15 @@ fi
 
 if test "x$with_backend" = xwinscard; then
   AC_MSG_NOTICE([checking for winscard with Windows linkage])
-  AC_LIB_HAVE_LINKFLAGS(winscard,, [#include <winscard.h>],
-                        [SCardBeginTransaction(0)])
-  if test "x$ac_cv_libwinscard" != xyes; then
-    AC_MSG_ERROR([cannot find Windows winscard library/headers])
-  fi
+  AC_CHECK_HEADERS([winscard.h])
+  PCSC_WIN_LIBS="-lwinscard"
+  save_LIBS="$LIBS"
+  LIBS="$LIBS $PCSC_WIN_LIBS"
+  AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <winscard.h>]],
+          [[SCardBeginTransaction(0)]])],
+                 [AC_SUBST([PCSC_WIN_LIBS])],
+                 [AC_MSG_ERROR([cannot find Windows PCSC library/headers])])
+  LIBS="$save_LIBS"
 fi
 
 if test "x$with_backend" = xmacscard; then
@@ -172,7 +176,7 @@ AC_MSG_NOTICE([summary of build options:
           CFLAGS:   ${PCSC_CFLAGS}
             LIBS:   ${PCSC_LIBS}
   Winscard
-            LIBS:   ${LTLIBWINSCARD}
+            LIBS:   ${PCSC_WIN_LIBS}
   Mac PCSC
             LIBS:   ${PCSC_MACOSX_LIBS}
 ])
