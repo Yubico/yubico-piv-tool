@@ -47,7 +47,7 @@ option "pin-retries" - "Number of retries before the pin code is blocked" int op
 option "puk-retries" - "Number of retries before the puk code is blocked" int optional dependon="pin-retries"
 option "input" i "Filename to use as input, - for stdin" string optional default="-"
 option "output" o "Filename to use as output, - for stdout" string optional default="-"
-option "key-format" K "Format of the key being read/written" values="PEM","PKCS12" enum optional default="PEM"
+option "key-format" K "Format of the key being read/written" values="PEM","PKCS12","GZIP" enum optional default="PEM"
 option "password" p "Password for decryption of private key file" string optional
 option "subject" S "The subject to use for certificate request" string optional
 text   "

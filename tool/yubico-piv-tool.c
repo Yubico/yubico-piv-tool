@@ -31,6 +31,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include "ykpiv.h"
 
@@ -386,6 +388,8 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
   X509 *cert = NULL;
   PKCS12 *p12 = NULL;
   EVP_PKEY *private_key = NULL;
+  int compress = 0;
+  int cert_len;
 
   input_file = open_file(input_file_name, INPUT);
   if(!input_file) {
@@ -398,6 +402,7 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
       fprintf(stderr, "Failed loading certificate for import.\n");
       goto import_cert_out;
     }
+    cert_len = i2d_X509(cert, NULL);
   } else if(cert_format == key_format_arg_PKCS12) {
     p12 = d2i_PKCS12_fp(input_file, NULL);
     if(!p12) {
@@ -408,6 +413,13 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
       fprintf(stderr, "Failed to parse PKCS12 structure.\n");
       goto import_cert_out;
     }
+    cert_len = i2d_X509(cert, NULL);
+  } else if (cert_format == key_format_arg_GZIP) {
+    struct stat st;
+
+    fstat(fileno(input_file), &st);
+    cert_len = st.st_size;
+    compress = 0x01;
   } else {
     /* TODO: more formats go here */
     fprintf(stderr, "Unknown key format.\n");
@@ -418,7 +430,6 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
     unsigned char certdata[2100];
     unsigned char *certptr = certdata;
     int object = get_object_id(slot);
-    int cert_len = i2d_X509(cert, NULL);
     ykpiv_rc res;
 
     if(cert_len > 2048) {
@@ -427,11 +438,19 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
     }
     *certptr++ = 0x70;
     certptr += set_length(certptr, cert_len);
-    /* i2d_X509 increments certptr here.. */
-    i2d_X509(cert, &certptr);
+    if (compress) {
+      if (fread(certptr, 1, cert_len, input_file) != cert_len) {
+        fprintf(stderr, "Failed to read compressed certificate\n");
+        goto import_cert_out;
+      }
+      certptr += cert_len;
+    } else {
+      /* i2d_X509 increments certptr here.. */
+      i2d_X509(cert, &certptr);
+    }
     *certptr++ = 0x71;
     *certptr++ = 1;
-    *certptr++ = 0; /* certinfo (gzip etc) */
+    *certptr++ = compress; /* certinfo (gzip etc) */
     *certptr++ = 0xfe; /* LRC */
     *certptr++ = 0;
 
