@@ -24,7 +24,7 @@
 # non-source form of such a combination shall include the source code
 # for the parts of OpenSSL used as well as that of the covered work.
 
-AC_INIT([yubico-piv-tool], [0.1.1])
+AC_INIT([yubico-piv-tool], [0.1.2])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 

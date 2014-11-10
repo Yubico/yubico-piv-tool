@@ -1,6 +1,8 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
-* Version 0.1.1 (unreleased)
+* Version 0.1.2 (unreleased)
+
+* Version 0.1.1 (released 2014-11-10)
 
 ** Correct broken CHUID that made windows work inconsistently.
 
