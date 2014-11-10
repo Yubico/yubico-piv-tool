@@ -417,7 +417,10 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
   } else if (cert_format == key_format_arg_GZIP) {
     struct stat st;
 
-    fstat(fileno(input_file), &st);
+    if(fstat(fileno(input_file), &st) == -1) {
+      fprintf(stderr, "Failed checking input GZIP file.\n");
+      goto import_cert_out;
+    }
     cert_len = st.st_size;
     compress = 0x01;
   } else {
