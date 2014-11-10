@@ -30,7 +30,15 @@ ACLOCAL_AMFLAGS = -I m4
 
 EXTRA_DIST = windows.mk mac.mk tool/tests/basic.sh
 
+EXTRA_DIST += doc/CertificateAuthorityWithNEO.txt doc/Windows-Certificate.txt doc/YubiKey-NEO-PIV-Introduction.txt
+
 # Maintainer rules.
+
+check-doc-dist:
+	perl -pe "s,^EXTRA_DIST \+= .*,EXTRA_DIST += `cd $(srcdir) && ls doc/*.txt | xargs echo`," < $(srcdir)/Makefile.am > check-doc-dist.tmp
+	diff -ur $(srcdir)/Makefile.am check-doc-dist.tmp || \
+		(rm -f check-doc-dist.tmp; echo 'error: please update $(srcdir)/Makefile.am to include all docs'; exit 1)
+	rm -f check-doc-dist.tmp
 
 ChangeLog:
 	cd $(srcdir) && git2cl > ChangeLog
@@ -47,7 +55,7 @@ release:
 		grep -q "Version $(VERSION) .released `date -I`" || \
 		(echo 'error: Update date/version in $(srcdir)/NEWS.'; exit 1)
 	rm -f $(srcdir)/ChangeLog
-	make ChangeLog distcheck
+	make check-doc-dist ChangeLog distcheck
 	gpg --detach-sign --default-key $(KEYID) $(PACKAGE)-$(VERSION).tar.gz
 	gpg --verify $(PACKAGE)-$(VERSION).tar.gz.sig
 	git tag -sm "$(PACKAGE)-$(VERSION)" $(PACKAGE)-$(VERSION)
