@@ -60,6 +60,12 @@ file with password test, into slot 9c:
    yubico-piv-tool -s 9c -i test.pfx -K PKCS12 -p test -a set-chuid \\
      -a import-key -a import-cert
 
+Import a certificate which is larger than 2048 bytes and thus requires
+compression in order to fit:
+
+  openssl x509 -in cert.pem -outform DER | gzip -9 > der.gz
+  yubico-piv-tool -s 9c -i der.gz -K GZIP -a import-cert
+
 Change the management key used for administrative authentication:
 
    yubico-piv-tool -n 0807605403020108070605040302010807060504030201 \\
