@@ -2,6 +2,22 @@ yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
 * Version 0.1.1 (unreleased)
 
+** Correct broken CHUID that made windows work inconsistently.
+
+** Add support for compressed certificates.
+
+** Fix broken unblock-pin action.
+
+** Don't try to accept to short keys for mgm key.
+
+** Only do applet authentication if needed.
+
+** Add --hash for selecting what hash to use for signatures.
+
+** Add hidden --sign command. Should probably not be used.
+
+** Fix for signature algorithm in selfsigned cert.
+
 * Version 0.1.0 (released 2014-08-25)
 
 ** Break out functionality into a library.
