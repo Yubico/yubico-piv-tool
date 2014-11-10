@@ -442,7 +442,7 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
     *certptr++ = 0x70;
     certptr += set_length(certptr, cert_len);
     if (compress) {
-      if (fread(certptr, 1, cert_len, input_file) != cert_len) {
+      if (fread(certptr, 1, (size_t)cert_len, input_file) != (size_t)cert_len) {
         fprintf(stderr, "Failed to read compressed certificate\n");
         goto import_cert_out;
       }
