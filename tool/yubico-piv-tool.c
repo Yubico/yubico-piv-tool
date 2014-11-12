@@ -326,33 +326,49 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
       int sw;
       if(algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048) {
         RSA *rsa_private_key = EVP_PKEY_get1_RSA(private_key);
+        int element_len = 128;
+        if(algorithm == YKPIV_ALGO_RSA1024) {
+          element_len = 64;
+        }
 
         *in_ptr++ = 0x01;
-        in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->p));
-        in_ptr += BN_bn2bin(rsa_private_key->p, in_ptr);
+        if(set_component_with_len(&in_ptr, rsa_private_key->p, element_len) == false) {
+          fprintf(stderr, "Failed setting p component.\n");
+          goto import_out;
+        }
 
         *in_ptr++ = 0x02;
-        in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->q));
-        in_ptr += BN_bn2bin(rsa_private_key->q, in_ptr);
+        if(set_component_with_len(&in_ptr, rsa_private_key->q, element_len) == false) {
+          fprintf(stderr, "Failed setting q component.\n");
+          goto import_out;
+        }
 
         *in_ptr++ = 0x03;
-        in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->dmp1));
-        in_ptr += BN_bn2bin(rsa_private_key->dmp1, in_ptr);
+        if(set_component_with_len(&in_ptr, rsa_private_key->dmp1, element_len) == false) {
+          fprintf(stderr, "Failed setting dmp1 component.\n");
+          goto import_out;
+        }
 
         *in_ptr++ = 0x04;
-        in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->dmq1));
-        in_ptr += BN_bn2bin(rsa_private_key->dmq1, in_ptr);
+        if(set_component_with_len(&in_ptr, rsa_private_key->dmq1, element_len) == false) {
+          fprintf(stderr, "Failed setting dmq1 component.\n");
+          goto import_out;
+        }
 
         *in_ptr++ = 0x05;
-        in_ptr += set_length(in_ptr, BN_num_bytes(rsa_private_key->iqmp));
-        in_ptr += BN_bn2bin(rsa_private_key->iqmp, in_ptr);
+        if(set_component_with_len(&in_ptr, rsa_private_key->iqmp, element_len) == false) {
+          fprintf(stderr, "Failed setting iqmp component.\n");
+          goto import_out;
+        }
       } else if(algorithm == YKPIV_ALGO_ECCP256) {
         EC_KEY *ec = EVP_PKEY_get1_EC_KEY(private_key);
         const BIGNUM *s = EC_KEY_get0_private_key(ec);
 
         *in_ptr++ = 0x06;
-        in_ptr += set_length(in_ptr, BN_num_bytes(s));
-        in_ptr += BN_bn2bin(s, in_ptr);
+        if(set_component_with_len(&in_ptr, s, 32) == false) {
+          fprintf(stderr, "Failed setting ec private key.\n");
+          goto import_out;
+        }
       }
 
       if(ykpiv_transfer_data(state, templ, in_data, in_ptr - in_data, data,

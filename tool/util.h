@@ -42,5 +42,6 @@ X509_NAME *parse_name(const char*);
 unsigned char get_algorithm(EVP_PKEY*);
 FILE *open_file(const char*, int);
 int get_object_id(enum enum_slot slot);
+bool set_component_with_len(unsigned char**, const BIGNUM*, int);
 
 #endif
