@@ -1,6 +1,8 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
-* Version 0.1.2 (unreleased)
+* Version 0.1.2 (released 2014-11-14)
+
+** Fix an issue where shorter component of RSA keys where not packed correctly.
 
 * Version 0.1.1 (released 2014-11-10)
 
