@@ -405,7 +405,7 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
   PKCS12 *p12 = NULL;
   EVP_PKEY *private_key = NULL;
   int compress = 0;
-  int cert_len;
+  int cert_len = -1;
 
   input_file = open_file(input_file_name, INPUT);
   if(!input_file) {
@@ -418,7 +418,12 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
       fprintf(stderr, "Failed loading certificate for import.\n");
       goto import_cert_out;
     }
-    cert_len = i2d_X509(cert, NULL);
+  } else if(cert_format == key_format_arg_DER) {
+    cert = d2i_X509_fp(input_file, NULL);
+    if(!cert) {
+      fprintf(stderr, "Failed loading certificate for import.\n");
+      goto import_cert_out;
+    }
   } else if(cert_format == key_format_arg_PKCS12) {
     p12 = d2i_PKCS12_fp(input_file, NULL);
     if(!p12) {
@@ -429,7 +434,6 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
       fprintf(stderr, "Failed to parse PKCS12 structure.\n");
       goto import_cert_out;
     }
-    cert_len = i2d_X509(cert, NULL);
   } else if (cert_format == key_format_arg_GZIP) {
     struct stat st;
 
@@ -443,6 +447,9 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
     /* TODO: more formats go here */
     fprintf(stderr, "Unknown key format.\n");
     goto import_cert_out;
+  }
+  if(cert_len == -1) {
+    cert_len = i2d_X509(cert, NULL);
   }
 
   {
