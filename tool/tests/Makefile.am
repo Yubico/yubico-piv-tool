@@ -25,6 +25,7 @@
 # for the parts of OpenSSL used as well as that of the covered work.
 
 TESTS_ENVIRONMENT = export VERSION=$(PACKAGE_VERSION); export EXEEXT=$(EXEEXT);
+TESTS_ENVIRONMENT += $(VALGRIND)
 
 AM_CFLAGS = $(WARN_CFLAGS)
 AM_CPPFLAGS = -I$(top_srcdir)/lib -I$(top_builddir)/lib
