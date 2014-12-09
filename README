@@ -4,12 +4,10 @@ Yubico PIV Tool
 Introduction
 ------------
 
-This is a command line tool to interact with the PIV applet on a YubiKey NEO.
+This is a command line tool to interact with the PIV applet on a
+https://www.yubico.com[YubiKey NEO].
 Among other functions it supports, generating keys on device, importing keys
 and certificates and creating certificate requests.
-
-For more information about Yubico and the YubiKey, see:
-https://www.yubico.com
 
 License
 -------
