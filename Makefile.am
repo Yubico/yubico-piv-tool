@@ -30,12 +30,12 @@ ACLOCAL_AMFLAGS = -I m4
 
 EXTRA_DIST = windows.mk mac.mk tool/tests/basic.sh
 
-EXTRA_DIST += doc/CertificateAuthorityWithNEO.txt doc/OS-X-Codesigning.txt doc/Windows-Certificate.txt doc/YubiKey-NEO-PIV-Introduction.txt
+EXTRA_DIST += doc/Certificate_Authority_with_NEO.adoc doc/OS_X_code_signing.adoc doc/Windows_certificate.adoc doc/YubiKey_NEO_PIV_introduction.adoc
 
 # Maintainer rules.
 
 check-doc-dist:
-	perl -pe "s,^EXTRA_DIST \+= .*,EXTRA_DIST += `cd $(srcdir) && ls doc/*.txt | xargs echo`," < $(srcdir)/Makefile.am > check-doc-dist.tmp
+	perl -pe "s,^EXTRA_DIST \+= .*,EXTRA_DIST += `cd $(srcdir) && ls doc/*.adoc | xargs echo`," < $(srcdir)/Makefile.am > check-doc-dist.tmp
 	diff -ur $(srcdir)/Makefile.am check-doc-dist.tmp || \
 		(rm -f check-doc-dist.tmp; echo 'error: please update $(srcdir)/Makefile.am to include all docs'; exit 1)
 	rm -f check-doc-dist.tmp
