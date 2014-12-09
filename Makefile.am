@@ -30,7 +30,8 @@ ACLOCAL_AMFLAGS = -I m4
 
 EXTRA_DIST = windows.mk mac.mk tool/tests/basic.sh
 
-EXTRA_DIST += doc/Certificate_Authority_with_NEO.adoc doc/OS_X_code_signing.adoc doc/Windows_certificate.adoc doc/YubiKey_NEO_PIV_introduction.adoc
+EXTRA_DIST += doc/Certificate_Authority_with_NEO.adoc doc/OS_X_code_signing.adoc doc/SSH_with_PIV_and_PKCS11.adoc doc/Windows_certificate.adoc doc/YubiKey_NEO_PIV_introduction.adoc
+
 
 # Maintainer rules.
 

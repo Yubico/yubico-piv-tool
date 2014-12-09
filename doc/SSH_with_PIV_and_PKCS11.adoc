@@ -1,0 +1,46 @@
+Using PIV for SSH through PKCS11
+--------------------------------
+
+This is a step-by-step for how to get a Neo with PIV to work for
+public-key authentication with OpenSSH through PKCS11.
+Primarily on a OS X or Linux system.
+
+Prerequisites
+-------------
+
+* a YubiKey Neo with the PIV applet loaded
+* the yubico-piv-tool software
+* the OpenSC software
+
+Steps
+-----
+
+1. Generate a key in slot 9a (any slot should suffice):
+
+  $ yubico-piv-tool -s 9a -a generate -o public.pem
+
+2. Create a selfsigned certificate for that key:
+
+  $ yubico-piv-tool -a verify-pin -P 123456 -a selfsign-certificate -s 9a \
+        -S "/CN=SSH key/" -i public.pem -o cert.pem
+
+3. Load the certificate:
+
+   $ yubico-piv-tool -a import-certificate -s 9a -i cert.pem
+
+4. Find out where OpenSC has installed the pkcs11 module.
+
+  * For OS X with binary installation this is typically in `/Library/OpenSC/lib/`
+
+  * For a Debian based system this is typically in `/usr/lib/x86_64-linux-gnu/`
++
+After this we'll call this location `$OPENSC_LIBS`
+
+5. Get the public key in correct format for ssh and add to authorized_keys on
+the target system.
+
+   $ ssh-keygen -D $OPENSC_LIBS/opensc-pkcs11.so
+
+6. Authenticate to the target system using the new key:
+
+   $ ssh -I $OPENSC_LIBS/opensc-pkcs11.so user@remote.example.com
