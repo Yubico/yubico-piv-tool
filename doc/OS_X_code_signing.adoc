@@ -1,9 +1,9 @@
-Request, load and use OS X codesigning certificates
+Request, load and use OS X code signing certificates
 ---------------------------------------------------
 
 This is a short step-by-step on how to generate a key in the Neo,
 create a certificate request, submit that request to apple, load the
-certificate in the Neo and use it for codesigning.
+certificate in the Neo and use it for code signing.
 
 Prerequisites
 -------------
