@@ -1206,8 +1206,9 @@ int main(int argc, char *argv[]) {
         if(args_info.slot_arg != slot__NULL) {
           if(generate_key(state, args_info.slot_orig, args_info.algorithm_arg, args_info.output_arg, args_info.key_format_arg) == false) {
             ret = EXIT_FAILURE;
+          } else {
+            fprintf(stderr, "Successfully generated a new private key.\n");
           }
-          fprintf(stderr, "Successfully generated a new private key.\n");
         } else {
           fprintf(stderr, "The generate action needs a slot (-s) to operate on.\n");
           ret = EXIT_FAILURE;
@@ -1298,6 +1299,8 @@ int main(int argc, char *argv[]) {
                 args_info.slot_orig, args_info.subject_arg, args_info.hash_arg,
                 args_info.output_arg) == false) {
             ret = EXIT_FAILURE;
+          } else {
+            fprintf(stderr, "Successfully generated a certificate request.\n");
           }
         }
         break;
@@ -1346,6 +1349,8 @@ int main(int argc, char *argv[]) {
                 args_info.slot_orig, args_info.subject_arg, args_info.hash_arg,
                 args_info.output_arg) == false) {
             ret = EXIT_FAILURE;
+          } else {
+            fprintf(stderr, "Successfully generated a new self signed certificate.\n");
           }
         }
         break;
