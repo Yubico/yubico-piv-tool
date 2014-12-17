@@ -1207,6 +1207,7 @@ int main(int argc, char *argv[]) {
           if(generate_key(state, args_info.slot_orig, args_info.algorithm_arg, args_info.output_arg, args_info.key_format_arg) == false) {
             ret = EXIT_FAILURE;
           }
+          fprintf(stderr, "Successfully generated a new private key.\n");
         } else {
           fprintf(stderr, "The generate action needs a slot (-s) to operate on.\n");
           ret = EXIT_FAILURE;
