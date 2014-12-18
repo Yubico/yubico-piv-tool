@@ -24,7 +24,7 @@
 # non-source form of such a combination shall include the source code
 # for the parts of OpenSSL used as well as that of the covered work.
 
-AC_INIT([yubico-piv-tool], [0.1.3])
+AC_INIT([yubico-piv-tool], [0.1.4])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 
@@ -32,7 +32,7 @@ AC_CONFIG_MACRO_DIR([m4])
 # Interfaces changed/added/removed:   CURRENT++       REVISION=0
 # Interfaces added:                             AGE++
 # Interfaces removed:                           AGE=0
-AC_SUBST([LT_CURRENT], 1)
+AC_SUBST([LT_CURRENT], 2)
 AC_SUBST([LT_REVISION], 1)
 AC_SUBST([LT_AGE], 0)
 

@@ -1,5 +1,7 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
+* Version 0.1.4 (unreleased)
+
 * Version 0.1.3 (released 2014-12-18)
 
 ** Add format DER for importing certificates.
