@@ -1,5 +1,5 @@
  /*
- * Copyright (c) 2014 Yubico AB
+ * Copyright (c) 2014-2015 Yubico AB
  * All rights reserved.
  *
  * This program is free software: you can redistribute it and/or modify
@@ -83,7 +83,7 @@ static void print_version(ykpiv_state *state) {
   if(ykpiv_get_version(state, version, sizeof(version)) == YKPIV_OK) {
     printf("Applet version %s found.\n", version);
   } else {
-    fprintf(stderr, "Failed to retreive apple version.\n");
+    fprintf(stderr, "Failed to retrieve applet version.\n");
   }
 }
 
