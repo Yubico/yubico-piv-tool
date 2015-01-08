@@ -47,8 +47,8 @@ doit:
 	./configure --prefix=$(PWD)/tmp/root && \
 	make install check && \
 	install_name_tool -id @executable_path/../lib/libykpiv.dylib $(PWD)/tmp/root/lib/libykpiv.dylib && \
-	install_name_tool -id @executable_path/../lib/libykpiv.0.dylib $(PWD)/tmp/root/lib/libykpiv.0.dylib && \
-	install_name_tool -change $(PWD)/tmp/root/lib/libykpiv.0.dylib @executable_path/../lib/libykpiv.0.dylib $(PWD)/tmp/root/bin/yubico-piv-tool ; \
+	install_name_tool -id @executable_path/../lib/libykpiv.1.dylib $(PWD)/tmp/root/lib/libykpiv.1.dylib && \
+	install_name_tool -change $(PWD)/tmp/root/lib/libykpiv.1.dylib @executable_path/../lib/libykpiv.1.dylib $(PWD)/tmp/root/bin/yubico-piv-tool ; \
 	cp COPYING $(PWD)/tmp/root/licenses/$(PACKAGE).txt && \
 	cd .. && \
 	cd root && \
