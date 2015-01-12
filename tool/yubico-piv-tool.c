@@ -290,6 +290,10 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
     return false;
   }
 
+  if(input_file == stdin && !input_ready(input_file)) {
+    fprintf(stderr, "Please paste the private key...\n");
+  }
+
   if(key_format == key_format_arg_PEM) {
     private_key = PEM_read_PrivateKey(input_file, NULL, NULL, password);
     if(!private_key) {
@@ -410,6 +414,10 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
   input_file = open_file(input_file_name, INPUT);
   if(!input_file) {
     return false;
+  }
+
+  if(input_file == stdin && !input_ready(input_file)) {
+    fprintf(stderr, "Please paste the certificate...\n");
   }
 
   if(cert_format == key_format_arg_PEM) {
@@ -553,6 +561,10 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
   output_file = open_file(output_file_name, OUTPUT);
   if(!input_file || !output_file) {
     goto request_out;
+  }
+
+  if(input_file == stdin && !input_ready(input_file)) {
+    fprintf(stderr, "Please paste the public key...\n");
   }
 
   if(key_format == key_format_arg_PEM) {
@@ -732,6 +744,10 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   output_file = open_file(output_file_name, OUTPUT);
   if(!input_file || !output_file) {
     goto selfsign_out;
+  }
+
+  if(input_file == stdin && !input_ready(input_file)) {
+    fprintf(stderr, "Please paste the public key...\n");
   }
 
   if(key_format == key_format_arg_PEM) {
@@ -1005,6 +1021,10 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
   input_file = open_file(input, INPUT);
   if(!input_file) {
     return false;
+  }
+
+  if(input_file == stdin && !input_ready(input_file)) {
+    fprintf(stderr, "Please paste the input...\n");
   }
 
   output_file = open_file(output, OUTPUT);
