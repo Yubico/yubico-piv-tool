@@ -57,23 +57,6 @@ FILE *open_file(const char *file_name, int mode) {
   return file;
 }
 
-bool input_ready(FILE *file) {
-  int fd = fileno(file);
-  fd_set rfds;
-  struct timeval tv;
-
-  FD_ZERO(&rfds);
-  FD_SET(fd, &rfds);
-
-  tv.tv_sec = 0;
-  tv.tv_usec = 0;
-
-  if(select(fd + 1, &rfds, NULL, NULL, &tv) == 1) {
-    return true;
-  }
-  return false;
-}
-
 unsigned char get_algorithm(EVP_PKEY *key) {
   int type = EVP_PKEY_type(key->type);
   switch(type) {

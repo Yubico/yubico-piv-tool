@@ -33,6 +33,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include "ykpiv.h"
 
@@ -290,7 +291,7 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
     return false;
   }
 
-  if(input_file == stdin && !input_ready(input_file)) {
+  if(isatty(fileno(input_file))) {
     fprintf(stderr, "Please paste the private key...\n");
   }
 
@@ -416,7 +417,7 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
     return false;
   }
 
-  if(input_file == stdin && !input_ready(input_file)) {
+  if(isatty(fileno(input_file))) {
     fprintf(stderr, "Please paste the certificate...\n");
   }
 
@@ -563,7 +564,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     goto request_out;
   }
 
-  if(input_file == stdin && !input_ready(input_file)) {
+  if(isatty(fileno(input_file))) {
     fprintf(stderr, "Please paste the public key...\n");
   }
 
@@ -746,7 +747,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     goto selfsign_out;
   }
 
-  if(input_file == stdin && !input_ready(input_file)) {
+  if(isatty(fileno(input_file))) {
     fprintf(stderr, "Please paste the public key...\n");
   }
 
@@ -1023,7 +1024,7 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
     return false;
   }
 
-  if(input_file == stdin && !input_ready(input_file)) {
+  if(isatty(fileno(input_file))) {
     fprintf(stderr, "Please paste the input...\n");
   }
 
