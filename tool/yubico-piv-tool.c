@@ -690,6 +690,8 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
       goto request_out;
     }
     M_ASN1_BIT_STRING_set(req->signature, signature, sig_len);
+    /* mark that all bits should be used. */
+    req->signature->flags = ASN1_STRING_FLAG_BITS_LEFT;
   }
 
   if(key_format == key_format_arg_PEM) {
@@ -889,6 +891,10 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
       goto selfsign_out;
     }
     M_ASN1_BIT_STRING_set(x509->signature, signature, sig_len);
+    /* setting flags to ASN1_STRING_FLAG_BITS_LEFT here marks that no bits
+     * should be subtracted from the bit string, thus making sure that the
+     * certificate can be validated. */
+    x509->signature->flags = ASN1_STRING_FLAG_BITS_LEFT;
   }
 
   if(key_format == key_format_arg_PEM) {
