@@ -1358,9 +1358,10 @@ int main(int argc, char *argv[]) {
             ret = EXIT_FAILURE;
           }
         } else {
-          fprintf(stderr, "The %s action needs a pin (-P) and a new-pin (-N).\n",
+          fprintf(stderr, "The %s action needs a %s (-P) and a new-pin (-N).\n",
               action == action_arg_changeMINUS_pin ? "change-pin" :
-              action == action_arg_changeMINUS_puk ? "change-puk" : "unblock-pin");
+              action == action_arg_changeMINUS_puk ? "change-puk" : "unblock-pin",
+              action == action_arg_unblockMINUS_pin ? "puk" : "pin");
           ret = EXIT_FAILURE;
         }
         break;
