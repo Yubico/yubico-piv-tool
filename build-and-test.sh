@@ -1,7 +1,6 @@
 #!/bin/sh
 
 set -e
-set -x
 
 autoreconf -i
 
@@ -13,6 +12,10 @@ if [ "x$ARCH" != "x" ]; then
 
     make -f windows.mk ${ARCH}bit VERSION=$version
 else
-    ./configure
+    ./configure $COVERAGE
     make check
+    if [ "x$COVERAGE" != "x" ]; then
+        gem install coveralls-lcov
+        coveralls-lcov --repo-token $COVERALLS_TOKEN coverage/app2.info
+    fi
 fi

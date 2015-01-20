@@ -120,12 +120,12 @@ else
   AC_MSG_ERROR([cannot find PCSC/winscard library/headers])
 fi
 
-AC_ARG_ENABLE([gcov],
-              [AS_HELP_STRING([--enable-gcov],
+AC_ARG_ENABLE([coverage],
+              [AS_HELP_STRING([--enable-coverage],
                               [use Gcov to test the test suite])],
                               [],
-                              [enable_gcov=no])
-AM_CONDITIONAL([ENABLE_COV],[test '!' "$enable_gcov" = no])
+                              [enable_cov=no])
+AM_CONDITIONAL([ENABLE_COV],[test '!' "$enable_cov" = no])
 
 AC_ARG_ENABLE([gcc-warnings],
   [AS_HELP_STRING([--enable-gcc-warnings],
