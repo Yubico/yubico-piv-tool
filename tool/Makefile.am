@@ -59,3 +59,8 @@ yubico-piv-tool.1: $(yubico_piv_tool_SOURCES) \
 		--name="Yubico PIV tool" \
 		--include=$(srcdir)/yubico-piv-tool.h2m \
 		--output=$@ $(builddir)/yubico-piv-tool$(EXEEXT)
+
+if ENABLE_COV
+AM_CFLAGS += --coverage
+AM_LDFLAGS = --coverage
+endif

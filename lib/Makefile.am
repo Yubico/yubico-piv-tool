@@ -51,3 +51,8 @@ endif
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = ykpiv.pc
+
+if ENABLE_COV
+AM_CFLAGS += --coverage
+AM_LDFLAGS = --coverage
+endif

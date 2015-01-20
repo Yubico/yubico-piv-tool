@@ -38,3 +38,7 @@ parse_name_LDADD = ../libpiv_util.la $(OPENSSL_LIBS)
 
 check_PROGRAMS = parse_name
 TESTS = basic.sh $(check_PROGRAMS)
+
+if ENABLE_COV
+AM_LDFLAGS += --coverage
+endif

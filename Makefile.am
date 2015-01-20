@@ -32,6 +32,27 @@ EXTRA_DIST = windows.mk mac.mk tool/tests/basic.sh
 
 EXTRA_DIST += doc/Certificate_Authority_with_NEO.adoc doc/OS_X_code_signing.adoc doc/SSH_with_PIV_and_PKCS11.adoc doc/Windows_certificate.adoc doc/YubiKey_NEO_PIV_introduction.adoc
 
+if ENABLE_COV
+cov-reset:
+	rm -fr coverage
+	find . -name "*.gcda" -exec rm {} \;
+	lcov --directory . --zerocounters
+
+cov-report:
+	mkdir -p coverage
+	lcov --compat-libtool --directory . --capture --output-file coverage/app.info
+	lcov --extract coverage/app.info '*.c' --output-file coverage/app2.info
+	genhtml -o coverage/ coverage/app2.info
+
+cov:
+	make cov-report
+
+clean-local:
+	make cov-reset
+
+check:
+	make cov
+endif
 
 # Maintainer rules.
 
