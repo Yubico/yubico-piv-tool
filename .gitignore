@@ -73,3 +73,10 @@ tool/tests/parse_name
 tool/tests/parse_name.log
 tool/tests/parse_name.o
 tool/tests/parse_name.trs
+coverage/
+lib/error.gcno
+lib/version.gcno
+lib/ykpiv.gcno
+tool/util.gcno
+tool/yubico-piv-tool.gcda
+tool/yubico-piv-tool.gcno
