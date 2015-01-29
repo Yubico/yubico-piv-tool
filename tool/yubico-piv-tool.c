@@ -107,7 +107,7 @@ static bool generate_key(ykpiv_state *state, const char *slot,
   EC_KEY *eckey = NULL;
   EC_POINT *point = NULL;
 
-  sscanf(slot, "%x", &key);
+  sscanf(slot, "%2x", &key);
   templ[3] = key;
 
   output_file = open_file(output_file_name, OUTPUT);
@@ -284,7 +284,7 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
   X509 *cert = NULL;
   bool ret = false;
 
-  sscanf(slot, "%x", &key);
+  sscanf(slot, "%2x", &key);
 
   input_file = open_file(input_file_name, INPUT);
   if(!input_file) {
@@ -556,7 +556,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
   const unsigned char *oid;
   int nid;
 
-  sscanf(slot, "%x", &key);
+  sscanf(slot, "%2x", &key);
 
   input_file = open_file(input_file_name, INPUT);
   output_file = open_file(output_file_name, OUTPUT);
@@ -740,7 +740,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   int nid;
   unsigned int md_len;
 
-  sscanf(slot, "%x", &key);
+  sscanf(slot, "%2x", &key);
 
   input_file = open_file(input_file_name, INPUT);
   output_file = open_file(output_file_name, OUTPUT);
@@ -1021,7 +1021,7 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
   int algo;
   int nid;
 
-  sscanf(slot, "%x", &key);
+  sscanf(slot, "%2x", &key);
 
   input_file = open_file(input, INPUT);
   if(!input_file) {
