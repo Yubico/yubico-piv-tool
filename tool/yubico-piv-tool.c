@@ -629,7 +629,6 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     goto request_out;
   }
 
-  memset(digest, 0, sizeof(digest));
   memcpy(digest, oid, oid_len);
   /* XXX: this should probably use X509_REQ_digest() but that's buggy */
   if(!ASN1_item_digest(ASN1_ITEM_rptr(X509_REQ_INFO), md, req->req_info,
@@ -874,7 +873,6 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   }
   x509->sig_alg->algorithm = OBJ_nid2obj(nid);
   x509->cert_info->signature->algorithm = x509->sig_alg->algorithm;
-  memset(digest, 0, sizeof(digest));
   memcpy(digest, oid, oid_len);
   /* XXX: this should probably use X509_digest() but that looks buggy */
   if(!ASN1_item_digest(ASN1_ITEM_rptr(X509_CINF), md, x509->cert_info,
