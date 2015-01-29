@@ -211,7 +211,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
     apdu.st.lc = sizeof(aid);
     memcpy(apdu.st.data, aid, sizeof(aid));
 
-    if((res = send_data(state, &apdu, data, &recv_len, &sw) != YKPIV_OK)) {
+    if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
       return res;
     } else if(sw == 0x9000) {
       return YKPIV_OK;
