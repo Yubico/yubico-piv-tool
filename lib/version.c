@@ -37,12 +37,12 @@
 static int my_strverscmp (const char *s1, const char *s2)
 {
   static const char *digits = "0123456789";
-  int ret, lz1, lz2;
   size_t p1, p2;
 
   p1 = strcspn (s1, digits);
   p2 = strcspn (s2, digits);
   while (p1 == p2 && s1[p1] != '\0' && s2[p2] != '\0') {
+    int ret, lz1, lz2;
     /* Different prefix */
     if ((ret = strncmp (s1, s2, p1)) != 0)
       return ret;
