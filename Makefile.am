@@ -54,6 +54,11 @@ check:
 	make cov
 endif
 
+if ENABLE_CPPCHECK
+cppcheck:
+	$(CPPCHECK) -q -v -f --enable=all -i tool/cmdline.c lib tool
+endif
+
 # Maintainer rules.
 
 check-doc-dist:
