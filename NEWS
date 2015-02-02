@@ -1,6 +1,16 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
-* Version 0.1.4 (unreleased)
+* Version 0.1.4 (released 2015-02-02)
+
+** Prompt for input if input is stdin.
+
+** Mark all bits of the signature as used is certs and requests.
+
+** Correct error for unblock-pin.
+
+** Fix hex decode to decode capital letters and return error.
+
+** Check parity of new management keys.
 
 * Version 0.1.3 (released 2014-12-18)
 
