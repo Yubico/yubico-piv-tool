@@ -1249,6 +1249,7 @@ int main(int argc, char *argv[]) {
               fprintf(stderr, "Failed decoding new key!\n");
               ret = EXIT_FAILURE;
             } else if(ykpiv_set_mgmkey(state, new_key) != YKPIV_OK) {
+              fprintf(stderr, "Failed setting the new key!\n");
               ret = EXIT_FAILURE;
             } else {
               fprintf(stderr, "Successfully set new management key.\n");
