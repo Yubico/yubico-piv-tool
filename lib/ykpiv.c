@@ -424,7 +424,7 @@ ykpiv_rc ykpiv_set_mgmkey(ykpiv_state *state, const unsigned char *new_key) {
     if(DES_is_weak_key(&key_tmp) == 1) {
       if(state->verbose) {
 	fprintf(stderr, "Won't set new key '");
-	dump_hex(new_key + i, 8);
+	dump_hex(new_key + i * 8, 8);
 	fprintf(stderr, "' since it's considered weak.\n");
       }
       return YKPIV_GENERIC_ERROR;
