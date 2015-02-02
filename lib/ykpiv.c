@@ -31,6 +31,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <ctype.h>
 
 #include <openssl/des.h>
 #include <openssl/rand.h>
@@ -465,7 +466,7 @@ ykpiv_rc ykpiv_hex_decode(const char *hex_in, size_t in_len,
   }
   *out_len = in_len / 2;
   for(i = 0; i < in_len; i++) {
-    char *ind_ptr = strchr(hex_translate, *hex_in++);
+    char *ind_ptr = strchr(hex_translate, tolower(*hex_in++));
     int index = 0;
     if(ind_ptr) {
       index = ind_ptr - hex_translate;
