@@ -466,6 +466,8 @@ ykpiv_rc ykpiv_hex_decode(const char *hex_in, size_t in_len,
     int index = 0;
     if(ind_ptr) {
       index = ind_ptr - hex_translate;
+    } else {
+      return YKPIV_PARSE_ERROR;
     }
     if(first) {
       *hex_out = index << 4;

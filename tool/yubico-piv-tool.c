@@ -1201,6 +1201,7 @@ int main(int argc, char *argv[]) {
       unsigned char key[KEY_LEN];
       size_t key_len = sizeof(key);
       if(ykpiv_hex_decode(args_info.key_arg, strlen(args_info.key_arg), key, &key_len) != YKPIV_OK) {
+        fprintf(stderr, "Failed decoding key!\n");
         return EXIT_FAILURE;
       }
 
@@ -1245,6 +1246,7 @@ int main(int argc, char *argv[]) {
             unsigned char new_key[KEY_LEN];
             size_t new_key_len = sizeof(new_key);
             if(ykpiv_hex_decode(args_info.new_key_arg, strlen(args_info.new_key_arg), new_key, &new_key_len) != YKPIV_OK) {
+              fprintf(stderr, "Failed decoding new key!\n");
               ret = EXIT_FAILURE;
             } else if(ykpiv_set_mgmkey(state, new_key) != YKPIV_OK) {
               ret = EXIT_FAILURE;
