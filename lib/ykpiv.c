@@ -420,12 +420,15 @@ ykpiv_rc ykpiv_set_mgmkey(ykpiv_state *state, const unsigned char *new_key) {
 
   for(i = 0; i < 3; i++) {
     const_DES_cblock key_tmp;
+    DES_key_schedule ks_tmp;
+    int ret;
     memcpy(key_tmp, new_key + i * 8, 8);
-    if(DES_is_weak_key(&key_tmp) == 1) {
+    ret = DES_set_key_checked(&key_tmp, &ks_tmp);
+    if(ret != 0) {
       if(state->verbose) {
 	fprintf(stderr, "Won't set new key '");
 	dump_hex(new_key + i * 8, 8);
-	fprintf(stderr, "' since it's considered weak.\n");
+	fprintf(stderr, "' since it's %s.\n", ret == -1 ? "got odd parity" : "weak");
       }
       return YKPIV_GENERIC_ERROR;
     }
