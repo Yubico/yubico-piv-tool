@@ -25,7 +25,7 @@
 # for the parts of OpenSSL used as well as that of the covered work.
 
 PACKAGE=yubico-piv-tool
-OPENSSLVERSION=1.0.1j
+OPENSSLVERSION=1.0.1l
 
 all: usage 32bit 64bit
 
