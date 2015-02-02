@@ -1,5 +1,7 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
+* Version 0.1.5 (unreleased)
+
 * Version 0.1.4 (released 2015-02-02)
 
 ** Prompt for input if input is stdin.
