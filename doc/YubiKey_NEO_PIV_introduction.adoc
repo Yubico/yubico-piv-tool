@@ -17,7 +17,7 @@ General information
 The default PIN code is 123456.  The default PUK code is 12345678.
 
 The default 3DES management key (9B) is
-01:02:03:04:05:06:07:08:01:02:03:04:05:06:07:08:01:02:03:04:05:06:07:08.
+010203040506070801020304050607080102030405060708.
 
 The following key slots exists:
 
