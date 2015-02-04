@@ -1,5 +1,7 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
+* Version 0.1.6 (unreleased)
+
 * Version 0.1.5 (released 2015-02-04)
 
 ** Revert the check for parity and just set parity before the weak check.
