@@ -63,7 +63,7 @@ To generate a new private key:
 To reset PIN/PUK retry counter AND codes (default pin 123456 puk
 12345678):
 
-  yubico-piv-tool -k $key -a pin-retries --pin-retries 3 --puk-retries 3
+  yubico-piv-tool -k $key -a verify -P $pin -a pin-retries --pin-retries 3 --puk-retries 3
 
 To reset the applet (PIN/PUK need to be blocked hence trying a couple
 of times -- you need to modify this if you have changed the default
