@@ -1286,6 +1286,8 @@ cert_out:
 static bool status(ykpiv_state *state, enum enum_hash hash,
   const char *output_file_name) {
   const EVP_MD *md;
+  unsigned char chuid[2048];
+  long unsigned len = sizeof(chuid);
   FILE *output_file = open_file(output_file_name, OUTPUT);
   if(!output_file) {
     return false;
@@ -1306,13 +1308,24 @@ static bool status(ykpiv_state *state, enum enum_hash hash,
       return false;
   }
 
-  fprintf(output_file, "Slot 9a: ");
+  fprintf(output_file, "CHUID:\t");
+  if(ykpiv_fetch_object(state, YKPIV_OBJ_CHUID, chuid, &len) != YKPIV_OK) {
+    fprintf(output_file, "No data available");
+  } else {
+    long unsigned i;
+    for(i = 0; i < len; i++) {
+      fprintf(output_file, "%02x", chuid[i]);
+    }
+  }
+  fprintf(output_file, "\n");
+
+  fprintf(output_file, "Slot 9a:\t");
   print_cert_info(state, slot_arg_9a, md, output_file);
-  fprintf(output_file, "Slot 9c: ");
+  fprintf(output_file, "Slot 9c:\t");
   print_cert_info(state, slot_arg_9c, md, output_file);
-  fprintf(output_file, "Slot 9d: ");
+  fprintf(output_file, "Slot 9d:\t");
   print_cert_info(state, slot_arg_9d, md, output_file);
-  fprintf(output_file, "Slot 9e: ");
+  fprintf(output_file, "Slot 9e:\t");
   print_cert_info(state, slot_arg_9e, md, output_file);
 
   {
