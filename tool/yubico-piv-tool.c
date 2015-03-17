@@ -1239,6 +1239,7 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
       EVP_PKEY *key = X509_get_pubkey(x509);
       if(!key) {
         fprintf(output, "Parse error.\n");
+        goto cert_out;
       }
       fprintf(output, "\n\tAlgorithm:\t");
       type = EVP_PKEY_type(key->type);
