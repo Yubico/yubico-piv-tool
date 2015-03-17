@@ -1234,12 +1234,47 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
       fprintf(output, "Unknown data present.\n");
       goto cert_out;
     }
+    {
+      int type;
+      EVP_PKEY *key = X509_get_pubkey(x509);
+      if(!key) {
+        fprintf(output, "Parse error.\n");
+      }
+      fprintf(output, "\n\tAlgorithm:\t");
+      type = EVP_PKEY_type(key->type);
+      switch(type) {
+        case EVP_PKEY_RSA:
+          {
+            RSA *rsa = EVP_PKEY_get1_RSA(key);
+            fprintf(output, "RSA%d\n", RSA_size(rsa) * 8);
+            break;
+          }
+        case EVP_PKEY_EC:
+          {
+            EC_KEY *ec = EVP_PKEY_get1_EC_KEY(key);
+            const EC_GROUP *group = EC_KEY_get0_group(ec);
+            switch(EC_GROUP_get_curve_name(group)) {
+              case NID_X9_62_prime256v1:
+                fprintf(output, "ECCP256\n");
+                break;
+              case NID_secp384r1:
+                fprintf(output, "ECCP384\n"); /* is this correct NID? */
+                break;
+              default:
+                fprintf(output, "Unknown ECC curve\n");
+            }
+            break;
+          }
+        default:
+          fprintf(output, "Unknown algorithm\n");
+      }
+    }
     subj = X509_get_subject_name(x509);
     if(!subj) {
       fprintf(output, "Parse error.\n");
       goto cert_out;
     }
-    fprintf(output, "\n\tSubject DN:\t");
+    fprintf(output, "\tSubject DN:\t");
     X509_NAME_print_ex_fp(output, subj, 0, XN_FLAG_COMPAT);
     fprintf(output, "\n");
     subj = X509_get_issuer_name(x509);
