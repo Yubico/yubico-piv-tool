@@ -608,8 +608,11 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
   int sw;
-  size_t len = strlen(pin);
+  size_t len = 0;
   ykpiv_rc res;
+  if(pin) {
+    len = strlen(pin);
+  }
 
   if(len > 8) {
     return YKPIV_SIZE_ERROR;
@@ -619,9 +622,9 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
   apdu.st.ins = YKPIV_INS_VERIFY;
   apdu.st.p1 = 0x00;
   apdu.st.p2 = 0x80;
-  apdu.st.lc = 0x08;
+  apdu.st.lc = pin ? 0x08 : 0;
   memcpy(apdu.st.data, pin, len);
-  if(len < 8) {
+  if(pin && len < 8) {
     memset(apdu.st.data + len, 0xff, 8 - len);
   }
   if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
@@ -630,7 +633,10 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
     return YKPIV_OK;
   } else if((sw >> 8) == 0x63) {
     if(state->verbose) {
-      fprintf(stderr, "Pin verification failed, %d tries left before pin is blocked.\n", sw & 0xff);
+      if(pin) {
+	fprintf(stderr, "Pin verification failed, ");
+      }
+      fprintf(stderr, "%d tries left before pin is blocked.\n", sw & 0xff);
     }
     *tries = (sw & 0xff);
     return YKPIV_WRONG_PIN;
