@@ -1055,6 +1055,8 @@ static bool read_certificate(ykpiv_state *state, enum enum_slot slot,
       fwrite(ptr, (size_t)cert_len, 1, output_file);
       ret = true;
     }
+  } else {
+    fprintf(stderr, "Failed parsing data.\n");
   }
 
 read_cert_out:
@@ -1200,6 +1202,125 @@ out:
   return ret;
 }
 
+static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_MD *md,
+    FILE *output) {
+  int object = get_object_id(slot);
+  unsigned char data[2048];
+  const unsigned char *ptr = data;
+  unsigned long len = sizeof(data);
+  int cert_len;
+  X509 *x509 = NULL;
+  X509_NAME *subj;
+  BIO *bio = NULL;
+
+  if(ykpiv_fetch_object(state, object, data, &len) != YKPIV_OK) {
+    fprintf(output, "No data available.\n");
+    return;
+  }
+
+  if(*ptr++ == 0x70) {
+    unsigned int i;
+    unsigned int md_len = sizeof(data);
+    ASN1_TIME *not_before, *not_after;
+
+    ptr += get_length(ptr, &cert_len);
+    x509 = X509_new();
+    if(!x509) {
+      fprintf(output, "Allocation failure.\n");
+      return;
+    }
+    x509 = d2i_X509(NULL, &ptr, cert_len);
+    if(!x509) {
+      fprintf(output, "Unknown data present.\n");
+      goto cert_out;
+    }
+    subj = X509_get_subject_name(x509);
+    if(!subj) {
+      fprintf(output, "Parse error.\n");
+      goto cert_out;
+    }
+    fprintf(output, "\n\tSubject DN:\t");
+    X509_NAME_print_ex_fp(output, subj, 0, XN_FLAG_COMPAT);
+    fprintf(output, "\n");
+    subj = X509_get_issuer_name(x509);
+    if(!subj) {
+      fprintf(output, "Parse error.\n");
+      goto cert_out;
+    }
+    fprintf(output, "\tIssuer DN:\t");
+    X509_NAME_print_ex_fp(output, subj, 0, XN_FLAG_COMPAT);
+    fprintf(output, "\n");
+    X509_digest(x509, md, data, &md_len);
+    fprintf(output, "\tFingerprint:\t");
+    for(i = 0; i < md_len; i++) {
+      fprintf(output, "%02x", data[i]);
+    }
+    fprintf(output, "\n");
+
+    bio = BIO_new_fp(output, BIO_NOCLOSE | BIO_FP_TEXT);
+    not_before = X509_get_notBefore(x509);
+    if(not_before) {
+      fprintf(output, "\tNot Before:\t");
+      ASN1_TIME_print(bio, not_before);
+      fprintf(output, "\n");
+    }
+    not_after = X509_get_notAfter(x509);
+    if(not_after) {
+      fprintf(output, "\tNot After:\t");
+      ASN1_TIME_print(bio, not_after);
+      fprintf(output, "\n");
+    }
+  } else {
+    fprintf(output, "Parse error.\n");
+    return;
+  }
+cert_out:
+  if(x509) {
+    X509_free(x509);
+  }
+  if(bio) {
+    BIO_free(bio);
+  }
+}
+
+static bool status(ykpiv_state *state, enum enum_hash hash,
+  const char *output_file_name) {
+  const EVP_MD *md;
+  FILE *output_file = open_file(output_file_name, OUTPUT);
+  if(!output_file) {
+    return false;
+  }
+
+  switch(hash) {
+    case hash_arg_SHA1:
+      md = EVP_sha1();
+      break;
+    case hash_arg_SHA256:
+      md = EVP_sha256();
+      break;
+    case hash_arg_SHA512:
+      md = EVP_sha512();
+      break;
+    case hash__NULL:
+    default:
+      return false;
+  }
+
+  fprintf(output_file, "9a: ");
+  print_cert_info(state, slot_arg_9a, md, output_file);
+  fprintf(output_file, "9c: ");
+  print_cert_info(state, slot_arg_9c, md, output_file);
+  fprintf(output_file, "9d: ");
+  print_cert_info(state, slot_arg_9d, md, output_file);
+  fprintf(output_file, "9e: ");
+  print_cert_info(state, slot_arg_9e, md, output_file);
+
+  if(output_file != stdout) {
+    fclose(output_file);
+  }
+  return true;
+}
+
 int main(int argc, char *argv[]) {
   struct gengetopt_args_info args_info;
   ykpiv_state *state;
@@ -1249,6 +1370,7 @@ int main(int argc, char *argv[]) {
       case action_arg_unblockMINUS_pin:
       case action_arg_selfsignMINUS_certificate:
       case action_arg_readMINUS_certificate:
+      case action_arg_status:
       case action__NULL:
       default:
         if(verbosity) {
@@ -1461,6 +1583,11 @@ int main(int argc, char *argv[]) {
                 args_info.output_arg) == false) {
             ret = EXIT_FAILURE;
           }
+        }
+        break;
+      case action_arg_status:
+        if(status(state, args_info.hash_arg, args_info.output_arg) == false) {
+          ret = EXIT_FAILURE;
         }
         break;
       case action__NULL:
