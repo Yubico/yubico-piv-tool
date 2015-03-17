@@ -1009,6 +1009,64 @@ static bool delete_certificate(ykpiv_state *state, enum enum_slot slot) {
   }
 }
 
+static bool read_certificate(ykpiv_state *state, enum enum_slot slot,
+    enum enum_key_format key_format, const char *output_file_name) {
+  FILE *output_file;
+  int object = get_object_id(slot);
+  unsigned char data[2048];
+  const unsigned char *ptr = data;
+  unsigned long len = sizeof(data);
+  int cert_len;
+  bool ret = false;
+  X509 *x509 = NULL;
+
+  if(key_format != key_format_arg_PEM && key_format != key_format_arg_DER) {
+    fprintf(stderr, "Only PEM and DER format are supported for read-certificate.\n");
+    return false;
+  }
+
+  output_file = open_file(output_file_name, OUTPUT);
+  if(!output_file) {
+    return false;
+  }
+
+  if(ykpiv_fetch_object(state, object, data, &len) != YKPIV_OK) {
+    fprintf(stderr, "Failed fetching certificate.\n");
+    goto read_cert_out;
+  }
+
+  if(*ptr++ == 0x70) {
+    ptr += get_length(ptr, &cert_len);
+    if(key_format == key_format_arg_PEM) {
+      x509 = X509_new();
+      if(!x509) {
+        fprintf(stderr, "Failed allocating x509 structure.\n");
+        goto read_cert_out;
+      }
+      x509 = d2i_X509(NULL, &ptr, cert_len);
+      if(!x509) {
+        fprintf(stderr, "Failed parsing x509 information.\n");
+        goto read_cert_out;
+      }
+      PEM_write_X509(output_file, x509);
+      ret = true;
+    } else { /* key_format_arg_DER */
+      /* XXX: This will just dump the raw data in tag 0x70.. */
+      fwrite(ptr, (size_t)cert_len, 1, output_file);
+      ret = true;
+    }
+  }
+
+read_cert_out:
+  if(output_file != stdout) {
+    fclose(output_file);
+  }
+  if(x509) {
+    X509_free(x509);
+  }
+  return ret;
+}
+
 static bool sign_file(ykpiv_state *state, const char *input, const char *output,
     const char *slot, enum enum_algorithm algorithm, enum enum_hash hash,
     int verbosity) {
@@ -1190,6 +1248,7 @@ int main(int argc, char *argv[]) {
       case action_arg_changeMINUS_puk:
       case action_arg_unblockMINUS_pin:
       case action_arg_selfsignMINUS_certificate:
+      case action_arg_readMINUS_certificate:
       case action__NULL:
       default:
         if(verbosity) {
@@ -1389,6 +1448,17 @@ int main(int argc, char *argv[]) {
           ret = EXIT_FAILURE;
         } else {
           if(delete_certificate(state, args_info.slot_arg) == false) {
+            ret = EXIT_FAILURE;
+          }
+        }
+        break;
+      case action_arg_readMINUS_certificate:
+        if(args_info.slot_arg == slot__NULL) {
+          fprintf(stderr, "The read-certificate action needs a slot (-s) to operate on.\n");
+          ret = EXIT_FAILURE;
+        } else {
+          if(read_certificate(state, args_info.slot_arg, args_info.key_format_arg,
+                args_info.output_arg) == false) {
             ret = EXIT_FAILURE;
           }
         }
