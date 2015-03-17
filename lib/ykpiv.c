@@ -666,13 +666,11 @@ ykpiv_rc ykpiv_fetch_object(ykpiv_state *state, int object_id,
     return res;
   }
 
-  {
+  if(sw == 0x9000) {
     size_t outlen;
     int offs = get_length(data + 1, &outlen);
     memmove(data, data + 1 + offs, outlen);
     *len = outlen;
-  }
-  if(sw == 0x9000) {
     return YKPIV_OK;
   } else {
     return YKPIV_GENERIC_ERROR;
