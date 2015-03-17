@@ -1306,14 +1306,20 @@ static bool status(ykpiv_state *state, enum enum_hash hash,
       return false;
   }
 
-  fprintf(output_file, "9a: ");
+  fprintf(output_file, "Slot 9a: ");
   print_cert_info(state, slot_arg_9a, md, output_file);
-  fprintf(output_file, "9c: ");
+  fprintf(output_file, "Slot 9c: ");
   print_cert_info(state, slot_arg_9c, md, output_file);
-  fprintf(output_file, "9d: ");
+  fprintf(output_file, "Slot 9d: ");
   print_cert_info(state, slot_arg_9d, md, output_file);
-  fprintf(output_file, "9e: ");
+  fprintf(output_file, "Slot 9e: ");
   print_cert_info(state, slot_arg_9e, md, output_file);
+
+  {
+    int tries;
+    ykpiv_verify(state, NULL, &tries);
+    fprintf(output_file, "PIN tries left:\t%d\n", tries);
+  }
 
   if(output_file != stdout) {
     fclose(output_file);
