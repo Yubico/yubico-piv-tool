@@ -124,3 +124,8 @@ Delete a certificate in slot 9a:
 Show some information on certificates and other data:
 
   yubico-piv-tool -a status
+
+Read out the certificate from a slot and then run a signature test:
+
+  yubico-piv-tool -a read-cert -s 9a
+  yubico-piv-tool -a verify-pin -P 123456 -a test-signature -s 9a

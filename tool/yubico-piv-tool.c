@@ -1359,6 +1359,126 @@ static bool status(ykpiv_state *state, enum enum_hash hash,
   return true;
 }
 
+static bool test_signature(ykpiv_state *state, enum enum_slot slot,
+    enum enum_hash hash, const char *input_file_name,
+    enum enum_key_format cert_format, int verbose) {
+  const EVP_MD *md;
+  bool ret = false;
+  unsigned char data[EVP_MAX_MD_SIZE];
+  unsigned int data_len;
+  X509 *x509 = NULL;
+  EVP_PKEY *pubkey;
+  EVP_PKEY_CTX *verify_ctx = NULL;
+  FILE *input_file = open_file(input_file_name, INPUT);
+
+  if(!input_file) {
+    fprintf(stderr, "Failed opening input file %s.\n", input_file_name);
+    return false;
+  }
+
+  if(isatty(fileno(input_file))) {
+    fprintf(stderr, "Please paste the certificate to verify against...\n");
+  }
+
+  if(cert_format == key_format_arg_PEM) {
+    x509 = PEM_read_X509(input_file, NULL, NULL, NULL);
+  } else if(cert_format == key_format_arg_DER) {
+    x509 = d2i_X509_fp(input_file, NULL);
+  } else {
+    fprintf(stderr, "Only PEM or DER format is supported for test-signature.\n");
+    goto test_out;
+  }
+  if(!x509) {
+    fprintf(stderr, "Failed loading certificate for test-signature.\n");
+    goto test_out;
+  }
+
+  switch(hash) {
+    case hash_arg_SHA1:
+      md = EVP_sha1();
+      break;
+    case hash_arg_SHA256:
+      md = EVP_sha256();
+      break;
+    case hash_arg_SHA512:
+      md = EVP_sha512();
+      break;
+    case hash__NULL:
+    default:
+      return false;
+  }
+
+  {
+    unsigned char rand[128];
+    EVP_MD_CTX *mdctx;
+    if(RAND_pseudo_bytes(rand, 128) == -1) {
+      fprintf(stderr, "error: no randomness.\n");
+      return false;
+    }
+
+    mdctx = EVP_MD_CTX_create();
+    EVP_DigestInit_ex(mdctx, md, NULL);
+    EVP_DigestUpdate(mdctx, rand, 128);
+    EVP_DigestFinal_ex(mdctx, data, &data_len);
+    if(verbose) {
+      fprintf(stderr, "Test data hashes as: ");
+      dump_hex(data, data_len, stderr, true);
+    }
+  }
+
+  {
+    unsigned char signature[1024];
+    size_t sig_len = sizeof(signature);
+    int key = 0;
+    unsigned char algorithm;
+
+    pubkey = X509_get_pubkey(x509);
+    if(!pubkey) {
+      fprintf(stderr, "Parse error.\n");
+      goto test_out;
+    }
+    algorithm = get_algorithm(pubkey);
+    if(algorithm == 0) {
+      return false;
+    }
+    sscanf(cmdline_parser_slot_values[slot], "%2x", &key);
+    if(ykpiv_sign_data(state, data, data_len, signature, &sig_len, algorithm, key)
+      != YKPIV_OK) {
+      fprintf(stderr, "Failed signing test data.\n");
+      goto test_out;
+    }
+
+    {
+      verify_ctx = EVP_PKEY_CTX_new(pubkey, NULL);
+      if(!verify_ctx) {
+        fprintf(stderr, "Allocation failure.\n");
+        goto test_out;
+      }
+      if(EVP_PKEY_verify_init(verify_ctx) == 0) {
+        fprintf(stderr, "Failed initializing verify context.\n");
+        goto test_out;
+      }
+      if(EVP_PKEY_verify(verify_ctx, signature, sig_len, data, data_len) == 1) {
+        fprintf(stderr, "Successfully verified signature.\n");
+        ret = true;
+      } else {
+        fprintf(stderr, "Signature verification failed.\n");
+      }
+    }
+  }
+test_out:
+  if(x509) {
+    X509_free(x509);
+  }
+  if(input_file != stdin) {
+    fclose(input_file);
+  }
+  if(verify_ctx) {
+    EVP_PKEY_CTX_free(verify_ctx);
+  }
+  return ret;
+}
+
 int main(int argc, char *argv[]) {
   struct gengetopt_args_info args_info;
   ykpiv_state *state;
@@ -1388,6 +1508,7 @@ int main(int argc, char *argv[]) {
       case action_arg_importMINUS_certificate:
       case action_arg_deleteMINUS_certificate:
       case action_arg_readMINUS_certificate:
+      case action_arg_testMINUS_signature:
         if(args_info.slot_arg == slot__NULL) {
           fprintf(stderr, "The '%s' action needs a slot (-s) to operate on.\n",
               cmdline_parser_action_values[action]);
@@ -1469,6 +1590,7 @@ int main(int argc, char *argv[]) {
       case action_arg_selfsignMINUS_certificate:
       case action_arg_readMINUS_certificate:
       case action_arg_status:
+      case action_arg_testMINUS_signature:
       case action__NULL:
       default:
         if(verbosity) {
@@ -1622,6 +1744,12 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_status:
         if(status(state, args_info.hash_arg, args_info.output_arg) == false) {
+          ret = EXIT_FAILURE;
+        }
+        break;
+      case action_arg_testMINUS_signature:
+        if(test_signature(state, args_info.slot_arg, args_info.hash_arg,
+              args_info.input_arg, args_info.key_format_arg, verbosity) == false) {
           ret = EXIT_FAILURE;
         }
         break;

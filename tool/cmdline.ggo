@@ -1,4 +1,4 @@
-# Copyright (c) 2014 Yubico AB
+# Copyright (c) 2014-2015 Yubico AB
 # All rights reserved.
 # 
 # This program is free software: you can redistribute it and/or modify
@@ -30,8 +30,8 @@ option "key" k "Authentication key to use" string optional default="010203040506
 option "action" a "Action to take" values="version","generate","set-mgm-key",
        "reset","pin-retries","import-key","import-certificate","set-chuid",
        "request-certificate","verify-pin","change-pin","change-puk","unblock-pin",
-       "selfsign-certificate","delete-certificate","read-certificate","status"
-       enum multiple
+       "selfsign-certificate","delete-certificate","read-certificate","status",
+       "test-signature" enum multiple
 text   "
        Multiple actions may be given at once and will be executed in order
        for example --action=verify-pin --action=request-certificate\n"
