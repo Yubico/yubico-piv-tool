@@ -1412,7 +1412,7 @@ int main(int argc, char *argv[]) {
       case action_arg_setMINUS_chuid:
       case action_arg_deleteMINUS_certificate:
         if(verbosity) {
-          fprintf(stderr, "Authenticating since action %d needs that.\n", action);
+          fprintf(stderr, "Authenticating since action '%s' needs that.\n", cmdline_parser_action_values[action]);
         }
         needs_auth = true;
         break;
@@ -1429,7 +1429,7 @@ int main(int argc, char *argv[]) {
       case action__NULL:
       default:
         if(verbosity) {
-          fprintf(stderr, "Action %d does not need authentication.\n", action);
+          fprintf(stderr, "Action '%s' does not need authentication.\n", cmdline_parser_action_values[action]);
         }
         continue;
     }
@@ -1458,7 +1458,8 @@ int main(int argc, char *argv[]) {
   for(i = 0; i < args_info.action_given; i++) {
     action = *(args_info.action_arg + i);
     if(verbosity) {
-      fprintf(stderr, "Now processing for action %d.\n", action);
+      fprintf(stderr, "Now processing for action '%s'.\n",
+          cmdline_parser_action_values[action]);
     }
     switch(action) {
       case action_arg_version:
