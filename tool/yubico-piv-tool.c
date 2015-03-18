@@ -1390,6 +1390,41 @@ int main(int argc, char *argv[]) {
 
   verbosity = args_info.verbose_arg + (int)args_info.verbose_given;
 
+  for(i = 0; i < args_info.action_given; i++) {
+    action = *(args_info.action_arg + i);
+    switch(action) {
+      case action_arg_requestMINUS_certificate:
+      case action_arg_selfsignMINUS_certificate:
+        if(!args_info.subject_arg) {
+          fprintf(stderr, "The '%s' action needs a subject (-S) to operate on.\n", cmdline_parser_action_values[action]);
+          return EXIT_FAILURE;
+        }
+      case action_arg_generate:
+      case action_arg_importMINUS_key:
+      case action_arg_importMINUS_certificate:
+      case action_arg_deleteMINUS_certificate:
+      case action_arg_readMINUS_certificate:
+        if(args_info.slot_arg == slot__NULL) {
+          fprintf(stderr, "The '%s' action needs a slot (-s) to operate on.\n", cmdline_parser_action_values[action]);
+          return EXIT_FAILURE;
+        }
+        break;
+      case action_arg_setMINUS_mgmMINUS_key:
+      case action_arg_pinMINUS_retries:
+      case action_arg_setMINUS_chuid:
+      case action_arg_version:
+      case action_arg_reset:
+      case action_arg_verifyMINUS_pin:
+      case action_arg_changeMINUS_pin:
+      case action_arg_changeMINUS_puk:
+      case action_arg_unblockMINUS_pin:
+      case action_arg_status:
+      case action__NULL:
+      default:
+        continue;
+    }
+  }
+
   if(ykpiv_init(&state, verbosity) != YKPIV_OK) {
     fprintf(stderr, "Failed initializing library.\n");
     return EXIT_FAILURE;
@@ -1466,15 +1501,10 @@ int main(int argc, char *argv[]) {
         print_version(state);
         break;
       case action_arg_generate:
-        if(args_info.slot_arg != slot__NULL) {
-          if(generate_key(state, args_info.slot_orig, args_info.algorithm_arg, args_info.output_arg, args_info.key_format_arg) == false) {
-            ret = EXIT_FAILURE;
-          } else {
-            fprintf(stderr, "Successfully generated a new private key.\n");
-          }
-        } else {
-          fprintf(stderr, "The generate action needs a slot (-s) to operate on.\n");
+        if(generate_key(state, args_info.slot_orig, args_info.algorithm_arg, args_info.output_arg, args_info.key_format_arg) == false) {
           ret = EXIT_FAILURE;
+        } else {
+          fprintf(stderr, "Successfully generated a new private key.\n");
         }
         break;
       case action_arg_setMINUS_mgmMINUS_key:
@@ -1496,7 +1526,7 @@ int main(int argc, char *argv[]) {
             ret = EXIT_FAILURE;
           }
         } else {
-          fprintf(stderr, "The set-mgm-key action needs the new-key (-n) argument.\n");
+          fprintf(stderr, "The 'set-mgm-key' action needs the new-key (-n) argument.\n");
           ret = EXIT_FAILURE;
         }
         break;
@@ -1517,32 +1547,22 @@ int main(int argc, char *argv[]) {
                 args_info.pin_retries_arg, args_info.puk_retries_arg);
           }
         } else {
-          fprintf(stderr, "The pin-retries action needs both --pin-retries and --puk-retries arguments.\n");
+          fprintf(stderr, "The 'pin-retries' action needs both --pin-retries and --puk-retries arguments.\n");
           ret = EXIT_FAILURE;
         }
         break;
       case action_arg_importMINUS_key:
-        if(args_info.slot_arg != slot__NULL) {
-          if(import_key(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_orig, args_info.password_arg) == false) {
-            ret = EXIT_FAILURE;
-          } else {
-            fprintf(stderr, "Successfully imported a new private key.\n");
-          }
-        } else {
-          fprintf(stderr, "The import action needs a slot (-s) to operate on.\n");
+        if(import_key(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_orig, args_info.password_arg) == false) {
           ret = EXIT_FAILURE;
+        } else {
+          fprintf(stderr, "Successfully imported a new private key.\n");
         }
         break;
       case action_arg_importMINUS_certificate:
-        if(args_info.slot_arg != slot__NULL) {
-          if(import_cert(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_arg, args_info.password_arg) == false) {
-            ret = EXIT_FAILURE;
-          } else {
-            fprintf(stderr, "Successfully imported a new certificate.\n");
-          }
-        } else {
-          fprintf(stderr, "The import action needs a slot (-s) to operate on.\n");
+        if(import_cert(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_arg, args_info.password_arg) == false) {
           ret = EXIT_FAILURE;
+        } else {
+          fprintf(stderr, "Successfully imported a new certificate.\n");
         }
         break;
       case action_arg_setMINUS_chuid:
@@ -1553,20 +1573,12 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_requestMINUS_certificate:
-        if(args_info.slot_arg == slot__NULL) {
-          fprintf(stderr, "The request-certificate action needs a slot (-s) to operate on.\n");
-          ret = EXIT_FAILURE;
-        } else if(!args_info.subject_arg) {
-          fprintf(stderr, "The request-certificate action needs a subject (-S) to operate on.\n");
+        if(request_certificate(state, args_info.key_format_arg, args_info.input_arg,
+              args_info.slot_orig, args_info.subject_arg, args_info.hash_arg,
+              args_info.output_arg) == false) {
           ret = EXIT_FAILURE;
         } else {
-          if(request_certificate(state, args_info.key_format_arg, args_info.input_arg,
-                args_info.slot_orig, args_info.subject_arg, args_info.hash_arg,
-                args_info.output_arg) == false) {
-            ret = EXIT_FAILURE;
-          } else {
-            fprintf(stderr, "Successfully generated a certificate request.\n");
-          }
+          fprintf(stderr, "Successfully generated a certificate request.\n");
         }
         break;
       case action_arg_verifyMINUS_pin:
@@ -1577,7 +1589,7 @@ int main(int argc, char *argv[]) {
             ret = EXIT_FAILURE;
           }
         } else {
-          fprintf(stderr, "The verify-pin action needs a pin (-P).\n");
+          fprintf(stderr, "The 'verify-pin' action needs a pin (-P).\n");
           ret = EXIT_FAILURE;
         }
         break;
@@ -1596,49 +1608,29 @@ int main(int argc, char *argv[]) {
             ret = EXIT_FAILURE;
           }
         } else {
-          fprintf(stderr, "The %s action needs a %s (-P) and a new-pin (-N).\n",
-              action == action_arg_changeMINUS_pin ? "change-pin" :
-              action == action_arg_changeMINUS_puk ? "change-puk" : "unblock-pin",
-              action == action_arg_unblockMINUS_pin ? "puk" : "pin");
+          fprintf(stderr, "The '%s' action needs a %s (-P) and a new-pin (-N).\n",
+              cmdline_parser_action_values[action], action == action_arg_unblockMINUS_pin ? "puk" : "pin");
           ret = EXIT_FAILURE;
         }
         break;
       case action_arg_selfsignMINUS_certificate:
-        if(args_info.slot_arg == slot__NULL) {
-          fprintf(stderr, "The selfsign-certificate action needs a slot (-s) to operate on.\n");
-          ret = EXIT_FAILURE;
-        } else if(!args_info.subject_arg) {
-          fprintf(stderr, "The selfsign-certificate action needs a subject (-S) to operate on.\n");
+        if(selfsign_certificate(state, args_info.key_format_arg, args_info.input_arg,
+              args_info.slot_orig, args_info.subject_arg, args_info.hash_arg,
+              args_info.output_arg) == false) {
           ret = EXIT_FAILURE;
         } else {
-          if(selfsign_certificate(state, args_info.key_format_arg, args_info.input_arg,
-                args_info.slot_orig, args_info.subject_arg, args_info.hash_arg,
-                args_info.output_arg) == false) {
-            ret = EXIT_FAILURE;
-          } else {
-            fprintf(stderr, "Successfully generated a new self signed certificate.\n");
-          }
+          fprintf(stderr, "Successfully generated a new self signed certificate.\n");
         }
         break;
       case action_arg_deleteMINUS_certificate:
-        if(args_info.slot_arg == slot__NULL) {
-          fprintf(stderr, "The delete-certificate action needs a slot (-s) to operate on.\n");
+        if(delete_certificate(state, args_info.slot_arg) == false) {
           ret = EXIT_FAILURE;
-        } else {
-          if(delete_certificate(state, args_info.slot_arg) == false) {
-            ret = EXIT_FAILURE;
-          }
         }
         break;
       case action_arg_readMINUS_certificate:
-        if(args_info.slot_arg == slot__NULL) {
-          fprintf(stderr, "The read-certificate action needs a slot (-s) to operate on.\n");
+        if(read_certificate(state, args_info.slot_arg, args_info.key_format_arg,
+              args_info.output_arg) == false) {
           ret = EXIT_FAILURE;
-        } else {
-          if(read_certificate(state, args_info.slot_arg, args_info.key_format_arg,
-                args_info.output_arg) == false) {
-            ret = EXIT_FAILURE;
-          }
         }
         break;
       case action_arg_status:
