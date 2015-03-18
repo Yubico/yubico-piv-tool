@@ -120,3 +120,6 @@ Change the management key used for administrative authentication:
 Delete a certificate in slot 9a:
 
   yubico-piv-tool -a delete-certificate -s 9a
+
+Show some information on certificates and other data:
+  yubico-piv-tool -a status
