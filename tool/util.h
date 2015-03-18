@@ -37,7 +37,7 @@
 #define INPUT 1
 #define OUTPUT 2
 
-void dump_hex(unsigned const char*, unsigned int);
+void dump_hex(unsigned const char*, unsigned int, FILE*, bool);
 int set_length(unsigned char*, int);
 int get_length(const unsigned char*, int*);
 X509_NAME *parse_name(const char*);

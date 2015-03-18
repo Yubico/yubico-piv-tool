@@ -524,8 +524,7 @@ static bool set_chuid(ykpiv_state *state, int verbose) {
   }
   if(verbose) {
     fprintf(stderr, "Setting the CHUID to: ");
-    dump_hex(chuid, sizeof(chuid));
-    fprintf(stderr, "\n");
+    dump_hex(chuid, sizeof(chuid), stderr, true);
   }
   if((res = ykpiv_save_object(state, YKPIV_OBJ_CHUID, chuid, sizeof(chuid))) != YKPIV_OK) {
     fprintf(stderr, "Failed communicating with device: %s\n", ykpiv_strerror(res));
@@ -1145,8 +1144,7 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
 
     if(verbosity) {
       fprintf(stderr, "file hashed as: ");
-      dump_hex(hashed, hash_len);
-      fprintf(stderr, "\n");
+      dump_hex(hashed, hash_len, stderr, true);
     }
     EVP_MD_CTX_destroy(mdctx);
   }
@@ -1183,8 +1181,7 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
 
     if(verbosity) {
       fprintf(stderr, "file signed as: ");
-      dump_hex(buf, len);
-      fprintf(stderr, "\n");
+      dump_hex(buf, len, stderr, true);
     }
     fwrite(buf, 1, len, output_file);
     ret = true;
@@ -1219,7 +1216,6 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
   }
 
   if(*ptr++ == 0x70) {
-    unsigned int i;
     unsigned int md_len = sizeof(data);
     ASN1_TIME *not_before, *not_after;
 
@@ -1288,10 +1284,7 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     fprintf(output, "\n");
     X509_digest(x509, md, data, &md_len);
     fprintf(output, "\tFingerprint:\t");
-    for(i = 0; i < md_len; i++) {
-      fprintf(output, "%02x", data[i]);
-    }
-    fprintf(output, "\n");
+    dump_hex(data, md_len, output, false);
 
     bio = BIO_new_fp(output, BIO_NOCLOSE | BIO_FP_TEXT);
     not_before = X509_get_notBefore(x509);
@@ -1346,14 +1339,10 @@ static bool status(ykpiv_state *state, enum enum_hash hash,
 
   fprintf(output_file, "CHUID:\t");
   if(ykpiv_fetch_object(state, YKPIV_OBJ_CHUID, chuid, &len) != YKPIV_OK) {
-    fprintf(output_file, "No data available");
+    fprintf(output_file, "No data available\n");
   } else {
-    long unsigned i;
-    for(i = 0; i < len; i++) {
-      fprintf(output_file, "%02x", chuid[i]);
-    }
+    dump_hex(chuid, len, output_file, false);
   }
-  fprintf(output_file, "\n");
 
   fprintf(output_file, "Slot 9a:\t");
   print_cert_info(state, slot_arg_9a, md, output_file);

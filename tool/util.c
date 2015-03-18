@@ -144,11 +144,12 @@ parse_err:
   return NULL;
 }
 
-void dump_hex(const unsigned char *buf, unsigned int len) {
+void dump_hex(const unsigned char *buf, unsigned int len, FILE *output, bool space) {
   unsigned int i;
   for (i = 0; i < len; i++) {
-    fprintf(stderr, "%02x ", buf[i]);
+    fprintf(output, "%02x%s", buf[i], space == true ? " " : "");
   }
+  fprintf(output, "\n");
 }
 
 int get_length(const unsigned char *buffer, int *len) {
