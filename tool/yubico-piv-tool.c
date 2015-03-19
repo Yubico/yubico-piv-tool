@@ -1379,7 +1379,8 @@ int main(int argc, char *argv[]) {
       case action_arg_requestMINUS_certificate:
       case action_arg_selfsignMINUS_certificate:
         if(!args_info.subject_arg) {
-          fprintf(stderr, "The '%s' action needs a subject (-S) to operate on.\n", cmdline_parser_action_values[action]);
+          fprintf(stderr, "The '%s' action needs a subject (-S) to operate on.\n",
+              cmdline_parser_action_values[action]);
           return EXIT_FAILURE;
         }
       case action_arg_generate:
@@ -1388,19 +1389,37 @@ int main(int argc, char *argv[]) {
       case action_arg_deleteMINUS_certificate:
       case action_arg_readMINUS_certificate:
         if(args_info.slot_arg == slot__NULL) {
-          fprintf(stderr, "The '%s' action needs a slot (-s) to operate on.\n", cmdline_parser_action_values[action]);
+          fprintf(stderr, "The '%s' action needs a slot (-s) to operate on.\n",
+              cmdline_parser_action_values[action]);
+          return EXIT_FAILURE;
+        }
+        break;
+      case action_arg_changeMINUS_pin:
+      case action_arg_changeMINUS_puk:
+      case action_arg_unblockMINUS_pin:
+        if(!args_info.new_pin_arg) {
+          fprintf(stderr, "The '%s' action needs a new-pin (-N).\n",
+              cmdline_parser_action_values[action]);
+          return EXIT_FAILURE;
+        }
+      case action_arg_verifyMINUS_pin:
+        if(!args_info.pin_arg) {
+          fprintf(stderr, "The '%s' action needs a pin (-P).\n",
+              cmdline_parser_action_values[action]);
           return EXIT_FAILURE;
         }
         break;
       case action_arg_setMINUS_mgmMINUS_key:
+        if(!args_info.new_key_arg) {
+          fprintf(stderr, "The '%s' action needs the new-key (-n) argument.\n",
+              cmdline_parser_action_values[action]);
+          return EXIT_FAILURE;
+        }
+        break;
       case action_arg_pinMINUS_retries:
       case action_arg_setMINUS_chuid:
       case action_arg_version:
       case action_arg_reset:
-      case action_arg_verifyMINUS_pin:
-      case action_arg_changeMINUS_pin:
-      case action_arg_changeMINUS_puk:
-      case action_arg_unblockMINUS_pin:
       case action_arg_status:
       case action__NULL:
       default:
@@ -1491,25 +1510,20 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_setMINUS_mgmMINUS_key:
-        if(args_info.new_key_arg) {
-          if(strlen(args_info.new_key_arg) == (KEY_LEN * 2)){
-            unsigned char new_key[KEY_LEN];
-            size_t new_key_len = sizeof(new_key);
-            if(ykpiv_hex_decode(args_info.new_key_arg, strlen(args_info.new_key_arg), new_key, &new_key_len) != YKPIV_OK) {
-              fprintf(stderr, "Failed decoding new key!\n");
-              ret = EXIT_FAILURE;
-            } else if(ykpiv_set_mgmkey(state, new_key) != YKPIV_OK) {
-              fprintf(stderr, "Failed setting the new key!\n");
-              ret = EXIT_FAILURE;
-            } else {
-              fprintf(stderr, "Successfully set new management key.\n");
-            }
-          } else {
-            fprintf(stderr, "The new management key has to be exactly %d character.\n", KEY_LEN * 2);
+        if(strlen(args_info.new_key_arg) == (KEY_LEN * 2)){
+          unsigned char new_key[KEY_LEN];
+          size_t new_key_len = sizeof(new_key);
+          if(ykpiv_hex_decode(args_info.new_key_arg, strlen(args_info.new_key_arg), new_key, &new_key_len) != YKPIV_OK) {
+            fprintf(stderr, "Failed decoding new key!\n");
             ret = EXIT_FAILURE;
+          } else if(ykpiv_set_mgmkey(state, new_key) != YKPIV_OK) {
+            fprintf(stderr, "Failed setting the new key!\n");
+            ret = EXIT_FAILURE;
+          } else {
+            fprintf(stderr, "Successfully set new management key.\n");
           }
         } else {
-          fprintf(stderr, "The 'set-mgm-key' action needs the new-key (-n) argument.\n");
+          fprintf(stderr, "The new management key has to be exactly %d character.\n", KEY_LEN * 2);
           ret = EXIT_FAILURE;
         }
         break;
@@ -1565,34 +1579,23 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_verifyMINUS_pin:
-        if(args_info.pin_arg) {
-          if(verify_pin(state, args_info.pin_arg)) {
-            fprintf(stderr, "Successfully verified PIN.\n");
-          } else {
-            ret = EXIT_FAILURE;
-          }
+        if(verify_pin(state, args_info.pin_arg)) {
+          fprintf(stderr, "Successfully verified PIN.\n");
         } else {
-          fprintf(stderr, "The 'verify-pin' action needs a pin (-P).\n");
           ret = EXIT_FAILURE;
         }
         break;
       case action_arg_changeMINUS_pin:
       case action_arg_changeMINUS_puk:
       case action_arg_unblockMINUS_pin:
-        if(args_info.pin_arg && args_info.new_pin_arg) {
-          if(change_pin(state, action, args_info.pin_arg, args_info.new_pin_arg)) {
-            if(action == action_arg_unblockMINUS_pin) {
-              fprintf(stderr, "Successfully unblocked the pin code.\n");
-            } else {
-              fprintf(stderr, "Successfully changed the %s code.\n",
-                  action == action_arg_changeMINUS_pin ? "pin" : "puk");
-            }
+        if(change_pin(state, action, args_info.pin_arg, args_info.new_pin_arg)) {
+          if(action == action_arg_unblockMINUS_pin) {
+            fprintf(stderr, "Successfully unblocked the pin code.\n");
           } else {
-            ret = EXIT_FAILURE;
+            fprintf(stderr, "Successfully changed the %s code.\n",
+                action == action_arg_changeMINUS_pin ? "pin" : "puk");
           }
         } else {
-          fprintf(stderr, "The '%s' action needs a %s (-P) and a new-pin (-N).\n",
-              cmdline_parser_action_values[action], action == action_arg_unblockMINUS_pin ? "puk" : "pin");
           ret = EXIT_FAILURE;
         }
         break;
