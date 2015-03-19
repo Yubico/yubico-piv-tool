@@ -79,12 +79,21 @@ unsigned const char sha512oid[] = {
 
 #define KEY_LEN 24
 
-static void print_version(ykpiv_state *state) {
+static void print_version(ykpiv_state *state, const char *output_file_name) {
   char version[7];
+  FILE *output_file = open_file(output_file_name, OUTPUT);
+  if(!output_file) {
+    fprintf(stderr, "Failed opening output_file_name\n");
+  }
+
   if(ykpiv_get_version(state, version, sizeof(version)) == YKPIV_OK) {
-    printf("Applet version %s found.\n", version);
+    fprintf(output_file, "Applet version %s found.\n", version);
   } else {
     fprintf(stderr, "Failed to retrieve applet version.\n");
+  }
+
+  if(output_file != stdout) {
+    fclose(output_file);
   }
 }
 
@@ -1472,7 +1481,7 @@ int main(int argc, char *argv[]) {
     }
     switch(action) {
       case action_arg_version:
-        print_version(state);
+        print_version(state, args_info.output_arg);
         break;
       case action_arg_generate:
         if(generate_key(state, args_info.slot_orig, args_info.algorithm_arg, args_info.output_arg, args_info.key_format_arg) == false) {
