@@ -1417,6 +1417,11 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_pinMINUS_retries:
+        if(!args_info.pin_retries_arg || !args_info.puk_retries_arg) {
+          fprintf(stderr, "The '%s' action needs both --pin-retries and --puk-retries arguments.\n",
+              cmdline_parser_action_values[action]);
+          return EXIT_FAILURE;
+        break;
       case action_arg_setMINUS_chuid:
       case action_arg_version:
       case action_arg_reset:
@@ -1536,16 +1541,11 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_pinMINUS_retries:
-        if(args_info.pin_retries_arg && args_info.puk_retries_arg) {
-          if(set_pin_retries(state, args_info.pin_retries_arg, args_info.puk_retries_arg, verbosity) == false) {
-            ret = EXIT_FAILURE;
-          } else {
-            fprintf(stderr, "Successfully changed pin retries to %d and puk retries to %d, both codes have been reset to default now.\n",
-                args_info.pin_retries_arg, args_info.puk_retries_arg);
-          }
-        } else {
-          fprintf(stderr, "The 'pin-retries' action needs both --pin-retries and --puk-retries arguments.\n");
+        if(set_pin_retries(state, args_info.pin_retries_arg, args_info.puk_retries_arg, verbosity) == false) {
           ret = EXIT_FAILURE;
+        } else {
+          fprintf(stderr, "Successfully changed pin retries to %d and puk retries to %d, both codes have been reset to default now.\n",
+              args_info.pin_retries_arg, args_info.puk_retries_arg);
         }
         break;
       case action_arg_importMINUS_key:
