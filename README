@@ -62,7 +62,7 @@ Building from Git
 
 Recent versions of autoconf, automake, pkg-config and libtool must
 be installed.  Help2man is used to generate the manpages.  Gengetopt
-is needed for command line parameter handling.
+version 2.22.6 or later is needed for command line parameter handling.
 
 Generate the build system using:
 
