@@ -1421,6 +1421,7 @@ int main(int argc, char *argv[]) {
           fprintf(stderr, "The '%s' action needs both --pin-retries and --puk-retries arguments.\n",
               cmdline_parser_action_values[action]);
           return EXIT_FAILURE;
+        }
         break;
       case action_arg_setMINUS_chuid:
       case action_arg_version:
