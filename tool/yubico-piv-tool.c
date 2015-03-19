@@ -1231,39 +1231,24 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
       goto cert_out;
     }
     {
-      int type;
       EVP_PKEY *key = X509_get_pubkey(x509);
       if(!key) {
         fprintf(output, "Parse error.\n");
         goto cert_out;
       }
       fprintf(output, "\n\tAlgorithm:\t");
-      type = EVP_PKEY_type(key->type);
-      switch(type) {
-        case EVP_PKEY_RSA:
-          {
-            RSA *rsa = EVP_PKEY_get1_RSA(key);
-            fprintf(output, "RSA%d\n", RSA_size(rsa) * 8);
-            break;
-          }
-        case EVP_PKEY_EC:
-          {
-            EC_KEY *ec = EVP_PKEY_get1_EC_KEY(key);
-            const EC_GROUP *group = EC_KEY_get0_group(ec);
-            switch(EC_GROUP_get_curve_name(group)) {
-              case NID_X9_62_prime256v1:
-                fprintf(output, "ECCP256\n");
-                break;
-              case NID_secp384r1:
-                fprintf(output, "ECCP384\n"); /* is this correct NID? */
-                break;
-              default:
-                fprintf(output, "Unknown ECC curve\n");
-            }
-            break;
-          }
+      switch(get_algorithm(key)) {
+        case YKPIV_ALGO_RSA1024:
+          fprintf(output, "RSA1024\n");
+          break;
+        case YKPIV_ALGO_RSA2048:
+          fprintf(output, "RSA2048\n");
+          break;
+        case YKPIV_ALGO_ECCP256:
+          fprintf(output, "ECCP256\n");
+          break;
         default:
-          fprintf(output, "Unknown algorithm\n");
+          fprintf(output, "Unknown\n");
       }
     }
     subj = X509_get_subject_name(x509);
