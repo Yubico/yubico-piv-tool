@@ -2,6 +2,14 @@ yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
 * Version 0.1.6 (unreleased)
 
+** Add a read-certificate action to the tool.
+
+** Add a status action to the tool.
+
+** Fix a library bug so NULL can be passed to ykpiv_verify()
+
+** Add a test-signature action to the tool.
+
 * Version 0.1.5 (released 2015-02-04)
 
 ** Revert the check for parity and just set parity before the weak check.
