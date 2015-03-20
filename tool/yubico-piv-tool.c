@@ -45,7 +45,6 @@
 #include <openssl/pem.h>
 #include <openssl/pkcs12.h>
 #include <openssl/rand.h>
-#include <openssl/err.h>
 
 #include "cmdline.h"
 #include "util.h"
