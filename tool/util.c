@@ -1,5 +1,5 @@
  /*
- * Copyright (c) 2014 Yubico AB
+ * Copyright (c) 2014-2015 Yubico AB
  * All rights reserved.
  *
  * This program is free software: you can redistribute it and/or modify
@@ -214,5 +214,26 @@ bool set_component_with_len(unsigned char **in_ptr, const BIGNUM *bn, int elemen
   memset(*in_ptr, 0, (size_t)(element_len - real_len));
   *in_ptr += element_len - real_len;
   *in_ptr += BN_bn2bin(bn, *in_ptr);
+  return true;
+}
+
+bool prepare_rsa_signature(const unsigned char *in, unsigned int in_len, unsigned char *out, unsigned int *out_len, int nid) {
+  X509_SIG digestInfo;
+  X509_ALGOR algor;
+  ASN1_TYPE parameter;
+  ASN1_OCTET_STRING digest;
+  unsigned char data[1024];
+
+  memcpy(data, in, in_len);
+
+  digestInfo.algor = &algor;
+  digestInfo.algor->algorithm = OBJ_nid2obj(nid);
+  digestInfo.algor->parameter = &parameter;
+  digestInfo.algor->parameter->type = V_ASN1_NULL;
+  digestInfo.algor->parameter->value.ptr = NULL;
+  digestInfo.digest = &digest;
+  digestInfo.digest->data = data;
+  digestInfo.digest->length = (int)in_len;
+  *out_len = (unsigned int)i2d_X509_SIG(&digestInfo, &out);
   return true;
 }

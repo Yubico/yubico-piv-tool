@@ -45,6 +45,7 @@
 #include <openssl/pem.h>
 #include <openssl/pkcs12.h>
 #include <openssl/rand.h>
+#include <openssl/err.h>
 
 #include "cmdline.h"
 #include "util.h"
@@ -1087,7 +1088,7 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
   unsigned char hashed[EVP_MAX_MD_SIZE];
   bool ret = false;
   int algo;
-  int nid;
+  const EVP_MD *md;
 
   sscanf(slot, "%2x", &key);
 
@@ -1121,21 +1122,17 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
   }
 
   {
-    const EVP_MD *md;
     EVP_MD_CTX *mdctx;
 
     switch(hash) {
       case hash_arg_SHA1:
         md = EVP_sha1();
-        nid = NID_sha1;
         break;
       case hash_arg_SHA256:
         md = EVP_sha256();
-        nid = NID_sha256;
         break;
       case hash_arg_SHA512:
         md = EVP_sha512();
-        nid = NID_sha512;
         break;
       case hash__NULL:
       default:
@@ -1159,24 +1156,7 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
   }
 
   if(algo == YKPIV_ALGO_RSA1024 || algo == YKPIV_ALGO_RSA2048) {
-    X509_SIG digestInfo;
-    X509_ALGOR algor;
-    ASN1_TYPE parameter;
-    ASN1_OCTET_STRING digest;
-    unsigned char buf[1024];
-    unsigned char *ptr = hashed;
-
-    memcpy(buf, hashed, hash_len);
-
-    digestInfo.algor = &algor;
-    digestInfo.algor->algorithm = OBJ_nid2obj(nid);
-    digestInfo.algor->parameter = &parameter;
-    digestInfo.algor->parameter->type = V_ASN1_NULL;
-    digestInfo.algor->parameter->value.ptr = NULL;
-    digestInfo.digest = &digest;
-    digestInfo.digest->data = buf;
-    digestInfo.digest->length = (int)hash_len;
-    hash_len = (unsigned int)i2d_X509_SIG(&digestInfo, &ptr);
+    prepare_rsa_signature(hashed, hash_len, hashed, &hash_len, EVP_MD_type(md));
   }
 
   {
@@ -1364,11 +1344,10 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
     enum enum_key_format cert_format, int verbose) {
   const EVP_MD *md;
   bool ret = false;
-  unsigned char data[EVP_MAX_MD_SIZE];
+  unsigned char data[1024];
   unsigned int data_len;
   X509 *x509 = NULL;
   EVP_PKEY *pubkey;
-  EVP_PKEY_CTX *verify_ctx = NULL;
   FILE *input_file = open_file(input_file_name, INPUT);
 
   if(!input_file) {
@@ -1428,6 +1407,9 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
 
   {
     unsigned char signature[1024];
+    unsigned char encoded[1024];
+    unsigned char *ptr = data;
+    unsigned int enc_len;
     size_t sig_len = sizeof(signature);
     int key = 0;
     unsigned char algorithm;
@@ -1439,31 +1421,58 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
     }
     algorithm = get_algorithm(pubkey);
     if(algorithm == 0) {
-      return false;
+      goto test_out;
     }
     sscanf(cmdline_parser_slot_values[slot], "%2x", &key);
-    if(ykpiv_sign_data(state, data, data_len, signature, &sig_len, algorithm, key)
+    if(algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048) {
+      prepare_rsa_signature(data, data_len, encoded, &enc_len, EVP_MD_type(md));
+      ptr = encoded;
+    } else {
+      enc_len = data_len;
+    }
+    if(ykpiv_sign_data(state, ptr, enc_len, signature, &sig_len, algorithm, key)
       != YKPIV_OK) {
       fprintf(stderr, "Failed signing test data.\n");
       goto test_out;
     }
 
-    {
-      verify_ctx = EVP_PKEY_CTX_new(pubkey, NULL);
-      if(!verify_ctx) {
-        fprintf(stderr, "Allocation failure.\n");
+    switch(algorithm) {
+      case YKPIV_ALGO_RSA1024:
+      case YKPIV_ALGO_RSA2048:
+        {
+          RSA *rsa = EVP_PKEY_get1_RSA(pubkey);
+          if(!rsa) {
+            fprintf(stderr, "Failed getting RSA pubkey.\n");
+            goto test_out;
+          }
+
+          if(RSA_verify(EVP_MD_type(md), data, data_len, signature, sig_len, rsa) == 1) {
+            fprintf(stderr, "Successful RSA verification.\n");
+            ret = true;
+            goto test_out;
+          } else {
+            fprintf(stderr, "Failed RSA verification.\n");
+            goto test_out;
+          }
+        }
+
+        break;
+      case YKPIV_ALGO_ECCP256:
+        {
+          EC_KEY *ec = EVP_PKEY_get1_EC_KEY(pubkey);
+          if(ECDSA_verify(0, data, (int)data_len, signature, (int)sig_len, ec) == 1) {
+            fprintf(stderr, "Successful ECDSA verification.\n");
+            ret = true;
+            goto test_out;
+          } else {
+            fprintf(stderr, "Failed ECDSA verification.\n");
+            goto test_out;
+          }
+        }
+        break;
+      default:
+        fprintf(stderr, "Unknown algorithm.\n");
         goto test_out;
-      }
-      if(EVP_PKEY_verify_init(verify_ctx) == 0) {
-        fprintf(stderr, "Failed initializing verify context.\n");
-        goto test_out;
-      }
-      if(EVP_PKEY_verify(verify_ctx, signature, sig_len, data, data_len) == 1) {
-        fprintf(stderr, "Successfully verified signature.\n");
-        ret = true;
-      } else {
-        fprintf(stderr, "Signature verification failed.\n");
-      }
     }
   }
 test_out:
@@ -1472,9 +1481,6 @@ test_out:
   }
   if(input_file != stdin) {
     fclose(input_file);
-  }
-  if(verify_ctx) {
-    EVP_PKEY_CTX_free(verify_ctx);
   }
   return ret;
 }
