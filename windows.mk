@@ -1,4 +1,4 @@
-# Copyright (C) 2014 Yubico AB
+# Copyright (C) 2014-2015 Yubico AB
 # All rights reserved.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -25,7 +25,7 @@
 # for the parts of OpenSSL used as well as that of the covered work.
 
 PACKAGE=yubico-piv-tool
-OPENSSLVERSION=1.0.1l
+OPENSSLVERSION=1.0.1m
 
 all: usage 32bit 64bit
 
