@@ -48,8 +48,8 @@ The PIN and PUK should be changed as well.
   puk=`dd if=/dev/random bs=1 count=6 2>/dev/null | hexdump -v -e '/1 "%u"'|cut -c1-8`
   echo $puk
 
-  yubico-piv-tool -k $key -a change-pin -P 123456 -N $pin
-  yubico-piv-tool -k $key -a change-puk -P 12345678 -N $puk
+  yubico-piv-tool -a change-pin -P 123456 -N $pin
+  yubico-piv-tool -a change-puk -P 12345678 -N $puk
 
 Other useful commands
 ---------------------
