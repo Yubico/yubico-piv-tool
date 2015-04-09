@@ -193,8 +193,10 @@ Then generate a new private key and certificate request:
 Then sign the certificate using the NEO:
 
   cat>yubico-internal-https-ee-$host-crt.conf<<EOF
+  basicConstraints = critical,CA:false
   keyUsage=critical,digitalSignature,keyEncipherment
   extendedKeyUsage=critical,serverAuth
+  subjectAltName=critical,DNS:$host.yubico.com
   EOF
   openssl << EOF
   engine dynamic -pre SO_PATH:/usr/lib/engines/engine_pkcs11.so -pre ID:pkcs11 -pre NO_VCHECK:1 -pre LIST_ADD:1 -pre LOAD -pre MODULE_PATH:/usr/lib/x86_64-linux-gnu/opensc-pkcs11.so -pre VERBOSE
