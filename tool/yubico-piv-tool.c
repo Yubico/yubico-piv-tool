@@ -389,7 +389,7 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
             &recv_len, &sw) != YKPIV_OK) {
         return false;
       } else if(sw != 0x9000) {
-        fprintf(stderr, "Failed import command with code %x.", sw);
+        fprintf(stderr, "Failed import command with code %x.\n", sw);
       } else {
         ret = true;
       }
