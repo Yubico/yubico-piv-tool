@@ -647,24 +647,12 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
   } else if(sw == 0x9000) {
     return YKPIV_OK;
   } else if((sw >> 8) == 0x63) {
-    if(state->verbose) {
-      if(pin) {
-	fprintf(stderr, "Pin verification failed, ");
-      }
-      fprintf(stderr, "%d tries left before pin is blocked.\n", sw & 0xff);
-    }
     *tries = (sw & 0xff);
     return YKPIV_WRONG_PIN;
   } else if(sw == 0x6983) {
-    if(state->verbose) {
-      fprintf(stderr, "Pin code blocked, use unblock-pin action to unblock.\n");
-    }
     *tries = 0;
     return YKPIV_WRONG_PIN;
   } else {
-    if(state->verbose) {
-      fprintf(stderr, "Pin code verification failed with code %x.\n", sw);
-    }
     return YKPIV_GENERIC_ERROR;
   }
 }
