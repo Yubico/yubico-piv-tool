@@ -1484,6 +1484,137 @@ test_out:
   return ret;
 }
 
+static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
+    const char *input_file_name, enum enum_key_format cert_format, int verbose) {
+  bool ret = false;
+  X509 *x509 = NULL;
+  EVP_PKEY *pubkey;
+  EC_KEY *tmpkey = NULL;
+  FILE *input_file = open_file(input_file_name, INPUT);
+
+  if(!input_file) {
+    fprintf(stderr, "Failed opening input file %s.\n", input_file_name);
+    return false;
+  }
+
+  if(isatty(fileno(input_file))) {
+    fprintf(stderr, "Please paste the certificate to encrypt for...\n");
+  }
+
+  if(cert_format == key_format_arg_PEM) {
+    x509 = PEM_read_X509(input_file, NULL, NULL, NULL);
+  } else if(cert_format == key_format_arg_DER) {
+    x509 = d2i_X509_fp(input_file, NULL);
+  } else {
+    fprintf(stderr, "Only PEM or DER format is supported for test-decipher.\n");
+    goto decipher_out;
+  }
+  if(!x509) {
+    fprintf(stderr, "Failed loading certificate for test-decipher.\n");
+    goto decipher_out;
+  }
+
+  {
+    int key = 0;
+    unsigned char algorithm;
+
+    pubkey = X509_get_pubkey(x509);
+    if(!pubkey) {
+      fprintf(stderr, "Parse error.\n");
+      goto decipher_out;
+    }
+    algorithm = get_algorithm(pubkey);
+    if(algorithm == 0) {
+      goto decipher_out;
+    }
+    sscanf(cmdline_parser_slot_values[slot], "%2x", &key);
+    if(algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048) {
+      unsigned char secret[32];
+      unsigned char secret2[32];
+      unsigned char data[256];
+      int len;
+      size_t len2 = sizeof(data);
+      RSA *rsa = EVP_PKEY_get1_RSA(pubkey);
+
+      if(RAND_pseudo_bytes(secret, sizeof(secret)) == -1) {
+        fprintf(stderr, "error: no randomness.\n");
+        ret = false;
+        goto decipher_out;
+      }
+
+      RSA_padding_add_PKCS1_type_1(data, RSA_size(rsa), secret, sizeof(secret));
+      len = RSA_public_encrypt(RSA_size(rsa), data, data, rsa, RSA_NO_PADDING);
+      if(len < 0) {
+        fprintf(stderr, "Failed performing RSA encryption!\n");
+        goto decipher_out;
+      }
+      if(ykpiv_decipher_data(state, data, (size_t)len, data, &len2, algorithm, key) != YKPIV_OK) {
+        fprintf(stderr, "RSA decrypt failed!\n");
+        goto decipher_out;
+      }
+      /* for some reason we have to give the padding check function data + 1 */
+      len = RSA_padding_check_PKCS1_type_1(secret2, sizeof(secret2), data + 1, len2 - 1, RSA_size(rsa));
+      if(len == sizeof(secret)) {
+        if(verbose) {
+          fprintf(stderr, "Generated nonce: ");
+          dump_hex(secret, sizeof(secret), stderr, true);
+          fprintf(stderr, "Decrypted nonce: ");
+          dump_hex(secret2, sizeof(secret2), stderr, true);
+        }
+        if(memcmp(secret, secret2, sizeof(secret)) == 0) {
+          fprintf(stderr, "Successfully performed RSA decryption!\n");
+          ret = true;
+        } else {
+          fprintf(stderr, "Failed performing RSA decryption!\n");
+        }
+      } else {
+        fprintf(stderr, "Failed unwrapping PKCS1 envelope.\n");
+      }
+    } else {
+      unsigned char secret[32];
+      unsigned char secret2[32];
+      unsigned char public_key[65];
+      unsigned char *ptr = public_key;
+      size_t len = sizeof(secret);
+      EC_KEY *ec = EVP_PKEY_get1_EC_KEY(pubkey);
+
+      tmpkey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+      EC_KEY_generate_key(tmpkey);
+      ECDH_compute_key(secret, len, EC_KEY_get0_public_key(ec), tmpkey, NULL);
+
+      i2o_ECPublicKey(tmpkey, &ptr);
+      if(ykpiv_decipher_data(state, public_key, sizeof(public_key), secret2, &len, algorithm, key) != YKPIV_OK) {
+        fprintf(stderr, "Failed ECDH exchange!\n");
+        goto decipher_out;
+      }
+      if(verbose) {
+        fprintf(stderr, "ECDH host generated: ");
+        dump_hex(secret, len, stderr, true);
+        fprintf(stderr, "ECDH card generated: ");
+        dump_hex(secret2, len, stderr, true);
+      }
+      if(memcmp(secret, secret2, 32) == 0) {
+        fprintf(stderr, "Successfully performed ECDH exchange with card.\n");
+        ret = true;
+      } else {
+        fprintf(stderr, "ECDH exchange with card failed!\n");
+      }
+    }
+  }
+
+decipher_out:
+  if(tmpkey) {
+    EC_KEY_free(tmpkey);
+  }
+  if(x509) {
+    X509_free(x509);
+  }
+  if(input_file != stdin) {
+    fclose(input_file);
+  }
+  return ret;
+}
+
 int main(int argc, char *argv[]) {
   struct gengetopt_args_info args_info;
   ykpiv_state *state;
@@ -1514,6 +1645,7 @@ int main(int argc, char *argv[]) {
       case action_arg_deleteMINUS_certificate:
       case action_arg_readMINUS_certificate:
       case action_arg_testMINUS_signature:
+      case action_arg_testMINUS_decipher:
         if(args_info.slot_arg == slot__NULL) {
           fprintf(stderr, "The '%s' action needs a slot (-s) to operate on.\n",
               cmdline_parser_action_values[action]);
@@ -1596,6 +1728,7 @@ int main(int argc, char *argv[]) {
       case action_arg_readMINUS_certificate:
       case action_arg_status:
       case action_arg_testMINUS_signature:
+      case action_arg_testMINUS_decipher:
       case action__NULL:
       default:
         if(verbosity) {
@@ -1755,6 +1888,12 @@ int main(int argc, char *argv[]) {
       case action_arg_testMINUS_signature:
         if(test_signature(state, args_info.slot_arg, args_info.hash_arg,
               args_info.input_arg, args_info.key_format_arg, verbosity) == false) {
+          ret = EXIT_FAILURE;
+        }
+        break;
+      case action_arg_testMINUS_decipher:
+        if(test_decipher(state, args_info.slot_arg, args_info.input_arg,
+              args_info.key_format_arg, verbosity) == false) {
           ret = EXIT_FAILURE;
         }
         break;

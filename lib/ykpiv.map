@@ -47,3 +47,9 @@ global:
 local:
 	*;
 };
+
+YKPIV_0.2.0
+{
+global:
+	ykpiv_decipher_data;
+} YKPIV_0.1.0;
