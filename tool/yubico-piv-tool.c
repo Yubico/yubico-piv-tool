@@ -1542,8 +1542,7 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
         goto decipher_out;
       }
 
-      RSA_padding_add_PKCS1_type_1(data, RSA_size(rsa), secret, sizeof(secret));
-      len = RSA_public_encrypt(RSA_size(rsa), data, data, rsa, RSA_NO_PADDING);
+      len = RSA_public_encrypt(sizeof(secret), secret, data, rsa, RSA_PKCS1_PADDING);
       if(len < 0) {
         fprintf(stderr, "Failed performing RSA encryption!\n");
         goto decipher_out;
@@ -1553,7 +1552,7 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
         goto decipher_out;
       }
       /* for some reason we have to give the padding check function data + 1 */
-      len = RSA_padding_check_PKCS1_type_1(secret2, sizeof(secret2), data + 1, len2 - 1, RSA_size(rsa));
+      len = RSA_padding_check_PKCS1_type_2(secret2, sizeof(secret2), data + 1, len2 - 1, RSA_size(rsa));
       if(len == sizeof(secret)) {
         if(verbose) {
           fprintf(stderr, "Generated nonce: ");
