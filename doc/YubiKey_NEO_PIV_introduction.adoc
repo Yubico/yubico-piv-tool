@@ -81,11 +81,13 @@ Software
 --------
 
 Card management has been tested with the tools from the OpenSC
-project, specifically piv-tool, and Yubico's yubico-piv-tool.  Basic
-features should work with any PIV compliant middleware.
+project, specifically piv-tool, and Yubico's PIV software (see
+below).  Basic features should work with any PIV compliant 
+middleware.
 
 * https://github.com/OpenSC/OpenSC/wiki
 * https://developers.yubico.com/yubico-piv-tool/
+* https://developers.yubico.com/yubikey-piv-manager/
 * https://github.com/OpenSC/OpenSC/wiki/US-PIV
 * https://github.com/OpenSC/OpenSC/wiki/PivTool
 
