@@ -80,6 +80,8 @@ unsigned char get_algorithm(EVP_PKEY *key) {
         int curve = EC_GROUP_get_curve_name(group);
         if(curve == NID_X9_62_prime256v1) {
           return YKPIV_ALGO_ECCP256;
+        } else if(curve == NID_secp384r1) {
+          return YKPIV_ALGO_ECCP384;
         } else {
           fprintf(stderr, "Unknown EC curve %d\n", curve);
           return 0;

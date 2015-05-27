@@ -138,6 +138,9 @@ static bool generate_key(ykpiv_state *state, const char *slot,
     case algorithm_arg_ECCP256:
       in_data[4] = YKPIV_ALGO_ECCP256;
       break;
+    case algorithm_arg_ECCP384:
+      in_data[4] = YKPIV_ALGO_ECCP384;
+      break;
     case algorithm__NULL:
     default:
       fprintf(stderr, "Unexepcted algorithm.\n");
@@ -189,24 +192,34 @@ static bool generate_key(ykpiv_state *state, const char *slot,
       rsa->n = bignum_n;
       rsa->e = bignum_e;
       EVP_PKEY_set1_RSA(public_key, rsa);
-    } else if(algorithm == algorithm_arg_ECCP256) {
+    } else if(algorithm == algorithm_arg_ECCP256 || algorithm == algorithm_arg_ECCP384) {
       EC_GROUP *group;
       unsigned char *data_ptr = data + 3;
+      int nid;
+      size_t len;
+
+      if(algorithm == algorithm_arg_ECCP256) {
+        nid = NID_X9_62_prime256v1;
+        len = 65;
+      } else {
+        nid = NID_secp384r1;
+        len = 97;
+      }
 
       eckey = EC_KEY_new();
-      group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
-      EC_GROUP_set_asn1_flag(group, NID_X9_62_prime256v1);
+      group = EC_GROUP_new_by_curve_name(nid);
+      EC_GROUP_set_asn1_flag(group, nid);
       EC_KEY_set_group(eckey, group);
       point = EC_POINT_new(group);
       if(*data_ptr++ != 0x86) {
         fprintf(stderr, "Failed to parse public key structure.\n");
         goto generate_out;
       }
-      if(*data_ptr++ != 65) { /* the curve point should always be 65 bytes */
+      if(*data_ptr++ != len) { /* the curve point should always be 65 bytes */
         fprintf(stderr, "Unexpected length.\n");
         goto generate_out;
       }
-      if(!EC_POINT_oct2point(group, point, data_ptr, 65, NULL)) {
+      if(!EC_POINT_oct2point(group, point, data_ptr, len, NULL)) {
         fprintf(stderr, "Failed to load public point.\n");
         goto generate_out;
       }
@@ -674,6 +687,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
       }
       break;
     case YKPIV_ALGO_ECCP256:
+    case YKPIV_ALGO_ECCP384:
       signinput = digest + oid_len;
       len = digest_len;
       switch(hash) {
@@ -866,6 +880,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
       }
       break;
     case YKPIV_ALGO_ECCP256:
+    case YKPIV_ALGO_ECCP384:
       signinput = digest + oid_len;
       len = md_len;
       switch(hash) {
@@ -1577,20 +1592,30 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
       } else {
         fprintf(stderr, "Failed unwrapping PKCS1 envelope.\n");
       }
-    } else {
-      unsigned char secret[32];
-      unsigned char secret2[32];
-      unsigned char public_key[65];
+    } else if(algorithm == YKPIV_ALGO_ECCP256 || algorithm == YKPIV_ALGO_ECCP384) {
+      unsigned char secret[48];
+      unsigned char secret2[48];
+      unsigned char public_key[97];
       unsigned char *ptr = public_key;
       size_t len = sizeof(secret);
       EC_KEY *ec = EVP_PKEY_get1_EC_KEY(pubkey);
+      int nid;
+      size_t key_len;
 
-      tmpkey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+      if(algorithm == YKPIV_ALGO_ECCP256) {
+        nid = NID_X9_62_prime256v1;
+        key_len = 32;
+      } else {
+        nid = NID_secp384r1;
+        key_len = 48;
+      }
+
+      tmpkey = EC_KEY_new_by_curve_name(nid);
       EC_KEY_generate_key(tmpkey);
       ECDH_compute_key(secret, len, EC_KEY_get0_public_key(ec), tmpkey, NULL);
 
       i2o_ECPublicKey(tmpkey, &ptr);
-      if(ykpiv_decipher_data(state, public_key, sizeof(public_key), secret2, &len, algorithm, key) != YKPIV_OK) {
+      if(ykpiv_decipher_data(state, public_key, (key_len * 2) + 1, secret2, &len, algorithm, key) != YKPIV_OK) {
         fprintf(stderr, "Failed ECDH exchange!\n");
         goto decipher_out;
       }
@@ -1600,7 +1625,7 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
         fprintf(stderr, "ECDH card generated: ");
         dump_hex(secret2, len, stderr, true);
       }
-      if(memcmp(secret, secret2, 32) == 0) {
+      if(memcmp(secret, secret2, key_len) == 0) {
         fprintf(stderr, "Successfully performed ECDH exchange with card.\n");
         ret = true;
       } else {

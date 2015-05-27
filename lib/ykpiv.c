@@ -508,7 +508,7 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   unsigned char templ[] = {0, YKPIV_INS_AUTHENTICATE, algorithm, key};
   unsigned long recv_len = sizeof(data);
   unsigned char sign_in[256];
-  size_t pad_len = 0;
+  size_t key_len = 0;
   int sw;
   size_t bytes;
   size_t len = 0;
@@ -516,28 +516,33 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
 
   switch(algorithm) {
     case YKPIV_ALGO_RSA1024:
-      pad_len = 128;
+      key_len = 128;
     case YKPIV_ALGO_RSA2048:
-      if(pad_len == 0) {
-	pad_len = 256;
+      if(key_len == 0) {
+	key_len = 256;
       }
       if(!decipher) {
-	if(in_len + RSA_PKCS1_PADDING_SIZE > pad_len) {
+	if(in_len + RSA_PKCS1_PADDING_SIZE > key_len) {
 	  return YKPIV_SIZE_ERROR;
 	}
-	RSA_padding_add_PKCS1_type_1(sign_in, pad_len, raw_in, in_len);
-	in_len = pad_len;
+	RSA_padding_add_PKCS1_type_1(sign_in, key_len, raw_in, in_len);
+	in_len = key_len;
       } else {
-	if(in_len != pad_len) {
+	if(in_len != key_len) {
 	  return YKPIV_SIZE_ERROR;
 	}
 	memcpy(sign_in, raw_in, in_len);
       }
       break;
     case YKPIV_ALGO_ECCP256:
-      if(!decipher && in_len > 32) {
+      key_len = 32;
+    case YKPIV_ALGO_ECCP384:
+      if(key_len == 0) {
+	key_len = 48;
+      }
+      if(!decipher && in_len > key_len) {
 	return YKPIV_SIZE_ERROR;
-      } else if(decipher && in_len != 65) {
+      } else if(decipher && in_len != (key_len * 2) + 1) {
 	return YKPIV_SIZE_ERROR;
       }
       memcpy(sign_in, raw_in, in_len);
