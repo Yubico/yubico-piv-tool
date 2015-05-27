@@ -239,3 +239,108 @@ bool prepare_rsa_signature(const unsigned char *in, unsigned int in_len, unsigne
   *out_len = (unsigned int)i2d_X509_SIG(&digestInfo, &out);
   return true;
 }
+
+static unsigned const char sha1oid[] = {
+  0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2B, 0x0E, 0x03, 0x02, 0x1A, 0x05, 0x00,
+  0x04, 0x14
+};
+
+static unsigned const char sha256oid[] = {
+  0x30, 0x31, 0x30, 0x0D, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04,
+  0x02, 0x01, 0x05, 0x00, 0x04, 0x20
+};
+
+static unsigned const char sha384oid[] = {
+  0x30, 0x41, 0x30, 0x0D, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04,
+  0x02, 0x02, 0x05, 0x00, 0x04, 0x30
+};
+
+static unsigned const char sha512oid[] = {
+  0x30, 0x51, 0x30, 0x0D, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04,
+  0x02, 0x03, 0x05, 0x00, 0x04, 0x40
+};
+
+const EVP_MD *get_hash(enum enum_hash hash, const unsigned char **oid, size_t *oid_len) {
+  switch(hash) {
+    case hash_arg_SHA1:
+      if(oid) {
+        *oid = sha1oid;
+        *oid_len = sizeof(sha1oid);
+      }
+      return EVP_sha1();
+    case hash_arg_SHA256:
+      if(oid) {
+        *oid = sha256oid;
+        *oid_len = sizeof(sha256oid);
+      }
+      return EVP_sha256();
+    case hash_arg_SHA384:
+      if(oid) {
+        *oid = sha384oid;
+        *oid_len = sizeof(sha384oid);
+      }
+      return EVP_sha384();
+    case hash_arg_SHA512:
+      if(oid) {
+        *oid = sha512oid;
+        *oid_len = sizeof(sha512oid);
+      }
+      return EVP_sha512();
+    case hash__NULL:
+    default:
+      return NULL;
+  }
+}
+
+int get_hashnid(enum enum_hash hash, unsigned char algorithm) {
+  switch(algorithm) {
+    case YKPIV_ALGO_RSA1024:
+    case YKPIV_ALGO_RSA2048:
+      switch(hash) {
+        case hash_arg_SHA1:
+          return NID_sha1WithRSAEncryption;
+        case hash_arg_SHA256:
+          return NID_sha256WithRSAEncryption;
+        case hash_arg_SHA384:
+          return NID_sha384WithRSAEncryption;
+        case hash_arg_SHA512:
+          return NID_sha512WithRSAEncryption;
+        case hash__NULL:
+        default:
+          return 0;
+      }
+    case YKPIV_ALGO_ECCP256:
+    case YKPIV_ALGO_ECCP384:
+      switch(hash) {
+        case hash_arg_SHA1:
+          return NID_ecdsa_with_SHA1;
+        case hash_arg_SHA256:
+          return NID_ecdsa_with_SHA256;
+        case hash_arg_SHA384:
+          return NID_ecdsa_with_SHA384;
+        case hash_arg_SHA512:
+          return NID_ecdsa_with_SHA512;
+        case hash__NULL:
+        default:
+          return 0;
+      }
+    default:
+      return 0;
+  }
+}
+
+unsigned char get_piv_algorithm(enum enum_algorithm algorithm) {
+  switch(algorithm) {
+    case algorithm_arg_RSA2048:
+      return YKPIV_ALGO_RSA2048;
+    case algorithm_arg_RSA1024:
+      return YKPIV_ALGO_RSA1024;
+    case algorithm_arg_ECCP256:
+      return YKPIV_ALGO_ECCP256;
+    case algorithm_arg_ECCP384:
+      return YKPIV_ALGO_ECCP384;
+    case algorithm__NULL:
+    default:
+      return 0;
+  }
+}

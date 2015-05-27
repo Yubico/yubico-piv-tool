@@ -62,20 +62,7 @@ unsigned const char chuid_tmpl[] = {
 };
 #define CHUID_GUID_OFFS 29
 
-unsigned const char sha1oid[] = {
-  0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2B, 0x0E, 0x03, 0x02, 0x1A, 0x05, 0x00,
-  0x04, 0x14
-};
-
-unsigned const char sha256oid[] = {
-  0x30, 0x31, 0x30, 0x0D, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04,
-  0x02, 0x01, 0x05, 0x00, 0x04, 0x20
-};
-
-unsigned const char sha512oid[] = {
-  0x30, 0x51, 0x30, 0x0D, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04,
-  0x02, 0x03, 0x05, 0x00, 0x04, 0x40
-};
+#define MAX_OID_LEN 19
 
 #define KEY_LEN 24
 
@@ -128,23 +115,10 @@ static bool generate_key(ykpiv_state *state, const char *slot,
   in_data[1] = 3;
   in_data[2] = 0x80;
   in_data[3] = 1;
-  switch(algorithm) {
-    case algorithm_arg_RSA2048:
-      in_data[4] = YKPIV_ALGO_RSA2048;
-      break;
-    case algorithm_arg_RSA1024:
-      in_data[4] = YKPIV_ALGO_RSA1024;
-      break;
-    case algorithm_arg_ECCP256:
-      in_data[4] = YKPIV_ALGO_ECCP256;
-      break;
-    case algorithm_arg_ECCP384:
-      in_data[4] = YKPIV_ALGO_ECCP384;
-      break;
-    case algorithm__NULL:
-    default:
-      fprintf(stderr, "Unexepcted algorithm.\n");
-      goto generate_out;
+  in_data[4] = get_piv_algorithm(algorithm);
+  if(in_data[4] == 0) {
+    fprintf(stderr, "Unexepcted algorithm.\n");
+    goto generate_out;
   }
   if(ykpiv_transfer_data(state, templ, in_data, sizeof(in_data), data,
         &recv_len, &sw) != YKPIV_OK) {
@@ -574,7 +548,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
   EVP_PKEY *public_key = NULL;
   const EVP_MD *md;
   bool ret = false;
-  unsigned char digest[EVP_MAX_MD_SIZE + sizeof(sha512oid)]; // maximum..
+  unsigned char digest[EVP_MAX_MD_SIZE + MAX_OID_LEN];
   unsigned int digest_len;
   unsigned int md_len;
   unsigned char algorithm;
@@ -612,25 +586,9 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     goto request_out;
   }
 
-  switch(hash) {
-    case hash_arg_SHA1:
-      md = EVP_sha1();
-      oid = sha1oid;
-      oid_len = sizeof(sha1oid);
-      break;
-    case hash_arg_SHA256:
-      md = EVP_sha256();
-      oid = sha256oid;
-      oid_len = sizeof(sha256oid);
-      break;
-    case hash_arg_SHA512:
-      md = EVP_sha512();
-      oid = sha512oid;
-      oid_len = sizeof(sha512oid);
-      break;
-    case hash__NULL:
-    default:
-      goto request_out;
+  md = get_hash(hash, &oid, &oid_len);
+  if(md == NULL) {
+    goto request_out;
   }
 
   md_len = (unsigned int)EVP_MD_size(md);
@@ -666,49 +624,19 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     goto request_out;
   }
 
-  switch(algorithm) {
-    case YKPIV_ALGO_RSA1024:
-    case YKPIV_ALGO_RSA2048:
-      signinput = digest;
-      len = oid_len + digest_len;
-      switch(hash) {
-        case hash_arg_SHA1:
-          nid = NID_sha1WithRSAEncryption;
-          break;
-        case hash_arg_SHA256:
-          nid = NID_sha256WithRSAEncryption;
-          break;
-        case hash_arg_SHA512:
-          nid = NID_sha512WithRSAEncryption;
-          break;
-        case hash__NULL:
-        default:
-          goto request_out;
-      }
-      break;
-    case YKPIV_ALGO_ECCP256:
-    case YKPIV_ALGO_ECCP384:
+  nid = get_hashnid(hash, algorithm);
+  if(nid == 0) {
+    fprintf(stderr, "Unsupported algorithm %x or hash %x\n", algorithm, hash);
+    goto request_out;
+  }
+  if(algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048) {
+    signinput = digest;
+    len = oid_len + digest_len;
+  } else {
       signinput = digest + oid_len;
       len = digest_len;
-      switch(hash) {
-        case hash_arg_SHA1:
-          nid = NID_ecdsa_with_SHA1;
-          break;
-        case hash_arg_SHA256:
-          nid = NID_ecdsa_with_SHA256;
-          break;
-        case hash_arg_SHA512:
-          nid = NID_ecdsa_with_SHA512;
-          break;
-        case hash__NULL:
-        default:
-          goto request_out;
-      }
-      break;
-    default:
-      fprintf(stderr, "Unsupported algorithm %x.\n", algorithm);
-      goto request_out;
   }
+
   req->sig_alg->algorithm = OBJ_nid2obj(nid);
   {
     unsigned char signature[1024];
@@ -759,7 +687,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   X509 *x509 = NULL;
   X509_NAME *name = NULL;
   const EVP_MD *md;
-  unsigned char digest[EVP_MAX_MD_SIZE + sizeof(sha512oid)];
+  unsigned char digest[EVP_MAX_MD_SIZE + MAX_OID_LEN];
   unsigned int digest_len;
   unsigned char algorithm;
   int key = 0;
@@ -797,27 +725,10 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     goto selfsign_out;
   }
 
-  switch(hash) {
-    case hash_arg_SHA1:
-      md = EVP_sha1();
-      oid = sha1oid;
-      oid_len = sizeof(sha1oid);
-      break;
-    case hash_arg_SHA256:
-      md = EVP_sha256();
-      oid = sha256oid;
-      oid_len = sizeof(sha256oid);
-      break;
-    case hash_arg_SHA512:
-      md = EVP_sha512();
-      oid = sha512oid;
-      oid_len = sizeof(sha512oid);
-      break;
-    case hash__NULL:
-    default:
-      goto selfsign_out;
+  md = get_hash(hash, &oid, &oid_len);
+  if(md == NULL) {
+    goto selfsign_out;
   }
-
   md_len = (unsigned int)EVP_MD_size(md);
   digest_len = sizeof(digest) - md_len;
 
@@ -859,49 +770,18 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     fprintf(stderr, "Failed setting certificate issuer.\n");
     goto selfsign_out;
   }
-  switch(algorithm) {
-    case YKPIV_ALGO_RSA1024:
-    case YKPIV_ALGO_RSA2048:
-      signinput = digest;
-      len = oid_len + md_len;
-      switch(hash) {
-        case hash_arg_SHA1:
-          nid = NID_sha1WithRSAEncryption;
-          break;
-        case hash_arg_SHA256:
-          nid = NID_sha256WithRSAEncryption;
-          break;
-        case hash_arg_SHA512:
-          nid = NID_sha512WithRSAEncryption;
-          break;
-        case hash__NULL:
-        default:
-          goto selfsign_out;
-      }
-      break;
-    case YKPIV_ALGO_ECCP256:
-    case YKPIV_ALGO_ECCP384:
-      signinput = digest + oid_len;
-      len = md_len;
-      switch(hash) {
-        case hash_arg_SHA1:
-          nid = NID_ecdsa_with_SHA1;
-          break;
-        case hash_arg_SHA256:
-          nid = NID_ecdsa_with_SHA256;
-          break;
-        case hash_arg_SHA512:
-          nid = NID_ecdsa_with_SHA512;
-          break;
-        case hash__NULL:
-        default:
-          goto selfsign_out;
-      }
-      break;
-    default:
-      fprintf(stderr, "Unsupported algorithm %x.\n", algorithm);
-      goto selfsign_out;
+  nid = get_hashnid(hash, algorithm);
+  if(nid == 0) {
+    goto selfsign_out;
   }
+  if(algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048) {
+    signinput = digest;
+    len = oid_len + md_len;
+  } else {
+    signinput = digest + oid_len;
+    len = md_len;
+  }
+
   x509->sig_alg->algorithm = OBJ_nid2obj(nid);
   x509->cert_info->signature->algorithm = x509->sig_alg->algorithm;
   memcpy(digest, oid, oid_len);
@@ -1128,37 +1008,17 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
     return false;
   }
 
-  switch(algorithm) {
-    case algorithm_arg_RSA2048:
-      algo = YKPIV_ALGO_RSA2048;
-      break;
-    case algorithm_arg_RSA1024:
-      algo = YKPIV_ALGO_RSA1024;
-      break;
-    case algorithm_arg_ECCP256:
-      algo = YKPIV_ALGO_ECCP256;
-      break;
-    case algorithm__NULL:
-    default:
-      goto out;
+  algo = get_piv_algorithm(algorithm);
+  if(algo == 0) {
+    goto out;
   }
 
   {
     EVP_MD_CTX *mdctx;
 
-    switch(hash) {
-      case hash_arg_SHA1:
-        md = EVP_sha1();
-        break;
-      case hash_arg_SHA256:
-        md = EVP_sha256();
-        break;
-      case hash_arg_SHA512:
-        md = EVP_sha512();
-        break;
-      case hash__NULL:
-      default:
-        goto out;
+    md = get_hash(hash, NULL, NULL);
+    if(md == NULL) {
+      goto out;
     }
 
     mdctx = EVP_MD_CTX_create();
@@ -1318,19 +1178,9 @@ static bool status(ykpiv_state *state, enum enum_hash hash,
     return false;
   }
 
-  switch(hash) {
-    case hash_arg_SHA1:
-      md = EVP_sha1();
-      break;
-    case hash_arg_SHA256:
-      md = EVP_sha256();
-      break;
-    case hash_arg_SHA512:
-      md = EVP_sha512();
-      break;
-    case hash__NULL:
-    default:
-      return false;
+  md = get_hash(hash, NULL, NULL);
+  if(md == NULL) {
+    return false;
   }
 
   fprintf(output_file, "CHUID:\t");
@@ -1394,19 +1244,9 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
     goto test_out;
   }
 
-  switch(hash) {
-    case hash_arg_SHA1:
-      md = EVP_sha1();
-      break;
-    case hash_arg_SHA256:
-      md = EVP_sha256();
-      break;
-    case hash_arg_SHA512:
-      md = EVP_sha512();
-      break;
-    case hash__NULL:
-    default:
-      return false;
+  md = get_hash(hash, NULL, NULL);
+  if(md == NULL) {
+    return false;
   }
 
   {

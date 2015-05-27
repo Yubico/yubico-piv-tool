@@ -47,5 +47,8 @@ int get_object_id(enum enum_slot slot);
 bool set_component_with_len(unsigned char**, const BIGNUM*, int);
 bool prepare_rsa_signature(const unsigned char*, unsigned int, unsigned char*,
     unsigned int*, int);
+const EVP_MD *get_hash(enum enum_hash, const unsigned char**, size_t*);
+int get_hashnid(enum enum_hash, unsigned char);
+unsigned char get_piv_algorithm(enum enum_algorithm);
 
 #endif
