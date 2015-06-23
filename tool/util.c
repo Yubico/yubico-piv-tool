@@ -200,6 +200,66 @@ int get_object_id(enum enum_slot slot) {
     case slot_arg_9e:
       object = YKPIV_OBJ_CARD_AUTH;
       break;
+    case slot_arg_82:
+      object = YKPIV_OBJ_RETIRED1;
+      break;
+    case slot_arg_83:
+      object = YKPIV_OBJ_RETIRED2;
+      break;
+    case slot_arg_84:
+      object = YKPIV_OBJ_RETIRED3;
+      break;
+    case slot_arg_85:
+      object = YKPIV_OBJ_RETIRED4;
+      break;
+    case slot_arg_86:
+      object = YKPIV_OBJ_RETIRED5;
+      break;
+    case slot_arg_87:
+      object = YKPIV_OBJ_RETIRED6;
+      break;
+    case slot_arg_88:
+      object = YKPIV_OBJ_RETIRED7;
+      break;
+    case slot_arg_89:
+      object = YKPIV_OBJ_RETIRED8;
+      break;
+    case slot_arg_8a:
+      object = YKPIV_OBJ_RETIRED9;
+      break;
+    case slot_arg_8b:
+      object = YKPIV_OBJ_RETIRED10;
+      break;
+    case slot_arg_8c:
+      object = YKPIV_OBJ_RETIRED11;
+      break;
+    case slot_arg_8d:
+      object = YKPIV_OBJ_RETIRED12;
+      break;
+    case slot_arg_8e:
+      object = YKPIV_OBJ_RETIRED13;
+      break;
+    case slot_arg_8f:
+      object = YKPIV_OBJ_RETIRED14;
+      break;
+    case slot_arg_90:
+      object = YKPIV_OBJ_RETIRED15;
+      break;
+    case slot_arg_91:
+      object = YKPIV_OBJ_RETIRED16;
+      break;
+    case slot_arg_92:
+      object = YKPIV_OBJ_RETIRED17;
+      break;
+    case slot_arg_93:
+      object = YKPIV_OBJ_RETIRED18;
+      break;
+    case slot_arg_94:
+      object = YKPIV_OBJ_RETIRED19;
+      break;
+    case slot_arg_95:
+      object = YKPIV_OBJ_RETIRED20;
+      break;
     case slot__NULL:
     default:
       object = 0;
