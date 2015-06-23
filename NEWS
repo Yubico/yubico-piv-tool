@@ -1,6 +1,12 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
-* Version 1.0.0 (unreleased)
+* Version 1.0.0 (released 2015-06-23)
+
+** Add a test-decipher action.
+
+** Check that e is 0x10001 on importing rsa keys
+
+** Use PCSC transactions when sending and receiving data
 
 * Version 0.1.6 (released 2015-03-23)
 
