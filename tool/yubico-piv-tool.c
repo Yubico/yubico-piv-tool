@@ -340,9 +340,17 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
       int sw;
       if(algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048) {
         RSA *rsa_private_key = EVP_PKEY_get1_RSA(private_key);
+        unsigned char e[4];
+        unsigned char *e_ptr = e;
         int element_len = 128;
         if(algorithm == YKPIV_ALGO_RSA1024) {
           element_len = 64;
+        }
+
+        if((set_component_with_len(&e_ptr, rsa_private_key->e, 3) == false) ||
+            !(e[1] == 0x01 && e[2] == 0x00 && e[3] == 0x01)) {
+          fprintf(stderr, "Invalid public exponent for import (only 0x10001 supported)\n");
+          goto import_out;
         }
 
         *in_ptr++ = 0x01;
