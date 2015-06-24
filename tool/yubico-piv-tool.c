@@ -86,8 +86,9 @@ static void print_version(ykpiv_state *state, const char *output_file_name) {
 
 static bool generate_key(ykpiv_state *state, const char *slot,
     enum enum_algorithm algorithm, const char *output_file_name,
-    enum enum_key_format key_format) {
-  unsigned char in_data[5];
+    enum enum_key_format key_format, enum enum_pin_policy pin_policy) {
+  unsigned char in_data[8];
+  unsigned char *in_ptr = in_data;
   unsigned char data[1024];
   unsigned char templ[] = {0, YKPIV_INS_GENERATE_ASYMMERTRIC, 0, 0};
   unsigned long recv_len = sizeof(data);
@@ -111,16 +112,22 @@ static bool generate_key(ykpiv_state *state, const char *slot,
     return false;
   }
 
-  in_data[0] = 0xac;
-  in_data[1] = 3;
-  in_data[2] = 0x80;
-  in_data[3] = 1;
-  in_data[4] = get_piv_algorithm(algorithm);
+  *in_ptr++ = 0xac;
+  *in_ptr++ = 3;
+  *in_ptr++ = 0x80;
+  *in_ptr++ = 1;
+  *in_ptr++ = get_piv_algorithm(algorithm);
   if(in_data[4] == 0) {
     fprintf(stderr, "Unexepcted algorithm.\n");
     goto generate_out;
   }
-  if(ykpiv_transfer_data(state, templ, in_data, sizeof(in_data), data,
+  if(pin_policy != pin_policy__NULL) {
+    in_data[1] += 3;
+    *in_ptr++ = YKPIV_PINPOLICY_TAG;
+    *in_ptr++ = 1;
+    *in_ptr++ = get_pin_policy(pin_policy);
+  }
+  if(ykpiv_transfer_data(state, templ, in_data, in_ptr - in_data, data,
         &recv_len, &sw) != YKPIV_OK) {
     fprintf(stderr, "Failed to communicate.\n");
     goto generate_out;
@@ -279,7 +286,8 @@ static bool set_pin_retries(ykpiv_state *state, int pin_retries, int puk_retries
 }
 
 static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
-    const char *input_file_name, const char *slot, char *password) {
+    const char *input_file_name, const char *slot, char *password,
+    enum enum_pin_policy pin_policy) {
   int key = 0;
   FILE *input_file = NULL;
   EVP_PKEY *private_key = NULL;
@@ -392,9 +400,17 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
         }
       }
 
+      if(pin_policy != pin_policy__NULL) {
+        *in_ptr++ = YKPIV_PINPOLICY_TAG;
+        *in_ptr++ = 1;
+        *in_ptr++ = get_pin_policy(pin_policy);
+      }
+
       if(ykpiv_transfer_data(state, templ, in_data, in_ptr - in_data, data,
             &recv_len, &sw) != YKPIV_OK) {
         return false;
+      } else if(pin_policy != pin_policy__NULL && sw == 0x6a80) {
+        fprintf(stderr, "Failed import. Maybe pin-policy is not supported on this key?\n");
       } else if(sw != 0x9000) {
         fprintf(stderr, "Failed import command with code %x.\n", sw);
       } else {
@@ -1657,7 +1673,8 @@ int main(int argc, char *argv[]) {
         print_version(state, args_info.output_arg);
         break;
       case action_arg_generate:
-        if(generate_key(state, args_info.slot_orig, args_info.algorithm_arg, args_info.output_arg, args_info.key_format_arg) == false) {
+        if(generate_key(state, args_info.slot_orig, args_info.algorithm_arg, args_info.output_arg, args_info.key_format_arg,
+              args_info.pin_policy_arg) == false) {
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully generated a new private key.\n");
@@ -1698,7 +1715,8 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_importMINUS_key:
-        if(import_key(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_orig, args_info.password_arg) == false) {
+        if(import_key(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_orig, args_info.password_arg,
+              args_info.pin_policy_arg) == false) {
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully imported a new private key.\n");

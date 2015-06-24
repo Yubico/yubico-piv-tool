@@ -404,3 +404,17 @@ unsigned char get_piv_algorithm(enum enum_algorithm algorithm) {
       return 0;
   }
 }
+
+unsigned char get_pin_policy(enum enum_pin_policy policy) {
+  switch(policy) {
+    case pin_policy_arg_never:
+      return YKPIV_PINPOLICY_NEVER;
+    case pin_policy_arg_once:
+      return YKPIV_PINPOLICY_ONCE;
+    case pin_policy_arg_always:
+      return YKPIV_PINPOLICY_ALWAYS;
+    case pin_policy__NULL:
+    default:
+      return 0;
+  }
+}
