@@ -325,7 +325,7 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
       unsigned char *in_ptr = in_data;
       unsigned char templ[] = {0, YKPIV_INS_IMPORT_KEY, algorithm, key};
       int sw;
-      if(algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048) {
+      if(IS_RSAKEY(algorithm)) {
         RSA *rsa_private_key = EVP_PKEY_get1_RSA(private_key);
         unsigned char e[4];
         unsigned char *e_ptr = e;
@@ -369,12 +369,17 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
           fprintf(stderr, "Failed setting iqmp component.\n");
           goto import_out;
         }
-      } else if(algorithm == YKPIV_ALGO_ECCP256) {
+      } else if(IS_ECKEY(algorithm)) {
         EC_KEY *ec = EVP_PKEY_get1_EC_KEY(private_key);
         const BIGNUM *s = EC_KEY_get0_private_key(ec);
+        int element_len = 32;
+
+        if(algorithm == YKPIV_ALGO_ECCP384) {
+          element_len = 48;
+        }
 
         *in_ptr++ = 0x06;
-        if(set_component_with_len(&in_ptr, s, 32) == false) {
+        if(set_component_with_len(&in_ptr, s, element_len) == false) {
           fprintf(stderr, "Failed setting ec private key.\n");
           goto import_out;
         }
@@ -629,7 +634,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     fprintf(stderr, "Unsupported algorithm %x or hash %x\n", algorithm, hash);
     goto request_out;
   }
-  if(algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048) {
+  if(IS_RSAKEY(algorithm)) {
     signinput = digest;
     len = oid_len + digest_len;
   } else {
@@ -774,7 +779,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   if(nid == 0) {
     goto selfsign_out;
   }
-  if(algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048) {
+  if(IS_RSAKEY(algorithm)) {
     signinput = digest;
     len = oid_len + md_len;
   } else {
@@ -1037,7 +1042,7 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
     EVP_MD_CTX_destroy(mdctx);
   }
 
-  if(algo == YKPIV_ALGO_RSA1024 || algo == YKPIV_ALGO_RSA2048) {
+  if(IS_RSAKEY(algo)) {
     prepare_rsa_signature(hashed, hash_len, hashed, &hash_len, EVP_MD_type(md));
   }
 
@@ -1117,6 +1122,9 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
           break;
         case YKPIV_ALGO_ECCP256:
           fprintf(output, "ECCP256\n");
+          break;
+        case YKPIV_ALGO_ECCP384:
+          fprintf(output, "ECCP384\n");
           break;
         default:
           fprintf(output, "Unknown\n");
@@ -1286,7 +1294,7 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
       goto test_out;
     }
     sscanf(cmdline_parser_slot_values[slot], "%2x", &key);
-    if(algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048) {
+    if(IS_RSAKEY(algorithm)) {
       prepare_rsa_signature(data, data_len, encoded, &enc_len, EVP_MD_type(md));
       ptr = encoded;
     } else {
@@ -1320,6 +1328,7 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
 
         break;
       case YKPIV_ALGO_ECCP256:
+      case YKPIV_ALGO_ECCP384:
         {
           EC_KEY *ec = EVP_PKEY_get1_EC_KEY(pubkey);
           if(ECDSA_verify(0, data, (int)data_len, signature, (int)sig_len, ec) == 1) {
@@ -1391,7 +1400,7 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
       goto decipher_out;
     }
     sscanf(cmdline_parser_slot_values[slot], "%2x", &key);
-    if(algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048) {
+    if(IS_RSAKEY(algorithm)) {
       unsigned char secret[32];
       unsigned char secret2[32];
       unsigned char data[256];
@@ -1432,7 +1441,7 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
       } else {
         fprintf(stderr, "Failed unwrapping PKCS1 envelope.\n");
       }
-    } else if(algorithm == YKPIV_ALGO_ECCP256 || algorithm == YKPIV_ALGO_ECCP384) {
+    } else if(IS_ECKEY(algorithm)) {
       unsigned char secret[48];
       unsigned char secret2[48];
       unsigned char public_key[97];
