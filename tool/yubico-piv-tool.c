@@ -125,7 +125,14 @@ static bool generate_key(ykpiv_state *state, const char *slot,
     fprintf(stderr, "Failed to communicate.\n");
     goto generate_out;
   } else if(sw != 0x9000) {
-    fprintf(stderr, "Failed to generate new key.\n");
+    fprintf(stderr, "Failed to generate new key (");
+    if(sw == 0x6b00) {
+      fprintf(stderr, "slot not supported?)\n");
+    } else if(sw == 0x6a80) {
+      fprintf(stderr, "algorithm not supported?)\n");
+    } else {
+      fprintf(stderr, "error %x)\n", sw);
+    }
     goto generate_out;
   }
   /* to drop the 90 00 and the 7f 49 at the start */
