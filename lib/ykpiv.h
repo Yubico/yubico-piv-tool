@@ -126,6 +126,9 @@ extern "C"
 #define YKPIV_INS_RESET 0xfb
 #define YKPIV_INS_SET_PIN_RETRIES 0xfa
 
+#define IS_ECKEY(a) ((a == YKPIV_ALGO_ECCP256 || a == YKPIV_ALGO_ECCP384))
+#define IS_RSAKEY(a) ((a == YKPIV_ALGO_RSA1024 || a == YKPIV_ALGO_RSA2048))
+
 #ifdef __cplusplus
 }
 #endif

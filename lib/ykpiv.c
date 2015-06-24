@@ -563,7 +563,7 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   dataptr += set_length(dataptr, in_len + bytes + 3);
   *dataptr++ = 0x82;
   *dataptr++ = 0x00;
-  *dataptr++ = algorithm == YKPIV_ALGO_ECCP256 && decipher ? 0x85 : 0x81;
+  *dataptr++ = IS_ECKEY(algorithm) && decipher ? 0x85 : 0x81;
   dataptr += set_length(dataptr, in_len);
   memcpy(dataptr, sign_in, (size_t)in_len);
   dataptr += in_len;
