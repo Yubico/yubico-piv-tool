@@ -143,7 +143,13 @@ static bool generate_key(ykpiv_state *state, const char *slot,
     if(sw == 0x6b00) {
       fprintf(stderr, "slot not supported?)\n");
     } else if(sw == 0x6a80) {
-      fprintf(stderr, "algorithm not supported?)\n");
+      if(pin_policy != pin_policy__NULL) {
+        fprintf(stderr, "pin policy not supported?)\n");
+      } else if(touch_policy != touch_policy__NULL) {
+        fprintf(stderr, "touch policy not supported?)\n");
+      } else {
+        fprintf(stderr, "algorithm not supported?)\n");
+      }
     } else {
       fprintf(stderr, "error %x)\n", sw);
     }
@@ -421,8 +427,15 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
       if(ykpiv_transfer_data(state, templ, in_data, in_ptr - in_data, data,
             &recv_len, &sw) != YKPIV_OK) {
         return false;
-      } else if(pin_policy != pin_policy__NULL && sw == 0x6a80) {
-        fprintf(stderr, "Failed import. Maybe pin-policy is not supported on this key?\n");
+      } else if(sw == 0x6a80) {
+        fprintf(stderr, "Failed import.");
+        if(pin_policy != pin_policy__NULL) {
+          fprintf(stderr, "Maybe pin-policy is not supported on this key?\n");
+        } else if(touch_policy != touch_policy__NULL) {
+          fprintf(stderr, "Maybe touch-policy is not supported on this key?\n");
+        } else {
+          fprintf(stderr, "Maybe algorithm is not supported on this key?\n");
+        }
       } else if(sw != 0x9000) {
         fprintf(stderr, "Failed import command with code %x.\n", sw);
       } else {
@@ -1700,7 +1713,11 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "Failed decoding new key!\n");
             ret = EXIT_FAILURE;
           } else if(ykpiv_set_mgmkey2(state, new_key, args_info.touch_policy_arg == touch_policy_arg_always ? 1 : 0) != YKPIV_OK) {
-            fprintf(stderr, "Failed setting the new key!\n");
+            fprintf(stderr, "Failed setting the new key!");
+            if(args_info.touch_policy_arg != touch_policy__NULL) {
+              fprintf(stderr, " Maybe touch policy is not supported on this key?");
+            }
+            fprintf(stderr, "\n");
             ret = EXIT_FAILURE;
           } else {
             fprintf(stderr, "Successfully set new management key.\n");
