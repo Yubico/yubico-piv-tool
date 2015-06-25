@@ -1699,7 +1699,7 @@ int main(int argc, char *argv[]) {
           if(ykpiv_hex_decode(args_info.new_key_arg, strlen(args_info.new_key_arg), new_key, &new_key_len) != YKPIV_OK) {
             fprintf(stderr, "Failed decoding new key!\n");
             ret = EXIT_FAILURE;
-          } else if(ykpiv_set_mgmkey(state, new_key) != YKPIV_OK) {
+          } else if(ykpiv_set_mgmkey2(state, new_key, args_info.touch_policy_arg == touch_policy_arg_always ? 1 : 0) != YKPIV_OK) {
             fprintf(stderr, "Failed setting the new key!\n");
             ret = EXIT_FAILURE;
           } else {

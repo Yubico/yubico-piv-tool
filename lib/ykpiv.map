@@ -53,3 +53,9 @@ YKPIV_0.2.0
 global:
 	ykpiv_decipher_data;
 } YKPIV_0.1.0;
+
+YKPIV_1.1.0
+{
+global:
+	ykpiv_set_mgmkey2;
+} YKPIV_0.1.0;

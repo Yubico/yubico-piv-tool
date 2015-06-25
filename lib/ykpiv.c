@@ -427,6 +427,10 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
 }
 
 ykpiv_rc ykpiv_set_mgmkey(ykpiv_state *state, const unsigned char *new_key) {
+  return ykpiv_set_mgmkey2(state, new_key, 0);
+}
+
+ykpiv_rc ykpiv_set_mgmkey2(ykpiv_state *state, const unsigned char *new_key, const unsigned char touch) {
   APDU apdu;
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
@@ -453,7 +457,13 @@ ykpiv_rc ykpiv_set_mgmkey(ykpiv_state *state, const unsigned char *new_key) {
   memset(apdu.raw, 0, sizeof(apdu));
   apdu.st.ins = YKPIV_INS_SET_MGMKEY;
   apdu.st.p1 = 0xff;
-  apdu.st.p2 = 0xff;
+  if(touch == 0) {
+    apdu.st.p2 = 0xff;
+  } else if(touch == 1) {
+    apdu.st.p2 = 0xfe;
+  } else {
+    return YKPIV_GENERIC_ERROR;
+  }
   apdu.st.lc = DES_KEY_SZ * 3 + 3;
   apdu.st.data[0] = YKPIV_ALGO_3DES;
   apdu.st.data[1] = YKPIV_KEY_CARDMGM;

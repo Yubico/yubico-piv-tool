@@ -70,6 +70,8 @@ extern "C"
 			unsigned char *out_data, unsigned long *out_len, int *sw);
 	ykpiv_rc ykpiv_authenticate(ykpiv_state *state, const unsigned char *key);
 	ykpiv_rc ykpiv_set_mgmkey(ykpiv_state *state, const unsigned char *new_key);
+	ykpiv_rc ykpiv_set_mgmkey2(ykpiv_state *state, const unsigned char *new_key,
+                        const unsigned char touch);
 	ykpiv_rc ykpiv_hex_decode(const char *hex_in, size_t in_len,
 	            unsigned char *hex_out, size_t *out_len);
 	ykpiv_rc ykpiv_sign_data(ykpiv_state *state, const unsigned char *sign_in,
