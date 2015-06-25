@@ -51,5 +51,6 @@ const EVP_MD *get_hash(enum enum_hash, const unsigned char**, size_t*);
 int get_hashnid(enum enum_hash, unsigned char);
 unsigned char get_piv_algorithm(enum enum_algorithm);
 unsigned char get_pin_policy(enum enum_pin_policy);
+unsigned char get_touch_policy(enum enum_touch_policy);
 
 #endif

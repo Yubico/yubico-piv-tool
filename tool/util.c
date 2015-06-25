@@ -418,3 +418,15 @@ unsigned char get_pin_policy(enum enum_pin_policy policy) {
       return 0;
   }
 }
+
+unsigned char get_touch_policy(enum enum_touch_policy policy) {
+  switch(policy) {
+    case touch_policy_arg_never:
+      return YKPIV_TOUCHPOLICY_NEVER;
+    case touch_policy_arg_always:
+      return YKPIV_TOUCHPOLICY_ALWAYS;
+    case touch_policy__NULL:
+    default:
+      return 0;
+  }
+}
