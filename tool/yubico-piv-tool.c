@@ -686,8 +686,8 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     signinput = digest;
     len = oid_len + digest_len;
   } else {
-      signinput = digest + oid_len;
-      len = digest_len;
+    signinput = digest + oid_len;
+    len = digest_len;
   }
 
   req->sig_alg->algorithm = OBJ_nid2obj(nid);
