@@ -1,0 +1,12 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: yubico-piv-tool
+Description: Yubico PIV PKCS#11 Module
+URL: https://www.yubico.com/
+Version: 1.0.1
+Libs: -L${libdir} -lykcs11
+Cflags: -I${includedir}/ykpiv
+

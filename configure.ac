@@ -49,6 +49,8 @@ PKG_PROG_PKG_CONFIG
 
 PKG_CHECK_MODULES(OPENSSL, openssl)
 
+PKG_CHECK_MODULES([LIBNSPR], [nspr], [], [])
+
 gl_LD_VERSION_SCRIPT
 gl_VALGRIND_TESTS
 
@@ -182,6 +184,9 @@ AC_CONFIG_FILES([
   tool/tests/Makefile
   lib/ykpiv-version.h
   lib/ykpiv.pc
+  ykcs11/Makefile
+  ykcs11/ykcs11-version.h
+  ykcs11/ykcs11.pc
 ])
 AC_OUTPUT
 
