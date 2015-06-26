@@ -509,7 +509,7 @@ ykpiv_rc ykpiv_hex_decode(const char *hex_in, size_t in_len,
 }
 
 static ykpiv_rc _general_authenticate(ykpiv_state *state,
-    const unsigned char *raw_in, size_t in_len,
+    const unsigned char *sign_in, size_t in_len,
     unsigned char *out, size_t *out_len,
     unsigned char algorithm, unsigned char key, bool decipher) {
   unsigned char indata[1024];
@@ -517,7 +517,6 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   unsigned char data[1024];
   unsigned char templ[] = {0, YKPIV_INS_AUTHENTICATE, algorithm, key};
   unsigned long recv_len = sizeof(data);
-  unsigned char sign_in[256];
   size_t key_len = 0;
   int sw;
   size_t bytes;
@@ -531,17 +530,8 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
       if(key_len == 0) {
 	key_len = 256;
       }
-      if(!decipher) {
-	if(in_len + RSA_PKCS1_PADDING_SIZE > key_len) {
-	  return YKPIV_SIZE_ERROR;
-	}
-	RSA_padding_add_PKCS1_type_1(sign_in, key_len, raw_in, in_len);
-	in_len = key_len;
-      } else {
-	if(in_len != key_len) {
-	  return YKPIV_SIZE_ERROR;
-	}
-	memcpy(sign_in, raw_in, in_len);
+      if(in_len != key_len) {
+	return YKPIV_SIZE_ERROR;
       }
       break;
     case YKPIV_ALGO_ECCP256:
@@ -555,7 +545,6 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
       } else if(decipher && in_len != (key_len * 2) + 1) {
 	return YKPIV_SIZE_ERROR;
       }
-      memcpy(sign_in, raw_in, in_len);
       break;
     default:
       return YKPIV_ALGORITHM_ERROR;
@@ -624,7 +613,24 @@ ykpiv_rc ykpiv_sign_data(ykpiv_state *state,
     unsigned char *sign_out, size_t *out_len,
     unsigned char algorithm, unsigned char key) {
 
-  return _general_authenticate(state, raw_in, in_len, sign_out, out_len,
+  unsigned char sign_in[256];
+  size_t key_len = 0;
+  if(IS_RSAKEY(algorithm)) {
+    key_len = 128;
+    if(algorithm == YKPIV_ALGO_RSA2048) {
+      key_len = 256;
+    }
+  }
+  if(IS_RSAKEY(algorithm) && key_len != in_len) {
+    if(in_len + RSA_PKCS1_PADDING_SIZE > key_len) {
+      return YKPIV_SIZE_ERROR;
+    }
+    RSA_padding_add_PKCS1_type_1(sign_in, key_len, raw_in, in_len);
+    in_len = key_len;
+  } else {
+    memcpy(sign_in, raw_in, in_len);
+  }
+  return _general_authenticate(state, sign_in, in_len, sign_out, out_len,
       algorithm, key, false);
 }
 
