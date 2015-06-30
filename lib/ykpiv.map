@@ -52,4 +52,6 @@ YKPIV_0.2.0
 {
 global:
 	ykpiv_decipher_data;
+  ykpiv_get_reader_slot_number;
+  ykpiv_get_reader_slot;
 } YKPIV_0.1.0;

@@ -1,5 +1,9 @@
 #include "pkcs11.h"
 #include <stdio.h>
+#include <ykpiv.h>
+#include <string.h>
+
+// TODO: do a bit of backend magic or should be handled by libykpiv?
 
 #define D(x) do {                                                     \
     printf ("debug: %s:%d (%s): ", __FILE__, __LINE__, __FUNCTION__); \
@@ -7,9 +11,24 @@
     printf ("\n");                                                    \
   } while (0)
 
-#define DBG(x) if (debug) { D(x); }
+#define YKCS11_DBG    1  // General debug, must be either 1 or 0
+#define YKCS11_DINOUT 1  // Function in/out debug, must be either 1 or 0
 
-static const int debug = 1;
+#if YKCS11_DBG
+#define DBG(x) D(x);
+#else
+#define DBG(x)
+#endif
+
+#if YKCS11_DINOUT
+#define DIN D(("In"));
+#define DOUT D(("Out"));
+#else
+#define DIN
+#define DOUT
+#endif
+
+static ykpiv_state *piv_state = NULL;
 
 extern CK_FUNCTION_LIST function_list;
 
@@ -19,8 +38,22 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
   CK_VOID_PTR pInitArgs
 )
 {
-  DBG(("In"));
+  DIN;
+  // TODO: check for locks and mutexes
+  if (piv_state != NULL)
+    return CKR_CRYPTOKI_ALREADY_INITIALIZED;
 
+  if (ykpiv_init(&piv_state, YKCS11_DBG) != YKPIV_OK) {
+    DBG(("Unable to initialize YubiKey"));
+    return CKR_FUNCTION_FAILED; // TODO: better error?
+  }
+
+  if(ykpiv_connect(piv_state, NULL) != YKPIV_OK) {
+    DBG(("Unable to connect to reader"));
+    return CKR_FUNCTION_FAILED;
+  }
+
+  DOUT;
   return CKR_OK;
 }
 
@@ -28,8 +61,21 @@ CK_DEFINE_FUNCTION(CK_RV, C_Finalize)(
   CK_VOID_PTR pReserved
 )
 {
-  DBG(("In"));
+  DIN;
+  if (pReserved != NULL_PTR) {
+    DBG(("Finalized called with pReserved != NULL"));
+    return CKR_ARGUMENTS_BAD;
+  }
 
+  if (piv_state == NULL) {
+    DBG(("Ykpiv is not finalized"));
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  ykpiv_done(piv_state); // TODO: this calls disconnect...
+  piv_state == NULL;
+
+  DOUT;
   return CKR_OK;
 }
 
@@ -46,7 +92,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetFunctionList)(
   CK_FUNCTION_LIST_PTR_PTR ppFunctionList
 )
 {
-  DBG(("In"));
+  DIN;
   if(ppFunctionList == NULL_PTR) {
     return CKR_ARGUMENTS_BAD;
   }
@@ -63,8 +109,23 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
   CK_ULONG_PTR pulCount
 )
 {
-  DBG(("In"));
+  DIN;
+  unsigned long tot_readers_len;
+  ykpiv_get_reader_slot_number(piv_state, pulCount, &tot_readers_len);
+  //DBG(("%u val %x ptr", *pulCount, pSlotList));
+  if (pSlotList == NULL_PTR) {
+    // Just return the number of slots
+    return CKR_OK;
+  }
+  pSlotList[0] = 0;
+  return CKR_OK;
+  /*if ((*pulCount / sizeof(CK_SLOT_ID)) < tot_readers_len) {
+    DBG(("Buffer too small: needed %u, provided %u", tot_readers_len, *pulCount / sizeof(CK_SLOT_ID)))
+    return CKR_BUFFER_TOO_SMALL;
+    }*/
 
+  DBG(("%d token", tokenPresent));
+  DBG(("%u count", *pulCount));
   return CKR_OK;
 }
 
@@ -73,7 +134,19 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotInfo)(
   CK_SLOT_INFO_PTR pInfo
 )
 {
-  DBG(("In"));
+  DIN;
+  /*
+   * According to pcsc-lite, the format of a reader name is:
+   * name [interface] (serial) index slot
+   * http://ludovicrousseau.blogspot.se/2010/05/what-is-in-pcsc-reader-name.html
+   */
+  ykpiv_get_reader_slot(piv_state, 0, pInfo->slotDescription);
+  strcpy(pInfo->manufacturerID, "ADD SLOT MANUFACTURER NAME HERE");
+  pInfo->flags = CKF_TOKEN_PRESENT | CKF_REMOVABLE_DEVICE | CKF_HW_SLOT;
+
+  DBG(("slotID %u, pInfo %s", slotID, pInfo->slotDescription));
+
+
 
   return CKR_OK;
 }
@@ -83,7 +156,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
   CK_TOKEN_INFO_PTR pInfo
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -94,7 +167,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_WaitForSlotEvent)(
   CK_VOID_PTR pReserved
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -105,7 +178,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
   CK_ULONG_PTR pulCount
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -116,7 +189,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismInfo)(
   CK_MECHANISM_INFO_PTR pInfo
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -128,7 +201,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
   CK_UTF8CHAR_PTR pLabel
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -139,7 +212,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitPIN)(
   CK_ULONG ulPinLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -152,7 +225,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetPIN)(
   CK_ULONG ulNewLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -165,7 +238,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   CK_SESSION_HANDLE_PTR phSession
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -174,7 +247,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
   CK_SESSION_HANDLE hSession
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -183,7 +256,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
   CK_SLOT_ID slotID
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -193,7 +266,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSessionInfo)(
   CK_SESSION_INFO_PTR pInfo
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -204,7 +277,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetOperationState)(
   CK_ULONG_PTR pulOperationStateLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -217,7 +290,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetOperationState)(
   CK_OBJECT_HANDLE hAuthenticationKey
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -229,7 +302,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
   CK_ULONG ulPinLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -238,7 +311,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Logout)(
   CK_SESSION_HANDLE hSession
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -250,7 +323,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
   CK_OBJECT_HANDLE_PTR phObject
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -263,7 +336,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CopyObject)(
   CK_OBJECT_HANDLE_PTR phNewObject
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -273,7 +346,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
   CK_OBJECT_HANDLE hObject
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -284,7 +357,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetObjectSize)(
   CK_ULONG_PTR pulSize
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -296,7 +369,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
   CK_ULONG ulCount
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -308,7 +381,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetAttributeValue)(
   CK_ULONG ulCount
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -319,7 +392,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
   CK_ULONG ulCount
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -331,7 +404,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
   CK_ULONG_PTR pulObjectCount
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -340,7 +413,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsFinal)(
   CK_SESSION_HANDLE hSession
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -351,7 +424,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptInit)(
   CK_OBJECT_HANDLE hKey
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -364,7 +437,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Encrypt)(
   CK_ULONG_PTR pulEncryptedDataLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -377,7 +450,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptUpdate)(
   CK_ULONG_PTR pulEncryptedPartLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -388,7 +461,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptFinal)(
   CK_ULONG_PTR pulLastEncryptedPartLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -399,7 +472,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
   CK_OBJECT_HANDLE hKey
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -412,7 +485,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
   CK_ULONG_PTR pulDataLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -425,7 +498,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptUpdate)(
   CK_ULONG_PTR pulPartLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -436,7 +509,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
   CK_ULONG_PTR pulLastPartLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -446,7 +519,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestInit)(
   CK_MECHANISM_PTR pMechanism
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -459,7 +532,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Digest)(
   CK_ULONG_PTR pulDigestLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -470,7 +543,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestUpdate)(
   CK_ULONG ulPartLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -480,7 +553,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestKey)(
   CK_OBJECT_HANDLE hKey
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -491,7 +564,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestFinal)(
   CK_ULONG_PTR pulDigestLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -502,7 +575,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
   CK_OBJECT_HANDLE hKey
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -515,7 +588,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   CK_ULONG_PTR pulSignatureLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -526,7 +599,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignUpdate)(
   CK_ULONG ulPartLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -537,7 +610,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
   CK_ULONG_PTR pulSignatureLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -548,7 +621,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignRecoverInit)(
   CK_OBJECT_HANDLE hKey
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -561,7 +634,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignRecover)(
   CK_ULONG_PTR pulSignatureLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -572,7 +645,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
   CK_OBJECT_HANDLE hKey
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -585,7 +658,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Verify)(
   CK_ULONG ulSignatureLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -596,7 +669,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyUpdate)(
   CK_ULONG ulPartLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -607,7 +680,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyFinal)(
   CK_ULONG ulSignatureLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -618,7 +691,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyRecoverInit)(
   CK_OBJECT_HANDLE hKey
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -631,7 +704,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyRecover)(
   CK_ULONG_PTR pulDataLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -644,7 +717,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestEncryptUpdate)(
   CK_ULONG_PTR pulEncryptedPartLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -657,7 +730,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptDigestUpdate)(
   CK_ULONG_PTR pulPartLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -670,7 +743,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignEncryptUpdate)(
   CK_ULONG_PTR pulEncryptedPartLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -683,7 +756,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptVerifyUpdate)(
   CK_ULONG_PTR pulPartLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -696,7 +769,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKey)(
   CK_OBJECT_HANDLE_PTR phKey
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -712,7 +785,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   CK_OBJECT_HANDLE_PTR phPrivateKey
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -726,7 +799,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_WrapKey)(
   CK_ULONG_PTR pulWrappedKeyLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -742,7 +815,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_UnwrapKey)(
   CK_OBJECT_HANDLE_PTR phKey
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -756,7 +829,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DeriveKey)(
   CK_OBJECT_HANDLE_PTR phKey
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -769,7 +842,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SeedRandom)(
   CK_ULONG ulSeedLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -780,7 +853,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateRandom)(
   CK_ULONG ulRandomLen
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -789,7 +862,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetFunctionStatus)(
   CK_SESSION_HANDLE hSession
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }
@@ -798,7 +871,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CancelFunction)(
   CK_SESSION_HANDLE hSession
 )
 {
-  DBG(("In"));
+  DIN;
 
   return CKR_OK;
 }

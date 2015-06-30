@@ -29,6 +29,7 @@ SUBDIRS = .
 
 AM_CFLAGS = $(WERROR_CFLAGS) $(WARN_CFLAGS)
 AM_CPPFLAGS = $(OPENSSL_CFLAGS) $(PCSC_CFLAGS) $(LIBNSPR_CFLAGS)
+AM_CPPFLAGS += -I$(top_srcdir)/lib -I$(top_builddir)/lib
 
 lib_LTLIBRARIES = libykcs11.la
 
