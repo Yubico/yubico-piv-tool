@@ -353,7 +353,7 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
       unsigned char *in_ptr = in_data;
       unsigned char templ[] = {0, YKPIV_INS_IMPORT_KEY, algorithm, key};
       int sw;
-      if(IS_RSAKEY(algorithm)) {
+      if(YKPIV_IS_RSA(algorithm)) {
         RSA *rsa_private_key = EVP_PKEY_get1_RSA(private_key);
         unsigned char e[4];
         unsigned char *e_ptr = e;
@@ -397,7 +397,7 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
           fprintf(stderr, "Failed setting iqmp component.\n");
           goto import_out;
         }
-      } else if(IS_ECKEY(algorithm)) {
+      } else if(YKPIV_IS_EC(algorithm)) {
         EC_KEY *ec = EVP_PKEY_get1_EC_KEY(private_key);
         const BIGNUM *s = EC_KEY_get0_private_key(ec);
         int element_len = 32;
@@ -682,7 +682,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     fprintf(stderr, "Unsupported algorithm %x or hash %x\n", algorithm, hash);
     goto request_out;
   }
-  if(IS_RSAKEY(algorithm)) {
+  if(YKPIV_IS_RSA(algorithm)) {
     signinput = digest;
     len = oid_len + digest_len;
   } else {
@@ -827,7 +827,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   if(nid == 0) {
     goto selfsign_out;
   }
-  if(IS_RSAKEY(algorithm)) {
+  if(YKPIV_IS_RSA(algorithm)) {
     signinput = digest;
     len = oid_len + md_len;
   } else {
@@ -1090,7 +1090,7 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
     EVP_MD_CTX_destroy(mdctx);
   }
 
-  if(IS_RSAKEY(algo)) {
+  if(YKPIV_IS_RSA(algo)) {
     prepare_rsa_signature(hashed, hash_len, hashed, &hash_len, EVP_MD_type(md));
   }
 
@@ -1342,7 +1342,7 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
       goto test_out;
     }
     sscanf(cmdline_parser_slot_values[slot], "%2x", &key);
-    if(IS_RSAKEY(algorithm)) {
+    if(YKPIV_IS_RSA(algorithm)) {
       prepare_rsa_signature(data, data_len, encoded, &enc_len, EVP_MD_type(md));
       ptr = encoded;
     } else {
@@ -1448,7 +1448,7 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
       goto decipher_out;
     }
     sscanf(cmdline_parser_slot_values[slot], "%2x", &key);
-    if(IS_RSAKEY(algorithm)) {
+    if(YKPIV_IS_RSA(algorithm)) {
       unsigned char secret[32];
       unsigned char secret2[32];
       unsigned char data[256];
@@ -1489,7 +1489,7 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
       } else {
         fprintf(stderr, "Failed unwrapping PKCS1 envelope.\n");
       }
-    } else if(IS_ECKEY(algorithm)) {
+    } else if(YKPIV_IS_EC(algorithm)) {
       unsigned char secret[48];
       unsigned char secret2[48];
       unsigned char public_key[97];

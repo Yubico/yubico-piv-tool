@@ -562,7 +562,7 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   dataptr += set_length(dataptr, in_len + bytes + 3);
   *dataptr++ = 0x82;
   *dataptr++ = 0x00;
-  *dataptr++ = IS_ECKEY(algorithm) && decipher ? 0x85 : 0x81;
+  *dataptr++ = YKPIV_IS_EC(algorithm) && decipher ? 0x85 : 0x81;
   dataptr += set_length(dataptr, in_len);
   memcpy(dataptr, sign_in, (size_t)in_len);
   dataptr += in_len;
@@ -615,13 +615,13 @@ ykpiv_rc ykpiv_sign_data(ykpiv_state *state,
 
   unsigned char sign_in[256];
   size_t key_len = 0;
-  if(IS_RSAKEY(algorithm)) {
+  if(YKPIV_IS_RSA(algorithm)) {
     key_len = 128;
     if(algorithm == YKPIV_ALGO_RSA2048) {
       key_len = 256;
     }
   }
-  if(IS_RSAKEY(algorithm) && key_len != in_len) {
+  if(YKPIV_IS_RSA(algorithm) && key_len != in_len) {
     if(in_len + RSA_PKCS1_PADDING_SIZE > key_len) {
       return YKPIV_SIZE_ERROR;
     }

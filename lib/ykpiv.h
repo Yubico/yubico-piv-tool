@@ -158,8 +158,8 @@ extern "C"
 #define YKPIV_TOUCHPOLICY_NEVER 1
 #define YKPIV_TOUCHPOLICY_ALWAYS 2
 
-#define IS_ECKEY(a) ((a == YKPIV_ALGO_ECCP256 || a == YKPIV_ALGO_ECCP384))
-#define IS_RSAKEY(a) ((a == YKPIV_ALGO_RSA1024 || a == YKPIV_ALGO_RSA2048))
+#define YKPIV_IS_EC(a) ((a == YKPIV_ALGO_ECCP256 || a == YKPIV_ALGO_ECCP384))
+#define YKPIV_IS_RSA(a) ((a == YKPIV_ALGO_RSA1024 || a == YKPIV_ALGO_RSA2048))
 
 #ifdef __cplusplus
 }
