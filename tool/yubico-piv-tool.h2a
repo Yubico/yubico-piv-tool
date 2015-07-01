@@ -1,0 +1,85 @@
+# Copyright (c) 2014, 2015 Yubico AB
+# All rights reserved.
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
+# Additional permission under GNU GPL version 3 section 7
+#
+# If you modify this program, or any covered work, by linking or
+# combining it with the OpenSSL project's OpenSSL library (or a
+# modified version of that library), containing parts covered by the
+# terms of the OpenSSL or SSLeay licenses, We grant you additional 
+# permission to convey the resulting work. Corresponding Source for a
+# non-source form of such a combination shall include the source code
+# for the parts of OpenSSL used as well as that of the covered work.
+
+== EXAMPLES
+
+For more information about what's happening --verbose can be added
+to any command. For much more information --verbose=2 may be used.
+
+Display what version of the applet is running on the YubiKey Neo:
+
+   yubico-piv-tool -a version
+
+Generate a new ECC-P256 key on device in slot 9a, will print the public
+key on stdout:
+
+   yubico-piv-tool -s 9a -A ECCP256 -a generate
+
+Generate a certificate request with public key from stdin, will print
+the resulting request on stdout:
+
+   yubico-piv-tool -s 9a -S '/CN=foo/OU=test/O=example.com/' -P 123456 \\
+     -a verify -a request
+
+Generate a self-signed certificate with public key from stdin, will print
+the certificate, for later import, on stdout:
+
+   yubico-piv-tool -s 9a -S '/CN=bar/OU=test/O=example.com/' -P 123456 \\
+     -a verify -a selfsign
+
+Import a certificate from stdin:
+
+   yubico-piv-tool -s 9a -a import-certificate
+
+Set a random chuid, import a key and import a certificate from a PKCS12
+file with password test, into slot 9c:
+
+   yubico-piv-tool -s 9c -i test.pfx -K PKCS12 -p test -a set-chuid \\
+     -a import-key -a import-cert
+
+Import a certificate which is larger than 2048 bytes and thus requires
+compression in order to fit:
+
+  openssl x509 -in cert.pem -outform DER | gzip -9 > der.gz
+  yubico-piv-tool -s 9c -i der.gz -K GZIP -a import-cert
+
+Change the management key used for administrative authentication:
+
+   yubico-piv-tool -n 0807605403020108070605040302010807060504030201 \\
+     -a set-mgm-key
+
+Delete a certificate in slot 9a:
+
+  yubico-piv-tool -a delete-certificate -s 9a
+
+Show some information on certificates and other data:
+
+  yubico-piv-tool -a status
+
+Read out the certificate from a slot and then run a signature test:
+
+  yubico-piv-tool -a read-cert -s 9a
+  yubico-piv-tool -a verify-pin -P 123456 -a test-signature -s 9a
