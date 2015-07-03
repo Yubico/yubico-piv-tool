@@ -34,6 +34,8 @@ AM_CPPFLAGS += -I$(top_srcdir)/lib -I$(top_builddir)/lib
 lib_LTLIBRARIES = libykcs11.la
 
 libykcs11_la_SOURCES = ykcs11.c version.c ykcs11.pc.in ykcs11.map
+libykcs11_la_SOURCES += vendors.c vendor.h yubico.c yubico. h
+
 #internal.h
 #libykcs11_la_SOURCES += error.c
 #libykcs11_la_LDADD = ../lib/libykpiv.la

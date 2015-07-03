@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <ykpiv.h>
 #include <string.h>
+#include "vendors.h"
 
 // TODO: do a bit of backend magic or should be handled by libykpiv?
 
@@ -111,21 +112,29 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 {
   DIN;
   unsigned long tot_readers_len;
-  ykpiv_get_reader_slot_number(piv_state, pulCount, &tot_readers_len);
-  //DBG(("%u val %x ptr", *pulCount, pSlotList));
+  unsigned long n_readers;
+  int i;
+  ykpiv_get_reader_slot_number(piv_state, &n_readers, &tot_readers_len); // TODO: maybe refactor this with a reader struct?
   if (pSlotList == NULL_PTR) {
     // Just return the number of slots
+    *pulCount = n_readers;
+    DOUT;
     return CKR_OK;
   }
-  pSlotList[0] = 0;
-  return CKR_OK;
-  /*if ((*pulCount / sizeof(CK_SLOT_ID)) < tot_readers_len) {
-    DBG(("Buffer too small: needed %u, provided %u", tot_readers_len, *pulCount / sizeof(CK_SLOT_ID)))
-    return CKR_BUFFER_TOO_SMALL;
-    }*/
 
+  if (*pulCount < n_readers) {
+    DBG(("Buffer too small: needed %u, provided %u", n_readers, *pulCount));
+    return CKR_BUFFER_TOO_SMALL;
+  }
+
+  for (i = 0; i < n_readers; i++) {
+    pSlotList[i] = i;
+  }
+  
   DBG(("%d token", tokenPresent));
   DBG(("%u count", *pulCount));
+
+  DOUT;
   return CKR_OK;
 }
 
@@ -140,13 +149,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotInfo)(
    * name [interface] (serial) index slot
    * http://ludovicrousseau.blogspot.se/2010/05/what-is-in-pcsc-reader-name.html
    */
-  ykpiv_get_reader_slot(piv_state, 0, pInfo->slotDescription);
+  ykpiv_get_reader_slot(piv_state, slotID, pInfo->slotDescription); // TODO: should be ' ' padded
   strcpy(pInfo->manufacturerID, "ADD SLOT MANUFACTURER NAME HERE");
-  pInfo->flags = CKF_TOKEN_PRESENT | CKF_REMOVABLE_DEVICE | CKF_HW_SLOT;
+  pInfo->flags = CKF_TOKEN_PRESENT | CKF_REMOVABLE_DEVICE | CKF_HW_SLOT; // TODO: What for other brands? Query for token status?
 
   DBG(("slotID %u, pInfo %s", slotID, pInfo->slotDescription));
-
-
 
   return CKR_OK;
 }
@@ -157,6 +164,53 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
 )
 {
   DIN;
+  CK_VERSION ver = {0, 0};
+  vendor_t yubico;
+  char buf[64];
+
+  ykpiv_get_version(piv_state, buf, 64);
+  yubico = get_vendor(get_vendor_id("Yubico"));
+  ver = yubico.get_version(buf, strlen(buf));
+  
+  memset(pInfo->label, ' ', sizeof(pInfo->label));
+  strncpy(pInfo->label, "LABEL", 5);
+
+  memset(pInfo->manufacturerID, ' ', sizeof(pInfo->manufacturerID));
+  strncpy(pInfo->manufacturerID, "MANUFACTURER_ID", 15);
+
+  memset(pInfo->model, ' ', sizeof(pInfo->model));
+  strncpy(pInfo->model, "MODEL", 5);
+
+  memset(pInfo->serialNumber, ' ', sizeof(pInfo->serialNumber));
+  strncpy(pInfo->serialNumber, "12345", 5);
+
+  pInfo->flags = 0x00000400; // bit flags indicating capabilities and status of the device as defined below
+
+  pInfo->ulMaxSessionCount = CK_UNAVAILABLE_INFORMATION; // TODO: should this be 1?
+
+  pInfo->ulSessionCount = CK_UNAVAILABLE_INFORMATION; // number of sessions that this application currently has open with the token
+
+  pInfo->ulMaxRwSessionCount = CK_UNAVAILABLE_INFORMATION; // maximum number of read/write sessions that can be opened with the token at one time by a single TODO: should this be 1?
+
+  pInfo->ulRwSessionCount =  CK_UNAVAILABLE_INFORMATION; // number of read/write sessions that this application currently has open with the token
+
+  pInfo->ulMaxPinLen = 127; // maximum length in bytes of the PIN
+
+  pInfo->ulMinPinLen = 3; // minimum length in bytes of the PIN
+
+  pInfo->ulTotalPublicMemory = CK_UNAVAILABLE_INFORMATION;
+
+  pInfo->ulFreePublicMemory = CK_UNAVAILABLE_INFORMATION;
+
+  pInfo->ulTotalPrivateMemory = CK_UNAVAILABLE_INFORMATION;
+
+  pInfo->ulFreePrivateMemory = CK_UNAVAILABLE_INFORMATION;
+
+  pInfo->hardwareVersion = ver; // version number of hardware
+
+  pInfo->firmwareVersion = ver; // version number of firmware
+
+  memset(pInfo->utcTime, ' ', sizeof(pInfo->utcTime));
 
   return CKR_OK;
 }

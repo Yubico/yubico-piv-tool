@@ -177,7 +177,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
     }
   // *********
 
-  reader_ptr = reader_buf;
+  reader_ptr = reader_buf; // TODO: reader_buf is never free'd
   if(wanted) {
     while(*reader_ptr != '\0') {
       if(strstr(reader_ptr, wanted)) {
