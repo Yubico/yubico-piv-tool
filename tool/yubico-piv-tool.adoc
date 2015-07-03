@@ -42,13 +42,13 @@ key on stdout:
 Generate a certificate request with public key from stdin, will print
 the resulting request on stdout:
 
-   yubico-piv-tool -s 9a -S '/CN=foo/OU=test/O=example.com/' -P 123456 \\
+   yubico-piv-tool -s 9a -S '/CN=foo/OU=test/O=example.com/' -P 123456 \
      -a verify -a request
 
 Generate a self-signed certificate with public key from stdin, will print
 the certificate, for later import, on stdout:
 
-   yubico-piv-tool -s 9a -S '/CN=bar/OU=test/O=example.com/' -P 123456 \\
+   yubico-piv-tool -s 9a -S '/CN=bar/OU=test/O=example.com/' -P 123456 \
      -a verify -a selfsign
 
 Import a certificate from stdin:
@@ -58,7 +58,7 @@ Import a certificate from stdin:
 Set a random chuid, import a key and import a certificate from a PKCS12
 file with password test, into slot 9c:
 
-   yubico-piv-tool -s 9c -i test.pfx -K PKCS12 -p test -a set-chuid \\
+   yubico-piv-tool -s 9c -i test.pfx -K PKCS12 -p test -a set-chuid \
      -a import-key -a import-cert
 
 Import a certificate which is larger than 2048 bytes and thus requires
@@ -69,7 +69,7 @@ compression in order to fit:
 
 Change the management key used for administrative authentication:
 
-   yubico-piv-tool -n 0807605403020108070605040302010807060504030201 \\
+   yubico-piv-tool -n 0807605403020108070605040302010807060504030201 \
      -a set-mgm-key
 
 Delete a certificate in slot 9a:
