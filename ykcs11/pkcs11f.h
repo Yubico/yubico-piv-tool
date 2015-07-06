@@ -71,7 +71,7 @@ CK_PKCS11_FUNCTION_INFO(C_Finalize)
 CK_PKCS11_FUNCTION_INFO(C_GetInfo)
 #ifdef CK_NEED_ARG_LIST
 (
-  CK_VOID_PTR   pInfo  /* location that receives information */
+  CK_INFO_PTR   pInfo  /* location that receives information */
 );
 #endif
 

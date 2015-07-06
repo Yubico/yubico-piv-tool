@@ -13,6 +13,9 @@
 #define YKCS11_DBG    1  // General debug, must be either 1 or 0
 #define YKCS11_DINOUT 1  // Function in/out debug, must be either 1 or 0
 
+#define YKCS11_MANUFACTURER "Yubico (www.yubico.com)"
+#define YKCS11_LIBDESC      "PKCS#11 PIV Library (SP-800-73)"
+
 #define PIV_MIN_PIN_LEN 6
 #define PIV_MAX_PIN_LEN 8
 
@@ -82,11 +85,24 @@ CK_DEFINE_FUNCTION(CK_RV, C_Finalize)(
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_GetInfo)(
-  CK_VOID_PTR pInfo
+  CK_INFO_PTR pInfo
 )
 {
-  DBG(("In"));
+  DIN;
+  CK_VERSION ver = {0.0};
+  pInfo->cryptokiVersion = function_list.version;
 
+  memset(pInfo->manufacturerID, ' ', sizeof(pInfo->manufacturerID));
+  strcpy(pInfo->manufacturerID, YKCS11_MANUFACTURER);
+
+  pInfo->flags = 0;
+
+  memset(pInfo->libraryDescription, ' ', sizeof(pInfo->libraryDescription));
+  strcpy(pInfo->libraryDescription, YKCS11_LIBDESC);
+
+  pInfo->libraryVersion = ver;
+
+  DOUT;
   return CKR_OK;
 }
 
@@ -131,7 +147,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
   for (i = 0; i < n_readers; i++) {
     pSlotList[i] = i;
   }
-  
+
   DBG(("%d token", tokenPresent));
   DBG(("%u count", *pulCount));
 
@@ -180,9 +196,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
 
   if (vid == UNKNOWN)
     return CKR_TOKEN_NOT_RECOGNIZED;
-  
+
   vendor = get_vendor(vid);
-  
+
   memset(pInfo->label, ' ', sizeof(pInfo->label));
   p = vendor.get_label();
   len = strlen(p);
@@ -225,7 +241,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
 
   ykpiv_get_version(piv_state, buf, sizeof(buf));
   ver = vendor.get_version(buf, strlen(buf));
-  
+
   pInfo->hardwareVersion = ver; // version number of hardware
 
   pInfo->firmwareVersion = ver; // version number of firmware
@@ -949,8 +965,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_CancelFunction)(
 
   return CKR_OK;
 }
+
 CK_FUNCTION_LIST function_list = {
-  { 2, 24 },
+  { 2, 40 },
   C_Initialize,
   C_Finalize,
   C_GetInfo,
