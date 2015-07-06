@@ -228,6 +228,8 @@ typedef struct CK_TOKEN_INFO {
  * and sign) */
 #define CKF_DUAL_CRYPTO_OPERATIONS  0x00000200
 
+#define CKF_TOKEN_INITIALIZED       0x00000400
+
 typedef CK_TOKEN_INFO CK_PTR CK_TOKEN_INFO_PTR;
 
 

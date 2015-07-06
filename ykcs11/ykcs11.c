@@ -4,8 +4,6 @@
 #include <string.h>
 #include "vendors.h"
 
-// TODO: do a bit of backend magic or should be handled by libykpiv?
-
 #define D(x) do {                                                     \
     printf ("debug: %s:%d (%s): ", __FILE__, __LINE__, __FUNCTION__); \
     printf x;                                                         \
@@ -14,6 +12,9 @@
 
 #define YKCS11_DBG    1  // General debug, must be either 1 or 0
 #define YKCS11_DINOUT 1  // Function in/out debug, must be either 1 or 0
+
+#define PIV_MIN_PIN_LEN 6
+#define PIV_MAX_PIN_LEN 8
 
 #if YKCS11_DBG
 #define DBG(x) D(x);
@@ -164,27 +165,43 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
 )
 {
   DIN;
-  CK_VERSION ver = {0, 0};
-  vendor_t yubico;
-  char buf[64];
+  CK_VERSION      ver = {0, 0};
+  vendor_id_t     vid;
+  vendor_t        vendor;
+  CK_BYTE         buf[64];
+  CK_UTF8CHAR_PTR p;
+  CK_BYTE         len;
 
-  ykpiv_get_version(piv_state, buf, 64);
-  yubico = get_vendor(get_vendor_id("Yubico"));
-  ver = yubico.get_version(buf, strlen(buf));
+  if (piv_state == NULL)
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+
+  ykpiv_get_reader_slot(piv_state, slotID, buf);
+  vid = get_vendor_id(buf);
+
+  if (vid == UNKNOWN)
+    return CKR_TOKEN_NOT_RECOGNIZED;
+  
+  vendor = get_vendor(vid);
   
   memset(pInfo->label, ' ', sizeof(pInfo->label));
-  strncpy(pInfo->label, "LABEL", 5);
+  p = vendor.get_label();
+  len = strlen(p);
+  strncpy(pInfo->label, p, len);
 
   memset(pInfo->manufacturerID, ' ', sizeof(pInfo->manufacturerID));
-  strncpy(pInfo->manufacturerID, "MANUFACTURER_ID", 15);
+  p = vendor.get_manufacturer();
+  len = strlen(p);
+  strncpy(pInfo->manufacturerID, p, len);
 
   memset(pInfo->model, ' ', sizeof(pInfo->model));
-  strncpy(pInfo->model, "MODEL", 5);
+  p = vendor.get_model();
+  len = strlen(p);
+  strncpy(pInfo->model, p, len);
 
   memset(pInfo->serialNumber, ' ', sizeof(pInfo->serialNumber));
   strncpy(pInfo->serialNumber, "12345", 5);
 
-  pInfo->flags = 0x00000400; // bit flags indicating capabilities and status of the device as defined below
+  pInfo->flags = vendor.get_flags(); // bit flags indicating capabilities and status of the device as defined below
 
   pInfo->ulMaxSessionCount = CK_UNAVAILABLE_INFORMATION; // TODO: should this be 1?
 
@@ -194,9 +211,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
 
   pInfo->ulRwSessionCount =  CK_UNAVAILABLE_INFORMATION; // number of read/write sessions that this application currently has open with the token
 
-  pInfo->ulMaxPinLen = 127; // maximum length in bytes of the PIN
+  pInfo->ulMaxPinLen = PIV_MIN_PIN_LEN; // maximum length in bytes of the PIN
 
-  pInfo->ulMinPinLen = 3; // minimum length in bytes of the PIN
+  pInfo->ulMinPinLen = PIV_MAX_PIN_LEN; // minimum length in bytes of the PIN
 
   pInfo->ulTotalPublicMemory = CK_UNAVAILABLE_INFORMATION;
 
@@ -206,6 +223,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
 
   pInfo->ulFreePrivateMemory = CK_UNAVAILABLE_INFORMATION;
 
+  ykpiv_get_version(piv_state, buf, sizeof(buf));
+  ver = vendor.get_version(buf, strlen(buf));
+  
   pInfo->hardwareVersion = ver; // version number of hardware
 
   pInfo->firmwareVersion = ver; // version number of firmware
