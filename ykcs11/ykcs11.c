@@ -73,7 +73,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Finalize)(
   }
 
   if (piv_state == NULL) {
-    DBG(("Ykpiv is not finalized"));
+    DBG(("Ykpiv is not initialized or already finalized"));
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
