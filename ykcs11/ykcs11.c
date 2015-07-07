@@ -131,6 +131,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
   unsigned long tot_readers_len;
   unsigned long n_readers;
   int i;
+
+  // TODO: what about tokenPresent?
+
   ykpiv_get_reader_slot_number(piv_state, &n_readers, &tot_readers_len); // TODO: maybe refactor this with a reader struct?
   if (pSlotList == NULL_PTR) {
     // Just return the number of slots
@@ -258,7 +261,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_WaitForSlotEvent)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -269,7 +273,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -280,7 +285,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismInfo)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -303,7 +309,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitPIN)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -316,7 +323,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetPIN)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -329,7 +337,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -338,7 +347,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -347,7 +357,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -357,7 +368,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSessionInfo)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -368,7 +380,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetOperationState)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -381,7 +394,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetOperationState)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -393,7 +407,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -402,7 +417,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Logout)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -414,7 +430,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -427,7 +444,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_CopyObject)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -437,7 +455,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -448,7 +467,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetObjectSize)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -460,7 +480,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -472,7 +493,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetAttributeValue)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -483,7 +505,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -495,7 +518,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -504,7 +528,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsFinal)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -515,7 +540,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptInit)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -528,7 +554,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Encrypt)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -541,7 +568,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptUpdate)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -552,7 +580,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptFinal)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -563,7 +592,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -576,7 +606,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -589,7 +620,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptUpdate)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -600,7 +632,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -610,7 +643,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestInit)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -623,7 +657,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Digest)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -634,7 +669,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestUpdate)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -644,7 +680,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestKey)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -655,7 +692,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestFinal)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -666,7 +704,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -679,7 +718,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -690,7 +730,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignUpdate)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -701,7 +742,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -712,7 +754,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignRecoverInit)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -725,7 +768,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignRecover)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -736,7 +780,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -749,7 +794,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Verify)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -760,7 +806,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyUpdate)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -771,7 +818,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyFinal)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -782,7 +830,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyRecoverInit)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -795,7 +844,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyRecover)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -808,7 +858,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestEncryptUpdate)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -821,7 +872,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptDigestUpdate)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -834,7 +886,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignEncryptUpdate)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -847,7 +900,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptVerifyUpdate)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -860,7 +914,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKey)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -876,7 +931,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -890,7 +946,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_WrapKey)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -906,7 +963,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_UnwrapKey)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -920,7 +978,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_DeriveKey)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -933,7 +992,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_SeedRandom)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -944,7 +1004,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateRandom)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -953,7 +1014,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetFunctionStatus)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
@@ -962,7 +1024,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_CancelFunction)(
 )
 {
   DIN;
-
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
