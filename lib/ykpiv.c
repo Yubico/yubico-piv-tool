@@ -271,9 +271,11 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
       }
       return YKPIV_SIZE_ERROR;
     }
-    memcpy(out_data, data, recv_len - 2);
-    out_data += recv_len - 2;
-    *out_len += recv_len - 2;
+    if(out_data) {
+      memcpy(out_data, data, recv_len - 2);
+      out_data += recv_len - 2;
+      *out_len += recv_len - 2;
+    }
     in_ptr += this_size;
   } while(in_ptr < in_data + in_len);
   while(*sw >> 8 == 0x61) {
@@ -296,9 +298,11 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
     if(*out_len + recv_len - 2 > max_out) {
       fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.", *out_len + recv_len - 2, max_out);
     }
-    memcpy(out_data, data, recv_len - 2);
-    out_data += recv_len - 2;
-    *out_len += recv_len - 2;
+    if(out_data) {
+      memcpy(out_data, data, recv_len - 2);
+      out_data += recv_len - 2;
+      *out_len += recv_len - 2;
+    }
   }
   rc = SCardEndTransaction(state->card, SCARD_LEAVE_CARD);
   if(rc != SCARD_S_SUCCESS) {
