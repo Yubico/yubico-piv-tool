@@ -710,6 +710,9 @@ ykpiv_rc ykpiv_fetch_object(ykpiv_state *state, int object_id,
   if(sw == 0x9000) {
     size_t outlen;
     int offs = get_length(data + 1, &outlen);
+    if(offs == 0) {
+      return YKPIV_SIZE_ERROR;
+    }
     memmove(data, data + 1 + offs, outlen);
     *len = outlen;
     return YKPIV_OK;
