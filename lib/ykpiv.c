@@ -664,9 +664,11 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
   apdu.st.p1 = 0x00;
   apdu.st.p2 = 0x80;
   apdu.st.lc = pin ? 0x08 : 0;
-  memcpy(apdu.st.data, pin, len);
-  if(pin && len < 8) {
-    memset(apdu.st.data + len, 0xff, 8 - len);
+  if(pin) {
+    memcpy(apdu.st.data, pin, len);
+    if(len < 8) {
+      memset(apdu.st.data + len, 0xff, 8 - len);
+    }
   }
   if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
     return res;
