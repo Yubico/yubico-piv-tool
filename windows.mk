@@ -26,7 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 PACKAGE=yubico-piv-tool
-OPENSSLVERSION=1.0.1o
+OPENSSLVERSION=1.0.1p
 
 all: usage 32bit 64bit
 
@@ -47,11 +47,17 @@ doit:
 		curl -L -O "https://www.openssl.org/source/openssl-$(OPENSSLVERSION).tar.gz" && \
 	tar xfa openssl-$(OPENSSLVERSION).tar.gz && \
 	cd openssl-$(OPENSSLVERSION) && \
-	CROSS_COMPILE="$(HOST)-" ./Configure mingw64 no-asm shared --prefix=$(PWD)/tmp$(ARCH)/root -static-libgcc && \
+	CROSS_COMPILE="$(HOST)-" ./Configure mingw64 no-asm no-ssl2 no-ssl3 no-engines shared --prefix=$(PWD)/tmp$(ARCH)/root -static-libgcc && \
 	make all install_sw && \
 	cp LICENSE $(PWD)/tmp$(ARCH)/root/licenses/openssl.txt && \
 	rm -rf $(PWD)/tmp$(ARCH)/root/ssl/ && \
+	rm $(PWD)/tmp$(ARCH)/root/bin/openssl.exe && \
+	rm $(PWD)/tmp$(ARCH)/root/bin/c_rehash && \
+	rm $(PWD)/tmp$(ARCH)/root/bin/ssleay32.dll && \
 	rm -rf $(PWD)/tmp$(ARCH)/root/lib/engines/ && \
+	rm -rf $(PWD)/tmp$(ARCH)/root/lib/libssl* && \
+	rm $(PWD)/tmp$(ARCH)/root/lib/pkgconfig/libssl.pc && \
+	rm $(PWD)/tmp$(ARCH)/root/lib/pkgconfig/openssl.pc && \
 	cd .. && \
 	cp ../$(PACKAGE)-$(VERSION).tar.gz . && \
 	tar xfa $(PACKAGE)-$(VERSION).tar.gz && \
