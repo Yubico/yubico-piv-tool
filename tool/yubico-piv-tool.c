@@ -105,7 +105,6 @@ static bool generate_key(ykpiv_state *state, const char *slot,
   unsigned char data[1024];
   unsigned char templ[] = {0, YKPIV_INS_GENERATE_ASYMMERTRIC, 0, 0};
   unsigned long recv_len = sizeof(data);
-  unsigned long received = 0;
   int sw;
   int key = 0;
   FILE *output_file = NULL;
@@ -152,8 +151,6 @@ static bool generate_key(ykpiv_state *state, const char *slot,
     fprintf(stderr, "Failed to generate new key.\n");
     goto generate_out;
   }
-  /* to drop the 90 00 and the 7f 49 at the start */
-  received += recv_len - 4;
 
   if(key_format == key_format_arg_PEM) {
     public_key = EVP_PKEY_new();
