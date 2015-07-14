@@ -5,16 +5,14 @@
 #include "vendors.h"
 #include "utils.h"
 
-#define HAS_TOKEN(x) ((slots[(x)].info.flags) & (CKF_TOKEN_PRESENT))
-
 #define D(x) do {                                                     \
     printf ("debug: %s:%d (%s): ", __FILE__, __LINE__, __FUNCTION__); \
     printf x;                                                         \
     printf ("\n");                                                    \
   } while (0)
 
-#define YKCS11_DBG    0  // General debug, must be either 1 or 0
-#define YKCS11_DINOUT 0  // Function in/out debug, must be either 1 or 0
+#define YKCS11_DBG    1  // General debug, must be either 1 or 0
+#define YKCS11_DINOUT 1  // Function in/out debug, must be either 1 or 0
 
 #define YKCS11_MANUFACTURER "Yubico (www.yubico.com)"
 #define YKCS11_LIBDESC      "PKCS#11 PIV Library (SP-800-73)"
@@ -42,6 +40,7 @@ static ykpiv_state *piv_state = NULL;
 
 static ykcs11_slot_t slots[YKCS11_MAX_SLOTS];
 static CK_ULONG      n_slots = 0;
+static CK_ULONG      n_tokenless_slots = 0;
 
 extern CK_FUNCTION_LIST function_list;
 
@@ -70,8 +69,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
     return CKR_FUNCTION_FAILED;
   }
 
-  parse_readers(readers, len, slots, &n_slots);
-  DBG(("FOUND: %lu slots %lu len", n_slots, len));
+  parse_readers(readers, len, slots, &n_slots, &n_tokenless_slots);
+  DBG(("Found %lu slot(s) of which %lu tokenless/unsupported", n_slots, n_tokenless_slots));
 
   DOUT;
   return CKR_OK;
@@ -92,6 +91,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Finalize)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
+  memset(slots, 0, sizeof(slots));
+  
   ykpiv_done(piv_state); // TODO: this calls disconnect...
   piv_state == NULL;
 
@@ -146,28 +147,38 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 {
   DIN;
   int i;
-
-  // TODO: what about tokenPresent?
+  int j;
 
   //ykpiv_get_reader_slot_number(piv_state, &n_readers, &tot_reader_len); // TODO: maybe refactor this with a reader struct?
   if (pSlotList == NULL_PTR) {
     // Just return the number of slots
     *pulCount = n_slots;
+
+    if (tokenPresent)
+      *pulCount = n_tokenless_slots;
+    else
+      *pulCount = n_slots;
+
     DOUT;
     return CKR_OK;
   }
 
-  if (*pulCount < n_slots) {
+  if ((tokenPresent && *pulCount < n_tokenless_slots) || (!tokenPresent && *pulCount < n_slots)) {
     DBG(("Buffer too small: needed %lu, provided %lu", n_slots, *pulCount));
     return CKR_BUFFER_TOO_SMALL;
   }
 
-  for (i = 0; i < n_slots; i++) {
-    pSlotList[i] = i;
+  for (j = 0, i = 0; i < n_slots; i++) {
+    if (tokenPresent) {
+      if (has_token(slots + i))
+        pSlotList[j++] = i;
+    }
+    else
+      pSlotList[i] = i;
   }
 
-  DBG(("%d token", tokenPresent));
-  DBG(("%lu count", *pulCount));
+  DBG(("token present is %d", tokenPresent));
+  DBG(("number of slot(s) is %lu", *pulCount));
 
   DOUT;
   return CKR_OK;
@@ -188,7 +199,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotInfo)(
 
   memcpy(pInfo, &slots[slotID].info, sizeof(CK_SLOT_INFO));
 
-  DBG(("slotID %lu, pInfo %s", slotID, pInfo->slotDescription));
+  //DBG(("slotID %lu, pInfo %s", slotID, pInfo->slotDescription));
 
   DOUT;
   return CKR_OK;
@@ -220,7 +231,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
     return CKR_TOKEN_NOT_RECOGNIZED;
   }
 
-  if (!HAS_TOKEN(slotID)) {
+  if (!has_token(slots + slotID)) {
     DBG(("Slot %lu has no token inserted", slotID));
     return CKR_TOKEN_NOT_PRESENT;
   }
@@ -330,9 +341,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismInfo)(
   CK_MECHANISM_INFO_PTR pInfo
 )
 {
-  //DIN;
-  //DBG(("TODO!!!"));
-  //DOUT;
+  DIN;
+  DBG(("TODO!!!"));
+  DOUT;
   return CKR_OK;
 }
 
