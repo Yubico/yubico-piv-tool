@@ -42,7 +42,7 @@ static ykcs11_slot_t slots[YKCS11_MAX_SLOTS];
 static CK_ULONG      n_slots = 0;
 static CK_ULONG      n_tokenless_slots = 0;
 
-extern CK_FUNCTION_LIST function_list;
+extern CK_FUNCTION_LIST function_list; // TODO: check all return values
 
 /* General Purpose */
 
@@ -92,7 +92,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Finalize)(
   }
 
   memset(slots, 0, sizeof(slots));
-  
+
   ykpiv_done(piv_state); // TODO: this calls disconnect...
   piv_state == NULL;
 
@@ -235,7 +235,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
     DBG(("Slot %lu has no token inserted", slotID));
     return CKR_TOKEN_NOT_PRESENT;
   }
-  
+
   vendor = get_vendor(vid); // TODO: make a token field in slot_t ?
 
   memset(pInfo->label, ' ', sizeof(pInfo->label));
@@ -464,7 +464,31 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
 )
 {
   DIN;
-  DBG(("TODO!!!"));
+  CK_ULONG        tries;
+  
+  if (piv_state == NULL)
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+
+  if (userType != CKU_USER &&
+      userType != CKU_SO &&
+      userType != CKU_CONTEXT_SPECIFIC)
+    return CKR_ARGUMENTS_BAD;
+
+  if (ulPinLen < PIV_MIN_PIN_LEN ||
+      ulPinLen > PIV_MAX_PIN_LEN)
+    return CKR_ARGUMENTS_BAD;
+
+  //TODO: check session (read only?)
+  DBG(("user %lu, pin %s, pinlen %lu", userType, pPin, ulPinLen));
+
+  tries = 0;
+  if (ykpiv_verify(piv_state, pPin, (int *)&tries) != YKPIV_OK) {
+    DBG(("You loose! %lu", tries));
+    return CKR_PIN_INCORRECT;
+  }
+
+  DBG(("You win! %lu", tries))
+  
   DOUT;
   return CKR_OK;
 }

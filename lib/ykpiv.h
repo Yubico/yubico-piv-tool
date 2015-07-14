@@ -74,7 +74,7 @@ extern "C"
   ykpiv_rc ykpiv_hex_decode(const char *hex_in, size_t in_len,
                             unsigned char *hex_out, size_t *out_len);
   ykpiv_rc ykpiv_sign_data(ykpiv_state *state, const unsigned char *sign_in,
-                           size_t in_len,unsigned char *sign_out, size_t *out_len,
+                           size_t in_len, unsigned char *sign_out, size_t *out_len,
                            unsigned char algorithm, unsigned char key);
   ykpiv_rc ykpiv_decipher_data(ykpiv_state *state, const unsigned char *enc_in,
                                size_t in_len, unsigned char *enc_out, size_t *out_len,

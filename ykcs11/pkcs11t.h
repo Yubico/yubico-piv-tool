@@ -245,9 +245,11 @@ typedef CK_SESSION_HANDLE CK_PTR CK_SESSION_HANDLE_PTR;
  * v2.0 */
 typedef CK_ULONG          CK_USER_TYPE;
 /* Security Officer */
-#define CKU_SO    0
+#define CKU_SO               0
 /* Normal user */
-#define CKU_USER  1
+#define CKU_USER             1
+/* Context specific */
+#define CKU_CONTEXT_SPECIFIC 2
 
 
 /* CK_STATE enumerates the session states */
