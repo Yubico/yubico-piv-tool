@@ -64,6 +64,7 @@ extern "C"
   ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose);
   ykpiv_rc ykpiv_done(ykpiv_state *state);
   ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted);
+  ykpiv_rc ykpiv_connect2(ykpiv_state *state, const char *wanted, unsigned char **readers, unsigned long *len);
   ykpiv_rc ykpiv_disconnect(ykpiv_state *state);
   ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
                                const unsigned char *in_data, long in_len,
@@ -84,9 +85,6 @@ extern "C"
                               unsigned char *data, unsigned long *len);
   ykpiv_rc ykpiv_save_object(ykpiv_state *state, int object_id,
                              unsigned char *indata, size_t len);
-
-  ykpiv_rc ykpiv_get_reader_slot_number(ykpiv_state *state, unsigned long *slots, unsigned long *total);
-  ykpiv_rc ykpiv_get_reader_slot(ykpiv_state *state, unsigned long slot, char *reader);
 
 #define YKPIV_ALGO_3DES 0x03
 #define YKPIV_ALGO_RSA1024 0x06

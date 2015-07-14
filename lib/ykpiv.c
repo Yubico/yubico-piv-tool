@@ -127,6 +127,10 @@ ykpiv_rc ykpiv_disconnect(ykpiv_state *state) {
 }
 
 ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
+  return ykpiv_connect2(state, wanted, NULL, 0);
+}
+
+ykpiv_rc ykpiv_connect2(ykpiv_state *state, const char *wanted, unsigned char **readers, unsigned long *len) {
   unsigned long num_readers = 0;
   unsigned long active_protocol;
   char reader_buf[1024];
@@ -165,19 +169,21 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
     return YKPIV_PCSC_ERROR;
   }
 
-  // TODO: improve here
-  state->n_readers = 0;
-  state->tot_readers_len = num_readers;
-  reader_ptr = reader_buf;
-  for (i = 0; i < num_readers; i++)
-    if (reader_buf[i] == '\0' && i != num_readers - 1) {
-      strcpy(state->readers[state->n_readers], reader_ptr); // TODO: strdup?
-      state->n_readers = state->n_readers + 1;
-      reader_ptr += i + 1;
+  // Save available readers (aka PKCS11 slots)
+  if (readers != NULL) {
+    *readers = malloc(sizeof(char) * num_readers);
+    if (*readers == NULL) {
+      if(state->verbose) {
+        fprintf (stderr, "error: malloc failed");
+      }
+      SCardReleaseContext(state->context);
+      return YKPIV_MEMORY_ERROR;
     }
-  // *********
+    memcpy(*readers, reader_buf, num_readers);
+    *len = num_readers;
+  }
 
-  reader_ptr = reader_buf; // TODO: reader_buf is never free'd
+  reader_ptr = reader_buf;
   if(wanted) {
     while(*reader_ptr != '\0') {
       if(strstr(reader_ptr, wanted)) {

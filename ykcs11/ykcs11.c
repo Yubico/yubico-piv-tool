@@ -3,6 +3,9 @@
 #include <ykpiv.h>
 #include <string.h>
 #include "vendors.h"
+#include "utils.h"
+
+#define HAS_TOKEN(x) ((slots[(x)].info.flags) & (CKF_TOKEN_PRESENT))
 
 #define D(x) do {                                                     \
     printf ("debug: %s:%d (%s): ", __FILE__, __LINE__, __FUNCTION__); \
@@ -10,14 +13,16 @@
     printf ("\n");                                                    \
   } while (0)
 
-#define YKCS11_DBG    1  // General debug, must be either 1 or 0
-#define YKCS11_DINOUT 1  // Function in/out debug, must be either 1 or 0
+#define YKCS11_DBG    0  // General debug, must be either 1 or 0
+#define YKCS11_DINOUT 0  // Function in/out debug, must be either 1 or 0
 
 #define YKCS11_MANUFACTURER "Yubico (www.yubico.com)"
 #define YKCS11_LIBDESC      "PKCS#11 PIV Library (SP-800-73)"
 
 #define PIV_MIN_PIN_LEN 6
 #define PIV_MAX_PIN_LEN 8
+
+#define YKCS11_MAX_SLOTS 16
 
 #if YKCS11_DBG
 #define DBG(x) D(x);
@@ -35,6 +40,9 @@
 
 static ykpiv_state *piv_state = NULL;
 
+static ykcs11_slot_t slots[YKCS11_MAX_SLOTS];
+static CK_ULONG      n_slots = 0;
+
 extern CK_FUNCTION_LIST function_list;
 
 /* General Purpose */
@@ -44,7 +52,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
 )
 {
   DIN;
+  CK_CHAR_PTR readers;
+  CK_ULONG len;
+
   // TODO: check for locks and mutexes
+
   if (piv_state != NULL)
     return CKR_CRYPTOKI_ALREADY_INITIALIZED;
 
@@ -53,10 +65,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
     return CKR_FUNCTION_FAILED; // TODO: better error?
   }
 
-  if(ykpiv_connect(piv_state, NULL) != YKPIV_OK) {
+  if(ykpiv_connect2(piv_state, NULL, &readers, &len) != YKPIV_OK) {
     DBG(("Unable to connect to reader"));
     return CKR_FUNCTION_FAILED;
   }
+
+  parse_readers(readers, len, slots, &n_slots);
+  DBG(("FOUND: %lu slots %lu len", n_slots, len));
 
   DOUT;
   return CKR_OK;
@@ -73,7 +88,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Finalize)(
   }
 
   if (piv_state == NULL) {
-    DBG(("Ykpiv is not initialized or already finalized"));
+    DBG(("libykpiv is not initialized or already finalized"));
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
@@ -89,7 +104,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetInfo)(
 )
 {
   DIN;
-  CK_VERSION ver = {0.0};
+  CK_VERSION ver = {0, 0}; // TODO: set version number
   pInfo->cryptokiVersion = function_list.version;
 
   memset(pInfo->manufacturerID, ' ', sizeof(pInfo->manufacturerID));
@@ -112,10 +127,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetFunctionList)(
 {
   DIN;
   if(ppFunctionList == NULL_PTR) {
+    DBG(("GetFunctionList called with ppFunctionList = NULL"));
     return CKR_ARGUMENTS_BAD;
   }
   *ppFunctionList = &function_list;
 
+  DOUT;
   return CKR_OK;
 }
 
@@ -128,31 +145,29 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 )
 {
   DIN;
-  unsigned long tot_readers_len;
-  unsigned long n_readers;
   int i;
 
   // TODO: what about tokenPresent?
 
-  ykpiv_get_reader_slot_number(piv_state, &n_readers, &tot_readers_len); // TODO: maybe refactor this with a reader struct?
+  //ykpiv_get_reader_slot_number(piv_state, &n_readers, &tot_reader_len); // TODO: maybe refactor this with a reader struct?
   if (pSlotList == NULL_PTR) {
     // Just return the number of slots
-    *pulCount = n_readers;
+    *pulCount = n_slots;
     DOUT;
     return CKR_OK;
   }
 
-  if (*pulCount < n_readers) {
-    DBG(("Buffer too small: needed %u, provided %u", n_readers, *pulCount));
+  if (*pulCount < n_slots) {
+    DBG(("Buffer too small: needed %lu, provided %lu", n_slots, *pulCount));
     return CKR_BUFFER_TOO_SMALL;
   }
 
-  for (i = 0; i < n_readers; i++) {
+  for (i = 0; i < n_slots; i++) {
     pSlotList[i] = i;
   }
 
   DBG(("%d token", tokenPresent));
-  DBG(("%u count", *pulCount));
+  DBG(("%lu count", *pulCount));
 
   DOUT;
   return CKR_OK;
@@ -164,17 +179,18 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotInfo)(
 )
 {
   DIN;
-  /*
-   * According to pcsc-lite, the format of a reader name is:
-   * name [interface] (serial) index slot
-   * http://ludovicrousseau.blogspot.se/2010/05/what-is-in-pcsc-reader-name.html
-   */
-  ykpiv_get_reader_slot(piv_state, slotID, pInfo->slotDescription); // TODO: should be ' ' padded
-  strcpy(pInfo->manufacturerID, "ADD SLOT MANUFACTURER NAME HERE");
-  pInfo->flags = CKF_TOKEN_PRESENT | CKF_REMOVABLE_DEVICE | CKF_HW_SLOT; // TODO: What for other brands? Query for token status?
 
-  DBG(("slotID %u, pInfo %s", slotID, pInfo->slotDescription));
+  if (piv_state == NULL)
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
 
+  if (slotID >= n_slots)
+    return CKR_ARGUMENTS_BAD;
+
+  memcpy(pInfo, &slots[slotID].info, sizeof(CK_SLOT_INFO));
+
+  DBG(("slotID %lu, pInfo %s", slotID, pInfo->slotDescription));
+
+  DOUT;
   return CKR_OK;
 }
 
@@ -194,33 +210,44 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
   if (piv_state == NULL)
     return CKR_CRYPTOKI_NOT_INITIALIZED;
 
-  ykpiv_get_reader_slot(piv_state, slotID, buf);
-  vid = get_vendor_id(buf);
+  if (slotID >= n_slots)
+    return CKR_ARGUMENTS_BAD;
 
-  if (vid == UNKNOWN)
+  vid = slots[slotID].vid;
+
+  if (vid == UNKNOWN) {
+    DBG(("No support for token in slot %lu", slotID));
     return CKR_TOKEN_NOT_RECOGNIZED;
+  }
 
-  vendor = get_vendor(vid);
+  if (!HAS_TOKEN(slotID)) {
+    DBG(("Slot %lu has no token inserted", slotID));
+    return CKR_TOKEN_NOT_PRESENT;
+  }
+  
+  vendor = get_vendor(vid); // TODO: make a token field in slot_t ?
 
   memset(pInfo->label, ' ', sizeof(pInfo->label));
-  p = vendor.get_label();
+  p = vendor.get_token_label();
   len = strlen(p);
   strncpy(pInfo->label, p, len);
 
   memset(pInfo->manufacturerID, ' ', sizeof(pInfo->manufacturerID));
-  p = vendor.get_manufacturer();
+  p = vendor.get_token_manufacturer();
   len = strlen(p);
   strncpy(pInfo->manufacturerID, p, len);
 
   memset(pInfo->model, ' ', sizeof(pInfo->model));
-  p = vendor.get_model();
+  p = vendor.get_token_model();
   len = strlen(p);
   strncpy(pInfo->model, p, len);
 
   memset(pInfo->serialNumber, ' ', sizeof(pInfo->serialNumber));
-  strncpy(pInfo->serialNumber, "12345", 5);
+  p = vendor.get_token_serial();
+  len = strlen(p);
+  strncpy(pInfo->serialNumber, p, len);
 
-  pInfo->flags = vendor.get_flags(); // bit flags indicating capabilities and status of the device as defined below
+  pInfo->flags = vendor.get_token_flags(); // bit flags indicating capabilities and status of the device as defined below
 
   pInfo->ulMaxSessionCount = CK_UNAVAILABLE_INFORMATION; // TODO: should this be 1?
 
@@ -230,9 +257,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
 
   pInfo->ulRwSessionCount =  CK_UNAVAILABLE_INFORMATION; // number of read/write sessions that this application currently has open with the token
 
-  pInfo->ulMaxPinLen = PIV_MIN_PIN_LEN; // maximum length in bytes of the PIN
+  pInfo->ulMaxPinLen = PIV_MAX_PIN_LEN; // maximum length in bytes of the PIN
 
-  pInfo->ulMinPinLen = PIV_MAX_PIN_LEN; // minimum length in bytes of the PIN
+  pInfo->ulMinPinLen = PIV_MIN_PIN_LEN; // minimum length in bytes of the PIN
 
   pInfo->ulTotalPublicMemory = CK_UNAVAILABLE_INFORMATION;
 
@@ -243,14 +270,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
   pInfo->ulFreePrivateMemory = CK_UNAVAILABLE_INFORMATION;
 
   ykpiv_get_version(piv_state, buf, sizeof(buf));
-  ver = vendor.get_version(buf, strlen(buf));
+  ver = vendor.get_token_version(buf, strlen(buf));
 
   pInfo->hardwareVersion = ver; // version number of hardware
 
   pInfo->firmwareVersion = ver; // version number of firmware
 
-  memset(pInfo->utcTime, ' ', sizeof(pInfo->utcTime));
+  memset(pInfo->utcTime, ' ', sizeof(pInfo->utcTime)); // No clock present, clear
 
+  DOUT;
   return CKR_OK;
 }
 
@@ -273,7 +301,25 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
 )
 {
   DIN;
-  DBG(("TODO!!!"));
+
+  int i;
+
+  if (pMechanismList == NULL_PTR) {
+    // Just return the number of mechanisms
+    *pulCount = 3;
+    DOUT;
+    return CKR_OK;
+  }
+
+  if (*pulCount < 3) {
+    DBG(("Buffer too small: needed %lu, provided %lu", 1l, *pulCount));
+    return CKR_BUFFER_TOO_SMALL;
+  }
+
+  for (i = 0; i < 3; i++) {
+    pMechanismList[i] = CKM_SHA_1;
+  }
+
   DOUT;
   return CKR_OK;
 }
@@ -284,9 +330,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismInfo)(
   CK_MECHANISM_INFO_PTR pInfo
 )
 {
-  DIN;
-  DBG(("TODO!!!"));
-  DOUT;
+  //DIN;
+  //DBG(("TODO!!!"));
+  //DOUT;
   return CKR_OK;
 }
 

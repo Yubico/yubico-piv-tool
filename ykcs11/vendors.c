@@ -16,20 +16,30 @@ vendor_t get_vendor(vendor_id_t vid) {
 
   switch (vid) {
   case YUBICO:
-    v.get_version      = YUBICO_get_version;
-    v.get_label        = YUBICO_get_label;
-    v.get_manufacturer = YUBICO_get_manufacturer;
-    v.get_model        = YUBICO_get_model;
-    v.get_flags        = YUBICO_get_flags;
+    v.get_slot_description   = YUBICO_get_slot_description;
+    v.get_slot_manufacturer  = YUBICO_get_slot_manufacturer;
+    v.get_slot_flags         = YUBICO_get_slot_flags;
+    v.get_slot_version       = YUBICO_get_slot_version;
+    v.get_token_label        = YUBICO_get_token_label;
+    v.get_token_manufacturer = YUBICO_get_token_manufacturer;
+    v.get_token_model        = YUBICO_get_token_model;
+    v.get_token_flags        = YUBICO_get_token_flags;
+    v.get_token_version      = YUBICO_get_token_version;
+    v.get_token_serial       = YUBICO_get_token_serial;
     break;
 
   case UNKNOWN:
-    v.get_version      = NULL; // TODO: make up dummy functions?
-    v.get_label        = NULL;
-    v.get_manufacturer = NULL;
-    v.get_model        = NULL;
-    v.get_flags        = NULL;
-
+  default:
+    v.get_slot_description   = NULL;
+    v.get_slot_manufacturer  = NULL;
+    v.get_slot_flags         = NULL;
+    v.get_slot_version       = NULL;
+    v.get_token_label        = NULL;
+    v.get_token_manufacturer = NULL;
+    v.get_token_model        = NULL;
+    v.get_token_flags        = NULL;
+    v.get_token_version      = NULL;
+    v.get_token_serial       = NULL;
   }
 
   return v;
