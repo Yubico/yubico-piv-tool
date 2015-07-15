@@ -40,7 +40,7 @@ static ykpiv_state *piv_state = NULL;
 
 static ykcs11_slot_t slots[YKCS11_MAX_SLOTS];
 static CK_ULONG      n_slots = 0;
-static CK_ULONG      n_tokenless_slots = 0;
+static CK_ULONG      n_slots_with_token = 0;
 
 extern CK_FUNCTION_LIST function_list; // TODO: check all return values
 
@@ -69,8 +69,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
     return CKR_FUNCTION_FAILED;
   }
 
-  parse_readers(readers, len, slots, &n_slots, &n_tokenless_slots);
-  DBG(("Found %lu slot(s) of which %lu tokenless/unsupported", n_slots, n_tokenless_slots));
+  parse_readers(readers, len, slots, &n_slots, &n_slots_with_token);
+  DBG(("Found %lu slot(s) of which %lu tokenless/unsupported", n_slots, n_slots - n_slots_with_token));
 
   DOUT;
   return CKR_OK;
@@ -155,7 +155,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
     *pulCount = n_slots;
 
     if (tokenPresent)
-      *pulCount = n_tokenless_slots;
+      *pulCount = n_slots_with_token;
     else
       *pulCount = n_slots;
 
@@ -163,7 +163,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
     return CKR_OK;
   }
 
-  if ((tokenPresent && *pulCount < n_tokenless_slots) || (!tokenPresent && *pulCount < n_slots)) {
+  if ((tokenPresent && *pulCount < n_slots_with_token) || (!tokenPresent && *pulCount < n_slots)) {
     DBG(("Buffer too small: needed %lu, provided %lu", n_slots, *pulCount));
     return CKR_BUFFER_TOO_SMALL;
   }
@@ -258,7 +258,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
   len = strlen(p);
   strncpy(pInfo->serialNumber, p, len);
 
-  pInfo->flags = vendor.get_token_flags(); // bit flags indicating capabilities and status of the device as defined below
+  pInfo->flags = vendor.get_token_flags(); // bit flags indicating capabilities and status of the device as defined below // TODO: what about other flags? Like last attempt
 
   pInfo->ulMaxSessionCount = CK_UNAVAILABLE_INFORMATION; // TODO: should this be 1?
 
