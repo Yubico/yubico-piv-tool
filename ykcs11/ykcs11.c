@@ -556,13 +556,40 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
       ulPinLen > PIV_MAX_PIN_LEN)
     return CKR_ARGUMENTS_BAD;
 
-  //TODO: check session (read only?)
   DBG(("user %lu, pin %s, pinlen %lu", userType, pPin, ulPinLen));
 
-  tries = 0;
-  if (ykpiv_verify(piv_state, pPin, (int *)&tries) != YKPIV_OK) {
-    DBG(("You loose! %lu", tries));
-    return CKR_PIN_INCORRECT;
+  if (session == CK_INVALID_HANDLE)
+    return CKR_SESSION_CLOSED;
+  
+  if (hSession != session)
+    return CKR_SESSION_HANDLE_INVALID;
+
+  if (userType != CKU_SO &&
+      userType != CKU_USER &&
+      userType != CKU_CONTEXT_SPECIFIC)
+    return CKR_USER_TYPE_INVALID;
+
+  if (session_info.flags & CKF_RW_SESSION == 0) { // TODO: make macros for these?
+    DBG(("Tried to log-in to a read-only session"));
+    return CKR_SESSION_READ_ONLY_EXISTS;
+  }
+
+  switch (userType) {
+  case CKU_USER:
+    if (session_info.state == CKS_RW_USER_FUNCTIONS)
+      return CKR_USER_ALREADY_LOGGED_IN;
+  
+    tries = 0;
+    if (ykpiv_verify(piv_state, pPin, (int *)&tries) != YKPIV_OK) {
+      DBG(("You loose! %lu", tries));
+      return CKR_PIN_INCORRECT;
+    }
+    break;
+
+  case CKU_SO:
+  case CKU_CONTEXT_SPECIFIC:
+  default:
+    return CKR_USER_TYPE_INVALID; // TODO: only allow regular user for now
   }
 
   DBG(("You win! %lu", tries))
