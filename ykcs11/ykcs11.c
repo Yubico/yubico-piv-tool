@@ -22,6 +22,8 @@
 
 #define YKCS11_MAX_SLOTS 16
 
+#define YKCS11_SESSION_ID 5355104
+
 #if YKCS11_DBG
 #define DBG(x) D(x);
 #else
@@ -41,6 +43,9 @@ static ykpiv_state *piv_state = NULL;
 static ykcs11_slot_t slots[YKCS11_MAX_SLOTS];
 static CK_ULONG      n_slots = 0;
 static CK_ULONG      n_slots_with_token = 0;
+
+static CK_SESSION_HANDLE session = CK_INVALID_HANDLE; // TODO: support multiple sessions?
+static CK_SESSION_INFO   session_info;
 
 extern CK_FUNCTION_LIST function_list; // TODO: check all return values
 
@@ -314,7 +319,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
   DIN;
 
   int i;
-
+  // TODO: check more return values like not init ...
   if (pMechanismList == NULL_PTR) {
     // Just return the number of mechanisms
     *pulCount = 3;
@@ -394,7 +399,46 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
 )
 {
   DIN;
-  DBG(("TODO!!!"));
+
+  if (piv_state == NULL)
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+
+  if (slotID >= n_slots || phSession == NULL)
+    return CKR_ARGUMENTS_BAD;
+
+  if (!has_token(slots + slotID)) {
+    DBG(("Slot %lu has no token inserted", slotID));
+    return CKR_TOKEN_NOT_PRESENT;
+  }
+
+  if (flags & CKF_SERIAL_SESSION == 0) {
+    DBG(("Open session called without CKF_SERIAL_SESSION set"));
+    return CKR_SESSION_PARALLEL_NOT_SUPPORTED;
+  }
+
+  if (session != CK_INVALID_HANDLE) {
+    DBG(("A session with this or another token already exists"));
+    return CKR_SESSION_COUNT;
+  }
+
+  session = YKCS11_SESSION_ID;
+  session_info.slotID = slotID;
+  // TODO: KEEP TRACK OF THE APPLICATION
+
+  if (flags & CKF_RW_SESSION) {
+    // R/W Session
+    session_info.state = CKS_RW_PUBLIC_SESSION; // Nobody has logged in, default session
+  }
+  else {
+    // R/O Session
+    session_info.state = CKS_RO_PUBLIC_SESSION; // Nobody has logged in, default session
+  }
+
+  session_info.flags = flags;
+  session_info.ulDeviceError = 0;
+
+  *phSession = session;
+
   DOUT;
   return CKR_OK;
 }
@@ -404,7 +448,21 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
 )
 {
   DIN;
-  DBG(("TODO!!!"));
+
+  if (piv_state == NULL)
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+
+  if (session == CK_INVALID_HANDLE) {
+    DBG(("There is no existing session"));
+    return CKR_SESSION_CLOSED;
+  }
+
+  if (hSession != YKCS11_SESSION_ID)
+    return CKR_SESSION_HANDLE_INVALID;
+
+  session = CK_INVALID_HANDLE;
+  memset(&session_info, 0, sizeof(CK_SESSION_INFO));
+
   DOUT;
   return CKR_OK;
 }
@@ -414,7 +472,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
 )
 {
   DIN;
-  DBG(("TODO!!!"));
+  
+  if (piv_state == NULL)
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+
+  if (session_info.slotID != slotID)
+    return CKR_SLOT_ID_INVALID;
+
+  session = CK_INVALID_HANDLE;
+  memset(&session_info, 0, sizeof(CK_SESSION_INFO)); // TODO: Better to call close session?
+  
   DOUT;
   return CKR_OK;
 }
@@ -425,7 +492,18 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSessionInfo)(
 )
 {
   DIN;
-  DBG(("TODO!!!"));
+
+  if (piv_state == NULL)
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+
+  if (pInfo == NULL)
+    return CKR_ARGUMENTS_BAD;
+  
+  if (hSession != session)
+    return CKR_SESSION_HANDLE_INVALID;
+
+  memcpy(pInfo, &session_info, sizeof(CK_SESSION_INFO));
+  
   DOUT;
   return CKR_OK;
 }
@@ -465,7 +543,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
 {
   DIN;
   CK_ULONG        tries;
-  
+
   if (piv_state == NULL)
     return CKR_CRYPTOKI_NOT_INITIALIZED;
 
@@ -488,7 +566,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
   }
 
   DBG(("You win! %lu", tries))
-  
+
   DOUT;
   return CKR_OK;
 }
