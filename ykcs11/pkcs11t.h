@@ -84,6 +84,8 @@ typedef long int          CK_LONG;
 /* at least 32 bits; each bit is a Boolean flag */
 typedef CK_ULONG          CK_FLAGS;
 
+/* Custom type defined for consistency */
+typedef CK_FLAGS CK_PTR   CK_FLAGS_PTR;
 
 /* some special values for certain CK_ULONG variables */
 #define CK_UNAVAILABLE_INFORMATION (~0UL)
@@ -456,11 +458,26 @@ typedef CK_ULONG          CK_MECHANISM_TYPE;
 #define CKM_MD5_RSA_PKCS               0x00000005
 #define CKM_SHA1_RSA_PKCS              0x00000006
 
+/* Added for 2.4 */
+#define CKM_RSA_PKCS_PSS               0x0000000D
+#define CKM_SHA1_RSA_PKCS_PSS          0x0000000E
+/* Added for 2.4 */
+
 #define CKM_DSA_KEY_PAIR_GEN           0x00000010
 #define CKM_DSA                        0x00000011
 #define CKM_DSA_SHA1                   0x00000012
 #define CKM_DH_PKCS_KEY_PAIR_GEN       0x00000020
 #define CKM_DH_PKCS_DERIVE             0x00000021
+
+/* Added for 2.4 */
+#define CKM_SHA256_RSA_PKCS            0x00000040
+#define CKM_SHA384_RSA_PKCS            0x00000041
+#define CKM_SHA512_RSA_PKCS            0x00000042
+#define CKM_SHA256_RSA_PKCS_PSS        0x00000043
+#define CKM_SHA384_RSA_PKCS_PSS        0x00000044
+#define CKM_SHA512_RSA_PKCS_PSS        0x00000045
+/* Added for 2.4 */
+
 #define CKM_RC2_KEY_GEN                0x00000100
 #define CKM_RC2_ECB                    0x00000101
 #define CKM_RC2_CBC                    0x00000102
@@ -516,6 +533,12 @@ typedef CK_ULONG          CK_MECHANISM_TYPE;
 /* CKM_SHA_1_HMAC and CKM_SHA_1_HMAC_GENERAL are new for v2.0 */
 #define CKM_SHA_1_HMAC                 0x00000221
 #define CKM_SHA_1_HMAC_GENERAL         0x00000222
+
+/* Added for 2.4 */
+#define CKM_SHA256                     0x00000250
+#define CKM_SHA384                     0x00000260
+#define CKM_SHA512                     0x00000270
+/* Added for 2.4 */
 
 /* All of the following mechanisms are new for v2.0 */
 /* Note that CAST128 and CAST5 are the same algorithm */
@@ -611,9 +634,15 @@ typedef CK_ULONG          CK_MECHANISM_TYPE;
 #define CKM_BATON_WRAP                 0x00001036
 
 /* PKCS #11 V2.01 probably won't actually have ECDSA in it */
-#define CKM_ECDSA_KEY_PAIR_GEN         0x00001040
+#define CKM_EC_KEY_PAIR_GEN            0x00001040
+//#define CKM_ECDSA_KEY_PAIR_GEN         0x00001040 // Deprecated in 2.11
 #define CKM_ECDSA                      0x00001041
 #define CKM_ECDSA_SHA1                 0x00001042
+
+/* Added for 2.4 */
+#define CKM_ECDH1_DERIVE               0x00001050
+#define CKM_ECDH1_COFACTOR_DERIVE      0x00001051
+/* Added for 2.4 */
 
 #define CKM_JUNIPER_KEY_GEN            0x00001060
 #define CKM_JUNIPER_ECB128             0x00001061

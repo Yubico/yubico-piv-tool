@@ -99,7 +99,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Finalize)(
   memset(slots, 0, sizeof(slots));
 
   ykpiv_done(piv_state); // TODO: this calls disconnect...
-  piv_state == NULL;
+  piv_state = NULL;
 
   DOUT;
   return CKR_OK;
@@ -154,7 +154,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
   int i;
   int j;
 
-  //ykpiv_get_reader_slot_number(piv_state, &n_readers, &tot_reader_len); // TODO: maybe refactor this with a reader struct?
+  // TODO: check more preconditions
   if (pSlotList == NULL_PTR) {
     // Just return the number of slots
     *pulCount = n_slots;
@@ -220,8 +220,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
   vendor_id_t     vid;
   vendor_t        vendor;
   CK_BYTE         buf[64];
-  CK_UTF8CHAR_PTR p;
-  CK_BYTE         len;
 
   if (piv_state == NULL)
     return CKR_CRYPTOKI_NOT_INITIALIZED;
@@ -244,26 +242,24 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
   vendor = get_vendor(vid); // TODO: make a token field in slot_t ?
 
   memset(pInfo->label, ' ', sizeof(pInfo->label));
-  p = vendor.get_token_label();
-  len = strlen(p);
-  strncpy(pInfo->label, p, len);
+  if (vendor.get_token_label(pInfo->label, sizeof(pInfo->label)) != CKR_OK)
+    return CKR_FUNCTION_FAILED;
 
   memset(pInfo->manufacturerID, ' ', sizeof(pInfo->manufacturerID));
-  p = vendor.get_token_manufacturer();
-  len = strlen(p);
-  strncpy(pInfo->manufacturerID, p, len);
+  if(vendor.get_token_manufacturer(pInfo->manufacturerID, sizeof(pInfo->manufacturerID)) != CKR_OK)
+    return CKR_FUNCTION_FAILED;
 
   memset(pInfo->model, ' ', sizeof(pInfo->model));
-  p = vendor.get_token_model();
-  len = strlen(p);
-  strncpy(pInfo->model, p, len);
+  if(vendor.get_token_model(pInfo->model, sizeof(pInfo->model)) != CKR_OK)
+    return CKR_FUNCTION_FAILED;
 
   memset(pInfo->serialNumber, ' ', sizeof(pInfo->serialNumber));
-  p = vendor.get_token_serial();
-  len = strlen(p);
-  strncpy(pInfo->serialNumber, p, len);
+  if(vendor.get_token_serial(pInfo->serialNumber, sizeof(pInfo->serialNumber)) != CKR_OK)
+    return CKR_FUNCTION_FAILED;
 
-  pInfo->flags = vendor.get_token_flags(); // bit flags indicating capabilities and status of the device as defined below // TODO: what about other flags? Like last attempt
+  // bit flags indicating capabilities and status of the device as defined below // TODO: what about other flags? Like last attempt
+  if (vendor.get_token_flags(&pInfo->flags) != CKR_OK)
+    return CKR_FUNCTION_FAILED;
 
   pInfo->ulMaxSessionCount = CK_UNAVAILABLE_INFORMATION; // TODO: should this be 1?
 
@@ -286,7 +282,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
   pInfo->ulFreePrivateMemory = CK_UNAVAILABLE_INFORMATION;
 
   ykpiv_get_version(piv_state, buf, sizeof(buf));
-  ver = vendor.get_token_version(buf, strlen(buf));
+  if (vendor.get_token_version(buf, strlen(buf), &ver) != CKR_OK)
+    return CKR_FUNCTION_FAILED;
 
   pInfo->hardwareVersion = ver; // version number of hardware
 
@@ -317,18 +314,40 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
 )
 {
   DIN;
+  vendor_t vendor;
+  int      i;
+  CK_ULONG count;
 
-  int i;
-  // TODO: check more return values like not init ...
+  if (piv_state == NULL) {
+    DBG(("libykpiv is not initialized or already finalized"));
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  if (slotID > n_slots || pulCount == NULL_PTR)
+    return CKR_ARGUMENTS_BAD;
+
+  if (slots[slotID].vid == UNKNOWN) {
+    DBG(("Slot %lu is tokenless/unsupported", slotID));
+    return CKR_SLOT_ID_INVALID;
+  }
+
+  // TODO: check more return values
+  // TODO: user NULL_PTR more for coherence
+
+  vendor = get_vendor(slots[slotID].vid); // TODO: make a token field in slot_t ?;
+
+  if (vendor.get_token_mechanisms_num(&count) != CKR_OK)
+    return CKR_FUNCTION_FAILED;
+
   if (pMechanismList == NULL_PTR) {
-    // Just return the number of mechanisms
-    *pulCount = 3;
+    *pulCount = count;
+    DBG(("Found %lu mechanisms", *pulCount));
     DOUT;
     return CKR_OK;
   }
 
-  if (*pulCount < 3) {
-    DBG(("Buffer too small: needed %lu, provided %lu", 1l, *pulCount));
+  if (*pulCount < count) {
+    DBG(("Buffer too small: needed %lu, provided %lu", count, *pulCount));
     return CKR_BUFFER_TOO_SMALL;
   }
 
@@ -411,7 +430,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     return CKR_TOKEN_NOT_PRESENT;
   }
 
-  if (flags & CKF_SERIAL_SESSION == 0) {
+  if ((flags & CKF_SERIAL_SESSION) == 0) {
     DBG(("Open session called without CKF_SERIAL_SESSION set"));
     return CKR_SESSION_PARALLEL_NOT_SUPPORTED;
   }
@@ -421,11 +440,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     return CKR_SESSION_COUNT;
   }
 
+  // TODO: make sue we don't open a session with an UNKNOWN slot/token
+
   session = YKCS11_SESSION_ID;
   session_info.slotID = slotID;
   // TODO: KEEP TRACK OF THE APPLICATION
 
-  if (flags & CKF_RW_SESSION) {
+  if ((flags & CKF_RW_SESSION)) {
     // R/W Session
     session_info.state = CKS_RW_PUBLIC_SESSION; // Nobody has logged in, default session
   }
@@ -472,7 +493,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
 )
 {
   DIN;
-  
+
   if (piv_state == NULL)
     return CKR_CRYPTOKI_NOT_INITIALIZED;
 
@@ -481,7 +502,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
 
   session = CK_INVALID_HANDLE;
   memset(&session_info, 0, sizeof(CK_SESSION_INFO)); // TODO: Better to call close session?
-  
+
   DOUT;
   return CKR_OK;
 }
@@ -498,12 +519,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSessionInfo)(
 
   if (pInfo == NULL)
     return CKR_ARGUMENTS_BAD;
-  
+
   if (hSession != session)
     return CKR_SESSION_HANDLE_INVALID;
 
   memcpy(pInfo, &session_info, sizeof(CK_SESSION_INFO));
-  
+
   DOUT;
   return CKR_OK;
 }
@@ -560,7 +581,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
 
   if (session == CK_INVALID_HANDLE)
     return CKR_SESSION_CLOSED;
-  
+
   if (hSession != session)
     return CKR_SESSION_HANDLE_INVALID;
 
@@ -569,7 +590,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
       userType != CKU_CONTEXT_SPECIFIC)
     return CKR_USER_TYPE_INVALID;
 
-  if (session_info.flags & CKF_RW_SESSION == 0) { // TODO: make macros for these?
+  if ((session_info.flags & CKF_RW_SESSION) == 0) { // TODO: make macros for these?
     DBG(("Tried to log-in to a read-only session"));
     return CKR_SESSION_READ_ONLY_EXISTS;
   }
@@ -578,7 +599,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
   case CKU_USER:
     if (session_info.state == CKS_RW_USER_FUNCTIONS)
       return CKR_USER_ALREADY_LOGGED_IN;
-  
+
     tries = 0;
     if (ykpiv_verify(piv_state, pPin, (int *)&tries) != YKPIV_OK) {
       DBG(("You loose! %lu", tries));
