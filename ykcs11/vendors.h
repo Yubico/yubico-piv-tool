@@ -19,7 +19,8 @@ typedef CK_RV (*get_t_flags_f)(CK_FLAGS_PTR);
 typedef CK_RV (*get_t_version_f)(CK_UTF8CHAR_PTR, CK_ULONG, CK_VERSION_PTR);
 typedef CK_RV (*get_t_serial_f)(CK_CHAR_PTR, CK_ULONG);
 typedef CK_RV (*get_t_mechanisms_num_f)(CK_ULONG_PTR);
-//typedef CK_RV (*get_t_mechanisms)(CK_);
+typedef CK_RV (*get_t_mechanism_list_f)(CK_MECHANISM_TYPE_PTR, CK_ULONG);
+typedef CK_RV (*get_t_mechanism_info_f)(CK_MECHANISM_TYPE, CK_MECHANISM_INFO_PTR);
 
 
 typedef struct {
@@ -34,6 +35,8 @@ typedef struct {
   get_t_version_f        get_token_version;
   get_t_serial_f         get_token_serial;
   get_t_mechanisms_num_f get_token_mechanisms_num;
+  get_t_mechanism_list_f get_token_mechanism_list;
+  get_t_mechanism_info_f get_token_mechanism_info;
 } vendor_t;
 
 vendor_id_t get_vendor_id(char *vendor_name);

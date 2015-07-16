@@ -74,9 +74,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
     return CKR_FUNCTION_FAILED;
   }
 
-  parse_readers(readers, len, slots, &n_slots, &n_slots_with_token);
+  if (parse_readers(readers, len, slots, &n_slots, &n_slots_with_token) != CK_TRUE)
+    CKR_FUNCTION_FAILED;
+
   DBG(("Found %lu slot(s) of which %lu tokenless/unsupported", n_slots, n_slots - n_slots_with_token));
 
+  // TODO: FILL OUT INIT ARGS;
+      
   DOUT;
   return CKR_OK;
 }
@@ -315,7 +319,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
 {
   DIN;
   vendor_t vendor;
-  int      i;
   CK_ULONG count;
 
   if (piv_state == NULL) {
@@ -351,9 +354,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
     return CKR_BUFFER_TOO_SMALL;
   }
 
-  for (i = 0; i < 3; i++) {
-    pMechanismList[i] = CKM_SHA_1;
-  }
+  if (vendor.get_token_mechanism_list(pMechanismList, *pulCount) != CKR_OK)
+    return CKR_FUNCTION_FAILED;
 
   DOUT;
   return CKR_OK;
@@ -366,7 +368,30 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismInfo)(
 )
 {
   DIN;
-  DBG(("TODO!!!"));
+  vendor_t vendor;
+  
+  if (piv_state == NULL) {
+    DBG(("libykpiv is not initialized or already finalized"));
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  if (slotID > n_slots || pInfo == NULL_PTR)
+    return CKR_ARGUMENTS_BAD;
+
+  if (slots[slotID].vid == UNKNOWN) {
+    DBG(("Slot %lu is tokenless/unsupported", slotID));
+    return CKR_SLOT_ID_INVALID;
+  }
+
+  // TODO: check more return values
+  // TODO: user NULL_PTR more for coherence
+
+  vendor = get_vendor(slots[slotID].vid); // TODO: make a token field in slot_t ?;
+
+  if (vendor.get_token_mechanism_info(type, pInfo) != CKR_OK)
+    return CKR_MECHANISM_INVALID;
+
+  
   DOUT;
   return CKR_OK;
 }

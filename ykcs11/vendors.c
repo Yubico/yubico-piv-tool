@@ -27,6 +27,8 @@ vendor_t get_vendor(vendor_id_t vid) {
     v.get_token_version        = YUBICO_get_token_version;
     v.get_token_serial         = YUBICO_get_token_serial;
     v.get_token_mechanisms_num = YUBICO_get_token_mechanisms_num;
+    v.get_token_mechanism_list = YUBICO_get_token_mechanism_list;
+    v.get_token_mechanism_info = YUBICO_get_token_mechanism_info;
     break;
 
   case UNKNOWN:
@@ -42,6 +44,8 @@ vendor_t get_vendor(vendor_id_t vid) {
     v.get_token_version        = NULL;
     v.get_token_serial         = NULL;
     v.get_token_mechanisms_num = NULL;
+    v.get_token_mechanism_list = NULL;
+    v.get_token_mechanism_info = NULL;
   }
 
   return v;

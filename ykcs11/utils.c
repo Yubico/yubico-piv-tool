@@ -34,7 +34,10 @@ CK_BBOOL parse_readers(const CK_BYTE_PTR readers, const CK_ULONG len,
         // Unknown slot, just save what info we have
         memset(&slots[*n_slots].info, 0, sizeof(CK_SLOT_INFO));
         memset(slots[*n_slots].info.slotDescription, ' ', sizeof(slots[*n_slots].info.slotDescription));
-        strncpy(slots[*n_slots].info.slotDescription, p, strlen(p));
+        if (strlen(p) <= sizeof(slots[*n_slots].info.slotDescription))
+          strncpy(slots[*n_slots].info.slotDescription, p, strlen(p));
+        else
+          strncpy(slots[*n_slots].info.slotDescription, p, sizeof(slots[*n_slots].info.slotDescription));
       }
       else {
         vendor = get_vendor(slots[*n_slots].vid);
