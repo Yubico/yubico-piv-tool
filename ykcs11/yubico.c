@@ -67,6 +67,10 @@ static const CK_MECHANISM_INFO token_mechanism_infos[] = { // KEEP ALIGNED WITH 
   {0, 0, CKF_DIGEST}  // CKM_SHA512
 };
 
+static const piv_obj_id_t token_objects[] = {
+
+};
+static const CK_ULONG token_objects_num = sizeof(token_objects) / sizeof(piv_obj_id_t);
 
 CK_RV YUBICO_get_slot_description(CK_UTF8CHAR_PTR str, CK_ULONG len) {
 
@@ -210,5 +214,15 @@ CK_RV YUBICO_get_token_mechanism_info(CK_MECHANISM_TYPE mec, CK_MECHANISM_INFO_P
     }
   
   return CKR_MECHANISM_INVALID;
+  
+}
+
+CK_RV YUBICO_get_token_objects_num(CK_ULONG_PTR num) {
+
+  *num = token_objects_num;
+  return CKR_OK;
+}
+
+CK_RV YUBICO_get_token_object_list(piv_obj_id_t *obj, CK_ULONG len) {
   
 }

@@ -375,6 +375,7 @@ typedef CK_ULONG          CK_ATTRIBUTE_TYPE;
 #define CKA_LABEL              0x00000003
 #define CKA_APPLICATION        0x00000010
 #define CKA_VALUE              0x00000011
+#define CKA_OBJECT_ID          0x00000012
 #define CKA_CERTIFICATE_TYPE   0x00000080
 #define CKA_ISSUER             0x00000081
 #define CKA_SERIAL_NUMBER      0x00000082

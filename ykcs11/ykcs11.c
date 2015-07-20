@@ -12,7 +12,7 @@
   } while (0)
 
 #define YKCS11_DBG    1  // General debug, must be either 1 or 0
-#define YKCS11_DINOUT 1  // Function in/out debug, must be either 1 or 0
+#define YKCS11_DINOUT 0  // Function in/out debug, must be either 1 or 0
 
 #define YKCS11_MANUFACTURER "Yubico (www.yubico.com)"
 #define YKCS11_LIBDESC      "PKCS#11 PIV Library (SP-800-73)"
@@ -47,6 +47,25 @@ static CK_ULONG      n_slots_with_token = 0;
 static CK_SESSION_HANDLE session = CK_INVALID_HANDLE; // TODO: support multiple sessions?
 static CK_SESSION_INFO   session_info;
 
+static struct {
+  CK_BBOOL        active;
+  CK_ULONG        idx;
+  CK_BBOOL        all;
+  CK_OBJECT_CLASS class;
+} find_obj;
+
+static piv_obj_id_t      piv_objects[] = { // Mandatory PIV objects
+  PIV_OBJ_CCC,             // Card capability container
+  PIV_OBJ_CHUI,            // Cardholder unique id
+  PIV_OBJ_X509_PIV_AUTH,   // PIV authentication
+  PIV_OBJ_CHF,             // Cardholder fingerprints
+  PIV_OBJ_CHFI,            // Cardholder facial images
+  PIV_OBJ_X509_DS,         // Certificate for digital signature
+  PIV_OBJ_X509_KM,         // Certificate for key management
+  PIV_OBJ_X509_CARD_AUTH,  // Certificate for card authentication
+  PIV_OBJ_SEC_OBJ          // Security object
+};
+
 extern CK_FUNCTION_LIST function_list; // TODO: check all return values
 
 /* General Purpose */
@@ -79,8 +98,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
 
   DBG(("Found %lu slot(s) of which %lu tokenless/unsupported", n_slots, n_slots - n_slots_with_token));
 
+  find_obj.active = CK_FALSE;
   // TODO: FILL OUT INIT ARGS;
-      
+
   DOUT;
   return CKR_OK;
 }
@@ -369,7 +389,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismInfo)(
 {
   DIN;
   vendor_t vendor;
-  
+
   if (piv_state == NULL) {
     DBG(("libykpiv is not initialized or already finalized"));
     return CKR_CRYPTOKI_NOT_INITIALIZED;
@@ -391,7 +411,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismInfo)(
   if (vendor.get_token_mechanism_info(type, pInfo) != CKR_OK)
     return CKR_MECHANISM_INVALID;
 
-  
+
   DOUT;
   return CKR_OK;
 }
@@ -712,7 +732,33 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
 )
 {
   DIN;
-  DBG(("TODO!!!"));
+
+  if (piv_state == NULL)
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+
+  if (session != YKCS11_SESSION_ID)
+    return CKR_SESSION_CLOSED;
+
+  if (hSession != session)
+    return CKR_SESSION_HANDLE_INVALID;
+
+  if (pTemplate == NULL_PTR || ulCount == 0)
+    return CKR_ARGUMENTS_BAD;
+
+  if (find_obj.active != CK_TRUE)
+    return CKR_OPERATION_NOT_INITIALIZED;
+
+  if (pTemplate[0].pValue == NULL_PTR) {
+    DBG(("Just get size"));
+    pTemplate[0].ulValueLen = 1024; // TODO: get attribute size
+    DOUT;
+    return CKR_OK;
+  }
+  DBG(("Trying to get object %lx", hObject));
+  DBG(("Type: 0x%lx Value: %lu Len: %lu", pTemplate[0].type, *((CK_ULONG_PTR)pTemplate[0].pValue), pTemplate[0].ulValueLen));
+  // TODO: here for i in ulCount
+  return get_attribute(hObject, pTemplate);
+
   DOUT;
   return CKR_OK;
 }
@@ -737,11 +783,48 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
 )
 {
   DIN;
-  DBG(("TODO!!!"));
+  CK_ULONG i;
+
+  if (piv_state == NULL)
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+
+  if (session != YKCS11_SESSION_ID)
+    return CKR_SESSION_CLOSED;
+
+  if (hSession != session)
+    return CKR_SESSION_HANDLE_INVALID;
+
+  if (find_obj.active == CK_TRUE)
+    return CKR_OPERATION_ACTIVE;
+
+  if (ulCount == 0) {
+    DBG(("Find ALL the objects!"));
+    find_obj.active = CK_TRUE;
+    find_obj.all = CK_TRUE;
+    find_obj.idx = 0;
+    DOUT;
+    return CKR_OK;
+  }
+  return CKR_FUNCTION_FAILED;
+  DBG(("Initialized search for %lu objects", ulCount));
+
+  if (pTemplate == NULL_PTR)
+    return CKR_ARGUMENTS_BAD;
+
+  find_obj.active = CK_TRUE;
+
+  for (i = 0; i < ulCount; i++) {
+    DBG(("Object %lu\nType: %lu Value: %lu Len: %lu", i, pTemplate[i].type, *((CK_ULONG_PTR)pTemplate[i].pValue), pTemplate[i].ulValueLen));
+
+    //  if ()
+
+  }
+
+
   DOUT;
   return CKR_OK;
 }
-
+CK_ULONG bla = 1; // TODO: delete
 CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
   CK_SESSION_HANDLE hSession,
   CK_OBJECT_HANDLE_PTR phObject,
@@ -750,7 +833,34 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
 )
 {
   DIN;
-  DBG(("TODO!!!"));
+
+  if (piv_state == NULL)
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+
+  if (session != YKCS11_SESSION_ID)
+    return CKR_SESSION_CLOSED;
+
+  if (hSession != session)
+    return CKR_SESSION_HANDLE_INVALID;
+
+  if (phObject == NULL_PTR ||
+      ulMaxObjectCount == 0 ||
+      pulObjectCount == NULL_PTR)
+    return CKR_ARGUMENTS_BAD;
+
+  if (find_obj.active != CK_TRUE)
+    return CKR_OPERATION_NOT_INITIALIZED;
+
+  DBG(("Can return %lu object(s)", ulMaxObjectCount));
+  if (find_obj.all == CK_TRUE) {
+    // Trying to get all the objects, just return the next
+    //*phObject = piv_objects[find_obj.idx++];
+    //*pulObjectCount = 1;
+    *phObject = piv_objects[bla];
+    *pulObjectCount = bla--;
+  }
+
+
   DOUT;
   return CKR_OK;
 }
@@ -760,7 +870,21 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsFinal)(
 )
 {
   DIN;
-  DBG(("TODO!!!"));
+
+  if (piv_state == NULL)
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+
+  if (session != YKCS11_SESSION_ID)
+    return CKR_SESSION_CLOSED;
+
+  if (hSession != session)
+    return CKR_SESSION_HANDLE_INVALID;
+
+  if (find_obj.active != CK_TRUE)
+    return CKR_OPERATION_NOT_INITIALIZED;
+
+  find_obj.active = CK_FALSE;
+
   DOUT;
   return CKR_OK;
 }

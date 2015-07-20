@@ -36,6 +36,7 @@ lib_LTLIBRARIES = libykcs11.la
 libykcs11_la_SOURCES = ykcs11.c version.c ykcs11.pc.in ykcs11.map
 libykcs11_la_SOURCES += vendors.c vendor.h yubico.c yubico.h
 libykcs11_la_SOURCES += utils.h utils.c
+libykcs11_la_SOURCES += obj_types.h objects.h objects.c
 
 #internal.h
 #libykcs11_la_SOURCES += error.c

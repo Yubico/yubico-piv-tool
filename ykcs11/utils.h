@@ -1,7 +1,7 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include "pkcs11.h"
+#include "pkcs11t.h"
 #include "vendors.h"
 
 typedef struct {
