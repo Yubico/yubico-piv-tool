@@ -356,6 +356,7 @@ typedef CK_ULONG          CK_KEY_TYPE;
 /* CK_CERTIFICATE_TYPE was changed from CK_USHORT to CK_ULONG
  * for v2.0 */
 typedef CK_ULONG          CK_CERTIFICATE_TYPE;
+typedef CK_CERTIFICATE_TYPE CK_PTR CK_CERTIFICATE_TYPE_PTR;
 
 /* The following certificate types are defined: */
 #define CKC_X_509           0x00000000

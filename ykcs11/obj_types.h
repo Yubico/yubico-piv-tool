@@ -76,13 +76,13 @@ typedef enum {
 
 typedef struct {
   //const CK_OBJECT_CLASS class;
-  piv_obj_id_t      type;
-  const CK_CHAR_PTR name; // TODO: or utf8
-  const CK_CHAR_PTR oid;
-  CK_BYTE           tag_len; // TODO: or ulong?
-	CK_BYTE           tag_value[3];
-	CK_BYTE           containerid[2];	/* will use as relative paths for simulation */ // TODO: needed?
-	CK_ULONG          flags;          /* object has some internal object like a cert */
+  piv_obj_id_t type;
+  const char   *name; // TODO: or utf8
+  const char   *oid;  
+  CK_BYTE      tag_len; // TODO: or ulong?
+	CK_BYTE      tag_value[3];
+	CK_BYTE      containerid[2];	/* will use as relative paths for simulation */ // TODO: needed?
+	CK_ULONG     flags;          /* object has some internal object like a cert */
 } piv_obj_t;
 
 #endif

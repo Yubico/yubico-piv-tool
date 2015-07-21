@@ -11,7 +11,7 @@
     printf ("\n");                                                    \
   } while (0)
 
-#define YKCS11_DBG    1  // General debug, must be either 1 or 0
+#define YKCS11_DBG    0  // General debug, must be either 1 or 0
 #define YKCS11_DINOUT 0  // Function in/out debug, must be either 1 or 0
 
 #define YKCS11_MANUFACTURER "Yubico (www.yubico.com)"
@@ -49,6 +49,7 @@ static CK_SESSION_INFO   session_info;
 
 static struct {
   CK_BBOOL        active;
+  CK_ULONG        num;
   CK_ULONG        idx;
   CK_BBOOL        all;
   CK_OBJECT_CLASS class;
@@ -750,7 +751,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
 
   if (pTemplate[0].pValue == NULL_PTR) {
     DBG(("Just get size"));
-    pTemplate[0].ulValueLen = 1024; // TODO: get attribute size
+    get_attribute(hObject, pTemplate); // TODO: get attribute size
     DOUT;
     return CKR_OK;
   }
@@ -784,6 +785,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
 {
   DIN;
   CK_ULONG i;
+  vendor_t vendor;
 
   if (piv_state == NULL)
     return CKR_CRYPTOKI_NOT_INITIALIZED;
@@ -792,16 +794,23 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
     return CKR_SESSION_CLOSED;
 
   if (hSession != session)
-    return CKR_SESSION_HANDLE_INVALID;
+    return CKR_SESSION_HANDLE_INVALID; // TODO: or session closed?
 
   if (find_obj.active == CK_TRUE)
     return CKR_OPERATION_ACTIVE;
 
+  if (slots[session_info.slotID].vid == UNKNOWN) {
+    DBG(("Slot %lu is tokenless/unsupported", slotID));
+    return CKR_SLOT_ID_INVALID;
+  }
+  vendor = get_vendor(slots[session_info.slotID].vid); // TODO: make a token field in slot_t ?;
+
   if (ulCount == 0) {
     DBG(("Find ALL the objects!"));
     find_obj.active = CK_TRUE;
-    find_obj.all = CK_TRUE;
+    vendor.get_token_objects_num(&find_obj.num);
     find_obj.idx = 0;
+    find_obj.all = CK_TRUE;
     DOUT;
     return CKR_OK;
   }
@@ -824,7 +833,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
   DOUT;
   return CKR_OK;
 }
-CK_ULONG bla = 1; // TODO: delete
+
 CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
   CK_SESSION_HANDLE hSession,
   CK_OBJECT_HANDLE_PTR phObject,
@@ -853,11 +862,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
 
   DBG(("Can return %lu object(s)", ulMaxObjectCount));
   if (find_obj.all == CK_TRUE) {
-    // Trying to get all the objects, just return the next
-    //*phObject = piv_objects[find_obj.idx++];
-    //*pulObjectCount = 1;
-    *phObject = piv_objects[bla];
-    *pulObjectCount = bla--;
+    // Trying to get all the objects, just return the next one
+    if (find_obj.idx == find_obj.num) {
+      *pulObjectCount = 0;
+      DOUT;
+      return CKR_OK;
+    }
+
+    *phObject = piv_objects[find_obj.idx++];
+    *pulObjectCount = 1;
   }
 
 
