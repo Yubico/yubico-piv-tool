@@ -173,9 +173,10 @@ static void get_object_class(CK_OBJECT_HANDLE obj, CK_OBJECT_CLASS_PTR class) {
     *class = CKO_DATA; // TODO: other possibilities?
 }
 
-static void get_object_label(CK_OBJECT_HANDLE obj, CK_UTF8CHAR_PTR label) {
+/*static void get_object_label(CK_OBJECT_HANDLE obj, CK_UTF8CHAR_PTR label) {
   strcpy((char *)label, objects[obj].name);
 }
+*/
 
 // Next two functions based off the code at
 // https://github.com/m9aertner/oidConverter/blob/master/oid.c
@@ -249,7 +250,7 @@ static void asn1_encode_oid(CK_CHAR_PTR oid, CK_BYTE_PTR asn1_oid, CK_ULONG_PTR 
   free(tmp);
 }
 
-static void get_object_oid(CK_OBJECT_HANDLE obj, CK_UTF8CHAR_PTR oid) {
+/*static void get_object_oid(CK_OBJECT_HANDLE obj, CK_UTF8CHAR_PTR oid) {
   strcpy((char *)oid, objects[obj].oid);
 }
 
@@ -261,19 +262,21 @@ static void get_object_certificate_type(CK_OBJECT_HANDLE obj, CK_CERTIFICATE_TYP
 static void get_object_key_id(CK_OBJECT_HANDLE obj, CK_UTF8CHAR_PTR key_id) {
   memcpy((char *)key_id, objects[obj].containerid, 2);
 }
+*/
 
 CK_RV get_attribute(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
+  CK_BYTE_PTR data;
+  CK_BYTE     tmp[64];
+  CK_ULONG    len = 0;
   fprintf(stderr, "FOR OBJECT %lu, I WANT ", obj);
 
   switch (template->type) {
   case CKA_CLASS:
     fprintf(stderr, "CLASS\n");
-    if (template->pValue == NULL_PTR) // TODO: just don't use functions, break and check return later?
-      template->ulValueLen = 1;
-    else
-      get_object_class(obj, template->pValue);
-
-    return CKR_OK;
+    len = 1;
+    get_object_class(obj, (CK_OBJECT_CLASS_PTR)tmp);
+    data = tmp;
+    break;
 
 //  case CKA_TOKEN:
   case CKA_PRIVATE:
@@ -283,38 +286,31 @@ CK_RV get_attribute(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
   case CKA_LABEL:
     fprintf(stderr, "LABEL\n");
-    if (template->pValue == NULL_PTR)
-      template->ulValueLen = strlen(objects[obj].name);
-    else
-      strcpy((char *)template->pValue, objects[obj].name);
-    return CKR_OK;
+    len = strlen(objects[obj].name) + 1;
+    data = objects[obj].name;
+    break;
 
   case CKA_APPLICATION:
     fprintf(stderr, "APPLICATION\n");
-    if (template->pValue == NULL_PTR)
-      template->ulValueLen = strlen(objects[obj].name);
-    else
-      strcpy((char *)template->pValue, objects[obj].name);
-    return CKR_OK;
+    len = strlen(objects[obj].name) + 1;
+    data = objects[obj].name;
+    break;
 
 //  case CKA_VALUE:
   case CKA_OBJECT_ID: // TODO: how about just storing the OID in DER ?
     fprintf(stderr, "OID\n");
-    if (template->pValue == NULL_PTR)
-      template->ulValueLen = strlen(objects[obj].oid) * 2; // Slightly oversized
-    else {
-      strcpy((char *)template->pValue, objects[obj].oid);
-      asn1_encode_oid(template->pValue, template->pValue, &template->ulValueLen);
-    }
-    return CKR_OK;
+    strcpy((char *)tmp, objects[obj].oid);
+    asn1_encode_oid(tmp, tmp, &len);
+    data = tmp;
+    break;
 
   case CKA_CERTIFICATE_TYPE:
     fprintf(stderr, "CERTIFICATE TYPE\n");
-    if (template->pValue == NULL_PTR)
-      template->ulValueLen = 1;
-    else
-      *((CK_ULONG_PTR)template->pValue) = CKC_X_509; // Support only X.509 certs
-    return CKR_OK;
+    len = 1;
+    tmp[0] = CKC_X_509; // Support only X.509 certs
+    data = tmp;
+    break;
+
 //  case CKA_ISSUER:
 //  case CKA_SERIAL_NUMBER:
   case CKA_KEY_TYPE:
@@ -324,11 +320,10 @@ CK_RV get_attribute(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   /* case CKA_SUBJECT: */
   case CKA_ID:
     fprintf(stderr, "KEY ID\n");
-    if (template->pValue == NULL_PTR)
-      template->ulValueLen = 2;
-    else
-      memcpy((char *)template->pValue, objects[obj].containerid, 2);
-    return CKR_OK;
+    len = 2;
+    data = objects[obj].containerid;
+    break;
+
   /* case CKA_SENSITIVE: */
   /* case CKA_ENCRYPT: */
   /* case CKA_DECRYPT: */
@@ -361,20 +356,29 @@ CK_RV get_attribute(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   /* case CKA_ALWAYS_SENSITIVE: */
   case CKA_MODIFIABLE:
     fprintf(stderr, "MODIFIABLE\n");
-    if (template->pValue == NULL_PTR)
-      template->ulValueLen = 1;
-    else
-    *((CK_ULONG_PTR)template->pValue) = CK_FALSE;
-    return CKR_OK;
+    len = 1;
+    tmp[0] = CK_FALSE;
+    data = tmp;
+    break;
 
   case CKA_VENDOR_DEFINED:
   default:
     fprintf(stderr, "UNKNOWN ATTRIBUTE!!!!! %lx\n", template[0].type);
     template->ulValueLen = CK_UNAVAILABLE_INFORMATION;
-    return CKR_FUNCTION_FAILED;
+    return CKR_ATTRIBUTE_TYPE_INVALID;
   }
 
-  // Never reached
-  return CKR_FUNCTION_FAILED;
+    if (template->pValue == NULL_PTR) {
+      template->ulValueLen = len; // TODO: define?
+      return CKR_OK;
+    }
+    
+    if (template->ulValueLen < len)
+      return CKR_BUFFER_TOO_SMALL;
+
+    template->ulValueLen = len;
+    memcpy(template->pValue, data, len);
+
+    return CKR_OK;
 
 }

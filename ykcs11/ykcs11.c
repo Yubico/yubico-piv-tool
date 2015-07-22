@@ -11,7 +11,7 @@
     printf ("\n");                                                    \
   } while (0)
 
-#define YKCS11_DBG    0  // General debug, must be either 1 or 0
+#define YKCS11_DBG    1  // General debug, must be either 1 or 0
 #define YKCS11_DINOUT 0  // Function in/out debug, must be either 1 or 0
 
 #define YKCS11_MANUFACTURER "Yubico (www.yubico.com)"
@@ -800,7 +800,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
     return CKR_OPERATION_ACTIVE;
 
   if (slots[session_info.slotID].vid == UNKNOWN) {
-    DBG(("Slot %lu is tokenless/unsupported", slotID));
+    DBG(("Slot %lu is tokenless/unsupported", session_info.slotID));
     return CKR_SLOT_ID_INVALID;
   }
   vendor = get_vendor(slots[session_info.slotID].vid); // TODO: make a token field in slot_t ?;
