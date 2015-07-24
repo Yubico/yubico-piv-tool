@@ -7,12 +7,12 @@
 
 #define D(x) do {                                                     \
     printf ("debug: %s:%d (%s): ", __FILE__, __LINE__, __FUNCTION__); \
-    printf x;;                                                        \
+    printf x;                                                         \
     printf ("\n");                                                    \
   } while (0)
 
 #define YKCS11_DBG    1  // General debug, must be either 1 or 0
-#define YKCS11_DINOUT 0  // Function in/out debug, must be either 1 or 0
+#define YKCS11_DINOUT 1  // Function in/out debug, must be either 1 or 0
 
 #define YKCS11_MANUFACTURER "Yubico (www.yubico.com)"
 #define YKCS11_LIBDESC      "PKCS#11 PIV Library (SP-800-73)"
@@ -56,6 +56,12 @@ static struct {
 
 static piv_obj_id_t token_objects[PIV_CERT_OBJ_LAST]; // TODO: tide this up, also build at runtime (during open session)?
 static CK_ULONG n_token_objects = 0;
+
+static struct {
+  CK_BBOOL         active;
+  CK_MECHANISM     mechanism;
+  CK_OBJECT_HANDLE key;
+} sign_info;
 
 extern CK_FUNCTION_LIST function_list; // TODO: check all return values
 
@@ -809,27 +815,32 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
   }
   vendor = get_vendor(slots[session_info.slotID].vid); // TODO: make a token field in slot_t ?;
 
+  find_obj.active = CK_TRUE;
+  find_obj.idx = 0;
+  find_obj.num = n_token_objects; // TOTO: actually malloc here so that the array can be changed
+  find_obj.objects = token_objects;
+
   if (ulCount == 0) {
     DBG(("Find ALL the objects!"));
-    find_obj.active = CK_TRUE;
-    find_obj.num = n_token_objects;
-    find_obj.idx = 0;
-    find_obj.objects = token_objects;
     DOUT;
     return CKR_OK;
   }
-//  return CKR_FUNCTION_FAILED;
+
   DBG(("Initialized search with %lu parameters", ulCount));
 
-  if (pTemplate == NULL_PTR)
+  if (pTemplate == NULL_PTR) {
+    find_obj.active = CK_FALSE;
     return CKR_ARGUMENTS_BAD;
-
-  find_obj.active = CK_TRUE;
-
+  }
+  
   for (i = 0; i < ulCount; i++) {
     DBG(("Parameter %lu\nType: %lu Value: %lu Len: %lu", i, pTemplate[i].type, *((CK_ULONG_PTR)pTemplate[i].pValue), pTemplate[i].ulValueLen));
+    // TODO: remove objects that don't match
   }
 
+  // TOTO: do it properly here, jsut a test now
+  find_obj.num = 1;
+  find_obj.objects = token_objects + 3;
 
   DOUT;
   return CKR_OK;
@@ -872,13 +883,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
 
   *phObject = find_obj.objects[find_obj.idx++];
   *pulObjectCount = 1;
-  return CKR_OK;
 
-  // NEVER REACHED
-  DBG(("GETTING SOMETHING ELSE"));
-  *phObject = PIV_DATA_OBJ_X509_DS;
-  *pulObjectCount = 2;
-  DOUT;
+  DBG(("Returning object %lu", *phObject));
+  
   return CKR_OK;
 }
 
@@ -1092,6 +1099,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     return CKR_ARGUMENTS_BAD;
 
   DBG(("Trying to sign some data with mechanism %lu and key %lu", pMechanism->mechanism, hKey));
+
+  sign_info.active = CK_TRUE;
+  memcpy(&sign_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
+  sign_info.key = hKey;
+  // TODO: also allocate some space for the signature
+  
+  
   DOUT;
   return CKR_OK;
 }
@@ -1115,14 +1129,32 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 )
 {
   DIN;
+
+  if (sign_info.active == CK_FALSE)
+    return CKR_OPERATION_NOT_INITIALIZED;
+  
   // TODO: check conditions
   char test_buf[] = "\x30\x31\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x01\x05\x00\x04\x20\xa7\x47\x16\x1b\x15\x5f\xd0\x05\xbc\xbe\x84\x4a\x28\xa9\x6c\x74\xfe\xf6\x6a\x42\x84\xa0\x4e\x05\x7a\x0c\x88\xe2\xc8\x83\xc0\x00";
   CK_ULONG sig_len_in = sizeof(test_buf) - 1;
   CK_ULONG sig_len_out = 1024;
   ykpiv_rc r;
+  CK_CHAR key;
+  
   DBG(("Sending %lu bytes to sign", /*ulDataLen*/sig_len_in));
   dump_hex(test_buf, sig_len_in, stderr, CK_TRUE);
-  if ((r = ykpiv_sign_data(piv_state, /*pData*/test_buf, /*ulDataLen*/sig_len_in, sig_buf, &sig_len_out, YKPIV_ALGO_RSA2048, YKPIV_KEY_AUTHENTICATION)) != YKPIV_OK) {
+
+  if (sign_info.key == PIV_DATA_OBJ_X509_PIV_AUTH) {
+    key = YKPIV_KEY_AUTHENTICATION;
+    DBG(("Using key 9a"));
+  }
+  else {
+    key = YKPIV_KEY_SIGNATURE;
+    DBG(("Using key 9c"));
+  }
+
+  // TODO: check that mechanism makes sense for the key that we have.
+
+  if ((r = ykpiv_sign_data(piv_state, /*pData*/test_buf, /*ulDataLen*/sig_len_in, sig_buf, &sig_len_out, YKPIV_ALGO_RSA2048, key)) != YKPIV_OK) {
       DBG(("Sign error %s", ykpiv_strerror(r)));
     return CKR_FUNCTION_FAILED;
   }
