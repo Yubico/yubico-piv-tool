@@ -29,7 +29,7 @@ vendor_t get_vendor(vendor_id_t vid) {
     v.get_token_mechanisms_num = YUBICO_get_token_mechanisms_num;
     v.get_token_mechanism_list = YUBICO_get_token_mechanism_list;
     v.get_token_mechanism_info = YUBICO_get_token_mechanism_info;
-    v.get_token_objects_num    = YUBICO_get_token_objects_num;
+//    v.get_token_objects_num    = YUBICO_get_token_objects_num;
     v.get_token_object_list    = YUBICO_get_token_object_list;
     break;
 
@@ -48,7 +48,7 @@ vendor_t get_vendor(vendor_id_t vid) {
     v.get_token_mechanisms_num = NULL;
     v.get_token_mechanism_list = NULL;
     v.get_token_mechanism_info = NULL;
-    v.get_token_objects_num    = NULL;
+//    v.get_token_objects_num    = NULL;
     v.get_token_object_list    = NULL;
   }
 

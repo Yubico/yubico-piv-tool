@@ -3,6 +3,7 @@
 
 #include "pkcs11.h"
 #include "objects.h"
+#include <ykpiv.h>
 
 typedef enum {
   UNKNOWN = 0x00,
@@ -22,8 +23,8 @@ typedef CK_RV (*get_t_serial_f)(CK_CHAR_PTR, CK_ULONG);
 typedef CK_RV (*get_t_mechanisms_num_f)(CK_ULONG_PTR);
 typedef CK_RV (*get_t_mechanism_list_f)(CK_MECHANISM_TYPE_PTR, CK_ULONG);
 typedef CK_RV (*get_t_mechanism_info_f)(CK_MECHANISM_TYPE, CK_MECHANISM_INFO_PTR);
-typedef CK_RV (*get_t_objects_num_f)(CK_ULONG_PTR);
-typedef CK_RV (*get_t_object_list_f)(piv_obj_id_t *, CK_ULONG);
+//typedef CK_RV (*get_t_objects_num_f)(CK_ULONG_PTR);
+typedef CK_RV (*get_t_object_list_f)(ykpiv_state *, piv_obj_id_t *, CK_ULONG_PTR);
 
 
 typedef struct {
@@ -40,7 +41,7 @@ typedef struct {
   get_t_mechanisms_num_f get_token_mechanisms_num;
   get_t_mechanism_list_f get_token_mechanism_list;
   get_t_mechanism_info_f get_token_mechanism_info;
-  get_t_objects_num_f    get_token_objects_num;
+//  get_t_objects_num_f    get_token_objects_num;
   get_t_object_list_f    get_token_object_list;
 } vendor_t;
 

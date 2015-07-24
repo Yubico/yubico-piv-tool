@@ -7,7 +7,7 @@
 
 #define D(x) do {                                                     \
     printf ("debug: %s:%d (%s): ", __FILE__, __LINE__, __FUNCTION__); \
-    printf x;                                                         \
+    printf x;;                                                        \
     printf ("\n");                                                    \
   } while (0)
 
@@ -40,7 +40,7 @@
 
 static ykpiv_state *piv_state = NULL;
 
-static ykcs11_slot_t slots[YKCS11_MAX_SLOTS];
+static ykcs11_slot_t slots[YKCS11_MAX_SLOTS]; // TODO: build at runtime?
 static CK_ULONG      n_slots = 0;
 static CK_ULONG      n_slots_with_token = 0;
 
@@ -51,21 +51,11 @@ static struct {
   CK_BBOOL        active;
   CK_ULONG        num;
   CK_ULONG        idx;
-  CK_BBOOL        all;
-  CK_OBJECT_CLASS class;
+  piv_obj_id_t    *objects;
 } find_obj;
 
-static piv_obj_id_t      piv_objects[] = { // Mandatory PIV objects
-  PIV_OBJ_CCC,             // Card capability container
-  PIV_OBJ_CHUI,            // Cardholder unique id
-  PIV_OBJ_X509_PIV_AUTH,   // PIV authentication
-  PIV_OBJ_CHF,             // Cardholder fingerprints
-  PIV_OBJ_CHFI,            // Cardholder facial images
-  PIV_OBJ_X509_DS,         // Certificate for digital signature
-  PIV_OBJ_X509_KM,         // Certificate for key management
-  PIV_OBJ_X509_CARD_AUTH,  // Certificate for card authentication
-  PIV_OBJ_SEC_OBJ          // Security object
-};
+static piv_obj_id_t token_objects[PIV_CERT_OBJ_LAST]; // TODO: tide this up, also build at runtime (during open session)?
+static CK_ULONG n_token_objects = 0;
 
 extern CK_FUNCTION_LIST function_list; // TODO: check all return values
 
@@ -200,7 +190,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 
   for (j = 0, i = 0; i < n_slots; i++) {
     if (tokenPresent) {
-      if (has_token(slots + i))
+      if (has_token(slots + i)) // TODO: use more to check if TOKEN_REMOVED
         pSlotList[j++] = i;
     }
     else
@@ -228,8 +218,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotInfo)(
     return CKR_ARGUMENTS_BAD;
 
   memcpy(pInfo, &slots[slotID].info, sizeof(CK_SLOT_INFO));
-
-  //DBG(("slotID %lu, pInfo %s", slotID, pInfo->slotDescription));
 
   DOUT;
   return CKR_OK;
@@ -465,18 +453,34 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
 {
   DIN;
 
+  vendor_t vendor;
+
   if (piv_state == NULL)
     return CKR_CRYPTOKI_NOT_INITIALIZED;
 
   if (slotID >= n_slots || phSession == NULL)
     return CKR_ARGUMENTS_BAD;
 
+  if (slots[slotID].vid == UNKNOWN) {
+    DBG(("No support for token in slot %lu", slotID));
+    return CKR_TOKEN_NOT_RECOGNIZED;
+  }
+
   if (!has_token(slots + slotID)) {
     DBG(("Slot %lu has no token inserted", slotID));
     return CKR_TOKEN_NOT_PRESENT;
   }
 
-  if ((flags & CKF_SERIAL_SESSION) == 0) {
+  vendor = get_vendor(slots[slotID].vid); // TODO: make a token field in slot_t ?
+  
+  // Store all the objects available in the token
+  n_token_objects = sizeof(token_objects) / sizeof(piv_obj_id_t);
+  if (vendor.get_token_object_list(piv_state, token_objects, &n_token_objects) != CKR_OK) {
+    DBG(("Unable to retrieve token objects"));
+    return CKR_FUNCTION_FAILED;
+  }
+
+  if ((flags & CKF_SERIAL_SESSION) == 0) { // TODO: check more error conditions
     DBG(("Open session called without CKF_SERIAL_SESSION set"));
     return CKR_SESSION_PARALLEL_NOT_SUPPORTED;
   }
@@ -755,7 +759,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
     DOUT;
     return CKR_OK;
   }
-  DBG(("Trying to get object %lx", hObject));
+  DBG(("Trying to get %lu attributes for object %lx", ulCount, hObject));
   DBG(("Type: 0x%lx Value: %lu Len: %lu", pTemplate[0].type, *((CK_ULONG_PTR)pTemplate[0].pValue), pTemplate[0].ulValueLen));
   // TODO: here for i in ulCount
   return get_attribute(hObject, pTemplate);
@@ -808,14 +812,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
   if (ulCount == 0) {
     DBG(("Find ALL the objects!"));
     find_obj.active = CK_TRUE;
-    vendor.get_token_objects_num(&find_obj.num);
+    find_obj.num = n_token_objects;
     find_obj.idx = 0;
-    find_obj.all = CK_TRUE;
+    find_obj.objects = token_objects;
     DOUT;
     return CKR_OK;
   }
-  return CKR_FUNCTION_FAILED;
-  DBG(("Initialized search for %lu objects", ulCount));
+//  return CKR_FUNCTION_FAILED;
+  DBG(("Initialized search with %lu parameters", ulCount));
 
   if (pTemplate == NULL_PTR)
     return CKR_ARGUMENTS_BAD;
@@ -823,10 +827,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
   find_obj.active = CK_TRUE;
 
   for (i = 0; i < ulCount; i++) {
-    DBG(("Object %lu\nType: %lu Value: %lu Len: %lu", i, pTemplate[i].type, *((CK_ULONG_PTR)pTemplate[i].pValue), pTemplate[i].ulValueLen));
-
-    //  if ()
-
+    DBG(("Parameter %lu\nType: %lu Value: %lu Len: %lu", i, pTemplate[i].type, *((CK_ULONG_PTR)pTemplate[i].pValue), pTemplate[i].ulValueLen));
   }
 
 
@@ -861,19 +862,22 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
     return CKR_OPERATION_NOT_INITIALIZED;
 
   DBG(("Can return %lu object(s)", ulMaxObjectCount));
-  if (find_obj.all == CK_TRUE) {
-    // Trying to get all the objects, just return the next one
-    if (find_obj.idx == find_obj.num) {
-      *pulObjectCount = 0;
-      DOUT;
-      return CKR_OK;
-    }
 
-    *phObject = piv_objects[find_obj.idx++];
-    *pulObjectCount = 1;
+  // Return the next object
+  if (find_obj.idx == find_obj.num) {
+    *pulObjectCount = 0;
+    DOUT;
+    return CKR_OK;
   }
 
+  *phObject = find_obj.objects[find_obj.idx++];
+  *pulObjectCount = 1;
+  return CKR_OK;
 
+  // NEVER REACHED
+  DBG(("GETTING SOMETHING ELSE"));
+  *phObject = PIV_DATA_OBJ_X509_DS;
+  *pulObjectCount = 2;
   DOUT;
   return CKR_OK;
 }
@@ -1073,11 +1077,35 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
 )
 {
   DIN;
-  DBG(("TODO!!!"));
+
+  if (piv_state == NULL)
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+
+  if (session != YKCS11_SESSION_ID)
+    return CKR_SESSION_CLOSED;
+
+  if (hSession != session)
+    return CKR_SESSION_HANDLE_INVALID;
+
+  if (pMechanism == NULL_PTR ||
+      hKey == NULL_PTR)
+    return CKR_ARGUMENTS_BAD;
+
+  DBG(("Trying to sign some data with mechanism %lu and key %lu", pMechanism->mechanism, hKey));
   DOUT;
   return CKR_OK;
 }
-
+/* TOTOD: DELETE */
+CK_BYTE  sig_buf[1024];
+CK_ULONG sig_len = 1024;
+void dump_hex(const unsigned char *buf, unsigned int len, FILE *output, CK_BBOOL space) {
+  unsigned int i;
+  for (i = 0; i < len; i++) {
+    fprintf(output, "%02x%s", buf[i], space == CK_TRUE ? " " : "");
+  }
+  fprintf(output, "\n");
+}
+/* TODO: DELETE END*/
 CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   CK_SESSION_HANDLE hSession,
   CK_BYTE_PTR pData,
@@ -1087,7 +1115,21 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 )
 {
   DIN;
-  DBG(("TODO!!!"));
+  // TODO: check conditions
+  char test_buf[] = "\x30\x31\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x01\x05\x00\x04\x20\xa7\x47\x16\x1b\x15\x5f\xd0\x05\xbc\xbe\x84\x4a\x28\xa9\x6c\x74\xfe\xf6\x6a\x42\x84\xa0\x4e\x05\x7a\x0c\x88\xe2\xc8\x83\xc0\x00";
+  CK_ULONG sig_len_in = sizeof(test_buf) - 1;
+  CK_ULONG sig_len_out = 1024;
+  ykpiv_rc r;
+  DBG(("Sending %lu bytes to sign", /*ulDataLen*/sig_len_in));
+  dump_hex(test_buf, sig_len_in, stderr, CK_TRUE);
+  if ((r = ykpiv_sign_data(piv_state, /*pData*/test_buf, /*ulDataLen*/sig_len_in, sig_buf, &sig_len_out, YKPIV_ALGO_RSA2048, YKPIV_KEY_AUTHENTICATION)) != YKPIV_OK) {
+      DBG(("Sign error %s", ykpiv_strerror(r)));
+    return CKR_FUNCTION_FAILED;
+  }
+  DBG(("Got %lu bytes back", sig_len_out));
+  dump_hex(sig_buf, sig_len_out, stderr, CK_TRUE);
+  memcpy(pSignature, sig_buf, sig_len_out);
+  *pulSignatureLen = sig_len_out;
   DOUT;
   return CKR_OK;
 }

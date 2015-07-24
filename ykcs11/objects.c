@@ -3,174 +3,196 @@
 #include <string.h>
 #include <stdlib.h>
 
-//TODO: this is mostly a snippet from OpenSC how to give credit?
+//TODO: this is mostly a snippet from OpenSC how to give credit?     Less and less so now
 /* Must be in order, and one per enumerated PIV_OBJ */
 static piv_obj_t objects[] = {
-  {PIV_OBJ_CCC, "Card Capability Container",
-   "2.16.840.1.101.3.7.1.219.0", 3, "\x5F\xC1\x07", "\xDB\x00", 0},
-  {PIV_OBJ_CHUI, "Card Holder Unique Identifier",
-   "2.16.840.1.101.3.7.2.48.0", 3, "\x5F\xC1\x02", "\x30\x00", 0},
-  {PIV_OBJ_X509_PIV_AUTH, "X.509 Certificate for PIV Authentication",
-   "2.16.840.1.101.3.7.2.1.1", 3, "\x5F\xC1\x05", "\x01\x01", PIV_OBJECT_TYPE_CERT},
-  {PIV_OBJ_CHF, "Card Holder Fingerprints",
-   "2.16.840.1.101.3.7.2.96.16", 3, "\x5F\xC1\x03", "\x60\x10", 0},
-  {PIV_OBJ_SEC_OBJ, "Security Object",
-   "2.16.840.1.101.3.7.2.144.0", 3, "\x5F\xC1\x06", "\x90\x00", 0},
-  {PIV_OBJ_CHFI, "Cardholder Facial Images",
-   "2.16.840.1.101.3.7.2.96.48", 3, "\x5F\xC1\x08", "\x60\x30", 0},
-  {PIV_OBJ_X509_CARD_AUTH, "X.509 Certificate for Card Authentication",
-   "2.16.840.1.101.3.7.2.5.0", 3, "\x5F\xC1\x01", "\x05\x00", PIV_OBJECT_TYPE_CERT},
-  {PIV_OBJ_X509_DS, "X.509 Certificate for Digital Signature",
-   "2.16.840.1.101.3.7.2.1.0", 3, "\x5F\xC1\x0A", "\x01\x00", PIV_OBJECT_TYPE_CERT},
-  {PIV_OBJ_X509_KM, "X.509 Certificate for Key Management",
-   "2.16.840.1.101.3.7.2.1.2", 3, "\x5F\xC1\x0B", "\x01\x02", PIV_OBJECT_TYPE_CERT},
-  {PIV_OBJ_PI, "Printed Information",
-   "2.16.840.1.101.3.7.2.48.1", 3, "\x5F\xC1\x09", "\x30\x01", 0},
-  {PIV_OBJ_DISCOVERY, "Discovery Object",
-   "2.16.840.1.101.3.7.2.96.80", 1, "\x7E", "\x60\x50", 0},
-  {PIV_OBJ_HISTORY, "Key History Object",
-   "2.16.840.1.101.3.7.2.96.96", 3, "\x5F\xC1\x0C", "\x60\x60", 0},
+  {PIV_DATA_OBJ_CCC, 0, 0, 0, "Card Capability Container", 0, 0, 0},
+  {PIV_DATA_OBJ_CHUI, 0, 0, 0, "Card Holder Unique Identifier", 0, 0, 1},
+  //  PIV_DATA_OBJ_UCHUI
+  {PIV_DATA_OBJ_X509_PIV_AUTH, 0, 0, 0, "X.509 Certificate for PIV Authentication", 0, 0, 2},
+  {PIV_DATA_OBJ_CHF, 0, 0, 0, "Card Holder Fingerprints", 0, 0, 3},
+  {PIV_DATA_OBJ_SEC_OBJ, 0, 0, 0, "Security Object", 0, 0, 4},
+  {PIV_DATA_OBJ_CHFI, 0, 0, 0, "Cardholder Facial Images", 0, 0, 5},
+  {PIV_DATA_OBJ_X509_CARD_AUTH, 0, 0, 0, "X.509 Certificate for Card Authentication", 0, 0, 6},
+  {PIV_DATA_OBJ_X509_DS, 0, 0, 0, "X.509 Certificate for Digital Signature", 0, 0, 7},
+  {PIV_DATA_OBJ_X509_KM, 0, 0, 0, "X.509 Certificate for Key Management", 0, 0, 8},
+  {PIV_DATA_OBJ_PI, 0, 0, 0, "Printed Information", 0, 0, 9},
+  {PIV_DATA_OBJ_DISCOVERY, 0, 0, 0, "Discovery Object", 0, 0, 10},
+  {PIV_DATA_OBJ_HISTORY, 0, 0, 0, "Key History Object", 0, 0, 11},
+  {PIV_DATA_OBJ_RETIRED_X509_1, 0, 0, 0, "Retired X.509 Certificate for Key Management 1", 0, 0, 12},
+  {PIV_DATA_OBJ_RETIRED_X509_2, 0, 0, 0, "Retired X.509 Certificate for Key Management 2", 0, 0, 13},
+  {PIV_DATA_OBJ_RETIRED_X509_3, 0, 0, 0, "Retired X.509 Certificate for Key Management 3", 0, 0, 14},
+  {PIV_DATA_OBJ_RETIRED_X509_4, 0, 0, 0, "Retired X.509 Certificate for Key Management 4", 0, 0, 15},
+  {PIV_DATA_OBJ_RETIRED_X509_5, 0, 0, 0, "Retired X.509 Certificate for Key Management 5", 0, 0, 16},
+  {PIV_DATA_OBJ_RETIRED_X509_6, 0, 0, 0, "Retired X.509 Certificate for Key Management 6", 0, 0, 17},
+  {PIV_DATA_OBJ_RETIRED_X509_7, 0, 0, 0, "Retired X.509 Certificate for Key Management 7", 0, 0, 18},
+  {PIV_DATA_OBJ_RETIRED_X509_8, 0, 0, 0, "Retired X.509 Certificate for Key Management 8", 0, 0, 19},
+  {PIV_DATA_OBJ_RETIRED_X509_9, 0, 0, 0, "Retired X.509 Certificate for Key Management 9", 0, 0, 20},
+  {PIV_DATA_OBJ_RETIRED_X509_10, 0, 0, 0, "Retired X.509 Certificate for Key Management 10", 0, 0, 21},
+  {PIV_DATA_OBJ_RETIRED_X509_11, 0, 0, 0, "Retired X.509 Certificate for Key Management 11", 0, 0, 22},
+  {PIV_DATA_OBJ_RETIRED_X509_12, 0, 0, 0, "Retired X.509 Certificate for Key Management 12", 0, 0, 23},
+  {PIV_DATA_OBJ_RETIRED_X509_13, 0, 0, 0, "Retired X.509 Certificate for Key Management 13", 0, 0, 24},
+  {PIV_DATA_OBJ_RETIRED_X509_14, 0, 0, 0, "Retired X.509 Certificate for Key Management 14", 0, 0, 25},
+  {PIV_DATA_OBJ_RETIRED_X509_15, 0, 0, 0, "Retired X.509 Certificate for Key Management 15", 0, 0, 26},
+  {PIV_DATA_OBJ_RETIRED_X509_16, 0, 0, 0, "Retired X.509 Certificate for Key Management 16", 0, 0, 27},
+  {PIV_DATA_OBJ_RETIRED_X509_17, 0, 0, 0, "Retired X.509 Certificate for Key Management 17", 0, 0, 28},
+  {PIV_DATA_OBJ_RETIRED_X509_18, 0, 0, 0, "Retired X.509 Certificate for Key Management 18", 0, 0, 29},
+  {PIV_DATA_OBJ_RETIRED_X509_19, 0, 0, 0, "Retired X.509 Certificate for Key Management 19", 0, 0, 30},
+  {PIV_DATA_OBJ_RETIRED_X509_20, 0, 0, 0, "Retired X.509 Certificate for Key Management 20", 0, 0, 31},
+  {PIV_DATA_OBJ_IRIS_IMAGE, 0, 0, 0, "Cardholder Iris Images", 0, 0, 32},
+  {PIV_DATA_OBJ_BITGT, 0, 0, 0, "Biometric Information Templates Group Template", 0, 0, 33},
+  {PIV_DATA_OBJ_SM_SIGNER, 0, 0, 0, "Secure Messaging Certificate Signer", 0, 0, 34},
+  {PIV_DATA_OBJ_PC_REF_DATA, 0, 0, 0, "Pairing Code Reference Data Container", 0, 0, 35},
+/*  {PIV_DATA_OBJ_9B03, 0, 0, 0, "", 0, 0, },
+  {PIV_DATA_OBJ_9A06, 0, 0, 0, "", 0, 0, },
+  {PIV_DATA_OBJ_9C06, 0, 0, 0, "", 0, 0, },
+  {PIV_DATA_OBJ_9D06, 0, 0, 0, "", 0, 0, },
+  {PIV_DATA_OBJ_9E06, 0, 0, 0, "", 0, 0, },
+  {PIV_DATA_OBJ_8206, 0, 0, 0, "", 0, 0, },
+  {PIV_DATA_OBJ_8306, 0, 0, 0, "", 0, 0, },
+  {PIV_DATA_OBJ_8406, 0, 0, 0, "", 0, 0, },
+  {PIV_DATA_OBJ_8506, 0, 0, 0, "", 0, 0, },
+  {PIV_DATA_OBJ_8606, 0, 0, 0, "", 0, 0, },
+  {PIV_DATA_OBJ_8706, 0, 0, 0, "", 0, 0, },
+  {PIV_DATA_OBJ_8806, 0, 0, 0, "", 0, 0, },
+  {PIV_DATA_OBJ_8906, 0, 0, 0, "", 0, 0, },
+  {PIV_DATA_OBJ_8A06, 0, 0, 0, "", 0, 0, },
+  {PIV_DATA_OBJ_8B06, 0, 0, 0, "", 0, 0, },
+  {PIV_DATA_OBJ_8C06, 0, 0, 0, "", 0, 0, },
+  {PIV_DATA_OBJ_8D06, 0, 0, 0, "", 0, 0, },
+  {PIV_DATA_OBJ_8E06, 0, 0, 0, "", 0, 0, },
+  {PIV_DATA_OBJ_8F06, 0, 0, 0, "", 0, 0, },
+  {PIV_DATA_OBJ_9006, 0, 0, 0, "", 0, 0, },
+  {PIV_DATA_OBJ_9106, 0, 0, 0, "", 0, 0, },
+  {PIV_DATA_OBJ_9206, 0, 0, 0, "", 0, 0, },
+  {PIV_DATA_OBJ_9306, 0, 0, 0, "", 0, 0, },
+  {PIV_DATA_OBJ_9406, 0, 0, 0, "", 0, 0, },
+  {PIV_DATA_OBJ_9506, 0, 0, 0, "", 0, 0, },*/
+  {PIV_DATA_OBJ_LAST, 0, 0, 0, "", 0, 0, 36},
+  {PIV_CERT_OBJ_X509_PIV_AUTH, 0, 0, 0, "X.509 Certificate for PIV Authentication", 0, 0, 0},
+  {PIV_CERT_OBJ_X509_CARD_AUTH, 0, 0, 0, "X.509 Certificate for Card Authentication", 0, 0, 1},
+  {PIV_CERT_OBJ_X509_DS, 0, 0, 0, "X.509 Certificate for Digital Signature", 0, 0, 2},
+  {PIV_CERT_OBJ_X509_KM, 0, 0, 0, "X.509 Certificate for Key Management", 0, 0, 3},
+  {PIV_CERT_OBJ_LAST, 0, 0, 0, "", 0, 41}
+};
+
+static piv_data_obj_t data_objects[] = {
+  {"2.16.840.1.101.3.7.1.219.0", 3, "\x5F\xC1\x07", "\xDB\x00"},
+  {"2.16.840.1.101.3.7.2.48.0",  3, "\x5F\xC1\x02", "\x30\x00"},
+  {"2.16.840.1.101.3.7.2.1.1",   3, "\x5F\xC1\x05", "\x01\x01"},
+  {"2.16.840.1.101.3.7.2.96.16", 3, "\x5F\xC1\x03", "\x60\x10"},
+  {"2.16.840.1.101.3.7.2.144.0", 3, "\x5F\xC1\x06", "\x90\x00"},
+  {"2.16.840.1.101.3.7.2.96.48", 3, "\x5F\xC1\x08", "\x60\x30"},
+  {"2.16.840.1.101.3.7.2.5.0",   3, "\x5F\xC1\x01", "\x05\x00"},
+  {"2.16.840.1.101.3.7.2.1.0",   3, "\x5F\xC1\x0A", "\x01\x00"},
+  {"2.16.840.1.101.3.7.2.1.2",   3, "\x5F\xC1\x0B", "\x01\x02"},
+  {"2.16.840.1.101.3.7.2.48.1",  3, "\x5F\xC1\x09", "\x30\x01"},
+  {"2.16.840.1.101.3.7.2.96.80", 1, "\x7E",         "\x60\x50"},
+  {"2.16.840.1.101.3.7.2.96.96", 3, "\x5F\xC1\x0C", "\x60\x60"},
 
 /* 800-73-3, 21 new objects, 20 history certificates */
-  {PIV_OBJ_RETIRED_X509_1, "Retired X.509 Certificate for Key Management 1",
-   "2.16.840.1.101.3.7.2.16.1", 3, "\x5F\xC1\x0D", "\x10\x01",
-   PIV_OBJECT_NOT_PRESENT|PIV_OBJECT_TYPE_CERT},
-  {PIV_OBJ_RETIRED_X509_2, "Retired X.509 Certificate for Key Management 2",
-   "2.16.840.1.101.3.7.2.16.2", 3, "\x5F\xC1\x0E", "\x10\x02",
-   PIV_OBJECT_NOT_PRESENT|PIV_OBJECT_TYPE_CERT},
-  {PIV_OBJ_RETIRED_X509_3, "Retired X.509 Certificate for Key Management 3",
-   "2.16.840.1.101.3.7.2.16.3", 3, "\x5F\xC1\x0F", "\x10\x03",
-   PIV_OBJECT_NOT_PRESENT|PIV_OBJECT_TYPE_CERT},
-  {PIV_OBJ_RETIRED_X509_4, "Retired X.509 Certificate for Key Management 4",
-   "2.16.840.1.101.3.7.2.16.4", 3, "\x5F\xC1\x10", "\x10\x04",
-   PIV_OBJECT_NOT_PRESENT|PIV_OBJECT_TYPE_CERT},
-  {PIV_OBJ_RETIRED_X509_5, "Retired X.509 Certificate for Key Management 5",
-   "2.16.840.1.101.3.7.2.16.5", 3, "\x5F\xC1\x11", "\x10\x05",
-   PIV_OBJECT_NOT_PRESENT|PIV_OBJECT_TYPE_CERT},
-  {PIV_OBJ_RETIRED_X509_6, "Retired X.509 Certificate for Key Management 6",
-   "2.16.840.1.101.3.7.2.16.6", 3, "\x5F\xC1\x12", "\x10\x06",
-   PIV_OBJECT_NOT_PRESENT|PIV_OBJECT_TYPE_CERT},
-  {PIV_OBJ_RETIRED_X509_7, "Retired X.509 Certificate for Key Management 7",
-   "2.16.840.1.101.3.7.2.16.7", 3, "\x5F\xC1\x13", "\x10\x07",
-   PIV_OBJECT_NOT_PRESENT|PIV_OBJECT_TYPE_CERT},
-  {PIV_OBJ_RETIRED_X509_8, "Retired X.509 Certificate for Key Management 8",
-   "2.16.840.1.101.3.7.2.16.8", 3, "\x5F\xC1\x14", "\x10\x08",
-   PIV_OBJECT_NOT_PRESENT|PIV_OBJECT_TYPE_CERT},
-  {PIV_OBJ_RETIRED_X509_9, "Retired X.509 Certificate for Key Management 9",
-   "2.16.840.1.101.3.7.2.16.9", 3, "\x5F\xC1\x15", "\x10\x09",
-   PIV_OBJECT_NOT_PRESENT|PIV_OBJECT_TYPE_CERT},
-  {PIV_OBJ_RETIRED_X509_10, "Retired X.509 Certificate for Key Management 10",
-   "2.16.840.1.101.3.7.2.16.10", 3, "\x5F\xC1\x16", "\x10\x0A",
-   PIV_OBJECT_NOT_PRESENT|PIV_OBJECT_TYPE_CERT},
-  {PIV_OBJ_RETIRED_X509_11, "Retired X.509 Certificate for Key Management 11",
-   "2.16.840.1.101.3.7.2.16.11", 3, "\x5F\xC1\x17", "\x10\x0B",
-   PIV_OBJECT_NOT_PRESENT|PIV_OBJECT_TYPE_CERT},
-  {PIV_OBJ_RETIRED_X509_12, "Retired X.509 Certificate for Key Management 12",
-   "2.16.840.1.101.3.7.2.16.12", 3, "\x5F\xC1\x18", "\x10\x0C",
-   PIV_OBJECT_NOT_PRESENT|PIV_OBJECT_TYPE_CERT},
-  {PIV_OBJ_RETIRED_X509_13, "Retired X.509 Certificate for Key Management 13",
-   "2.16.840.1.101.3.7.2.16.13", 3, "\x5F\xC1\x19", "\x10\x0D",
-   PIV_OBJECT_NOT_PRESENT|PIV_OBJECT_TYPE_CERT},
-  {PIV_OBJ_RETIRED_X509_14, "Retired X.509 Certificate for Key Management 14",
-   "2.16.840.1.101.3.7.2.16.14", 3, "\x5F\xC1\x1A", "\x10\x0E",
-   PIV_OBJECT_NOT_PRESENT|PIV_OBJECT_TYPE_CERT},
-  {PIV_OBJ_RETIRED_X509_15, "Retired X.509 Certificate for Key Management 15",
-   "2.16.840.1.101.3.7.2.16.15", 3, "\x5F\xC1\x1B", "\x10\x0F",
-   PIV_OBJECT_NOT_PRESENT|PIV_OBJECT_TYPE_CERT},
-  {PIV_OBJ_RETIRED_X509_16, "Retired X.509 Certificate for Key Management 16",
-   "2.16.840.1.101.3.7.2.16.16", 3, "\x5F\xC1\x1C", "\x10\x10",
-   PIV_OBJECT_NOT_PRESENT|PIV_OBJECT_TYPE_CERT},
-  {PIV_OBJ_RETIRED_X509_17, "Retired X.509 Certificate for Key Management 17",
-   "2.16.840.1.101.3.7.2.16.17", 3, "\x5F\xC1\x1D", "\x10\x11",
-   PIV_OBJECT_NOT_PRESENT|PIV_OBJECT_TYPE_CERT},
-  {PIV_OBJ_RETIRED_X509_18, "Retired X.509 Certificate for Key Management 18",
-   "2.16.840.1.101.3.7.2.16.18", 3, "\x5F\xC1\x1E", "\x10\x12",
-   PIV_OBJECT_NOT_PRESENT|PIV_OBJECT_TYPE_CERT},
-  {PIV_OBJ_RETIRED_X509_19, "Retired X.509 Certificate for Key Management 19",
-   "2.16.840.1.101.3.7.2.16.19", 3, "\x5F\xC1\x1F", "\x10\x13",
-   PIV_OBJECT_NOT_PRESENT|PIV_OBJECT_TYPE_CERT},
-  {PIV_OBJ_RETIRED_X509_20, "Retired X.509 Certificate for Key Management 20",
-   "2.16.840.1.101.3.7.2.16.20", 3, "\x5F\xC1\x20", "\x10\x14",
-   PIV_OBJECT_NOT_PRESENT|PIV_OBJECT_TYPE_CERT},
-
-  {PIV_OBJ_IRIS_IMAGE, "Cardholder Iris Images",
-   "2.16.840.1.101.3.7.2.16.21", 3, "\x5F\xC1\x21", "\x10\x15", 0},
-  {PIV_OBJ_BITGT, "Biometric Information Templates Group Template",
-   "2.16.840.1.101.3.7.2.16.22", 2, "\x7F\x61", "\x10\x16", 0},
-  {PIV_OBJ_SM_SIGNER, "Secure Messaging Certificate Signer",
-   "2.16.840.1.101.3.7.2.16.23", 3, "\x5F\xC1\x22", "\x10\x17", 0},
-  {PIV_OBJ_PC_REF_DATA, "Pairing Code Reference Data Container",
-   "2.16.840.1.101.3.7.2.16.24", 3, "\x5F\xC1\x23", "\x10\x18", 0},
+  {"2.16.840.1.101.3.7.2.16.1",  3, "\x5F\xC1\x0D", "\x10\x01"},
+  {"2.16.840.1.101.3.7.2.16.2",  3, "\x5F\xC1\x0E", "\x10\x02"},
+  {"2.16.840.1.101.3.7.2.16.3",  3, "\x5F\xC1\x0F", "\x10\x03"},
+  {"2.16.840.1.101.3.7.2.16.4",  3, "\x5F\xC1\x10", "\x10\x04"},
+  {"2.16.840.1.101.3.7.2.16.5",  3, "\x5F\xC1\x11", "\x10\x05"},
+  {"2.16.840.1.101.3.7.2.16.7",  3, "\x5F\xC1\x13", "\x10\x07"},
+  {"2.16.840.1.101.3.7.2.16.8",  3, "\x5F\xC1\x14", "\x10\x08"},
+  {"2.16.840.1.101.3.7.2.16.9",  3, "\x5F\xC1\x15", "\x10\x09"},
+  {"2.16.840.1.101.3.7.2.16.10", 3, "\x5F\xC1\x16", "\x10\x0A"},
+  {"2.16.840.1.101.3.7.2.16.11", 3, "\x5F\xC1\x17", "\x10\x0B"},
+  {"2.16.840.1.101.3.7.2.16.12", 3, "\x5F\xC1\x18", "\x10\x0C"},
+  {"2.16.840.1.101.3.7.2.16.13", 3, "\x5F\xC1\x19", "\x10\x0D"},
+  {"2.16.840.1.101.3.7.2.16.14", 3, "\x5F\xC1\x1A", "\x10\x0E"},
+  {"2.16.840.1.101.3.7.2.16.15", 3, "\x5F\xC1\x1B", "\x10\x0F"},
+  {"2.16.840.1.101.3.7.2.16.16", 3, "\x5F\xC1\x1C", "\x10\x10"},
+  {"2.16.840.1.101.3.7.2.16.17", 3, "\x5F\xC1\x1D", "\x10\x11"},
+  {"2.16.840.1.101.3.7.2.16.18", 3, "\x5F\xC1\x1E", "\x10\x12"},
+  {"2.16.840.1.101.3.7.2.16.19", 3, "\x5F\xC1\x1F", "\x10\x13"},
+  {"2.16.840.1.101.3.7.2.16.20", 3, "\x5F\xC1\x20", "\x10\x14"},
+  {"2.16.840.1.101.3.7.2.16.21", 3, "\x5F\xC1\x21", "\x10\x15"},
+  {"2.16.840.1.101.3.7.2.16.22", 2, "\x7F\x61",     "\x10\x16"},
+  {"2.16.840.1.101.3.7.2.16.23", 3, "\x5F\xC1\x22", "\x10\x17"},
+  {"2.16.840.1.101.3.7.2.16.24", 3, "\x5F\xC1\x23", "\x10\x18"},
 
 /* following not standard , to be used by piv-tool only for testing */
-  {PIV_OBJ_9B03, "3DES-ECB ADM",
-   "2.16.840.1.101.3.7.2.9999.3", 2, "\x9B\x03", "\x9B\x03", 0},
+/*  {PIV_DATA_OBJ_9B03, "3DES-ECB ADM",
+    "2.16.840.1.101.3.7.2.9999.3", 2, "\x9B\x03", "\x9B\x03", 0},*/
   /* Only used when signing a cert req, usually from engine
    * after piv-tool generated the key and saved the pub key
    * to a file. Note RSA key can be 1024, 2048 or 3072
    * but still use the "9x06" name.
    */
-  {PIV_OBJ_9A06, "RSA 9A Pub key from last genkey",
+/*  {PIV_DATA_OBJ_9A06, "RSA 9A Pub key from last genkey",
    "2.16.840.1.101.3.7.2.9999.20", 2, "\x9A\x06", "\x9A\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_OBJ_9C06, "Pub 9C key from last genkey",
+  {PIV_DATA_OBJ_9C06, "Pub 9C key from last genkey",
    "2.16.840.1.101.3.7.2.9999.21", 2, "\x9C\x06", "\x9C\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_OBJ_9D06, "Pub 9D key from last genkey",
+  {PIV_DATA_OBJ_9D06, "Pub 9D key from last genkey",
    "2.16.840.1.101.3.7.2.9999.22", 2, "\x9D\x06", "\x9D\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_OBJ_9E06, "Pub 9E key from last genkey",
+  {PIV_DATA_OBJ_9E06, "Pub 9E key from last genkey",
    "2.16.840.1.101.3.7.2.9999.23", 2, "\x9E\x06", "\x9E\x06", PIV_OBJECT_TYPE_PUBKEY},
 
-  {PIV_OBJ_8206, "Pub 82 key ",
+  {PIV_DATA_OBJ_8206, "Pub 82 key ",
    "2.16.840.1.101.3.7.2.9999.101", 2, "\x82\x06", "\x82\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_OBJ_8306, "Pub 83 key ",
+  {PIV_DATA_OBJ_8306, "Pub 83 key ",
    "2.16.840.1.101.3.7.2.9999.102", 2, "\x83\x06", "\x83\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_OBJ_8406, "Pub 84 key ",
+  {PIV_DATA_OBJ_8406, "Pub 84 key ",
    "2.16.840.1.101.3.7.2.9999.103", 2, "\x84\x06", "\x84\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_OBJ_8506, "Pub 85 key ",
+  {PIV_DATA_OBJ_8506, "Pub 85 key ",
    "2.16.840.1.101.3.7.2.9999.104", 2, "\x85\x06", "\x85\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_OBJ_8606, "Pub 86 key ",
+  {PIV_DATA_OBJ_8606, "Pub 86 key ",
    "2.16.840.1.101.3.7.2.9999.105", 2, "\x86\x06", "\x86\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_OBJ_8706, "Pub 87 key ",
+  {PIV_DATA_OBJ_8706, "Pub 87 key ",
    "2.16.840.1.101.3.7.2.9999.106", 2, "\x87\x06", "\x87\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_OBJ_8806, "Pub 88 key ",
+  {PIV_DATA_OBJ_8806, "Pub 88 key ",
    "2.16.840.1.101.3.7.2.9999.107", 2, "\x88\x06", "\x88\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_OBJ_8906, "Pub 89 key ",
+  {PIV_DATA_OBJ_8906, "Pub 89 key ",
    "2.16.840.1.101.3.7.2.9999.108", 2, "\x89\x06", "\x89\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_OBJ_8A06, "Pub 8A key ",
+  {PIV_DATA_OBJ_8A06, "Pub 8A key ",
    "2.16.840.1.101.3.7.2.9999.109", 2, "\x8A\x06", "\x8A\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_OBJ_8B06, "Pub 8B key ",
+  {PIV_DATA_OBJ_8B06, "Pub 8B key ",
    "2.16.840.1.101.3.7.2.9999.110", 2, "\x8B\x06", "\x8B\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_OBJ_8C06, "Pub 8C key ",
+  {PIV_DATA_OBJ_8C06, "Pub 8C key ",
    "2.16.840.1.101.3.7.2.9999.111", 2, "\x8C\x06", "\x8C\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_OBJ_8D06, "Pub 8D key ",
+  {PIV_DATA_OBJ_8D06, "Pub 8D key ",
    "2.16.840.1.101.3.7.2.9999.112", 2, "\x8D\x06", "\x8D\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_OBJ_8E06, "Pub 8E key ",
+  {PIV_DATA_OBJ_8E06, "Pub 8E key ",
    "2.16.840.1.101.3.7.2.9999.113", 2, "\x8E\x06", "\x8E\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_OBJ_8F06, "Pub 8F key ",
+  {PIV_DATA_OBJ_8F06, "Pub 8F key ",
    "2.16.840.1.101.3.7.2.9999.114", 2, "\x8F\x06", "\x8F\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_OBJ_9006, "Pub 90 key ",
+  {PIV_DATA_OBJ_9006, "Pub 90 key ",
    "2.16.840.1.101.3.7.2.9999.115", 2, "\x90\x06", "\x90\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_OBJ_9106, "Pub 91 key ",
+  {PIV_DATA_OBJ_9106, "Pub 91 key ",
    "2.16.840.1.101.3.7.2.9999.116", 2, "\x91\x06", "\x91\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_OBJ_9206, "Pub 92 key ",
+  {PIV_DATA_OBJ_9206, "Pub 92 key ",
    "2.16.840.1.101.3.7.2.9999.117", 2, "\x92\x06", "\x92\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_OBJ_9306, "Pub 93 key ",
+  {PIV_DATA_OBJ_9306, "Pub 93 key ",
    "2.16.840.1.101.3.7.2.9999.118", 2, "\x93\x06", "\x93\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_OBJ_9406, "Pub 94 key ",
+  {PIV_DATA_OBJ_9406, "Pub 94 key ",
    "2.16.840.1.101.3.7.2.9999.119", 2, "\x94\x06", "\x94\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_OBJ_9506, "Pub 95 key ",
-   "2.16.840.1.101.3.7.2.9999.120", 2, "\x95\x06", "\x95\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_OBJ_LAST_ENUM, "", "", 0, "", "", 0}
+  {PIV_DATA_OBJ_9506, "Pub 95 key ",
+   "2.16.840.1.101.3.7.2.9999.120", 2, "\x95\x06", "\x95\x06", PIV_OBJECT_TYPE_PUBKEY},*/
+  {"", 0, "", ""}
 };
 
-static const CK_ULONG n_objects = sizeof(objects) / sizeof(piv_obj_t);
+static piv_cert_obj_t cert_objects[] = {
+  {0},
+  {0},
+  {0},
+  {0},
+  {0}
+};
+
+
+//static const CK_ULONG n_objects = sizeof(objects) / sizeof(piv_obj_t);
 
 static void get_object_class(CK_OBJECT_HANDLE obj, CK_OBJECT_CLASS_PTR class) {
-  if ((objects[obj].flags & PIV_OBJECT_TYPE_PUBKEY))
-    *class = CKO_PUBLIC_KEY;
-  else if ((objects[obj].flags & PIV_OBJECT_TYPE_CERT))
+  if (obj >= 0 && obj < PIV_DATA_OBJ_LAST)
+    *class = CKO_DATA;
+  else if (obj > PIV_DATA_OBJ_LAST && obj < PIV_CERT_OBJ_LAST)
     *class = CKO_CERTIFICATE;
   else
-    *class = CKO_DATA; // TODO: other possibilities?
+    *class = CKO_VENDOR_DEFINED | CKO_DATA; // Invalid value
 }
 
 /*static void get_object_label(CK_OBJECT_HANDLE obj, CK_UTF8CHAR_PTR label) {
@@ -180,7 +202,7 @@ static void get_object_class(CK_OBJECT_HANDLE obj, CK_OBJECT_CLASS_PTR class) {
 
 // Next two functions based off the code at
 // https://github.com/m9aertner/oidConverter/blob/master/oid.c
-// TODO: how to give credit?
+// TODO: how to give credit? OR JUST STORE THE OID ALREADY ENCODED?
 static void make_base128(unsigned long l, int first, CK_BYTE_PTR buf, CK_ULONG_PTR n) {
   if (l > 127)
     make_base128(l / 128, 0, buf, n);
@@ -286,20 +308,21 @@ CK_RV get_attribute(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
   case CKA_LABEL:
     fprintf(stderr, "LABEL\n");
-    len = strlen(objects[obj].name) + 1;
-    data = objects[obj].name;
+    len = strlen(objects[obj].label) + 1;
+    data = objects[obj].label;
     break;
 
   case CKA_APPLICATION:
     fprintf(stderr, "APPLICATION\n");
-    len = strlen(objects[obj].name) + 1;
-    data = objects[obj].name;
+    len = strlen(objects[obj].label) + 1;
+    data = objects[obj].label;
     break;
 
-//  case CKA_VALUE:
+//  case CKA_VALUE: // TODO: this can be done with -r and -d|-a
   case CKA_OBJECT_ID: // TODO: how about just storing the OID in DER ?
+    // This only makes sense for data objects
     fprintf(stderr, "OID\n");
-    strcpy((char *)tmp, objects[obj].oid);
+    strcpy((char *)tmp, data_objects[objects[obj].sub_id].oid);
     asn1_encode_oid(tmp, tmp, &len);
     data = tmp;
     break;
@@ -319,9 +342,10 @@ CK_RV get_attribute(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
   /* case CKA_SUBJECT: */
   case CKA_ID:
-    fprintf(stderr, "KEY ID\n");
-    len = 2;
-    data = objects[obj].containerid;
+    // This only makes sense for data objects
+    fprintf(stderr, "ID\n");
+    len = data_objects[objects[obj].sub_id].tag_len;
+    data = data_objects[objects[obj].sub_id].tag_value;
     break;
 
   /* case CKA_SENSITIVE: */
@@ -372,7 +396,7 @@ CK_RV get_attribute(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
       template->ulValueLen = len; // TODO: define?
       return CKR_OK;
     }
-    
+
     if (template->ulValueLen < len)
       return CKR_BUFFER_TOO_SMALL;
 
