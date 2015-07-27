@@ -132,7 +132,6 @@ CK_RV YUBICO_get_slot_flags(CK_FLAGS_PTR flags) {
   *flags = slot_flags;
   return CKR_OK;
 
-
 }
 
 CK_RV YUBICO_get_slot_version(CK_VERSION_PTR version) {
@@ -251,23 +250,20 @@ CK_RV YUBICO_get_token_mechanism_info(CK_MECHANISM_TYPE mec, CK_MECHANISM_INFO_P
   return CKR_MECHANISM_INVALID;
   
 }
-
-/*CK_RV YUBICO_get_token_objects_num(CK_ULONG_PTR num) {
-
-  *num = token_objects_num;
-  return CKR_OK;
-  }*/
-#include <stdio.h>
-CK_RV YUBICO_get_token_object_list(ykpiv_state *state, piv_obj_id_t *obj, CK_ULONG_PTR len) {
+#include <stdio.h> // TODO: delete
+static CK_RV get_objects(ykpiv_state *state, CK_BBOOL num_only, piv_obj_id_t *obj, CK_ULONG_PTR len) {
   CK_BYTE buf[2048];
   CK_ULONG buf_len;
 
   piv_obj_id_t certs[4];
   CK_ULONG n_cert = 0;
 
-  if (state == NULL || obj == NULL || len == NULL_PTR)
+  if (state == NULL || len == NULL_PTR)
     return CKR_ARGUMENTS_BAD;
 
+  if (num_only == CK_FALSE && obj == NULL)
+    return CKR_ARGUMENTS_BAD;
+  
   buf_len = sizeof(buf);
   if (ykpiv_fetch_object(state, YKPIV_OBJ_AUTHENTICATION, buf, &buf_len) == YKPIV_OK) {
     n_cert++;
@@ -293,10 +289,18 @@ CK_RV YUBICO_get_token_object_list(ykpiv_state *state, piv_obj_id_t *obj, CK_ULO
   if (ykpiv_fetch_object(state, YKPIV_OBJ_CARD_AUTH, buf, &buf_len) == YKPIV_OK) {
     n_cert++;
     certs[3] = PIV_CERT_OBJ_X509_CARD_AUTH;
-    fprintf(stderr, "Found CARD AUTH cert\n");
+    fprintf(stderr, "Found CARD AUTH cert (9e)\n");
   }
 
-  if (n_cert + token_objects_num > *len)
+  fprintf(stderr, "The total number of objects for this token is %lu\n", n_cert + token_objects_num);
+  
+  if (num_only == CK_TRUE) {
+    // We just want the number of objects
+    *len = n_cert + token_objects_num;
+    return CKR_OK;
+  }
+
+  if (*len < n_cert + token_objects_num)
     return CKR_BUFFER_TOO_SMALL;
 
   // Copy mandatory data objects
@@ -305,8 +309,13 @@ CK_RV YUBICO_get_token_object_list(ykpiv_state *state, piv_obj_id_t *obj, CK_ULO
   // Copy certificates
   memcpy(obj + token_objects_num, certs, n_cert * sizeof(piv_obj_id_t));
 
-  *len = token_objects_num + n_cert;
-  fprintf(stderr, "The total number of objects for this token is %lu\n", *len);
-
   return CKR_OK;
+}
+
+CK_RV YUBICO_get_token_objects_num(ykpiv_state *state, CK_ULONG_PTR num) {
+  return get_objects(state, CK_TRUE, NULL, num);
+}
+
+CK_RV YUBICO_get_token_object_list(ykpiv_state *state, piv_obj_id_t *obj, CK_ULONG num) {
+  return get_objects(state, CK_FALSE, obj, &num);
 }

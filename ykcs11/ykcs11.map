@@ -29,6 +29,7 @@ YKCS11_0.1.0
 global:
   C_Initialize;
   C_GetFunctionList;
+#  TODO: add more here
 local:
 	*;
 };

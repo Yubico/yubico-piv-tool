@@ -1,8 +1,10 @@
+#include "ykcs11.h"
 #include "pkcs11.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <ykpiv.h>
 #include <string.h>
-#include "vendors.h"
+//#include "vendors.h"
 #include "utils.h"
 
 #define D(x) do {                                                     \
@@ -44,8 +46,7 @@ static ykcs11_slot_t slots[YKCS11_MAX_SLOTS]; // TODO: build at runtime?
 static CK_ULONG      n_slots = 0;
 static CK_ULONG      n_slots_with_token = 0;
 
-static CK_SESSION_HANDLE session = CK_INVALID_HANDLE; // TODO: support multiple sessions?
-static CK_SESSION_INFO   session_info;
+static ykcs11_session_t session; // TODO: support multiple sessions?
 
 static struct {
   CK_BBOOL        active;
@@ -54,8 +55,8 @@ static struct {
   piv_obj_id_t    *objects;
 } find_obj;
 
-static piv_obj_id_t token_objects[PIV_CERT_OBJ_LAST]; // TODO: tide this up, also build at runtime (during open session)?
-static CK_ULONG n_token_objects = 0;
+/*static piv_obj_id_t token_objects[PIV_CERT_OBJ_LAST]; // TODO: tide this up, also build at runtime (during open session)? And include inside a session struct?
+  static CK_ULONG n_token_objects = 0;*/
 
 static struct {
   CK_BBOOL         active;
@@ -236,8 +237,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
 {
   DIN;
   CK_VERSION      ver = {0, 0};
-  vendor_id_t     vid;
-  vendor_t        vendor;
+  vendor_t        token_vendor;
   CK_BYTE         buf[64];
 
   if (piv_state == NULL)
@@ -246,10 +246,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
   if (slotID >= n_slots)
     return CKR_ARGUMENTS_BAD;
 
-  vid = slots[slotID].vid;
-
-  if (vid == UNKNOWN) {
-    DBG(("No support for token in slot %lu", slotID));
+  if (slots[slotID].vid == UNKNOWN) {
+    DBG(("No support for slot %lu", slotID));
     return CKR_TOKEN_NOT_RECOGNIZED;
   }
 
@@ -258,58 +256,30 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
     return CKR_TOKEN_NOT_PRESENT;
   }
 
-  vendor = get_vendor(vid); // TODO: make a token field in slot_t ?
+  if (slots[slotID].token->vid == UNKNOWN) {
+    DBG(("No support for token in slot %lu", slotID));
+    return CKR_TOKEN_NOT_RECOGNIZED;
+  }
 
-  memset(pInfo->label, ' ', sizeof(pInfo->label));
-  if (vendor.get_token_label(pInfo->label, sizeof(pInfo->label)) != CKR_OK)
-    return CKR_FUNCTION_FAILED;
+  token_vendor = get_vendor(slots[slotID].token->vid);
 
-  memset(pInfo->manufacturerID, ' ', sizeof(pInfo->manufacturerID));
-  if(vendor.get_token_manufacturer(pInfo->manufacturerID, sizeof(pInfo->manufacturerID)) != CKR_OK)
-    return CKR_FUNCTION_FAILED;
-
-  memset(pInfo->model, ' ', sizeof(pInfo->model));
-  if(vendor.get_token_model(pInfo->model, sizeof(pInfo->model)) != CKR_OK)
-    return CKR_FUNCTION_FAILED;
-
-  memset(pInfo->serialNumber, ' ', sizeof(pInfo->serialNumber));
-  if(vendor.get_token_serial(pInfo->serialNumber, sizeof(pInfo->serialNumber)) != CKR_OK)
-    return CKR_FUNCTION_FAILED;
-
-  // bit flags indicating capabilities and status of the device as defined below // TODO: what about other flags? Like last attempt
-  if (vendor.get_token_flags(&pInfo->flags) != CKR_OK)
-    return CKR_FUNCTION_FAILED;
-
+  memcpy(pInfo, &slots[slotID].token->info, sizeof(CK_TOKEN_INFO));
+  
+  // Overwrite value that are application specific
   pInfo->ulMaxSessionCount = CK_UNAVAILABLE_INFORMATION; // TODO: should this be 1?
-
   pInfo->ulSessionCount = CK_UNAVAILABLE_INFORMATION; // number of sessions that this application currently has open with the token
 
   pInfo->ulMaxRwSessionCount = CK_UNAVAILABLE_INFORMATION; // maximum number of read/write sessions that can be opened with the token at one time by a single TODO: should this be 1?
 
   pInfo->ulRwSessionCount =  CK_UNAVAILABLE_INFORMATION; // number of read/write sessions that this application currently has open with the token
-
   pInfo->ulMaxPinLen = PIV_MAX_PIN_LEN; // maximum length in bytes of the PIN
-
   pInfo->ulMinPinLen = PIV_MIN_PIN_LEN; // minimum length in bytes of the PIN
-
   pInfo->ulTotalPublicMemory = CK_UNAVAILABLE_INFORMATION;
-
   pInfo->ulFreePublicMemory = CK_UNAVAILABLE_INFORMATION;
-
   pInfo->ulTotalPrivateMemory = CK_UNAVAILABLE_INFORMATION;
-
   pInfo->ulFreePrivateMemory = CK_UNAVAILABLE_INFORMATION;
 
-  ykpiv_get_version(piv_state, buf, sizeof(buf));
-  if (vendor.get_token_version(buf, strlen(buf), &ver) != CKR_OK)
-    return CKR_FUNCTION_FAILED;
-
-  pInfo->hardwareVersion = ver; // version number of hardware
-
-  pInfo->firmwareVersion = ver; // version number of firmware
-
-  memset(pInfo->utcTime, ' ', sizeof(pInfo->utcTime)); // No clock present, clear
-
+  
   DOUT;
   return CKR_OK;
 }
@@ -406,7 +376,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismInfo)(
   if (vendor.get_token_mechanism_info(type, pInfo) != CKR_OK)
     return CKR_MECHANISM_INVALID;
 
-
   DOUT;
   return CKR_OK;
 }
@@ -459,7 +428,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
 {
   DIN;
 
-  vendor_t vendor;
+  vendor_t token_vendor;
 
   if (piv_state == NULL)
     return CKR_CRYPTOKI_NOT_INITIALIZED;
@@ -468,6 +437,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     return CKR_ARGUMENTS_BAD;
 
   if (slots[slotID].vid == UNKNOWN) {
+    DBG(("No support for slot %lu", slotID));
+    return CKR_TOKEN_NOT_RECOGNIZED;
+  }
+
+  if (slots[slotID].token->vid == UNKNOWN) {
     DBG(("No support for token in slot %lu", slotID));
     return CKR_TOKEN_NOT_RECOGNIZED;
   }
@@ -477,44 +451,59 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     return CKR_TOKEN_NOT_PRESENT;
   }
 
-  vendor = get_vendor(slots[slotID].vid); // TODO: make a token field in slot_t ?
-  
-  // Store all the objects available in the token
-  n_token_objects = sizeof(token_objects) / sizeof(piv_obj_id_t);
-  if (vendor.get_token_object_list(piv_state, token_objects, &n_token_objects) != CKR_OK) {
-    DBG(("Unable to retrieve token objects"));
-    return CKR_FUNCTION_FAILED;
-  }
-
-  if ((flags & CKF_SERIAL_SESSION) == 0) { // TODO: check more error conditions
-    DBG(("Open session called without CKF_SERIAL_SESSION set"));
-    return CKR_SESSION_PARALLEL_NOT_SUPPORTED;
-  }
-
-  if (session != CK_INVALID_HANDLE) {
+  if (session.handle != CK_INVALID_HANDLE) {
     DBG(("A session with this or another token already exists"));
     return CKR_SESSION_COUNT;
   }
 
-  // TODO: make sue we don't open a session with an UNKNOWN slot/token
+  if ((flags & CKF_SERIAL_SESSION) == 0) { // TODO: check more error conditions
+    DBG(("Open session called without CKF_SERIAL_SESSION set")); // Reuired by specs
+    return CKR_SESSION_PARALLEL_NOT_SUPPORTED;
+  }
 
-  session = YKCS11_SESSION_ID;
-  session_info.slotID = slotID;
-  // TODO: KEEP TRACK OF THE APPLICATION
+  token_vendor = get_vendor(slots[slotID].token->vid);
+
+  // Store the slot
+  session.slot = slots + slotID;
+  //session.slot->info.slotID = slotID; // Redundant but required in CK_SESSION_INFO
+
+  // Get the number of token objects
+  if (token_vendor.get_token_objects_num(piv_state, &session.slot->token->n_objects) != CKR_OK) {
+    DBG(("Unable to retrieve number of token objects"));
+    return CKR_FUNCTION_FAILED;
+  }
+
+  // Get memory for the objects
+  session.slot->token->objects = malloc(sizeof(piv_obj_id_t) * session.slot->token->n_objects);
+  if (session.slot->token->objects == NULL) {
+    DBG(("Unable to allocate memory for token objects"));
+    return CKR_HOST_MEMORY;
+  }
+
+  // Store all the objects available in the token
+  if (token_vendor.get_token_object_list(piv_state,
+                                         session.slot->token->objects,
+                                         session.slot->token->n_objects) != CKR_OK) {
+    DBG(("Unable to retrieve token objects"));
+    return CKR_FUNCTION_FAILED;
+  }
 
   if ((flags & CKF_RW_SESSION)) {
     // R/W Session
-    session_info.state = CKS_RW_PUBLIC_SESSION; // Nobody has logged in, default session
+    session.info.state = CKS_RW_PUBLIC_SESSION; // Nobody has logged in, default session
   }
   else {
     // R/O Session
-    session_info.state = CKS_RO_PUBLIC_SESSION; // Nobody has logged in, default session
+    session.info.state = CKS_RO_PUBLIC_SESSION; // Nobody has logged in, default session
   }
 
-  session_info.flags = flags;
-  session_info.ulDeviceError = 0;
+  session.info.flags = flags;
+  session.info.ulDeviceError = 0;
 
-  *phSession = session;
+  session.handle = YKCS11_SESSION_ID;
+  // TODO: KEEP TRACK OF THE APPLICATION
+
+  *phSession = session.handle;
 
   DOUT;
   return CKR_OK;
@@ -529,16 +518,21 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
   if (piv_state == NULL)
     return CKR_CRYPTOKI_NOT_INITIALIZED;
 
-  if (session == CK_INVALID_HANDLE) {
+  if (session.handle == CK_INVALID_HANDLE) {
     DBG(("There is no existing session"));
     return CKR_SESSION_CLOSED;
   }
 
-  if (hSession != YKCS11_SESSION_ID)
+  if (hSession != YKCS11_SESSION_ID) {
+    DBG(("Unknown session %lu", hSession));
     return CKR_SESSION_HANDLE_INVALID;
+  }
 
-  session = CK_INVALID_HANDLE;
-  memset(&session_info, 0, sizeof(CK_SESSION_INFO));
+  free(session.slot->token->objects); // TODO: make objects survive a session so there is no need to get them again?
+  session.slot->token->objects = NULL;
+
+  memset(&session, 0, sizeof(ykcs11_session_t));
+  session.handle = CK_INVALID_HANDLE;
 
   DOUT;
   return CKR_OK;
@@ -549,18 +543,18 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
 )
 {
   DIN;
+  CK_RV rv;
 
   if (piv_state == NULL)
     return CKR_CRYPTOKI_NOT_INITIALIZED;
 
-  if (session_info.slotID != slotID)
+  if (session.slot != slots + slotID)
     return CKR_SLOT_ID_INVALID;
 
-  session = CK_INVALID_HANDLE;
-  memset(&session_info, 0, sizeof(CK_SESSION_INFO)); // TODO: Better to call close session?
+  rv = C_CloseSession(session.handle);
 
   DOUT;
-  return CKR_OK;
+  return rv;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_GetSessionInfo)(
@@ -576,10 +570,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSessionInfo)(
   if (pInfo == NULL)
     return CKR_ARGUMENTS_BAD;
 
-  if (hSession != session)
+  if (hSession != session.handle)
     return CKR_SESSION_HANDLE_INVALID;
 
-  memcpy(pInfo, &session_info, sizeof(CK_SESSION_INFO));
+  memcpy(pInfo, &session.info, sizeof(CK_SESSION_INFO));
 
   DOUT;
   return CKR_OK;
@@ -635,25 +629,25 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
 
   DBG(("user %lu, pin %s, pinlen %lu", userType, pPin, ulPinLen));
 
-  if (session == CK_INVALID_HANDLE)
+  if (session.handle == CK_INVALID_HANDLE)
     return CKR_SESSION_CLOSED;
 
-  if (hSession != session)
+  if (hSession != session.handle)
     return CKR_SESSION_HANDLE_INVALID;
 
-  if (userType != CKU_SO &&
+  if (userType != CKU_SO && // TODO: what can SO do?
       userType != CKU_USER &&
       userType != CKU_CONTEXT_SPECIFIC)
     return CKR_USER_TYPE_INVALID;
 
-  if ((session_info.flags & CKF_RW_SESSION) == 0) { // TODO: make macros for these?
+  if ((session.info.flags & CKF_RW_SESSION) == 0) { // TODO: make macros for these?
     DBG(("Tried to log-in to a read-only session"));
     return CKR_SESSION_READ_ONLY_EXISTS;
   }
 
   switch (userType) {
   case CKU_USER:
-    if (session_info.state == CKS_RW_USER_FUNCTIONS)
+    if (session.info.state == CKS_RW_USER_FUNCTIONS)
       return CKR_USER_ALREADY_LOGGED_IN;
 
     tries = 0;
@@ -747,10 +741,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
   if (piv_state == NULL)
     return CKR_CRYPTOKI_NOT_INITIALIZED;
 
-  if (session != YKCS11_SESSION_ID)
+  if (session.handle != YKCS11_SESSION_ID)
     return CKR_SESSION_CLOSED;
 
-  if (hSession != session)
+  if (hSession != session.handle)
     return CKR_SESSION_HANDLE_INVALID;
 
   if (pTemplate == NULL_PTR || ulCount == 0)
@@ -800,25 +794,28 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
   if (piv_state == NULL)
     return CKR_CRYPTOKI_NOT_INITIALIZED;
 
-  if (session != YKCS11_SESSION_ID)
+  if (session.handle != YKCS11_SESSION_ID)
     return CKR_SESSION_CLOSED;
 
-  if (hSession != session)
-    return CKR_SESSION_HANDLE_INVALID; // TODO: or session closed?
+  if (hSession != session.handle)
+    return CKR_SESSION_HANDLE_INVALID;
 
   if (find_obj.active == CK_TRUE)
     return CKR_OPERATION_ACTIVE;
 
-  if (slots[session_info.slotID].vid == UNKNOWN) {
-    DBG(("Slot %lu is tokenless/unsupported", session_info.slotID));
-    return CKR_SLOT_ID_INVALID;
+  //vendor = get_vendor(slots[session_info.slotID].vid); // TODO: make a token field in slot_t ?;
+
+  find_obj.idx = 0;
+  find_obj.num = session.slot->token->n_objects;
+
+  find_obj.objects = malloc(sizeof(piv_obj_id_t) * find_obj.num);
+  if (find_obj.objects == NULL) {
+    DBG(("Unable to allocate memory for finding objects"));
+    return CKR_HOST_MEMORY;
   }
-  vendor = get_vendor(slots[session_info.slotID].vid); // TODO: make a token field in slot_t ?;
+  memcpy(find_obj.objects, session.slot->token->objects, sizeof(piv_obj_id_t) * find_obj.num); // TODO: add another 'num' field for then objects have to be excluded because of attribute matching;
 
   find_obj.active = CK_TRUE;
-  find_obj.idx = 0;
-  find_obj.num = n_token_objects; // TOTO: actually malloc here so that the array can be changed
-  find_obj.objects = token_objects;
 
   if (ulCount == 0) {
     DBG(("Find ALL the objects!"));
@@ -832,15 +829,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
     find_obj.active = CK_FALSE;
     return CKR_ARGUMENTS_BAD;
   }
-  
+
   for (i = 0; i < ulCount; i++) {
     DBG(("Parameter %lu\nType: %lu Value: %lu Len: %lu", i, pTemplate[i].type, *((CK_ULONG_PTR)pTemplate[i].pValue), pTemplate[i].ulValueLen));
     // TODO: remove objects that don't match
   }
 
-  // TOTO: do it properly here, jsut a test now
+  // TODO: do it properly here, jsut a test now
   find_obj.num = 1;
-  find_obj.objects = token_objects + 3;
+  find_obj.objects = session.slot->token->objects + 3;
 
   DOUT;
   return CKR_OK;
@@ -858,10 +855,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
   if (piv_state == NULL)
     return CKR_CRYPTOKI_NOT_INITIALIZED;
 
-  if (session != YKCS11_SESSION_ID)
+  if (session.handle != YKCS11_SESSION_ID)
     return CKR_SESSION_CLOSED;
 
-  if (hSession != session)
+  if (hSession != session.handle)
     return CKR_SESSION_HANDLE_INVALID;
 
   if (phObject == NULL_PTR ||
@@ -885,7 +882,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
   *pulObjectCount = 1;
 
   DBG(("Returning object %lu", *phObject));
-  
+
   return CKR_OK;
 }
 
@@ -898,14 +895,17 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsFinal)(
   if (piv_state == NULL)
     return CKR_CRYPTOKI_NOT_INITIALIZED;
 
-  if (session != YKCS11_SESSION_ID)
+  if (session.handle != YKCS11_SESSION_ID)
     return CKR_SESSION_CLOSED;
 
-  if (hSession != session)
+  if (hSession != session.handle)
     return CKR_SESSION_HANDLE_INVALID;
 
   if (find_obj.active != CK_TRUE)
     return CKR_OPERATION_NOT_INITIALIZED;
+
+  free(find_obj.objects);
+  find_obj.objects = NULL;
 
   find_obj.active = CK_FALSE;
 
@@ -1088,24 +1088,27 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
   if (piv_state == NULL)
     return CKR_CRYPTOKI_NOT_INITIALIZED;
 
-  if (session != YKCS11_SESSION_ID)
+  if (session.handle != YKCS11_SESSION_ID)
     return CKR_SESSION_CLOSED;
 
-  if (hSession != session)
+  if (hSession != session.handle)
     return CKR_SESSION_HANDLE_INVALID;
 
   if (pMechanism == NULL_PTR ||
       hKey == NULL_PTR)
     return CKR_ARGUMENTS_BAD;
 
-  DBG(("Trying to sign some data with mechanism %lu and key %lu", pMechanism->mechanism, hKey));
+  DBG(("Trying to sign some data with mechanism %lu and key %lu more", pMechanism->mechanism, hKey));
+
+  if (check_sign_mechanism(pMechanism, hKey) == CK_FALSE) // TODO: do we need session here?
+    return CKR_MECHANISM_INVALID;
 
   sign_info.active = CK_TRUE;
   memcpy(&sign_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
   sign_info.key = hKey;
   // TODO: also allocate some space for the signature
-  
-  
+
+
   DOUT;
   return CKR_OK;
 }
@@ -1132,27 +1135,27 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   if (sign_info.active == CK_FALSE)
     return CKR_OPERATION_NOT_INITIALIZED;
-  
+
   // TODO: check conditions
   char test_buf[] = "\x30\x31\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x01\x05\x00\x04\x20\xa7\x47\x16\x1b\x15\x5f\xd0\x05\xbc\xbe\x84\x4a\x28\xa9\x6c\x74\xfe\xf6\x6a\x42\x84\xa0\x4e\x05\x7a\x0c\x88\xe2\xc8\x83\xc0\x00";
   CK_ULONG sig_len_in = sizeof(test_buf) - 1;
   CK_ULONG sig_len_out = 1024;
   ykpiv_rc r;
   CK_CHAR key;
-  
-  DBG(("Sending %lu bytes to sign", /*ulDataLen*/sig_len_in));
-  dump_hex(test_buf, sig_len_in, stderr, CK_TRUE);
+
+  DBG(("Sending %lu bytes to sign", ulDataLen/*sig_len_in*/));
+  dump_hex(pData, ulDataLen, stderr, CK_TRUE);
 
   if (sign_info.key == PIV_DATA_OBJ_X509_PIV_AUTH) {
     key = YKPIV_KEY_AUTHENTICATION;
     DBG(("Using key 9a"));
   }
-  else {
+  else { // TODO: test what happens if there is no key on the card
     key = YKPIV_KEY_SIGNATURE;
     DBG(("Using key 9c"));
   }
 
-  // TODO: check that mechanism makes sense for the key that we have.
+  // TODO: check that mechanism makes sense for the key that we have (check in signinit).
 
   if ((r = ykpiv_sign_data(piv_state, /*pData*/test_buf, /*ulDataLen*/sig_len_in, sig_buf, &sig_len_out, YKPIV_ALGO_RSA2048, key)) != YKPIV_OK) {
       DBG(("Sign error %s", ykpiv_strerror(r)));

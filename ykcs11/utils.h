@@ -1,16 +1,11 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include "pkcs11t.h"
-#include "vendors.h"
-
-typedef struct {
-  vendor_id_t  vid;
-  CK_SLOT_INFO info;
-} ykcs11_slot_t; // TODO: move this
+#include "ykcs11.h"
 
 CK_BBOOL has_token(const ykcs11_slot_t *slot);
-CK_BBOOL parse_readers(const CK_BYTE_PTR readers, const CK_ULONG len,
+CK_RV parse_readers(const CK_BYTE_PTR readers, const CK_ULONG len,
                        ykcs11_slot_t *slots, CK_ULONG_PTR n_slots, CK_ULONG_PTR n_with_token);
-
+CK_RV create_token(CK_BYTE_PTR p, ykcs11_slot_t *slot);
+void  destroy_token(ykcs11_slot_t *slot);
 #endif
