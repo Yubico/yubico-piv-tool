@@ -11,11 +11,11 @@ CK_BBOOL has_token(const ykcs11_slot_t *slot) {
 CK_RV parse_readers(const CK_BYTE_PTR readers, const CK_ULONG len,
                        ykcs11_slot_t *slots, CK_ULONG_PTR n_slots, CK_ULONG_PTR n_with_token) {
 
-  CK_BYTE     i;
-  CK_BYTE_PTR p;
-  CK_BYTE_PTR s;
-  CK_ULONG    l;
-  vendor_t    vendor;
+  CK_BYTE        i;
+  CK_BYTE_PTR    p;
+  CK_BYTE_PTR    s;
+  CK_ULONG       l;
+  slot_vendor_t  slot;
 
   *n_slots = 0;
   *n_with_token = 0;
@@ -42,30 +42,30 @@ CK_RV parse_readers(const CK_BYTE_PTR readers, const CK_ULONG len,
       }
       else {
         // Supported slot
-        vendor = get_vendor(slots[*n_slots].vid);
+        slot = get_slot_vendor(slots[*n_slots].vid);
 
         // Values must NOT be null terminated and ' ' padded
 
         memset(slots[*n_slots].info.slotDescription, ' ', sizeof(slots[*n_slots].info.slotDescription));
         s = slots[*n_slots].info.slotDescription;
         l = sizeof(slots[*n_slots].info.slotDescription);
-        if (vendor.get_slot_description(s, l) != CKR_OK)
+        if (slot.get_slot_description(s, l) != CKR_OK)
           goto failure;
 
         memset(slots[*n_slots].info.manufacturerID, ' ', sizeof(slots[*n_slots].info.manufacturerID));
         s = slots[*n_slots].info.manufacturerID;
         l = sizeof(slots[*n_slots].info.manufacturerID);
-        if(vendor.get_slot_manufacturer(s, l) != CKR_OK)
+        if(slot.get_slot_manufacturer(s, l) != CKR_OK)
           goto failure;
 
-        if (vendor.get_slot_flags(&slots[*n_slots].info.flags) != CKR_OK)
+        if (slot.get_slot_flags(&slots[*n_slots].info.flags) != CKR_OK)
           goto failure;
 
         // Treating hw and fw version the same
-        if (vendor.get_slot_version(&slots[*n_slots].info.hardwareVersion) != CKR_OK)
+        if (slot.get_slot_version(&slots[*n_slots].info.hardwareVersion) != CKR_OK)
           goto failure;
 
-        if (vendor.get_slot_version(&slots[*n_slots].info.firmwareVersion) != CKR_OK)
+        if (slot.get_slot_version(&slots[*n_slots].info.firmwareVersion) != CKR_OK)
           goto failure;
 
         if (has_token(slots + *n_slots)) {
@@ -92,7 +92,8 @@ failure:
 }
 
 CK_RV create_token(CK_BYTE_PTR p, ykcs11_slot_t *slot) {
-  vendor_t token_vendor;
+
+  token_vendor_t token;
   CK_TOKEN_INFO_PTR t_info;
   fprintf(stderr, "Now trying to get token info from %s\n", p); // TODO: is p needed?
 
@@ -101,27 +102,27 @@ CK_RV create_token(CK_BYTE_PTR p, ykcs11_slot_t *slot) {
     return CKR_HOST_MEMORY;
 
   slot->token->vid = YUBICO; // TODO: this must become "slot_vendor.get_token_vid()"
-  token_vendor = get_vendor(slot->token->vid);
+  token = get_token_vendor(slot->token->vid);
 
   t_info = &slot->token->info;
 
   memset(t_info->label, ' ', sizeof(t_info->label));
-  if (token_vendor.get_token_label(t_info->label, sizeof(t_info->label)) != CKR_OK)
+  if (token.get_token_label(t_info->label, sizeof(t_info->label)) != CKR_OK)
     return CKR_FUNCTION_FAILED;
 
   memset(t_info->manufacturerID, ' ', sizeof(t_info->manufacturerID));
-  if(token_vendor.get_token_manufacturer(t_info->manufacturerID, sizeof(t_info->manufacturerID)) != CKR_OK)
+  if(token.get_token_manufacturer(t_info->manufacturerID, sizeof(t_info->manufacturerID)) != CKR_OK)
     return CKR_FUNCTION_FAILED;
 
   memset(t_info->model, ' ', sizeof(t_info->model));
-  if(token_vendor.get_token_model(t_info->model, sizeof(t_info->model)) != CKR_OK)
+  if(token.get_token_model(t_info->model, sizeof(t_info->model)) != CKR_OK)
     return CKR_FUNCTION_FAILED;
 
   memset(t_info->serialNumber, ' ', sizeof(t_info->serialNumber));
-  if(token_vendor.get_token_serial(t_info->serialNumber, sizeof(t_info->serialNumber)) != CKR_OK)
+  if(token.get_token_serial(t_info->serialNumber, sizeof(t_info->serialNumber)) != CKR_OK)
     return CKR_FUNCTION_FAILED;
 
-  if (token_vendor.get_token_flags(&t_info->flags) != CKR_OK)
+  if (token.get_token_flags(&t_info->flags) != CKR_OK)
     return CKR_FUNCTION_FAILED;
 
   t_info->ulMaxSessionCount = CK_UNAVAILABLE_INFORMATION;

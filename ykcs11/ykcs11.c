@@ -237,7 +237,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
 {
   DIN;
   CK_VERSION      ver = {0, 0};
-  vendor_t        token_vendor;
+  token_vendor_t  token;
   CK_BYTE         buf[64];
 
   if (piv_state == NULL)
@@ -261,7 +261,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
     return CKR_TOKEN_NOT_RECOGNIZED;
   }
 
-  token_vendor = get_vendor(slots[slotID].token->vid);
+  token = get_token_vendor(slots[slotID].token->vid);
 
   memcpy(pInfo, &slots[slotID].token->info, sizeof(CK_TOKEN_INFO));
   
@@ -278,7 +278,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
   pInfo->ulFreePublicMemory = CK_UNAVAILABLE_INFORMATION;
   pInfo->ulTotalPrivateMemory = CK_UNAVAILABLE_INFORMATION;
   pInfo->ulFreePrivateMemory = CK_UNAVAILABLE_INFORMATION;
-
   
   DOUT;
   return CKR_OK;
@@ -303,7 +302,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
 )
 {
   DIN;
-  vendor_t vendor;
+  token_vendor_t token;
   CK_ULONG count;
 
   if (piv_state == NULL) {
@@ -322,9 +321,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
   // TODO: check more return values
   // TODO: user NULL_PTR more for coherence
 
-  vendor = get_vendor(slots[slotID].vid); // TODO: make a token field in slot_t ?;
+  token = get_token_vendor(slots[slotID].vid);
 
-  if (vendor.get_token_mechanisms_num(&count) != CKR_OK)
+  if (token.get_token_mechanisms_num(&count) != CKR_OK)
     return CKR_FUNCTION_FAILED;
 
   if (pMechanismList == NULL_PTR) {
@@ -339,7 +338,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
     return CKR_BUFFER_TOO_SMALL;
   }
 
-  if (vendor.get_token_mechanism_list(pMechanismList, *pulCount) != CKR_OK)
+  if (token.get_token_mechanism_list(pMechanismList, *pulCount) != CKR_OK)
     return CKR_FUNCTION_FAILED;
 
   DOUT;
@@ -353,7 +352,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismInfo)(
 )
 {
   DIN;
-  vendor_t vendor;
+  token_vendor_t token;
 
   if (piv_state == NULL) {
     DBG(("libykpiv is not initialized or already finalized"));
@@ -371,9 +370,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismInfo)(
   // TODO: check more return values
   // TODO: user NULL_PTR more for coherence
 
-  vendor = get_vendor(slots[slotID].vid); // TODO: make a token field in slot_t ?;
+  token = get_token_vendor(slots[slotID].vid);
 
-  if (vendor.get_token_mechanism_info(type, pInfo) != CKR_OK)
+  if (token.get_token_mechanism_info(type, pInfo) != CKR_OK)
     return CKR_MECHANISM_INVALID;
 
   DOUT;
@@ -428,7 +427,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
 {
   DIN;
 
-  vendor_t token_vendor;
+  token_vendor_t token;
 
   if (piv_state == NULL)
     return CKR_CRYPTOKI_NOT_INITIALIZED;
@@ -461,14 +460,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     return CKR_SESSION_PARALLEL_NOT_SUPPORTED;
   }
 
-  token_vendor = get_vendor(slots[slotID].token->vid);
+  token = get_token_vendor(slots[slotID].token->vid);
 
   // Store the slot
   session.slot = slots + slotID;
   //session.slot->info.slotID = slotID; // Redundant but required in CK_SESSION_INFO
 
   // Get the number of token objects
-  if (token_vendor.get_token_objects_num(piv_state, &session.slot->token->n_objects) != CKR_OK) {
+  if (token.get_token_objects_num(piv_state, &session.slot->token->n_objects) != CKR_OK) {
     DBG(("Unable to retrieve number of token objects"));
     return CKR_FUNCTION_FAILED;
   }
@@ -481,7 +480,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   }
 
   // Store all the objects available in the token
-  if (token_vendor.get_token_object_list(piv_state,
+  if (token.get_token_object_list(piv_state,
                                          session.slot->token->objects,
                                          session.slot->token->n_objects) != CKR_OK) {
     DBG(("Unable to retrieve token objects"));
@@ -789,7 +788,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
 {
   DIN;
   CK_ULONG i;
-  vendor_t vendor;
+  //token_vendor_t token;
 
   if (piv_state == NULL)
     return CKR_CRYPTOKI_NOT_INITIALIZED;
@@ -802,8 +801,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
 
   if (find_obj.active == CK_TRUE)
     return CKR_OPERATION_ACTIVE;
-
-  //vendor = get_vendor(slots[session_info.slotID].vid); // TODO: make a token field in slot_t ?;
 
   find_obj.idx = 0;
   find_obj.num = session.slot->token->n_objects;
