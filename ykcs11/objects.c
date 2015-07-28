@@ -1,91 +1,84 @@
+#include "obj_types.h"
 #include "objects.h"
 #include <ykpiv.h>
 #include <string.h>
 #include <stdlib.h>
 
+CK_RV get_doa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template); // TODO: static?
+CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
+CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
+CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
+
 //TODO: this is mostly a snippet from OpenSC how to give credit?     Less and less so now
 /* Must be in order, and one per enumerated PIV_OBJ */
-static piv_obj_t objects[] = {
-  {PIV_DATA_OBJ_CCC, 0, 0, 0, "Card Capability Container", 0, 0, 0},
-  {PIV_DATA_OBJ_CHUI, 0, 0, 0, "Card Holder Unique Identifier", 0, 0, 1},
-  //  PIV_DATA_OBJ_UCHUI
-  {PIV_DATA_OBJ_X509_PIV_AUTH, 0, 0, 0, "X.509 Certificate for PIV Authentication", 0, 0, 2},
-  {PIV_DATA_OBJ_CHF, 0, 0, 0, "Card Holder Fingerprints", 0, 0, 3},
-  {PIV_DATA_OBJ_SEC_OBJ, 0, 0, 0, "Security Object", 0, 0, 4},
-  {PIV_DATA_OBJ_CHFI, 0, 0, 0, "Cardholder Facial Images", 0, 0, 5},
-  {PIV_DATA_OBJ_X509_CARD_AUTH, 0, 0, 0, "X.509 Certificate for Card Authentication", 0, 0, 6},
-  {PIV_DATA_OBJ_X509_DS, 0, 0, 0, "X.509 Certificate for Digital Signature", 0, 0, 7},
-  {PIV_DATA_OBJ_X509_KM, 0, 0, 0, "X.509 Certificate for Key Management", 0, 0, 8},
-  {PIV_DATA_OBJ_PI, 0, 0, 0, "Printed Information", 0, 0, 9},
-  {PIV_DATA_OBJ_DISCOVERY, 0, 0, 0, "Discovery Object", 0, 0, 10},
-  {PIV_DATA_OBJ_HISTORY, 0, 0, 0, "Key History Object", 0, 0, 11},
-  {PIV_DATA_OBJ_RETIRED_X509_1, 0, 0, 0, "Retired X.509 Certificate for Key Management 1", 0, 0, 12},
-  {PIV_DATA_OBJ_RETIRED_X509_2, 0, 0, 0, "Retired X.509 Certificate for Key Management 2", 0, 0, 13},
-  {PIV_DATA_OBJ_RETIRED_X509_3, 0, 0, 0, "Retired X.509 Certificate for Key Management 3", 0, 0, 14},
-  {PIV_DATA_OBJ_RETIRED_X509_4, 0, 0, 0, "Retired X.509 Certificate for Key Management 4", 0, 0, 15},
-  {PIV_DATA_OBJ_RETIRED_X509_5, 0, 0, 0, "Retired X.509 Certificate for Key Management 5", 0, 0, 16},
-  {PIV_DATA_OBJ_RETIRED_X509_6, 0, 0, 0, "Retired X.509 Certificate for Key Management 6", 0, 0, 17},
-  {PIV_DATA_OBJ_RETIRED_X509_7, 0, 0, 0, "Retired X.509 Certificate for Key Management 7", 0, 0, 18},
-  {PIV_DATA_OBJ_RETIRED_X509_8, 0, 0, 0, "Retired X.509 Certificate for Key Management 8", 0, 0, 19},
-  {PIV_DATA_OBJ_RETIRED_X509_9, 0, 0, 0, "Retired X.509 Certificate for Key Management 9", 0, 0, 20},
-  {PIV_DATA_OBJ_RETIRED_X509_10, 0, 0, 0, "Retired X.509 Certificate for Key Management 10", 0, 0, 21},
-  {PIV_DATA_OBJ_RETIRED_X509_11, 0, 0, 0, "Retired X.509 Certificate for Key Management 11", 0, 0, 22},
-  {PIV_DATA_OBJ_RETIRED_X509_12, 0, 0, 0, "Retired X.509 Certificate for Key Management 12", 0, 0, 23},
-  {PIV_DATA_OBJ_RETIRED_X509_13, 0, 0, 0, "Retired X.509 Certificate for Key Management 13", 0, 0, 24},
-  {PIV_DATA_OBJ_RETIRED_X509_14, 0, 0, 0, "Retired X.509 Certificate for Key Management 14", 0, 0, 25},
-  {PIV_DATA_OBJ_RETIRED_X509_15, 0, 0, 0, "Retired X.509 Certificate for Key Management 15", 0, 0, 26},
-  {PIV_DATA_OBJ_RETIRED_X509_16, 0, 0, 0, "Retired X.509 Certificate for Key Management 16", 0, 0, 27},
-  {PIV_DATA_OBJ_RETIRED_X509_17, 0, 0, 0, "Retired X.509 Certificate for Key Management 17", 0, 0, 28},
-  {PIV_DATA_OBJ_RETIRED_X509_18, 0, 0, 0, "Retired X.509 Certificate for Key Management 18", 0, 0, 29},
-  {PIV_DATA_OBJ_RETIRED_X509_19, 0, 0, 0, "Retired X.509 Certificate for Key Management 19", 0, 0, 30},
-  {PIV_DATA_OBJ_RETIRED_X509_20, 0, 0, 0, "Retired X.509 Certificate for Key Management 20", 0, 0, 31},
-  {PIV_DATA_OBJ_IRIS_IMAGE, 0, 0, 0, "Cardholder Iris Images", 0, 0, 32},
-  {PIV_DATA_OBJ_BITGT, 0, 0, 0, "Biometric Information Templates Group Template", 0, 0, 33},
-  {PIV_DATA_OBJ_SM_SIGNER, 0, 0, 0, "Secure Messaging Certificate Signer", 0, 0, 34},
-  {PIV_DATA_OBJ_PC_REF_DATA, 0, 0, 0, "Pairing Code Reference Data Container", 0, 0, 35},
-/*  {PIV_DATA_OBJ_9B03, 0, 0, 0, "", 0, 0, },
-  {PIV_DATA_OBJ_9A06, 0, 0, 0, "", 0, 0, },
-  {PIV_DATA_OBJ_9C06, 0, 0, 0, "", 0, 0, },
-  {PIV_DATA_OBJ_9D06, 0, 0, 0, "", 0, 0, },
-  {PIV_DATA_OBJ_9E06, 0, 0, 0, "", 0, 0, },
-  {PIV_DATA_OBJ_8206, 0, 0, 0, "", 0, 0, },
-  {PIV_DATA_OBJ_8306, 0, 0, 0, "", 0, 0, },
-  {PIV_DATA_OBJ_8406, 0, 0, 0, "", 0, 0, },
-  {PIV_DATA_OBJ_8506, 0, 0, 0, "", 0, 0, },
-  {PIV_DATA_OBJ_8606, 0, 0, 0, "", 0, 0, },
-  {PIV_DATA_OBJ_8706, 0, 0, 0, "", 0, 0, },
-  {PIV_DATA_OBJ_8806, 0, 0, 0, "", 0, 0, },
-  {PIV_DATA_OBJ_8906, 0, 0, 0, "", 0, 0, },
-  {PIV_DATA_OBJ_8A06, 0, 0, 0, "", 0, 0, },
-  {PIV_DATA_OBJ_8B06, 0, 0, 0, "", 0, 0, },
-  {PIV_DATA_OBJ_8C06, 0, 0, 0, "", 0, 0, },
-  {PIV_DATA_OBJ_8D06, 0, 0, 0, "", 0, 0, },
-  {PIV_DATA_OBJ_8E06, 0, 0, 0, "", 0, 0, },
-  {PIV_DATA_OBJ_8F06, 0, 0, 0, "", 0, 0, },
-  {PIV_DATA_OBJ_9006, 0, 0, 0, "", 0, 0, },
-  {PIV_DATA_OBJ_9106, 0, 0, 0, "", 0, 0, },
-  {PIV_DATA_OBJ_9206, 0, 0, 0, "", 0, 0, },
-  {PIV_DATA_OBJ_9306, 0, 0, 0, "", 0, 0, },
-  {PIV_DATA_OBJ_9406, 0, 0, 0, "", 0, 0, },
-  {PIV_DATA_OBJ_9506, 0, 0, 0, "", 0, 0, },*/
-  {PIV_DATA_OBJ_LAST, 0, 0, 0, "", 0, 0, 36},
-  {PIV_CERT_OBJ_X509_PIV_AUTH, 0, 0, 0, "X.509 Certificate for PIV Authentication", 0, 0, 0},
-  {PIV_CERT_OBJ_X509_CARD_AUTH, 0, 0, 0, "X.509 Certificate for Card Authentication", 0, 0, 1},
-  {PIV_CERT_OBJ_X509_DS, 0, 0, 0, "X.509 Certificate for Digital Signature", 0, 0, 2},
-  {PIV_CERT_OBJ_X509_KM, 0, 0, 0, "X.509 Certificate for Key Management", 0, 0, 3},
-  {PIV_CERT_OBJ_LAST, 0, 0, 0, "", 0, 41}
+static piv_obj_t piv_objects[] = {
+  {PIV_DATA_OBJ_X509_PIV_AUTH, 1, 0, 0, "X.509 Certificate for PIV Authentication", 0, 0, get_doa, 0},
+  {PIV_DATA_OBJ_X509_CARD_AUTH, 1, 0, 0, "X.509 Certificate for Card Authentication", 0, 0, get_doa, 1},
+  {PIV_DATA_OBJ_X509_DS, 1, 0, 0, "X.509 Certificate for Digital Signature", 0, 0, get_doa, 2},
+  {PIV_DATA_OBJ_X509_KM, 1, 0, 0, "X.509 Certificate for Key Management", 0, 0, get_doa, 3},
+  {PIV_DATA_OBJ_CCC, 1, 0, 0, "Card Capability Container", 0, 0, get_doa, 4},
+  {PIV_DATA_OBJ_CHUI, 1, 0, 0, "Card Holder Unique Identifier", 0, 0, get_doa, 5},
+  {PIV_DATA_OBJ_CHF, 1, 1, 0, "Card Holder Fingerprints", 0, 0, get_doa, 6},
+  {PIV_DATA_OBJ_SEC_OBJ, 1, 0, 0, "Security Object", 0, 0, get_doa, 7},
+  {PIV_DATA_OBJ_CHFI, 1, 1, 0, "Cardholder Facial Images", 0, 0, get_doa, 8},
+  {PIV_DATA_OBJ_PI, 1, 1, 0, "Printed Information", 0, 0, get_doa, 9},
+  {PIV_DATA_OBJ_DISCOVERY, 1, 0, 0, "Discovery Object", 0, 0, get_doa, 10},
+  {PIV_DATA_OBJ_HISTORY, 1, 0, 0, "Key History Object", 0, 0, get_doa, 11},
+  {PIV_DATA_OBJ_RETIRED_X509_1, 1, 0, 0, "Retired X.509 Certificate for Key Management 1", 0, 0, get_doa, 12},
+  {PIV_DATA_OBJ_RETIRED_X509_2, 1, 0, 0, "Retired X.509 Certificate for Key Management 2", 0, 0, get_doa, 13},
+  {PIV_DATA_OBJ_RETIRED_X509_3, 1, 0, 0, "Retired X.509 Certificate for Key Management 3", 0, 0, get_doa, 14},
+  {PIV_DATA_OBJ_RETIRED_X509_4, 1, 0, 0, "Retired X.509 Certificate for Key Management 4", 0, 0, get_doa, 15},
+  {PIV_DATA_OBJ_RETIRED_X509_5, 1, 0, 0, "Retired X.509 Certificate for Key Management 5", 0, 0, get_doa, 16},
+  {PIV_DATA_OBJ_RETIRED_X509_6, 1, 0, 0, "Retired X.509 Certificate for Key Management 6", 0, 0, get_doa, 17},
+  {PIV_DATA_OBJ_RETIRED_X509_7, 1, 0, 0, "Retired X.509 Certificate for Key Management 7", 0, 0, get_doa, 18},
+  {PIV_DATA_OBJ_RETIRED_X509_8, 1, 0, 0, "Retired X.509 Certificate for Key Management 8", 0, 0, get_doa, 19},
+  {PIV_DATA_OBJ_RETIRED_X509_9, 1, 0, 0, "Retired X.509 Certificate for Key Management 9", 0, 0, get_doa, 20},
+  {PIV_DATA_OBJ_RETIRED_X509_10, 1, 0, 0, "Retired X.509 Certificate for Key Management 10", 0, 0, get_doa, 21},
+  {PIV_DATA_OBJ_RETIRED_X509_11, 1, 0, 0, "Retired X.509 Certificate for Key Management 11", 0, 0, get_doa, 22},
+  {PIV_DATA_OBJ_RETIRED_X509_12, 1, 0, 0, "Retired X.509 Certificate for Key Management 12", 0, 0, get_doa, 23},
+  {PIV_DATA_OBJ_RETIRED_X509_13, 1, 0, 0, "Retired X.509 Certificate for Key Management 13", 0, 0, get_doa, 24},
+  {PIV_DATA_OBJ_RETIRED_X509_14, 1, 0, 0, "Retired X.509 Certificate for Key Management 14", 0, 0, get_doa, 25},
+  {PIV_DATA_OBJ_RETIRED_X509_15, 1, 0, 0, "Retired X.509 Certificate for Key Management 15", 0, 0, get_doa, 26},
+  {PIV_DATA_OBJ_RETIRED_X509_16, 1, 0, 0, "Retired X.509 Certificate for Key Management 16", 0, 0, get_doa, 27},
+  {PIV_DATA_OBJ_RETIRED_X509_17, 1, 0, 0, "Retired X.509 Certificate for Key Management 17", 0, 0, get_doa, 28},
+  {PIV_DATA_OBJ_RETIRED_X509_18, 1, 0, 0, "Retired X.509 Certificate for Key Management 18", 0, 0, get_doa, 29},
+  {PIV_DATA_OBJ_RETIRED_X509_19, 1, 0, 0, "Retired X.509 Certificate for Key Management 19", 0, 0, get_doa, 30},
+  {PIV_DATA_OBJ_RETIRED_X509_20, 1, 0, 0, "Retired X.509 Certificate for Key Management 20", 0, 0, get_doa, 31},
+  {PIV_DATA_OBJ_IRIS_IMAGE, 1, 1, 0, "Cardholder Iris Images", 0, 0, get_doa, 32},
+  {PIV_DATA_OBJ_BITGT, 1, 0, 0, "Biometric Information Templates Group Template", 0, 0, get_doa, 33},
+  {PIV_DATA_OBJ_SM_SIGNER, 1, 0, 0, "Secure Messaging Certificate Signer", 0, 0, get_doa, 34},
+  {PIV_DATA_OBJ_PC_REF_DATA, 1, 1, 0, "Pairing Code Reference Data Container", 0, 0, get_doa, 35},
+  {PIV_DATA_OBJ_LAST, 1, 0, 0, "", 0, 0, NULL, 36},
+
+  {PIV_CERT_OBJ_X509_PIV_AUTH, 1, 0, 0, "X.509 Certificate for PIV Authentication", 0, 0, get_coa, 0},
+  {PIV_CERT_OBJ_X509_CARD_AUTH, 1, 0, 0, "X.509 Certificate for Card Authentication", 0, 0, get_coa, 1},
+  {PIV_CERT_OBJ_X509_DS, 1, 0, 0, "X.509 Certificate for Digital Signature", 0, 0, get_coa, 2},
+  {PIV_CERT_OBJ_X509_KM, 1, 0, 0, "X.509 Certificate for Key Management", 0, 0, get_coa, 3},
+  {PIV_CERT_OBJ_LAST, 1, 0, 0, "", 0, 0, get_coa, 4},
+
+  {PIV_PVTK_OBJ_PIV_AUTH, 1, 0, 0, "Pivate key for PIV Authentication", 0, 0, get_proa, 0},
+  {PIV_PVTK_OBJ_CARD_AUTH, 1, 0, 0, "Pivate key for Card Authentication", 0, 0, get_proa, 1},
+  {PIV_PVTK_OBJ_DS, 1, 0, 0, "Pivate key for Digital Signature", 0, 0, get_proa, 2},
+  {PIV_PVTK_OBJ_KM, 1, 0, 0, "Private key for Key Management", 0, 0, get_proa, 3},
+  {PIV_PVTK_OBJ_LAST, 1, 0, 0, "", 0, 0, NULL, 4},
+
+  {PIV_PUBK_OBJ_PIV_AUTH, 1, 0, 0, "Public key for PIV Authentication", 0, 0, get_proa, 0},
+  {PIV_PUBK_OBJ_CARD_AUTH, 1, 0, 0, "Public key for Card Authentication", 0, 0, get_proa, 1},
+  {PIV_PUBK_OBJ_DS, 1, 0, 0, "Public key for Digital Signature", 0, 0, get_proa, 2},
+  {PIV_PUBK_OBJ_KM, 1, 0, 0, "Public key for Key Management", 0, 0, get_proa, 3},
+  {PIV_PUBK_OBJ_LAST, 1, 0, 0, "", 0, 0, NULL, 4}
 };
 
 static piv_data_obj_t data_objects[] = {
-  {"2.16.840.1.101.3.7.1.219.0", 3, "\x5F\xC1\x07", "\xDB\x00"},
-  {"2.16.840.1.101.3.7.2.48.0",  3, "\x5F\xC1\x02", "\x30\x00"},
   {"2.16.840.1.101.3.7.2.1.1",   3, "\x5F\xC1\x05", "\x01\x01"},
-  {"2.16.840.1.101.3.7.2.96.16", 3, "\x5F\xC1\x03", "\x60\x10"},
-  {"2.16.840.1.101.3.7.2.144.0", 3, "\x5F\xC1\x06", "\x90\x00"},
-  {"2.16.840.1.101.3.7.2.96.48", 3, "\x5F\xC1\x08", "\x60\x30"},
   {"2.16.840.1.101.3.7.2.5.0",   3, "\x5F\xC1\x01", "\x05\x00"},
   {"2.16.840.1.101.3.7.2.1.0",   3, "\x5F\xC1\x0A", "\x01\x00"},
   {"2.16.840.1.101.3.7.2.1.2",   3, "\x5F\xC1\x0B", "\x01\x02"},
+  {"2.16.840.1.101.3.7.1.219.0", 3, "\x5F\xC1\x07", "\xDB\x00"},
+  {"2.16.840.1.101.3.7.2.48.0",  3, "\x5F\xC1\x02", "\x30\x00"},
+  {"2.16.840.1.101.3.7.2.96.16", 3, "\x5F\xC1\x03", "\x60\x10"},
+  {"2.16.840.1.101.3.7.2.144.0", 3, "\x5F\xC1\x06", "\x90\x00"},
+  {"2.16.840.1.101.3.7.2.96.48", 3, "\x5F\xC1\x08", "\x60\x30"},
   {"2.16.840.1.101.3.7.2.48.1",  3, "\x5F\xC1\x09", "\x30\x01"},
   {"2.16.840.1.101.3.7.2.96.80", 1, "\x7E",         "\x60\x50"},
   {"2.16.840.1.101.3.7.2.96.96", 3, "\x5F\xC1\x0C", "\x60\x60"},
@@ -114,64 +107,6 @@ static piv_data_obj_t data_objects[] = {
   {"2.16.840.1.101.3.7.2.16.22", 2, "\x7F\x61",     "\x10\x16"},
   {"2.16.840.1.101.3.7.2.16.23", 3, "\x5F\xC1\x22", "\x10\x17"},
   {"2.16.840.1.101.3.7.2.16.24", 3, "\x5F\xC1\x23", "\x10\x18"},
-
-/* following not standard , to be used by piv-tool only for testing */
-/*  {PIV_DATA_OBJ_9B03, "3DES-ECB ADM",
-    "2.16.840.1.101.3.7.2.9999.3", 2, "\x9B\x03", "\x9B\x03", 0},*/
-  /* Only used when signing a cert req, usually from engine
-   * after piv-tool generated the key and saved the pub key
-   * to a file. Note RSA key can be 1024, 2048 or 3072
-   * but still use the "9x06" name.
-   */
-/*  {PIV_DATA_OBJ_9A06, "RSA 9A Pub key from last genkey",
-   "2.16.840.1.101.3.7.2.9999.20", 2, "\x9A\x06", "\x9A\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_DATA_OBJ_9C06, "Pub 9C key from last genkey",
-   "2.16.840.1.101.3.7.2.9999.21", 2, "\x9C\x06", "\x9C\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_DATA_OBJ_9D06, "Pub 9D key from last genkey",
-   "2.16.840.1.101.3.7.2.9999.22", 2, "\x9D\x06", "\x9D\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_DATA_OBJ_9E06, "Pub 9E key from last genkey",
-   "2.16.840.1.101.3.7.2.9999.23", 2, "\x9E\x06", "\x9E\x06", PIV_OBJECT_TYPE_PUBKEY},
-
-  {PIV_DATA_OBJ_8206, "Pub 82 key ",
-   "2.16.840.1.101.3.7.2.9999.101", 2, "\x82\x06", "\x82\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_DATA_OBJ_8306, "Pub 83 key ",
-   "2.16.840.1.101.3.7.2.9999.102", 2, "\x83\x06", "\x83\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_DATA_OBJ_8406, "Pub 84 key ",
-   "2.16.840.1.101.3.7.2.9999.103", 2, "\x84\x06", "\x84\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_DATA_OBJ_8506, "Pub 85 key ",
-   "2.16.840.1.101.3.7.2.9999.104", 2, "\x85\x06", "\x85\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_DATA_OBJ_8606, "Pub 86 key ",
-   "2.16.840.1.101.3.7.2.9999.105", 2, "\x86\x06", "\x86\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_DATA_OBJ_8706, "Pub 87 key ",
-   "2.16.840.1.101.3.7.2.9999.106", 2, "\x87\x06", "\x87\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_DATA_OBJ_8806, "Pub 88 key ",
-   "2.16.840.1.101.3.7.2.9999.107", 2, "\x88\x06", "\x88\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_DATA_OBJ_8906, "Pub 89 key ",
-   "2.16.840.1.101.3.7.2.9999.108", 2, "\x89\x06", "\x89\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_DATA_OBJ_8A06, "Pub 8A key ",
-   "2.16.840.1.101.3.7.2.9999.109", 2, "\x8A\x06", "\x8A\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_DATA_OBJ_8B06, "Pub 8B key ",
-   "2.16.840.1.101.3.7.2.9999.110", 2, "\x8B\x06", "\x8B\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_DATA_OBJ_8C06, "Pub 8C key ",
-   "2.16.840.1.101.3.7.2.9999.111", 2, "\x8C\x06", "\x8C\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_DATA_OBJ_8D06, "Pub 8D key ",
-   "2.16.840.1.101.3.7.2.9999.112", 2, "\x8D\x06", "\x8D\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_DATA_OBJ_8E06, "Pub 8E key ",
-   "2.16.840.1.101.3.7.2.9999.113", 2, "\x8E\x06", "\x8E\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_DATA_OBJ_8F06, "Pub 8F key ",
-   "2.16.840.1.101.3.7.2.9999.114", 2, "\x8F\x06", "\x8F\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_DATA_OBJ_9006, "Pub 90 key ",
-   "2.16.840.1.101.3.7.2.9999.115", 2, "\x90\x06", "\x90\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_DATA_OBJ_9106, "Pub 91 key ",
-   "2.16.840.1.101.3.7.2.9999.116", 2, "\x91\x06", "\x91\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_DATA_OBJ_9206, "Pub 92 key ",
-   "2.16.840.1.101.3.7.2.9999.117", 2, "\x92\x06", "\x92\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_DATA_OBJ_9306, "Pub 93 key ",
-   "2.16.840.1.101.3.7.2.9999.118", 2, "\x93\x06", "\x93\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_DATA_OBJ_9406, "Pub 94 key ",
-   "2.16.840.1.101.3.7.2.9999.119", 2, "\x94\x06", "\x94\x06", PIV_OBJECT_TYPE_PUBKEY},
-  {PIV_DATA_OBJ_9506, "Pub 95 key ",
-   "2.16.840.1.101.3.7.2.9999.120", 2, "\x95\x06", "\x95\x06", PIV_OBJECT_TYPE_PUBKEY},*/
   {"", 0, "", ""}
 };
 
@@ -183,17 +118,31 @@ static piv_cert_obj_t cert_objects[] = {
   {0}
 };
 
+static piv_pvtk_obj_t pvtkey_objects[] = {
+  {0},
+  {0},
+  {0},
+  {0},
+  {0}
+};
 
-//static const CK_ULONG n_objects = sizeof(objects) / sizeof(piv_obj_t);
+static piv_pubk_obj_t pubkey_objects[] = {
+  {0},
+  {0},
+  {0},
+  {0},
+  {0}
+};
 
-static void get_object_class(CK_OBJECT_HANDLE obj, CK_OBJECT_CLASS_PTR class) {
+
+/*static void get_object_class(CK_OBJECT_HANDLE obj, CK_OBJECT_CLASS_PTR class) {
   if (obj >= 0 && obj < PIV_DATA_OBJ_LAST)
     *class = CKO_DATA;
   else if (obj > PIV_DATA_OBJ_LAST && obj < PIV_CERT_OBJ_LAST)
     *class = CKO_CERTIFICATE;
   else
     *class = CKO_VENDOR_DEFINED | CKO_DATA; // Invalid value
-}
+    }*/
 
 /*static void get_object_label(CK_OBJECT_HANDLE obj, CK_UTF8CHAR_PTR label) {
   strcpy((char *)label, objects[obj].name);
@@ -286,67 +235,79 @@ static void get_object_key_id(CK_OBJECT_HANDLE obj, CK_UTF8CHAR_PTR key_id) {
 }
 */
 
-CK_RV get_attribute(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
+/* Get data object attribute */
+CK_RV get_doa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
   CK_BYTE     tmp[64];
   CK_ULONG    len = 0;
-  fprintf(stderr, "FOR OBJECT %lu, I WANT ", obj);
+  fprintf(stderr, "FOR DATA OBJECT %lu, I WANT ", obj);
 
   switch (template->type) {
   case CKA_CLASS:
     fprintf(stderr, "CLASS\n");
     len = 1;
-    get_object_class(obj, (CK_OBJECT_CLASS_PTR)tmp);
+    tmp[0] = CKO_DATA;
     data = tmp;
     break;
 
-//  case CKA_TOKEN:
+  case CKA_TOKEN:
+    // Technically all these objects are token objects
+    fprintf(stderr, "TOKEN\n");
+    len = 1;
+    tmp[0] = piv_objects[obj].token;
+    data = tmp;
+    break;
+
   case CKA_PRIVATE:
-    fprintf(stderr, "PRIVATE\n"); // TODO: check more
-    template->ulValueLen = CK_UNAVAILABLE_INFORMATION;
-    return CKR_OK;
+    fprintf(stderr, "PRIVATE\n");
+    len = 1;
+    tmp[0] = piv_objects[obj].private;
+    data = tmp;
+    break;
 
   case CKA_LABEL:
     fprintf(stderr, "LABEL\n");
-    len = strlen(objects[obj].label) + 1;
-    data = objects[obj].label;
+    len = strlen(piv_objects[obj].label) + 1;
+    data = piv_objects[obj].label;
     break;
 
   case CKA_APPLICATION:
     fprintf(stderr, "APPLICATION\n");
-    len = strlen(objects[obj].label) + 1;
-    data = objects[obj].label;
+    len = strlen(piv_objects[obj].label) + 1;
+    data = piv_objects[obj].label;
     break;
 
-//  case CKA_VALUE: // TODO: this can be done with -r and -d|-a
+  case CKA_VALUE: // TODO: this can be done with -r and -d|-a
+    fprintf(stderr, "VALUE TODO!!!\n");
+    return CKR_FUNCTION_FAILED;
+
   case CKA_OBJECT_ID: // TODO: how about just storing the OID in DER ?
     // This only makes sense for data objects
     fprintf(stderr, "OID\n");
-    strcpy((char *)tmp, data_objects[objects[obj].sub_id].oid);
+    strcpy((char *)tmp, data_objects[piv_objects[obj].sub_id].oid);
     asn1_encode_oid(tmp, tmp, &len);
     data = tmp;
     break;
 
-  case CKA_CERTIFICATE_TYPE:
-    fprintf(stderr, "CERTIFICATE TYPE\n");
-    len = 1;
-    tmp[0] = CKC_X_509; // Support only X.509 certs
-    data = tmp;
-    break;
+  /* case CKA_CERTIFICATE_TYPE: */
+  /*   fprintf(stderr, "CERTIFICATE TYPE\n"); */
+  /*   len = 1; */
+  /*   tmp[0] = CKC_X_509; // Support only X.509 certs */
+  /*   data = tmp; */
+  /*   break; */
 
 //  case CKA_ISSUER:
 //  case CKA_SERIAL_NUMBER:
-  case CKA_KEY_TYPE:
-    fprintf(stderr, "Return the key type TODO!!!\n");
-    return CKR_OK;
+  /* case CKA_KEY_TYPE: */
+  /*   fprintf(stderr, "Return the key type TODO!!!\n"); */
+  /*   return CKR_OK; */
 
   /* case CKA_SUBJECT: */
-  case CKA_ID:
-    // This only makes sense for data objects
-    fprintf(stderr, "ID\n");
-    len = data_objects[objects[obj].sub_id].tag_len;
-    data = data_objects[objects[obj].sub_id].tag_value;
-    break;
+  /* case CKA_ID: */
+  /*   fprintf(stderr, "ID\n"); */
+  /*   len = data_objects[objects[obj].sub_id].tag_len; */
+  /*   data = data_objects[objects[obj].sub_id].tag_value; */
+  /*   break; */
 
   /* case CKA_SENSITIVE: */
   /* case CKA_ENCRYPT: */
@@ -381,28 +342,511 @@ CK_RV get_attribute(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   case CKA_MODIFIABLE:
     fprintf(stderr, "MODIFIABLE\n");
     len = 1;
-    tmp[0] = CK_FALSE;
+    tmp[0] = piv_objects[obj].modifiable;
     data = tmp;
     break;
 
-  case CKA_VENDOR_DEFINED:
+  /* case CKA_VENDOR_DEFINED: */
   default:
     fprintf(stderr, "UNKNOWN ATTRIBUTE!!!!! %lx\n", template[0].type);
     template->ulValueLen = CK_UNAVAILABLE_INFORMATION;
     return CKR_ATTRIBUTE_TYPE_INVALID;
   }
 
-    if (template->pValue == NULL_PTR) {
-      template->ulValueLen = len; // TODO: define?
-      return CKR_OK;
+  /* Just get the length */
+  if (template->pValue == NULL_PTR) {
+    template->ulValueLen = len; // TODO: define?
+    return CKR_OK;
+  }
+
+  /* Actually get the attribute */
+  if (template->ulValueLen < len)
+    return CKR_BUFFER_TOO_SMALL;
+
+  template->ulValueLen = len;
+  memcpy(template->pValue, data, len);
+
+  return CKR_OK;
+
+}
+
+/* Get certificate object attribute */
+CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
+  CK_BYTE_PTR data;
+  CK_BYTE     tmp[64];
+  CK_ULONG    len = 0;
+  fprintf(stderr, "FOR CERTIFICATE OBJECT %lu, I WANT ", obj);
+
+  switch (template->type) { // TODO: is this needed here? or is it enough ot have one a "level" above?
+  case CKA_CLASS:
+    fprintf(stderr, "CLASS\n");
+    len = 1;
+    tmp[0] = CKO_CERTIFICATE;
+    data = tmp;
+    break;
+
+  case CKA_TOKEN:
+    // Technically all these objects are token objects
+    fprintf(stderr, "TOKEN\n");
+    len = 1;
+    tmp[0] = piv_objects[obj].token;
+    data = tmp;
+    break;
+
+  case CKA_PRIVATE:
+    fprintf(stderr, "PRIVATE\n");
+    len = 1;
+    tmp[0] = piv_objects[obj].private;
+    data = tmp;
+    break;
+
+  case CKA_LABEL:
+    fprintf(stderr, "LABEL\n");
+    len = strlen(piv_objects[obj].label) + 1;
+    data = piv_objects[obj].label;
+    break;
+
+  /* case CKA_APPLICATION: */
+  /*   fprintf(stderr, "APPLICATION\n"); */
+  /*   len = strlen(objects[obj].label) + 1; */
+  /*   data = objects[obj].label; */
+  /*   break; */
+
+  case CKA_VALUE:
+    fprintf(stderr, "VALUE TODO\n");
+    return CKR_FUNCTION_FAILED;
+
+  /* case CKA_OBJECT_ID: // TODO: how about just storing the OID in DER ? */
+  /*   // This only makes sense for data objects */
+  /*   fprintf(stderr, "OID\n"); */
+  /*   strcpy((char *)tmp, certificate_objects[objects[obj].sub_id].oid); */
+  /*   asn1_encode_oid(tmp, tmp, &len); */
+  /*   data = tmp; */
+  /*   break; */
+
+  case CKA_CERTIFICATE_TYPE:
+    fprintf(stderr, "CERTIFICATE TYPE\n");
+    len = 1;
+    tmp[0] = CKC_X_509; // Support only X.509 certs
+    data = tmp;
+    break;
+
+  case CKA_ISSUER:
+    fprintf(stderr, "ISSUER TODO\n"); // Default empty
+    return CKR_FUNCTION_FAILED;
+
+  case CKA_SERIAL_NUMBER:
+    fprintf(stderr, "SERIAL NUMBER TODO\n"); // Default empty
+    return CKR_FUNCTION_FAILED;
+
+  /* case CKA_KEY_TYPE: */
+  /*   fprintf(stderr, "Return the key type TODO!!!\n"); */
+  /*   return CKR_OK; */
+
+  case CKA_SUBJECT:
+    fprintf(stderr, "SUBJECT TODO\n"); // Required
+    return CKR_FUNCTION_FAILED;
+
+  case CKA_ID:
+    fprintf(stderr, "ID\n");
+    len = 1;
+    tmp[0] = piv_objects[obj].sub_id;
+    data = tmp;
+    break;
+
+  /* case CKA_SENSITIVE: */
+  /* case CKA_ENCRYPT: */
+  /* case CKA_DECRYPT: */
+  /* case CKA_WRAP: */
+  /* case CKA_UNWRAP: */
+  /* case CKA_SIGN: */
+  /* case CKA_SIGN_RECOVER: */
+  /* case CKA_VERIFY: */
+  /* case CKA_VERIFY_RECOVER: */
+  /* case CKA_DERIVE: */
+  case CKA_START_DATE:
+    fprintf(stderr, "START DATE TODO\n"); // Default empty
+    return CKR_FUNCTION_FAILED;
+
+  case CKA_END_DATE:
+    fprintf(stderr, "END DATE TODO\n"); // Default empty
+    return CKR_FUNCTION_FAILED;
+
+  /* case CKA_MODULUS: */
+  /* case CKA_MODULUS_BITS: */
+  /* case CKA_PUBLIC_EXPONENT: */
+  /* case CKA_PRIVATE_EXPONENT: */
+  /* case CKA_PRIME_1: */
+  /* case CKA_PRIME_2: */
+  /* case CKA_EXPONENT_1: */
+  /* case CKA_EXPONENT_2: */
+  /* case CKA_COEFFICIENT: */
+  /* case CKA_PRIME: */
+  /* case CKA_SUBPRIME: */
+  /* case CKA_BASE: */
+  /* case CKA_VALUE_BITS: */
+  /* case CKA_VALUE_LEN: */
+  /* case CKA_EXTRACTABLE: */
+  /* case CKA_LOCAL: */
+  /* case CKA_NEVER_EXTRACTABLE: */
+  /* case CKA_ALWAYS_SENSITIVE: */
+  case CKA_MODIFIABLE:
+    fprintf(stderr, "MODIFIABLE\n");
+    len = 1;
+    tmp[0] = piv_objects[obj].modifiable;
+    data = tmp;
+    break;
+
+  /* case CKA_VENDOR_DEFINED: */
+  default: // TODO: there are other attributes for a (x509) certificate
+    fprintf(stderr, "UNKNOWN ATTRIBUTE!!!!! %lx\n", template[0].type);
+    template->ulValueLen = CK_UNAVAILABLE_INFORMATION;
+    return CKR_ATTRIBUTE_TYPE_INVALID;
+  }
+
+  /* Just get the length */
+  if (template->pValue == NULL_PTR) {
+    template->ulValueLen = len; // TODO: define?
+    return CKR_OK;
+  }
+
+  /* Actually get the attribute */
+  if (template->ulValueLen < len)
+    return CKR_BUFFER_TOO_SMALL;
+
+  template->ulValueLen = len;
+  memcpy(template->pValue, data, len);
+
+  return CKR_OK;
+
+}
+
+/* Get private key object attribute */
+CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
+  CK_BYTE_PTR data;
+  CK_BYTE     tmp[64];
+  CK_ULONG    len = 0;
+  fprintf(stderr, "FOR PRIVATE KEY OBJECT %lu, I WANT ", obj);
+
+  switch (template->type) {
+  case CKA_CLASS:
+    fprintf(stderr, "CLASS\n");
+    len = 1;
+    tmp[0] = CKO_PRIVATE_KEY;
+    data = tmp;
+    break;
+
+  case CKA_TOKEN:
+    // Technically all these objects are token objects
+    fprintf(stderr, "TOKEN\n");
+    len = 1;
+    tmp[0] = piv_objects[obj].token;
+    data = tmp;
+    break;
+
+  case CKA_PRIVATE:
+    fprintf(stderr, "PRIVATE\n");
+    len = 1;
+    tmp[0] = piv_objects[obj].private;
+    data = tmp;
+    break;
+
+  case CKA_LABEL:
+    fprintf(stderr, "LABEL\n");
+    len = strlen(piv_objects[obj].label) + 1;
+    data = piv_objects[obj].label;
+    break;
+
+  /* case CKA_APPLICATION: */
+  /*   fprintf(stderr, "APPLICATION\n"); */
+  /*   len = strlen(objects[obj].label) + 1; */
+  /*   data = objects[obj].label; */
+  /*   break; */
+
+//  case CKA_VALUE: // TODO: this can be done with -r and -d|-a
+  /* case CKA_OBJECT_ID: // TODO: how about just storing the OID in DER ? */
+  /*   // This only makes sense for data objects */
+  /*   fprintf(stderr, "OID\n"); */
+  /*   strcpy((char *)tmp, pvtkey_objects[objects[obj].sub_id].oid); */
+  /*   asn1_encode_oid(tmp, tmp, &len); */
+  /*   data = tmp; */
+  /*   break; */
+
+  /* case CKA_CERTIFICATE_TYPE: */
+  /*   fprintf(stderr, "CERTIFICATE TYPE\n"); */
+  /*   len = 1; */
+  /*   tmp[0] = CKC_X_509; // Support only X.509 certs */
+  /*   data = tmp; */
+  /*   break; */
+
+//  case CKA_ISSUER:
+//  case CKA_SERIAL_NUMBER:
+  case CKA_KEY_TYPE:
+    fprintf(stderr, "KEY TYPE TODO\n");
+    return CKR_FUNCTION_FAILED;
+
+  case CKA_SUBJECT:
+    fprintf(stderr, "SUBJECT TODO\n"); // Default empty
+    return CKR_FUNCTION_FAILED;
+
+  case CKA_ID:
+    fprintf(stderr, "ID\n");
+    len = 1;
+    tmp[0] = piv_objects[obj].sub_id;
+    data = tmp;
+    break;
+
+  case CKA_SENSITIVE:
+    fprintf(stderr, "SENSITIVE TODO\n"); // Default empty
+    return CKR_FUNCTION_FAILED;
+
+  /* case CKA_ENCRYPT: */
+  case CKA_DECRYPT:
+    fprintf(stderr, "DECRYPT TODO\n"); // Default empty
+    return CKR_FUNCTION_FAILED;
+
+  /* case CKA_WRAP: */
+  case CKA_UNWRAP:
+    fprintf(stderr, "UNWRAP TODO\n"); // Default empty
+    return CKR_FUNCTION_FAILED;
+
+  case CKA_SIGN:
+    fprintf(stderr, "SIGN TODO\n"); // Default empty
+    return CKR_FUNCTION_FAILED;
+
+  case CKA_SIGN_RECOVER:
+    fprintf(stderr, "SIGN RECOVER TODO\n"); // Default empty
+    return CKR_FUNCTION_FAILED;
+
+  /* case CKA_VERIFY: */
+  /* case CKA_VERIFY_RECOVER: */
+  case CKA_DERIVE:
+    fprintf(stderr, "DERIVE TODO\n"); // Default false
+    return CKR_FUNCTION_FAILED;
+
+  case CKA_START_DATE:
+    fprintf(stderr, "START DATE TODO\n"); // Default empty
+    return CKR_FUNCTION_FAILED;
+
+  case CKA_END_DATE:
+    fprintf(stderr, "END DATE TODO\n"); // Default empty
+    return CKR_FUNCTION_FAILED;
+  /* case CKA_MODULUS: */
+  /* case CKA_MODULUS_BITS: */
+  /* case CKA_PUBLIC_EXPONENT: */
+  /* case CKA_PRIVATE_EXPONENT: */
+  /* case CKA_PRIME_1: */
+  /* case CKA_PRIME_2: */
+  /* case CKA_EXPONENT_1: */
+  /* case CKA_EXPONENT_2: */
+  /* case CKA_COEFFICIENT: */
+  /* case CKA_PRIME: */
+  /* case CKA_SUBPRIME: */
+  /* case CKA_BASE: */
+  /* case CKA_VALUE_BITS: */
+  /* case CKA_VALUE_LEN: */
+  /* case CKA_EXTRACTABLE: */
+  case CKA_LOCAL:
+    fprintf(stderr, "LOCAL TODO\n"); // Required
+    return CKR_FUNCTION_FAILED;
+
+  /* case CKA_NEVER_EXTRACTABLE: */
+  /* case CKA_ALWAYS_SENSITIVE: */
+  case CKA_MODIFIABLE:
+    fprintf(stderr, "MODIFIABLE\n");
+    len = 1;
+    tmp[0] = piv_objects[obj].modifiable;
+    data = tmp;
+    break;
+
+    /*case CKA_VENDOR_DEFINED:*/
+  default:
+    fprintf(stderr, "UNKNOWN ATTRIBUTE!!!!! %lx\n", template[0].type); // TODO: there are other parameters for public keys, plus there is more if the key is RSA
+    template->ulValueLen = CK_UNAVAILABLE_INFORMATION;
+    return CKR_ATTRIBUTE_TYPE_INVALID;
+  }
+
+  /* Just get the length */
+  if (template->pValue == NULL_PTR) {
+    template->ulValueLen = len; // TODO: define?
+    return CKR_OK;
+  }
+
+  /* Actually get the attribute */
+  if (template->ulValueLen < len)
+    return CKR_BUFFER_TOO_SMALL;
+
+  template->ulValueLen = len;
+  memcpy(template->pValue, data, len);
+
+  return CKR_OK;
+
+}
+
+/* Get public key object attribute */
+CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
+  CK_BYTE_PTR data;
+  CK_BYTE     tmp[64];
+  CK_ULONG    len = 0;
+  fprintf(stderr, "FOR PUBLIC KEY OBJECT %lu, I WANT ", obj);
+
+  switch (template->type) {
+  case CKA_CLASS:
+    fprintf(stderr, "CLASS\n");
+    len = 1;
+    tmp[0] = CKO_PUBLIC_KEY;
+    data = tmp;
+    break;
+
+  case CKA_TOKEN:
+    // Technically all these objects are token objects
+    fprintf(stderr, "TOKEN\n");
+    len = 1;
+    tmp[0] = piv_objects[obj].token;
+    data = tmp;
+    break;
+
+  case CKA_PRIVATE:
+    fprintf(stderr, "PRIVATE\n");
+    len = 1;
+    tmp[0] = piv_objects[obj].private;
+    data = tmp;
+    break;
+
+  case CKA_LABEL:
+    fprintf(stderr, "LABEL\n");
+    len = strlen(piv_objects[obj].label) + 1;
+    data = piv_objects[obj].label;
+    break;
+
+  /* case CKA_APPLICATION: */
+  /*   fprintf(stderr, "APPLICATION\n"); */
+  /*   len = strlen(objects[obj].label) + 1; */
+  /*   data = objects[obj].label; */
+  /*   break; */
+
+//  case CKA_VALUE: // TODO: this can be done with -r and -d|-a
+  /* case CKA_OBJECT_ID: // TODO: how about just storing the OID in DER ? */
+  /*   // This only makes sense for data objects */
+  /*   fprintf(stderr, "OID\n"); */
+  /*   strcpy((char *)tmp, pubkey_objects[objects[obj].sub_id].oid); */
+  /*   asn1_encode_oid(tmp, tmp, &len); */
+  /*   data = tmp; */
+  /*   break; */
+
+  /* case CKA_CERTIFICATE_TYPE: */
+  /*   fprintf(stderr, "CERTIFICATE TYPE\n"); */
+  /*   len = 1; */
+  /*   tmp[0] = CKC_X_509; // Support only X.509 certs */
+  /*   data = tmp; */
+  /*   break; */
+
+//  case CKA_ISSUER:
+//  case CKA_SERIAL_NUMBER:
+  case CKA_KEY_TYPE:
+    fprintf(stderr, "KEY TYPE TODO\n");
+    return CKR_FUNCTION_FAILED;
+
+  case CKA_SUBJECT:
+    fprintf(stderr, "SUBJECT TODO\n"); // Default empty
+    return CKR_FUNCTION_FAILED;
+
+  case CKA_ID:
+    fprintf(stderr, "ID\n");
+    len = 1;
+    tmp[0] = piv_objects[obj].sub_id;
+    data = tmp;
+    break;
+
+  /* case CKA_SENSITIVE: */
+  case CKA_ENCRYPT:
+    fprintf(stderr, "ENCRYPT TODO\n"); // Required
+    return CKR_FUNCTION_FAILED;
+
+  case CKA_DECRYPT:
+    fprintf(stderr, "DECRYPT TODO\n"); // Required
+    return CKR_FUNCTION_FAILED;
+
+  case CKA_WRAP:
+    fprintf(stderr, "WRAP TODO\n"); // Required
+    return CKR_FUNCTION_FAILED;
+
+  /* case CKA_UNWRAP: */
+  /* case CKA_SIGN: */
+  /* case CKA_SIGN_RECOVER: */
+  /* case CKA_VERIFY: */
+  /* case CKA_VERIFY_RECOVER: */
+  case CKA_DERIVE:
+    fprintf(stderr, "DERIVE TODO\n"); // Defaul false
+    return CKR_FUNCTION_FAILED;
+
+  case CKA_START_DATE:
+    fprintf(stderr, "START DATE TODO\n"); // Default empty
+    return CKR_FUNCTION_FAILED;
+
+  case CKA_END_DATE:
+    fprintf(stderr, "END DATE TODO\n"); // Default empty
+    return CKR_FUNCTION_FAILED;
+  /* case CKA_MODULUS: */
+  /* case CKA_MODULUS_BITS: */
+  /* case CKA_PUBLIC_EXPONENT: */
+  /* case CKA_PRIVATE_EXPONENT: */
+  /* case CKA_PRIME_1: */
+  /* case CKA_PRIME_2: */
+  /* case CKA_EXPONENT_1: */
+  /* case CKA_EXPONENT_2: */
+  /* case CKA_COEFFICIENT: */
+  /* case CKA_PRIME: */
+  /* case CKA_SUBPRIME: */
+  /* case CKA_BASE: */
+  /* case CKA_VALUE_BITS: */
+  /* case CKA_VALUE_LEN: */
+  /* case CKA_EXTRACTABLE: */
+  case CKA_LOCAL:
+    fprintf(stderr, "LOCAL TODO\n"); // Required
+    return CKR_FUNCTION_FAILED;
+
+  /* case CKA_NEVER_EXTRACTABLE: */
+  /* case CKA_ALWAYS_SENSITIVE: */
+  case CKA_MODIFIABLE:
+    fprintf(stderr, "MODIFIABLE\n");
+    len = 1;
+    tmp[0] = piv_objects[obj].modifiable;
+    data = tmp;
+    break;
+
+  /* case CKA_VENDOR_DEFINED: */
+  default:
+    fprintf(stderr, "UNKNOWN ATTRIBUTE!!!!! %lx\n", template[0].type); // TODO: there are other parameters for public keys
+    template->ulValueLen = CK_UNAVAILABLE_INFORMATION;
+    return CKR_ATTRIBUTE_TYPE_INVALID;
+  }
+
+  /* Just get the length */
+  if (template->pValue == NULL_PTR) {
+    template->ulValueLen = len; // TODO: define?
+    return CKR_OK;
+  }
+
+  /* Actually get the attribute */
+  if (template->ulValueLen < len)
+    return CKR_BUFFER_TOO_SMALL;
+
+  template->ulValueLen = len;
+  memcpy(template->pValue, data, len);
+
+  return CKR_OK;
+
+}
+
+CK_RV get_attribute(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
+  CK_ULONG i;
+
+  for (i = 0; i < s->slot->token->n_objects; i++)
+    if (s->slot->token->objects[i] == obj) {
+      return piv_objects[obj].get_attribute(obj, template);
     }
 
-    if (template->ulValueLen < len)
-      return CKR_BUFFER_TOO_SMALL;
 
-    template->ulValueLen = len;
-    memcpy(template->pValue, data, len);
-
-    return CKR_OK;
-
+  return CKR_OBJECT_HANDLE_INVALID;
 }

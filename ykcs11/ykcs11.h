@@ -2,6 +2,7 @@
 #define YKCS11_H
 
 #include "pkcs11t.h"
+#include "obj_types.h"
 #include "vendors.h"
 
 typedef struct {

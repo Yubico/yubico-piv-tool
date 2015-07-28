@@ -1,11 +1,12 @@
 #include "ykcs11.h"
-#include "pkcs11.h"
+//#include "pkcs11.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <ykpiv.h>
 #include <string.h>
-//#include "vendors.h"
+#include "obj_types.h"
 #include "utils.h"
+#include "mechanisms.h"
 
 #define D(x) do {                                                     \
     printf ("debug: %s:%d (%s): ", __FILE__, __LINE__, __FUNCTION__); \
@@ -14,7 +15,7 @@
   } while (0)
 
 #define YKCS11_DBG    1  // General debug, must be either 1 or 0
-#define YKCS11_DINOUT 1  // Function in/out debug, must be either 1 or 0
+#define YKCS11_DINOUT 0  // Function in/out debug, must be either 1 or 0
 
 #define YKCS11_MANUFACTURER "Yubico (www.yubico.com)"
 #define YKCS11_LIBDESC      "PKCS#11 PIV Library (SP-800-73)"
@@ -218,8 +219,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotInfo)(
 {
   DIN;
 
-  if (piv_state == NULL)
+  if (piv_state == NULL) {
+    DBG(("libykpiv is not initialized or already finalized"));
     return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
 
   if (slotID >= n_slots)
     return CKR_ARGUMENTS_BAD;
@@ -240,8 +243,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
   token_vendor_t  token;
   CK_BYTE         buf[64];
 
-  if (piv_state == NULL)
+  if (piv_state == NULL) {
+    DBG(("libykpiv is not initialized or already finalized"));
     return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
 
   if (slotID >= n_slots)
     return CKR_ARGUMENTS_BAD;
@@ -429,8 +434,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
 
   token_vendor_t token;
 
-  if (piv_state == NULL)
+  if (piv_state == NULL) {
+    DBG(("libykpiv is not initialized or already finalized"));
     return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
 
   if (slotID >= n_slots || phSession == NULL)
     return CKR_ARGUMENTS_BAD;
@@ -514,8 +521,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
 {
   DIN;
 
-  if (piv_state == NULL)
+  if (piv_state == NULL) {
+    DBG(("libykpiv is not initialized or already finalized"));
     return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
 
   if (session.handle == CK_INVALID_HANDLE) {
     DBG(("There is no existing session"));
@@ -544,8 +553,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
   DIN;
   CK_RV rv;
 
-  if (piv_state == NULL)
+  if (piv_state == NULL) {
+    DBG(("libykpiv is not initialized or already finalized"));
     return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
 
   if (session.slot != slots + slotID)
     return CKR_SLOT_ID_INVALID;
@@ -563,8 +574,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSessionInfo)(
 {
   DIN;
 
-  if (piv_state == NULL)
+  if (piv_state == NULL) {
+    DBG(("libykpiv is not initialized or already finalized"));
     return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
 
   if (pInfo == NULL)
     return CKR_ARGUMENTS_BAD;
@@ -614,8 +627,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
   DIN;
   CK_ULONG        tries;
 
-  if (piv_state == NULL)
+  if (piv_state == NULL) {
+    DBG(("libykpiv is not initialized or already finalized"));
     return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
 
   if (userType != CKU_USER &&
       userType != CKU_SO &&
@@ -736,9 +751,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
 )
 {
   DIN;
+  CK_RV rv;
 
-  if (piv_state == NULL)
+  if (piv_state == NULL) {
+    DBG(("libykpiv is not initialized or already finalized"));
     return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
 
   if (session.handle != YKCS11_SESSION_ID)
     return CKR_SESSION_CLOSED;
@@ -754,14 +772,19 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
 
   if (pTemplate[0].pValue == NULL_PTR) {
     DBG(("Just get size"));
-    get_attribute(hObject, pTemplate); // TODO: get attribute size
+    rv = get_attribute(&session, hObject, pTemplate);
+
+    if (rv != CKR_OK) {
+      DBG(("Unable to get size for attribute %lu of object %lu", pTemplate->type, hObject));
+    }
     DOUT;
     return CKR_OK;
   }
-  DBG(("Trying to get %lu attributes for object %lx", ulCount, hObject));
+  DBG(("Trying to get %lu attribute(s) for object %lu", ulCount, hObject));
   DBG(("Type: 0x%lx Value: %lu Len: %lu", pTemplate[0].type, *((CK_ULONG_PTR)pTemplate[0].pValue), pTemplate[0].ulValueLen));
-  // TODO: here for i in ulCount
-  return get_attribute(hObject, pTemplate);
+  // TODO: here for i in ulCount (get all the attributes)
+
+  return get_attribute(&session, hObject, pTemplate);
 
   DOUT;
   return CKR_OK;
@@ -788,10 +811,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
 {
   DIN;
   CK_ULONG i;
-  //token_vendor_t token;
 
-  if (piv_state == NULL)
+  if (piv_state == NULL) {
+    DBG(("libykpiv is not initialized or already finalized"));
     return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
 
   if (session.handle != YKCS11_SESSION_ID)
     return CKR_SESSION_CLOSED;
@@ -833,8 +857,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
   }
 
   // TODO: do it properly here, jsut a test now
+  //find_obj.objects = session.slot->token->objects + 3;
+  memmove(find_obj.objects, find_obj.objects + 3, sizeof(piv_obj_id_t) * (find_obj.num - 3));
   find_obj.num = 1;
-  find_obj.objects = session.slot->token->objects + 3;
 
   DOUT;
   return CKR_OK;
@@ -849,8 +874,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
 {
   DIN;
 
-  if (piv_state == NULL)
+  if (piv_state == NULL) {
+    DBG(("libykpiv is not initialized or already finalized"));
     return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
 
   if (session.handle != YKCS11_SESSION_ID)
     return CKR_SESSION_CLOSED;
@@ -889,8 +916,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsFinal)(
 {
   DIN;
 
-  if (piv_state == NULL)
+  if (piv_state == NULL) {
+    DBG(("libykpiv is not initialized or already finalized"));
     return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
 
   if (session.handle != YKCS11_SESSION_ID)
     return CKR_SESSION_CLOSED;
@@ -1082,8 +1111,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
 {
   DIN;
 
-  if (piv_state == NULL)
+  if (piv_state == NULL) {
+    DBG(("libykpiv is not initialized or already finalized"));
     return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
 
   if (session.handle != YKCS11_SESSION_ID)
     return CKR_SESSION_CLOSED;
@@ -1095,11 +1126,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
       hKey == NULL_PTR)
     return CKR_ARGUMENTS_BAD;
 
-  DBG(("Trying to sign some data with mechanism %lu and key %lu more", pMechanism->mechanism, hKey));
+  DBG(("Trying to sign some data with mechanism %lu and key %lu", pMechanism->mechanism, hKey));
 
-  if (check_sign_mechanism(pMechanism, hKey) == CK_FALSE) // TODO: do we need session here?
+  if (check_sign_mechanism(&session, pMechanism) != CKR_OK) {
+    DBG(("Mechanism %lu is not supported either by the token or the slot", pMechanism->mechanism));
     return CKR_MECHANISM_INVALID;
+  }
 
+  
+  
   sign_info.active = CK_TRUE;
   memcpy(&sign_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
   sign_info.key = hKey;

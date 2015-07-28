@@ -3,7 +3,7 @@
 
 #include "pkcs11.h"
 #include "vendor_ids.h"
-#include "objects.h"
+#include "obj_types.h"
 #include <ykpiv.h>
 
 typedef CK_RV (*get_t_label_f)(CK_UTF8CHAR_PTR, CK_ULONG);

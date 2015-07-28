@@ -63,15 +63,15 @@ static const CK_MECHANISM_INFO token_mechanism_infos[] = { // KEEP ALIGNED WITH 
 };
 
 static const piv_obj_id_t token_objects[] = { // TODO: is there a way to get this from the token?
-  PIV_DATA_OBJ_CCC,             // Card capability container
-  PIV_DATA_OBJ_CHUI,            // Cardholder unique id
   PIV_DATA_OBJ_X509_PIV_AUTH,   // PIV authentication
-  PIV_DATA_OBJ_CHF,             // Cardholder fingerprints
-  PIV_DATA_OBJ_SEC_OBJ,         // Security object
-  PIV_DATA_OBJ_CHFI,            // Cardholder facial images
   PIV_DATA_OBJ_X509_CARD_AUTH,  // Certificate for card authentication
   PIV_DATA_OBJ_X509_DS,         // Certificate for digital signature
   PIV_DATA_OBJ_X509_KM,         // Certificate for key management
+  PIV_DATA_OBJ_CCC,             // Card capability container
+  PIV_DATA_OBJ_CHUI,            // Cardholder unique id
+  PIV_DATA_OBJ_CHF,             // Cardholder fingerprints
+  PIV_DATA_OBJ_SEC_OBJ,         // Security object
+  PIV_DATA_OBJ_CHFI,            // Cardholder facial images
   //PIV_DATA_OBJ_PI,              // Cardholder printed information
   //PIV_DATA_OBJ_DISCOVERY,       // Discovery object
   //PIV_DATA_OBJ_HISTORY,         // History object
@@ -193,7 +193,7 @@ CK_RV YUBICO_get_token_mechanism_list(CK_MECHANISM_TYPE_PTR mec, CK_ULONG num) {
 
   memcpy(mec, token_mechanisms, token_mechanisms_num * sizeof(CK_MECHANISM_TYPE));
   return CKR_OK;
-  
+
 }
 
 CK_RV YUBICO_get_token_mechanism_info(CK_MECHANISM_TYPE mec, CK_MECHANISM_INFO_PTR info) {
@@ -205,9 +205,9 @@ CK_RV YUBICO_get_token_mechanism_info(CK_MECHANISM_TYPE mec, CK_MECHANISM_INFO_P
       memcpy((CK_BYTE_PTR) info, (CK_BYTE_PTR) (token_mechanism_infos + i), sizeof(CK_MECHANISM_INFO));
       return CKR_OK;
     }
-  
+
   return CKR_MECHANISM_INVALID;
-  
+
 }
 #include <stdio.h> // TODO: delete
 static CK_RV get_objects(ykpiv_state *state, CK_BBOOL num_only, piv_obj_id_t *obj, CK_ULONG_PTR len) {
@@ -215,6 +215,8 @@ static CK_RV get_objects(ykpiv_state *state, CK_BBOOL num_only, piv_obj_id_t *ob
   CK_ULONG buf_len;
 
   piv_obj_id_t certs[4];
+  piv_obj_id_t pvtkeys[4];
+  piv_obj_id_t pubkeys[4];
   CK_ULONG n_cert = 0;
 
   if (state == NULL || len == NULL_PTR)
@@ -222,51 +224,64 @@ static CK_RV get_objects(ykpiv_state *state, CK_BBOOL num_only, piv_obj_id_t *ob
 
   if (num_only == CK_FALSE && obj == NULL)
     return CKR_ARGUMENTS_BAD;
-  
+
   buf_len = sizeof(buf);
   if (ykpiv_fetch_object(state, YKPIV_OBJ_AUTHENTICATION, buf, &buf_len) == YKPIV_OK) {
+    certs[n_cert] = PIV_CERT_OBJ_X509_PIV_AUTH;
+    pvtkeys[n_cert] = PIV_PVTK_OBJ_PIV_AUTH;
+    pubkeys[n_cert] = PIV_PUBK_OBJ_PIV_AUTH;
     n_cert++;
-    certs[0] = PIV_CERT_OBJ_X509_PIV_AUTH;
     fprintf(stderr, "Found AUTH cert (9a)\n");
   }
 
   buf_len = sizeof(buf);
-  if (ykpiv_fetch_object(state, YKPIV_OBJ_SIGNATURE, buf, &buf_len) == YKPIV_OK) {
+  if (ykpiv_fetch_object(state, YKPIV_OBJ_CARD_AUTH, buf, &buf_len) == YKPIV_OK) {
+    certs[n_cert] = PIV_CERT_OBJ_X509_CARD_AUTH;
+    pvtkeys[n_cert] = PIV_PVTK_OBJ_CARD_AUTH;
+    pubkeys[n_cert] = PIV_PUBK_OBJ_CARD_AUTH;
     n_cert++;
-    certs[1] = PIV_CERT_OBJ_X509_DS;
+    fprintf(stderr, "Found CARD AUTH cert (9e)\n");
+  }
+
+  buf_len = sizeof(buf);
+  if (ykpiv_fetch_object(state, YKPIV_OBJ_SIGNATURE, buf, &buf_len) == YKPIV_OK) {
+    certs[n_cert] = PIV_CERT_OBJ_X509_DS;
+    pvtkeys[n_cert] = PIV_PVTK_OBJ_DS;
+    pubkeys[n_cert] = PIV_PUBK_OBJ_DS;
+    n_cert++;
     fprintf(stderr, "Found SIGNATURE cert (9c)\n");
   }
 
   buf_len = sizeof(buf);
   if (ykpiv_fetch_object(state, YKPIV_OBJ_KEY_MANAGEMENT, buf, &buf_len) == YKPIV_OK) {
+    certs[n_cert] = PIV_CERT_OBJ_X509_KM;
+    pvtkeys[n_cert] = PIV_PVTK_OBJ_KM;
+    pubkeys[n_cert] = PIV_PUBK_OBJ_KM;
     n_cert++;
-    certs[2] = PIV_CERT_OBJ_X509_KM;
     fprintf(stderr, "Found KMK cert (9d)\n");
   }
 
-  buf_len = sizeof(buf);
-  if (ykpiv_fetch_object(state, YKPIV_OBJ_CARD_AUTH, buf, &buf_len) == YKPIV_OK) {
-    n_cert++;
-    certs[3] = PIV_CERT_OBJ_X509_CARD_AUTH;
-    fprintf(stderr, "Found CARD AUTH cert (9e)\n");
-  }
+  fprintf(stderr, "The total number of objects for this token is %lu\n", (n_cert * 3) + token_objects_num);
 
-  fprintf(stderr, "The total number of objects for this token is %lu\n", n_cert + token_objects_num);
-  
   if (num_only == CK_TRUE) {
     // We just want the number of objects
-    *len = n_cert + token_objects_num;
+    // Each cert object counts for 3: cert, pub key, pvt key
+    *len = (n_cert * 3) + token_objects_num;
     return CKR_OK;
   }
 
-  if (*len < n_cert + token_objects_num)
+  if (*len < (n_cert * 3) + token_objects_num)
     return CKR_BUFFER_TOO_SMALL;
 
   // Copy mandatory data objects
   memcpy(obj, token_objects, token_objects_num * sizeof(piv_obj_id_t));
 
   // Copy certificates
-  memcpy(obj + token_objects_num, certs, n_cert * sizeof(piv_obj_id_t));
+  if (n_cert > 0) {
+    memcpy(obj + token_objects_num, certs, n_cert * sizeof(piv_obj_id_t));
+    memcpy(obj + token_objects_num + n_cert, pvtkeys, n_cert * sizeof(piv_obj_id_t));
+    memcpy(obj + token_objects_num + (2 * n_cert), pubkeys, n_cert * sizeof(piv_obj_id_t));
+  }
 
   return CKR_OK;
 }

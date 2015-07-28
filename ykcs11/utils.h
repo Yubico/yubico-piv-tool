@@ -8,4 +8,5 @@ CK_RV parse_readers(const CK_BYTE_PTR readers, const CK_ULONG len,
                        ykcs11_slot_t *slots, CK_ULONG_PTR n_slots, CK_ULONG_PTR n_with_token);
 CK_RV create_token(CK_BYTE_PTR p, ykcs11_slot_t *slot);
 void  destroy_token(ykcs11_slot_t *slot);
+
 #endif

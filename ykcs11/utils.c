@@ -90,7 +90,7 @@ failure:
   
   return CKR_FUNCTION_FAILED;
 }
-
+#include <stdio.h> // TODO: Delete
 CK_RV create_token(CK_BYTE_PTR p, ykcs11_slot_t *slot) {
 
   token_vendor_t token;
