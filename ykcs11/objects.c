@@ -56,10 +56,10 @@ static piv_obj_t piv_objects[] = {
   {PIV_CERT_OBJ_X509_KM, 1, 0, 0, "X.509 Certificate for Key Management", 0, 0, get_coa, 3},
   {PIV_CERT_OBJ_LAST, 1, 0, 0, "", 0, 0, get_coa, 4},
 
-  {PIV_PVTK_OBJ_PIV_AUTH, 1, 0, 0, "Pivate key for PIV Authentication", 0, 0, get_proa, 0},
-  {PIV_PVTK_OBJ_CARD_AUTH, 1, 0, 0, "Pivate key for Card Authentication", 0, 0, get_proa, 1},
-  {PIV_PVTK_OBJ_DS, 1, 0, 0, "Pivate key for Digital Signature", 0, 0, get_proa, 2},
-  {PIV_PVTK_OBJ_KM, 1, 0, 0, "Private key for Key Management", 0, 0, get_proa, 3},
+  {PIV_PVTK_OBJ_PIV_AUTH, 1, 0, 0, "Private key for PIV Authentication", 0, 0, get_proa, 0},
+  {PIV_PVTK_OBJ_CARD_AUTH, 1, 0, 0, "Private key for Card Authentication", 0, 0, get_proa, 1},
+  {PIV_PVTK_OBJ_DS, 1, 0, 0, "Private key for Digital Signature", 0, 0, get_proa, 2},
+  {PIV_PVTK_OBJ_KM, 1, 0, 0, "Prrivate key for Key Management", 0, 0, get_proa, 3},
   {PIV_PVTK_OBJ_LAST, 1, 0, 0, "", 0, 0, NULL, 4},
 
   {PIV_PUBK_OBJ_PIV_AUTH, 1, 0, 0, "Public key for PIV Authentication", 0, 0, get_proa, 0},
@@ -111,11 +111,11 @@ static piv_data_obj_t data_objects[] = {
 };
 
 static piv_cert_obj_t cert_objects[] = {
-  {0},
-  {0},
-  {0},
-  {0},
-  {0}
+  {NULL},
+  {NULL},
+  {NULL},
+  {NULL},
+  {NULL}
 };
 
 static piv_pvtk_obj_t pvtkey_objects[] = {
@@ -583,6 +583,10 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 //  case CKA_SERIAL_NUMBER:
   case CKA_KEY_TYPE:
     fprintf(stderr, "KEY TYPE TODO\n");
+    len = 1;
+    tmp[0] = CKK_RSA; // TODO: just an example
+    data = tmp;
+    break;
     return CKR_FUNCTION_FAILED;
 
   case CKA_SUBJECT:

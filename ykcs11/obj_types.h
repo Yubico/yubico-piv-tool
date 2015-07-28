@@ -3,6 +3,8 @@
 
 #include "pkcs11t.h"
 
+#include <openssl/x509.h>
+
 // TODO: this is mostly from OpenSC, how to give credit?
 typedef enum {
   PIV_DATA_OBJ_X509_PIV_AUTH = 0, // PIV authentication
@@ -98,7 +100,7 @@ typedef struct {
 } piv_data_obj_t;
 
 typedef struct {
-  CK_BBOOL todo;
+  X509 *data;
 } piv_cert_obj_t;
 
 typedef struct {
