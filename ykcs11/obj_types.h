@@ -103,12 +103,12 @@ typedef struct {
   X509 *data;
 } piv_cert_obj_t;
 
-typedef struct {
+typedef struct { // TODO: enough to use the public key for the parameters?
   CK_BBOOL todo;
 } piv_pvtk_obj_t;
 
 typedef struct {
-  CK_BBOOL todo;
+  EVP_PKEY *data;
 } piv_pubk_obj_t;
 
 typedef struct {

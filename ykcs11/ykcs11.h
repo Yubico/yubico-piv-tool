@@ -8,8 +8,9 @@
 typedef struct {
   vendor_id_t   vid;
   CK_TOKEN_INFO info;
-  piv_obj_id_t  *objects;
-  CK_ULONG      n_objects;
+  piv_obj_id_t  *objects;  // List of objects in the token
+  CK_ULONG      n_objects; // TOTAL number of objects in the token
+  CK_ULONG      n_certs;   // Number of certificate objects in the token (portion of n_objects)
 } ykcs11_token_t;
 
 typedef struct {

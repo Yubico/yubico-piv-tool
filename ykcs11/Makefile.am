@@ -39,8 +39,9 @@ libykcs11_la_SOURCES += slot_vendors.c slot_vendor.h
 libykcs11_la_SOURCES += token_vendors.c token_vendor.h
 libykcs11_la_SOURCES += mechanisms.c mechanisms.h
 libykcs11_la_SOURCES += yubico_slot.c yubico_slot.h yubico_token.c yubico_token.h
-libykcs11_la_SOURCES += utils.h utils.c
-libykcs11_la_SOURCES += obj_types.h objects.h objects.c
+libykcs11_la_SOURCES += utils.c utils.h
+libykcs11_la_SOURCES += openssl_utils.c openssl_utils.h
+libykcs11_la_SOURCES += objects.c objects.h obj_types.h
 
 #internal.h
 #libykcs11_la_SOURCES += error.c
@@ -54,6 +55,7 @@ EXTRA_libykcs11_la_DEPENDENCIES = ykcs11.map
 #libykcs11_la_LIBADD = $(OPENSSL_LIBS) $(PCSC_LIBS)
 #libykcs11_la_LIBADD += $(PCSC_WIN_LIBS) $(PCSC_MACOSX_LIBS)
 libykcs11_la_LIBADD = $(LIBNSPR) ../lib/libykpiv.la
+libykcs11_la_LIBADD += ../tool/libpiv_util.la
 
 libykcs11_la_LDFLAGS = -no-undefined
 libykcs11_la_LDFLAGS += -version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE)

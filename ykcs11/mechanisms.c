@@ -40,7 +40,7 @@ CK_RV check_sign_mechanism(const ykcs11_session_t *s, const CK_MECHANISM_PTR m) 
   if (token.get_token_mechanism_info(m->mechanism, &info) != CKR_OK)
     return CKR_MECHANISM_INVALID;
 
-  // TODO: also check that parametes make sens if any?
+  // TODO: also check that parametes make sense if any?
 
   CKR_OK;
 
@@ -83,4 +83,21 @@ CK_BBOOL is_RSA_mechanism(CK_MECHANISM_TYPE m) {
 
   // Not reached
   return CK_FALSE;
+}
+
+CK_RV do_sign_padding(CK_MECHANISM_PTR m, CK_BYTE_PTR in, CK_ULONG in_len,
+                      CK_BYTE_PTR out, CK_ULONG out_len, CK_ULONG key_len) {
+  switch (m->mechanism) {
+  case CKM_RSA_PKCS:
+    return do_pkcs_t1(in, in_len, out, out_len, key_len);
+
+  case CKM_RSA_PKCS_PSS:
+  case CKM_RSA_X_509:
+  case CKM_SHA1_RSA_PKCS:
+  case CKM_SHA256_RSA_PKCS:
+  case CKM_SHA384_RSA_PKCS:
+  case CKM_SHA512_RSA_PKCS:
+    return CKR_FUNCTION_FAILED;
+  }
+  
 }

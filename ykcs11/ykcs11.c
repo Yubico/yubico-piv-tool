@@ -23,9 +23,11 @@
 #define PIV_MIN_PIN_LEN 6
 #define PIV_MAX_PIN_LEN 8
 
-#define YKCS11_MAX_SLOTS 16
+#define YKCS11_MAX_SLOTS       16
+#define YKCS11_MAX_SIG_BUF_LEN 1024
 
 #define YKCS11_SESSION_ID 5355104
+
 
 #if YKCS11_DBG
 #define DBG(x) D(x);
@@ -60,9 +62,10 @@ static struct {
   static CK_ULONG n_token_objects = 0;*/
 
 static struct {
-  CK_BBOOL         active;
-  CK_MECHANISM     mechanism;
-  CK_OBJECT_HANDLE key;
+  CK_BBOOL     active;
+  CK_MECHANISM mechanism;
+  CK_ULONG     key;
+  CK_BYTE      algo;
 } sign_info;
 
 extern CK_FUNCTION_LIST function_list; // TODO: check all return values
@@ -269,7 +272,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
   token = get_token_vendor(slots[slotID].token->vid);
 
   memcpy(pInfo, &slots[slotID].token->info, sizeof(CK_TOKEN_INFO));
-  
+
   // Overwrite value that are application specific
   pInfo->ulMaxSessionCount = CK_UNAVAILABLE_INFORMATION; // TODO: should this be 1?
   pInfo->ulSessionCount = CK_UNAVAILABLE_INFORMATION; // number of sessions that this application currently has open with the token
@@ -283,7 +286,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
   pInfo->ulFreePublicMemory = CK_UNAVAILABLE_INFORMATION;
   pInfo->ulTotalPrivateMemory = CK_UNAVAILABLE_INFORMATION;
   pInfo->ulFreePrivateMemory = CK_UNAVAILABLE_INFORMATION;
-  
+
   DOUT;
   return CKR_OK;
 }
@@ -430,9 +433,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   CK_SESSION_HANDLE_PTR phSession
 )
 {
-  DIN;
+  DIN; // TODO: pApplication and Notify
 
   token_vendor_t token;
+  CK_RV          rv;
+  piv_obj_id_t   *cert_ids;
+  CK_ULONG       i;
+  CK_BYTE        cert_data[2100];  // Max cert value for ykpiv
+  CK_ULONG       cert_len = sizeof(cert_data);
 
   if (piv_state == NULL) {
     DBG(("libykpiv is not initialized or already finalized"));
@@ -473,27 +481,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   session.slot = slots + slotID;
   //session.slot->info.slotID = slotID; // Redundant but required in CK_SESSION_INFO
 
-  // Get the number of token objects
-  if (token.get_token_objects_num(piv_state, &session.slot->token->n_objects) != CKR_OK) {
-    DBG(("Unable to retrieve number of token objects"));
-    return CKR_FUNCTION_FAILED;
-  }
-
-  // Get memory for the objects
-  session.slot->token->objects = malloc(sizeof(piv_obj_id_t) * session.slot->token->n_objects);
-  if (session.slot->token->objects == NULL) {
-    DBG(("Unable to allocate memory for token objects"));
-    return CKR_HOST_MEMORY;
-  }
-
-  // Store all the objects available in the token
-  if (token.get_token_object_list(piv_state,
-                                         session.slot->token->objects,
-                                         session.slot->token->n_objects) != CKR_OK) {
-    DBG(("Unable to retrieve token objects"));
-    return CKR_FUNCTION_FAILED;
-  }
-
+  // Store session flags
   if ((flags & CKF_RW_SESSION)) {
     // R/W Session
     session.info.state = CKS_RW_PUBLIC_SESSION; // Nobody has logged in, default session
@@ -506,13 +494,78 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   session.info.flags = flags;
   session.info.ulDeviceError = 0;
 
+  // Get the number of token objects
+  rv = token.get_token_objects_num(piv_state, &session.slot->token->n_objects, &session.slot->token->n_certs);
+  if (rv != CKR_OK) {
+    DBG(("Unable to retrieve number of token objects"));
+    return rv;
+  }
+
+  // Get memory for the objects
+  session.slot->token->objects = malloc(sizeof(piv_obj_id_t) * session.slot->token->n_objects);
+  if (session.slot->token->objects == NULL) {
+    DBG(("Unable to allocate memory for token object ids"));
+    return CKR_HOST_MEMORY;
+  }
+
+  // Get memory for the certificates
+  cert_ids = malloc(sizeof(piv_obj_id_t) * session.slot->token->n_certs);
+  if (cert_ids == NULL) {
+    DBG(("Unable to allocate memory for token certificate ids"));
+    return CKR_HOST_MEMORY;
+  }
+
+  // Save a list of all the available objects in the token // TODO: change behavior based on login status
+  rv = token.get_token_object_list(piv_state, session.slot->token->objects, session.slot->token->n_objects);
+  if (rv != CKR_OK) {
+    DBG(("Unable to retrieve token objects"));
+    goto failure;
+  }
+
+  // Get a list object ids for available certificates object from the session
+  rv = get_available_certificate_ids(&session, cert_ids, session.slot->token->n_certs); // TODO: better to get this from token? how?
+  if (rv != CKR_OK) {
+    DBG(("Unable to retrieve certificate ids from the session"));
+    goto failure;
+  }
+
+  // Get the actual certificate data from the token and store it as an X509 object
+  for (i = 0; i < session.slot->token->n_certs; i++) {
+    rv = token.get_token_raw_certificate(piv_state, cert_ids[i], cert_data, cert_len);
+    if (rv != CKR_OK) {
+      DBG(("Unable to get certificate data from token"));
+      goto failure;
+    }
+
+    rv = store_cert(cert_ids[i], cert_data, cert_len);
+    if (rv != CKR_OK) {
+      DBG(("Unable to store certificate data"));
+      goto failure;
+    }
+  }
+
   session.handle = YKCS11_SESSION_ID;
-  // TODO: KEEP TRACK OF THE APPLICATION
+  // TODO: KEEP TRACK OF THE APPLICATION (possble to steal a session?)
 
   *phSession = session.handle;
 
   DOUT;
   return CKR_OK;
+
+failure:
+  if (session.slot->token->objects != NULL) {
+    free(session.slot->token->objects);
+    session.slot->token->objects = NULL;
+  }
+
+  if (cert_ids != NULL) {
+    free(cert_ids);
+    cert_ids = NULL;
+  }
+
+  free_certs(); // TODO
+
+  return rv;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
@@ -677,7 +730,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
     return CKR_USER_TYPE_INVALID; // TODO: only allow regular user for now
   }
 
-  DBG(("You win! %lu", tries))
+  DBG(("You win! %lu", tries));
+
+  // TODO: update session objects now that we're logged in ?
 
   DOUT;
   return CKR_OK;
@@ -856,9 +911,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
     // TODO: remove objects that don't match
   }
 
-  // TODO: do it properly here, jsut a test now
+  // TODO: do it properly here, just a test now
   //find_obj.objects = session.slot->token->objects + 3;
-  memmove(find_obj.objects, find_obj.objects + 3, sizeof(piv_obj_id_t) * (find_obj.num - 3));
+  memmove(find_obj.objects, find_obj.objects + 14, sizeof(piv_obj_id_t) * (find_obj.num - 14));
   find_obj.num = 1;
 
   DOUT;
@@ -1128,33 +1183,41 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
 
   DBG(("Trying to sign some data with mechanism %lu and key %lu", pMechanism->mechanism, hKey));
 
+  // Check if mechanism is supported
   if (check_sign_mechanism(&session, pMechanism) != CKR_OK) {
     DBG(("Mechanism %lu is not supported either by the token or the slot", pMechanism->mechanism));
     return CKR_MECHANISM_INVALID;
   }
-
-  
-  
-  sign_info.active = CK_TRUE;
   memcpy(&sign_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
-  sign_info.key = hKey;
-  // TODO: also allocate some space for the signature
 
+  //  Get key algorithm
+  /*if (get_key_algo(hKey, &sign_info.algo) != CKR_OK) {
+    DBG(("Unable to retrieve type for key %lu", hKey));
+    return CKR_FUNCTION_FAILED;
+    }*/ // TODO: use get attribute instead?
+  sign_info.algo = YKPIV_ALGO_RSA2048; // TODO: fix
+
+  sign_info.key = piv_2_ykpiv(hKey);
+  if (sign_info.key == 0) {
+    DBG(("Incorrect key %lu", hKey));
+    return CKR_KEY_HANDLE_INVALID;
+  }
+
+  // Make sure that both mechanism and key have the same algorithm
+  if ((is_RSA_mechanism(pMechanism->mechanism) && sign_info.algo == YKPIV_ALGO_ECCP256) ||
+      (!is_RSA_mechanism(pMechanism->mechanism) && (sign_info.algo != YKPIV_ALGO_ECCP256))) {
+    DBG(("Key and mechanism algorithm do not match"));
+    return CKR_ARGUMENTS_BAD;
+  }
+
+  // TODO: also allocate some space for the signature in case of multipart
+
+  sign_info.active = CK_TRUE;
 
   DOUT;
   return CKR_OK;
 }
-/* TOTOD: DELETE */
-CK_BYTE  sig_buf[1024];
-CK_ULONG sig_len = 1024;
-void dump_hex(const unsigned char *buf, unsigned int len, FILE *output, CK_BBOOL space) {
-  unsigned int i;
-  for (i = 0; i < len; i++) {
-    fprintf(output, "%02x%s", buf[i], space == CK_TRUE ? " " : "");
-  }
-  fprintf(output, "\n");
-}
-/* TODO: DELETE END*/
+
 CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   CK_SESSION_HANDLE hSession,
   CK_BYTE_PTR pData,
@@ -1164,39 +1227,35 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 )
 {
   DIN;
+  CK_BYTE  buf[YKCS11_MAX_SIG_BUF_LEN];
+  CK_ULONG buf_len = sizeof(buf);
 
   if (sign_info.active == CK_FALSE)
     return CKR_OPERATION_NOT_INITIALIZED;
 
   // TODO: check conditions
-  char test_buf[] = "\x30\x31\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x01\x05\x00\x04\x20\xa7\x47\x16\x1b\x15\x5f\xd0\x05\xbc\xbe\x84\x4a\x28\xa9\x6c\x74\xfe\xf6\x6a\x42\x84\xa0\x4e\x05\x7a\x0c\x88\xe2\xc8\x83\xc0\x00";
-  CK_ULONG sig_len_in = sizeof(test_buf) - 1;
-  CK_ULONG sig_len_out = 1024;
   ykpiv_rc r;
-  CK_CHAR key;
+  CK_CHAR algo;
 
-  DBG(("Sending %lu bytes to sign", ulDataLen/*sig_len_in*/));
+  DBG(("Sending %lu bytes to sign", ulDataLen));
   dump_hex(pData, ulDataLen, stderr, CK_TRUE);
 
-  if (sign_info.key == PIV_DATA_OBJ_X509_PIV_AUTH) {
-    key = YKPIV_KEY_AUTHENTICATION;
-    DBG(("Using key 9a"));
-  }
-  else { // TODO: test what happens if there is no key on the card
-    key = YKPIV_KEY_SIGNATURE;
-    DBG(("Using key 9c"));
-  }
-
-  // TODO: check that mechanism makes sense for the key that we have (check in signinit).
-
-  if ((r = ykpiv_sign_data(piv_state, /*pData*/test_buf, /*ulDataLen*/sig_len_in, sig_buf, &sig_len_out, YKPIV_ALGO_RSA2048, key)) != YKPIV_OK) {
-      DBG(("Sign error %s", ykpiv_strerror(r)));
+/*  if (do_sign_padding(&sign_info.mechanism, pData, ulDataLen, buf, buf_len, 2048 / 8) != CKR_OK) {
+    DBG(("Unable to apply padding scheme"));
+    return CKR_FUNCTION_FAILED;
+    }*/
+  memcpy(buf, pData, ulDataLen); // ykpiv does padding already
+  //dump_hex(buf, 256, stderr, CK_TRUE);
+  //*pulSignatureLen = 256;
+  DBG(("Using key %lx", sign_info.key)); // TODO: test what happens if there is no key on the card
+  if ((r = ykpiv_sign_data(piv_state, buf, ulDataLen, pSignature, pulSignatureLen, YKPIV_ALGO_RSA2048, sign_info.key)) != YKPIV_OK) {
+      DBG(("Sign error, %s", ykpiv_strerror(r)));
     return CKR_FUNCTION_FAILED;
   }
-  DBG(("Got %lu bytes back", sig_len_out));
-  dump_hex(sig_buf, sig_len_out, stderr, CK_TRUE);
-  memcpy(pSignature, sig_buf, sig_len_out);
-  *pulSignatureLen = sig_len_out;
+  DBG(("Got %lu bytes back", *pulSignatureLen));
+  dump_hex(pSignature, *pulSignatureLen, stderr, CK_TRUE);
+/*  memcpy(pSignature, sig_buf, sig_len_out);
+ *pulSignatureLen = sig_len_out;*/
   DOUT;
   return CKR_OK;
 }

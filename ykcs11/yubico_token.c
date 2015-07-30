@@ -210,11 +210,12 @@ CK_RV YUBICO_get_token_mechanism_info(CK_MECHANISM_TYPE mec, CK_MECHANISM_INFO_P
 
 }
 #include <stdio.h> // TODO: delete
-static CK_RV get_objects(ykpiv_state *state, CK_BBOOL num_only, piv_obj_id_t *obj, CK_ULONG_PTR len) {
+static CK_RV get_objects(ykpiv_state *state, CK_BBOOL num_only,
+                         piv_obj_id_t *obj, CK_ULONG_PTR len, CK_ULONG_PTR num_certs) {
   CK_BYTE buf[2048];
   CK_ULONG buf_len;
 
-  piv_obj_id_t certs[4];
+  piv_obj_id_t certs[4]; // TODO: this can be > 4 if there are retired keys
   piv_obj_id_t pvtkeys[4];
   piv_obj_id_t pubkeys[4];
   CK_ULONG n_cert = 0;
@@ -267,6 +268,8 @@ static CK_RV get_objects(ykpiv_state *state, CK_BBOOL num_only, piv_obj_id_t *ob
     // We just want the number of objects
     // Each cert object counts for 3: cert, pub key, pvt key
     *len = (n_cert * 3) + token_objects_num;
+    if (num_certs != NULL)
+      *num_certs = n_cert;
     return CKR_OK;
   }
 
@@ -286,10 +289,18 @@ static CK_RV get_objects(ykpiv_state *state, CK_BBOOL num_only, piv_obj_id_t *ob
   return CKR_OK;
 }
 
-CK_RV YUBICO_get_token_objects_num(ykpiv_state *state, CK_ULONG_PTR num) {
-  return get_objects(state, CK_TRUE, NULL, num);
+CK_RV YUBICO_get_token_objects_num(ykpiv_state *state, CK_ULONG_PTR num, CK_ULONG_PTR num_certs) {
+  return get_objects(state, CK_TRUE, NULL, num, num_certs);
 }
 
 CK_RV YUBICO_get_token_object_list(ykpiv_state *state, piv_obj_id_t *obj, CK_ULONG num) {
-  return get_objects(state, CK_FALSE, obj, &num);
+  return get_objects(state, CK_FALSE, obj, &num, NULL);
+}
+
+CK_RV YUBICO_get_token_raw_certificate(ykpiv_state *state, piv_obj_id_t obj, CK_BYTE_PTR data, CK_ULONG len) {
+
+  if (ykpiv_fetch_object(state, piv_2_ykpiv(obj), data, &len) != YKPIV_OK)
+    return CKR_FUNCTION_FAILED;
+
+  return CKR_OK;
 }

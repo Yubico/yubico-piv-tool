@@ -3,6 +3,9 @@
 #include <ykpiv.h>
 #include <string.h>
 #include <stdlib.h>
+#include "openssl_utils.h"
+
+#define IS_CERT(x) (((x) >= PIV_CERT_OBJ_X509_PIV_AUTH && (x) <  PIV_CERT_OBJ_LAST) ? CK_TRUE : CK_FALSE)
 
 CK_RV get_doa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template); // TODO: static?
 CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
@@ -843,6 +846,38 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
 }
 
+CK_ULONG piv_2_ykpiv(piv_obj_id_t id) {
+  // TODO: add retired keys
+  switch(id) {
+  case PIV_CERT_OBJ_X509_PIV_AUTH:
+    return YKPIV_OBJ_AUTHENTICATION;
+    
+  case PIV_CERT_OBJ_X509_CARD_AUTH:
+    return YKPIV_OBJ_CARD_AUTH;
+    
+  case PIV_CERT_OBJ_X509_DS:
+    return YKPIV_OBJ_SIGNATURE;
+    
+  case PIV_CERT_OBJ_X509_KM:
+    return YKPIV_OBJ_KEY_MANAGEMENT;
+
+  case PIV_PVTK_OBJ_PIV_AUTH:
+    return YKPIV_KEY_AUTHENTICATION;
+    
+  case PIV_PVTK_OBJ_CARD_AUTH:
+    return YKPIV_KEY_CARDAUTH;
+    
+  case PIV_PVTK_OBJ_DS:
+    return YKPIV_KEY_SIGNATURE;
+    
+  case PIV_PVTK_OBJ_KM:
+    return YKPIV_KEY_KEYMGM;
+
+  default:
+    return 0ul;
+  }
+}
+
 CK_RV get_attribute(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   CK_ULONG i;
 
@@ -851,6 +886,34 @@ CK_RV get_attribute(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR 
       return piv_objects[obj].get_attribute(obj, template);
     }
 
-
   return CKR_OBJECT_HANDLE_INVALID;
 }
+
+CK_RV get_available_certificate_ids(ykcs11_session_t *s, piv_obj_id_t *cert_ids, CK_ULONG n_certs) {
+  CK_ULONG i, j;
+
+  j = 0;
+  for (i = 0; i < s->slot->token->n_objects; i++)
+    if (IS_CERT(s->slot->token->objects[i]) == CK_TRUE)
+      cert_ids[j++] = s->slot->token->objects[i];
+
+  fprintf(stderr, "Just to check: %lu %lu\n", j, n_certs);
+
+  return CKR_OK;
+}
+
+CK_RV store_cert(piv_obj_id_t cert_id, CK_BYTE_PTR data, CK_ULONG len) {
+
+  CK_RV rv;
+
+  // Store the certificate as an object
+  rv = do_store_cert(data, len, &cert_objects[piv_objects[cert_id].sub_id].data);
+  if (rv != CKR_OK)
+    return rv;
+
+  // Extract and store the public key as an object
+  rv = do_store_pubk(cert_objects[piv_objects[cert_id].sub_id].data, &pubkey_objects[piv_objects[cert_id].sub_id].data);
+
+  return CKR_OK;
+}
+

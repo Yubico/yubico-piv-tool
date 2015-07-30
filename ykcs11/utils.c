@@ -156,6 +156,8 @@ CK_RV create_token(CK_BYTE_PTR p, ykcs11_slot_t *slot) {
   memset(t_info->utcTime, ' ', sizeof(t_info->utcTime)); // No clock present, clear
 
   // TODO: also get token objects here? (and destroy on failure)
+  slot->token->objects = NULL;
+  slot->token->n_objects = 0;
   
   return CKR_OK;
 }
