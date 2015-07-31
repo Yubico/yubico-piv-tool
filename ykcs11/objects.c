@@ -59,16 +59,16 @@ static piv_obj_t piv_objects[] = {
   {PIV_CERT_OBJ_X509_KM, 1, 0, 0, "X.509 Certificate for Key Management", 0, 0, get_coa, 3},
   {PIV_CERT_OBJ_LAST, 1, 0, 0, "", 0, 0, get_coa, 4},
 
-  {PIV_PVTK_OBJ_PIV_AUTH, 1, 0, 0, "Private key for PIV Authentication", 0, 0, get_proa, 0},
-  {PIV_PVTK_OBJ_CARD_AUTH, 1, 0, 0, "Private key for Card Authentication", 0, 0, get_proa, 1},
-  {PIV_PVTK_OBJ_DS, 1, 0, 0, "Private key for Digital Signature", 0, 0, get_proa, 2},
-  {PIV_PVTK_OBJ_KM, 1, 0, 0, "Prrivate key for Key Management", 0, 0, get_proa, 3},
+  {PIV_PVTK_OBJ_PIV_AUTH, 1, 0, 0, "Private key for PIV Authentication", 0, 0, get_proa, 0},   // 9a
+  {PIV_PVTK_OBJ_CARD_AUTH, 1, 0, 0, "Private key for Card Authentication", 0, 0, get_proa, 1}, // 9e
+  {PIV_PVTK_OBJ_DS, 1, 0, 0, "Private key for Digital Signature", 0, 0, get_proa, 2},          // 9c
+  {PIV_PVTK_OBJ_KM, 1, 0, 0, "Prrivate key for Key Management", 0, 0, get_proa, 3},            // 9d
   {PIV_PVTK_OBJ_LAST, 1, 0, 0, "", 0, 0, NULL, 4},
 
-  {PIV_PUBK_OBJ_PIV_AUTH, 1, 0, 0, "Public key for PIV Authentication", 0, 0, get_proa, 0},
-  {PIV_PUBK_OBJ_CARD_AUTH, 1, 0, 0, "Public key for Card Authentication", 0, 0, get_proa, 1},
-  {PIV_PUBK_OBJ_DS, 1, 0, 0, "Public key for Digital Signature", 0, 0, get_proa, 2},
-  {PIV_PUBK_OBJ_KM, 1, 0, 0, "Public key for Key Management", 0, 0, get_proa, 3},
+  {PIV_PUBK_OBJ_PIV_AUTH, 1, 0, 0, "Public key for PIV Authentication", 0, 0, get_puoa, 0},
+  {PIV_PUBK_OBJ_CARD_AUTH, 1, 0, 0, "Public key for Card Authentication", 0, 0, get_puoa, 1},
+  {PIV_PUBK_OBJ_DS, 1, 0, 0, "Public key for Digital Signature", 0, 0, get_puoa, 2},
+  {PIV_PUBK_OBJ_KM, 1, 0, 0, "Public key for Key Management", 0, 0, get_puoa, 3},
   {PIV_PUBK_OBJ_LAST, 1, 0, 0, "", 0, 0, NULL, 4}
 };
 
@@ -237,6 +237,18 @@ static void get_object_key_id(CK_OBJECT_HANDLE obj, CK_UTF8CHAR_PTR key_id) {
   memcpy((char *)key_id, objects[obj].containerid, 2);
 }
 */
+
+static CK_KEY_TYPE get_key_type(EVP_PKEY *key) {
+  return do_get_key_type(key);
+}
+
+static CK_KEY_TYPE get_modulus_bits(EVP_PKEY *key) {
+  return do_get_rsa_modulus_length(key);
+}
+
+static CK_RV get_public_key(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
+  return do_get_public_key(key, data, len);
+}
 
 /* Get data object attribute */
 CK_RV get_doa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
@@ -527,31 +539,32 @@ CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 /* Get private key object attribute */
 CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
-  CK_BYTE     tmp[64];
+  CK_BYTE     b_tmp[1024];
+  CK_ULONG    ul_tmp; // TODO: fix elsewhere too
   CK_ULONG    len = 0;
   fprintf(stderr, "FOR PRIVATE KEY OBJECT %lu, I WANT ", obj);
 
   switch (template->type) {
   case CKA_CLASS:
     fprintf(stderr, "CLASS\n");
-    len = 1;
-    tmp[0] = CKO_PRIVATE_KEY;
-    data = tmp;
+    len = sizeof(CK_ULONG);
+    ul_tmp = CKO_PRIVATE_KEY;
+    data = (CK_BYTE_PTR) &ul_tmp;
     break;
 
   case CKA_TOKEN:
     // Technically all these objects are token objects
     fprintf(stderr, "TOKEN\n");
-    len = 1;
-    tmp[0] = piv_objects[obj].token;
-    data = tmp;
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = piv_objects[obj].token;
+    data = b_tmp;
     break;
 
   case CKA_PRIVATE:
     fprintf(stderr, "PRIVATE\n");
-    len = 1;
-    tmp[0] = piv_objects[obj].private;
-    data = tmp;
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = piv_objects[obj].private;
+    data = b_tmp;
     break;
 
   case CKA_LABEL:
@@ -585,12 +598,13 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 //  case CKA_ISSUER:
 //  case CKA_SERIAL_NUMBER:
   case CKA_KEY_TYPE:
-    fprintf(stderr, "KEY TYPE TODO\n");
-    len = 1;
-    tmp[0] = CKK_RSA; // TODO: just an example
-    data = tmp;
+    fprintf(stderr, "KEY TYPE\n");
+    len = sizeof(CK_ULONG);
+    ul_tmp = get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    if (ul_tmp == CKK_VENDOR_DEFINED)
+      return CKR_FUNCTION_FAILED;
+    data = (CK_BYTE_PTR) &ul_tmp;
     break;
-    return CKR_FUNCTION_FAILED;
 
   case CKA_SUBJECT:
     fprintf(stderr, "SUBJECT TODO\n"); // Default empty
@@ -598,9 +612,9 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
   case CKA_ID:
     fprintf(stderr, "ID\n");
-    len = 1;
-    tmp[0] = piv_objects[obj].sub_id;
-    data = tmp;
+    len = sizeof(CK_ULONG);
+    ul_tmp = piv_objects[obj].sub_id;
+    data = (CK_BYTE_PTR) &ul_tmp;
     break;
 
   case CKA_SENSITIVE:
@@ -638,8 +652,27 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   case CKA_END_DATE:
     fprintf(stderr, "END DATE TODO\n"); // Default empty
     return CKR_FUNCTION_FAILED;
-  /* case CKA_MODULUS: */
-  /* case CKA_MODULUS_BITS: */
+
+    /*case CKA_MODULUS:*/
+  case CKA_EC_POINT:
+    // We're trying to get the key length, get the ec point of the PUBLIC key
+    // TODO: or just give an error and explicitly fetch the pubk len when needed
+    fprintf(stderr, "EC_POINT\n");
+    len = sizeof(b_tmp);
+    if (get_public_key(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
+      return CKR_FUNCTION_FAILED;
+    data = b_tmp;
+    break;
+    
+  case CKA_MODULUS_BITS:
+    fprintf(stderr, "MODULUS BITS\n");
+    len = sizeof(CK_ULONG);
+    ul_tmp = get_modulus_bits(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    if (ul_tmp == 0)
+      return CKR_FUNCTION_FAILED;
+    data = (CK_BYTE_PTR) &ul_tmp;
+    break;
+    
   /* case CKA_PUBLIC_EXPONENT: */
   /* case CKA_PRIVATE_EXPONENT: */
   /* case CKA_PRIME_1: */
@@ -661,9 +694,9 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   /* case CKA_ALWAYS_SENSITIVE: */
   case CKA_MODIFIABLE:
     fprintf(stderr, "MODIFIABLE\n");
-    len = 1;
-    tmp[0] = piv_objects[obj].modifiable;
-    data = tmp;
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = piv_objects[obj].modifiable;
+    data = b_tmp;
     break;
 
     /*case CKA_VENDOR_DEFINED:*/

@@ -65,6 +65,7 @@ static struct {
   CK_BBOOL     active;
   CK_MECHANISM mechanism;
   CK_ULONG     key;
+  CK_ULONG     key_len;
   CK_BYTE      algo;
 } sign_info;
 
@@ -913,7 +914,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
 
   // TODO: do it properly here, just a test now
   //find_obj.objects = session.slot->token->objects + 3;
-  memmove(find_obj.objects, find_obj.objects + 14, sizeof(piv_obj_id_t) * (find_obj.num - 14));
+  memmove(find_obj.objects, find_obj.objects + 13, sizeof(piv_obj_id_t) * (find_obj.num - 13));
   find_obj.num = 1;
 
   DOUT;
@@ -1165,6 +1166,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
 )
 {
   DIN;
+  CK_KEY_TYPE  type = 0; // TODO: replace these with sign_info's fields?
+  CK_ULONG     key_len = 0;
+  CK_BYTE      buf[1024];
+  CK_ATTRIBUTE template[] = {
+    {CKA_KEY_TYPE, &type, sizeof(type)},
+    {CKA_MODULUS_BITS, &key_len, sizeof(key_len)},
+    {CKA_EC_POINT, buf, sizeof(buf)}
+  };
 
   if (piv_state == NULL) {
     DBG(("libykpiv is not initialized or already finalized"));
@@ -1186,23 +1195,61 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
   // Check if mechanism is supported
   if (check_sign_mechanism(&session, pMechanism) != CKR_OK) {
     DBG(("Mechanism %lu is not supported either by the token or the slot", pMechanism->mechanism));
-    return CKR_MECHANISM_INVALID;
+    return CKR_MECHANISM_INVALID; // TODO: also the key has a list of allowed mechanisms, check that
   }
   memcpy(&sign_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
 
   //  Get key algorithm
-  /*if (get_key_algo(hKey, &sign_info.algo) != CKR_OK) {
-    DBG(("Unable to retrieve type for key %lu", hKey));
-    return CKR_FUNCTION_FAILED;
-    }*/ // TODO: use get attribute instead?
-  sign_info.algo = YKPIV_ALGO_RSA2048; // TODO: fix
+  if (get_attribute(&session, hKey, template) != CKR_OK) {
+    DBG(("Unable to get key type"));
+    return CKR_KEY_HANDLE_INVALID;
+  }
 
+  DBG(("Key algorithm is %lu\n", type));
+
+  // Get key length and algorithm type
+  if (type == CKK_RSA) {
+    // RSA key
+    if (get_attribute(&session, hKey, template + 1) != CKR_OK) {
+      DBG(("Unable to get key length"));
+      return CKR_KEY_HANDLE_INVALID;
+    }
+
+    sign_info.key_len = key_len;
+
+    if (key_len == 1024)
+      sign_info.algo = YKPIV_ALGO_RSA1024;
+    else
+      sign_info.algo = YKPIV_ALGO_RSA2048;
+
+  }
+  else {
+    // ECDSA key
+    if (get_attribute(&session, hKey, template + 2) != CKR_OK) {
+      DBG(("Unable to get key length"));
+      return CKR_KEY_HANDLE_INVALID;
+    }
+
+    // The buffer contains an uncompressed point of the form 04, x, y
+    // TODO: is this a fine representation for an EC public key?
+    sign_info.key_len = ((template[2].ulValueLen - 1) / 2) * 8;
+
+    if (sign_info.key_len == 256)
+      sign_info.algo = YKPIV_ALGO_ECCP256;
+    /*else
+      sign_info.algo = ;*/
+  }
+
+  DBG(("Key length is %lu bit", sign_info.key_len));
+  //sign_info.key_len /= 8;
+    
   sign_info.key = piv_2_ykpiv(hKey);
   if (sign_info.key == 0) {
     DBG(("Incorrect key %lu", hKey));
     return CKR_KEY_HANDLE_INVALID;
   }
 
+  DBG(("Algorithm is %d", sign_info.algo));
   // Make sure that both mechanism and key have the same algorithm
   if ((is_RSA_mechanism(pMechanism->mechanism) && sign_info.algo == YKPIV_ALGO_ECCP256) ||
       (!is_RSA_mechanism(pMechanism->mechanism) && (sign_info.algo != YKPIV_ALGO_ECCP256))) {
@@ -1248,7 +1295,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   //dump_hex(buf, 256, stderr, CK_TRUE);
   //*pulSignatureLen = 256;
   DBG(("Using key %lx", sign_info.key)); // TODO: test what happens if there is no key on the card
-  if ((r = ykpiv_sign_data(piv_state, buf, ulDataLen, pSignature, pulSignatureLen, YKPIV_ALGO_RSA2048, sign_info.key)) != YKPIV_OK) {
+  if ((r = ykpiv_sign_data(piv_state, buf, ulDataLen, pSignature, pulSignatureLen, sign_info.algo, sign_info.key)) != YKPIV_OK) {
       DBG(("Sign error, %s", ykpiv_strerror(r)));
     return CKR_FUNCTION_FAILED;
   }
