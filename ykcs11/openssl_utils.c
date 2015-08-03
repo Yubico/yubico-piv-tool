@@ -130,7 +130,7 @@ CK_RV free_key(EVP_PKEY *key) {
 CK_RV do_pkcs_t1(CK_BYTE_PTR in, CK_ULONG in_len, CK_BYTE_PTR out, CK_ULONG out_len, CK_ULONG key_len) {
   fprintf(stderr, "Apply padding to %lu bytes and get %lu\n", in_len, key_len);
 
-  // TODO: rand must be seeded first
+  // TODO: rand must be seeded first (should be automatic)
   if (out_len < key_len)
     CKR_BUFFER_TOO_SMALL;
 

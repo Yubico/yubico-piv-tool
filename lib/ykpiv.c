@@ -520,7 +520,7 @@ ykpiv_rc ykpiv_hex_decode(const char *hex_in, size_t in_len,
 static ykpiv_rc _general_authenticate(ykpiv_state *state,
     const unsigned char *raw_in, size_t in_len,
     unsigned char *out, size_t *out_len,
-    unsigned char algorithm, unsigned char key, bool decipher) {
+    unsigned char algorithm, unsigned char key, bool decipher, bool padding) {
   unsigned char indata[1024];
   unsigned char *dataptr = indata;
   unsigned char data[1024];
@@ -538,14 +538,18 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
       pad_len = 128;
     case YKPIV_ALGO_RSA2048:
       if(pad_len == 0) {
-  pad_len = 256;
+        pad_len = 256;
       }
       if(!decipher) {
   if(in_len + RSA_PKCS1_PADDING_SIZE > pad_len) {
     return YKPIV_SIZE_ERROR;
   }
-  RSA_padding_add_PKCS1_type_1(sign_in, pad_len, raw_in, in_len);
-  in_len = pad_len;
+  if (padding) {
+    RSA_padding_add_PKCS1_type_1(sign_in, pad_len, raw_in, in_len);
+    in_len = pad_len;
+  }
+  else if (in_len != pad_len)
+    return YKPIV_SIZE_ERROR;
       } else {
   if(in_len != pad_len) {
     return YKPIV_SIZE_ERROR;
@@ -629,7 +633,17 @@ ykpiv_rc ykpiv_sign_data(ykpiv_state *state,
     unsigned char algorithm, unsigned char key) {
 
   return _general_authenticate(state, raw_in, in_len, sign_out, out_len,
-      algorithm, key, false);
+                               algorithm, key, false, true);
+}
+
+ykpiv_rc ykpiv_sign_data2(ykpiv_state *state,
+    const unsigned char *raw_in, size_t in_len,
+    unsigned char *sign_out, size_t *out_len,
+    unsigned char algorithm, unsigned char key,
+    int padding) {
+
+  return _general_authenticate(state, raw_in, in_len, sign_out, out_len,
+                               algorithm, key, false, padding);
 }
 
 
@@ -637,7 +651,7 @@ ykpiv_rc ykpiv_decipher_data(ykpiv_state *state, const unsigned char *in,
     size_t in_len, unsigned char *out, size_t *out_len,
     unsigned char algorithm, unsigned char key) {
   return _general_authenticate(state, in, in_len, out, out_len,
-      algorithm, key, true);
+                               algorithm, key, true, true);
 }
 
 ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len) {

@@ -64,7 +64,8 @@ extern "C"
   ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose);
   ykpiv_rc ykpiv_done(ykpiv_state *state);
   ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted);
-  ykpiv_rc ykpiv_connect2(ykpiv_state *state, const char *wanted, unsigned char **readers, unsigned long *len);
+  ykpiv_rc ykpiv_connect2(ykpiv_state *state, const char *wanted,
+                          unsigned char **readers, unsigned long *len); // Allow to return a reader string
   ykpiv_rc ykpiv_disconnect(ykpiv_state *state);
   ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
                                const unsigned char *in_data, long in_len,
@@ -76,6 +77,9 @@ extern "C"
   ykpiv_rc ykpiv_sign_data(ykpiv_state *state, const unsigned char *sign_in,
                            size_t in_len, unsigned char *sign_out, size_t *out_len,
                            unsigned char algorithm, unsigned char key);
+  ykpiv_rc ykpiv_sign_data2(ykpiv_state *state, const unsigned char *sign_in,
+                            size_t in_len, unsigned char *sign_out, size_t *out_len,
+                            unsigned char algorithm, unsigned char key, int padding); // Allow not to add padding
   ykpiv_rc ykpiv_decipher_data(ykpiv_state *state, const unsigned char *enc_in,
                                size_t in_len, unsigned char *enc_out, size_t *out_len,
                                unsigned char algorithm, unsigned char key);

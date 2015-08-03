@@ -814,7 +814,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
 )
 {
   DIN;
-  CK_RV rv;
+  CK_ULONG i;
+  CK_RV rv, rv_final;
 
   if (piv_state == NULL) {
     DBG(("libykpiv is not initialized or already finalized"));
@@ -835,24 +836,20 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
   if (find_obj.active != CK_TRUE)
     return CKR_OPERATION_NOT_INITIALIZED;
 
-  if (pTemplate[0].pValue == NULL_PTR) {
-    DBG(("Just get size"));
-    rv = get_attribute(&session, hObject, pTemplate);
+  rv_final = CKR_OK;
+  for (i = 0; i < ulCount; i++) {
 
+    rv = get_attribute(&session, hObject, pTemplate + i);
+
+    // TODO: this function has some complex cases for return vlaue. Make sure to check them.
     if (rv != CKR_OK) {
-      DBG(("Unable to get size for attribute %lu of object %lu", pTemplate->type, hObject));
+      DBG(("Unable to get attribute %lu of object %lu", (pTemplate + i)->type, hObject));
+      rv_final = rv;
     }
-    DOUT;
-    return CKR_OK;
   }
-  DBG(("Trying to get %lu attribute(s) for object %lu", ulCount, hObject));
-  DBG(("Type: 0x%lx Value: %lu Len: %lu", pTemplate[0].type, *((CK_ULONG_PTR)pTemplate[0].pValue), pTemplate[0].ulValueLen));
-  // TODO: here for i in ulCount (get all the attributes)
-
-  return get_attribute(&session, hObject, pTemplate);
 
   DOUT;
-  return CKR_OK;
+  return rv_final;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_SetAttributeValue)(
@@ -1339,10 +1336,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   DBG(("Sending %lu bytes to sign", ulDataLen));
   dump_hex(pData, ulDataLen, stderr, CK_TRUE);
 
-/*  if (do_sign_padding(&sign_info.mechanism, pData, ulDataLen, buf, buf_len, 2048 / 8) != CKR_OK) {
+  if (apply_sign_mechanism(&sign_info.mechanism, pData, ulDataLen, buf, buf_len, 2048 / 8) != CKR_OK) {
     DBG(("Unable to apply padding scheme"));
     return CKR_FUNCTION_FAILED;
-    }*/
+  }
   memcpy(buf, pData, ulDataLen); // ykpiv does padding already
   //dump_hex(buf, 256, stderr, CK_TRUE);
   //*pulSignatureLen = 256;
@@ -1353,8 +1350,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   }
   DBG(("Got %lu bytes back", *pulSignatureLen));
   dump_hex(pSignature, *pulSignatureLen, stderr, CK_TRUE);
-/*  memcpy(pSignature, sig_buf, sig_len_out);
- *pulSignatureLen = sig_len_out;*/
+
   DOUT;
   return CKR_OK;
 }

@@ -85,14 +85,18 @@ CK_BBOOL is_RSA_mechanism(CK_MECHANISM_TYPE m) {
   return CK_FALSE;
 }
 
-CK_RV do_sign_padding(CK_MECHANISM_PTR m, CK_BYTE_PTR in, CK_ULONG in_len,
-                      CK_BYTE_PTR out, CK_ULONG out_len, CK_ULONG key_len) {
+CK_RV apply_sign_mechanism(CK_MECHANISM_PTR m, CK_BYTE_PTR in, CK_ULONG in_len,
+                           CK_BYTE_PTR out, CK_ULONG out_len, CK_ULONG key_len) {
   switch (m->mechanism) {
   case CKM_RSA_PKCS:
     return do_pkcs_t1(in, in_len, out, out_len, key_len);
 
   case CKM_RSA_PKCS_PSS:
+    return CKR_FUNCTION_FAILED;
+    
   case CKM_RSA_X_509:
+    return CKR_OK;
+
   case CKM_SHA1_RSA_PKCS:
   case CKM_SHA256_RSA_PKCS:
   case CKM_SHA384_RSA_PKCS:
