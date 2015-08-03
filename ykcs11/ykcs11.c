@@ -482,7 +482,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   session.slot = slots + slotID;
   //session.slot->info.slotID = slotID; // Redundant but required in CK_SESSION_INFO
 
-  // Store session flags
+  // Store session state
+  session.info.state = 0;
+
   if ((flags & CKF_RW_SESSION)) {
     // R/W Session
     session.info.state = CKS_RW_PUBLIC_SESSION; // Nobody has logged in, default session
@@ -721,7 +723,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
       return CKR_USER_ALREADY_LOGGED_IN;
 
     tries = 0;
-    if (ykpiv_verify(piv_state, pPin, (int *)&tries) != YKPIV_OK) {
+    if (ykpiv_verify(piv_state, pPin, (int *)&tries) != YKPIV_OK) { // TODO: call this from vendors.c
       DBG(("You loose! %lu", tries));
       return CKR_PIN_INCORRECT;
     }
@@ -735,7 +737,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
 
   DBG(("You win! %lu", tries));
 
-  // TODO: update session objects now that we're logged in ?
+  if ((session.info.flags & CKF_RW_SESSION) == 0)
+    session.info.state = CKS_RO_USER_FUNCTIONS;
+  else
+    session.info.state = CKS_RW_USER_FUNCTIONS;
 
   DOUT;
   return CKR_OK;
@@ -873,6 +878,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
   CK_ULONG i;
   CK_ULONG j;
   CK_ULONG total;
+  CK_BBOOL private;
   
 
   if (piv_state == NULL) {
@@ -891,46 +897,57 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
   if (find_obj.active == CK_TRUE)
     return CKR_OPERATION_ACTIVE;
 
+  if (ulCount != 0 && pTemplate == NULL_PTR)
+    return CKR_ARGUMENTS_BAD;
+
   find_obj.idx = 0;
   find_obj.num = session.slot->token->n_objects;
 
-  // TODO: remove private objects if needed
+  // Check if we should remove private objects
+  if (session.info.state == CKS_RO_PUBLIC_SESSION ||
+      session.info.state == CKS_RW_PUBLIC_SESSION) {
+    DBG(("Removing private objects because state is %lu", session.info.state));
+    private = CK_FALSE;
+  }
+  else {
+    DBG(("Keeping private objects"));
+    private = CK_TRUE;
+  }
 
   find_obj.objects = malloc(sizeof(piv_obj_id_t) * find_obj.num);
   if (find_obj.objects == NULL) {
     DBG(("Unable to allocate memory for finding objects"));
     return CKR_HOST_MEMORY;
   }
-  memcpy(find_obj.objects, session.slot->token->objects, sizeof(piv_obj_id_t) * find_obj.num); // TODO: add another 'num' field for then objects have to be excluded because of attribute matching;
-
-  if (ulCount == 0) {
-    DBG(("Find ALL the objects! Got %lu", find_obj.num));
-    find_obj.active = CK_TRUE;
-    DOUT;
-    return CKR_OK;
-  }
+  memcpy(find_obj.objects, session.slot->token->objects, sizeof(piv_obj_id_t) * find_obj.num);
 
   DBG(("Initialized search with %lu parameters", ulCount));
 
-  if (pTemplate == NULL_PTR)
-    return CKR_ARGUMENTS_BAD;
-
   // Match parameters
   total = find_obj.num;
-  for (i = 0; i < ulCount; i++) {
-    DBG(("Parameter %lu\nType: %lu Value: %lu Len: %lu", i, pTemplate[i].type, *((CK_ULONG_PTR)pTemplate[i].pValue), pTemplate[i].ulValueLen));
+  for (i = 0; i < find_obj.num; i++) {
 
-    for (j = 0; j < find_obj.num; j++) {
-      if (find_obj.objects[j] == OBJECT_INVALID)
-        continue; // Object already discarded, keep going
+    if (find_obj.objects[i] == OBJECT_INVALID)
+      continue; // Object already discarded, keep going
 
-      if (attribute_match(&session, find_obj.objects[j], pTemplate + i) == CK_FALSE) {
-        DBG(("Removing object %u from the list", find_obj.objects[j]));
-        find_obj.objects[j] = OBJECT_INVALID;  // Object not matching, mark it
+    // Strip away private objects if needed
+    if (private == CK_FALSE)
+      if (is_private_object(&session, find_obj.objects[i]) == CK_TRUE) {
+        DBG(("Stripping away private object %u", find_obj.objects[i]));
+        find_obj.objects[i] = OBJECT_INVALID;
+        continue;
+      }
+        
+    for (j = 0; j < ulCount; j++) {
+      DBG(("Parameter %lu\nType: %lu Value: %lu Len: %lu", j, pTemplate[j].type, *((CK_ULONG_PTR)pTemplate[j].pValue), pTemplate[j].ulValueLen));
+
+      if (attribute_match(&session, find_obj.objects[i], pTemplate + j) == CK_FALSE) {
+        DBG(("Removing object %u from the list", find_obj.objects[i]));
+        find_obj.objects[i] = OBJECT_INVALID;  // Object not matching, mark it
         total--;
       }
       else
-        DBG(("Keeping object %u in the list", find_obj.objects[j]));
+        DBG(("Keeping object %u in the list", find_obj.objects[i]));
     }
   }
 

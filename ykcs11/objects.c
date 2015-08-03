@@ -59,10 +59,10 @@ static piv_obj_t piv_objects[] = {
   {PIV_CERT_OBJ_X509_KM, 1, 0, 0, "X.509 Certificate for Key Management", 0, 0, get_coa, 3},
   {PIV_CERT_OBJ_LAST, 1, 0, 0, "", 0, 0, get_coa, 4},
 
-  {PIV_PVTK_OBJ_PIV_AUTH, 1, 0, 0, "Private key for PIV Authentication", 0, 0, get_proa, 0},   // 9a
+  {PIV_PVTK_OBJ_PIV_AUTH, 1, 1, 0, "Private key for PIV Authentication", 0, 0, get_proa, 0},   // 9a
   {PIV_PVTK_OBJ_CARD_AUTH, 1, 0, 0, "Private key for Card Authentication", 0, 0, get_proa, 1}, // 9e
-  {PIV_PVTK_OBJ_DS, 1, 0, 0, "Private key for Digital Signature", 0, 0, get_proa, 2},          // 9c
-  {PIV_PVTK_OBJ_KM, 1, 0, 0, "Prrivate key for Key Management", 0, 0, get_proa, 3},            // 9d
+  {PIV_PVTK_OBJ_DS, 1, 1, 0, "Private key for Digital Signature", 0, 0, get_proa, 2},          // 9c
+  {PIV_PVTK_OBJ_KM, 1, 1, 0, "Private key for Key Management", 0, 0, get_proa, 3},             // 9d
   {PIV_PVTK_OBJ_LAST, 1, 0, 0, "", 0, 0, NULL, 4},
 
   {PIV_PUBK_OBJ_PIV_AUTH, 1, 0, 0, "Public key for PIV Authentication", 0, 0, get_puoa, 0},
@@ -962,6 +962,21 @@ CK_BBOOL attribute_match(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE
   data = NULL;
 
   return CK_TRUE;
+}
+
+CK_BBOOL is_private_object(ykcs11_session_t *s, CK_OBJECT_HANDLE obj) {
+
+  CK_ATTRIBUTE attr;
+  CK_BYTE      private;
+
+  attr.type = CKA_PRIVATE;
+  attr.pValue = &private;
+  attr.ulValueLen = sizeof(private);
+
+  if (get_attribute(s, obj, &attr) != CKR_OK)
+    return CK_FALSE;
+
+  return private == CK_FALSE ? CK_FALSE : CK_TRUE;
 }
 
 CK_RV get_available_certificate_ids(ykcs11_session_t *s, piv_obj_id_t *cert_ids, CK_ULONG n_certs) {
