@@ -612,7 +612,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
   case CKA_ID:
     fprintf(stderr, "ID\n");
-    len = sizeof(CK_ULONG);
+    len = sizeof(CK_BYTE);
     ul_tmp = piv_objects[obj].sub_id;
     data = (CK_BYTE_PTR) &ul_tmp;
     break;
@@ -920,6 +920,48 @@ CK_RV get_attribute(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR 
     }
 
   return CKR_OBJECT_HANDLE_INVALID;
+}
+
+CK_BBOOL attribute_match(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR attribute) {
+
+  CK_ATTRIBUTE to_match;
+  CK_BYTE_PTR data;
+
+  // Get the size first
+  to_match.type = attribute->type;
+  to_match.pValue = NULL;
+  to_match.ulValueLen = 0;
+
+  if (get_attribute(s, obj, &to_match) != CKR_OK)
+    return CK_FALSE;
+
+  if (to_match.ulValueLen != attribute->ulValueLen)
+    return CK_FALSE;
+
+  // Allocate space for the attribute
+  data = malloc(to_match.ulValueLen);
+  if (data == NULL)
+    return CK_FALSE;
+
+  // Retrieve the attribute
+  to_match.pValue = data;
+  if (get_attribute(s, obj, &to_match) != CKR_OK) {
+    free(data);
+    data = NULL;
+    return CK_FALSE;
+  }
+
+  // Compare the attributes
+  if (memcmp(attribute->pValue, to_match.pValue, to_match.ulValueLen) != 0) {
+    free(data);
+    data = NULL;
+    return CK_FALSE;
+  }
+
+  free(data);
+  data = NULL;
+
+  return CK_TRUE;
 }
 
 CK_RV get_available_certificate_ids(ykcs11_session_t *s, piv_obj_id_t *cert_ids, CK_ULONG n_certs) {

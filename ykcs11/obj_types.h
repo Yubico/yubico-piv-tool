@@ -90,6 +90,8 @@ typedef enum {
 
 } piv_obj_id_t;
 
+#define OBJECT_INVALID            (PIV_PUBK_OBJ_LAST + 1)
+
 typedef CK_RV (*get_attr_f)(CK_OBJECT_HANDLE, CK_ATTRIBUTE_PTR);
 
 typedef struct {
@@ -120,7 +122,7 @@ typedef struct {
   CK_BBOOL     copyable; // TODO: Optional, not used so far (default TRUE)
   CK_BBOOL     destroyable; // TODO: Optional, not used so far (default TRUE)
   get_attr_f   get_attribute;
-  CK_ULONG     sub_id; // Sub-object id
+  CK_BYTE      sub_id; // Sub-object id
 } piv_obj_t;
 
 #endif

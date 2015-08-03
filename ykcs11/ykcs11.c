@@ -581,7 +581,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
   }
 
   if (session.handle == CK_INVALID_HANDLE) {
-    DBG(("There is no existing session"));
+    DBG(("Trying to close a session, but there is no existing one"));
     return CKR_SESSION_CLOSED;
   }
 
@@ -697,8 +697,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
 
   DBG(("user %lu, pin %s, pinlen %lu", userType, pPin, ulPinLen));
 
-  if (session.handle == CK_INVALID_HANDLE)
+  if (session.handle != YKCS11_SESSION_ID) {
+    DBG(("Session is not open"));
     return CKR_SESSION_CLOSED;
+  }
 
   if (hSession != session.handle)
     return CKR_SESSION_HANDLE_INVALID;
@@ -814,8 +816,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (session.handle != YKCS11_SESSION_ID)
+  if (session.handle != YKCS11_SESSION_ID) {
+    DBG(("Session is not open"));
     return CKR_SESSION_CLOSED;
+  }
 
   if (hSession != session.handle)
     return CKR_SESSION_HANDLE_INVALID;
@@ -867,14 +871,19 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
 {
   DIN;
   CK_ULONG i;
+  CK_ULONG j;
+  CK_ULONG total;
+  
 
   if (piv_state == NULL) {
     DBG(("libykpiv is not initialized or already finalized"));
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (session.handle != YKCS11_SESSION_ID)
+  if (session.handle != YKCS11_SESSION_ID) {
+    DBG(("Session is not open"));
     return CKR_SESSION_CLOSED;
+  }
 
   if (hSession != session.handle)
     return CKR_SESSION_HANDLE_INVALID;
@@ -885,6 +894,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
   find_obj.idx = 0;
   find_obj.num = session.slot->token->n_objects;
 
+  // TODO: remove private objects if needed
+
   find_obj.objects = malloc(sizeof(piv_obj_id_t) * find_obj.num);
   if (find_obj.objects == NULL) {
     DBG(("Unable to allocate memory for finding objects"));
@@ -892,31 +903,46 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
   }
   memcpy(find_obj.objects, session.slot->token->objects, sizeof(piv_obj_id_t) * find_obj.num); // TODO: add another 'num' field for then objects have to be excluded because of attribute matching;
 
-  find_obj.active = CK_TRUE;
-
   if (ulCount == 0) {
-    DBG(("Find ALL the objects!"));
+    DBG(("Find ALL the objects! Got %lu", find_obj.num));
+    find_obj.active = CK_TRUE;
     DOUT;
     return CKR_OK;
   }
 
   DBG(("Initialized search with %lu parameters", ulCount));
 
-  if (pTemplate == NULL_PTR) {
-    find_obj.active = CK_FALSE;
+  if (pTemplate == NULL_PTR)
     return CKR_ARGUMENTS_BAD;
-  }
 
+  // Match parameters
+  total = find_obj.num;
   for (i = 0; i < ulCount; i++) {
     DBG(("Parameter %lu\nType: %lu Value: %lu Len: %lu", i, pTemplate[i].type, *((CK_ULONG_PTR)pTemplate[i].pValue), pTemplate[i].ulValueLen));
-    // TODO: remove objects that don't match
+
+    for (j = 0; j < find_obj.num; j++) {
+      if (find_obj.objects[j] == OBJECT_INVALID)
+        continue; // Object already discarded, keep going
+
+      if (attribute_match(&session, find_obj.objects[j], pTemplate + i) == CK_FALSE) {
+        DBG(("Removing object %u from the list", find_obj.objects[j]));
+        find_obj.objects[j] = OBJECT_INVALID;  // Object not matching, mark it
+        total--;
+      }
+      else
+        DBG(("Keeping object %u in the list", find_obj.objects[j]));
+    }
   }
 
+  DBG(("%lu object(s) left after attribute matching", total));
+  
   // TODO: do it properly here, just a test now
   //find_obj.objects = session.slot->token->objects + 3;
-  memmove(find_obj.objects, find_obj.objects + 13, sizeof(piv_obj_id_t) * (find_obj.num - 13));
-  find_obj.num = 1;
+  /*memmove(find_obj.objects, find_obj.objects + 12, sizeof(piv_obj_id_t) * (find_obj.num - 12));
+  find_obj.num = 1;*/
 
+  find_obj.active = CK_TRUE;
+  
   DOUT;
   return CKR_OK;
 }
@@ -935,8 +961,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (session.handle != YKCS11_SESSION_ID)
+  if (session.handle != YKCS11_SESSION_ID) {
+    DBG(("Session is not open"));
     return CKR_SESSION_CLOSED;
+  }
 
   if (hSession != session.handle)
     return CKR_SESSION_HANDLE_INVALID;
@@ -951,7 +979,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
 
   DBG(("Can return %lu object(s)", ulMaxObjectCount));
 
-  // Return the next object
+  // Return the next object, if any
+  while(find_obj.idx < find_obj.num &&
+        find_obj.objects[find_obj.idx] == OBJECT_INVALID)
+    find_obj.idx++;
+  
   if (find_obj.idx == find_obj.num) {
     *pulObjectCount = 0;
     DOUT;
@@ -977,8 +1009,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsFinal)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (session.handle != YKCS11_SESSION_ID)
+  if (session.handle != YKCS11_SESSION_ID) {
+    DBG(("Session is not open"));
     return CKR_SESSION_CLOSED;
+  }
 
   if (hSession != session.handle)
     return CKR_SESSION_HANDLE_INVALID;
@@ -1180,8 +1214,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (session.handle != YKCS11_SESSION_ID)
+  if (session.handle != YKCS11_SESSION_ID) {
+    DBG(("Session is not open"));
     return CKR_SESSION_CLOSED;
+  }
 
   if (hSession != session.handle)
     return CKR_SESSION_HANDLE_INVALID;
@@ -1241,8 +1277,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
   }
 
   DBG(("Key length is %lu bit", sign_info.key_len));
-  //sign_info.key_len /= 8;
-    
+
   sign_info.key = piv_2_ykpiv(hKey);
   if (sign_info.key == 0) {
     DBG(("Incorrect key %lu", hKey));
