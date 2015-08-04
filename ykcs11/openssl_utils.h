@@ -1,10 +1,12 @@
 #ifndef OPENSSL_UTIL_H
 #define OPENSSL_UTIL_H
 
-#include <openssl/x509.h>
-#include <openssl/evp.h>
-#include <openssl/rsa.h>
-#include <openssl/ec.h>
+/* #include <openssl/x509.h> */
+/* #include <openssl/evp.h> */
+/* #include <openssl/rsa.h> */
+/* #include <openssl/ec.h> */
+
+#include "openssl_types.h"
 #include "pkcs11t.h"
 
 CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, X509 **cert);
@@ -17,5 +19,9 @@ CK_RV       do_get_public_key(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len)
 CK_RV       free_key(EVP_PKEY *key);
 
 CK_RV do_pkcs_t1(CK_BYTE_PTR in, CK_ULONG in_len, CK_BYTE_PTR out, CK_ULONG out_len, CK_ULONG key_len);
+
+CK_RV do_md_init(hash_t hash, ykcs11_md_ctx_t **ctx);
+CK_RV do_md_update(ykcs11_md_ctx_t *ctx, CK_BYTE_PTR in, CK_ULONG in_len);
+CK_RV do_md_finalize(ykcs11_md_ctx_t *ctx, CK_BBOOL di, CK_BYTE_PTR out, CK_ULONG_PTR out_len);
 
 #endif

@@ -40,7 +40,7 @@ libykcs11_la_SOURCES += token_vendors.c token_vendor.h
 libykcs11_la_SOURCES += mechanisms.c mechanisms.h
 libykcs11_la_SOURCES += yubico_slot.c yubico_slot.h yubico_token.c yubico_token.h
 libykcs11_la_SOURCES += utils.c utils.h
-libykcs11_la_SOURCES += openssl_utils.c openssl_utils.h
+libykcs11_la_SOURCES += openssl_utils.c openssl_utils.h openssl_types.h
 libykcs11_la_SOURCES += objects.c objects.h obj_types.h
 
 #internal.h

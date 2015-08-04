@@ -139,3 +139,77 @@ CK_RV do_pkcs_t1(CK_BYTE_PTR in, CK_ULONG in_len, CK_BYTE_PTR out, CK_ULONG out_
 
   return CKR_OK;
 }
+
+CK_RV do_md_init(hash_t hash, ykcs11_md_ctx_t **ctx) {
+
+  const EVP_MD *md;
+
+  switch (hash) {
+  case YKCS11_NO_HASH:
+    return CKR_FUNCTION_FAILED;
+
+  case YKCS11_SHA1:
+    md = EVP_sha1();
+    break;
+
+    //case YKCS11_SHA224:
+
+  case YKCS11_SHA256:
+    md = EVP_sha256();
+    break;
+
+  case YKCS11_SHA384:
+    md = EVP_sha384();
+    break;
+
+  case YKCS11_SHA512:
+    md = EVP_sha512();
+    break;
+
+  //case YKCS11_RIPEMD128_RSA_PKCS_HASH:
+  //case YKCS11_RIPEMD160_HASH:
+
+  default:
+    return CKR_FUNCTION_FAILED;
+  }
+
+  *ctx = EVP_MD_CTX_create();
+
+  // The OpenSSL function above never fail
+  if (EVP_DigestInit_ex(*ctx, md, NULL) == 0) {
+    EVP_MD_CTX_destroy(*ctx);
+    return CKR_FUNCTION_FAILED;
+  }
+
+  return CKR_OK;
+}
+
+CK_RV do_md_update(ykcs11_md_ctx_t *ctx, CK_BYTE_PTR in, CK_ULONG in_len) {
+
+  return EVP_DigestUpdate(ctx, in, in_len) == 1 ? CKR_OK : CKR_FUNCTION_FAILED;
+
+}
+
+CK_RV do_md_finalize(ykcs11_md_ctx_t *ctx, CK_BBOOL di, CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
+
+  int rv;
+  bool rv2;
+  unsigned int len;
+
+  // Finalize digest and store result
+  rv = EVP_DigestFinal_ex(ctx, out, (unsigned int *)out_len);
+  // Check wheter digest info is required
+  if (di == CK_TRUE)
+    rv2 = prepare_rsa_signature(out, *out_len, out, &len, EVP_MD_CTX_type(ctx));
+
+  // Destroy the md context
+  EVP_MD_CTX_destroy(ctx);
+
+  // Error if either of the previous calls failed
+  if (rv != 1 || !rv2)
+    return CKR_FUNCTION_FAILED;
+
+  *out_len = len;
+
+  return CKR_OK;
+}

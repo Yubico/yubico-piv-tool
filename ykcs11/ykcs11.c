@@ -7,6 +7,7 @@
 #include "obj_types.h"
 #include "utils.h"
 #include "mechanisms.h"
+#include "openssl_types.h"
 
 #define D(x) do {                                                     \
     printf ("debug: %s:%d (%s): ", __FILE__, __LINE__, __FUNCTION__); \
@@ -58,16 +59,10 @@ static struct {
   piv_obj_id_t    *objects;
 } find_obj;
 
-/*static piv_obj_id_t token_objects[PIV_CERT_OBJ_LAST]; // TODO: tide this up, also build at runtime (during open session)? And include inside a session struct?
-  static CK_ULONG n_token_objects = 0;*/
+op_info_t op_info;
 
-static struct {
-  CK_BBOOL     active;
-  CK_MECHANISM mechanism;
-  CK_ULONG     key;
-  CK_ULONG     key_len;
-  CK_BYTE      algo;
-} sign_info;
+/*static piv_obj_id_t token_objects[PIV_CERT_OBJ_LAST]; // TODO: tidy this up, also build at runtime (during open session)? And include inside a session struct?
+  static CK_ULONG n_token_objects = 0;*/
 
 extern CK_FUNCTION_LIST function_list; // TODO: check all return values
 
@@ -87,7 +82,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
     return CKR_CRYPTOKI_ALREADY_INITIALIZED;
 
   if (ykpiv_init(&piv_state, YKCS11_DBG) != YKPIV_OK) {
-    DBG(("Unable to initialize YubiKey"));
+    DBG(("Unable to initialize libykpiv"));
     return CKR_FUNCTION_FAILED; // TODO: better error?
   }
 
@@ -1247,7 +1242,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     DBG(("Mechanism %lu is not supported either by the token or the slot", pMechanism->mechanism));
     return CKR_MECHANISM_INVALID; // TODO: also the key has a list of allowed mechanisms, check that
   }
-  memcpy(&sign_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
+  memcpy(&op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
 
   //  Get key algorithm
   if (get_attribute(&session, hKey, template) != CKR_OK) {
@@ -1265,12 +1260,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
       return CKR_KEY_HANDLE_INVALID;
     }
 
-    sign_info.key_len = key_len;
+    op_info.op.sign.key_len = key_len;
 
     if (key_len == 1024)
-      sign_info.algo = YKPIV_ALGO_RSA1024;
+      op_info.op.sign.algo = YKPIV_ALGO_RSA1024;
     else
-      sign_info.algo = YKPIV_ALGO_RSA2048;
+      op_info.op.sign.algo = YKPIV_ALGO_RSA2048;
 
   }
   else {
@@ -1282,33 +1277,38 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
 
     // The buffer contains an uncompressed point of the form 04, x, y
     // TODO: is this a fine representation for an EC public key?
-    sign_info.key_len = ((template[2].ulValueLen - 1) / 2) * 8;
+    op_info.op.sign.key_len = ((template[2].ulValueLen - 1) / 2) * 8;
 
-    if (sign_info.key_len == 256)
-      sign_info.algo = YKPIV_ALGO_ECCP256;
+    if (op_info.op.sign.key_len == 256)
+      op_info.op.sign.algo = YKPIV_ALGO_ECCP256;
     /*else
-      sign_info.algo = ;*/
+      op_info.algo = ;*/
   }
 
-  DBG(("Key length is %lu bit", sign_info.key_len));
+  //op_info.hash = get_mechanism_hash(pMechanism->mechanism);
 
-  sign_info.key = piv_2_ykpiv(hKey);
-  if (sign_info.key == 0) {
+  DBG(("Key length is %lu bit", op_info.op.sign.key_len));
+
+  op_info.op.sign.key = piv_2_ykpiv(hKey);
+  if (op_info.op.sign.key == 0) {
     DBG(("Incorrect key %lu", hKey));
     return CKR_KEY_HANDLE_INVALID;
   }
 
-  DBG(("Algorithm is %d", sign_info.algo));
+  DBG(("Algorithm is %d", op_info.op.sign.algo));
   // Make sure that both mechanism and key have the same algorithm
-  if ((is_RSA_mechanism(pMechanism->mechanism) && sign_info.algo == YKPIV_ALGO_ECCP256) ||
-      (!is_RSA_mechanism(pMechanism->mechanism) && (sign_info.algo != YKPIV_ALGO_ECCP256))) {
+  if ((is_RSA_mechanism(pMechanism->mechanism) && op_info.op.sign.algo == YKPIV_ALGO_ECCP256) ||
+      (!is_RSA_mechanism(pMechanism->mechanism) && (op_info.op.sign.algo != YKPIV_ALGO_ECCP256))) {
     DBG(("Key and mechanism algorithm do not match"));
     return CKR_ARGUMENTS_BAD;
   }
 
-  // TODO: also allocate some space for the signature in case of multipart
+  op_info.type = YKCS11_SIGN;
 
-  sign_info.active = CK_TRUE;
+  if (apply_sign_mechanism_init(&op_info) != CKR_OK) {
+    DBG(("Unable to initialize signing operation"));
+    return CKR_FUNCTION_FAILED;
+  }
 
   DOUT;
   return CKR_OK;
@@ -1323,28 +1323,32 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 )
 {
   DIN;
-  CK_BYTE  buf[YKCS11_MAX_SIG_BUF_LEN];
-  CK_ULONG buf_len = sizeof(buf);
 
-  if (sign_info.active == CK_FALSE)
+  if (op_info.type == YKCS11_NOOP)
     return CKR_OPERATION_NOT_INITIALIZED;
 
-  // TODO: check conditions
-  ykpiv_rc r;
-  CK_CHAR algo;
+  if (op_info.type != YKCS11_SIGN)
+    return CKR_OPERATION_ACTIVE;
+
+  // TODO: check other conditions
+  ykpiv_rc r; // TODO: delete this
 
   DBG(("Sending %lu bytes to sign", ulDataLen));
   dump_hex(pData, ulDataLen, stderr, CK_TRUE);
 
-  if (apply_sign_mechanism(&sign_info.mechanism, pData, ulDataLen, buf, buf_len, 2048 / 8) != CKR_OK) {
-    DBG(("Unable to apply padding scheme"));
+  if (apply_sign_mechanism_update(&op_info, pData, ulDataLen) != CKR_OK) {
+    DBG(("Unable to perform signing operation step"));
     return CKR_FUNCTION_FAILED;
   }
-  memcpy(buf, pData, ulDataLen); // ykpiv does padding already
+
+  if (apply_sign_mechanism_finalize(&op_info) != CKR_OK) {
+    DBG(("Unable to finalize signing operation"));
+    return CKR_FUNCTION_FAILED;
+  }
   //dump_hex(buf, 256, stderr, CK_TRUE);
   //*pulSignatureLen = 256;
-  DBG(("Using key %lx", sign_info.key)); // TODO: test what happens if there is no key on the card
-  if ((r = ykpiv_sign_data(piv_state, buf, ulDataLen, pSignature, pulSignatureLen, sign_info.algo, sign_info.key)) != YKPIV_OK) {
+  DBG(("Using key %lx", op_info.op.sign.key)); // TODO: test what happens if there is no key on the card
+  if ((r = ykpiv_sign_data(piv_state, op_info.buf, ulDataLen, pSignature, pulSignatureLen, op_info.op.sign.algo, op_info.op.sign.key)) != YKPIV_OK) {
       DBG(("Sign error, %s", ykpiv_strerror(r)));
     return CKR_FUNCTION_FAILED;
   }

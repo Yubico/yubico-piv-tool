@@ -53,8 +53,6 @@ CK_BBOOL is_RSA_mechanism(CK_MECHANISM_TYPE m) {
   case CKM_RSA_PKCS:
   case CKM_RSA_9796:
   case CKM_RSA_X_509:
-  case CKM_MD2_RSA_PKCS:
-  case CKM_MD5_RSA_PKCS:
   case CKM_SHA1_RSA_PKCS:
 //  case CKM_SHA224_RSA_PKCS:
   case CKM_SHA256_RSA_PKCS:
@@ -85,15 +83,60 @@ CK_BBOOL is_RSA_mechanism(CK_MECHANISM_TYPE m) {
   return CK_FALSE;
 }
 
-CK_RV apply_sign_mechanism(CK_MECHANISM_PTR m, CK_BYTE_PTR in, CK_ULONG in_len,
-                           CK_BYTE_PTR out, CK_ULONG out_len, CK_ULONG key_len) {
-  switch (m->mechanism) {
+CK_RV apply_sign_mechanism_init(op_info_t *op_info) {
+
+    if (op_info->type != YKCS11_SIGN)
+      return CKR_FUNCTION_FAILED;
+
+    switch (op_info->mechanism.mechanism) {
+    case CKM_RSA_PKCS:
+      // No hash required for this mechanism
+      return CKR_OK;
+
+    case CKM_RSA_PKCS_PSS:  // TODO
+      return CKR_FUNCTION_FAILED;
+
+    case CKM_RSA_X_509:
+      // No hash required for this mechanism
+      return CKR_OK;
+
+    case CKM_SHA1_RSA_PKCS:
+    case CKM_ECDSA_SHA1:
+      return do_md_init(YKCS11_SHA1, &op_info->op.sign.md_ctx);
+
+    case CKM_SHA256_RSA_PKCS:
+      return do_md_init(YKCS11_SHA256, &op_info->op.sign.md_ctx);
+
+    case CKM_SHA384_RSA_PKCS:
+      return do_md_init(YKCS11_SHA384, &op_info->op.sign.md_ctx);
+
+    case CKM_SHA512_RSA_PKCS:
+      return do_md_init(YKCS11_SHA512, &op_info->op.sign.md_ctx);
+
+    case CKM_ECDSA:
+      return CKR_FUNCTION_FAILED; // TODO: but no hash needed
+
+    default:
+      CKR_FUNCTION_FAILED;
+  }
+
+    // Never reached
+    return CKR_FUNCTION_FAILED;
+}
+
+CK_RV apply_sign_mechanism_update(op_info_t *op_info, CK_BYTE_PTR in, CK_ULONG in_len) {
+  CK_RV rv;
+
+  if (op_info->type != YKCS11_SIGN)
+    return CKR_FUNCTION_FAILED;
+
+  switch (op_info->mechanism.mechanism) {
   case CKM_RSA_PKCS:
-    return do_pkcs_t1(in, in_len, out, out_len, key_len);
+    return CKR_OK;
 
   case CKM_RSA_PKCS_PSS:
     return CKR_FUNCTION_FAILED;
-    
+
   case CKM_RSA_X_509:
     return CKR_OK;
 
@@ -101,7 +144,57 @@ CK_RV apply_sign_mechanism(CK_MECHANISM_PTR m, CK_BYTE_PTR in, CK_ULONG in_len,
   case CKM_SHA256_RSA_PKCS:
   case CKM_SHA384_RSA_PKCS:
   case CKM_SHA512_RSA_PKCS:
+  case CKM_ECDSA_SHA1:
+    rv = do_md_update(op_info->op.sign.md_ctx, in, in_len);
+    if (rv != CKR_OK)
+      return CKR_FUNCTION_FAILED;
+
+    return CKR_OK;
+
+  case CKM_ECDSA:
+    return CKR_FUNCTION_FAILED;
+
+  default:
     return CKR_FUNCTION_FAILED;
   }
-  
+
+}
+
+
+CK_RV apply_sign_mechanism_finalize(op_info_t *op_info) {
+
+  CK_RV rv;
+
+  if (op_info->type != YKCS11_SIGN)
+    return CKR_FUNCTION_FAILED;
+
+  switch (op_info->mechanism.mechanism) {
+  case CKM_RSA_PKCS_PSS:
+    return CKR_FUNCTION_FAILED;
+
+  case CKM_RSA_X_509:
+    return CKR_OK;
+
+  case CKM_SHA1_RSA_PKCS:
+  case CKM_SHA256_RSA_PKCS:
+  case CKM_SHA384_RSA_PKCS:
+  case CKM_SHA512_RSA_PKCS:
+  case CKM_ECDSA_SHA1:
+    // Finalize the hash if needed and add digest info
+    rv = do_md_finalize(op_info->op.sign.md_ctx, CK_TRUE, op_info->buf, &op_info->buf_len);
+    if (rv != CKR_OK)
+      return CKR_FUNCTION_FAILED;
+    fprintf(stderr, "The hashed value is %lu long and looks like\n", op_info->buf_len);
+    dump_hex(op_info->buf, op_info->buf_len, stderr, CK_TRUE);
+
+  case CKM_RSA_PKCS:
+    // And compute padding for all pkcs1 variants
+    return do_pkcs_t1(op_info->buf, op_info->buf_len, op_info->buf, sizeof(op_info->buf), op_info->op.sign.key_len);
+
+  case CKM_ECDSA:
+    return CKR_FUNCTION_FAILED;
+
+  default:
+    return CKR_FUNCTION_FAILED;
+  }
 }
