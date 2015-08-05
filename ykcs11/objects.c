@@ -653,7 +653,14 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     fprintf(stderr, "END DATE TODO\n"); // Default empty
     return CKR_FUNCTION_FAILED;
 
-    /*case CKA_MODULUS:*/
+  case CKA_MODULUS:
+    fprintf(stderr, "MODULUS\n");
+    len = sizeof(b_tmp);
+    if (get_public_key(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
+      return CKR_FUNCTION_FAILED;
+    data = b_tmp;
+    break;
+    
   case CKA_EC_POINT:
     // We're trying to get the key length, get the ec point of the PUBLIC key
     // TODO: or just give an error and explicitly fetch the pubk len when needed

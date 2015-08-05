@@ -89,8 +89,10 @@ CK_ULONG do_get_rsa_modulus_length(EVP_PKEY *key) {
 CK_RV do_get_public_key(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
   RSA *rsa;
+  unsigned char *p;
+  
   EC_KEY *eck;
-  const EC_GROUP *ecg; // Alternatice solution is to get i2d_PUBKEY and manually offset
+  const EC_GROUP *ecg; // Alternative solution is to get i2d_PUBKEY and manually offset
   const EC_POINT *ecp;
   point_conversion_form_t pcf = POINT_CONVERSION_UNCOMPRESSED;
 
@@ -99,7 +101,23 @@ CK_RV do_get_public_key(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
   case EVP_PKEY_RSA2:
 
     rsa = EVP_PKEY_get1_RSA(key);
-    return CKR_FUNCTION_FAILED; // TODO;
+
+    if (RSA_size(rsa) > *len)
+      return CKR_BUFFER_TOO_SMALL;
+
+    p = data;
+
+    if ((*len = i2d_RSAPublicKey(rsa, &p)) == 0)
+      return CKR_FUNCTION_FAILED;
+
+    // TODO: this is the correct thing to do so that we strip out the exponent
+    // OTOH we also need a function to get the exponent out with CKA_PUBLIC_EXPONENT
+    /*BN_bn2bin(rsa->n, data);
+     *len = 256;*/
+
+    fprintf(stderr, "Public key is: \n");
+    dump_hex(data, *len, stderr, CK_TRUE);
+
     break;
 
   case EVP_PKEY_EC:
@@ -119,6 +137,20 @@ CK_RV do_get_public_key(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
 }
 
+CK_RV do_encode_rsa_public_key(CK_BYTE_PTR data, CK_ULONG len, RSA **key) {
+
+  const unsigned char *p = data;
+
+  if (data == NULL)
+    return CKR_ARGUMENTS_BAD;
+  
+  if ((*key = d2i_RSAPublicKey(NULL, &p, len)) == NULL)
+    return CKR_FUNCTION_FAILED;
+
+  return CKR_OK;
+
+}
+
 CK_RV free_key(EVP_PKEY *key) {
 
   EVP_PKEY_free(key);
@@ -127,16 +159,52 @@ CK_RV free_key(EVP_PKEY *key) {
 
 }
 
-CK_RV do_pkcs_t1(CK_BYTE_PTR in, CK_ULONG in_len, CK_BYTE_PTR out, CK_ULONG out_len, CK_ULONG key_len) {
+CK_RV do_pkcs_1_t1(CK_BYTE_PTR in, CK_ULONG in_len, CK_BYTE_PTR out, CK_ULONG_PTR out_len, CK_ULONG key_len) {
+  key_len /= 8;
   fprintf(stderr, "Apply padding to %lu bytes and get %lu\n", in_len, key_len);
 
   // TODO: rand must be seeded first (should be automatic)
-  if (out_len < key_len)
+  if (*out_len < key_len)
     CKR_BUFFER_TOO_SMALL;
 
   if (RSA_padding_add_PKCS1_type_1(out, key_len, in, in_len) == 0)
     return CKR_FUNCTION_FAILED;
 
+  *out_len = key_len;
+
+  return CKR_OK;
+}
+
+CK_RV do_pkcs_1_digest_info(CK_BYTE_PTR in, CK_ULONG in_len, int nid, CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
+
+  unsigned int len;
+  CK_RV rv;
+
+  rv = prepare_rsa_signature(in, in_len, out, &len, nid);
+  if (!rv)
+    return CKR_FUNCTION_FAILED;
+
+  *out_len = len;
+
+  return CKR_OK;
+
+}
+
+CK_RV do_pkcs_pss(RSA *key, CK_BYTE_PTR in, CK_ULONG in_len, int nid,
+                  CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
+  unsigned char em[512]; // Max for this is ceil((|key_len_bits| - 1) / 8)
+
+  // TODO: rand must be seeded first (should be automatic)
+  if (*out_len < RSA_size(key))
+    CKR_BUFFER_TOO_SMALL;
+
+  fprintf(stderr, "Apply PSS padding to %lu bytes and get %d\n", in_len, RSA_size(key));
+
+  if (RSA_padding_add_PKCS1_PSS(key, em, in, EVP_get_digestbynid(nid), -2) == 0)
+    return CKR_FUNCTION_FAILED;
+
+  *out_len = RSA_size(key);
+  printf("hello!!!!!!!\n");
   return CKR_OK;
 }
 
@@ -177,7 +245,7 @@ CK_RV do_md_init(hash_t hash, ykcs11_md_ctx_t **ctx) {
 
   // The OpenSSL function above never fail
   if (EVP_DigestInit_ex(*ctx, md, NULL) == 0) {
-    EVP_MD_CTX_destroy(*ctx);
+    EVP_MD_CTX_destroy((EVP_MD_CTX *)*ctx);
     return CKR_FUNCTION_FAILED;
   }
 
@@ -186,27 +254,32 @@ CK_RV do_md_init(hash_t hash, ykcs11_md_ctx_t **ctx) {
 
 CK_RV do_md_update(ykcs11_md_ctx_t *ctx, CK_BYTE_PTR in, CK_ULONG in_len) {
 
-  return EVP_DigestUpdate(ctx, in, in_len) == 1 ? CKR_OK : CKR_FUNCTION_FAILED;
+  if (EVP_DigestUpdate(ctx, in, in_len) != 1) {
+    EVP_MD_CTX_destroy(ctx);
+    return CKR_FUNCTION_FAILED;
+  }
+
+  return CKR_OK;
 
 }
 
-CK_RV do_md_finalize(ykcs11_md_ctx_t *ctx, CK_BBOOL di, CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
+CK_RV do_md_finalize(ykcs11_md_ctx_t *ctx, CK_BYTE_PTR out, CK_ULONG_PTR out_len, int *nid) {
 
   int rv;
-  bool rv2;
   unsigned int len;
 
+  // Keep track of the md type if requested
+  if (nid != NULL)
+    *nid = EVP_MD_CTX_type(ctx);
+
   // Finalize digest and store result
-  rv = EVP_DigestFinal_ex(ctx, out, (unsigned int *)out_len);
-  // Check wheter digest info is required
-  if (di == CK_TRUE)
-    rv2 = prepare_rsa_signature(out, *out_len, out, &len, EVP_MD_CTX_type(ctx));
+  rv = EVP_DigestFinal_ex(ctx, out, &len);
 
   // Destroy the md context
   EVP_MD_CTX_destroy(ctx);
 
-  // Error if either of the previous calls failed
-  if (rv != 1 || !rv2)
+  // Error if the previous call failed
+  if (rv != 1)
     return CKR_FUNCTION_FAILED;
 
   *out_len = len;

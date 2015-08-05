@@ -18,5 +18,6 @@ typedef enum {
 } hash_t;
 
 typedef EVP_MD_CTX ykcs11_md_ctx_t;
+//typedef EVP_PKEY   ykcs11_evp_pkey_t;
 
 #endif

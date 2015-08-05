@@ -110,7 +110,7 @@ typedef struct { // TODO: enough to use the public key for the parameters?
 } piv_pvtk_obj_t;
 
 typedef struct {
-  EVP_PKEY *data;
+  EVP_PKEY *data; // TODO: make custo type for this and X509
 } piv_pubk_obj_t;
 
 typedef struct {

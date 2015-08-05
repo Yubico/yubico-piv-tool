@@ -1215,7 +1215,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
   CK_ATTRIBUTE template[] = {
     {CKA_KEY_TYPE, &type, sizeof(type)},
     {CKA_MODULUS_BITS, &key_len, sizeof(key_len)},
-    {CKA_EC_POINT, buf, sizeof(buf)}
+    {CKA_MODULUS, NULL, 0},
+    {CKA_EC_POINT, buf, sizeof(buf)},
   };
 
   if (piv_state == NULL) {
@@ -1267,17 +1268,36 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     else
       op_info.op.sign.algo = YKPIV_ALGO_RSA2048;
 
+    // Also store the raw public key if the mechanism is PSS
+    if (is_PSS_mechanism(pMechanism->mechanism)) {
+      op_info.op.sign.key = malloc(key_len);
+      if (op_info.op.sign.key == NULL)
+        return CKR_HOST_MEMORY;
+
+      template[2].pValue = op_info.op.sign.key;
+      template[2].ulValueLen = key_len; 
+
+      if (get_attribute(&session, hKey, template + 2) != CKR_OK) {
+        DBG(("Unable to get public key"));
+        return CKR_KEY_HANDLE_INVALID;
+      }
+
+    }
+    else {
+      op_info.op.sign.key = NULL;
+    }
+
   }
   else {
     // ECDSA key
-    if (get_attribute(&session, hKey, template + 2) != CKR_OK) {
+    if (get_attribute(&session, hKey, template + 3) != CKR_OK) {
       DBG(("Unable to get key length"));
       return CKR_KEY_HANDLE_INVALID;
     }
 
     // The buffer contains an uncompressed point of the form 04, x, y
     // TODO: is this a fine representation for an EC public key?
-    op_info.op.sign.key_len = ((template[2].ulValueLen - 1) / 2) * 8;
+    op_info.op.sign.key_len = ((template[3].ulValueLen - 1) / 2) * 8;
 
     if (op_info.op.sign.key_len == 256)
       op_info.op.sign.algo = YKPIV_ALGO_ECCP256;
@@ -1289,8 +1309,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
 
   DBG(("Key length is %lu bit", op_info.op.sign.key_len));
 
-  op_info.op.sign.key = piv_2_ykpiv(hKey);
-  if (op_info.op.sign.key == 0) {
+  op_info.op.sign.key_id = piv_2_ykpiv(hKey);
+  if (op_info.op.sign.key_id == 0) {
     DBG(("Incorrect key %lu", hKey));
     return CKR_KEY_HANDLE_INVALID;
   }
@@ -1304,6 +1324,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
   }
 
   op_info.type = YKCS11_SIGN;
+
+  // TODO: check mechanism parameters and key length and key supported parameters
 
   if (apply_sign_mechanism_init(&op_info) != CKR_OK) {
     DBG(("Unable to initialize signing operation"));
@@ -1347,8 +1369,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   }
   //dump_hex(buf, 256, stderr, CK_TRUE);
   //*pulSignatureLen = 256;
-  DBG(("Using key %lx", op_info.op.sign.key)); // TODO: test what happens if there is no key on the card
-  if ((r = ykpiv_sign_data(piv_state, op_info.buf, ulDataLen, pSignature, pulSignatureLen, op_info.op.sign.algo, op_info.op.sign.key)) != YKPIV_OK) {
+  DBG(("Using key %lx", op_info.op.sign.key_id)); // TODO: test what happens if there is no key on the card
+  if ((r = ykpiv_sign_data(piv_state, op_info.buf, ulDataLen, pSignature, pulSignatureLen, op_info.op.sign.algo, op_info.op.sign.key_id)) != YKPIV_OK) {
       DBG(("Sign error, %s", ykpiv_strerror(r)));
     return CKR_FUNCTION_FAILED;
   }

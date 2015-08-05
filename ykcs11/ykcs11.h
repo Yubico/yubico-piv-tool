@@ -37,10 +37,11 @@ typedef enum {
 } ykcs11_op_type_t;
 
 typedef struct {
-  ykcs11_md_ctx_t *md_ctx;
-  CK_BYTE         algo;
-  CK_ULONG        key;
-  CK_ULONG        key_len;
+  ykcs11_md_ctx_t   *md_ctx; // Digest context
+  CK_BYTE_PTR       key;     // Raw public key (needed for PSS)
+  CK_BYTE           algo;    // Algo for ykpiv
+  CK_ULONG          key_id;  // Key id for ykpiv
+  CK_ULONG          key_len; // Length in bits
 } sign_info_t;
 
 typedef struct {
