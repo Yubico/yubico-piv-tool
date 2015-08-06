@@ -927,6 +927,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
       if (is_private_object(&session, find_obj.objects[i]) == CK_TRUE) {
         DBG(("Stripping away private object %u", find_obj.objects[i]));
         find_obj.objects[i] = OBJECT_INVALID;
+        total--;
         continue;
       }
         
@@ -937,6 +938,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
         DBG(("Removing object %u from the list", find_obj.objects[i]));
         find_obj.objects[i] = OBJECT_INVALID;  // Object not matching, mark it
         total--;
+        break;
       }
       else
         DBG(("Keeping object %u in the list", find_obj.objects[i]));
@@ -945,11 +947,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
 
   DBG(("%lu object(s) left after attribute matching", total));
   
-  // TODO: do it properly here, just a test now
-  //find_obj.objects = session.slot->token->objects + 3;
-  /*memmove(find_obj.objects, find_obj.objects + 12, sizeof(piv_obj_id_t) * (find_obj.num - 12));
-  find_obj.num = 1;*/
-
   find_obj.active = CK_TRUE;
   
   DOUT;
@@ -1358,10 +1355,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   DBG(("Sending %lu bytes to sign", ulDataLen));
   dump_hex(pData, ulDataLen, stderr, CK_TRUE);
 
-  if (apply_sign_mechanism_update(&op_info, pData, ulDataLen) != CKR_OK) {
-    DBG(("Unable to perform signing operation step"));
-    return CKR_FUNCTION_FAILED;
-  }
+  if (is_hashed_mechanism(op_info.mechanism.mechanism) == CK_TRUE) {
+      if (apply_sign_mechanism_update(&op_info, pData, ulDataLen) != CKR_OK) {
+        DBG(("Unable to perform signing operation step"));
+        return CKR_FUNCTION_FAILED;
+      }
+    }
 
   if (apply_sign_mechanism_finalize(&op_info) != CKR_OK) {
     DBG(("Unable to finalize signing operation"));

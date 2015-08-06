@@ -102,6 +102,32 @@ CK_BBOOL is_PSS_mechanism(CK_MECHANISM_TYPE m) {
   return CK_FALSE;
 }
 
+CK_BBOOL is_hashed_mechanism(CK_MECHANISM_TYPE m) {
+
+  switch (m) {
+  case CKM_SHA1_RSA_PKCS:
+  case CKM_SHA256_RSA_PKCS:
+  case CKM_SHA384_RSA_PKCS:
+  case CKM_SHA512_RSA_PKCS:
+  case CKM_SHA1_RSA_PKCS_PSS:
+  case CKM_SHA256_RSA_PKCS_PSS:
+  case CKM_SHA384_RSA_PKCS_PSS:
+  case CKM_SHA512_RSA_PKCS_PSS:
+  case CKM_ECDSA_SHA1:
+  case CKM_SHA_1:
+  case CKM_SHA256:
+  case CKM_SHA384:
+  case CKM_SHA512:
+    return CK_TRUE;
+
+  default:
+    return CK_FALSE;
+  }
+
+  // Not reached
+  return CK_FALSE;
+}
+
 CK_RV apply_sign_mechanism_init(op_info_t *op_info) {
 
     if (op_info->type != YKCS11_SIGN)
@@ -138,7 +164,8 @@ CK_RV apply_sign_mechanism_init(op_info_t *op_info) {
       return do_md_init(YKCS11_SHA512, &op_info->op.sign.md_ctx);
 
     case CKM_ECDSA:
-      return CKR_FUNCTION_FAILED; // TODO: but no hash needed
+      // No hash required for this mechanism
+      return CKR_OK;
 
     default:
       return CKR_FUNCTION_FAILED;
@@ -157,6 +184,7 @@ CK_RV apply_sign_mechanism_update(op_info_t *op_info, CK_BYTE_PTR in, CK_ULONG i
   switch (op_info->mechanism.mechanism) {
   case CKM_RSA_PKCS:
   case CKM_RSA_PKCS_PSS:
+  case CKM_ECDSA:
     // Mechanism not suitable for multipart signatures
     return CKR_FUNCTION_FAILED;
 
@@ -177,9 +205,6 @@ CK_RV apply_sign_mechanism_update(op_info_t *op_info, CK_BYTE_PTR in, CK_ULONG i
       return CKR_FUNCTION_FAILED;
 
     return CKR_OK;
-
-  case CKM_ECDSA:
-    return CKR_FUNCTION_FAILED;
 
   default:
     return CKR_FUNCTION_FAILED;
@@ -251,9 +276,14 @@ CK_RV apply_sign_mechanism_finalize(op_info_t *op_info) {
     op_info->buf_len = sizeof(op_info->buf);
     return do_pkcs_1_t1(op_info->buf, len, op_info->buf, &op_info->buf_len, op_info->op.sign.key_len);
 
-  case CKM_ECDSA_SHA1: // TODO:
+  case CKM_ECDSA_SHA1:
+    // Finalize the hash
+    rv = do_md_finalize(op_info->op.sign.md_ctx, op_info->buf, &op_info->buf_len, &nid);
+    if (rv != CKR_OK)
+      return CKR_FUNCTION_FAILED;
+
   case CKM_ECDSA:
-    return CKR_FUNCTION_FAILED;
+    return CKR_OK;
 
   default:
     return CKR_FUNCTION_FAILED;
