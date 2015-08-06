@@ -1,6 +1,7 @@
 #include "yubico_token.h"
 #include "pkcs11.h"
 #include <string.h>
+#include "debug.h"
 
 #define YUBICO_MECHANISMS_NUM 5
 
@@ -209,7 +210,7 @@ CK_RV YUBICO_get_token_mechanism_info(CK_MECHANISM_TYPE mec, CK_MECHANISM_INFO_P
   return CKR_MECHANISM_INVALID;
 
 }
-#include <stdio.h> // TODO: delete
+
 static CK_RV get_objects(ykpiv_state *state, CK_BBOOL num_only,
                          piv_obj_id_t *obj, CK_ULONG_PTR len, CK_ULONG_PTR num_certs) {
   CK_BYTE buf[2048];
@@ -232,7 +233,7 @@ static CK_RV get_objects(ykpiv_state *state, CK_BBOOL num_only,
     pvtkeys[n_cert] = PIV_PVTK_OBJ_PIV_AUTH;
     pubkeys[n_cert] = PIV_PUBK_OBJ_PIV_AUTH;
     n_cert++;
-    fprintf(stderr, "Found AUTH cert (9a)\n");
+    DBG(("Found AUTH cert (9a)\n"));
   }
 
   buf_len = sizeof(buf);
@@ -241,7 +242,7 @@ static CK_RV get_objects(ykpiv_state *state, CK_BBOOL num_only,
     pvtkeys[n_cert] = PIV_PVTK_OBJ_CARD_AUTH;
     pubkeys[n_cert] = PIV_PUBK_OBJ_CARD_AUTH;
     n_cert++;
-    fprintf(stderr, "Found CARD AUTH cert (9e)\n");
+    DBG(("Found CARD AUTH cert (9e)\n"));
   }
 
   buf_len = sizeof(buf);
@@ -250,7 +251,7 @@ static CK_RV get_objects(ykpiv_state *state, CK_BBOOL num_only,
     pvtkeys[n_cert] = PIV_PVTK_OBJ_DS;
     pubkeys[n_cert] = PIV_PUBK_OBJ_DS;
     n_cert++;
-    fprintf(stderr, "Found SIGNATURE cert (9c)\n");
+    DBG(("Found SIGNATURE cert (9c)\n"));
   }
 
   buf_len = sizeof(buf);
@@ -259,10 +260,10 @@ static CK_RV get_objects(ykpiv_state *state, CK_BBOOL num_only,
     pvtkeys[n_cert] = PIV_PVTK_OBJ_KM;
     pubkeys[n_cert] = PIV_PUBK_OBJ_KM;
     n_cert++;
-    fprintf(stderr, "Found KMK cert (9d)\n");
+    DBG(("Found KMK cert (9d)\n"));
   }
 
-  fprintf(stderr, "The total number of objects for this token is %lu\n", (n_cert * 3) + token_objects_num);
+  DBG(("The total number of objects for this token is %lu\n", (n_cert * 3) + token_objects_num));
 
   if (num_only == CK_TRUE) {
     // We just want the number of objects

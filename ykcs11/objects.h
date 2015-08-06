@@ -3,8 +3,6 @@
 
 #include "ykcs11.h"
 
-#include <stdio.h> // TODO: delete
-
 CK_ULONG piv_2_ykpiv(piv_obj_id_t id);
 
 CK_RV    get_attribute(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);

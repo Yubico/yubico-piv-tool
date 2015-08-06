@@ -1,6 +1,5 @@
 #include "ykcs11.h"
 //#include "pkcs11.h"
-#include <stdio.h>
 #include <stdlib.h>
 #include <ykpiv.h>
 #include <string.h>
@@ -8,15 +7,7 @@
 #include "utils.h"
 #include "mechanisms.h"
 #include "openssl_types.h"
-
-#define D(x) do {                                                     \
-    printf ("debug: %s:%d (%s): ", __FILE__, __LINE__, __FUNCTION__); \
-    printf x;                                                         \
-    printf ("\n");                                                    \
-  } while (0)
-
-#define YKCS11_DBG    0  // General debug, must be either 1 or 0
-#define YKCS11_DINOUT 0  // Function in/out debug, must be either 1 or 0
+#include "debug.h"
 
 #define YKCS11_MANUFACTURER "Yubico (www.yubico.com)"
 #define YKCS11_LIBDESC      "PKCS#11 PIV Library (SP-800-73)"
@@ -28,21 +19,6 @@
 #define YKCS11_MAX_SIG_BUF_LEN 1024
 
 #define YKCS11_SESSION_ID 5355104
-
-
-#if YKCS11_DBG
-#define DBG(x) D(x);
-#else
-#define DBG(x)
-#endif
-
-#if YKCS11_DINOUT
-#define DIN D(("In"));
-#define DOUT D(("Out"));
-#else
-#define DIN
-#define DOUT
-#endif
 
 static ykpiv_state *piv_state = NULL;
 
@@ -1292,8 +1268,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
       return CKR_KEY_HANDLE_INVALID;
     }
 
-    // The buffer contains an uncompressed point of the form 04, x, y
-    // TODO: is this a fine representation for an EC public key?
+    // The buffer contains an uncompressed point of the form 04, len, 04, x, y
+
     op_info.op.sign.key_len = ((template[3].ulValueLen - 1) / 2) * 8;
 
     if (op_info.op.sign.key_len == 256)

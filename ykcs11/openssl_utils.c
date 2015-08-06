@@ -115,8 +115,8 @@ CK_RV do_get_public_key(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
     /*BN_bn2bin(rsa->n, data);
      *len = 256;*/
 
-    fprintf(stderr, "Public key is: \n");
-    dump_hex(data, *len, stderr, CK_TRUE);
+    /* fprintf(stderr, "Public key is: \n"); */
+    /* dump_hex(data, *len, stderr, CK_TRUE); */
 
     break;
 
@@ -125,8 +125,16 @@ CK_RV do_get_public_key(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
     ecg = EC_KEY_get0_group(eck);
     ecp = EC_KEY_get0_public_key(eck);
 
-    if ((*len = EC_POINT_point2oct(ecg, ecp, pcf, data, *len, NULL)) == 0)
+    // Adde the DER structure with length after extracting the point
+    data[0] = 0x04;
+
+    if ((*len = EC_POINT_point2oct(ecg, ecp, pcf, data + 2, *len - 2, NULL)) == 0)
       return CKR_FUNCTION_FAILED;
+
+    data[1] = *len;
+
+    *len += 2;
+
     break;
 
   default:
@@ -178,7 +186,7 @@ CK_RV free_key(EVP_PKEY *key) {
 
 CK_RV do_pkcs_1_t1(CK_BYTE_PTR in, CK_ULONG in_len, CK_BYTE_PTR out, CK_ULONG_PTR out_len, CK_ULONG key_len) {
   key_len /= 8;
-  fprintf(stderr, "Apply padding to %lu bytes and get %lu\n", in_len, key_len);
+  DBG(("Apply padding to %lu bytes and get %lu\n", in_len, key_len));
 
   // TODO: rand must be seeded first (should be automatic)
   if (*out_len < key_len)
@@ -215,13 +223,13 @@ CK_RV do_pkcs_pss(RSA *key, CK_BYTE_PTR in, CK_ULONG in_len, int nid,
   if (*out_len < RSA_size(key))
     CKR_BUFFER_TOO_SMALL;
 
-  fprintf(stderr, "Apply PSS padding to %lu bytes and get %d\n", in_len, RSA_size(key));
+  DBG(("Apply PSS padding to %lu bytes and get %d\n", in_len, RSA_size(key)));
 
   if (RSA_padding_add_PKCS1_PSS(key, em, in, EVP_get_digestbynid(nid), -2) == 0)
     return CKR_FUNCTION_FAILED;
 
   *out_len = RSA_size(key);
-  printf("hello!!!!!!!\n");
+
   return CKR_OK;
 }
 

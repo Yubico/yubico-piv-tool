@@ -257,7 +257,7 @@ CK_RV apply_sign_mechanism_finalize(op_info_t *op_info) {
     rv = do_md_finalize(op_info->op.sign.md_ctx, op_info->buf, &op_info->buf_len, &nid);
     if (rv != CKR_OK)
       return CKR_FUNCTION_FAILED;
-    fprintf(stderr, "The hashed value is %lu long and looks like\n", op_info->buf_len);
+    DBG(("The hashed value is %lu long and looks like\n", op_info->buf_len));
     dump_hex(op_info->buf, op_info->buf_len, stderr, CK_TRUE);
 
   case CKM_RSA_PKCS:
@@ -267,7 +267,7 @@ CK_RV apply_sign_mechanism_finalize(op_info_t *op_info) {
       if (rv != CKR_OK)
         return CKR_FUNCTION_FAILED;
 
-      fprintf(stderr, "After adding digestinfo is %lu long and looks like\n", op_info->buf_len);
+      DBG(("After adding digestinfo is %lu long and looks like\n", op_info->buf_len));
       dump_hex(op_info->buf, op_info->buf_len, stderr, CK_TRUE);
     }
     

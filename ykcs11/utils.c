@@ -90,12 +90,11 @@ failure:
   
   return CKR_FUNCTION_FAILED;
 }
-#include <stdio.h> // TODO: Delete
+
 CK_RV create_token(CK_BYTE_PTR p, ykcs11_slot_t *slot) {
 
   token_vendor_t token;
   CK_TOKEN_INFO_PTR t_info;
-  fprintf(stderr, "Now trying to get token info from %s\n", p); // TODO: is p needed?
 
   slot->token = malloc(sizeof(ykcs11_token_t)); // TODO: free
   if (slot->token == NULL)
