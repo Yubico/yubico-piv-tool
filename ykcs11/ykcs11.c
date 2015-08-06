@@ -15,7 +15,7 @@
     printf ("\n");                                                    \
   } while (0)
 
-#define YKCS11_DBG    1  // General debug, must be either 1 or 0
+#define YKCS11_DBG    0  // General debug, must be either 1 or 0
 #define YKCS11_DINOUT 0  // Function in/out debug, must be either 1 or 0
 
 #define YKCS11_MANUFACTURER "Yubico (www.yubico.com)"
@@ -838,7 +838,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
 
     // TODO: this function has some complex cases for return vlaue. Make sure to check them.
     if (rv != CKR_OK) {
-      DBG(("Unable to get attribute %lu of object %lu", (pTemplate + i)->type, hObject));
+      DBG(("Unable to get attribute 0x%lx of object %lu", (pTemplate + i)->type, hObject));
       rv_final = rv;
     }
   }

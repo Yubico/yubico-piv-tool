@@ -90,7 +90,7 @@ CK_RV do_get_public_key(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
   RSA *rsa;
   unsigned char *p;
-  
+
   EC_KEY *eck;
   const EC_GROUP *ecg; // Alternative solution is to get i2d_PUBKEY and manually offset
   const EC_POINT *ecp;
@@ -143,12 +143,29 @@ CK_RV do_encode_rsa_public_key(CK_BYTE_PTR data, CK_ULONG len, RSA **key) {
 
   if (data == NULL)
     return CKR_ARGUMENTS_BAD;
-  
+
   if ((*key = d2i_RSAPublicKey(NULL, &p, len)) == NULL)
     return CKR_FUNCTION_FAILED;
 
   return CKR_OK;
 
+}
+
+CK_RV do_get_curve_parameters( EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
+
+  EC_KEY *eck;
+  const EC_GROUP *ecg;
+  unsigned char *p;
+
+  eck = EVP_PKEY_get1_EC_KEY(key);
+  ecg = EC_KEY_get0_group(eck);
+
+  p = data;
+
+  if ((*len = i2d_ECPKParameters(ecg, &p)) == 0)
+      return CKR_FUNCTION_FAILED;
+
+  return CKR_OK;
 }
 
 CK_RV free_key(EVP_PKEY *key) {

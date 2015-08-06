@@ -106,11 +106,19 @@ typedef struct {
 } piv_cert_obj_t;
 
 typedef struct { // TODO: enough to use the public key for the parameters?
-  CK_BBOOL todo;
+  CK_BBOOL decrypt;
+  CK_BBOOL sign;
+  CK_BBOOL unwrap;
+  CK_BBOOL derive;
+  CK_BBOOL always_auth;
 } piv_pvtk_obj_t;
 
 typedef struct {
-  EVP_PKEY *data; // TODO: make custo type for this and X509
+  EVP_PKEY *data; // TODO: make custom type for this and X509
+  CK_BBOOL encrypt;
+  CK_BBOOL verify;
+  CK_BBOOL wrap;
+  CK_BBOOL derive;
 } piv_pubk_obj_t;
 
 typedef struct {

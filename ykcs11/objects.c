@@ -122,19 +122,19 @@ static piv_cert_obj_t cert_objects[] = {
 };
 
 static piv_pvtk_obj_t pvtkey_objects[] = {
-  {0},
-  {0},
-  {0},
-  {0},
-  {0}
+  {1, 1, 0, 0, 0},
+  {1, 1, 0, 0, 0},
+  {1, 1, 0, 0, 0},
+  {1, 1, 0, 0, 1},
+  {1, 1, 0, 0, 0}
 };
 
 static piv_pubk_obj_t pubkey_objects[] = {
-  {0},
-  {0},
-  {0},
-  {0},
-  {0}
+  {NULL, 1, 1, 0, 0},
+  {NULL, 1, 1, 0, 0},
+  {NULL, 1, 1, 0, 0},
+  {NULL, 1, 1, 0, 0},
+  {NULL, 1, 1, 0, 0}
 };
 
 
@@ -242,12 +242,16 @@ static CK_KEY_TYPE get_key_type(EVP_PKEY *key) {
   return do_get_key_type(key);
 }
 
-static CK_KEY_TYPE get_modulus_bits(EVP_PKEY *key) {
+static CK_ULONG get_modulus_bits(EVP_PKEY *key) {
   return do_get_rsa_modulus_length(key);
 }
 
 static CK_RV get_public_key(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
   return do_get_public_key(key, data, len);
+}
+
+static CK_RV get_curve_parameters(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
+  return do_get_curve_parameters(key, data, len);
 }
 
 /* Get data object attribute */
@@ -297,63 +301,12 @@ CK_RV get_doa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     return CKR_FUNCTION_FAILED;
 
   case CKA_OBJECT_ID: // TODO: how about just storing the OID in DER ?
-    // This only makes sense for data objects
     fprintf(stderr, "OID\n");
     strcpy((char *)tmp, data_objects[piv_objects[obj].sub_id].oid);
     asn1_encode_oid(tmp, tmp, &len);
     data = tmp;
     break;
 
-  /* case CKA_CERTIFICATE_TYPE: */
-  /*   fprintf(stderr, "CERTIFICATE TYPE\n"); */
-  /*   len = 1; */
-  /*   tmp[0] = CKC_X_509; // Support only X.509 certs */
-  /*   data = tmp; */
-  /*   break; */
-
-//  case CKA_ISSUER:
-//  case CKA_SERIAL_NUMBER:
-  /* case CKA_KEY_TYPE: */
-  /*   fprintf(stderr, "Return the key type TODO!!!\n"); */
-  /*   return CKR_OK; */
-
-  /* case CKA_SUBJECT: */
-  /* case CKA_ID: */
-  /*   fprintf(stderr, "ID\n"); */
-  /*   len = data_objects[objects[obj].sub_id].tag_len; */
-  /*   data = data_objects[objects[obj].sub_id].tag_value; */
-  /*   break; */
-
-  /* case CKA_SENSITIVE: */
-  /* case CKA_ENCRYPT: */
-  /* case CKA_DECRYPT: */
-  /* case CKA_WRAP: */
-  /* case CKA_UNWRAP: */
-  /* case CKA_SIGN: */
-  /* case CKA_SIGN_RECOVER: */
-  /* case CKA_VERIFY: */
-  /* case CKA_VERIFY_RECOVER: */
-  /* case CKA_DERIVE: */
-  /* case CKA_START_DATE: */
-  /* case CKA_END_DATE: */
-  /* case CKA_MODULUS: */
-  /* case CKA_MODULUS_BITS: */
-  /* case CKA_PUBLIC_EXPONENT: */
-  /* case CKA_PRIVATE_EXPONENT: */
-  /* case CKA_PRIME_1: */
-  /* case CKA_PRIME_2: */
-  /* case CKA_EXPONENT_1: */
-  /* case CKA_EXPONENT_2: */
-  /* case CKA_COEFFICIENT: */
-  /* case CKA_PRIME: */
-  /* case CKA_SUBPRIME: */
-  /* case CKA_BASE: */
-  /* case CKA_VALUE_BITS: */
-  /* case CKA_VALUE_LEN: */
-  /* case CKA_EXTRACTABLE: */
-  /* case CKA_LOCAL: */
-  /* case CKA_NEVER_EXTRACTABLE: */
-  /* case CKA_ALWAYS_SENSITIVE: */
   case CKA_MODIFIABLE:
     fprintf(stderr, "MODIFIABLE\n");
     len = 1;
@@ -361,7 +314,6 @@ CK_RV get_doa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     data = tmp;
     break;
 
-  /* case CKA_VENDOR_DEFINED: */
   default:
     fprintf(stderr, "UNKNOWN ATTRIBUTE!!!!! %lx\n", template[0].type);
     template->ulValueLen = CK_UNAVAILABLE_INFORMATION;
@@ -421,23 +373,9 @@ CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     data = piv_objects[obj].label;
     break;
 
-  /* case CKA_APPLICATION: */
-  /*   fprintf(stderr, "APPLICATION\n"); */
-  /*   len = strlen(objects[obj].label) + 1; */
-  /*   data = objects[obj].label; */
-  /*   break; */
-
   case CKA_VALUE:
     fprintf(stderr, "VALUE TODO\n");
     return CKR_FUNCTION_FAILED;
-
-  /* case CKA_OBJECT_ID: // TODO: how about just storing the OID in DER ? */
-  /*   // This only makes sense for data objects */
-  /*   fprintf(stderr, "OID\n"); */
-  /*   strcpy((char *)tmp, certificate_objects[objects[obj].sub_id].oid); */
-  /*   asn1_encode_oid(tmp, tmp, &len); */
-  /*   data = tmp; */
-  /*   break; */
 
   case CKA_CERTIFICATE_TYPE:
     fprintf(stderr, "CERTIFICATE TYPE\n");
@@ -454,10 +392,6 @@ CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     fprintf(stderr, "SERIAL NUMBER TODO\n"); // Default empty
     return CKR_FUNCTION_FAILED;
 
-  /* case CKA_KEY_TYPE: */
-  /*   fprintf(stderr, "Return the key type TODO!!!\n"); */
-  /*   return CKR_OK; */
-
   case CKA_SUBJECT:
     fprintf(stderr, "SUBJECT TODO\n"); // Required
     return CKR_FUNCTION_FAILED;
@@ -469,16 +403,6 @@ CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     data = tmp;
     break;
 
-  /* case CKA_SENSITIVE: */
-  /* case CKA_ENCRYPT: */
-  /* case CKA_DECRYPT: */
-  /* case CKA_WRAP: */
-  /* case CKA_UNWRAP: */
-  /* case CKA_SIGN: */
-  /* case CKA_SIGN_RECOVER: */
-  /* case CKA_VERIFY: */
-  /* case CKA_VERIFY_RECOVER: */
-  /* case CKA_DERIVE: */
   case CKA_START_DATE:
     fprintf(stderr, "START DATE TODO\n"); // Default empty
     return CKR_FUNCTION_FAILED;
@@ -487,24 +411,6 @@ CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     fprintf(stderr, "END DATE TODO\n"); // Default empty
     return CKR_FUNCTION_FAILED;
 
-  /* case CKA_MODULUS: */
-  /* case CKA_MODULUS_BITS: */
-  /* case CKA_PUBLIC_EXPONENT: */
-  /* case CKA_PRIVATE_EXPONENT: */
-  /* case CKA_PRIME_1: */
-  /* case CKA_PRIME_2: */
-  /* case CKA_EXPONENT_1: */
-  /* case CKA_EXPONENT_2: */
-  /* case CKA_COEFFICIENT: */
-  /* case CKA_PRIME: */
-  /* case CKA_SUBPRIME: */
-  /* case CKA_BASE: */
-  /* case CKA_VALUE_BITS: */
-  /* case CKA_VALUE_LEN: */
-  /* case CKA_EXTRACTABLE: */
-  /* case CKA_LOCAL: */
-  /* case CKA_NEVER_EXTRACTABLE: */
-  /* case CKA_ALWAYS_SENSITIVE: */
   case CKA_MODIFIABLE:
     fprintf(stderr, "MODIFIABLE\n");
     len = 1;
@@ -512,7 +418,6 @@ CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     data = tmp;
     break;
 
-  /* case CKA_VENDOR_DEFINED: */
   default: // TODO: there are other attributes for a (x509) certificate
     fprintf(stderr, "UNKNOWN ATTRIBUTE!!!!! %lx\n", template[0].type);
     template->ulValueLen = CK_UNAVAILABLE_INFORMATION;
@@ -573,30 +478,6 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     data = piv_objects[obj].label;
     break;
 
-  /* case CKA_APPLICATION: */
-  /*   fprintf(stderr, "APPLICATION\n"); */
-  /*   len = strlen(objects[obj].label) + 1; */
-  /*   data = objects[obj].label; */
-  /*   break; */
-
-//  case CKA_VALUE: // TODO: this can be done with -r and -d|-a
-  /* case CKA_OBJECT_ID: // TODO: how about just storing the OID in DER ? */
-  /*   // This only makes sense for data objects */
-  /*   fprintf(stderr, "OID\n"); */
-  /*   strcpy((char *)tmp, pvtkey_objects[objects[obj].sub_id].oid); */
-  /*   asn1_encode_oid(tmp, tmp, &len); */
-  /*   data = tmp; */
-  /*   break; */
-
-  /* case CKA_CERTIFICATE_TYPE: */
-  /*   fprintf(stderr, "CERTIFICATE TYPE\n"); */
-  /*   len = 1; */
-  /*   tmp[0] = CKC_X_509; // Support only X.509 certs */
-  /*   data = tmp; */
-  /*   break; */
-
-//  case CKA_ISSUER:
-//  case CKA_SERIAL_NUMBER:
   case CKA_KEY_TYPE:
     fprintf(stderr, "KEY TYPE\n");
     len = sizeof(CK_ULONG);
@@ -621,29 +502,37 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     fprintf(stderr, "SENSITIVE TODO\n"); // Default empty
     return CKR_FUNCTION_FAILED;
 
-  /* case CKA_ENCRYPT: */
   case CKA_DECRYPT:
-    fprintf(stderr, "DECRYPT TODO\n"); // Default empty
-    return CKR_FUNCTION_FAILED;
+    fprintf(stderr, "DECRYPT\n"); // Default empty
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = pvtkey_objects[piv_objects[obj].sub_id].decrypt;
+    data = b_tmp;
+    break;
 
-  /* case CKA_WRAP: */
   case CKA_UNWRAP:
-    fprintf(stderr, "UNWRAP TODO\n"); // Default empty
-    return CKR_FUNCTION_FAILED;
+    fprintf(stderr, "UNWRAP\n"); // Default empty
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = pvtkey_objects[piv_objects[obj].sub_id].unwrap;
+    data = b_tmp;
+    break;
 
   case CKA_SIGN:
-    fprintf(stderr, "SIGN TODO\n"); // Default empty
-    return CKR_FUNCTION_FAILED;
+    fprintf(stderr, "SIGN\n"); // Default empty
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = pvtkey_objects[piv_objects[obj].sub_id].sign;
+    data = b_tmp;
+    break;
 
   case CKA_SIGN_RECOVER:
     fprintf(stderr, "SIGN RECOVER TODO\n"); // Default empty
     return CKR_FUNCTION_FAILED;
 
-  /* case CKA_VERIFY: */
-  /* case CKA_VERIFY_RECOVER: */
   case CKA_DERIVE:
-    fprintf(stderr, "DERIVE TODO\n"); // Default false
-    return CKR_FUNCTION_FAILED;
+    fprintf(stderr, "DERIVE\n"); // Default false
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = pvtkey_objects[piv_objects[obj].sub_id].derive;
+    data = b_tmp;
+    break;
 
   case CKA_START_DATE:
     fprintf(stderr, "START DATE TODO\n"); // Default empty
@@ -698,7 +587,15 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     return CKR_FUNCTION_FAILED;
 
   /* case CKA_NEVER_EXTRACTABLE: */
-  /* case CKA_ALWAYS_SENSITIVE: */
+  /*case CKA_ALWAYS_SENSITIVE:*/
+
+  case CKA_ALWAYS_AUTHENTICATE:
+    fprintf(stderr, "ALWAYS AUTHENTICATE\n");
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = pvtkey_objects[piv_objects[obj].sub_id].always_auth;
+    data = b_tmp;
+    break;
+
   case CKA_MODIFIABLE:
     fprintf(stderr, "MODIFIABLE\n");
     len = sizeof(CK_BBOOL);
@@ -733,31 +630,32 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 /* Get public key object attribute */
 CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
-  CK_BYTE     tmp[64];
+  CK_BYTE     b_tmp[1024];
+  CK_ULONG    ul_tmp; // TODO: fix elsewhere too
   CK_ULONG    len = 0;
   fprintf(stderr, "FOR PUBLIC KEY OBJECT %lu, I WANT ", obj);
 
   switch (template->type) {
   case CKA_CLASS:
     fprintf(stderr, "CLASS\n");
-    len = 1;
-    tmp[0] = CKO_PUBLIC_KEY;
-    data = tmp;
+    len = sizeof(CK_ULONG);
+    ul_tmp = CKO_PUBLIC_KEY;
+    data = (CK_BYTE_PTR) &ul_tmp;
     break;
 
   case CKA_TOKEN:
     // Technically all these objects are token objects
     fprintf(stderr, "TOKEN\n");
-    len = 1;
-    tmp[0] = piv_objects[obj].token;
-    data = tmp;
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = piv_objects[obj].token;
+    data = b_tmp;
     break;
 
   case CKA_PRIVATE:
     fprintf(stderr, "PRIVATE\n");
-    len = 1;
-    tmp[0] = piv_objects[obj].private;
-    data = tmp;
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = piv_objects[obj].private;
+    data = b_tmp;
     break;
 
   case CKA_LABEL:
@@ -766,33 +664,16 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     data = piv_objects[obj].label;
     break;
 
-  /* case CKA_APPLICATION: */
-  /*   fprintf(stderr, "APPLICATION\n"); */
-  /*   len = strlen(objects[obj].label) + 1; */
-  /*   data = objects[obj].label; */
-  /*   break; */
-
 //  case CKA_VALUE: // TODO: this can be done with -r and -d|-a
-  /* case CKA_OBJECT_ID: // TODO: how about just storing the OID in DER ? */
-  /*   // This only makes sense for data objects */
-  /*   fprintf(stderr, "OID\n"); */
-  /*   strcpy((char *)tmp, pubkey_objects[objects[obj].sub_id].oid); */
-  /*   asn1_encode_oid(tmp, tmp, &len); */
-  /*   data = tmp; */
-  /*   break; */
 
-  /* case CKA_CERTIFICATE_TYPE: */
-  /*   fprintf(stderr, "CERTIFICATE TYPE\n"); */
-  /*   len = 1; */
-  /*   tmp[0] = CKC_X_509; // Support only X.509 certs */
-  /*   data = tmp; */
-  /*   break; */
-
-//  case CKA_ISSUER:
-//  case CKA_SERIAL_NUMBER:
   case CKA_KEY_TYPE:
-    fprintf(stderr, "KEY TYPE TODO\n");
-    return CKR_FUNCTION_FAILED;
+    fprintf(stderr, "KEY TYPE\n");
+    len = sizeof(CK_ULONG);
+    ul_tmp = get_key_type(pubkey_objects[piv_objects[obj].sub_id].data);
+    if (ul_tmp == CKK_VENDOR_DEFINED) // This value is used as an error here
+      return CKR_FUNCTION_FAILED;
+    data = (CK_BYTE_PTR) &ul_tmp;
+    break;
 
   case CKA_SUBJECT:
     fprintf(stderr, "SUBJECT TODO\n"); // Default empty
@@ -800,32 +681,38 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
   case CKA_ID:
     fprintf(stderr, "ID\n");
-    len = 1;
-    tmp[0] = piv_objects[obj].sub_id;
-    data = tmp;
+    len = sizeof(CK_BYTE);
+    b_tmp[0] = piv_objects[obj].sub_id;
+    data = b_tmp;
     break;
 
-  /* case CKA_SENSITIVE: */
   case CKA_ENCRYPT:
-    fprintf(stderr, "ENCRYPT TODO\n"); // Required
-    return CKR_FUNCTION_FAILED;
+    fprintf(stderr, "ENCRYPT\n");
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = pubkey_objects[piv_objects[obj].sub_id].encrypt;
+    data = b_tmp;
+    break;
 
-  case CKA_DECRYPT:
-    fprintf(stderr, "DECRYPT TODO\n"); // Required
-    return CKR_FUNCTION_FAILED;
+  case CKA_VERIFY: // TODO: what about verify recover ?
+    fprintf(stderr, "VERIFY\n");
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = pubkey_objects[piv_objects[obj].sub_id].verify;
+    data = b_tmp;
+    break;
 
   case CKA_WRAP:
-    fprintf(stderr, "WRAP TODO\n"); // Required
-    return CKR_FUNCTION_FAILED;
+    fprintf(stderr, "WRAP\n");
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = pubkey_objects[piv_objects[obj].sub_id].wrap;
+    data = b_tmp;
+    break;
 
-  /* case CKA_UNWRAP: */
-  /* case CKA_SIGN: */
-  /* case CKA_SIGN_RECOVER: */
-  /* case CKA_VERIFY: */
-  /* case CKA_VERIFY_RECOVER: */
   case CKA_DERIVE:
-    fprintf(stderr, "DERIVE TODO\n"); // Defaul false
-    return CKR_FUNCTION_FAILED;
+    fprintf(stderr, "DERIVE\n");
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = pubkey_objects[piv_objects[obj].sub_id].derive;
+    data = b_tmp;
+    break;
 
   case CKA_START_DATE:
     fprintf(stderr, "START DATE TODO\n"); // Default empty
@@ -834,37 +721,47 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   case CKA_END_DATE:
     fprintf(stderr, "END DATE TODO\n"); // Default empty
     return CKR_FUNCTION_FAILED;
-  /* case CKA_MODULUS: */
-  /* case CKA_MODULUS_BITS: */
-  /* case CKA_PUBLIC_EXPONENT: */
-  /* case CKA_PRIVATE_EXPONENT: */
-  /* case CKA_PRIME_1: */
-  /* case CKA_PRIME_2: */
-  /* case CKA_EXPONENT_1: */
-  /* case CKA_EXPONENT_2: */
-  /* case CKA_COEFFICIENT: */
-  /* case CKA_PRIME: */
-  /* case CKA_SUBPRIME: */
-  /* case CKA_BASE: */
-  /* case CKA_VALUE_BITS: */
-  /* case CKA_VALUE_LEN: */
-  /* case CKA_EXTRACTABLE: */
+
+  case CKA_EC_POINT:
+    // We're trying to get the key length, get the ec point of the PUBLIC key
+    fprintf(stderr, "EC_POINT\n");
+    len = sizeof(b_tmp);
+    if (get_public_key(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
+      return CKR_FUNCTION_FAILED;
+    data = b_tmp;
+    break;
+
+  case CKA_EC_PARAMS:
+    // Here we want the curve parameters (DER encoded OID)
+    fprintf(stderr, "EC_PARAMS\n");
+    len = sizeof(b_tmp);
+    if (get_curve_parameters(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
+      return CKR_FUNCTION_FAILED;
+    data = b_tmp;
+    break;
+
+  case CKA_MODULUS_BITS:
+    fprintf(stderr, "MODULUS BITS\n");
+    len = sizeof(CK_ULONG);
+    ul_tmp = get_modulus_bits(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    if (ul_tmp == 0)
+      return CKR_FUNCTION_FAILED;
+    data = (CK_BYTE_PTR) &ul_tmp;
+    break;
+    
   case CKA_LOCAL:
     fprintf(stderr, "LOCAL TODO\n"); // Required
     return CKR_FUNCTION_FAILED;
 
-  /* case CKA_NEVER_EXTRACTABLE: */
-  /* case CKA_ALWAYS_SENSITIVE: */
   case CKA_MODIFIABLE:
     fprintf(stderr, "MODIFIABLE\n");
-    len = 1;
-    tmp[0] = piv_objects[obj].modifiable;
-    data = tmp;
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = piv_objects[obj].modifiable;
+    data = b_tmp;
     break;
 
-  /* case CKA_VENDOR_DEFINED: */
   default:
-    fprintf(stderr, "UNKNOWN ATTRIBUTE!!!!! %lx\n", template[0].type); // TODO: there are other parameters for public keys
+    fprintf(stderr, "UNKNOWN ATTRIBUTE!!!!! 0x%lx\n", template[0].type); // TODO: there are other parameters for public keys
     template->ulValueLen = CK_UNAVAILABLE_INFORMATION;
     return CKR_ATTRIBUTE_TYPE_INVALID;
   }
