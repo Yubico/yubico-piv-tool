@@ -17,6 +17,13 @@ static const CK_MECHANISM_TYPE sign_mechanisms[] = {
   CKM_ECDSA_SHA1
 };
 
+// Supported mechanisms for key pair generation
+static const CK_MECHANISM_TYPE generation_mechanisms[] = {
+  CKM_RSA_PKCS_KEY_PAIR_GEN,
+  //CKM_ECDSA_KEY_PAIR_GEN, Deperecated
+  CKM_EC_KEY_PAIR_GEN
+};
+
 CK_RV check_sign_mechanism(const ykcs11_session_t *s, const CK_MECHANISM_PTR m) {
 
   CK_ULONG          i;
@@ -40,9 +47,9 @@ CK_RV check_sign_mechanism(const ykcs11_session_t *s, const CK_MECHANISM_PTR m) 
   if (token.get_token_mechanism_info(m->mechanism, &info) != CKR_OK)
     return CKR_MECHANISM_INVALID;
 
-  // TODO: also check that parametes make sense if any?
+  // TODO: also check that parametes make sense if any? And key size is in [min max]
 
-  CKR_OK;
+  return CKR_OK;
 
 }
 
@@ -288,4 +295,156 @@ CK_RV apply_sign_mechanism_finalize(op_info_t *op_info) {
   default:
     return CKR_FUNCTION_FAILED;
   }
+}
+
+CK_RV check_generation_mechanism(const ykcs11_session_t *s, CK_MECHANISM_PTR m) {
+
+  CK_ULONG          i;
+  CK_BBOOL          supported = CK_FALSE;
+  token_vendor_t    token;
+  CK_MECHANISM_INFO info;
+
+  // Check if the mechanism is supported by the module
+  for (i = 0; i < sizeof(generation_mechanisms) / sizeof(CK_MECHANISM_TYPE); i++) {
+    if (m->mechanism == generation_mechanisms[i]) {
+      supported = CK_TRUE;
+      break;
+    }
+  }
+  if (supported == CK_FALSE)
+    return CKR_MECHANISM_INVALID;
+
+  // Check if the mechanism is supported by the token
+  token = get_token_vendor(s->slot->token->vid);
+
+  if (token.get_token_mechanism_info(m->mechanism, &info) != CKR_OK)
+    return CKR_MECHANISM_INVALID;
+
+  // TODO: also check that parametes make sense if any? And key size is in [min max]
+
+  return CKR_OK;
+
+}
+
+CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG n) {
+
+  CK_ULONG i;
+  CK_BBOOL rsa_mechanism;
+
+  op_info->op.gen.rsa = is_RSA_mechanism(op_info->mechanism.mechanism);
+
+  for (i = 0; i < n; i++) {
+    switch (templ[i].type) {
+    case CKA_CLASS:
+      if (*((CK_ULONG_PTR) templ[i].pValue) != CKO_PUBLIC_KEY)
+        return CKR_TEMPLATE_INCONSISTENT;
+
+      break;
+
+    case CKA_KEY_TYPE:
+      if ((op_info->op.gen.rsa == CK_TRUE  && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_RSA) ||
+          (op_info->op.gen.rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_ECDSA))
+        return CKR_TEMPLATE_INCONSISTENT;
+
+      break;
+
+    case CKA_PUBLIC_EXPONENT:
+      if (op_info->op.gen.rsa == CK_FALSE)
+        return CKR_MECHANISM_PARAM_INVALID;
+
+      // Only support F4
+      if (templ[i].ulValueLen != 3 || memcmp((CK_BYTE_PTR)templ[i].pValue, "\x01\x00\x01", 3) != 0)
+        return CKR_MECHANISM_PARAM_INVALID;
+
+      break;
+
+    case CKA_MODULUS_BITS:
+      if (op_info->op.gen.rsa == CK_FALSE)
+        return CKR_MECHANISM_PARAM_INVALID;
+
+      if (*((CK_ULONG_PTR)templ[i].pValue) != 1024 &&
+          *((CK_ULONG_PTR) templ[i].pValue) != 2048) // TODO: make define?
+        return CKR_MECHANISM_PARAM_INVALID;
+
+      op_info->op.gen.key_len = *((CK_ULONG_PTR) templ[i].pValue); // TODO: check length?
+      break;
+
+    case CKA_ID:
+      // TODO: get pvt key with attributed id and store it's id into op_info
+
+    case CKA_TOKEN:
+    case CKA_ENCRYPT:
+    case CKA_VERIFY:
+    case CKA_WRAP:
+      // Ignore these attributes for now
+      break;
+
+    default:
+      return CKR_MECHANISM_PARAM_INVALID;
+    }
+  }
+
+  return CKR_OK;
+  
+}
+
+CK_RV check_pvtkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG n) {
+
+  CK_ULONG i;
+  CK_BBOOL rsa_mechanism;
+
+  op_info->op.gen.rsa = is_RSA_mechanism(op_info->mechanism.mechanism);
+
+  for (i = 0; i < n; i++) {
+    switch (templ[i].type) {
+    case CKA_CLASS:
+      if (*((CK_ULONG_PTR)templ[i].pValue) != CKO_PRIVATE_KEY)
+        return CKR_TEMPLATE_INCONSISTENT;
+
+      break;
+
+    case CKA_KEY_TYPE:
+      if ((op_info->op.gen.rsa == CK_TRUE  && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_RSA) ||
+          (op_info->op.gen.rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_ECDSA))
+        return CKR_TEMPLATE_INCONSISTENT;
+
+      break;
+
+    case CKA_PUBLIC_EXPONENT:
+      if (op_info->op.gen.rsa == CK_FALSE)
+        return CKR_MECHANISM_PARAM_INVALID;
+
+      // Only support F4
+      if (templ[i].ulValueLen != 3 || memcmp((CK_BYTE_PTR)templ[i].pValue, "\x01\x00\x01", 3) != 0)
+        return CKR_MECHANISM_PARAM_INVALID;
+
+      break;
+
+    case CKA_MODULUS_BITS:
+      if (op_info->op.gen.rsa == CK_FALSE)
+        return CKR_MECHANISM_PARAM_INVALID;
+
+      if (*((CK_ULONG_PTR)templ[i].pValue) != 1024 &&
+          *((CK_ULONG_PTR) templ[i].pValue) != 2048) // TODO: make define?
+        return CKR_MECHANISM_PARAM_INVALID;
+
+      op_info->op.gen.key_len = *((CK_ULONG_PTR) templ[i].pValue); // TODO: check length?
+      break;
+
+    case CKA_SENSITIVE:
+    case CKA_DECRYPT:
+    case CKA_UNWRAP:
+    case CKA_SIGN:
+    case CKA_PRIVATE:
+    case CKA_TOKEN:
+      // Ignore these attributes for now
+      break;
+
+    default:
+        return CKR_MECHANISM_PARAM_INVALID;
+    }
+  }
+
+  return CKR_OK;
+  
 }

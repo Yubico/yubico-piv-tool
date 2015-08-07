@@ -37,9 +37,6 @@ static struct {
 
 op_info_t op_info;
 
-/*static piv_obj_id_t token_objects[PIV_CERT_OBJ_LAST]; // TODO: tidy this up, also build at runtime (during open session)? And include inside a session struct?
-  static CK_ULONG n_token_objects = 0;*/
-
 extern CK_FUNCTION_LIST function_list; // TODO: check all return values
 
 /* General Purpose */
@@ -489,14 +486,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     return CKR_HOST_MEMORY;
   }
 
-  // Save a list of all the available objects in the token // TODO: change behavior based on login status
+  // Save a list of all the available objects in the token
   rv = token.get_token_object_list(piv_state, session.slot->token->objects, session.slot->token->n_objects);
   if (rv != CKR_OK) {
     DBG(("Unable to retrieve token objects"));
     goto failure;
   }
 
-  // Get a list object ids for available certificates object from the session
+  // Get a list of object ids for available certificates object from the session
   rv = get_available_certificate_ids(&session, cert_ids, session.slot->token->n_certs); // TODO: better to get this from token? how?
   if (rv != CKR_OK) {
     DBG(("Unable to retrieve certificate ids from the session"));
@@ -537,7 +534,7 @@ failure:
     cert_ids = NULL;
   }
 
-  free_certs(); // TODO
+  free_certs(); // TODO: remove the one allocated so far
 
   return rv;
 }
@@ -659,14 +656,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (userType != CKU_USER &&
-      userType != CKU_SO &&
+  if (userType != CKU_SO && // TODO: what can SO do?
+      userType != CKU_USER &&
       userType != CKU_CONTEXT_SPECIFIC)
-    return CKR_ARGUMENTS_BAD;
-
-  if (ulPinLen < PIV_MIN_PIN_LEN ||
-      ulPinLen > PIV_MAX_PIN_LEN)
-    return CKR_ARGUMENTS_BAD;
+    return CKR_USER_TYPE_INVALID;
 
   DBG(("user %lu, pin %s, pinlen %lu", userType, pPin, ulPinLen));
 
@@ -678,11 +671,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
   if (hSession != session.handle)
     return CKR_SESSION_HANDLE_INVALID;
 
-  if (userType != CKU_SO && // TODO: what can SO do?
-      userType != CKU_USER &&
-      userType != CKU_CONTEXT_SPECIFIC)
-    return CKR_USER_TYPE_INVALID;
-
   if ((session.info.flags & CKF_RW_SESSION) == 0) { // TODO: make macros for these?
     DBG(("Tried to log-in to a read-only session"));
     return CKR_SESSION_READ_ONLY_EXISTS;
@@ -690,28 +678,59 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
 
   switch (userType) {
   case CKU_USER:
-    if (session.info.state == CKS_RW_USER_FUNCTIONS)
+    if (ulPinLen < PIV_MIN_PIN_LEN || ulPinLen > PIV_MAX_PIN_LEN)
+      return CKR_ARGUMENTS_BAD;
+    
+    if (session.info.state == CKS_RW_USER_FUNCTIONS) // TODO: make sure to set session default state as not logged
       return CKR_USER_ALREADY_LOGGED_IN;
+
+    if (session.info.state == CKS_RW_SO_FUNCTIONS)
+      return CKR_USER_ANOTHER_ALREADY_LOGGED_IN;
 
     tries = 0;
     if (ykpiv_verify(piv_state, pPin, (int *)&tries) != YKPIV_OK) { // TODO: call this from vendors.c
       DBG(("You loose! %lu", tries));
       return CKR_PIN_INCORRECT;
     }
+
+    if ((session.info.flags & CKF_RW_SESSION) == 0) // TODO: double check with the if line 678 for R/O
+      session.info.state = CKS_RO_USER_FUNCTIONS;
+    else
+      session.info.state = CKS_RW_USER_FUNCTIONS;
     break;
 
   case CKU_SO:
+    // TODO: check for mgmt key length?
+    if (session.info.state == CKS_RW_SO_FUNCTIONS)
+      return CKR_USER_ALREADY_LOGGED_IN;
+
+    if (session.info.state == CKS_RO_USER_FUNCTIONS ||
+        session.info.state == CKS_RW_USER_FUNCTIONS)
+      return CKR_USER_ANOTHER_ALREADY_LOGGED_IN;
+
+    /***** TODO: replace this with a token function *****/
+    unsigned char key[24];
+    size_t key_len = sizeof(key);
+    if(ykpiv_hex_decode(pPin, ulPinLen, key, &key_len) != YKPIV_OK) {
+      DBG(("Failed decoding key"));
+      return CKR_FUNCTION_FAILED;
+    }
+
+    if(ykpiv_authenticate(piv_state, key) != YKPIV_OK) {
+      DBG(("Failed to authenticate"));
+      return CKR_PIN_INCORRECT;
+    }
+    /***************************************************/
+
+    session.info.state = CKS_RW_SO_FUNCTIONS;
+    break;
+
   case CKU_CONTEXT_SPECIFIC:
   default:
     return CKR_USER_TYPE_INVALID; // TODO: only allow regular user for now
   }
 
   DBG(("You win! %lu", tries));
-
-  if ((session.info.flags & CKF_RW_SESSION) == 0)
-    session.info.state = CKS_RO_USER_FUNCTIONS;
-  else
-    session.info.state = CKS_RW_USER_FUNCTIONS;
 
   DOUT;
   return CKR_OK;
@@ -804,8 +823,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
   if (pTemplate == NULL_PTR || ulCount == 0)
     return CKR_ARGUMENTS_BAD;
 
-  if (find_obj.active != CK_TRUE)
-    return CKR_OPERATION_NOT_INITIALIZED;
+  /*if (find_obj.active != CK_TRUE)
+    return CKR_OPERATION_NOT_INITIALIZED; actually this can be called from many other functions*/
 
   rv_final = CKR_OK;
   for (i = 0; i < ulCount; i++) {
@@ -1205,6 +1224,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
   if (hSession != session.handle)
     return CKR_SESSION_HANDLE_INVALID;
 
+  if (op_info.type != YKCS11_NOOP) {
+    DBG(("Other operation in process"));
+    return CKR_OPERATION_ACTIVE;
+  }
+
   if (pMechanism == NULL_PTR ||
       hKey == NULL_PTR)
     return CKR_ARGUMENTS_BAD;
@@ -1213,7 +1237,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
 
   // Check if mechanism is supported
   if (check_sign_mechanism(&session, pMechanism) != CKR_OK) {
-    DBG(("Mechanism %lu is not supported either by the token or the slot", pMechanism->mechanism));
+    DBG(("Mechanism %lu is not supported either by the token or the module", pMechanism->mechanism));
     return CKR_MECHANISM_INVALID; // TODO: also the key has a list of allowed mechanisms, check that
   }
   memcpy(&op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
@@ -1282,7 +1306,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
 
   DBG(("Key length is %lu bit", op_info.op.sign.key_len));
 
-  op_info.op.sign.key_id = piv_2_ykpiv(hKey);
+  op_info.op.sign.key_id = piv_2_ykpiv(hKey); // TODO: have to set this!!!
   if (op_info.op.sign.key_id == 0) {
     DBG(("Incorrect key %lu", hKey));
     return CKR_KEY_HANDLE_INVALID;
@@ -1319,11 +1343,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 {
   DIN;
 
-  if (op_info.type == YKCS11_NOOP)
+  if (op_info.type != YKCS11_SIGN) {
+    DBG(("Signature operation not initialized"));
     return CKR_OPERATION_NOT_INITIALIZED;
-
-  if (op_info.type != YKCS11_SIGN)
-    return CKR_OPERATION_ACTIVE;
+  }
 
   // TODO: check other conditions
   ykpiv_rc r; // TODO: delete this
@@ -1564,7 +1587,79 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 )
 {
   DIN;
-  DBG(("TODO!!!"));
+  CK_RV          rv;
+  token_vendor_t token;
+
+  if (piv_state == NULL) {
+    DBG(("libykpiv is not initialized or already finalized"));
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  if (session.handle != YKCS11_SESSION_ID) {
+    DBG(("Session is not open"));
+    return CKR_SESSION_CLOSED;
+  }
+
+  if (hSession != session.handle)
+    return CKR_SESSION_HANDLE_INVALID;
+
+  if (session.info.state != CKS_RW_SO_FUNCTIONS) {
+    DBG(("Authentication required to generate keys"));
+    return CKR_SESSION_READ_ONLY;
+  }
+
+  if (op_info.type != YKCS11_NOOP) {
+    DBG(("Other operation in process"));
+    return CKR_OPERATION_ACTIVE;
+  }
+
+  if (pMechanism == NULL_PTR ||
+      pPublicKeyTemplate == NULL_PTR ||
+      pPrivateKeyTemplate == NULL_PTR ||
+      phPublicKey == NULL_PTR ||
+      phPrivateKey == NULL_PTR)
+    return CKR_ARGUMENTS_BAD;
+
+  DBG(("Trying to generate a key pair with mechanism %lu", pMechanism->mechanism));
+
+  DBG(("Found %lu attributes for the public key and %lu attributes for the private key", ulPublicKeyAttributeCount, ulPrivateKeyAttributeCount));
+
+  // Check if mechanism is supported
+  if ((rv = check_generation_mechanism(&session, pMechanism)) != CKR_OK) {
+    DBG(("Mechanism %lu is not supported either by the token or the module", pMechanism->mechanism));
+    return rv;
+  }
+  memcpy(&op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
+
+  // Check the template for the public key
+  if ((rv = check_pubkey_template(&op_info, pPublicKeyTemplate, ulPublicKeyAttributeCount)) != CKR_OK) {
+    DBG(("Invalid public key template"));
+    return rv;
+  }
+
+  // Check the template for the public key
+  if ((rv = check_pvtkey_template(&op_info, pPrivateKeyTemplate, ulPrivateKeyAttributeCount)) != CKR_OK) {
+    DBG(("Invalid private key template"));
+    return rv;
+  }
+
+  if (op_info.op.gen.key_len == 0) {
+    op_info.op.gen.key_len = 1024; // TODO: for testing purpose set it to rsa2048;
+  }
+
+  if (op_info.op.gen.key_id == 0) {
+    op_info.op.gen.key_id = PIV_PVTK_OBJ_KM; // TODO: set default key or error?
+  }
+
+  token = get_token_vendor(session.slot->token->vid);
+
+  if ((rv = token.token_generate_key(piv_state, op_info.op.gen.rsa, piv_2_ykpiv(op_info.op.gen.key_id), op_info.op.gen.key_len)) != CKR_OK) {
+    DBG(("Unable to generate key pair"));
+    return rv;
+  }
+
+  // TODO: save return object handlers
+  
   DOUT;
   return CKR_OK;
 }

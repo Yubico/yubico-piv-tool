@@ -18,7 +18,12 @@ typedef CK_RV (*get_t_mechanism_info_f)(CK_MECHANISM_TYPE, CK_MECHANISM_INFO_PTR
 typedef CK_RV (*get_t_objects_num_f)(ykpiv_state *, CK_ULONG_PTR, CK_ULONG_PTR);
 typedef CK_RV (*get_t_object_list_f)(ykpiv_state *, piv_obj_id_t *, CK_ULONG);
 typedef CK_RV (*get_t_raw_certificate_f)(ykpiv_state *, piv_obj_id_t, CK_BYTE_PTR, CK_ULONG);
+
+// Common token functions below
+typedef CK_RV (*t_generate_key_f)(ykpiv_state *, CK_BBOOL, CK_BYTE, CK_ULONG);
+
 // TODO: replace all the common call with functions defined in .c that use libykpiv
+
 typedef struct {
   get_t_label_f           get_token_label;
   get_t_manufacturer_f    get_token_manufacturer;
@@ -32,6 +37,7 @@ typedef struct {
   get_t_objects_num_f     get_token_objects_num;
   get_t_object_list_f     get_token_object_list;
   get_t_raw_certificate_f get_token_raw_certificate;
+  t_generate_key_f        token_generate_key;
 } token_vendor_t;
 
 token_vendor_t get_token_vendor(vendor_id_t vid);

@@ -1,6 +1,49 @@
 #include "token_vendors.h"
 #include "yubico_token.h"
 
+static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa, CK_BYTE key, CK_ULONG key_len) {
+  // TODO: make a function in ykpiv for this
+  unsigned char in_data[5];
+  unsigned char data[1024];
+  unsigned char templ[] = {0, YKPIV_INS_GENERATE_ASYMMERTRIC, 0, 0};
+  unsigned long recv_len = sizeof(data);
+  unsigned long received = 0;
+  int sw;
+
+  templ[3] = key;
+
+  in_data[0] = 0xac;
+  in_data[1] = 3;
+  in_data[2] = 0x80;
+  in_data[3] = 1;
+
+  switch(key_len) {
+  case 2048:
+    in_data[4] = YKPIV_ALGO_RSA2048;
+    break;
+
+  case 1024:
+    in_data[4] = YKPIV_ALGO_RSA1024;
+    break;
+
+  case 256:
+    in_data[4] = YKPIV_ALGO_ECCP256;
+    break;
+
+  default:
+    return CKR_FUNCTION_FAILED;
+  }
+  //DBG(("Generating key %x with algorithm %u and length %lu", templ[3], in_data[4], key_len));
+  if(ykpiv_transfer_data(state, templ, in_data, sizeof(in_data), data, &recv_len, &sw) != YKPIV_OK ||
+     sw != 0x9000)
+    return CKR_DEVICE_ERROR;
+
+
+  /* to drop the 90 00 and the 7f 49 at the start */
+  received += recv_len - 4;
+  return CKR_OK;
+}
+
 token_vendor_t get_token_vendor(vendor_id_t vid) {
    token_vendor_t v;
 
@@ -18,6 +61,7 @@ token_vendor_t get_token_vendor(vendor_id_t vid) {
     v.get_token_objects_num     = YUBICO_get_token_objects_num;
     v.get_token_object_list     = YUBICO_get_token_object_list;
     v.get_token_raw_certificate = YUBICO_get_token_raw_certificate;
+    v.token_generate_key        = COMMON_token_generate_key;
     break;
 
   case UNKNOWN:
@@ -34,6 +78,7 @@ token_vendor_t get_token_vendor(vendor_id_t vid) {
     v.get_token_objects_num     = NULL;
     v.get_token_object_list     = NULL;
     v.get_token_raw_certificate = NULL;
+    v.token_generate_key        = NULL;
   }
 
   return v;

@@ -1,14 +1,14 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
+#define YKCS11_DBG    1  // General debug, must be either 1 or 0
+#define YKCS11_DINOUT 0  // Function in/out debug, must be either 1 or 0
+
 #define D(x) do {                                                     \
     printf ("debug: %s:%d (%s): ", __FILE__, __LINE__, __FUNCTION__); \
     printf x;                                                         \
     printf ("\n");                                                    \
   } while (0)
-
-#define YKCS11_DBG    0  // General debug, must be either 1 or 0
-#define YKCS11_DINOUT 0  // Function in/out debug, must be either 1 or 0
 
 #if YKCS11_DBG
 #include <stdio.h>

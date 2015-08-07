@@ -31,16 +31,23 @@ typedef struct {
 
 typedef enum {
   YKCS11_NOOP,
+  YKCS11_GEN,
   YKCS11_SIGN,
   YKCS11_HASH,
   YKCS11_DECRYPT
 } ykcs11_op_type_t;
 
 typedef struct {
+  CK_BBOOL rsa;     // RSA or EC key
+  CK_BYTE  key_id;  // Key id
+  CK_ULONG key_len; // Length in bits
+} gen_info_t;
+
+typedef struct {
   ykcs11_md_ctx_t   *md_ctx; // Digest context
   CK_BYTE_PTR       key;     // Raw public key (needed for PSS)
-  CK_BYTE           algo;    // Algo for ykpiv
-  CK_ULONG          key_id;  // Key id for ykpiv
+  CK_BYTE           algo;    // Algo for ykpiv // TODO: infer this from the key length?
+  CK_ULONG          key_id;  // Key id for ykpiv // TODO: make this a ULONG and store the id {0, 1, 2, 3}
   CK_ULONG          key_len; // Length in bits
 } sign_info_t;
 
@@ -53,6 +60,7 @@ typedef struct {
 } decrypt_info_t;
 
 typedef union {
+  gen_info_t     gen;
   sign_info_t    sign;
   hash_info_t    hash;
   decrypt_info_t decrypt;

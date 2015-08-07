@@ -1,6 +1,7 @@
 #include "openssl_utils.h"
 #include <stdbool.h>
 #include "../tool/util.h" // TODO: share this better?
+#include "debug.h"
 
 
 CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, X509 **cert) {
