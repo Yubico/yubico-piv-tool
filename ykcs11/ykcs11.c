@@ -559,10 +559,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
     DBG(("Unknown session %lu", hSession));
     return CKR_SESSION_HANDLE_INVALID;
   }
-
+  DBG(("HI"));
   free(session.slot->token->objects); // TODO: make objects survive a session so there is no need to get them again?
   session.slot->token->objects = NULL;
-
+  DBG(("HI2"));
   memset(&session, 0, sizeof(ykcs11_session_t));
   session.handle = CK_INVALID_HANDLE;
 
@@ -1683,12 +1683,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     return rv;
   }
 
-  rv = token.get_token_objects_num(piv_state, &n_objs, &n_certs);
-  if (rv != CKR_OK) {
-    DBG(("Unable to retrieve token objects"));
-    return rv;
-  }
-  DBG(("There were %lu objs and %lu certs, there are %lu objs and %lu certs", session.slot->token->n_objects, session.slot->token->n_certs, n_objs, n_certs));
+  /* rv = token.get_token_objects_num(piv_state, &n_objs, &n_certs); */
+  /* if (rv != CKR_OK) { */
+  /*   DBG(("Unable to retrieve token objects")); */
+  /*   return rv; */
+  /* } */
+  /* DBG(("There were %lu objs and %lu certs, there are %lu objs and %lu certs", session.slot->token->n_objects, session.slot->token->n_certs, n_objs, n_certs)); */
 
   is_new = CK_TRUE;
   for (i = 0; i < session.slot->token->n_objects; i++) {
@@ -1703,25 +1703,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 
   // Check whether we created a new object or updated an existing one
   if (is_new == CK_TRUE) {
-    // New object created
-    DBG(("OBJECT NOT FOUND!"));
-  }
-  else {
-    // Updated old object
-    cert_len = sizeof(cert_data);
-    rv = token.get_token_raw_certificate(piv_state, cert_id, cert_data, cert_len); // TODO: double check len here (check inside, never changed but used below). One more time above
-    if (rv != CKR_OK) {
-      DBG(("Unable to get certificate data from token"));
-      return CKR_FUNCTION_FAILED; // TODO: although key generation succeeded at this point
-    }
+    // New object created, add it to the object list
 
-    rv = store_cert(cert_id, cert_data, cert_len);
-    if (rv != CKR_OK) {
-      DBG(("Unable to store certificate data"));
-      return CKR_FUNCTION_FAILED;  // TODO: although key generation succeeded at this point
-    }
-
-    /*session.slot->token->n_objects += 4;
+    // Each object counts as four
+    session.slot->token->n_objects += 4;
     session.slot->token->n_certs++;
 
     obj_ptr = realloc(session.slot->token->objects, session.slot->token->n_objects * sizeof(piv_obj_id_t));
@@ -1729,14 +1714,44 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
       DBG(("Unable to store new item in the session"));
       return CKR_HOST_MEMORY;
     }
+    session.slot->token->objects = obj_ptr;
+
+    obj_ptr = session.slot->token->objects + session.slot->token->n_objects - 4;
+    *obj_ptr++ = dobj_id;
+    *obj_ptr++ = cert_id;
+    *obj_ptr++ = pvtk_id;
+    *obj_ptr++ = pubk_id;
+  }
+
+  // Write/Update the  object
+  cert_len = sizeof(cert_data);
+  rv = token.get_token_raw_certificate(piv_state, cert_id, cert_data, cert_len); // TODO: double check len here (check inside, never changed but used below). One more time above
+  if (rv != CKR_OK) {
+    DBG(("Unable to get certificate data from token"));
+    return CKR_FUNCTION_FAILED; // TODO: although key generation succeeded at this point
+  }
+
+  rv = store_cert(cert_id, cert_data, cert_len);
+  if (rv != CKR_OK) {
+    DBG(("Unable to store certificate data"));
+    return CKR_FUNCTION_FAILED;  // TODO: although key generation succeeded at this point
+  }
+
+  /*session.slot->token->n_objects += 4;
+    session.slot->token->n_certs++;
+
+    obj_ptr = realloc(session.slot->token->objects, session.slot->token->n_objects * sizeof(piv_obj_id_t));
+    if (obj_ptr == NULL) {
+    DBG(("Unable to store new item in the session"));
+    return CKR_HOST_MEMORY;
+    }
 
     obj_ptr = session.slot->token->objects + session.slot->token->n_objects - 4;
     *obj_ptr++ = dobj_id;
     *obj_ptr++ = cert_id;
     *obj_ptr++ = pvtk_id;
     *obj_ptr++ = pubk_id;*/
-  }
-
+  
   *phPrivateKey = op_info.op.gen.key_id;
   *phPublicKey  = op_info.op.gen.key_id - PIV_PVTK_OBJ_KM + PIV_PUBK_OBJ_KM; // TODO: make function for these?
 
