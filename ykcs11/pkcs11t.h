@@ -838,6 +838,10 @@ typedef CK_ULONG          CK_RV;
 
 /* These are new to v2.0 */
 #define CKR_RANDOM_NO_RNG                     0x00000121UL
+/* Next two are new for v2.2 */
+#define CKR_DOMAIN_PARAMS_INVALID             0x00000130UL
+#define CKR_CURVE_NOT_SUPPORTED               0x00000140UL
+/* ************************* */
 #define CKR_BUFFER_TOO_SMALL                  0x00000150UL
 #define CKR_SAVED_STATE_INVALID               0x00000160UL
 #define CKR_INFORMATION_SENSITIVE             0x00000170UL

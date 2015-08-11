@@ -534,7 +534,7 @@ failure:
     cert_ids = NULL;
   }
 
-  free_certs(); // TODO: remove the one allocated so far
+  //free_certs(); // TODO: remove the one allocated so far
 
   return rv;
 }
@@ -680,7 +680,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
   case CKU_USER:
     if (ulPinLen < PIV_MIN_PIN_LEN || ulPinLen > PIV_MAX_PIN_LEN)
       return CKR_ARGUMENTS_BAD;
-    
+
     if (session.info.state == CKS_RW_USER_FUNCTIONS) // TODO: make sure to set session default state as not logged
       return CKR_USER_ALREADY_LOGGED_IN;
 
@@ -866,7 +866,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
   CK_ULONG j;
   CK_ULONG total;
   CK_BBOOL private;
-  
+
 
   if (piv_state == NULL) {
     DBG(("libykpiv is not initialized or already finalized"));
@@ -925,7 +925,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
         total--;
         continue;
       }
-        
+
     for (j = 0; j < ulCount; j++) {
       DBG(("Parameter %lu\nType: %lu Value: %lu Len: %lu", j, pTemplate[j].type, *((CK_ULONG_PTR)pTemplate[j].pValue), pTemplate[j].ulValueLen));
 
@@ -941,9 +941,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
   }
 
   DBG(("%lu object(s) left after attribute matching", total));
-  
+
   find_obj.active = CK_TRUE;
-  
+
   DOUT;
   return CKR_OK;
 }
@@ -984,7 +984,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
   while(find_obj.idx < find_obj.num &&
         find_obj.objects[find_obj.idx] == OBJECT_INVALID)
     find_obj.idx++;
-  
+
   if (find_obj.idx == find_obj.num) {
     *pulObjectCount = 0;
     DOUT;
@@ -1272,7 +1272,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
         return CKR_HOST_MEMORY;
 
       template[2].pValue = op_info.op.sign.key;
-      template[2].ulValueLen = key_len; 
+      template[2].ulValueLen = key_len;
 
       if (get_attribute(&session, hKey, template + 2) != CKR_OK) {
         DBG(("Unable to get public key"));
@@ -1620,7 +1620,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
       phPrivateKey == NULL_PTR)
     return CKR_ARGUMENTS_BAD;
 
-  DBG(("Trying to generate a key pair with mechanism %lu", pMechanism->mechanism));
+  DBG(("Trying to generate a key pair with mechanism %lx", pMechanism->mechanism));
 
   DBG(("Found %lu attributes for the public key and %lu attributes for the private key", ulPublicKeyAttributeCount, ulPrivateKeyAttributeCount));
 
@@ -1631,24 +1631,37 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   }
   memcpy(&op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
 
+  // Clear values
+  op_info.op.gen.key_len = 0;
+  op_info.op.gen.key_id = 0;
+
   // Check the template for the public key
   if ((rv = check_pubkey_template(&op_info, pPublicKeyTemplate, ulPublicKeyAttributeCount)) != CKR_OK) {
     DBG(("Invalid public key template"));
     return rv;
   }
 
-  // Check the template for the public key
+  // Check the template for the private key
   if ((rv = check_pvtkey_template(&op_info, pPrivateKeyTemplate, ulPrivateKeyAttributeCount)) != CKR_OK) {
     DBG(("Invalid private key template"));
     return rv;
   }
 
   if (op_info.op.gen.key_len == 0) {
-    op_info.op.gen.key_len = 1024; // TODO: for testing purpose set it to rsa2048;
+    DBG(("Key length not specified"));
+    return CKR_TEMPLATE_INCOMPLETE;
   }
 
   if (op_info.op.gen.key_id == 0) {
-    op_info.op.gen.key_id = PIV_PVTK_OBJ_KM; // TODO: set default key or error?
+    DBG(("Key id not specified, using default value"));
+    return CKR_TEMPLATE_INCOMPLETE;
+  }
+
+  if (op_info.op.gen.rsa) {
+    DBG(("Generating %lu bit RSA key in object %u", op_info.op.gen.key_len, op_info.op.gen.key_id));
+  }
+  else {
+    DBG(("Generating %lu bit EC key in object %u", op_info.op.gen.key_len, op_info.op.gen.key_id));
   }
 
   token = get_token_vendor(session.slot->token->vid);
@@ -1658,8 +1671,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     return rv;
   }
 
-  // TODO: save return object handlers
-  
+  *phPrivateKey = op_info.op.gen.key_id;
+  *phPublicKey  = op_info.op.gen.key_id - PIV_PVTK_OBJ_KM + PIV_PUBK_OBJ_KM; // TODO: make function for these?
+
   DOUT;
   return CKR_OK;
 }

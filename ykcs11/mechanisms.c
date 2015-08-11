@@ -1,5 +1,8 @@
 #include "mechanisms.h"
 
+#define F4 "\x01\x00\x01"
+#define PRIME256V1 "\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07"
+
 // Supported mechanisms for signature
 static const CK_MECHANISM_TYPE sign_mechanisms[] = {
   CKM_RSA_PKCS,
@@ -264,7 +267,7 @@ CK_RV apply_sign_mechanism_finalize(op_info_t *op_info) {
     rv = do_md_finalize(op_info->op.sign.md_ctx, op_info->buf, &op_info->buf_len, &nid);
     if (rv != CKR_OK)
       return CKR_FUNCTION_FAILED;
-    DBG(("The hashed value is %lu long and looks like\n", op_info->buf_len));
+//    DBG(("The hashed value is %lu long and looks like\n", op_info->buf_len));
     dump_hex(op_info->buf, op_info->buf_len, stderr, CK_TRUE);
 
   case CKM_RSA_PKCS:
@@ -274,7 +277,7 @@ CK_RV apply_sign_mechanism_finalize(op_info_t *op_info) {
       if (rv != CKR_OK)
         return CKR_FUNCTION_FAILED;
 
-      DBG(("After adding digestinfo is %lu long and looks like\n", op_info->buf_len));
+//      DBG(("After adding digestinfo is %lu long and looks like\n", op_info->buf_len));
       dump_hex(op_info->buf, op_info->buf_len, stderr, CK_TRUE);
     }
     
@@ -350,27 +353,39 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
 
     case CKA_PUBLIC_EXPONENT:
       if (op_info->op.gen.rsa == CK_FALSE)
-        return CKR_MECHANISM_PARAM_INVALID;
+        return CKR_ATTRIBUTE_VALUE_INVALID;
 
       // Only support F4
-      if (templ[i].ulValueLen != 3 || memcmp((CK_BYTE_PTR)templ[i].pValue, "\x01\x00\x01", 3) != 0)
-        return CKR_MECHANISM_PARAM_INVALID;
+      if (templ[i].ulValueLen != 3 || memcmp((CK_BYTE_PTR)templ[i].pValue, F4, 3) != 0)
+        return CKR_ATTRIBUTE_VALUE_INVALID;
 
       break;
 
     case CKA_MODULUS_BITS:
       if (op_info->op.gen.rsa == CK_FALSE)
-        return CKR_MECHANISM_PARAM_INVALID;
+        return CKR_ATTRIBUTE_VALUE_INVALID;
 
       if (*((CK_ULONG_PTR)templ[i].pValue) != 1024 &&
           *((CK_ULONG_PTR) templ[i].pValue) != 2048) // TODO: make define?
-        return CKR_MECHANISM_PARAM_INVALID;
+        return CKR_ATTRIBUTE_VALUE_INVALID;
 
-      op_info->op.gen.key_len = *((CK_ULONG_PTR) templ[i].pValue); // TODO: check length?
+      op_info->op.gen.key_len = *((CK_ULONG_PTR) templ[i].pValue);
+      break;
+
+    case CKA_EC_PARAMS:
+      // Only support PRIME256V1
+      if (templ[i].ulValueLen != 10 || memcmp((CK_BYTE_PTR)templ[i].pValue, PRIME256V1, 10) != 0)
+        return CKR_CURVE_NOT_SUPPORTED;
+
+      op_info->op.gen.key_len = 256;
       break;
 
     case CKA_ID:
-      // TODO: get pvt key with attributed id and store it's id into op_info
+      if (is_valid_key_id(*((CK_BYTE_PTR)templ[i].pValue)) == CK_FALSE)
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+
+      op_info->op.gen.key_id = PIV_PVTK_OBJ_PIV_AUTH + *((CK_BYTE_PTR)templ[i].pValue);
+      break;
 
     case CKA_TOKEN:
     case CKA_ENCRYPT:
@@ -378,9 +393,9 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
     case CKA_WRAP:
       // Ignore these attributes for now
       break;
-
+      
     default:
-      return CKR_MECHANISM_PARAM_INVALID;
+      return CKR_ATTRIBUTE_VALUE_INVALID;
     }
   }
 
@@ -410,17 +425,7 @@ CK_RV check_pvtkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
 
       break;
 
-    case CKA_PUBLIC_EXPONENT:
-      if (op_info->op.gen.rsa == CK_FALSE)
-        return CKR_MECHANISM_PARAM_INVALID;
-
-      // Only support F4
-      if (templ[i].ulValueLen != 3 || memcmp((CK_BYTE_PTR)templ[i].pValue, "\x01\x00\x01", 3) != 0)
-        return CKR_MECHANISM_PARAM_INVALID;
-
-      break;
-
-    case CKA_MODULUS_BITS:
+/*    case CKA_MODULUS_BITS:
       if (op_info->op.gen.rsa == CK_FALSE)
         return CKR_MECHANISM_PARAM_INVALID;
 
@@ -429,6 +434,19 @@ CK_RV check_pvtkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
         return CKR_MECHANISM_PARAM_INVALID;
 
       op_info->op.gen.key_len = *((CK_ULONG_PTR) templ[i].pValue); // TODO: check length?
+      break;*/
+
+    case CKA_ID:
+      if (is_valid_key_id(*((CK_BYTE_PTR)templ[i].pValue)) == CK_FALSE)
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+
+      // Check if ID was already specified in the public key template
+      // In that case it has to match
+      if (op_info->op.gen.key_id != 0 &&
+          op_info->op.gen.key_id != (*((CK_BYTE_PTR)templ[i].pValue) + PIV_PVTK_OBJ_PIV_AUTH))
+        return CKR_TEMPLATE_INCONSISTENT;
+
+      op_info->op.gen.key_id = PIV_PVTK_OBJ_PIV_AUTH + *((CK_BYTE_PTR)templ[i].pValue);
       break;
 
     case CKA_SENSITIVE:
@@ -441,7 +459,7 @@ CK_RV check_pvtkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
       break;
 
     default:
-        return CKR_MECHANISM_PARAM_INVALID;
+      return CKR_ATTRIBUTE_VALUE_INVALID;
     }
   }
 

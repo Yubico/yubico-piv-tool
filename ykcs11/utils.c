@@ -165,3 +165,13 @@ void destroy_token(ykcs11_slot_t *slot) {
   free(slot->token);
   slot->token = NULL;
 }
+
+CK_BBOOL is_valid_key_id(CK_BYTE id) {
+
+  // Valid ids are 0, 1, 2, 3
+  if (id > 3)
+    return CK_FALSE;
+
+  return CK_TRUE;
+  
+}

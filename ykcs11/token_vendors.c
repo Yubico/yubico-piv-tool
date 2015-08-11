@@ -10,6 +10,8 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa, CK_BYTE
   unsigned long received = 0;
   int sw;
 
+  CK_RV rv;
+
   templ[3] = key;
 
   in_data[0] = 0xac;
@@ -41,6 +43,12 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa, CK_BYTE
 
   /* to drop the 90 00 and the 7f 49 at the start */
   received += recv_len - 4;
+
+
+  /* Create a new empty certificate for the key */
+  if ((rv = do_create_empty_cert(data, recv_len, rsa, key_len, in_data, &recv_len)) != CKR_OK)
+    return rv;
+  
   return CKR_OK;
 }
 

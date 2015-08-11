@@ -3,7 +3,6 @@
 #include "../tool/util.h" // TODO: share this better?
 #include "debug.h"
 
-
 CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, X509 **cert) {
 
   const unsigned char *p = data; // Mandatory temp variable required by OpenSSL
@@ -33,6 +32,177 @@ CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, X509 **cert) {
 
   return CKR_OK;
 
+}
+#include "debug.h"
+CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_ULONG key_len,
+                           CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
+
+  X509      *cert = NULL;
+  EVP_PKEY  *key = NULL;
+  RSA       *rsa = NULL;
+  BIGNUM    *bignum_n = NULL;
+  BIGNUM    *bignum_e = NULL;
+  EC_KEY    *eck = NULL;
+  EC_GROUP  *ecg = NULL;
+  EC_POINT  *ecp = NULL;
+  ASN1_TIME *tm = NULL;
+  time_t    t;
+
+  unsigned char *data_ptr;
+  unsigned char *p;
+  int len;
+
+  CK_RV rv = CKR_FUNCTION_FAILED;
+
+  cert = X509_new();
+  if (cert == NULL)
+    goto create_empty_cert_cleanup;
+
+  key = EVP_PKEY_new();
+  if (key == NULL)
+    goto create_empty_cert_cleanup;
+
+  if (is_rsa) {
+    // RSA
+    rsa = RSA_new();
+    if (rsa == NULL)
+      goto create_empty_cert_cleanup;
+
+    data_ptr = in + 5;
+    dump_hex(in, in_len, stderr, CK_TRUE);
+    if (*data_ptr != 0x81)
+      goto create_empty_cert_cleanup;
+
+    data_ptr++;
+    data_ptr += get_length(data_ptr, &len);
+    bignum_n = BN_bin2bn(data_ptr, len, NULL);
+    if(bignum_n == NULL)
+      goto create_empty_cert_cleanup;
+
+    data_ptr += len;
+
+    if(*data_ptr != 0x82)
+      goto create_empty_cert_cleanup;
+
+    data_ptr++;
+    data_ptr += get_length(data_ptr, &len);
+    bignum_e = BN_bin2bn(data_ptr, len, NULL);
+    if(bignum_e == NULL)
+      goto create_empty_cert_cleanup;
+
+    rsa->n = bignum_n;
+    rsa->e = bignum_e;
+
+    if (EVP_PKEY_set1_RSA(key, rsa) == 0)
+      goto create_empty_cert_cleanup;
+  }
+  else {
+    // ECCP256
+    data_ptr = in + 3;
+
+    eck = EC_KEY_new();
+    if (eck == NULL)
+      goto create_empty_cert_cleanup;
+
+    ecg = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+    if (ecg == NULL)
+      goto create_empty_cert_cleanup;
+
+    EC_GROUP_set_asn1_flag(ecg, NID_X9_62_prime256v1);
+    EC_KEY_set_group(eck, ecg);
+    ecp = EC_POINT_new(ecg);
+
+    if(*data_ptr++ != 0x86)
+      goto create_empty_cert_cleanup;
+
+    // The curve point should always be 65 bytes
+    if(*data_ptr++ != 65)
+      goto create_empty_cert_cleanup;
+
+    if(EC_POINT_oct2point(ecg, ecp, data_ptr, 65, NULL) == 0)
+      goto create_empty_cert_cleanup;
+
+    if(EC_KEY_set_public_key(eck, ecp) == 0)
+      goto create_empty_cert_cleanup;
+
+    if (EVP_PKEY_set1_EC_KEY(key, eck) == 0)
+      goto create_empty_cert_cleanup;
+  }
+
+  if (X509_set_pubkey(cert, key) == 0) // TODO: there is also X509_PUBKEY_set(X509_PUBKEY **x, EVP_PKEY *pkey);
+    goto create_empty_cert_cleanup;
+
+  p = in;
+  if ((*out_len = i2d_X509(cert, &p)) == 0)
+    goto create_empty_cert_cleanup;
+
+  // TODO: add more info like issuer?
+  tm = ASN1_TIME_new();
+  if (tm == NULL)
+    goto create_empty_cert_cleanup;
+
+  ASN1_TIME_set_string(tm, "000001010000Z");
+  X509_set_notBefore(cert, tm);
+  X509_set_notAfter(cert, tm);
+
+  /* TODO REMOVE THIS */
+  BIO *STDout = BIO_new_fp(stderr, BIO_NOCLOSE);
+
+  X509_print_ex(STDout, cert, 0, 0);
+
+  BIO_free(STDout);
+  /********************/
+
+  rv = CKR_OK;
+
+create_empty_cert_cleanup:
+
+  if (tm != NULL) {
+    ASN1_STRING_free(tm);
+    tm = NULL;
+  }
+
+  if (bignum_n != NULL) {
+    BN_free(bignum_n);
+    bignum_n = NULL;
+  }
+
+  if (bignum_e != NULL) {
+    BN_free(bignum_e);
+    bignum_e = NULL;
+  }
+
+/*  if (rsa != NULL) { // TODO: adding this generates an error. Automatically free'd by EVP_PKEY_free ?
+    RSA_free(rsa);
+    rsa = NULL;
+    }*/
+
+  if (ecp != NULL) {
+    EC_POINT_free(ecp);
+    ecp = NULL;
+  }
+
+  if (ecg != NULL) {
+    EC_GROUP_free(ecg);
+    ecg = NULL;
+  }
+
+  if (eck != NULL) {
+    EC_KEY_free(eck);
+    eck = NULL;
+  }
+
+  if (key != NULL) {
+    EVP_PKEY_free(key);
+    key = NULL;
+  }
+
+  if (cert != NULL) {
+    X509_free(cert);
+    cert = NULL;
+  }
+
+  return rv;
 }
 
 CK_RV free_cert(X509 *cert) {
@@ -141,6 +311,9 @@ CK_RV do_get_public_key(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
   default:
     return CKR_FUNCTION_FAILED;
   }
+
+  EC_KEY_free(eck);
+  eck = NULL;
 
     return CKR_OK;
 
