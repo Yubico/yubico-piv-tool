@@ -115,13 +115,13 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_
       goto create_empty_cert_cleanup;
 
     // The curve point should always be 65 bytes
-    if(*data_ptr++ != 65)
+    if (*data_ptr++ != 65)
       goto create_empty_cert_cleanup;
 
-    if(EC_POINT_oct2point(ecg, ecp, data_ptr, 65, NULL) == 0)
+    if (EC_POINT_oct2point(ecg, ecp, data_ptr, 65, NULL) == 0)
       goto create_empty_cert_cleanup;
 
-    if(EC_KEY_set_public_key(eck, ecp) == 0)
+    if (EC_KEY_set_public_key(eck, ecp) == 0)
       goto create_empty_cert_cleanup;
 
     if (EVP_PKEY_set1_EC_KEY(key, eck) == 0)

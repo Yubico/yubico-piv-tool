@@ -78,8 +78,6 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa, CK_BYTE
   *certptr++ = 0xfe; /* LRC */
   *certptr++ = 0;
 
-  dump_hex(data, (size_t)(certptr - data), stderr, CK_TRUE);
-
   // Store the certificate into the token
   if (ykpiv_save_object(state, key_to_object_id(key), data, (size_t)(certptr - data)) != YKPIV_OK)
     return CKR_DEVICE_ERROR;

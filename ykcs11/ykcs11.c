@@ -502,7 +502,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
 
   // Get the actual certificate data from the token and store it as an X509 object
   for (i = 0; i < session.slot->token->n_certs; i++) {
-    rv = token.get_token_raw_certificate(piv_state, cert_ids[i], cert_data, cert_len);
+    rv = token.get_token_raw_certificate(piv_state, cert_ids[i], cert_data, cert_len); // TODO: double check len here (check inside, never changed but used below)
     if (rv != CKR_OK) {
       DBG(("Unable to get certificate data from token"));
       goto failure;
@@ -1589,6 +1589,18 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   DIN;
   CK_RV          rv;
   token_vendor_t token;
+  CK_ULONG       n_objs;
+  CK_ULONG       n_certs;
+  CK_ULONG       i;
+  CK_BBOOL       is_new;
+  CK_ULONG       dobj_id;
+  CK_ULONG       cert_id;
+  CK_ULONG       pvtk_id;
+  CK_ULONG       pubk_id;
+  piv_obj_id_t   *obj_ptr;
+  CK_BYTE        cert_data[2100];
+  CK_ULONG       cert_len;
+  
 
   if (piv_state == NULL) {
     DBG(("libykpiv is not initialized or already finalized"));
@@ -1669,6 +1681,60 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   if ((rv = token.token_generate_key(piv_state, op_info.op.gen.rsa, piv_2_ykpiv(op_info.op.gen.key_id), op_info.op.gen.key_len)) != CKR_OK) {
     DBG(("Unable to generate key pair"));
     return rv;
+  }
+
+  rv = token.get_token_objects_num(piv_state, &n_objs, &n_certs);
+  if (rv != CKR_OK) {
+    DBG(("Unable to retrieve token objects"));
+    return rv;
+  }
+  DBG(("There were %lu objs and %lu certs, there are %lu objs and %lu certs", session.slot->token->n_objects, session.slot->token->n_certs, n_objs, n_certs));
+
+  is_new = CK_TRUE;
+  for (i = 0; i < session.slot->token->n_objects; i++) {
+    if (session.slot->token->objects[i] == op_info.op.gen.key_id)
+      is_new = CK_FALSE;
+  }
+
+  dobj_id = op_info.op.gen.key_id - PIV_PVTK_OBJ_PIV_AUTH; // TODO: make function for these
+  cert_id = PIV_DATA_OBJ_LAST + 1 + dobj_id;
+  pvtk_id = op_info.op.gen.key_id;
+  pubk_id = PIV_PVTK_OBJ_LAST + 1 + dobj_id;  
+
+  // Check whether we created a new object or updated an existing one
+  if (is_new == CK_TRUE) {
+    // New object created
+    DBG(("OBJECT NOT FOUND!"));
+  }
+  else {
+    // Updated old object
+    cert_len = sizeof(cert_data);
+    rv = token.get_token_raw_certificate(piv_state, cert_id, cert_data, cert_len); // TODO: double check len here (check inside, never changed but used below). One more time above
+    if (rv != CKR_OK) {
+      DBG(("Unable to get certificate data from token"));
+      return CKR_FUNCTION_FAILED; // TODO: although key generation succeeded at this point
+    }
+
+    rv = store_cert(cert_id, cert_data, cert_len);
+    if (rv != CKR_OK) {
+      DBG(("Unable to store certificate data"));
+      return CKR_FUNCTION_FAILED;  // TODO: although key generation succeeded at this point
+    }
+
+    /*session.slot->token->n_objects += 4;
+    session.slot->token->n_certs++;
+
+    obj_ptr = realloc(session.slot->token->objects, session.slot->token->n_objects * sizeof(piv_obj_id_t));
+    if (obj_ptr == NULL) {
+      DBG(("Unable to store new item in the session"));
+      return CKR_HOST_MEMORY;
+    }
+
+    obj_ptr = session.slot->token->objects + session.slot->token->n_objects - 4;
+    *obj_ptr++ = dobj_id;
+    *obj_ptr++ = cert_id;
+    *obj_ptr++ = pvtk_id;
+    *obj_ptr++ = pubk_id;*/
   }
 
   *phPrivateKey = op_info.op.gen.key_id;

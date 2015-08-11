@@ -58,7 +58,7 @@ static piv_obj_t piv_objects[] = {
   {PIV_CERT_OBJ_X509_CARD_AUTH, 1, 0, 0, "X.509 Certificate for Card Authentication", 0, 0, get_coa, 1},
   {PIV_CERT_OBJ_X509_DS, 1, 0, 0, "X.509 Certificate for Digital Signature", 0, 0, get_coa, 2},
   {PIV_CERT_OBJ_X509_KM, 1, 0, 0, "X.509 Certificate for Key Management", 0, 0, get_coa, 3},
-  {PIV_CERT_OBJ_LAST, 1, 0, 0, "", 0, 0, get_coa, 4},
+  {PIV_CERT_OBJ_LAST, 1, 0, 0, "", 0, 0, NULL, 4},
 
   {PIV_PVTK_OBJ_PIV_AUTH, 1, 1, 0, "Private key for PIV Authentication", 0, 0, get_proa, 0},   // 9a
   {PIV_PVTK_OBJ_CARD_AUTH, 1, 0, 0, "Private key for Card Authentication", 0, 0, get_proa, 1}, // 9e
