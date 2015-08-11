@@ -1,13 +1,15 @@
 #include "token_vendors.h"
 #include "yubico_token.h"
-
+#include <string.h>
+#include "debug.h"
 static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa, CK_BYTE key, CK_ULONG key_len) {
   // TODO: make a function in ykpiv for this
   unsigned char in_data[5];
   unsigned char data[1024];
   unsigned char templ[] = {0, YKPIV_INS_GENERATE_ASYMMERTRIC, 0, 0};
+  unsigned char *certptr;
   unsigned long recv_len = sizeof(data);
-  unsigned long received = 0;
+  int len_bytes;
   int sw;
 
   CK_RV rv;
@@ -21,15 +23,27 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa, CK_BYTE
 
   switch(key_len) {
   case 2048:
-    in_data[4] = YKPIV_ALGO_RSA2048;
+    if (rsa == CK_TRUE)
+      in_data[4] = YKPIV_ALGO_RSA2048;
+    else
+      return CKR_FUNCTION_FAILED;
+
     break;
 
   case 1024:
-    in_data[4] = YKPIV_ALGO_RSA1024;
+    if (rsa == CK_TRUE)
+      in_data[4] = YKPIV_ALGO_RSA1024;
+    else
+      return CKR_FUNCTION_FAILED;
+
     break;
 
   case 256:
-    in_data[4] = YKPIV_ALGO_ECCP256;
+    if (rsa == CK_FALSE)
+      in_data[4] = YKPIV_ALGO_ECCP256;
+    else
+      return CKR_FUNCTION_FAILED;
+
     break;
 
   default:
@@ -40,15 +54,36 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa, CK_BYTE
      sw != 0x9000)
     return CKR_DEVICE_ERROR;
 
-
-  /* to drop the 90 00 and the 7f 49 at the start */
-  received += recv_len - 4;
-
-
-  /* Create a new empty certificate for the key */
-  if ((rv = do_create_empty_cert(data, recv_len, rsa, key_len, in_data, &recv_len)) != CKR_OK)
+  // Create a new empty certificate for the key
+  recv_len = sizeof(data);
+  if ((rv = do_create_empty_cert(data, recv_len, rsa, key_len, data, &recv_len)) != CKR_OK)
     return rv;
-  
+
+  if (recv_len < 0x80)
+    len_bytes = 1;
+  else if (recv_len < 0xff)
+    len_bytes = 2;
+  else
+    len_bytes = 3;
+
+  certptr = data;
+  memmove(data + len_bytes + 1, data, recv_len);
+
+  *certptr++ = 0x70;
+  certptr += set_length(certptr, recv_len);
+  certptr += recv_len;
+  *certptr++ = 0x71;
+  *certptr++ = 1;
+  *certptr++ = 0; /* certinfo (gzip etc) */
+  *certptr++ = 0xfe; /* LRC */
+  *certptr++ = 0;
+
+  dump_hex(data, (size_t)(certptr - data), stderr, CK_TRUE);
+
+  // Store the certificate into the token
+  if (ykpiv_save_object(state, key_to_object_id(key), data, (size_t)(certptr - data)) != YKPIV_OK)
+    return CKR_DEVICE_ERROR;
+
   return CKR_OK;
 }
 

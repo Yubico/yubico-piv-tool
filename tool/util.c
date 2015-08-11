@@ -205,6 +205,28 @@ int get_object_id(enum enum_slot slot) {
   return object;
 }
 
+int key_to_object_id(int key) {
+  int object;
+
+  switch(key) {
+  case 0x9a:
+    object = YKPIV_OBJ_AUTHENTICATION;
+    break;
+  case 0x9c:
+    object = YKPIV_OBJ_SIGNATURE;
+    break;
+  case 0x9d:
+    object = YKPIV_OBJ_KEY_MANAGEMENT;
+    break;
+  case 0x9e:
+    object = YKPIV_OBJ_CARD_AUTH;
+    break;
+  default:
+    object = 0;
+  }
+  return object;
+}
+
 bool set_component_with_len(unsigned char **in_ptr, const BIGNUM *bn, int element_len) {
   int real_len = BN_num_bytes(bn);
   *in_ptr += set_length(*in_ptr, element_len);

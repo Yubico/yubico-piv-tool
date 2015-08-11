@@ -33,7 +33,7 @@ CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, X509 **cert) {
   return CKR_OK;
 
 }
-#include "debug.h"
+
 CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_ULONG key_len,
                            CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
 
@@ -69,7 +69,6 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_
       goto create_empty_cert_cleanup;
 
     data_ptr = in + 5;
-    dump_hex(in, in_len, stderr, CK_TRUE);
     if (*data_ptr != 0x81)
       goto create_empty_cert_cleanup;
 
@@ -132,10 +131,6 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_
   if (X509_set_pubkey(cert, key) == 0) // TODO: there is also X509_PUBKEY_set(X509_PUBKEY **x, EVP_PKEY *pkey);
     goto create_empty_cert_cleanup;
 
-  p = in;
-  if ((*out_len = i2d_X509(cert, &p)) == 0)
-    goto create_empty_cert_cleanup;
-
   // TODO: add more info like issuer?
   tm = ASN1_TIME_new();
   if (tm == NULL)
@@ -145,6 +140,19 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_
   X509_set_notBefore(cert, tm);
   X509_set_notAfter(cert, tm);
 
+  len = i2d_X509(cert, NULL);
+  if (len < 0)
+    goto create_empty_cert_cleanup;
+
+  if (len > *out_len) {
+    rv = CKR_BUFFER_TOO_SMALL;
+    goto create_empty_cert_cleanup;
+  }
+
+  p = in;
+  if ((*out_len = i2d_X509(cert, &p)) == 0)
+    goto create_empty_cert_cleanup;
+
   /* TODO REMOVE THIS */
   BIO *STDout = BIO_new_fp(stderr, BIO_NOCLOSE);
 
@@ -152,7 +160,7 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_
 
   BIO_free(STDout);
   /********************/
-
+  
   rv = CKR_OK;
 
 create_empty_cert_cleanup:
