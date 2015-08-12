@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include "../tool/util.h" // TODO: share this better?
 #include "debug.h"
+#include <string.h>
 
 CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, X509 **cert) {
 
@@ -367,6 +368,8 @@ CK_RV free_key(EVP_PKEY *key) {
 }
 
 CK_RV do_pkcs_1_t1(CK_BYTE_PTR in, CK_ULONG in_len, CK_BYTE_PTR out, CK_ULONG_PTR out_len, CK_ULONG key_len) {
+  unsigned char buffer[512];
+  
   key_len /= 8;
   DBG(("Apply padding to %lu bytes and get %lu\n", in_len, key_len));
 
@@ -374,9 +377,10 @@ CK_RV do_pkcs_1_t1(CK_BYTE_PTR in, CK_ULONG in_len, CK_BYTE_PTR out, CK_ULONG_PT
   if (*out_len < key_len)
     CKR_BUFFER_TOO_SMALL;
 
-  if (RSA_padding_add_PKCS1_type_1(out, key_len, in, in_len) == 0)
+  if (RSA_padding_add_PKCS1_type_1(buffer, key_len, in, in_len) == 0)
     return CKR_FUNCTION_FAILED;
 
+  memcpy(out, buffer, key_len);
   *out_len = key_len;
 
   return CKR_OK;

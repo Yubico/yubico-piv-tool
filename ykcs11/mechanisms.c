@@ -1,4 +1,5 @@
 #include "mechanisms.h"
+#include "debug.h"
 
 #define F4 "\x01\x00\x01"
 #define PRIME256V1 "\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07"
@@ -267,8 +268,6 @@ CK_RV apply_sign_mechanism_finalize(op_info_t *op_info) {
     rv = do_md_finalize(op_info->op.sign.md_ctx, op_info->buf, &op_info->buf_len, &nid);
     if (rv != CKR_OK)
       return CKR_FUNCTION_FAILED;
-//    DBG(("The hashed value is %lu long and looks like\n", op_info->buf_len));
-    dump_hex(op_info->buf, op_info->buf_len, stderr, CK_TRUE);
 
   case CKM_RSA_PKCS:
     // Add digest info if needed
@@ -276,11 +275,8 @@ CK_RV apply_sign_mechanism_finalize(op_info_t *op_info) {
       rv = do_pkcs_1_digest_info(op_info->buf, op_info->buf_len, nid, op_info->buf, &op_info->buf_len);
       if (rv != CKR_OK)
         return CKR_FUNCTION_FAILED;
-
-//      DBG(("After adding digestinfo is %lu long and looks like\n", op_info->buf_len));
-      dump_hex(op_info->buf, op_info->buf_len, stderr, CK_TRUE);
     }
-    
+
     // Compute padding for all PKCS1 variants
     len = op_info->buf_len;
     op_info->buf_len = sizeof(op_info->buf);
@@ -356,8 +352,10 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
         return CKR_ATTRIBUTE_VALUE_INVALID;
 
       // Only support F4
-      if (templ[i].ulValueLen != 3 || memcmp((CK_BYTE_PTR)templ[i].pValue, F4, 3) != 0)
+      if (templ[i].ulValueLen != 3 || memcmp((CK_BYTE_PTR)templ[i].pValue, F4, 3) != 0) {
+        DBG(("Unsupported public exponent"));
         return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
 
       break;
 
@@ -366,8 +364,10 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
         return CKR_ATTRIBUTE_VALUE_INVALID;
 
       if (*((CK_ULONG_PTR)templ[i].pValue) != 1024 &&
-          *((CK_ULONG_PTR) templ[i].pValue) != 2048) // TODO: make define?
+          *((CK_ULONG_PTR) templ[i].pValue) != 2048) { // TODO: make define?
+        DBG(("Unsupported MODULUS_BITS (key length)"));
         return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
 
       op_info->op.gen.key_len = *((CK_ULONG_PTR) templ[i].pValue);
       break;
@@ -395,6 +395,7 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
       break;
       
     default:
+      DBG(("Invalid attribute %lx in public key template", templ[i].type));
       return CKR_ATTRIBUTE_VALUE_INVALID;
     }
   }
@@ -459,6 +460,7 @@ CK_RV check_pvtkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
       break;
 
     default:
+      DBG(("Invalid attribute %lx in private key template", templ[i].type));
       return CKR_ATTRIBUTE_VALUE_INVALID;
     }
   }

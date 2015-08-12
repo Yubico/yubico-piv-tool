@@ -559,10 +559,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
     DBG(("Unknown session %lu", hSession));
     return CKR_SESSION_HANDLE_INVALID;
   }
-  DBG(("HI"));
+
   free(session.slot->token->objects); // TODO: make objects survive a session so there is no need to get them again?
   session.slot->token->objects = NULL;
-  DBG(("HI2"));
+
   memset(&session, 0, sizeof(ykcs11_session_t));
   session.handle = CK_INVALID_HANDLE;
 
@@ -1351,24 +1351,37 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   // TODO: check other conditions
   ykpiv_rc r; // TODO: delete this
 
+  if (pSignature == NULL_PTR) {
+    // Just return the size of the signature
+    *pulSignatureLen = op_info.op.sign.key_len / 8;
+    DBG(("The size of the signature will be %lu", *pulSignatureLen));
+
+    DOUT;
+    return CKR_OK;
+  }
+    
+
   DBG(("Sending %lu bytes to sign", ulDataLen));
   dump_hex(pData, ulDataLen, stderr, CK_TRUE);
 
   if (is_hashed_mechanism(op_info.mechanism.mechanism) == CK_TRUE) {
-      if (apply_sign_mechanism_update(&op_info, pData, ulDataLen) != CKR_OK) {
-        DBG(("Unable to perform signing operation step"));
-        return CKR_FUNCTION_FAILED;
-      }
+    if (apply_sign_mechanism_update(&op_info, pData, ulDataLen) != CKR_OK) {
+      DBG(("Unable to perform signing operation step"));
+      return CKR_FUNCTION_FAILED; // TODO: every error in here must stop and clear the signing operation
     }
+  }
 
   if (apply_sign_mechanism_finalize(&op_info) != CKR_OK) {
     DBG(("Unable to finalize signing operation"));
     return CKR_FUNCTION_FAILED;
   }
-  //dump_hex(buf, 256, stderr, CK_TRUE);
-  //*pulSignatureLen = 256;
+
   DBG(("Using key %lx", op_info.op.sign.key_id)); // TODO: test what happens if there is no key on the card
-  if ((r = ykpiv_sign_data(piv_state, op_info.buf, ulDataLen, pSignature, pulSignatureLen, op_info.op.sign.algo, op_info.op.sign.key_id)) != YKPIV_OK) {
+  DBG(("After padding and transformation there are %lu bytes", op_info.buf_len));
+  dump_hex(op_info.buf, op_info.buf_len, stderr, CK_TRUE);
+
+  *pulSignatureLen = sizeof(op_info.buf);
+  if ((r = ykpiv_sign_data2(piv_state, op_info.buf, op_info.buf_len, pSignature, pulSignatureLen, op_info.op.sign.algo, op_info.op.sign.key_id, 0)) != YKPIV_OK) {
       DBG(("Sign error, %s", ykpiv_strerror(r)));
     return CKR_FUNCTION_FAILED;
   }
@@ -1665,7 +1678,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   }
 
   if (op_info.op.gen.key_id == 0) {
-    DBG(("Key id not specified, using default value"));
+    DBG(("Key id not specified"));
     return CKR_TEMPLATE_INCOMPLETE;
   }
 

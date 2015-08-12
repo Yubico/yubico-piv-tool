@@ -534,39 +534,55 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   ykpiv_rc res;
 
   switch(algorithm) {
-    case YKPIV_ALGO_RSA1024:
-      pad_len = 128;
-    case YKPIV_ALGO_RSA2048:
-      if(pad_len == 0) {
-        pad_len = 256;
+  case YKPIV_ALGO_RSA1024:
+    pad_len = 128;
+
+  case YKPIV_ALGO_RSA2048:
+    if(pad_len == 0) {
+      pad_len = 256;
+    }
+    if(!decipher) {
+      // Signature
+      if (padding) {
+        // Padding required
+        if(in_len + RSA_PKCS1_PADDING_SIZE > pad_len) {
+          return YKPIV_SIZE_ERROR;
+        }
+
+        // Add padding and copy data
+        RSA_padding_add_PKCS1_type_1(sign_in, pad_len, raw_in, in_len);
+        in_len = pad_len;
       }
-      if(!decipher) {
-  if(in_len + RSA_PKCS1_PADDING_SIZE > pad_len) {
-    return YKPIV_SIZE_ERROR;
-  }
-  if (padding) {
-    RSA_padding_add_PKCS1_type_1(sign_in, pad_len, raw_in, in_len);
-    in_len = pad_len;
-  }
-  else if (in_len != pad_len)
-    return YKPIV_SIZE_ERROR;
-      } else {
-  if(in_len != pad_len) {
-    return YKPIV_SIZE_ERROR;
-  }
-  memcpy(sign_in, raw_in, in_len);
+      else {
+        // No padding required
+        if (in_len != pad_len)
+          return YKPIV_SIZE_ERROR;
+
+        // Just copy data
+        memcpy(sign_in, raw_in, in_len);
       }
-      break;
-    case YKPIV_ALGO_ECCP256:
-      if(!decipher && in_len > 32) {
-  return YKPIV_SIZE_ERROR;
-      } else if(decipher && in_len != 65) {
-  return YKPIV_SIZE_ERROR;
+    }
+    else {
+      // Decryption
+      if(in_len != pad_len) {
+        return YKPIV_SIZE_ERROR;
       }
+
+      // Just copy data
       memcpy(sign_in, raw_in, in_len);
-      break;
-    default:
-      return YKPIV_ALGORITHM_ERROR;
+    }
+    break;
+
+  case YKPIV_ALGO_ECCP256:
+    if(!decipher && in_len > 32) {
+      return YKPIV_SIZE_ERROR;
+    } else if(decipher && in_len != 65) {
+      return YKPIV_SIZE_ERROR;
+    }
+    memcpy(sign_in, raw_in, in_len);
+    break;
+  default:
+    return YKPIV_ALGORITHM_ERROR;
   }
 
   if(in_len < 0x80) {
