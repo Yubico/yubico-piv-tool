@@ -727,7 +727,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
 
   case CKU_CONTEXT_SPECIFIC:
   default:
-    return CKR_USER_TYPE_INVALID; // TODO: only allow regular user for now
+    return CKR_USER_TYPE_INVALID;
   }
 
   DBG(("You win! %lu", tries));
@@ -741,7 +741,33 @@ CK_DEFINE_FUNCTION(CK_RV, C_Logout)(
 )
 {
   DIN;
-  DBG(("TODO!!!"));
+
+  if (piv_state == NULL) {
+    DBG(("libykpiv is not initialized or already finalized"));
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  if (session.handle != YKCS11_SESSION_ID) {
+    DBG(("Session is not open"));
+    return CKR_SESSION_CLOSED;
+  }
+
+  if (hSession != session.handle)
+    return CKR_SESSION_HANDLE_INVALID;
+
+  // TODO: check more conditions
+
+  if (session.info.state == CKS_RO_PUBLIC_SESSION ||
+      session.info.state == CKS_RW_PUBLIC_SESSION)
+    return CKR_USER_NOT_LOGGED_IN;
+
+  if ((session.info.flags & CKF_RW_SESSION) == 0)
+    session.info.state = CKS_RO_PUBLIC_SESSION;
+  else
+    session.info.state = CKS_RW_PUBLIC_SESSION;
+
+  // TODO: more things to clean?
+  
   DOUT;
   return CKR_OK;
 }
