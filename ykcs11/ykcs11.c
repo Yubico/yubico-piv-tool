@@ -1274,7 +1274,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     return CKR_KEY_HANDLE_INVALID;
   }
 
-  DBG(("Key algorithm is %lu\n", type));
+  DBG(("Key type is %lu\n", type));
 
   // Get key length and algorithm type
   if (type == CKK_RSA) {

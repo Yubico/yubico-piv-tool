@@ -305,7 +305,7 @@ CK_RV do_get_public_key(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
     ecg = EC_KEY_get0_group(eck);
     ecp = EC_KEY_get0_public_key(eck);
 
-    // Adde the DER structure with length after extracting the point
+    // Add the DER structure with length after extracting the point
     data[0] = 0x04;
 
     if ((*len = EC_POINT_point2oct(ecg, ecp, pcf, data + 2, *len - 2, NULL)) == 0)
@@ -315,14 +315,15 @@ CK_RV do_get_public_key(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
     *len += 2;
 
+    // TODO: free ecg and ecp?
     break;
 
   default:
     return CKR_FUNCTION_FAILED;
   }
 
-  EC_KEY_free(eck);
-  eck = NULL;
+  EVP_PKEY_free(key);
+  key = NULL;
 
     return CKR_OK;
 
