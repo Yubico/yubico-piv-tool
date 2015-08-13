@@ -37,6 +37,7 @@
 #include <windows.h>
 #endif
 
+#include <openssl/evp.h>
 #include <openssl/x509.h>
 
 #include <ykpiv.h>
@@ -236,5 +237,28 @@ bool prepare_rsa_signature(const unsigned char *in, unsigned int in_len, unsigne
   digestInfo.digest->data = data;
   digestInfo.digest->length = (int)in_len;
   *out_len = (unsigned int)i2d_X509_SIG(&digestInfo, &out);
+  return true;
+}
+
+bool read_pw(const char *name, char *pwbuf, size_t pwbuflen, int verify) {
+  #define READ_PW_PROMPT_BASE "Enter %s: "
+  char prompt[sizeof(READ_PW_PROMPT_BASE) + 32] = {0};
+  int ret;
+
+  if (pwbuflen < 1) {
+    fprintf(stderr, "Failed to read %s: buffer too small.", name);
+    return false;
+  }
+
+  ret = snprintf(prompt, sizeof(prompt), READ_PW_PROMPT_BASE, name);
+  if (ret < 0 || ((unsigned int) ret) > (sizeof(prompt)-1)) {
+    fprintf(stderr, "Failed to read %s: snprintf failed.\n", name);
+    return false;
+  }
+
+  if (0 != EVP_read_pw_string(pwbuf, pwbuflen-1, prompt, verify)) {
+    fprintf(stderr, "Retrieving %s failed.\n", name);
+    return false;
+  }
   return true;
 }
