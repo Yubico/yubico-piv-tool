@@ -355,7 +355,6 @@ CK_RV do_encode_rsa_public_key(CK_BYTE_PTR data, CK_ULONG len, RSA **key) {
   return CKR_OK;
 
 }
- #include <openssl/err.h>
 
 CK_RV do_get_curve_parameters(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
