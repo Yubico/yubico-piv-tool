@@ -1,5 +1,6 @@
 #include "mechanisms.h"
 #include "debug.h"
+#include <string.h>
 
 #define F4 "\x01\x00\x01"
 #define PRIME256V1 "\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07"
@@ -146,14 +147,9 @@ CK_RV apply_sign_mechanism_init(op_info_t *op_info) {
 
     switch (op_info->mechanism.mechanism) {
     case CKM_RSA_PKCS:
-      // No hash required for this mechanism
-      return CKR_OK;
-
     case CKM_RSA_PKCS_PSS:
-      // No hash required for this mechanism
-      return CKR_OK;
-
     case CKM_RSA_X_509:
+    case CKM_ECDSA:
       // No hash required for this mechanism
       return CKR_OK;
 
@@ -174,10 +170,6 @@ CK_RV apply_sign_mechanism_init(op_info_t *op_info) {
     case CKM_SHA512_RSA_PKCS_PSS:
       return do_md_init(YKCS11_SHA512, &op_info->op.sign.md_ctx);
 
-    case CKM_ECDSA:
-      // No hash required for this mechanism
-      return CKR_OK;
-
     default:
       return CKR_FUNCTION_FAILED;
   }
@@ -196,11 +188,9 @@ CK_RV apply_sign_mechanism_update(op_info_t *op_info, CK_BYTE_PTR in, CK_ULONG i
   case CKM_RSA_PKCS:
   case CKM_RSA_PKCS_PSS:
   case CKM_ECDSA:
+  case CKM_RSA_X_509:
     // Mechanism not suitable for multipart signatures
     return CKR_FUNCTION_FAILED;
-
-  case CKM_RSA_X_509: // TODO: shouldn't this be in the group above?
-    return CKR_OK;
 
   case CKM_SHA1_RSA_PKCS:
   case CKM_SHA256_RSA_PKCS:
@@ -250,14 +240,19 @@ CK_RV apply_sign_mechanism_finalize(op_info_t *op_info) {
     rv = do_encode_rsa_public_key(op_info->op.sign.key, op_info->op.sign.key_len, &rsa);
     if (rv != CKR_OK)
       return CKR_FUNCTION_FAILED;
-    
+
     rv = do_pkcs_pss(rsa, op_info->buf, op_info->buf_len, nid, op_info->buf, &op_info->buf_len);
 
     // TODO: does rsa have to be free'd ?
-    
+
     return rv;
 
   case CKM_RSA_X_509:
+    // Padding in this case consists of prepending zeroes
+    len = (op_info->op.sign.key_len / 8) - op_info->buf_len;
+    memmove(op_info->buf + len, op_info->buf, op_info->buf_len);
+    memset(op_info->buf, 0, len);
+    op_info->buf_len = op_info->op.sign.key_len / 8;
     return CKR_OK;
 
   case CKM_SHA1_RSA_PKCS:
@@ -393,7 +388,7 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
     case CKA_WRAP:
       // Ignore these attributes for now
       break;
-      
+
     default:
       DBG(("Invalid attribute %lx in public key template", templ[i].type));
       return CKR_ATTRIBUTE_VALUE_INVALID;
@@ -401,7 +396,7 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
   }
 
   return CKR_OK;
-  
+
 }
 
 CK_RV check_pvtkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG n) {
@@ -466,5 +461,5 @@ CK_RV check_pvtkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
   }
 
   return CKR_OK;
-  
+
 }
