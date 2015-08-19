@@ -1319,8 +1319,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     }
 
     // The buffer contains an uncompressed point of the form 04, len, 04, x, y
+    // Where len is the |x| + |y| + 1 bytes
 
-    op_info.op.sign.key_len = ((template[3].ulValueLen - 1) / 2) * 8;
+    op_info.op.sign.key_len = ((buf[1] - 1) / 2) * 8;
 
     if (op_info.op.sign.key_len == 256)
       op_info.op.sign.algo = YKPIV_ALGO_ECCP256;
@@ -1385,7 +1386,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     DOUT;
     return CKR_OK;
   }
-    
 
   DBG(("Sending %lu bytes to sign", ulDataLen));
   dump_hex(pData, ulDataLen, stderr, CK_TRUE);
@@ -1396,13 +1396,34 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
       return CKR_FUNCTION_FAILED; // TODO: every error in here must stop and clear the signing operation
     }
   }
+  else {
+    if (is_RSA_mechanism(op_info.mechanism.mechanism)) {
+      // RSA_X_509
+      if (ulDataLen > (op_info.op.sign.key_len / 8)) {
+          DBG(("Data must be shorter than key length (%lu bits)", op_info.op.sign.key_len));
+          return CKR_FUNCTION_FAILED;
+      }
+    }
+    else {
+      // ECDSA
+      if (ulDataLen > 128) {
+        // Specs say ECDSA only supports 1024 bit
+        DBG(("Meximum data length for ECDSA is 128 bytes"));
+        return CKR_FUNCTION_FAILED;
+      }
+    }
+
+    op_info.buf_len = ulDataLen;
+    memcpy(op_info.buf, pData, ulDataLen);
+  }
+
 
   if (apply_sign_mechanism_finalize(&op_info) != CKR_OK) {
     DBG(("Unable to finalize signing operation"));
     return CKR_FUNCTION_FAILED;
   }
 
-  DBG(("Using key %lx", op_info.op.sign.key_id)); // TODO: test what happens if there is no key on the card
+  DBG(("Using key %lx", op_info.op.sign.key_id));
   DBG(("After padding and transformation there are %lu bytes", op_info.buf_len));
   dump_hex(op_info.buf, op_info.buf_len, stderr, CK_TRUE);
 

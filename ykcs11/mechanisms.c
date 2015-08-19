@@ -199,7 +199,7 @@ CK_RV apply_sign_mechanism_update(op_info_t *op_info, CK_BYTE_PTR in, CK_ULONG i
     // Mechanism not suitable for multipart signatures
     return CKR_FUNCTION_FAILED;
 
-  case CKM_RSA_X_509:
+  case CKM_RSA_X_509: // TODO: shouldn't this be in the group above?
     return CKR_OK;
 
   case CKM_SHA1_RSA_PKCS:
