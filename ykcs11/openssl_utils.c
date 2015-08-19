@@ -161,7 +161,7 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_
 
   BIO_free(STDout);
   /********************/
-  
+
   rv = CKR_OK;
 
 create_empty_cert_cleanup:
@@ -257,7 +257,12 @@ CK_ULONG do_get_rsa_modulus_length(EVP_PKEY *key) {
   if (rsa == NULL)
     return 0;
 
-  return RSA_size(rsa) * 8; // There is also RSA_bits but only in >= 1.1.0
+  key_len = RSA_size(rsa) * 8; // There is also RSA_bits but only in >= 1.1.0
+
+  RSA_free(rsa);
+  rsa = NULL;
+  
+  return key_len;
 
 }
 
@@ -282,13 +287,19 @@ CK_RV do_get_public_key(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
     rsa = EVP_PKEY_get1_RSA(key);
 
-    if (RSA_size(rsa) > *len)
+    if (RSA_size(rsa) > *len) {
+      RSA_free(rsa);
+      rsa = NULL;
       return CKR_BUFFER_TOO_SMALL;
+    }
 
     p = data;
 
-    if ((*len = i2d_RSAPublicKey(rsa, &p)) == 0)
+    if ((*len = i2d_RSAPublicKey(rsa, &p)) == 0) {
+      RSA_free(rsa);
+      rsa = NULL;
       return CKR_FUNCTION_FAILED;
+    }
 
     // TODO: this is the correct thing to do so that we strip out the exponent
     // OTOH we also need a function to get the exponent out with CKA_PUBLIC_EXPONENT
@@ -308,24 +319,26 @@ CK_RV do_get_public_key(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
     // Add the DER structure with length after extracting the point
     data[0] = 0x04;
 
-    if ((*len = EC_POINT_point2oct(ecg, ecp, pcf, data + 2, *len - 2, NULL)) == 0)
+    if ((*len = EC_POINT_point2oct(ecg, ecp, pcf, data + 2, *len - 2, NULL)) == 0) {
+      EC_KEY_free(eck);
+      eck = NULL;
       return CKR_FUNCTION_FAILED;
+    }
 
     data[1] = *len;
 
     *len += 2;
 
-    // TODO: free ecg and ecp?
+    EC_KEY_free(eck);
+    eck = NULL;
+
     break;
 
   default:
     return CKR_FUNCTION_FAILED;
   }
 
-  EVP_PKEY_free(key);
-  key = NULL;
-
-    return CKR_OK;
+  return CKR_OK;
 
 }
 
@@ -342,8 +355,9 @@ CK_RV do_encode_rsa_public_key(CK_BYTE_PTR data, CK_ULONG len, RSA **key) {
   return CKR_OK;
 
 }
+ #include <openssl/err.h>
 
-CK_RV do_get_curve_parameters( EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
+CK_RV do_get_curve_parameters(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
   EC_KEY *eck;
   const EC_GROUP *ecg;
@@ -354,8 +368,14 @@ CK_RV do_get_curve_parameters( EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len
 
   p = data;
 
-  if ((*len = i2d_ECPKParameters(ecg, &p)) == 0)
-      return CKR_FUNCTION_FAILED;
+  if ((*len = i2d_ECPKParameters(ecg, &p)) == 0) {
+    EC_KEY_free(eck);
+    eck = NULL;
+    return CKR_FUNCTION_FAILED;
+  }
+
+  EC_KEY_free(eck);
+  eck = NULL;
 
   return CKR_OK;
 }
@@ -370,7 +390,7 @@ CK_RV free_key(EVP_PKEY *key) {
 
 CK_RV do_pkcs_1_t1(CK_BYTE_PTR in, CK_ULONG in_len, CK_BYTE_PTR out, CK_ULONG_PTR out_len, CK_ULONG key_len) {
   unsigned char buffer[512];
-  
+
   key_len /= 8;
   DBG(("Apply padding to %lu bytes and get %lu\n", in_len, key_len));
 
