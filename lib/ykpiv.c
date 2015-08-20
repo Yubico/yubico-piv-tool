@@ -165,22 +165,56 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
     return YKPIV_PCSC_ERROR;
   }
 
-  reader_ptr = reader_buf;
-  if(wanted) {
-    while(*reader_ptr != '\0') {
-      if(strstr(reader_ptr, wanted)) {
-	if(state->verbose) {
-	  fprintf(stderr, "using reader '%s' matching '%s'.\n", reader_ptr, wanted);
-	}
-	break;
+  for(reader_ptr = reader_buf; *reader_ptr != '\0'; reader_ptr += strlen(reader_ptr) + 1) {
+    if(wanted) {
+      if(!strstr(reader_ptr, wanted)) {
+        if(state->verbose) {
+          fprintf(stderr, "skipping reader '%s' since it doesn't match '%s'.\n", reader_ptr, wanted);
+        }
+        continue;
+      }
+    }
+    if(state->verbose) {
+      fprintf(stderr, "trying to connect to reader '%s'.\n", reader_ptr);
+    }
+    rc = SCardConnect(state->context, reader_ptr, SCARD_SHARE_SHARED,
+        SCARD_PROTOCOL_T1, &state->card, &active_protocol);
+    if(rc != SCARD_S_SUCCESS)
+    {
+      if(state->verbose) {
+        fprintf(stderr, "SCardConnect failed, rc=%08lx\n", rc);
+      }
+      continue;
+    }
+
+    {
+      APDU apdu;
+      unsigned char data[0xff];
+      unsigned long recv_len = sizeof(data);
+      int sw;
+      ykpiv_rc res;
+
+      memset(apdu.raw, 0, sizeof(apdu));
+      apdu.st.ins = 0xa4;
+      apdu.st.p1 = 0x04;
+      apdu.st.lc = sizeof(aid);
+      memcpy(apdu.st.data, aid, sizeof(aid));
+
+      if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
+        if(state->verbose) {
+          fprintf(stderr, "Failed communicating with card: '%s'\n", ykpiv_strerror(res));
+        }
+        continue;
+      } else if(sw == 0x9000) {
+        return YKPIV_OK;
       } else {
-	if(state->verbose) {
-	  fprintf(stderr, "skipping reader '%s' since it doesn't match.\n", reader_ptr);
-	}
-	reader_ptr += strlen(reader_ptr) + 1;
+        if(state->verbose) {
+          fprintf(stderr, "Failed selecting applet: %04x\n", sw);
+        }
       }
     }
   }
+
   if(*reader_ptr == '\0') {
     if(state->verbose) {
       fprintf(stderr, "error: no useable reader found.\n");
@@ -189,40 +223,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
     return YKPIV_PCSC_ERROR;
   }
 
-  rc = SCardConnect(state->context, reader_ptr, SCARD_SHARE_SHARED,
-      SCARD_PROTOCOL_T1, &state->card, &active_protocol);
-  if(rc != SCARD_S_SUCCESS)
-  {
-    if(state->verbose) {
-      fprintf(stderr, "error: SCardConnect failed, rc=%08lx\n", rc);
-    }
-    SCardReleaseContext(state->context);
-    return YKPIV_PCSC_ERROR;
-  }
-
-  {
-    APDU apdu;
-    unsigned char data[0xff];
-    unsigned long recv_len = sizeof(data);
-    int sw;
-    ykpiv_rc res;
-
-    memset(apdu.raw, 0, sizeof(apdu));
-    apdu.st.ins = 0xa4;
-    apdu.st.p1 = 0x04;
-    apdu.st.lc = sizeof(aid);
-    memcpy(apdu.st.data, aid, sizeof(aid));
-
-    if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
-      return res;
-    } else if(sw == 0x9000) {
-      return YKPIV_OK;
-    }
-
-    return YKPIV_APPLET_ERROR;
-  }
-
-  return YKPIV_OK;
+  return YKPIV_GENERIC_ERROR;
 }
 
 ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
