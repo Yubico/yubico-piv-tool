@@ -1414,7 +1414,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   }
 
   // TODO: check other conditions
-  ykpiv_rc r; // TODO: delete this
+  ykpiv_rc r; // TODO: delete this ?
 
   if (pSignature == NULL_PTR) {
     // Just return the size of the signature
@@ -1472,6 +1472,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   }
   DBG(("Got %lu bytes back", *pulSignatureLen));
   dump_hex(pSignature, *pulSignatureLen, stderr, CK_TRUE);
+
+  op_info.type = YKCS11_NOOP; // TODO: anything to clear here?
 
   DOUT;
   return CKR_OK;
