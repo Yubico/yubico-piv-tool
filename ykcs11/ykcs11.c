@@ -439,8 +439,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (slotID >= n_slots || phSession == NULL)
+  if (slotID >= n_slots) {
+    DBG(("Invalid slot ID %lu, slotID"));
+    return CKR_SLOT_ID_INVALID;
+  }
+
+  if (phSession == NULL_PTR) {
+    DBG(("Wrong/Missing parameter"));
     return CKR_ARGUMENTS_BAD;
+  }
 
   if (slots[slotID].vid == UNKNOWN) {
     DBG(("No support for slot %lu", slotID));
@@ -462,7 +469,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     return CKR_SESSION_COUNT;
   }
 
-  if ((flags & CKF_SERIAL_SESSION) == 0) { // TODO: check more error conditions
+  if ((flags & CKF_SERIAL_SESSION) == 0) {
     DBG(("Open session called without CKF_SERIAL_SESSION set")); // Reuired by specs
     return CKR_SESSION_PARALLEL_NOT_SUPPORTED;
   }
@@ -478,11 +485,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
 
   if ((flags & CKF_RW_SESSION)) {
     // R/W Session
-    session.info.state = CKS_RW_PUBLIC_SESSION; // Nobody has logged in, default session
+    session.info.state = CKS_RW_PUBLIC_SESSION; // Nobody has logged in, default RO session
   }
   else {
     // R/O Session
-    session.info.state = CKS_RO_PUBLIC_SESSION; // Nobody has logged in, default session
+    session.info.state = CKS_RO_PUBLIC_SESSION; // Nobody has logged in, default RW session
   }
 
   session.info.flags = flags;
@@ -517,7 +524,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   }
 
   // Get a list of object ids for available certificates object from the session
-  rv = get_available_certificate_ids(&session, cert_ids, session.slot->token->n_certs); // TODO: better to get this from token? how?
+  rv = get_available_certificate_ids(&session, cert_ids, session.slot->token->n_certs);
   if (rv != CKR_OK) {
     DBG(("Unable to retrieve certificate ids from the session"));
     goto failure;
