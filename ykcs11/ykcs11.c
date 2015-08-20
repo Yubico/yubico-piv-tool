@@ -149,7 +149,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
   int i;
   int j;
 
-  // TODO: check more preconditions
+  if (piv_state == NULL) {
+    DBG(("libykpiv is not initialized or already finalized"));
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
   if (pSlotList == NULL_PTR) {
     // Just return the number of slots
     *pulCount = n_slots;
@@ -196,8 +200,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotInfo)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (slotID >= n_slots)
-    return CKR_ARGUMENTS_BAD;
+  if (slotID >= n_slots) {
+    DBG(("Invalid slot ID %lu, slotID"));
+    return CKR_SLOT_ID_INVALID;
+  }
 
   memcpy(pInfo, &slots[slotID].info, sizeof(CK_SLOT_INFO));
 
@@ -220,12 +226,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (slotID >= n_slots)
-    return CKR_ARGUMENTS_BAD;
+  if (slotID >= n_slots) {
+    DBG(("Invalid slot ID %lu, slotID"));
+    return CKR_SLOT_ID_INVALID;
+  }
 
   if (slots[slotID].vid == UNKNOWN) {
     DBG(("No support for slot %lu", slotID));
-    return CKR_TOKEN_NOT_RECOGNIZED;
+    return CKR_SLOT_ID_INVALID;
   }
 
   if (!has_token(slots + slotID)) {
@@ -242,7 +250,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
 
   memcpy(pInfo, &slots[slotID].token->info, sizeof(CK_TOKEN_INFO));
 
-  // Overwrite value that are application specific
+  // Overwrite values that are application specific
   pInfo->ulMaxSessionCount = CK_UNAVAILABLE_INFORMATION; // TODO: should this be 1?
   pInfo->ulSessionCount = CK_UNAVAILABLE_INFORMATION; // number of sessions that this application currently has open with the token
 
@@ -287,8 +295,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (slotID > n_slots || pulCount == NULL_PTR)
+  if (slotID >= n_slots) {
+    DBG(("Invalid slot ID %lu", slotID));
+    return CKR_SLOT_ID_INVALID;
+  }
+
+  if (pulCount == NULL_PTR) {
+    DBG(("Wrong/Missing parameter"));
     return CKR_ARGUMENTS_BAD;
+  }
 
   if (slots[slotID].vid == UNKNOWN) {
     DBG(("Slot %lu is tokenless/unsupported", slotID));
@@ -296,7 +311,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
   }
 
   // TODO: check more return values
-  // TODO: user NULL_PTR more for coherence
 
   token = get_token_vendor(slots[slotID].vid);
 
@@ -315,8 +329,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
     return CKR_BUFFER_TOO_SMALL;
   }
 
-  if (token.get_token_mechanism_list(pMechanismList, *pulCount) != CKR_OK)
+  if (token.get_token_mechanism_list(pMechanismList, *pulCount) != CKR_OK) {
+    DBG(("Unable to retrieve mechanism list"));
     return CKR_FUNCTION_FAILED;
+  }
 
   DOUT;
   return CKR_OK;
@@ -336,21 +352,27 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismInfo)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (slotID > n_slots || pInfo == NULL_PTR)
+  if (slotID >= n_slots) {
+    DBG(("Invalid slot ID %lu, slotID"));
+    return CKR_SLOT_ID_INVALID;
+  }
+
+  if (pInfo == NULL_PTR) {
+    DBG(("Wrong/Missing parameter"));
     return CKR_ARGUMENTS_BAD;
+  }
 
   if (slots[slotID].vid == UNKNOWN) {
     DBG(("Slot %lu is tokenless/unsupported", slotID));
     return CKR_SLOT_ID_INVALID;
   }
 
-  // TODO: check more return values
-  // TODO: user NULL_PTR more for coherence
-
   token = get_token_vendor(slots[slotID].vid);
 
-  if (token.get_token_mechanism_info(type, pInfo) != CKR_OK)
+  if (token.get_token_mechanism_info(type, pInfo) != CKR_OK) {
+    DBG(("Unable to retrieve mechanism information"));
     return CKR_MECHANISM_INVALID;
+  }
 
   DOUT;
   return CKR_OK;
@@ -767,7 +789,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Logout)(
     session.info.state = CKS_RW_PUBLIC_SESSION;
 
   // TODO: more things to clean?
-  
+
   DOUT;
   return CKR_OK;
 }
@@ -1660,7 +1682,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   piv_obj_id_t   *obj_ptr;
   CK_BYTE        cert_data[2100];
   CK_ULONG       cert_len;
-  
+
 
   if (piv_state == NULL) {
     DBG(("libykpiv is not initialized or already finalized"));
@@ -1759,7 +1781,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   dobj_id = op_info.op.gen.key_id - PIV_PVTK_OBJ_PIV_AUTH; // TODO: make function for these
   cert_id = PIV_DATA_OBJ_LAST + 1 + dobj_id;
   pvtk_id = op_info.op.gen.key_id;
-  pubk_id = PIV_PVTK_OBJ_LAST + 1 + dobj_id;  
+  pubk_id = PIV_PVTK_OBJ_LAST + 1 + dobj_id;
 
   // Check whether we created a new object or updated an existing one
   if (is_new == CK_TRUE) {
@@ -1811,7 +1833,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     *obj_ptr++ = cert_id;
     *obj_ptr++ = pvtk_id;
     *obj_ptr++ = pubk_id;*/
-  
+
   *phPrivateKey = op_info.op.gen.key_id;
   *phPublicKey  = op_info.op.gen.key_id - PIV_PVTK_OBJ_KM + PIV_PUBK_OBJ_KM; // TODO: make function for these?
 
