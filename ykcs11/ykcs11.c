@@ -386,8 +386,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
 )
 {
   DIN;
-
-  return CKR_OK;
+  DBG(("Token initialization unsupported"));
+  DOUT;
+  return CKR_FUNCTION_FAILED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_InitPIN)(
