@@ -1,30 +1,32 @@
 # Copyright (C) 2014 Yubico AB
 # All rights reserved.
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
-# Additional permission under GNU GPL version 3 section 7
-#
-# If you modify this program, or any covered work, by linking or
-# combining it with the OpenSSL project's OpenSSL library (or a
-# modified version of that library), containing parts covered by the
-# terms of the OpenSSL or SSLeay licenses, We grant you additional 
-# permission to convey the resulting work. Corresponding Source for a
-# non-source form of such a combination shall include the source code
-# for the parts of OpenSSL used as well as that of the covered work.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+# 
+#   * Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 
+#   * Redistributions in binary form must reproduce the above
+#     copyright notice, this list of conditions and the following
+#     disclaimer in the documentation and/or other materials provided
+#     with the distribution.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 PACKAGE=yubico-piv-tool
+OPENSSLVERSION=1.0.1p
 
 all: usage mac
 
@@ -41,13 +43,30 @@ usage:
 doit:
 	rm -rf tmp && mkdir tmp && cd tmp && \
 	mkdir -p root/licenses && \
+	cp ../openssl-$(OPENSSLVERSION).tar.gz . || \
+		curl -L -O "https://www.openssl.org/source/openssl-$(OPENSSLVERSION).tar.gz" && \
+	tar xfz openssl-$(OPENSSLVERSION).tar.gz && \
+	cd openssl-$(OPENSSLVERSION) && \
+	./Configure darwin64-x86_64-cc shared no-ssl2 no-ssl3 no-engines --prefix=$(PWD)/tmp/root && \
+	make all install_sw && \
+	cp LICENSE $(PWD)/tmp$(ARCH)/root/licenses/openssl.txt && \
+	rm -rf $(PWD)/tmp/root/ssl/ && \
+	rm -rf $(PWD)/tmp/root/bin/ && \
+	rm -rf $(PWD)/tmp/root/lib/engines/ && \
+	rm -rf $(PWD)/tmp/root/lib/libssl* && \
+	rm $(PWD)/tmp/root/lib/pkgconfig/libssl.pc && \
+	rm $(PWD)/tmp/root/lib/pkgconfig/openssl.pc && \
+	cd .. && \
 	cp ../$(PACKAGE)-$(VERSION).tar.gz . && \
 	tar xfz $(PACKAGE)-$(VERSION).tar.gz && \
 	cd $(PACKAGE)-$(VERSION)/ && \
-	./configure --prefix=$(PWD)/tmp/root && \
+	PKG_CONFIG_PATH=$(PWD)/tmp/root/lib/pkgconfig ./configure --prefix=$(PWD)/tmp/root && \
 	make install check && \
-	install_name_tool -id @executable_path/../lib/libykpiv.dylib $(PWD)/tmp/root/lib/libykpiv.dylib && \
+	chmod u+w $(PWD)/tmp/root/lib/libcrypto.1.0.0.dylib && \
+	install_name_tool -id @executable_path/../lib/libcrypto.1.0.0.dylib $(PWD)/tmp/root/lib/libcrypto.1.0.0.dylib && \
 	install_name_tool -id @executable_path/../lib/libykpiv.1.dylib $(PWD)/tmp/root/lib/libykpiv.1.dylib && \
+	install_name_tool -change $(PWD)/tmp/root/lib/libcrypto.1.0.0.dylib @executable_path/../lib/libcrypto.1.0.0.dylib $(PWD)/tmp/root/lib/libykpiv.1.dylib && \
+	install_name_tool -change $(PWD)/tmp/root/lib/libcrypto.1.0.0.dylib @executable_path/../lib/libcrypto.1.0.0.dylib $(PWD)/tmp/root/bin/yubico-piv-tool && \
 	install_name_tool -change $(PWD)/tmp/root/lib/libykpiv.1.dylib @executable_path/../lib/libykpiv.1.dylib $(PWD)/tmp/root/bin/yubico-piv-tool ; \
 	if otool -L $(PWD)/tmp/root/lib/*.dylib $(PWD)/tmp/root/bin/* | grep '$(PWD)/tmp/root' | grep -q compatibility; then \
 		echo "something is incorrectly linked!"; \

@@ -2,28 +2,29 @@
  * Copyright (c) 2014 Yubico AB
  * All rights reserved.
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- *
- * Additional permission under GNU GPL version 3 section 7
- *
- * If you modify this program, or any covered work, by linking or
- * combining it with the OpenSSL project's OpenSSL library (or a
- * modified version of that library), containing parts covered by the
- * terms of the OpenSSL or SSLeay licenses, We grant you additional
- * permission to convey the resulting work. Corresponding Source for a
- * non-source form of such a combination shall include the source code
- * for the parts of OpenSSL used as well as that of the covered work.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ * 
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ * 
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
 
@@ -183,22 +184,56 @@ ykpiv_rc ykpiv_connect2(ykpiv_state *state, const char *wanted, unsigned char **
     *len = num_readers;
   }
 
-  reader_ptr = reader_buf;
-  if(wanted) {
-    while(*reader_ptr != '\0') {
-      if(strstr(reader_ptr, wanted)) {
+  for(reader_ptr = reader_buf; *reader_ptr != '\0'; reader_ptr += strlen(reader_ptr) + 1) {
+    if(wanted) {
+      if(!strstr(reader_ptr, wanted)) {
         if(state->verbose) {
-          fprintf(stderr, "using reader '%s' matching '%s'.\n", reader_ptr, wanted);
+          fprintf(stderr, "skipping reader '%s' since it doesn't match '%s'.\n", reader_ptr, wanted);
         }
-        break;
+        continue;
+      }
+    }
+    if(state->verbose) {
+      fprintf(stderr, "trying to connect to reader '%s'.\n", reader_ptr);
+    }
+    rc = SCardConnect(state->context, reader_ptr, SCARD_SHARE_SHARED,
+        SCARD_PROTOCOL_T1, &state->card, &active_protocol);
+    if(rc != SCARD_S_SUCCESS)
+    {
+      if(state->verbose) {
+        fprintf(stderr, "SCardConnect failed, rc=%08lx\n", rc);
+      }
+      continue;
+    }
+
+    {
+      APDU apdu;
+      unsigned char data[0xff];
+      unsigned long recv_len = sizeof(data);
+      int sw;
+      ykpiv_rc res;
+
+      memset(apdu.raw, 0, sizeof(apdu));
+      apdu.st.ins = 0xa4;
+      apdu.st.p1 = 0x04;
+      apdu.st.lc = sizeof(aid);
+      memcpy(apdu.st.data, aid, sizeof(aid));
+
+      if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
+        if(state->verbose) {
+          fprintf(stderr, "Failed communicating with card: '%s'\n", ykpiv_strerror(res));
+        }
+        continue;
+      } else if(sw == 0x9000) {
+        return YKPIV_OK;
       } else {
         if(state->verbose) {
-          fprintf(stderr, "skipping reader '%s' since it doesn't match.\n", reader_ptr);
+          fprintf(stderr, "Failed selecting applet: %04x\n", sw);
         }
-        reader_ptr += strlen(reader_ptr) + 1;
       }
     }
   }
+
   if(*reader_ptr == '\0') {
     if(state->verbose) {
       fprintf(stderr, "error: no useable reader found.\n");
@@ -207,40 +242,7 @@ ykpiv_rc ykpiv_connect2(ykpiv_state *state, const char *wanted, unsigned char **
     return YKPIV_PCSC_ERROR;
   }
 
-  rc = SCardConnect(state->context, reader_ptr, SCARD_SHARE_SHARED,
-      SCARD_PROTOCOL_T1, &state->card, &active_protocol);
-  if(rc != SCARD_S_SUCCESS)
-  {
-    if(state->verbose) {
-      fprintf(stderr, "error: SCardConnect failed, rc=%08lx\n", rc);
-    }
-    SCardReleaseContext(state->context);
-    return YKPIV_PCSC_ERROR;
-  }
-
-  {
-    APDU apdu;
-    unsigned char data[0xff];
-    unsigned long recv_len = sizeof(data);
-    int sw;
-    ykpiv_rc res;
-
-    memset(apdu.raw, 0, sizeof(apdu));
-    apdu.st.ins = 0xa4;
-    apdu.st.p1 = 0x04;
-    apdu.st.lc = sizeof(aid);
-    memcpy(apdu.st.data, aid, sizeof(aid));
-
-    if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
-      return res;
-    } else if(sw == 0x9000) {
-      return YKPIV_OK;
-    }
-
-    return YKPIV_APPLET_ERROR;
-  }
-
-  return YKPIV_OK;
+  return YKPIV_GENERIC_ERROR;
 }
 
 ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
@@ -289,9 +291,11 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
       }
       return YKPIV_SIZE_ERROR;
     }
-    memcpy(out_data, data, recv_len - 2);
-    out_data += recv_len - 2;
-    *out_len += recv_len - 2;
+    if(out_data) {
+      memcpy(out_data, data, recv_len - 2);
+      out_data += recv_len - 2;
+      *out_len += recv_len - 2;
+    }
     in_ptr += this_size;
   } while(in_ptr < in_data + in_len);
   while(*sw >> 8 == 0x61) {
@@ -314,9 +318,11 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
     if(*out_len + recv_len - 2 > max_out) {
       fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.", *out_len + recv_len - 2, max_out);
     }
-    memcpy(out_data, data, recv_len - 2);
-    out_data += recv_len - 2;
-    *out_len += recv_len - 2;
+    if(out_data) {
+      memcpy(out_data, data, recv_len - 2);
+      out_data += recv_len - 2;
+      *out_len += recv_len - 2;
+    }
   }
   rc = SCardEndTransaction(state->card, SCARD_LEAVE_CARD);
   if(rc != SCARD_S_SUCCESS) {
@@ -712,9 +718,11 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
   apdu.st.p1 = 0x00;
   apdu.st.p2 = 0x80;
   apdu.st.lc = pin ? 0x08 : 0;
-  memcpy(apdu.st.data, pin, len);
-  if(pin && len < 8) {
-    memset(apdu.st.data + len, 0xff, 8 - len);
+  if(pin) {
+    memcpy(apdu.st.data, pin, len);
+    if(len < 8) {
+      memset(apdu.st.data + len, 0xff, 8 - len);
+    }
   }
   if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
     return res;
@@ -752,6 +760,9 @@ ykpiv_rc ykpiv_fetch_object(ykpiv_state *state, int object_id,
   if(sw == 0x9000) {
     size_t outlen;
     int offs = get_length(data + 1, &outlen);
+    if(offs == 0) {
+      return YKPIV_SIZE_ERROR;
+    }
     memmove(data, data + 1 + offs, outlen);
     *len = outlen;
     return YKPIV_OK;

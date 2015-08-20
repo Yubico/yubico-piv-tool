@@ -2,28 +2,29 @@
  * Copyright (c) 2014-2015 Yubico AB
  * All rights reserved.
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- *
- * Additional permission under GNU GPL version 3 section 7
- *
- * If you modify this program, or any covered work, by linking or
- * combining it with the OpenSSL project's OpenSSL library (or a
- * modified version of that library), containing parts covered by the
- * terms of the OpenSSL or SSLeay licenses, We grant you additional 
- * permission to convey the resulting work. Corresponding Source for a
- * non-source form of such a combination shall include the source code
- * for the parts of OpenSSL used as well as that of the covered work.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ * 
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ * 
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
 
@@ -104,7 +105,6 @@ static bool generate_key(ykpiv_state *state, const char *slot,
   unsigned char data[1024];
   unsigned char templ[] = {0, YKPIV_INS_GENERATE_ASYMMERTRIC, 0, 0};
   unsigned long recv_len = sizeof(data);
-  unsigned long received = 0;
   int sw;
   int key = 0;
   FILE *output_file = NULL;
@@ -151,8 +151,6 @@ static bool generate_key(ykpiv_state *state, const char *slot,
     fprintf(stderr, "Failed to generate new key.\n");
     goto generate_out;
   }
-  /* to drop the 90 00 and the 7f 49 at the start */
-  received += recv_len - 4;
 
   if(key_format == key_format_arg_PEM) {
     public_key = EVP_PKEY_new();
@@ -940,7 +938,15 @@ selfsign_out:
 static bool verify_pin(ykpiv_state *state, const char *pin) {
   int tries = -1;
   ykpiv_rc res;
-  int len = strlen(pin);
+  int len;
+  char pinbuf[9] = {0};
+  if(!pin) {
+    if (!read_pw("PIN", pinbuf, sizeof(pinbuf), false)) {
+      return false;
+    }
+    pin = pinbuf;
+  }
+  len = strlen(pin);
 
   if(len > 8) {
     fprintf(stderr, "Maximum 8 digits of PIN supported.\n");
@@ -969,9 +975,28 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
   unsigned char indata[0x10];
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
+  char pinbuf[9] = {0};
+  char new_pinbuf[9] = {0};
+  const char *name = action == action_arg_changeMINUS_pin ? "pin" : "puk";
+  const char *new_name = action == action_arg_changeMINUS_pin ? "new pin" : "new puk";
   int sw;
-  size_t pin_len = strlen(pin);
-  size_t new_len = strlen(new_pin);
+  size_t pin_len;
+  size_t new_len;
+
+  if(!pin) {
+    if (!read_pw(name, pinbuf, sizeof(pinbuf), false)) {
+      return false;
+    }
+    pin = pinbuf;
+  }
+  if(!new_pin) {
+    if (!read_pw(new_name, new_pinbuf, sizeof(new_pinbuf), true)) {
+      return false;
+    }
+    new_pin = new_pinbuf;
+  }
+  pin_len = strlen(pin);
+  new_len = strlen(new_pin);
 
   if(pin_len > 8 || new_len > 8) {
     fprintf(stderr, "Maximum 8 digits of PIN supported.\n");
@@ -998,7 +1023,7 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
     if((sw >> 8) == 0x63) {
       int tries = sw & 0xff;
       fprintf(stderr, "Failed verifying %s code, now %d tries left before blocked.\n",
-          action == action_arg_changeMINUS_pin ? "pin" : "puk", tries);
+          name, tries);
     } else if(sw == 0x6983) {
       if(action == action_arg_changeMINUS_pin) {
         fprintf(stderr, "The pin code is blocked, use the unblock-pin action to unblock it.\n");
@@ -1659,28 +1684,6 @@ int main(int argc, char *argv[]) {
           return EXIT_FAILURE;
         }
         break;
-      case action_arg_changeMINUS_pin:
-      case action_arg_changeMINUS_puk:
-      case action_arg_unblockMINUS_pin:
-        if(!args_info.new_pin_arg) {
-          fprintf(stderr, "The '%s' action needs a new-pin (-N).\n",
-              cmdline_parser_action_values[action]);
-          return EXIT_FAILURE;
-        }
-      case action_arg_verifyMINUS_pin:
-        if(!args_info.pin_arg) {
-          fprintf(stderr, "The '%s' action needs a pin (-P).\n",
-              cmdline_parser_action_values[action]);
-          return EXIT_FAILURE;
-        }
-        break;
-      case action_arg_setMINUS_mgmMINUS_key:
-        if(!args_info.new_key_arg) {
-          fprintf(stderr, "The '%s' action needs the new-key (-n) argument.\n",
-              cmdline_parser_action_values[action]);
-          return EXIT_FAILURE;
-        }
-        break;
       case action_arg_pinMINUS_retries:
         if(!args_info.pin_retries_arg || !args_info.puk_retries_arg) {
           fprintf(stderr, "The '%s' action needs both --pin-retries and --puk-retries arguments.\n",
@@ -1688,6 +1691,11 @@ int main(int argc, char *argv[]) {
           return EXIT_FAILURE;
         }
         break;
+      case action_arg_changeMINUS_pin:
+      case action_arg_changeMINUS_puk:
+      case action_arg_unblockMINUS_pin:
+      case action_arg_verifyMINUS_pin:
+      case action_arg_setMINUS_mgmMINUS_key:
       case action_arg_setMINUS_chuid:
       case action_arg_version:
       case action_arg_reset:
@@ -1766,6 +1774,8 @@ int main(int argc, char *argv[]) {
   OpenSSL_add_all_algorithms();
 
   for(i = 0; i < args_info.action_given; i++) {
+    char new_keybuf[KEY_LEN*2+1] = {0};
+    char *new_mgm_key = args_info.new_key_arg;
     action = *(args_info.action_arg + i);
     if(verbosity) {
       fprintf(stderr, "Now processing for action '%s'.\n",
@@ -1783,10 +1793,18 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_setMINUS_mgmMINUS_key:
-        if(strlen(args_info.new_key_arg) == (KEY_LEN * 2)){
+        if(!new_mgm_key) {
+          if(!read_pw("new management key", new_keybuf, sizeof(new_keybuf), true)) {
+            fprintf(stderr, "Failed to read management key from stdin,\n");
+            ret = EXIT_FAILURE;
+            break;
+          }
+          new_mgm_key = new_keybuf;
+        }
+        if(strlen(new_mgm_key) == (KEY_LEN * 2)){
           unsigned char new_key[KEY_LEN];
           size_t new_key_len = sizeof(new_key);
-          if(ykpiv_hex_decode(args_info.new_key_arg, strlen(args_info.new_key_arg), new_key, &new_key_len) != YKPIV_OK) {
+          if(ykpiv_hex_decode(new_mgm_key, strlen(new_mgm_key), new_key, &new_key_len) != YKPIV_OK) {
             fprintf(stderr, "Failed decoding new key!\n");
             ret = EXIT_FAILURE;
           } else if(ykpiv_set_mgmkey(state, new_key) != YKPIV_OK) {
