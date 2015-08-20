@@ -591,7 +591,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  free(session.slot->token->objects); // TODO: make objects survive a session so there is no need to get them again?
+  free(session.slot->token->objects);
   session.slot->token->objects = NULL;
 
   memset(&session, 0, sizeof(ykcs11_session_t));
@@ -613,8 +613,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (session.slot != slots + slotID)
+  if (session.slot != slots + slotID) {
+    DBG(("Invalid slot ID %lu", slotID));
     return CKR_SLOT_ID_INVALID;
+  }
 
   rv = C_CloseSession(session.handle);
 
@@ -634,11 +636,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSessionInfo)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (pInfo == NULL)
+  if (pInfo == NULL) {
+    DBG(("Wrong/Missing parameter"));
     return CKR_ARGUMENTS_BAD;
+  }
 
-  if (hSession != session.handle)
+  if (hSession != session.handle) {
+    DBG(("Unknown session %lu", hSession));
     return CKR_SESSION_HANDLE_INVALID;
+  }
 
   memcpy(pInfo, &session.info, sizeof(CK_SESSION_INFO));
 
@@ -699,8 +705,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
     return CKR_SESSION_CLOSED;
   }
 
-  if (hSession != session.handle)
+  if (hSession != session.handle) {
     return CKR_SESSION_HANDLE_INVALID;
+  }
 
   if ((session.info.flags & CKF_RW_SESSION) == 0) { // TODO: make macros for these?
     DBG(("Tried to log-in to a read-only session"));
