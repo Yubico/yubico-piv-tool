@@ -425,16 +425,23 @@ CK_RV do_pkcs_pss(RSA *key, CK_BYTE_PTR in, CK_ULONG in_len, int nid,
                   CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
   unsigned char em[512]; // Max for this is ceil((|key_len_bits| - 1) / 8)
 
+  OpenSSL_add_all_digests();
+
   // TODO: rand must be seeded first (should be automatic)
   if (*out_len < RSA_size(key))
     CKR_BUFFER_TOO_SMALL;
 
   DBG(("Apply PSS padding to %lu bytes and get %d\n", in_len, RSA_size(key)));
 
-  if (RSA_padding_add_PKCS1_PSS(key, em, in, EVP_get_digestbynid(nid), -2) == 0)
+  // In case of raw PSS (no hash) this function will fail because OpenSSL requires an MD
+  if (RSA_padding_add_PKCS1_PSS(key, em, in, EVP_get_digestbynid(nid), -2) == 0) {
+    EVP_cleanup();
     return CKR_FUNCTION_FAILED;
+  }
 
   *out_len = RSA_size(key);
+
+  EVP_cleanup();
 
   return CKR_OK;
 }
