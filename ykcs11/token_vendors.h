@@ -17,7 +17,7 @@ typedef CK_RV (*get_t_mechanism_list_f)(CK_MECHANISM_TYPE_PTR, CK_ULONG);
 typedef CK_RV (*get_t_mechanism_info_f)(CK_MECHANISM_TYPE, CK_MECHANISM_INFO_PTR);
 typedef CK_RV (*get_t_objects_num_f)(ykpiv_state *, CK_ULONG_PTR, CK_ULONG_PTR);
 typedef CK_RV (*get_t_object_list_f)(ykpiv_state *, piv_obj_id_t *, CK_ULONG);
-typedef CK_RV (*get_t_raw_certificate_f)(ykpiv_state *, piv_obj_id_t, CK_BYTE_PTR, CK_ULONG);
+typedef CK_RV (*get_t_raw_certificate_f)(ykpiv_state *, piv_obj_id_t, CK_BYTE_PTR, CK_ULONG_PTR);
 
 // Common token functions below
 typedef CK_RV (*t_generate_key_f)(ykpiv_state *, CK_BBOOL, CK_BYTE, CK_ULONG);

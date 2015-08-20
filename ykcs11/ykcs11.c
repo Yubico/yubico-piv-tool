@@ -201,7 +201,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotInfo)(
   }
 
   if (slotID >= n_slots) {
-    DBG(("Invalid slot ID %lu, slotID"));
+    DBG(("Invalid slot ID %lu", slotID));
     return CKR_SLOT_ID_INVALID;
   }
 
@@ -227,7 +227,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
   }
 
   if (slotID >= n_slots) {
-    DBG(("Invalid slot ID %lu, slotID"));
+    DBG(("Invalid slot ID %lu", slotID));
     return CKR_SLOT_ID_INVALID;
   }
 
@@ -353,7 +353,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismInfo)(
   }
 
   if (slotID >= n_slots) {
-    DBG(("Invalid slot ID %lu, slotID"));
+    DBG(("Invalid slot ID %lu", slotID));
     return CKR_SLOT_ID_INVALID;
   }
 
@@ -440,7 +440,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   }
 
   if (slotID >= n_slots) {
-    DBG(("Invalid slot ID %lu, slotID"));
+    DBG(("Invalid slot ID %lu", slotID));
     return CKR_SLOT_ID_INVALID;
   }
 
@@ -532,7 +532,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
 
   // Get the actual certificate data from the token and store it as an X509 object
   for (i = 0; i < session.slot->token->n_certs; i++) {
-    rv = token.get_token_raw_certificate(piv_state, cert_ids[i], cert_data, cert_len); // TODO: double check len here (check inside, never changed but used below)
+    cert_len = sizeof(cert_data);
+    rv = token.get_token_raw_certificate(piv_state, cert_ids[i], cert_data, &cert_len);
     if (rv != CKR_OK) {
       DBG(("Unable to get certificate data from token"));
       goto failure;
@@ -1815,7 +1816,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 
   // Write/Update the  object
   cert_len = sizeof(cert_data);
-  rv = token.get_token_raw_certificate(piv_state, cert_id, cert_data, cert_len); // TODO: double check len here (check inside, never changed but used below). One more time above
+  rv = token.get_token_raw_certificate(piv_state, cert_id, cert_data, &cert_len); // TODO: double check len here (check inside, never changed but used below). One more time above
   if (rv != CKR_OK) {
     DBG(("Unable to get certificate data from token"));
     return CKR_FUNCTION_FAILED; // TODO: although key generation succeeded at this point

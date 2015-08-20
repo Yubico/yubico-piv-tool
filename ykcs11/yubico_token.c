@@ -298,9 +298,9 @@ CK_RV YUBICO_get_token_object_list(ykpiv_state *state, piv_obj_id_t *obj, CK_ULO
   return get_objects(state, CK_FALSE, obj, &num, NULL);
 }
 
-CK_RV YUBICO_get_token_raw_certificate(ykpiv_state *state, piv_obj_id_t obj, CK_BYTE_PTR data, CK_ULONG len) {
+CK_RV YUBICO_get_token_raw_certificate(ykpiv_state *state, piv_obj_id_t obj, CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
-  if (ykpiv_fetch_object(state, piv_2_ykpiv(obj), data, &len) != YKPIV_OK)
+  if (ykpiv_fetch_object(state, piv_2_ykpiv(obj), data, len) != YKPIV_OK)
     return CKR_FUNCTION_FAILED;
 
   return CKR_OK;
