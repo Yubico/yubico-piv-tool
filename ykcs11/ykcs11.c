@@ -398,9 +398,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitPIN)(
 )
 {
   DIN;
-  DBG(("TODO!!!"));
+  DBG(("PIN initialization unsupported"));
   DOUT;
-  return CKR_OK;
+  return CKR_FUNCTION_FAILED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_SetPIN)(
