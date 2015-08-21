@@ -720,10 +720,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
     if (ulPinLen < PIV_MIN_PIN_LEN || ulPinLen > PIV_MAX_PIN_LEN)
       return CKR_ARGUMENTS_BAD;
 
-    if (session.info.state == CKS_RW_USER_FUNCTIONS) { // TODO: make sure to set session default state as not logged
+    /*if (session.info.state == CKS_RW_USER_FUNCTIONS) { // TODO: make sure to set session default state as not logged
       DBG(("This user type is already logged in"));
       return CKR_USER_ALREADY_LOGGED_IN;
-      }
+      }*/ //TODO: TEMPORARY FIX TO ALLOW MULTIPLE LOGIN. THIS MUST GO BACK IN!
 
     if (session.info.state == CKS_RW_SO_FUNCTIONS) {
       DBG(("A different uyser type is already logged in"));
