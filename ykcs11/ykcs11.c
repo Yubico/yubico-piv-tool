@@ -795,8 +795,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_Logout)(
     return CKR_SESSION_CLOSED;
   }
 
-  if (hSession != session.handle)
+  if (hSession != session.handle) {
+    DBG(("Unknown session %lu", hSession));
     return CKR_SESSION_HANDLE_INVALID;
+  }
 
   // TODO: check more conditions
 
@@ -886,8 +888,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
     return CKR_SESSION_CLOSED;
   }
 
-  if (hSession != session.handle)
+  if (hSession != session.handle) {
+    DBG(("Unknown session %lu", hSession));
     return CKR_SESSION_HANDLE_INVALID;
+  }
 
   if (pTemplate == NULL_PTR || ulCount == 0)
     return CKR_ARGUMENTS_BAD;
@@ -947,8 +951,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
     return CKR_SESSION_CLOSED;
   }
 
-  if (hSession != session.handle)
+  if (hSession != session.handle) {
+    DBG(("Unknown session %lu", hSession));
     return CKR_SESSION_HANDLE_INVALID;
+  }
 
   if (find_obj.active == CK_TRUE)
     return CKR_OPERATION_ACTIVE;
@@ -1036,8 +1042,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
     return CKR_SESSION_CLOSED;
   }
 
-  if (hSession != session.handle)
+  if (hSession != session.handle) {
+    DBG(("Unknown session %lu", hSession));
     return CKR_SESSION_HANDLE_INVALID;
+  }
 
   if (phObject == NULL_PTR ||
       ulMaxObjectCount == 0 ||
@@ -1084,8 +1092,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsFinal)(
     return CKR_SESSION_CLOSED;
   }
 
-  if (hSession != session.handle)
+  if (hSession != session.handle) {
+    DBG(("Unknown session %lu", hSession));
     return CKR_SESSION_HANDLE_INVALID;
+  }
 
   if (find_obj.active != CK_TRUE)
     return CKR_OPERATION_NOT_INITIALIZED;
@@ -1290,8 +1300,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     return CKR_SESSION_CLOSED;
   }
 
-  if (hSession != session.handle)
+  if (hSession != session.handle) {
+    DBG(("Unknown session %lu", hSession));
     return CKR_SESSION_HANDLE_INVALID;
+  }
 
   if (op_info.type != YKCS11_NOOP) {
     DBG(("Other operation in process"));
@@ -1717,8 +1729,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     return CKR_SESSION_CLOSED;
   }
 
-  if (hSession != session.handle)
+  if (hSession != session.handle) {
+    DBG(("Unknown session %lu", hSession));
     return CKR_SESSION_HANDLE_INVALID;
+  }
 
   if (session.info.state != CKS_RW_SO_FUNCTIONS) {
     DBG(("Authentication required to generate keys"));
@@ -1734,8 +1748,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
       pPublicKeyTemplate == NULL_PTR ||
       pPrivateKeyTemplate == NULL_PTR ||
       phPublicKey == NULL_PTR ||
-      phPrivateKey == NULL_PTR)
+      phPrivateKey == NULL_PTR) {
+    DBG(("Wrong/Missing parameter"));
     return CKR_ARGUMENTS_BAD;
+  }
 
   DBG(("Trying to generate a key pair with mechanism %lx", pMechanism->mechanism));
 
