@@ -34,15 +34,16 @@ AM_CPPFLAGS += -I$(top_srcdir)/lib -I$(top_builddir)/lib
 lib_LTLIBRARIES = libykcs11.la
 
 libykcs11_la_SOURCES = ykcs11.c version.c ykcs11.pc.in ykcs11.map
-libykcs11_la_SOURCES += debug.h
-libykcs11_la_SOURCES += vendors.c vendor.h vendor_ids.h
-libykcs11_la_SOURCES += slot_vendors.c slot_vendor.h
-libykcs11_la_SOURCES += token_vendors.c token_vendor.h
+libykcs11_la_SOURCES += ykcs11.h debug.h
+libykcs11_la_SOURCES += vendors.c vendors.h vendor_ids.h
+libykcs11_la_SOURCES += slot_vendors.c slot_vendors.h
+libykcs11_la_SOURCES += token_vendors.c token_vendors.h
 libykcs11_la_SOURCES += mechanisms.c mechanisms.h
 libykcs11_la_SOURCES += yubico_slot.c yubico_slot.h yubico_token.c yubico_token.h
 libykcs11_la_SOURCES += utils.c utils.h
 libykcs11_la_SOURCES += openssl_utils.c openssl_utils.h openssl_types.h
 libykcs11_la_SOURCES += objects.c objects.h obj_types.h
+libykcs11_la_SOURCES += pkcs11.h  pkcs11f.h  pkcs11t.h
 
 #internal.h
 #libykcs11_la_SOURCES += error.c
