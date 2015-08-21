@@ -1,5 +1,6 @@
 #include "slot_vendors.h"
 #include "yubico_slot.h"
+#include <stdlib.h>
 
 slot_vendor_t get_slot_vendor(vendor_id_t vid) {
   slot_vendor_t v;

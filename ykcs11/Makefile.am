@@ -28,7 +28,7 @@ SUBDIRS = .
 #tests
 
 AM_CFLAGS = $(WERROR_CFLAGS) $(WARN_CFLAGS)
-AM_CPPFLAGS = $(OPENSSL_CFLAGS) $(PCSC_CFLAGS) $(LIBNSPR_CFLAGS)
+AM_CPPFLAGS = $(OPENSSL_CFLAGS) $(PCSC_CFLAGS)
 AM_CPPFLAGS += -I$(top_srcdir)/lib -I$(top_builddir)/lib
 
 lib_LTLIBRARIES = libykcs11.la
@@ -56,7 +56,7 @@ EXTRA_libykcs11_la_DEPENDENCIES = ykcs11.map
 
 #libykcs11_la_LIBADD = $(OPENSSL_LIBS) $(PCSC_LIBS)
 #libykcs11_la_LIBADD += $(PCSC_WIN_LIBS) $(PCSC_MACOSX_LIBS)
-libykcs11_la_LIBADD = $(LIBNSPR) ../lib/libykpiv.la
+libykcs11_la_LIBADD = ../lib/libykpiv.la
 libykcs11_la_LIBADD += ../tool/libpiv_util.la
 
 libykcs11_la_LDFLAGS = -no-undefined
