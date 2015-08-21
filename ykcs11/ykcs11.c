@@ -706,6 +706,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
   }
 
   if (hSession != session.handle) {
+    DBG(("Unknown session %lu", hSession));
     return CKR_SESSION_HANDLE_INVALID;
   }
 
@@ -719,11 +720,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
     if (ulPinLen < PIV_MIN_PIN_LEN || ulPinLen > PIV_MAX_PIN_LEN)
       return CKR_ARGUMENTS_BAD;
 
-    if (session.info.state == CKS_RW_USER_FUNCTIONS) // TODO: make sure to set session default state as not logged
+    if (session.info.state == CKS_RW_USER_FUNCTIONS) { // TODO: make sure to set session default state as not logged
+      DBG(("This user type is already logged in"));
       return CKR_USER_ALREADY_LOGGED_IN;
+      }
 
-    if (session.info.state == CKS_RW_SO_FUNCTIONS)
+    if (session.info.state == CKS_RW_SO_FUNCTIONS) {
+      DBG(("A different uyser type is already logged in"));
       return CKR_USER_ANOTHER_ALREADY_LOGGED_IN;
+    }
 
     tries = 0;
     if (ykpiv_verify(piv_state, pPin, (int *)&tries) != YKPIV_OK) { // TODO: call this from vendors.c
