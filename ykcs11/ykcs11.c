@@ -1435,7 +1435,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   if (pSignature == NULL_PTR) {
     // Just return the size of the signature
-    *pulSignatureLen = op_info.op.sign.key_len / 8;
+    *pulSignatureLen = op_info.op.sign.key_len / 8 * 2 + 32; // Approximate the size of the signature. Specs agree with this.
     DBG(("The size of the signature will be %lu", *pulSignatureLen));
 
     DOUT;
