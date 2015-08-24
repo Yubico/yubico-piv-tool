@@ -1490,6 +1490,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   DBG(("Got %lu bytes back", *pulSignatureLen));
   dump_hex(pSignature, *pulSignatureLen, stderr, CK_TRUE);
 
+  if (!is_RSA_mechanism(op_info.mechanism.mechanism)) {
+    // ECDSA, we must remove the DER encoding and only return R,S
+    // as required by the specs
+    strip_DER_encoding_from_ECSIG(pSignature, pulSignatureLen);
+
+    DBG(("After removing DER encoding %lu", *pulSignatureLen));
+    dump_hex(pSignature, *pulSignatureLen, stderr, CK_TRUE);
+  }
+
   op_info.type = YKCS11_NOOP; // TODO: anything to clear here?
 
   DOUT;

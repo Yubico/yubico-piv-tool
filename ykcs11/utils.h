@@ -11,4 +11,6 @@ void  destroy_token(ykcs11_slot_t *slot);
 
 CK_BBOOL is_valid_key_id(CK_BYTE id);
 
+void strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG_PTR len);
+
 #endif

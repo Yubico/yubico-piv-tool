@@ -87,7 +87,7 @@ failure:
   for (i = 0; i < *n_slots; i++)
     if (has_token(slots + i))
       destroy_token(slots + i);
-  
+
   return CKR_FUNCTION_FAILED;
 }
 
@@ -157,7 +157,7 @@ CK_RV create_token(CK_BYTE_PTR p, ykcs11_slot_t *slot) {
   // TODO: also get token objects here? (and destroy on failure)
   slot->token->objects = NULL;
   slot->token->n_objects = 0;
-  
+
   return CKR_OK;
 }
 
@@ -173,5 +173,25 @@ CK_BBOOL is_valid_key_id(CK_BYTE id) {
     return CK_FALSE;
 
   return CK_TRUE;
-  
+}
+
+void strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG_PTR len) {
+
+  CK_BYTE_PTR  ptr;
+  CK_ULONG     n_len;
+
+  // Maximum DER length for P256 is 2 + 2 + 33 + 2 + 33 = 72
+  if (*len <= 72)
+    n_len = 32;
+  else
+    n_len = 48;
+
+  ptr = data + 4;
+  if (*ptr == 0)
+    ptr++;
+
+  memmove(data, ptr, n_len);
+  memmove(data+n_len, data + *len - n_len, n_len);
+
+  *len = n_len * 2;
 }
