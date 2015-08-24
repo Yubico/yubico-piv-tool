@@ -647,6 +647,12 @@ typedef CK_ULONG          CK_MECHANISM_TYPE;
 //#define CKM_ECDSA_KEY_PAIR_GEN         0x00001040 // Deprecated in 2.11
 #define CKM_ECDSA                      0x00001041UL
 #define CKM_ECDSA_SHA1                 0x00001042UL
+/* NOT STANDARD */
+#define CKM_ECDSA_SHA224               0x00001043UL
+#define CKM_ECDSA_SHA256               0x00001044UL
+#define CKM_ECDSA_SHA384               0x00001045UL
+#define CKM_ECDSA_SHA512               0x00001046UL
+/* NOT STANDARD */
 
 /* Added for 2.4 */
 #define CKM_ECDH1_DERIVE               0x00001050UL

@@ -19,7 +19,8 @@ static const CK_MECHANISM_TYPE sign_mechanisms[] = {
   CKM_SHA384_RSA_PKCS_PSS,
   CKM_SHA512_RSA_PKCS_PSS,
   CKM_ECDSA,
-  CKM_ECDSA_SHA1
+  CKM_ECDSA_SHA1,
+  CKM_ECDSA_SHA256
 };
 
 // Supported mechanisms for key pair generation
@@ -126,6 +127,7 @@ CK_BBOOL is_hashed_mechanism(CK_MECHANISM_TYPE m) {
   case CKM_SHA384_RSA_PKCS_PSS:
   case CKM_SHA512_RSA_PKCS_PSS:
   case CKM_ECDSA_SHA1:
+  case CKM_ECDSA_SHA256:
   case CKM_SHA_1:
   case CKM_SHA256:
   case CKM_SHA384:
@@ -160,6 +162,7 @@ CK_RV apply_sign_mechanism_init(op_info_t *op_info) {
 
     case CKM_SHA256_RSA_PKCS:
     case CKM_SHA256_RSA_PKCS_PSS:
+    case CKM_ECDSA_SHA256:
       return do_md_init(YKCS11_SHA256, &op_info->op.sign.md_ctx);
 
     case CKM_SHA384_RSA_PKCS:
@@ -201,6 +204,7 @@ CK_RV apply_sign_mechanism_update(op_info_t *op_info, CK_BYTE_PTR in, CK_ULONG i
   case CKM_SHA384_RSA_PKCS_PSS:
   case CKM_SHA512_RSA_PKCS_PSS:
   case CKM_ECDSA_SHA1:
+  case CKM_ECDSA_SHA256:
     rv = do_md_update(op_info->op.sign.md_ctx, in, in_len);
     if (rv != CKR_OK)
       return CKR_FUNCTION_FAILED;
@@ -278,6 +282,7 @@ CK_RV apply_sign_mechanism_finalize(op_info_t *op_info) {
     return do_pkcs_1_t1(op_info->buf, len, op_info->buf, &op_info->buf_len, op_info->op.sign.key_len);
 
   case CKM_ECDSA_SHA1:
+  case CKM_ECDSA_SHA256:
     // Finalize the hash
     rv = do_md_finalize(op_info->op.sign.md_ctx, op_info->buf, &op_info->buf_len, &nid);
     if (rv != CKR_OK)
@@ -358,7 +363,7 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
       if (op_info->op.gen.rsa == CK_FALSE)
         return CKR_ATTRIBUTE_VALUE_INVALID;
 
-      if (*((CK_ULONG_PTR)templ[i].pValue) != 1024 &&
+      if (*((CK_ULONG_PTR) templ[i].pValue) != 1024 &&
           *((CK_ULONG_PTR) templ[i].pValue) != 2048) { // TODO: make define?
         DBG(("Unsupported MODULUS_BITS (key length)"));
         return CKR_ATTRIBUTE_VALUE_INVALID;
@@ -386,6 +391,7 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
     case CKA_ENCRYPT:
     case CKA_VERIFY:
     case CKA_WRAP:
+    case CKA_DERIVE:
       // Ignore these attributes for now
       break;
 
@@ -451,6 +457,7 @@ CK_RV check_pvtkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
     case CKA_SIGN:
     case CKA_PRIVATE:
     case CKA_TOKEN:
+    case CKA_DERIVE:
       // Ignore these attributes for now
       break;
 
