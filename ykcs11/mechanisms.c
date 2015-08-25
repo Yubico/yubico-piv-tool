@@ -1,4 +1,6 @@
 #include "mechanisms.h"
+#include "openssl_utils.h"
+#include "utils.h"
 #include "debug.h"
 #include <string.h>
 
@@ -336,7 +338,6 @@ CK_RV check_generation_mechanism(const ykcs11_session_t *s, CK_MECHANISM_PTR m) 
 CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG n) {
 
   CK_ULONG i;
-  CK_BBOOL rsa_mechanism;
 
   op_info->op.gen.rsa = is_RSA_mechanism(op_info->mechanism.mechanism);
 
@@ -416,7 +417,6 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
 CK_RV check_pvtkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG n) {
 
   CK_ULONG i;
-  CK_BBOOL rsa_mechanism;
 
   op_info->op.gen.rsa = is_RSA_mechanism(op_info->mechanism.mechanism);
 
