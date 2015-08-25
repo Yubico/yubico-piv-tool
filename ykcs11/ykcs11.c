@@ -217,8 +217,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
 )
 {
   DIN;
-  CK_VERSION      ver = {0, 0};
-  token_vendor_t  token;
   CK_BYTE         buf[64];
 
   if (piv_state == NULL) {
@@ -245,8 +243,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
     DBG(("No support for token in slot %lu", slotID));
     return CKR_TOKEN_NOT_RECOGNIZED;
   }
-
-  token = get_token_vendor(slots[slotID].token->vid);
 
   memcpy(pInfo, &slots[slotID].token->info, sizeof(CK_TOKEN_INFO));
 
@@ -686,7 +682,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
 )
 {
   DIN;
-  CK_ULONG        tries;
+  CK_ULONG        tries = 0;
 
   if (piv_state == NULL) {
     DBG(("libykpiv is not initialized or already finalized"));
@@ -1219,7 +1215,43 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestInit)(
 )
 {
   DIN;
-  DBG(("TODO!!!"));
+
+  if (piv_state == NULL) {
+    DBG(("libykpiv is not initialized or already finalized"));
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  if (session.handle != YKCS11_SESSION_ID) {
+    DBG(("Session is not open"));
+    return CKR_SESSION_CLOSED;
+  }
+
+  if (hSession != session.handle) {
+    DBG(("Unknown session %lu", hSession));
+    return CKR_SESSION_HANDLE_INVALID;
+  }
+
+  if (op_info.type != YKCS11_NOOP) {
+    DBG(("Other operation in process"));
+    return CKR_OPERATION_ACTIVE;
+  }
+
+  if (pMechanism == NULL_PTR) {
+    DBG(("Wrong/Missing parameter"));
+    return CKR_ARGUMENTS_BAD;
+  }
+
+  DBG(("Trying to hash some data with mechanism %lu", pMechanism->mechanism));
+
+  // Check if mechanism is supported
+  if (check_hash_mechanism(&session, pMechanism) != CKR_OK) {
+    DBG(("Mechanism %lu is not supported either by the token or the module", pMechanism->mechanism));
+    return CKR_MECHANISM_INVALID;
+  }
+  memcpy(&op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
+
+  op_info.type = YKCS11_HASH;
+
   DOUT;
   return CKR_OK;
 }

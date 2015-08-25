@@ -30,6 +30,14 @@ static const CK_MECHANISM_TYPE generation_mechanisms[] = {
   CKM_EC_KEY_PAIR_GEN
 };
 
+// Supported mechanisms for hashing
+static const CK_MECHANISM_TYPE hash_mechanisms[] = {
+  CKM_SHA_1,
+  CKM_SHA256,
+  CKM_SHA384,
+  CKM_SHA512
+};
+
 CK_RV check_sign_mechanism(const ykcs11_session_t *s, const CK_MECHANISM_PTR m) {
 
   CK_ULONG          i;
@@ -466,6 +474,35 @@ CK_RV check_pvtkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
       return CKR_ATTRIBUTE_VALUE_INVALID;
     }
   }
+
+  return CKR_OK;
+
+}
+
+CK_RV check_hash_mechanism(const ykcs11_session_t *s, CK_MECHANISM_PTR m) {
+
+  CK_ULONG          i;
+  CK_BBOOL          supported = CK_FALSE;
+  token_vendor_t    token;
+  CK_MECHANISM_INFO info;
+
+  // Check if the mechanism is supported by the module
+  for (i = 0; i < sizeof(hash_mechanisms) / sizeof(CK_MECHANISM_TYPE); i++) {
+    if (m->mechanism == hash_mechanisms[i]) {
+      supported = CK_TRUE;
+      break;
+    }
+  }
+  if (supported == CK_FALSE)
+    return CKR_MECHANISM_INVALID;
+
+  // Check if the mechanism is supported by the token
+  token = get_token_vendor(s->slot->token->vid);
+
+  if (token.get_token_mechanism_info(m->mechanism, &info) != CKR_OK)
+    return CKR_MECHANISM_INVALID;
+
+  // TODO: also check that parametes make sense if any? And key size is in [min max]
 
   return CKR_OK;
 
