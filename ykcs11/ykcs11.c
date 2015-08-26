@@ -4,6 +4,7 @@
 #include <ykpiv.h>
 #include <string.h>
 #include "obj_types.h"
+#include "objects.h"
 #include "utils.h"
 #include "mechanisms.h"
 #include "openssl_types.h"
@@ -217,7 +218,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
 )
 {
   DIN;
-  CK_BYTE         buf[64];
 
   if (piv_state == NULL) {
     DBG(("libykpiv is not initialized or already finalized"));
@@ -682,7 +682,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
 )
 {
   DIN;
-  CK_ULONG        tries = 0;
+  CK_ULONG tries = 0;
 
   if (piv_state == NULL) {
     DBG(("libykpiv is not initialized or already finalized"));
@@ -1747,8 +1747,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   DIN;
   CK_RV          rv;
   token_vendor_t token;
-  CK_ULONG       n_objs;
-  CK_ULONG       n_certs;
   CK_ULONG       i;
   CK_BBOOL       is_new;
   CK_ULONG       dobj_id;
