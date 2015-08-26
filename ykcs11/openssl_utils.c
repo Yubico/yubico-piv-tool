@@ -36,7 +36,7 @@ CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, X509 **cert) {
 }
 
 CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_ULONG key_len,
-                           CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
+			   CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
 
   X509      *cert = NULL;
   EVP_PKEY  *key = NULL;
@@ -132,7 +132,6 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_
   if (X509_set_pubkey(cert, key) == 0) // TODO: there is also X509_PUBKEY_set(X509_PUBKEY **x, EVP_PKEY *pkey);
     goto create_empty_cert_cleanup;
 
-  // TODO: add more info like issuer?
   tm = ASN1_TIME_new();
   if (tm == NULL)
     goto create_empty_cert_cleanup;
@@ -140,6 +139,16 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_
   ASN1_TIME_set_string(tm, "000001010000Z");
   X509_set_notBefore(cert, tm);
   X509_set_notAfter(cert, tm);
+
+  // Manually set the signature algorithms.
+  // OpenSSL 1.0.1i complains about empty DER fields
+  // 8 => md5WithRsaEncryption
+  cert->sig_alg->algorithm = OBJ_nid2obj(8);
+  cert->cert_info->signature->algorithm = OBJ_nid2obj(8);
+
+  // Manually set a signature (same reason as before)
+  ASN1_BIT_STRING_set_bit(cert->signature, 8, 1);
+  ASN1_BIT_STRING_set(cert->signature, "\x00", 1);
 
   len = i2d_X509(cert, NULL);
   if (len < 0)
@@ -261,7 +270,7 @@ CK_ULONG do_get_rsa_modulus_length(EVP_PKEY *key) {
 
   RSA_free(rsa);
   rsa = NULL;
-  
+
   return key_len;
 
 }
@@ -422,7 +431,7 @@ CK_RV do_pkcs_1_digest_info(CK_BYTE_PTR in, CK_ULONG in_len, int nid, CK_BYTE_PT
 }
 
 CK_RV do_pkcs_pss(RSA *key, CK_BYTE_PTR in, CK_ULONG in_len, int nid,
-                  CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
+		  CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
   unsigned char em[512]; // Max for this is ceil((|key_len_bits| - 1) / 8)
 
   OpenSSL_add_all_digests();
