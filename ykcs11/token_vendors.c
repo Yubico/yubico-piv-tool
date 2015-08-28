@@ -122,6 +122,15 @@ static CK_RV COMMON_token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_B
   return CKR_OK;
 }
 
+CK_RV COMMON_token_import_private_key(ykpiv_state *state , CK_BYTE_PTR key_id, CK_BYTE_PTR p, CK_ULONG p_len,
+                                      CK_BYTE_PTR q, CK_ULONG q_len, CK_BYTE_PTR dp, CK_ULONG dp_len,
+                                      CK_BYTE_PTR dq, CK_ULONG dq_len, CK_BYTE_PTR qinv, CK_ULONG qinv_len,
+                                      CK_BYTE_PTR ec_data, CK_ULONG ec_data_len) {
+
+  return CKR_OK;
+  
+}
+
 token_vendor_t get_token_vendor(vendor_id_t vid) {
    token_vendor_t v;
 
@@ -141,6 +150,7 @@ token_vendor_t get_token_vendor(vendor_id_t vid) {
     v.get_token_raw_certificate = YUBICO_get_token_raw_certificate;
     v.token_generate_key        = COMMON_token_generate_key;
     v.token_import_cert         = COMMON_token_import_cert;
+    v.token_import_private_key  = COMMON_token_import_private_key;
     break;
 
   case UNKNOWN:
@@ -159,6 +169,7 @@ token_vendor_t get_token_vendor(vendor_id_t vid) {
     v.get_token_raw_certificate = NULL;
     v.token_generate_key        = NULL;
     v.token_import_cert         = NULL;
+    v.token_import_private_key  = NULL;
   }
 
   return v;

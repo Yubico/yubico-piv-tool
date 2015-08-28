@@ -827,14 +827,30 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
   CK_OBJECT_CLASS  class;
   CK_BYTE          id;
   CK_BYTE_PTR      value;
-  CK_ULONG         len;
+  CK_ULONG         value_len;
+  CK_BYTE_PTR      ec_params;
+  CK_ULONG         ec_params_len;
+  CK_BYTE_PTR      e;
+  CK_ULONG         e_len;
+  CK_BYTE_PTR      p;
+  CK_ULONG         p_len;
+  CK_BYTE_PTR      q;
+  CK_ULONG         q_len;
+  CK_BYTE_PTR      dp;
+  CK_ULONG         dp_len;
+  CK_BYTE_PTR      dq;
+  CK_ULONG         dq_len;
+  CK_BYTE_PTR      qinv;
+  CK_ULONG         qinv_len;
   token_vendor_t   token;
   CK_BBOOL         is_new;
+  CK_BBOOL         is_rsa;
   CK_OBJECT_HANDLE object;
   CK_ULONG         cert_id;
   CK_ULONG         pvtk_id;
   CK_ULONG         pubk_id;
   piv_obj_id_t     *obj_ptr;
+
 
   if (piv_state == NULL) {
     DBG(("libykpiv is not initialized or already finalized"));
@@ -869,7 +885,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
       // Can only import certificates and private keys
       if (*((CK_ULONG_PTR)pTemplate[i].pValue) != CKO_CERTIFICATE &&
-          *((CK_ULONG_PTR)pTemplate[i].pValue) != CKO_PUBLIC_KEY) {
+          *((CK_ULONG_PTR)pTemplate[i].pValue) != CKO_PRIVATE_KEY) {
         DBG(("Unsupported class %lu", class));
         return CKR_ATTRIBUTE_VALUE_INVALID;
       }
@@ -887,7 +903,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
   case CKO_CERTIFICATE:
     DBG(("Importing certificate"));
 
-    rv = check_create_cert(pTemplate, ulCount, &id, &value, &len);
+    rv = check_create_cert(pTemplate, ulCount, &id, &value, &value_len);
     if (rv != CKR_OK) {
       DBG(("Certificate template not valid"));
       return rv;
@@ -933,7 +949,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       *obj_ptr++ = pubk_id;
     }
 
-    rv = store_cert(cert_id, value, len);
+    rv = store_cert(cert_id, value, value_len);
     if (rv != CKR_OK) {
       DBG(("Unable to store certificate data"));
       return CKR_FUNCTION_FAILED;
@@ -942,7 +958,41 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     break;
 
   case CKO_PRIVATE_KEY:
-    //rv = create_pvt_key();
+    DBG(("Importing private key"));
+
+    // Try to parse the key as EC
+    is_rsa = CK_FALSE;
+    rv = check_create_ec_key(pTemplate, ulCount, &id, &value, &value_len, &ec_params, &ec_params_len);
+    if (rv != CKR_OK) {
+      // Try to parse the key as RSA
+      is_rsa = CK_TRUE;
+      rv = check_create_rsa_key(pTemplate, ulCount, &id, &e, &e_len, &p, &p_len,
+                                &q, &q_len, &dp, &dp_len, &dq, &dq_len, &qinv, &qinv_len);
+      if (rv != CKR_OK) {
+        DBG(("Private key template not valid"));
+        return rv;
+      }
+    }
+
+    DBG(("Key id is %u", id));
+
+    if (is_rsa == CK_TRUE) {
+      DBG(("Key is RSA"));
+      rv = token.token_import_private_key(piv_state, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0);
+      if (rv != CKR_OK) {
+        DBG(("Unable to import RSA private key"));
+        return rv;
+      }
+    }
+      else {
+        DBG(("Key is ECDSA"));
+        rv = token.token_import_private_key(piv_state, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0);
+        if (rv != CKR_OK) {
+          DBG(("Unable to import ECDSA private key"));
+          return rv;
+      }
+    }
+
     return CKR_FUNCTION_FAILED;
     break;
 

@@ -942,11 +942,12 @@ CK_RV check_create_cert(CK_ATTRIBUTE_PTR templ, CK_ULONG n,
       has_value = CK_TRUE;
       *value = (CK_BYTE_PTR)templ[i].pValue;
 
-      *cert_len = 0;
-      *cert_len += get_length(value + 1, cert_len) + 1;
+      /**cert_len = 0;
+       *cert_len += get_length(value + 1, cert_len) + 1;*/
+      *cert_len = templ[i].ulValueLen;
       break;
 
-    default:
+    default: // TODO: don't error on valid parameters
       // Ignore other attributes for now
       DBG(("Invalid %lx", templ[i].type));
       return CKR_ATTRIBUTE_TYPE_INVALID;
@@ -955,6 +956,166 @@ CK_RV check_create_cert(CK_ATTRIBUTE_PTR templ, CK_ULONG n,
 
   if (has_id == CK_FALSE ||
       has_value == CK_FALSE)
+    return CKR_TEMPLATE_INCOMPLETE;
+  
+  return CKR_OK;
+}
+
+CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
+                          CK_BYTE_PTR *value, CK_ULONG_PTR cert_len,
+                          CK_BYTE_PTR *ec_params, CK_ULONG_PTR ec_params_len) {
+
+  CK_ULONG i;
+  CK_BBOOL has_id = CK_FALSE;
+  CK_BBOOL has_value = CK_FALSE;
+  CK_BBOOL has_params = CK_FALSE;
+
+  for (i = 0; i < n; i++) {
+    switch (templ[i].type) {
+    case CKA_CLASS:
+      if (*((CK_ULONG_PTR)templ[i].pValue) != CKO_PRIVATE_KEY)
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+
+      break;
+
+    case CKA_KEY_TYPE:
+      if (*((CK_ULONG_PTR)templ[i].pValue) != CKK_ECDSA)
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+
+      break;
+
+    case CKA_ID:
+      has_id = CK_TRUE;
+      if (is_valid_key_id(*((CK_BYTE_PTR)templ[i].pValue)) == CK_FALSE)
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+
+      *id = *((CK_BYTE_PTR)templ[i].pValue);
+      break;
+
+    case CKA_VALUE:
+      has_value = CK_TRUE;
+      *value = (CK_BYTE_PTR)templ[i].pValue;
+      *cert_len = templ[i].ulValueLen;
+      
+      break;
+
+    case CKA_EC_PARAMS:
+      has_params = CK_TRUE;
+      *ec_params = (CK_BYTE_PTR)templ[i].pValue;
+      *ec_params_len = templ[i].ulValueLen;
+
+      break;
+
+    default: // TODO: don't error on valid parameters
+      // Ignore other attributes for now
+      DBG(("Invalid %lx", templ[i].type));
+      return CKR_ATTRIBUTE_TYPE_INVALID;
+    }
+  }
+
+  if (has_id == CK_FALSE ||
+      has_value == CK_FALSE ||
+      has_params == CK_FALSE)
+    return CKR_TEMPLATE_INCOMPLETE;
+  
+  return CKR_OK;
+}
+
+CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
+                           CK_BYTE_PTR *e, CK_ULONG_PTR e_len,
+                           CK_BYTE_PTR *p, CK_ULONG_PTR p_len,
+                           CK_BYTE_PTR *q, CK_ULONG_PTR q_len,
+                           CK_BYTE_PTR *dp, CK_ULONG_PTR dp_len,
+                           CK_BYTE_PTR *dq, CK_ULONG_PTR dq_len,
+                           CK_BYTE_PTR *qinv, CK_ULONG_PTR qinv_len) {
+
+  CK_ULONG i;
+  CK_BBOOL has_id = CK_FALSE;
+  CK_BBOOL has_e = CK_FALSE;
+  CK_BBOOL has_p = CK_FALSE;
+  CK_BBOOL has_q = CK_FALSE;
+  CK_BBOOL has_dp = CK_FALSE;
+  CK_BBOOL has_dq = CK_FALSE;
+  CK_BBOOL has_qinv = CK_FALSE;
+
+  for (i = 0; i < n; i++) {
+    switch (templ[i].type) {
+    case CKA_CLASS:
+      if (*((CK_ULONG_PTR)templ[i].pValue) != CKO_PRIVATE_KEY)
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+
+      break;
+
+    case CKA_ID:
+      has_id = CK_TRUE;
+      if (is_valid_key_id(*((CK_BYTE_PTR)templ[i].pValue)) == CK_FALSE)
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+
+      *id = *((CK_BYTE_PTR)templ[i].pValue);
+      break;
+
+    case CKA_KEY_TYPE:
+      if (*((CK_ULONG_PTR)templ[i].pValue) != CKK_RSA)
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+
+      break;
+
+    case CKA_PUBLIC_EXPONENT: // TODO: check that it is F4
+      has_e = CK_TRUE;
+      *e = (CK_BYTE_PTR)templ[i].pValue;
+      *e_len = templ[i].ulValueLen;
+      
+      break;
+
+    case CKA_PRIME_1:
+      has_p = CK_TRUE;
+      *p = (CK_BYTE_PTR)templ[i].pValue;
+      *p_len = templ[i].ulValueLen;
+      
+      break;
+
+    case CKA_PRIME_2:
+      has_q = CK_TRUE;
+      *q = (CK_BYTE_PTR)templ[i].pValue;
+      *q_len = templ[i].ulValueLen;
+      
+      break;
+
+    case CKA_EXPONENT_1:
+      has_dp = CK_TRUE;
+      *dp = (CK_BYTE_PTR)templ[i].pValue;
+      *dp_len = templ[i].ulValueLen;
+      
+      break;
+
+    case CKA_EXPONENT_2:
+      has_dq = CK_TRUE;
+      *dq = (CK_BYTE_PTR)templ[i].pValue;
+      *dq_len = templ[i].ulValueLen;
+      
+      break;
+
+    case CKA_COEFFICIENT:
+      has_qinv = CK_TRUE;
+      *qinv = (CK_BYTE_PTR)templ[i].pValue;
+      *qinv_len = templ[i].ulValueLen;
+
+      break;
+
+    default: // TODO: don't error on valid parameters
+      // Ignore other attributes for now
+      DBG(("Invalid %lx", templ[i].type));
+      return CKR_ATTRIBUTE_TYPE_INVALID;
+    }
+  }
+
+  if (has_id == CK_FALSE ||
+      has_e == CK_FALSE ||
+      has_p == CK_FALSE ||
+      has_q == CK_FALSE ||
+      has_dp == CK_FALSE ||
+      has_dq == CK_FALSE ||
+      has_qinv == CK_FALSE)
     return CKR_TEMPLATE_INCOMPLETE;
   
   return CKR_OK;
