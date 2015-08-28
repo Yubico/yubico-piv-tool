@@ -1,7 +1,9 @@
 #include "token_vendors.h"
 #include "yubico_token.h"
+#include "openssl_utils.h"
 #include <string.h>
 #include "debug.h"
+
 static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa, CK_BYTE key, CK_ULONG key_len) {
   // TODO: make a function in ykpiv for this
   unsigned char in_data[5];
@@ -85,6 +87,41 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa, CK_BYTE
   return CKR_OK;
 }
 
+static CK_RV COMMON_token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_BYTE_PTR in) {
+
+  unsigned char certdata[2100];
+  unsigned char *certptr;
+  CK_ULONG cert_len;
+
+  CK_RV rv;
+
+  // Check whether or not we have a valid cert
+  if ((rv = do_check_cert(in, &cert_len)) != CKR_OK)
+    return rv;
+
+  if (cert_len > 2100)
+    return CKR_FUNCTION_FAILED;
+
+  certptr = certdata;
+
+  *certptr++ = 0x70;
+  certptr += set_length(certptr, cert_len);
+  memcpy(certptr, in, cert_len);
+  certptr += cert_len;
+
+  *certptr++ = 0x71;
+  *certptr++ = 1;
+  *certptr++ = 0; /* certinfo (gzip etc) */
+  *certptr++ = 0xfe; /* LRC */
+  *certptr++ = 0;
+
+  // Store the certificate into the token
+  if (ykpiv_save_object(state, cert_id, certdata, (size_t)(certptr - certdata)) != YKPIV_OK)
+    return CKR_DEVICE_ERROR;
+
+  return CKR_OK;
+}
+
 token_vendor_t get_token_vendor(vendor_id_t vid) {
    token_vendor_t v;
 
@@ -103,6 +140,7 @@ token_vendor_t get_token_vendor(vendor_id_t vid) {
     v.get_token_object_list     = YUBICO_get_token_object_list;
     v.get_token_raw_certificate = YUBICO_get_token_raw_certificate;
     v.token_generate_key        = COMMON_token_generate_key;
+    v.token_import_cert         = COMMON_token_import_cert;
     break;
 
   case UNKNOWN:
@@ -120,6 +158,7 @@ token_vendor_t get_token_vendor(vendor_id_t vid) {
     v.get_token_object_list     = NULL;
     v.get_token_raw_certificate = NULL;
     v.token_generate_key        = NULL;
+    v.token_import_cert         = NULL;
   }
 
   return v;

@@ -12,6 +12,7 @@
 CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, X509 **cert);
 CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_ULONG key_len,
                            CK_BYTE_PTR out, CK_ULONG_PTR out_len);
+CK_RV do_check_cert(CK_BYTE_PTR in, CK_ULONG_PTR cert_len);
 CK_RV free_cert(X509 *cert);
 
 CK_RV       do_store_pubk(X509 *cert, EVP_PKEY **key);

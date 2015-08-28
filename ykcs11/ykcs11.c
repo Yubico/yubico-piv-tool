@@ -821,7 +821,136 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 )
 {
   DIN;
-  DBG(("TODO!!!"));
+
+  CK_ULONG         i;
+  CK_RV            rv;
+  CK_OBJECT_CLASS  class;
+  CK_BYTE          id;
+  CK_BYTE_PTR      value;
+  CK_ULONG         len;
+  token_vendor_t   token;
+  CK_BBOOL         is_new;
+  CK_OBJECT_HANDLE object;
+  CK_ULONG         cert_id;
+  CK_ULONG         pvtk_id;
+  CK_ULONG         pubk_id;
+  piv_obj_id_t     *obj_ptr;
+
+  if (piv_state == NULL) {
+    DBG(("libykpiv is not initialized or already finalized"));
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  if (session.handle != YKCS11_SESSION_ID) {
+    DBG(("Session is not open"));
+    return CKR_SESSION_CLOSED;
+  }
+
+  if (hSession != session.handle) {
+    DBG(("Unknown session %lu", hSession));
+    return CKR_SESSION_HANDLE_INVALID;
+  }
+
+  if (session.info.state != CKS_RW_SO_FUNCTIONS) { // TODO: does a regular user ever call this function?
+    DBG(("Authentication required to import objects"));
+    return CKR_SESSION_READ_ONLY;
+  }
+
+  if (pTemplate == NULL_PTR ||
+      phObject == NULL_PTR) {
+    DBG(("Wrong/Missing parameter"));
+    return CKR_ARGUMENTS_BAD;
+  }
+
+  class = CKO_VENDOR_DEFINED; // Use this as a known value
+  for (i = 0; i < ulCount; i++) {
+    if (pTemplate[i].type == CKA_CLASS) {
+      class = *((CK_ULONG_PTR)pTemplate[i].pValue);
+
+      // Can only import certificates and private keys
+      if (*((CK_ULONG_PTR)pTemplate[i].pValue) != CKO_CERTIFICATE &&
+          *((CK_ULONG_PTR)pTemplate[i].pValue) != CKO_PUBLIC_KEY) {
+        DBG(("Unsupported class %lu", class));
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+    }
+  }
+
+  if (class == CKO_VENDOR_DEFINED) {
+    DBG(("Object class must be specified"));
+    return CKR_TEMPLATE_INCOMPLETE;
+  }
+
+  token = get_token_vendor(session.slot->token->vid);
+
+  switch (class) {
+  case CKO_CERTIFICATE:
+    DBG(("Importing certificate"));
+
+    rv = check_create_cert(pTemplate, ulCount, &id, &value, &len);
+    if (rv != CKR_OK) {
+      DBG(("Certificate template not valid"));
+      return rv;
+    }
+    DBG(("Certificate id is %u", id));
+
+    object = PIV_CERT_OBJ_X509_PIV_AUTH + id ;
+
+    rv = token.token_import_cert(piv_state, piv_2_ykpiv(object), value); // TODO: make function to get cert id
+    if (rv != CKR_OK) {
+      DBG(("Unable to import certificate"));
+      return rv;
+    }
+
+    is_new = CK_TRUE;
+    for (i = 0; i < session.slot->token->n_objects; i++) {
+      if (session.slot->token->objects[i] == object)
+        is_new = CK_FALSE;
+    }
+
+    cert_id = PIV_CERT_OBJ_X509_PIV_AUTH + id; // TODO: make function for these
+    pvtk_id = PIV_PVTK_OBJ_PIV_AUTH + id;
+    pubk_id = PIV_PUBK_OBJ_PIV_AUTH + id;
+
+    // Check whether we created a new object or updated an existing one
+    if (is_new == CK_TRUE) {
+      // New object created, add it to the object list
+
+      // Each object counts as three, even if we just only added a certificate
+      session.slot->token->n_objects += 3;
+      session.slot->token->n_certs++;
+
+      obj_ptr = realloc(session.slot->token->objects, session.slot->token->n_objects * sizeof(piv_obj_id_t));
+      if (obj_ptr == NULL) {
+        DBG(("Unable to store new item in the session"));
+        return CKR_HOST_MEMORY;
+      }
+      session.slot->token->objects = obj_ptr;
+
+      obj_ptr = session.slot->token->objects + session.slot->token->n_objects - 3;
+      *obj_ptr++ = cert_id;
+      *obj_ptr++ = pvtk_id;
+      *obj_ptr++ = pubk_id;
+    }
+
+    rv = store_cert(cert_id, value, len);
+    if (rv != CKR_OK) {
+      DBG(("Unable to store certificate data"));
+      return CKR_FUNCTION_FAILED;
+    }
+
+    break;
+
+  case CKO_PRIVATE_KEY:
+    //rv = create_pvt_key();
+    return CKR_FUNCTION_FAILED;
+    break;
+
+  default:
+    DBG(("Unknown object type"));
+    return CKR_ATTRIBUTE_TYPE_INVALID;
+  }
+
   DOUT;
   return CKR_OK;
 }
@@ -1865,8 +1994,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   if (is_new == CK_TRUE) {
     // New object created, add it to the object list
 
-    // Each object counts as four
-    session.slot->token->n_objects += 4;
+    // Each object counts as three (data object is always there)
+    session.slot->token->n_objects += 3;
     session.slot->token->n_certs++;
 
     obj_ptr = realloc(session.slot->token->objects, session.slot->token->n_objects * sizeof(piv_obj_id_t));
@@ -1876,8 +2005,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     }
     session.slot->token->objects = obj_ptr;
 
-    obj_ptr = session.slot->token->objects + session.slot->token->n_objects - 4;
-    *obj_ptr++ = dobj_id;
+    obj_ptr = session.slot->token->objects + session.slot->token->n_objects - 3;
     *obj_ptr++ = cert_id;
     *obj_ptr++ = pvtk_id;
     *obj_ptr++ = pubk_id;

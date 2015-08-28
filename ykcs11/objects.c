@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "openssl_utils.h"
+#include "utils.h"
 #include "debug.h"
 
 #define IS_CERT(x) (((x) >= PIV_CERT_OBJ_X509_PIV_AUTH && (x) <  PIV_CERT_OBJ_LAST) ? CK_TRUE : CK_FALSE)
@@ -910,5 +911,51 @@ CK_RV store_cert(piv_obj_id_t cert_id, CK_BYTE_PTR data, CK_ULONG len) {
   // Extract and store the public key as an object
   rv = do_store_pubk(cert_objects[piv_objects[cert_id].sub_id].data, &pubkey_objects[piv_objects[cert_id].sub_id].data);
 
+  return CKR_OK;
+}
+
+CK_RV check_create_cert(CK_ATTRIBUTE_PTR templ, CK_ULONG n,
+                        CK_BYTE_PTR id,CK_BYTE_PTR *value, CK_ULONG_PTR cert_len) {
+
+  CK_ULONG    i;
+  CK_BBOOL    has_id = CK_FALSE;
+  CK_BBOOL    has_value = CK_FALSE;
+
+  for (i = 0; i < n; i++) {
+    switch (templ[i].type) {
+    case CKA_CLASS:
+      // Technically redundant check
+      if (*((CK_ULONG_PTR)templ[i].pValue) != CKO_CERTIFICATE)
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+
+      break;
+
+    case CKA_ID:
+      has_id = CK_TRUE;
+      if (is_valid_key_id(*((CK_BYTE_PTR)templ[i].pValue)) == CK_FALSE)
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+
+      *id = *((CK_BYTE_PTR)templ[i].pValue);
+      break;
+
+    case CKA_VALUE:
+      has_value = CK_TRUE;
+      *value = (CK_BYTE_PTR)templ[i].pValue;
+
+      *cert_len = 0;
+      *cert_len += get_length(value + 1, cert_len) + 1;
+      break;
+
+    default:
+      // Ignore other attributes for now
+      DBG(("Invalid %lx", templ[i].type));
+      return CKR_ATTRIBUTE_TYPE_INVALID;
+    }
+  }
+
+  if (has_id == CK_FALSE ||
+      has_value == CK_FALSE)
+    return CKR_TEMPLATE_INCOMPLETE;
+  
   return CKR_OK;
 }

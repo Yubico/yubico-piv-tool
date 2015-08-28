@@ -14,10 +14,16 @@ CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, X509 **cert) {
   return CKR_HOST_MEMORY;*/
   //dump_hex(data, len, stderr, CK_TRUE);
 
-  if (*p++ != 0x70)
-    return CKR_FUNCTION_FAILED;
-
-  p += get_length(p, &cert_len);
+  if (*p == 0x70) {
+    // The certificate is in "PIV" format 0x70 len 0x30 len ...
+    p++;
+    p += get_length(p, &cert_len);
+  }
+  else {
+    // Raw certificate 0x30 len ...
+    cert_len = 0;
+    cert_len += get_length(p + 1, &cert_len) + 1;
+  }
 
   *cert = d2i_X509(NULL, &p, cert_len);
   if (*cert == NULL)
@@ -221,6 +227,24 @@ create_empty_cert_cleanup:
   }
 
   return rv;
+}
+
+CK_RV do_check_cert(CK_BYTE_PTR in, CK_ULONG_PTR cert_len) {
+
+  X509 *cert;
+  const unsigned char *p = in; // Mandatory temp variable required by OpenSSL
+  int                  len;
+
+  len = 0;
+  len += get_length(p + 1, &len) + 1;
+
+  *cert_len = len;
+
+  cert = d2i_X509(NULL, &p, *cert_len);
+  if (cert == NULL)
+    return CKR_FUNCTION_FAILED;
+
+  return CKR_OK;
 }
 
 CK_RV free_cert(X509 *cert) {
