@@ -830,18 +830,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
   CK_ULONG         value_len;
   CK_BYTE_PTR      ec_params;
   CK_ULONG         ec_params_len;
-  CK_BYTE_PTR      e;
-  CK_ULONG         e_len;
   CK_BYTE_PTR      p;
-  CK_ULONG         p_len;
   CK_BYTE_PTR      q;
-  CK_ULONG         q_len;
   CK_BYTE_PTR      dp;
-  CK_ULONG         dp_len;
   CK_BYTE_PTR      dq;
-  CK_ULONG         dq_len;
   CK_BYTE_PTR      qinv;
-  CK_ULONG         qinv_len;
   token_vendor_t   token;
   CK_BBOOL         is_new;
   CK_BBOOL         is_rsa;
@@ -910,7 +903,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     }
     DBG(("Certificate id is %u", id));
 
-    object = PIV_CERT_OBJ_X509_PIV_AUTH + id ;
+    object = PIV_CERT_OBJ_X509_PIV_AUTH + id;
 
     rv = token.token_import_cert(piv_state, piv_2_ykpiv(object), value); // TODO: make function to get cert id
     if (rv != CKR_OK) {
@@ -962,12 +955,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     // Try to parse the key as EC
     is_rsa = CK_FALSE;
-    rv = check_create_ec_key(pTemplate, ulCount, &id, &value, &value_len, &ec_params, &ec_params_len);
+    rv = check_create_ec_key(pTemplate, ulCount, &id, &value, &value_len);
     if (rv != CKR_OK) {
       // Try to parse the key as RSA
       is_rsa = CK_TRUE;
-      rv = check_create_rsa_key(pTemplate, ulCount, &id, &e, &e_len, &p, &p_len,
-                                &q, &q_len, &dp, &dp_len, &dq, &dq_len, &qinv, &qinv_len);
+      rv = check_create_rsa_key(pTemplate, ulCount, &id, &p, &q, &dp, &dq, &qinv, &value_len);
       if (rv != CKR_OK) {
         DBG(("Private key template not valid"));
         return rv;
@@ -975,25 +967,29 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     }
 
     DBG(("Key id is %u", id));
+    DBG(("ITEM LENGTH IS %lu", value_len));
+    object = PIV_PVTK_OBJ_PIV_AUTH + id;
 
     if (is_rsa == CK_TRUE) {
       DBG(("Key is RSA"));
-      rv = token.token_import_private_key(piv_state, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0);
+      rv = token.token_import_private_key(piv_state, piv_2_ykpiv(object), p, q, dp, dq, qinv,
+                                          NULL,
+                                          value_len);
       if (rv != CKR_OK) {
         DBG(("Unable to import RSA private key"));
         return rv;
       }
     }
-      else {
-        DBG(("Key is ECDSA"));
-        rv = token.token_import_private_key(piv_state, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0);
-        if (rv != CKR_OK) {
-          DBG(("Unable to import ECDSA private key"));
-          return rv;
+    else {
+      DBG(("Key is ECDSA"));
+      rv = token.token_import_private_key(piv_state, piv_2_ykpiv(object), NULL, NULL, NULL, NULL, NULL,
+                                          value,
+                                          value_len);
+      if (rv != CKR_OK) {
+        DBG(("Unable to import ECDSA private key"));
+        return rv;
       }
     }
-
-    return CKR_FUNCTION_FAILED;
     break;
 
   default:

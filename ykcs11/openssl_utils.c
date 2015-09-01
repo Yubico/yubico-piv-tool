@@ -42,7 +42,7 @@ CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, X509 **cert) {
 }
 
 CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_ULONG key_len,
-			   CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
+                           CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
 
   X509      *cert = NULL;
   EVP_PKEY  *key = NULL;
@@ -455,7 +455,7 @@ CK_RV do_pkcs_1_digest_info(CK_BYTE_PTR in, CK_ULONG in_len, int nid, CK_BYTE_PT
 }
 
 CK_RV do_pkcs_pss(RSA *key, CK_BYTE_PTR in, CK_ULONG in_len, int nid,
-		  CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
+          CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
   unsigned char em[512]; // Max for this is ceil((|key_len_bits| - 1) / 8)
 
   OpenSSL_add_all_digests();

@@ -9,6 +9,9 @@
 
 #define IS_CERT(x) (((x) >= PIV_CERT_OBJ_X509_PIV_AUTH && (x) <  PIV_CERT_OBJ_LAST) ? CK_TRUE : CK_FALSE)
 
+#define F4 "\x01\x00\x01" // TODO: already define in mechanisms.c. Move
+#define PRIME256V1 "\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07" // TODO: already define in mechanisms.c. Move
+
 CK_RV get_doa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template); // TODO: static?
 CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
 CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
@@ -942,13 +945,16 @@ CK_RV check_create_cert(CK_ATTRIBUTE_PTR templ, CK_ULONG n,
       has_value = CK_TRUE;
       *value = (CK_BYTE_PTR)templ[i].pValue;
 
-      /**cert_len = 0;
-       *cert_len += get_length(value + 1, cert_len) + 1;*/
       *cert_len = templ[i].ulValueLen;
       break;
 
-    default: // TODO: don't error on valid parameters
-      // Ignore other attributes for now
+    case CKA_TOKEN:
+    case CKA_LABEL:
+    case CKA_SUBJECT:
+      // Ignore other attributes
+      break;
+
+    default:
       DBG(("Invalid %lx", templ[i].type));
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
@@ -957,18 +963,20 @@ CK_RV check_create_cert(CK_ATTRIBUTE_PTR templ, CK_ULONG n,
   if (has_id == CK_FALSE ||
       has_value == CK_FALSE)
     return CKR_TEMPLATE_INCOMPLETE;
-  
+
   return CKR_OK;
 }
 
 CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
-                          CK_BYTE_PTR *value, CK_ULONG_PTR cert_len,
-                          CK_BYTE_PTR *ec_params, CK_ULONG_PTR ec_params_len) {
+                          CK_BYTE_PTR *value, CK_ULONG_PTR value_len) {
 
   CK_ULONG i;
   CK_BBOOL has_id = CK_FALSE;
   CK_BBOOL has_value = CK_FALSE;
   CK_BBOOL has_params = CK_FALSE;
+
+  CK_BYTE_PTR ec_params;
+  CK_ULONG    ec_params_len;
 
   for (i = 0; i < n; i++) {
     switch (templ[i].type) {
@@ -995,19 +1003,25 @@ CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
     case CKA_VALUE:
       has_value = CK_TRUE;
       *value = (CK_BYTE_PTR)templ[i].pValue;
-      *cert_len = templ[i].ulValueLen;
-      
+      *value_len = templ[i].ulValueLen;
       break;
 
     case CKA_EC_PARAMS:
       has_params = CK_TRUE;
-      *ec_params = (CK_BYTE_PTR)templ[i].pValue;
-      *ec_params_len = templ[i].ulValueLen;
+      ec_params = (CK_BYTE_PTR)templ[i].pValue;
+      ec_params_len = templ[i].ulValueLen;
 
       break;
 
-    default: // TODO: don't error on valid parameters
-      // Ignore other attributes for now
+    case CKA_TOKEN:
+    case CKA_LABEL:
+    case CKA_SUBJECT:
+    case CKA_SENSITIVE:
+    case CKA_DERIVE:
+      // Ignore other attributes
+      break;
+
+    default:
       DBG(("Invalid %lx", templ[i].type));
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
@@ -1017,17 +1031,19 @@ CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
       has_value == CK_FALSE ||
       has_params == CK_FALSE)
     return CKR_TEMPLATE_INCOMPLETE;
-  
+
+  if (*value_len != 32)
+    return CKR_ATTRIBUTE_VALUE_INVALID;
+
+  if (*value_len == 32 && (ec_params_len != 10 || memcmp(ec_params, PRIME256V1, ec_params_len)) != 0)
+    return CKR_TEMPLATE_INCONSISTENT;
+
   return CKR_OK;
 }
 
 CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
-                           CK_BYTE_PTR *e, CK_ULONG_PTR e_len,
-                           CK_BYTE_PTR *p, CK_ULONG_PTR p_len,
-                           CK_BYTE_PTR *q, CK_ULONG_PTR q_len,
-                           CK_BYTE_PTR *dp, CK_ULONG_PTR dp_len,
-                           CK_BYTE_PTR *dq, CK_ULONG_PTR dq_len,
-                           CK_BYTE_PTR *qinv, CK_ULONG_PTR qinv_len) {
+                           CK_BYTE_PTR *p, CK_BYTE_PTR *q, CK_BYTE_PTR *dp,
+                           CK_BYTE_PTR *dq, CK_BYTE_PTR *qinv, CK_ULONG_PTR value_len) {
 
   CK_ULONG i;
   CK_BBOOL has_id = CK_FALSE;
@@ -1037,6 +1053,11 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
   CK_BBOOL has_dp = CK_FALSE;
   CK_BBOOL has_dq = CK_FALSE;
   CK_BBOOL has_qinv = CK_FALSE;
+  CK_ULONG p_len;
+  CK_ULONG q_len;
+  CK_ULONG dp_len;
+  CK_ULONG dq_len;
+  CK_ULONG qinv_len;
 
   for (i = 0; i < n; i++) {
     switch (templ[i].type) {
@@ -1060,50 +1081,57 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
 
       break;
 
-    case CKA_PUBLIC_EXPONENT: // TODO: check that it is F4
+    case CKA_PUBLIC_EXPONENT:
       has_e = CK_TRUE;
-      *e = (CK_BYTE_PTR)templ[i].pValue;
-      *e_len = templ[i].ulValueLen;
-      
+
+      if (templ[i].ulValueLen != 3 || memcmp((CK_BYTE_PTR)templ[i].pValue, F4, 3) != 0)
+        return CKR_ATTRIBUTE_VALUE_INVALID;
       break;
 
     case CKA_PRIME_1:
       has_p = CK_TRUE;
       *p = (CK_BYTE_PTR)templ[i].pValue;
-      *p_len = templ[i].ulValueLen;
-      
+      p_len = templ[i].ulValueLen;
+
       break;
 
     case CKA_PRIME_2:
       has_q = CK_TRUE;
       *q = (CK_BYTE_PTR)templ[i].pValue;
-      *q_len = templ[i].ulValueLen;
-      
+      q_len = templ[i].ulValueLen;
+
       break;
 
     case CKA_EXPONENT_1:
       has_dp = CK_TRUE;
       *dp = (CK_BYTE_PTR)templ[i].pValue;
-      *dp_len = templ[i].ulValueLen;
-      
+      dp_len = templ[i].ulValueLen;
+
       break;
 
     case CKA_EXPONENT_2:
       has_dq = CK_TRUE;
       *dq = (CK_BYTE_PTR)templ[i].pValue;
-      *dq_len = templ[i].ulValueLen;
-      
+      dq_len = templ[i].ulValueLen;
+
       break;
 
     case CKA_COEFFICIENT:
       has_qinv = CK_TRUE;
       *qinv = (CK_BYTE_PTR)templ[i].pValue;
-      *qinv_len = templ[i].ulValueLen;
+      qinv_len = templ[i].ulValueLen;
 
       break;
 
-    default: // TODO: don't error on valid parameters
-      // Ignore other attributes for now
+    case CKA_TOKEN:
+    case CKA_LABEL:
+    case CKA_SUBJECT:
+    case CKA_SENSITIVE:
+    case CKA_DERIVE:
+      // Ignore other attributes
+      break;
+
+    default:
       DBG(("Invalid %lx", templ[i].type));
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
@@ -1117,6 +1145,15 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
       has_dq == CK_FALSE ||
       has_qinv == CK_FALSE)
     return CKR_TEMPLATE_INCOMPLETE;
-  
+
+  if (p_len != 64 || p_len != 128)
+    return CKR_ATTRIBUTE_VALUE_INVALID;
+
+  *value_len = p_len;
+
+  if (q_len != p_len || dp_len != p_len ||
+      dq_len != p_len || qinv_len != p_len)
+    return CKR_ATTRIBUTE_VALUE_INVALID;
+
   return CKR_OK;
 }

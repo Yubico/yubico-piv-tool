@@ -122,13 +122,65 @@ static CK_RV COMMON_token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_B
   return CKR_OK;
 }
 
-CK_RV COMMON_token_import_private_key(ykpiv_state *state , CK_BYTE_PTR key_id, CK_BYTE_PTR p, CK_ULONG p_len,
-                                      CK_BYTE_PTR q, CK_ULONG q_len, CK_BYTE_PTR dp, CK_ULONG dp_len,
-                                      CK_BYTE_PTR dq, CK_ULONG dq_len, CK_BYTE_PTR qinv, CK_ULONG qinv_len,
-                                      CK_BYTE_PTR ec_data, CK_ULONG ec_data_len) {
+CK_RV COMMON_token_import_private_key(ykpiv_state *state, CK_BYTE key_id, CK_BYTE_PTR p, CK_BYTE_PTR q,
+                                      CK_BYTE_PTR dp, CK_BYTE_PTR dq, CK_BYTE_PTR qinv,
+                                      CK_BYTE_PTR ec_data, CK_ULONG elem_len) {
+
+  unsigned char key_data[1024];
+  unsigned char *in_ptr = key_data;
+  unsigned char templ[] = {0, YKPIV_INS_IMPORT_KEY, 0, key_id};
+  unsigned char data[0xff];
+  unsigned long recv_len = sizeof(data);
+  int sw;
+
+  if (elem_len == 128)
+    templ[2] = YKPIV_ALGO_RSA2048;
+  else if (elem_len == 64)
+    templ[2] = YKPIV_ALGO_RSA1024;
+  else if(elem_len == 32)
+    templ[2] = YKPIV_ALGO_ECCP256;
+
+  if (templ[2] == YKPIV_ALGO_RSA1024 ||templ[2] == YKPIV_ALGO_RSA2048) {
+    *in_ptr++ = 0x01;
+    in_ptr += set_length(in_ptr, elem_len);
+    memcpy(in_ptr, p, (size_t)(elem_len));
+    in_ptr += elem_len;
+
+    *in_ptr++ = 0x02;
+    in_ptr += set_length(in_ptr, elem_len);
+    memcpy(in_ptr, q, (size_t)(elem_len));
+    in_ptr += elem_len;
+
+    *in_ptr++ = 0x03;
+    in_ptr += set_length(in_ptr, elem_len);
+    memcpy(in_ptr, dp, (size_t)(elem_len));
+    in_ptr += elem_len;
+
+    *in_ptr++ = 0x04;
+    in_ptr += set_length(in_ptr, elem_len);
+    memcpy(in_ptr, dq, (size_t)(elem_len));
+    in_ptr += elem_len;
+
+    *in_ptr++ = 0x05;
+    in_ptr += set_length(in_ptr, elem_len);
+    memcpy(in_ptr, qinv, (size_t)(elem_len));
+    in_ptr += elem_len;
+  }
+  else if(templ[2] == YKPIV_ALGO_ECCP256) {
+    *in_ptr++ = 0x06;
+    in_ptr += set_length(in_ptr, elem_len);
+    memcpy(in_ptr, ec_data, (size_t)(elem_len));
+    in_ptr += elem_len;
+  }
+
+  if(ykpiv_transfer_data(state, templ, key_data, in_ptr - key_data, data, &recv_len, &sw) != YKPIV_OK)
+    return CKR_FUNCTION_FAILED;
+
+  if(sw != 0x9000)
+    return CKR_DEVICE_ERROR;
 
   return CKR_OK;
-  
+
 }
 
 token_vendor_t get_token_vendor(vendor_id_t vid) {
