@@ -110,12 +110,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetInfo)(
   pInfo->cryptokiVersion = function_list.version;
 
   memset(pInfo->manufacturerID, ' ', sizeof(pInfo->manufacturerID));
-  strcpy(pInfo->manufacturerID, YKCS11_MANUFACTURER);
+  strcpy((char *)pInfo->manufacturerID, YKCS11_MANUFACTURER);
 
   pInfo->flags = 0;
 
   memset(pInfo->libraryDescription, ' ', sizeof(pInfo->libraryDescription));
-  strcpy(pInfo->libraryDescription, YKCS11_LIBDESC);
+  strcpy((char *)pInfo->libraryDescription, YKCS11_LIBDESC);
 
   pInfo->libraryVersion = ver;
 
@@ -132,7 +132,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetFunctionList)(
     DBG(("GetFunctionList called with ppFunctionList = NULL"));
     return CKR_ARGUMENTS_BAD;
   }
-  *ppFunctionList = &function_list;
+  *ppFunctionList = &function_list; // TODO: filter out unsupported functions
 
   DOUT;
   return CKR_OK;
@@ -689,7 +689,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (userType != CKU_SO && // TODO: what can SO do?
+  if (userType != CKU_SO &&
       userType != CKU_USER &&
       userType != CKU_CONTEXT_SPECIFIC)
     return CKR_USER_TYPE_INVALID;
@@ -828,8 +828,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
   CK_BYTE          id;
   CK_BYTE_PTR      value;
   CK_ULONG         value_len;
-  CK_BYTE_PTR      ec_params;
-  CK_ULONG         ec_params_len;
   CK_BYTE_PTR      p;
   CK_BYTE_PTR      q;
   CK_BYTE_PTR      dp;
@@ -967,7 +965,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     }
 
     DBG(("Key id is %u", id));
-    DBG(("ITEM LENGTH IS %lu", value_len));
+
     object = PIV_PVTK_OBJ_PIV_AUTH + id;
 
     if (is_rsa == CK_TRUE) {
@@ -1066,9 +1064,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
 
   if (pTemplate == NULL_PTR || ulCount == 0)
     return CKR_ARGUMENTS_BAD;
-
-  /*if (find_obj.active != CK_TRUE)
-    return CKR_OPERATION_NOT_INITIALIZED; actually this can be called from many other functions*/
 
   rv_final = CKR_OK;
   for (i = 0; i < ulCount; i++) {
@@ -1581,7 +1576,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     }
 
     // The buffer contains an uncompressed point of the form 04, len, 04, x, y
-    // Where len is the |x| + |y| + 1 bytes
+    // Where len is |x| + |y| + 1 bytes
 
     op_info.op.sign.key_len = ((buf[1] - 1) / 2) * 8;
 
@@ -2018,13 +2013,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     return rv;
   }
 
-  /* rv = token.get_token_objects_num(piv_state, &n_objs, &n_certs); */
-  /* if (rv != CKR_OK) { */
-  /*   DBG(("Unable to retrieve token objects")); */
-  /*   return rv; */
-  /* } */
-  /* DBG(("There were %lu objs and %lu certs, there are %lu objs and %lu certs", session.slot->token->n_objects, session.slot->token->n_certs, n_objs, n_certs)); */
-
   is_new = CK_TRUE;
   for (i = 0; i < session.slot->token->n_objects; i++) {
     if (session.slot->token->objects[i] == op_info.op.gen.key_id)
@@ -2070,21 +2058,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     DBG(("Unable to store certificate data"));
     return CKR_FUNCTION_FAILED;  // TODO: although key generation succeeded at this point
   }
-
-  /*session.slot->token->n_objects += 4;
-    session.slot->token->n_certs++;
-
-    obj_ptr = realloc(session.slot->token->objects, session.slot->token->n_objects * sizeof(piv_obj_id_t));
-    if (obj_ptr == NULL) {
-    DBG(("Unable to store new item in the session"));
-    return CKR_HOST_MEMORY;
-    }
-
-    obj_ptr = session.slot->token->objects + session.slot->token->n_objects - 4;
-    *obj_ptr++ = dobj_id;
-    *obj_ptr++ = cert_id;
-    *obj_ptr++ = pvtk_id;
-    *obj_ptr++ = pubk_id;*/
 
   *phPrivateKey = op_info.op.gen.key_id;
   *phPublicKey  = op_info.op.gen.key_id - PIV_PVTK_OBJ_KM + PIV_PUBK_OBJ_KM; // TODO: make function for these?

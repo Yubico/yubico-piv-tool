@@ -142,21 +142,6 @@ static piv_pubk_obj_t pubkey_objects[] = {
   {NULL, 1, 1, 0, 0}
 };
 
-
-/*static void get_object_class(CK_OBJECT_HANDLE obj, CK_OBJECT_CLASS_PTR class) {
-  if (obj >= 0 && obj < PIV_DATA_OBJ_LAST)
-    *class = CKO_DATA;
-  else if (obj > PIV_DATA_OBJ_LAST && obj < PIV_CERT_OBJ_LAST)
-    *class = CKO_CERTIFICATE;
-  else
-    *class = CKO_VENDOR_DEFINED | CKO_DATA; // Invalid value
-    }*/
-
-/*static void get_object_label(CK_OBJECT_HANDLE obj, CK_UTF8CHAR_PTR label) {
-  strcpy((char *)label, objects[obj].name);
-}
-*/
-
 // Next two functions based off the code at
 // https://github.com/m9aertner/oidConverter/blob/master/oid.c
 // TODO: how to give credit? OR JUST STORE THE OID ALREADY ENCODED?
@@ -173,7 +158,7 @@ static void make_base128(unsigned long l, int first, CK_BYTE_PTR buf, CK_ULONG_P
 }
 
 static void asn1_encode_oid(CK_CHAR_PTR oid, CK_BYTE_PTR asn1_oid, CK_ULONG_PTR len) {
-  CK_CHAR_PTR tmp = strdup((char *)oid);
+  CK_CHAR_PTR tmp = (CK_BYTE_PTR) strdup((char *)oid);
   CK_CHAR_PTR p = tmp;
   CK_BYTE_PTR q = NULL;
   CK_ULONG    n = 0;
@@ -229,20 +214,6 @@ static void asn1_encode_oid(CK_CHAR_PTR oid, CK_BYTE_PTR asn1_oid, CK_ULONG_PTR 
   free(tmp);
 }
 
-/*static void get_object_oid(CK_OBJECT_HANDLE obj, CK_UTF8CHAR_PTR oid) {
-  strcpy((char *)oid, objects[obj].oid);
-}
-
-static void get_object_certificate_type(CK_OBJECT_HANDLE obj, CK_CERTIFICATE_TYPE_PTR type) {
-  if ((objects[obj].flags & PIV_OBJECT_TYPE_CERT))
-      *type = CKC_X_509;
-}
-
-static void get_object_key_id(CK_OBJECT_HANDLE obj, CK_UTF8CHAR_PTR key_id) {
-  memcpy((char *)key_id, objects[obj].containerid, 2);
-}
-*/
-
 static CK_KEY_TYPE get_key_type(EVP_PKEY *key) {
   return do_get_key_type(key);
 }
@@ -292,13 +263,13 @@ CK_RV get_doa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   case CKA_LABEL:
     DBG(("LABEL"));
     len = strlen(piv_objects[obj].label) + 1;
-    data = piv_objects[obj].label;
+    data = (CK_BYTE_PTR) piv_objects[obj].label;
     break;
 
   case CKA_APPLICATION:
     DBG(("APPLICATION"));
     len = strlen(piv_objects[obj].label) + 1;
-    data = piv_objects[obj].label;
+    data = (CK_BYTE_PTR) piv_objects[obj].label;
     break;
 
   case CKA_VALUE: // TODO: this can be done with -r and -d|-a
@@ -327,7 +298,7 @@ CK_RV get_doa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
   /* Just get the length */
   if (template->pValue == NULL_PTR) {
-    template->ulValueLen = len; // TODO: define?
+    template->ulValueLen = len;
     return CKR_OK;
   }
 
@@ -375,7 +346,7 @@ CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   case CKA_LABEL:
     DBG(("LABEL"));
     len = strlen(piv_objects[obj].label) + 1;
-    data = piv_objects[obj].label;
+    data = (CK_BYTE_PTR) piv_objects[obj].label;
     break;
 
   case CKA_VALUE:
@@ -431,7 +402,7 @@ CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
   /* Just get the length */
   if (template->pValue == NULL_PTR) {
-    template->ulValueLen = len; // TODO: define?
+    template->ulValueLen = len;
     return CKR_OK;
   }
 
@@ -480,7 +451,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   case CKA_LABEL:
     DBG(("LABEL"));
     len = strlen(piv_objects[obj].label) + 1;
-    data = piv_objects[obj].label;
+    data =(CK_BYTE_PTR) piv_objects[obj].label;
     break;
 
   case CKA_KEY_TYPE:
@@ -617,7 +588,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
   /* Just get the length */
   if (template->pValue == NULL_PTR) {
-    template->ulValueLen = len; // TODO: define?
+    template->ulValueLen = len;
     return CKR_OK;
   }
 
@@ -666,10 +637,8 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   case CKA_LABEL:
     DBG(("LABEL"));
     len = strlen(piv_objects[obj].label) + 1;
-    data = piv_objects[obj].label;
+    data = (CK_BYTE_PTR)piv_objects[obj].label;
     break;
-
-//  case CKA_VALUE: // TODO: this can be done with -r and -d|-a
 
   case CKA_KEY_TYPE:
     DBG(("KEY TYPE"));
@@ -774,7 +743,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
   /* Just get the length */
   if (template->pValue == NULL_PTR) {
-    template->ulValueLen = len; // TODO: define?
+    template->ulValueLen = len;
     return CKR_OK;
   }
 
@@ -913,6 +882,8 @@ CK_RV store_cert(piv_obj_id_t cert_id, CK_BYTE_PTR data, CK_ULONG len) {
 
   // Extract and store the public key as an object
   rv = do_store_pubk(cert_objects[piv_objects[cert_id].sub_id].data, &pubkey_objects[piv_objects[cert_id].sub_id].data);
+  if (rv != CKR_OK)
+    return rv;
 
   return CKR_OK;
 }
