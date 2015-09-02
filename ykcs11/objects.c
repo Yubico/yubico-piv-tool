@@ -918,7 +918,7 @@ CK_RV store_cert(piv_obj_id_t cert_id, CK_BYTE_PTR data, CK_ULONG len) {
 }
 
 CK_RV check_create_cert(CK_ATTRIBUTE_PTR templ, CK_ULONG n,
-                        CK_BYTE_PTR id,CK_BYTE_PTR *value, CK_ULONG_PTR cert_len) {
+                        CK_BYTE_PTR id, CK_BYTE_PTR *value, CK_ULONG_PTR cert_len) {
 
   CK_ULONG    i;
   CK_BBOOL    has_id = CK_FALSE;
@@ -1083,7 +1083,6 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
 
     case CKA_PUBLIC_EXPONENT:
       has_e = CK_TRUE;
-
       if (templ[i].ulValueLen != 3 || memcmp((CK_BYTE_PTR)templ[i].pValue, F4, 3) != 0)
         return CKR_ATTRIBUTE_VALUE_INVALID;
       break;
@@ -1146,7 +1145,7 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
       has_qinv == CK_FALSE)
     return CKR_TEMPLATE_INCOMPLETE;
 
-  if (p_len != 64 || p_len != 128)
+  if (p_len != 64 && p_len != 128)
     return CKR_ATTRIBUTE_VALUE_INVALID;
 
   *value_len = p_len;

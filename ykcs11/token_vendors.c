@@ -133,7 +133,7 @@ CK_RV COMMON_token_import_private_key(ykpiv_state *state, CK_BYTE key_id, CK_BYT
   unsigned long recv_len = sizeof(data);
   int sw;
 
-  if (elem_len == 128)
+  if (elem_len == 128) // TODO: add a flag to check algo type ?
     templ[2] = YKPIV_ALGO_RSA2048;
   else if (elem_len == 64)
     templ[2] = YKPIV_ALGO_RSA1024;
