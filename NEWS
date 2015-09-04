@@ -1,5 +1,7 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
+* Version 1.0.3 (unreleased)
+
 * Version 1.0.2 (released 2015-09-04)
 
 ** Query for different passwords/pins on stdin if they're not supplied.
