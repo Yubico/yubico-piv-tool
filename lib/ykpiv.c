@@ -452,6 +452,10 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
 }
 
 ykpiv_rc ykpiv_set_mgmkey(ykpiv_state *state, const unsigned char *new_key) {
+  return ykpiv_set_mgmkey2(state, new_key, 0);
+}
+
+ykpiv_rc ykpiv_set_mgmkey2(ykpiv_state *state, const unsigned char *new_key, const unsigned char touch) {
   APDU apdu;
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
@@ -478,7 +482,13 @@ ykpiv_rc ykpiv_set_mgmkey(ykpiv_state *state, const unsigned char *new_key) {
   memset(apdu.raw, 0, sizeof(apdu));
   apdu.st.ins = YKPIV_INS_SET_MGMKEY;
   apdu.st.p1 = 0xff;
-  apdu.st.p2 = 0xff;
+  if(touch == 0) {
+    apdu.st.p2 = 0xff;
+  } else if(touch == 1) {
+    apdu.st.p2 = 0xfe;
+  } else {
+    return YKPIV_GENERIC_ERROR;
+  }
   apdu.st.lc = DES_KEY_SZ * 3 + 3;
   apdu.st.data[0] = YKPIV_ALGO_3DES;
   apdu.st.data[1] = YKPIV_KEY_CARDMGM;
@@ -524,7 +534,7 @@ ykpiv_rc ykpiv_hex_decode(const char *hex_in, size_t in_len,
 }
 
 static ykpiv_rc _general_authenticate(ykpiv_state *state,
-    const unsigned char *raw_in, size_t in_len,
+    const unsigned char *sign_in, size_t in_len,
     unsigned char *out, size_t *out_len,
     unsigned char algorithm, unsigned char key, bool decipher, bool padding) {
   unsigned char indata[1024];
@@ -532,63 +542,37 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   unsigned char data[1024];
   unsigned char templ[] = {0, YKPIV_INS_AUTHENTICATE, algorithm, key};
   unsigned long recv_len = sizeof(data);
-  unsigned char sign_in[256];
-  size_t pad_len = 0;
+  size_t key_len = 0;
   int sw;
   size_t bytes;
   size_t len = 0;
   ykpiv_rc res;
 
   switch(algorithm) {
-  case YKPIV_ALGO_RSA1024:
-    pad_len = 128;
-
-  case YKPIV_ALGO_RSA2048:
-    if(pad_len == 0) {
-      pad_len = 256;
-    }
-    if(!decipher) {
-      // Signature
-      if (padding) {
-        // Padding required
-        if(in_len + RSA_PKCS1_PADDING_SIZE > pad_len) {
-          return YKPIV_SIZE_ERROR;
-        }
-
-        // Add padding and copy data
-        RSA_padding_add_PKCS1_type_1(sign_in, pad_len, raw_in, in_len);
-        in_len = pad_len;
+    case YKPIV_ALGO_RSA1024:
+      key_len = 128;
+    case YKPIV_ALGO_RSA2048:
+      if(key_len == 0) {
+	key_len = 256;
       }
-      else {
-        // No padding required
-        if (in_len != pad_len)
-          return YKPIV_SIZE_ERROR;
-
-        // Just copy data
-        memcpy(sign_in, raw_in, in_len);
+      if(in_len != key_len) {
+	return YKPIV_SIZE_ERROR;
       }
-    }
-    else {
-      // Decryption
-      if(in_len != pad_len) {
-        return YKPIV_SIZE_ERROR;
+      break;
+    case YKPIV_ALGO_ECCP256:
+      key_len = 32;
+    case YKPIV_ALGO_ECCP384:
+      if(key_len == 0) {
+	key_len = 48;
       }
-
-      // Just copy data
-      memcpy(sign_in, raw_in, in_len);
-    }
-    break;
-
-  case YKPIV_ALGO_ECCP256:
-    if(!decipher && in_len > 32) {
-      return YKPIV_SIZE_ERROR;
-    } else if(decipher && in_len != 65) {
-      return YKPIV_SIZE_ERROR;
-    }
-    memcpy(sign_in, raw_in, in_len);
-    break;
-  default:
-    return YKPIV_ALGORITHM_ERROR;
+      if(!decipher && in_len > key_len) {
+	return YKPIV_SIZE_ERROR;
+      } else if(decipher && in_len != (key_len * 2) + 1) {
+	return YKPIV_SIZE_ERROR;
+      }
+      break;
+    default:
+      return YKPIV_ALGORITHM_ERROR;
   }
 
   if(in_len < 0x80) {
@@ -603,7 +587,7 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   dataptr += set_length(dataptr, in_len + bytes + 3);
   *dataptr++ = 0x82;
   *dataptr++ = 0x00;
-  *dataptr++ = algorithm == YKPIV_ALGO_ECCP256 && decipher ? 0x85 : 0x81;
+  *dataptr++ = YKPIV_IS_EC(algorithm) && decipher ? 0x85 : 0x81;
   dataptr += set_length(dataptr, in_len);
   memcpy(dataptr, sign_in, (size_t)in_len);
   dataptr += in_len;
