@@ -713,7 +713,7 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
   } else if(sw == 0x9000) {
     return YKPIV_OK;
   } else if((sw >> 8) == 0x63) {
-    *tries = (sw & 0xff);
+    *tries = (sw & 0xf);
     return YKPIV_WRONG_PIN;
   } else if(sw == 0x6983) {
     *tries = 0;

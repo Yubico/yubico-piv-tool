@@ -3,7 +3,14 @@ yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 * Version 1.1.0 (unreleased)
 
 ** Support for YubiKey 4 stuff
-ECCP384, touch, retired keys etc
+
+* Version 1.0.2 (released 2015-09-04)
+
+** Query for different passwords/pins on stdin if they're not supplied.
+
+** If a reader fails continue trying matching readers.
+
+** Authentication failed is supposed to be 0x63cX not 0x630X.
 
 * Version 1.0.1 (released 2015-07-10)
 
