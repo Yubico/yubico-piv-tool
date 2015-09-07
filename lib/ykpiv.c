@@ -128,23 +128,20 @@ ykpiv_rc ykpiv_disconnect(ykpiv_state *state) {
 }
 
 ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
-  return ykpiv_connect2(state, wanted, NULL, 0);
-}
-
-ykpiv_rc ykpiv_connect2(ykpiv_state *state, const char *wanted, unsigned char **readers, unsigned long *len) {
   unsigned long num_readers = 0;
   unsigned long active_protocol;
   char reader_buf[1024];
   long rc;
-  int i;
   char *reader_ptr;
 
-  rc = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &state->context);
-  if (rc != SCARD_S_SUCCESS) {
-    if(state->verbose) {
-      fprintf (stderr, "error: SCardEstablishContext failed, rc=%08lx\n", rc);
+  if(SCardIsValidContext(state->context) != SCARD_S_SUCCESS) {
+    rc = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &state->context);
+    if (rc != SCARD_S_SUCCESS) {
+      if(state->verbose) {
+        fprintf (stderr, "error: SCardEstablishContext failed, rc=%08lx\n", rc);
+      }
+      return YKPIV_PCSC_ERROR;
     }
-    return YKPIV_PCSC_ERROR;
   }
 
   rc = SCardListReaders(state->context, NULL, NULL, &num_readers);
@@ -168,20 +165,6 @@ ykpiv_rc ykpiv_connect2(ykpiv_state *state, const char *wanted, unsigned char **
     }
     SCardReleaseContext(state->context);
     return YKPIV_PCSC_ERROR;
-  }
-
-  // Save available readers (aka PKCS11 slots)
-  if (readers != NULL) {
-    *readers = malloc(sizeof(char) * num_readers);
-    if (*readers == NULL) {
-      if(state->verbose) {
-        fprintf (stderr, "error: malloc failed");
-      }
-      SCardReleaseContext(state->context);
-      return YKPIV_MEMORY_ERROR;
-    }
-    memcpy(*readers, reader_buf, num_readers);
-    *len = num_readers;
   }
 
   for(reader_ptr = reader_buf; *reader_ptr != '\0'; reader_ptr += strlen(reader_ptr) + 1) {
@@ -243,6 +226,59 @@ ykpiv_rc ykpiv_connect2(ykpiv_state *state, const char *wanted, unsigned char **
   }
 
   return YKPIV_GENERIC_ERROR;
+}
+
+ykpiv_rc ykpiv_list_readers(ykpiv_state *state, unsigned char **readers, unsigned long *len) {
+  unsigned long num_readers = 0;
+  char reader_buf[1024];
+  long rc;
+
+  if(SCardIsValidContext(state->context) != SCARD_S_SUCCESS) {
+    rc = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &state->context);
+    if (rc != SCARD_S_SUCCESS) {
+      if(state->verbose) {
+        fprintf (stderr, "error: SCardEstablishContext failed, rc=%08lx\n", rc);
+      }
+      return YKPIV_PCSC_ERROR;
+    }
+  }
+
+  rc = SCardListReaders(state->context, NULL, NULL, &num_readers);
+  if (rc != SCARD_S_SUCCESS) {
+    if(state->verbose) {
+      fprintf (stderr, "error: SCardListReaders failed, rc=%08lx\n", rc);
+    }
+    SCardReleaseContext(state->context);
+    return YKPIV_PCSC_ERROR;
+  }
+
+  if (num_readers > sizeof(reader_buf)) {
+    num_readers = sizeof(reader_buf);
+  }
+
+  rc = SCardListReaders(state->context, NULL, reader_buf, &num_readers);
+  if (rc != SCARD_S_SUCCESS)
+  {
+    if(state->verbose) {
+      fprintf (stderr, "error: SCardListReaders failed, rc=%08lx\n", rc);
+    }
+    SCardReleaseContext(state->context);
+    return YKPIV_PCSC_ERROR;
+  }
+
+  // Save available readers (aka PKCS11 slots)
+  *readers = malloc(sizeof(char) * num_readers);
+  if (*readers == NULL) {
+    if(state->verbose) {
+      fprintf (stderr, "error: malloc failed");
+    }
+    SCardReleaseContext(state->context);
+    return YKPIV_MEMORY_ERROR;
+  }
+  memcpy(*readers, reader_buf, num_readers);
+  *len = num_readers;
+
+  return YKPIV_OK;
 }
 
 ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
@@ -787,28 +823,4 @@ ykpiv_rc ykpiv_save_object(ykpiv_state *state, int object_id,
   } else {
     return YKPIV_GENERIC_ERROR;
   }
-}
-
-ykpiv_rc ykpiv_get_reader_slot_number(ykpiv_state *state, unsigned long *slots, unsigned long *total) {
-  if (state == NULL)
-    return YKPIV_MEMORY_ERROR;
-
-  *slots = state->n_readers;
-  *total = state->tot_readers_len;
-
-  return YKPIV_OK;
-
-}
-
-ykpiv_rc ykpiv_get_reader_slot(ykpiv_state *state, unsigned long slot, char *reader) {
-  if (state == NULL)
-    return YKPIV_MEMORY_ERROR;
-
-  if (slot >= state->n_readers)
-    return YKPIV_SIZE_ERROR;
-
-  strcpy(reader, state->readers[slot]);
-
-  return YKPIV_OK;
-
 }

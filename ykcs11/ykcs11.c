@@ -60,7 +60,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
     return CKR_FUNCTION_FAILED; // TODO: better error?
   }
 
-  if(ykpiv_connect2(piv_state, NULL, &readers, &len) != YKPIV_OK) {
+  if (ykpiv_list_readers(piv_state, &readers, &len) != YKPIV_OK) {
+    DBG(("Unable to list readers"));
+    return CKR_FUNCTION_FAILED;
+  }
+
+  if(ykpiv_connect(piv_state, NULL) != YKPIV_OK) {
     DBG(("Unable to connect to reader"));
     return CKR_FUNCTION_FAILED;
   }
