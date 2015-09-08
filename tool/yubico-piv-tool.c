@@ -1569,6 +1569,21 @@ decipher_out:
   return ret;
 }
 
+static bool list_readers(ykpiv_state *state) {
+  char readers[2048];
+  char *reader_ptr;
+  size_t len = sizeof(readers);
+  ykpiv_rc rc = ykpiv_list_readers(state, readers, &len);
+  if(rc != YKPIV_OK) {
+    fprintf(stderr, "Failed listing readers.\n");
+    return false;
+  }
+  for(reader_ptr = readers; *reader_ptr != '\0'; reader_ptr += strlen(reader_ptr) + 1) {
+    printf("%s\n", reader_ptr);
+  }
+  return true;
+}
+
 int main(int argc, char *argv[]) {
   struct gengetopt_args_info args_info;
   ykpiv_state *state;
@@ -1622,6 +1637,7 @@ int main(int argc, char *argv[]) {
       case action_arg_version:
       case action_arg_reset:
       case action_arg_status:
+      case action_arg_listMINUS_readers:
       case action__NULL:
       default:
         continue;
@@ -1666,6 +1682,7 @@ int main(int argc, char *argv[]) {
       case action_arg_status:
       case action_arg_testMINUS_signature:
       case action_arg_testMINUS_decipher:
+      case action_arg_listMINUS_readers:
       case action__NULL:
       default:
         if(verbosity) {
@@ -1847,6 +1864,11 @@ int main(int argc, char *argv[]) {
       case action_arg_testMINUS_decipher:
         if(test_decipher(state, args_info.slot_arg, args_info.input_arg,
               args_info.key_format_arg, verbosity) == false) {
+          ret = EXIT_FAILURE;
+        }
+        break;
+      case action_arg_listMINUS_readers:
+        if(list_readers(state) == false) {
           ret = EXIT_FAILURE;
         }
         break;

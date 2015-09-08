@@ -228,9 +228,8 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
   return YKPIV_GENERIC_ERROR;
 }
 
-ykpiv_rc ykpiv_list_readers(ykpiv_state *state, unsigned char **readers, unsigned long *len) {
+ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
   unsigned long num_readers = 0;
-  char reader_buf[1024];
   long rc;
 
   if(SCardIsValidContext(state->context) != SCARD_S_SUCCESS) {
@@ -252,11 +251,11 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, unsigned char **readers, unsigne
     return YKPIV_PCSC_ERROR;
   }
 
-  if (num_readers > sizeof(reader_buf)) {
-    num_readers = sizeof(reader_buf);
+  if (num_readers > *len) {
+    num_readers = *len;
   }
 
-  rc = SCardListReaders(state->context, NULL, reader_buf, &num_readers);
+  rc = SCardListReaders(state->context, NULL, readers, &num_readers);
   if (rc != SCARD_S_SUCCESS)
   {
     if(state->verbose) {
@@ -266,16 +265,6 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, unsigned char **readers, unsigne
     return YKPIV_PCSC_ERROR;
   }
 
-  // Save available readers (aka PKCS11 slots)
-  *readers = malloc(sizeof(char) * num_readers);
-  if (*readers == NULL) {
-    if(state->verbose) {
-      fprintf (stderr, "error: malloc failed");
-    }
-    SCardReleaseContext(state->context);
-    return YKPIV_MEMORY_ERROR;
-  }
-  memcpy(*readers, reader_buf, num_readers);
   *len = num_readers;
 
   return YKPIV_OK;
