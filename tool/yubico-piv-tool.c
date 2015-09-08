@@ -85,6 +85,25 @@ static void print_version(ykpiv_state *state, const char *output_file_name) {
   }
 }
 
+static bool sign_data(ykpiv_state *state, const unsigned char *in, size_t len, unsigned char *out,
+    size_t *out_len, unsigned char algorithm, int key) {
+
+  unsigned char signinput[1024];
+  if(YKPIV_IS_RSA(algorithm)) {
+    size_t padlen = algorithm == YKPIV_ALGO_RSA1024 ? 128 : 256;
+    if(RSA_padding_add_PKCS1_type_1(signinput, padlen, in, len) == 0) {
+      fprintf(stderr, "Failed adding padding.\n");
+      return false;
+    }
+    in = signinput;
+    len = padlen;
+  }
+  if(ykpiv_sign_data(state, signinput, len, out, out_len, algorithm, key) == YKPIV_OK) {
+    return true;
+  }
+  return false;
+}
+
 static bool generate_key(ykpiv_state *state, const char *slot,
     enum enum_algorithm algorithm, const char *output_file_name,
     enum enum_key_format key_format, enum enum_pin_policy pin_policy,
@@ -692,8 +711,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
   {
     unsigned char signature[1024];
     size_t sig_len = sizeof(signature);
-    if(ykpiv_sign_data(state, signinput, len, signature, &sig_len, algorithm, key)
-        != YKPIV_OK) {
+    if(!sign_data(state, signinput, len, signature, &sig_len, algorithm, key)) {
       fprintf(stderr, "Failed signing request.\n");
       goto request_out;
     }
@@ -845,8 +863,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   {
     unsigned char signature[1024];
     size_t sig_len = sizeof(signature);
-    if(ykpiv_sign_data(state, signinput, len, signature, &sig_len, algorithm, key)
-        != YKPIV_OK) {
+    if(!sign_data(state, signinput, len, signature, &sig_len, algorithm, key)) {
       fprintf(stderr, "Failed signing certificate.\n");
       goto selfsign_out;
     }
@@ -1122,9 +1139,8 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
   {
     unsigned char buf[1024];
     size_t len = sizeof(buf);
-    ykpiv_rc rc = ykpiv_sign_data(state, hashed, hash_len, buf, &len, algo, key);
-    if(rc != YKPIV_OK) {
-      fprintf(stderr, "failed signing file: %s\n", ykpiv_strerror(rc));
+    if(!sign_data(state, hashed, hash_len, buf, &len, algo, key)) {
+      fprintf(stderr, "failed signing file\n");
       goto out;
     }
 
@@ -1373,8 +1389,7 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
     } else {
       enc_len = data_len;
     }
-    if(ykpiv_sign_data(state, ptr, enc_len, signature, &sig_len, algorithm, key)
-      != YKPIV_OK) {
+    if(!sign_data(state, ptr, enc_len, signature, &sig_len, algorithm, key)) {
       fprintf(stderr, "Failed signing test data.\n");
       goto test_out;
     }

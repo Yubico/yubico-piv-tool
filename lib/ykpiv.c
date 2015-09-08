@@ -533,7 +533,7 @@ ykpiv_rc ykpiv_hex_decode(const char *hex_in, size_t in_len,
 static ykpiv_rc _general_authenticate(ykpiv_state *state,
     const unsigned char *sign_in, size_t in_len,
     unsigned char *out, size_t *out_len,
-    unsigned char algorithm, unsigned char key, bool decipher, bool padding) {
+    unsigned char algorithm, unsigned char key, bool decipher) {
   unsigned char indata[1024];
   unsigned char *dataptr = indata;
   unsigned char data[1024];
@@ -636,25 +636,14 @@ ykpiv_rc ykpiv_sign_data(ykpiv_state *state,
     unsigned char algorithm, unsigned char key) {
 
   return _general_authenticate(state, raw_in, in_len, sign_out, out_len,
-                               algorithm, key, false, true);
+                               algorithm, key, false);
 }
-
-ykpiv_rc ykpiv_sign_data2(ykpiv_state *state,
-    const unsigned char *raw_in, size_t in_len,
-    unsigned char *sign_out, size_t *out_len,
-    unsigned char algorithm, unsigned char key,
-    int padding) {
-
-  return _general_authenticate(state, raw_in, in_len, sign_out, out_len,
-                               algorithm, key, false, padding);
-}
-
 
 ykpiv_rc ykpiv_decipher_data(ykpiv_state *state, const unsigned char *in,
     size_t in_len, unsigned char *out, size_t *out_len,
     unsigned char algorithm, unsigned char key) {
   return _general_authenticate(state, in, in_len, out, out_len,
-                               algorithm, key, true, true);
+                               algorithm, key, true);
 }
 
 ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len) {

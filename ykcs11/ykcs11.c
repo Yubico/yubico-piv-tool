@@ -1690,7 +1690,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   dump_hex(op_info.buf, op_info.buf_len, stderr, CK_TRUE);
 
   *pulSignatureLen = sizeof(op_info.buf);
-  if ((r = ykpiv_sign_data2(piv_state, op_info.buf, op_info.buf_len, pSignature, pulSignatureLen, op_info.op.sign.algo, op_info.op.sign.key_id, 0)) != YKPIV_OK) {
+  if ((r = ykpiv_sign_data(piv_state, op_info.buf, op_info.buf_len, pSignature, pulSignatureLen, op_info.op.sign.algo, op_info.op.sign.key_id)) != YKPIV_OK) {
       DBG(("Sign error, %s", ykpiv_strerror(r)));
     return CKR_FUNCTION_FAILED;
   }
