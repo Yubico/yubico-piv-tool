@@ -47,8 +47,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
 )
 {
   DIN;
-  CK_CHAR_PTR readers;
-  CK_ULONG len;
+  char readers[2048];
+  CK_ULONG len = sizeof(readers);
 
   // TODO: check for locks and mutexes
 
@@ -60,7 +60,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
     return CKR_FUNCTION_FAILED; // TODO: better error?
   }
 
-  if(ykpiv_connect2(piv_state, NULL, &readers, &len) != YKPIV_OK) {
+  if (ykpiv_list_readers(piv_state, readers, &len) != YKPIV_OK) {
+    DBG(("Unable to list readers"));
+    return CKR_FUNCTION_FAILED;
+  }
+
+  if(ykpiv_connect(piv_state, NULL) != YKPIV_OK) {
     DBG(("Unable to connect to reader"));
     return CKR_FUNCTION_FAILED;
   }
@@ -1701,7 +1706,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   dump_hex(op_info.buf, op_info.buf_len, stderr, CK_TRUE);
 
   *pulSignatureLen = sizeof(op_info.buf);
-  piv_rv = ykpiv_sign_data2(piv_state, op_info.buf, op_info.buf_len, pSignature, pulSignatureLen, op_info.op.sign.algo, op_info.op.sign.key_id, 0);
+
+  piv_rv = ykpiv_sign_data(piv_state, op_info.buf, op_info.buf_len, pSignature, pulSignatureLen, op_info.op.sign.algo, op_info.op.sign.key_id);
   if (piv_rv != YKPIV_OK) {
     if (piv_rv == YKPIV_AUTHENTICATION_ERROR) {
       DBG(("Operation requires authentication or touch"));

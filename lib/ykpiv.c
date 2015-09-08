@@ -128,60 +128,15 @@ ykpiv_rc ykpiv_disconnect(ykpiv_state *state) {
 }
 
 ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
-  return ykpiv_connect2(state, wanted, NULL, 0);
-}
-
-ykpiv_rc ykpiv_connect2(ykpiv_state *state, const char *wanted, unsigned char **readers, unsigned long *len) {
-  unsigned long num_readers = 0;
   unsigned long active_protocol;
-  char reader_buf[1024];
+  char reader_buf[2048];
+  size_t num_readers = sizeof(reader_buf);
   long rc;
-  int i;
   char *reader_ptr;
 
-  rc = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &state->context);
-  if (rc != SCARD_S_SUCCESS) {
-    if(state->verbose) {
-      fprintf (stderr, "error: SCardEstablishContext failed, rc=%08lx\n", rc);
-    }
-    return YKPIV_PCSC_ERROR;
-  }
-
-  rc = SCardListReaders(state->context, NULL, NULL, &num_readers);
-  if (rc != SCARD_S_SUCCESS) {
-    if(state->verbose) {
-      fprintf (stderr, "error: SCardListReaders failed, rc=%08lx\n", rc);
-    }
-    SCardReleaseContext(state->context);
-    return YKPIV_PCSC_ERROR;
-  }
-
-  if (num_readers > sizeof(reader_buf)) {
-    num_readers = sizeof(reader_buf);
-  }
-
-  rc = SCardListReaders(state->context, NULL, reader_buf, &num_readers);
-  if (rc != SCARD_S_SUCCESS)
-  {
-    if(state->verbose) {
-      fprintf (stderr, "error: SCardListReaders failed, rc=%08lx\n", rc);
-    }
-    SCardReleaseContext(state->context);
-    return YKPIV_PCSC_ERROR;
-  }
-
-  // Save available readers (aka PKCS11 slots)
-  if (readers != NULL) {
-    *readers = malloc(sizeof(char) * num_readers);
-    if (*readers == NULL) {
-      if(state->verbose) {
-        fprintf (stderr, "error: malloc failed");
-      }
-      SCardReleaseContext(state->context);
-      return YKPIV_MEMORY_ERROR;
-    }
-    memcpy(*readers, reader_buf, num_readers);
-    *len = num_readers;
+  ykpiv_rc ret = ykpiv_list_readers(state, reader_buf, &num_readers);
+  if(ret != YKPIV_OK) {
+    return ret;
   }
 
   for(reader_ptr = reader_buf; *reader_ptr != '\0'; reader_ptr += strlen(reader_ptr) + 1) {
@@ -243,6 +198,48 @@ ykpiv_rc ykpiv_connect2(ykpiv_state *state, const char *wanted, unsigned char **
   }
 
   return YKPIV_GENERIC_ERROR;
+}
+
+ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
+  unsigned long num_readers = 0;
+  long rc;
+
+  if(SCardIsValidContext(state->context) != SCARD_S_SUCCESS) {
+    rc = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &state->context);
+    if (rc != SCARD_S_SUCCESS) {
+      if(state->verbose) {
+        fprintf (stderr, "error: SCardEstablishContext failed, rc=%08lx\n", rc);
+      }
+      return YKPIV_PCSC_ERROR;
+    }
+  }
+
+  rc = SCardListReaders(state->context, NULL, NULL, &num_readers);
+  if (rc != SCARD_S_SUCCESS) {
+    if(state->verbose) {
+      fprintf (stderr, "error: SCardListReaders failed, rc=%08lx\n", rc);
+    }
+    SCardReleaseContext(state->context);
+    return YKPIV_PCSC_ERROR;
+  }
+
+  if (num_readers > *len) {
+    num_readers = *len;
+  }
+
+  rc = SCardListReaders(state->context, NULL, readers, &num_readers);
+  if (rc != SCARD_S_SUCCESS)
+  {
+    if(state->verbose) {
+      fprintf (stderr, "error: SCardListReaders failed, rc=%08lx\n", rc);
+    }
+    SCardReleaseContext(state->context);
+    return YKPIV_PCSC_ERROR;
+  }
+
+  *len = num_readers;
+
+  return YKPIV_OK;
 }
 
 ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
@@ -536,7 +533,7 @@ ykpiv_rc ykpiv_hex_decode(const char *hex_in, size_t in_len,
 static ykpiv_rc _general_authenticate(ykpiv_state *state,
     const unsigned char *sign_in, size_t in_len,
     unsigned char *out, size_t *out_len,
-    unsigned char algorithm, unsigned char key, bool decipher, bool padding) {
+    unsigned char algorithm, unsigned char key, bool decipher) {
   unsigned char indata[1024];
   unsigned char *dataptr = indata;
   unsigned char data[1024];
@@ -642,25 +639,14 @@ ykpiv_rc ykpiv_sign_data(ykpiv_state *state,
     unsigned char algorithm, unsigned char key) {
 
   return _general_authenticate(state, raw_in, in_len, sign_out, out_len,
-                               algorithm, key, false, true);
+                               algorithm, key, false);
 }
-
-ykpiv_rc ykpiv_sign_data2(ykpiv_state *state,
-    const unsigned char *raw_in, size_t in_len,
-    unsigned char *sign_out, size_t *out_len,
-    unsigned char algorithm, unsigned char key,
-    int padding) {
-
-  return _general_authenticate(state, raw_in, in_len, sign_out, out_len,
-                               algorithm, key, false, padding);
-}
-
 
 ykpiv_rc ykpiv_decipher_data(ykpiv_state *state, const unsigned char *in,
     size_t in_len, unsigned char *out, size_t *out_len,
     unsigned char algorithm, unsigned char key) {
   return _general_authenticate(state, in, in_len, out, out_len,
-                               algorithm, key, true, true);
+                               algorithm, key, true);
 }
 
 ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len) {
@@ -790,28 +776,4 @@ ykpiv_rc ykpiv_save_object(ykpiv_state *state, int object_id,
   } else {
     return YKPIV_GENERIC_ERROR;
   }
-}
-
-ykpiv_rc ykpiv_get_reader_slot_number(ykpiv_state *state, unsigned long *slots, unsigned long *total) {
-  if (state == NULL)
-    return YKPIV_MEMORY_ERROR;
-
-  *slots = state->n_readers;
-  *total = state->tot_readers_len;
-
-  return YKPIV_OK;
-
-}
-
-ykpiv_rc ykpiv_get_reader_slot(ykpiv_state *state, unsigned long slot, char *reader) {
-  if (state == NULL)
-    return YKPIV_MEMORY_ERROR;
-
-  if (slot >= state->n_readers)
-    return YKPIV_SIZE_ERROR;
-
-  strcpy(reader, state->readers[slot]);
-
-  return YKPIV_OK;
-
 }
