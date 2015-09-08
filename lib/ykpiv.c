@@ -602,7 +602,10 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
     if(state->verbose) {
       fprintf(stderr, "Failed sign command with code %x.\n", sw);
     }
-    return YKPIV_GENERIC_ERROR;
+    if (sw == 0x6982)
+      return YKPIV_AUTHENTICATION_ERROR;
+    else
+      return YKPIV_GENERIC_ERROR;
   }
   /* skip the first 7c tag */
   if(data[0] != 0x7c) {

@@ -244,6 +244,7 @@ CK_RV apply_sign_mechanism_finalize(op_info_t *op_info) {
   case CKM_SHA512_RSA_PKCS_PSS:
     // Finalize the hash
     rv = do_md_finalize(op_info->op.sign.md_ctx, op_info->buf, &op_info->buf_len, &nid);
+    op_info->op.sign.md_ctx = NULL;
     if (rv != CKR_OK)
       return CKR_FUNCTION_FAILED;
 
@@ -275,6 +276,7 @@ CK_RV apply_sign_mechanism_finalize(op_info_t *op_info) {
   case CKM_SHA512_RSA_PKCS:
     // Finalize the hash add digest info
     rv = do_md_finalize(op_info->op.sign.md_ctx, op_info->buf, &op_info->buf_len, &nid);
+    op_info->op.sign.md_ctx = NULL;
     if (rv != CKR_OK)
       return CKR_FUNCTION_FAILED;
 
@@ -295,6 +297,7 @@ CK_RV apply_sign_mechanism_finalize(op_info_t *op_info) {
   case CKM_ECDSA_SHA256:
     // Finalize the hash
     rv = do_md_finalize(op_info->op.sign.md_ctx, op_info->buf, &op_info->buf_len, &nid);
+    op_info->op.sign.md_ctx = NULL;
     if (rv != CKR_OK)
       return CKR_FUNCTION_FAILED;
 
@@ -304,6 +307,16 @@ CK_RV apply_sign_mechanism_finalize(op_info_t *op_info) {
   default:
     return CKR_FUNCTION_FAILED;
   }
+}
+
+CK_RV sign_mechanism_cleanup(op_info_t *op_info) {
+
+  if (op_info->op.sign.md_ctx != NULL) {
+    do_md_cleanup(op_info->op.sign.md_ctx);
+    op_info->op.sign.md_ctx = NULL;
+  }
+
+  return CKR_OK;
 }
 
 CK_RV check_generation_mechanism(const ykcs11_session_t *s, CK_MECHANISM_PTR m) {

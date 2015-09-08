@@ -32,5 +32,6 @@ CK_RV do_pkcs_pss(RSA *key, CK_BYTE_PTR in, CK_ULONG in_len, int nid,
 CK_RV do_md_init(hash_t hash, ykcs11_md_ctx_t **ctx);
 CK_RV do_md_update(ykcs11_md_ctx_t *ctx, CK_BYTE_PTR in, CK_ULONG in_len);
 CK_RV do_md_finalize(ykcs11_md_ctx_t *ctx, CK_BYTE_PTR out, CK_ULONG_PTR out_len, int *nid);
+CK_RV do_md_cleanup(ykcs11_md_ctx_t *ctx);
 
 #endif

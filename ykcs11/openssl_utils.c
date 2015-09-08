@@ -557,3 +557,10 @@ CK_RV do_md_finalize(ykcs11_md_ctx_t *ctx, CK_BYTE_PTR out, CK_ULONG_PTR out_len
 
   return CKR_OK;
 }
+
+CK_RV do_md_cleanup(ykcs11_md_ctx_t *ctx) {
+
+  EVP_MD_CTX_destroy((EVP_MD_CTX *) ctx);
+
+  return CKR_OK;
+}

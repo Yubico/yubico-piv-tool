@@ -147,7 +147,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 )
 {
   DIN;
-  int i;
+  CK_ULONG i;
   int j;
 
   if (piv_state == NULL) {
@@ -765,6 +765,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
     break;
 
   case CKU_CONTEXT_SPECIFIC:
+    if (op_info.type == YKCS11_NOOP) {
+      DBG(("No operation in progress. Context specific user is forbidden."));
+      return CKR_USER_TYPE_INVALID;
+    }
+    if (op_info.type == YKCS11_SIGN) {
+      return C_Login(hSession, CKU_USER, pPin, ulPinLen);
+    }
+    else
+      return C_Login(hSession, CKU_SO, pPin, ulPinLen);
+
   default:
     return CKR_USER_TYPE_INVALID;
   }
@@ -1627,13 +1637,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 {
   DIN;
 
+  ykpiv_rc piv_rv;
+  CK_RV    rv;
+
   if (op_info.type != YKCS11_SIGN) {
     DBG(("Signature operation not initialized"));
-    return CKR_OPERATION_NOT_INITIALIZED;
+    rv = CKR_OPERATION_NOT_INITIALIZED;
+    goto sign_out;
   }
 
   // TODO: check other conditions
-  ykpiv_rc r; // TODO: delete this ?
 
   if (pSignature == NULL_PTR) {
     // Just return the size of the signature
@@ -1650,7 +1663,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   if (is_hashed_mechanism(op_info.mechanism.mechanism) == CK_TRUE) {
     if (apply_sign_mechanism_update(&op_info, pData, ulDataLen) != CKR_OK) {
       DBG(("Unable to perform signing operation step"));
-      return CKR_FUNCTION_FAILED; // TODO: every error in here must stop and clear the signing operation
+      rv = CKR_FUNCTION_FAILED; // TODO: every error in here must stop and clear the signing operation
+      goto sign_out;
     }
   }
   else {
@@ -1658,7 +1672,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
       // RSA_X_509
       if (ulDataLen > (op_info.op.sign.key_len / 8)) {
           DBG(("Data must be shorter than key length (%lu bits)", op_info.op.sign.key_len));
-          return CKR_FUNCTION_FAILED;
+          rv = CKR_FUNCTION_FAILED;
+          goto sign_out;
       }
     }
     else {
@@ -1666,7 +1681,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
       if (ulDataLen > 128) {
         // Specs say ECDSA only supports 1024 bit
         DBG(("Meximum data length for ECDSA is 128 bytes"));
-        return CKR_FUNCTION_FAILED;
+        rv = CKR_FUNCTION_FAILED;
+        goto sign_out;
       }
     }
 
@@ -1674,10 +1690,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     memcpy(op_info.buf, pData, ulDataLen);
   }
 
-
   if (apply_sign_mechanism_finalize(&op_info) != CKR_OK) {
     DBG(("Unable to finalize signing operation"));
-    return CKR_FUNCTION_FAILED;
+    rv = CKR_FUNCTION_FAILED;
+    goto sign_out;
   }
 
   DBG(("Using key %lx", op_info.op.sign.key_id));
@@ -1685,10 +1701,20 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   dump_hex(op_info.buf, op_info.buf_len, stderr, CK_TRUE);
 
   *pulSignatureLen = sizeof(op_info.buf);
-  if ((r = ykpiv_sign_data2(piv_state, op_info.buf, op_info.buf_len, pSignature, pulSignatureLen, op_info.op.sign.algo, op_info.op.sign.key_id, 0)) != YKPIV_OK) {
-      DBG(("Sign error, %s", ykpiv_strerror(r)));
-    return CKR_FUNCTION_FAILED;
+  piv_rv = ykpiv_sign_data2(piv_state, op_info.buf, op_info.buf_len, pSignature, pulSignatureLen, op_info.op.sign.algo, op_info.op.sign.key_id, 0);
+  if (piv_rv != YKPIV_OK) {
+    if (piv_rv == YKPIV_AUTHENTICATION_ERROR) {
+      DBG(("Operation requires authentication or touch"));
+      rv = CKR_USER_NOT_LOGGED_IN;
+      goto sign_out;
+    }
+    else {
+      DBG(("Sign error, %s", ykpiv_strerror(piv_rv)));
+      rv = CKR_FUNCTION_FAILED;
+      goto sign_out;
+    }
   }
+
   DBG(("Got %lu bytes back", *pulSignatureLen));
   dump_hex(pSignature, *pulSignatureLen, stderr, CK_TRUE);
 
@@ -1703,8 +1729,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   op_info.type = YKCS11_NOOP; // TODO: anything to clear here?
 
+  rv = CKR_OK;
+
+  sign_out:
+  op_info.type = YKCS11_NOOP;
+  sign_mechanism_cleanup(&op_info);
+
   DOUT;
-  return CKR_OK;
+  return rv;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_SignUpdate)(
