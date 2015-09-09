@@ -8,7 +8,7 @@
 
 typedef CK_RV (*get_t_label_f)(CK_UTF8CHAR_PTR, CK_ULONG);
 typedef CK_RV (*get_t_manufacturer_f)(CK_UTF8CHAR_PTR, CK_ULONG);
-typedef CK_RV (*get_t_model_f)(CK_UTF8CHAR_PTR, CK_ULONG);
+typedef CK_RV (*get_t_model_f)(ykpiv_state *, CK_UTF8CHAR_PTR, CK_ULONG);
 typedef CK_RV (*get_t_flags_f)(CK_FLAGS_PTR);
 typedef CK_RV (*get_t_version_f)(CK_UTF8CHAR_PTR, CK_ULONG, CK_VERSION_PTR);
 typedef CK_RV (*get_t_serial_f)(CK_CHAR_PTR, CK_ULONG);

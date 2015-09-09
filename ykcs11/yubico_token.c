@@ -10,9 +10,9 @@
 #define MIN_ECC_KEY_SIZE 256
 #define MAX_ECC_KEY_SIZE 384
 
-static const CK_UTF8CHAR_PTR token_label = "YubiKey PIV X";
-static const CK_UTF8CHAR_PTR token_manufacturer = "Yubico";
-static const CK_UTF8CHAR_PTR token_model = "YubiKey MODEL";
+static const char* token_label = "YubiKey PIV";
+static const char* token_manufacturer = "Yubico";
+static const char* token_model = "YubiKey XXX";
 static const CK_FLAGS token_flags = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
 static const CK_BYTE_PTR token_serial = "1234";
 static const CK_MECHANISM_TYPE token_mechanisms[] = { // KEEP ALIGNED WITH token_mechanism_infos
@@ -124,13 +124,24 @@ CK_RV YUBICO_get_token_manufacturer(CK_UTF8CHAR_PTR str, CK_ULONG len) {
   return CKR_OK;
 
 }
+#include "debug.h"
+CK_RV YUBICO_get_token_model(ykpiv_state *state, CK_UTF8CHAR_PTR str, CK_ULONG len) {
 
-CK_RV YUBICO_get_token_model(CK_UTF8CHAR_PTR str, CK_ULONG len) {
+  char buf[16];
 
   if (strlen(token_model) > len)
     return CKR_BUFFER_TOO_SMALL;
 
+  if (ykpiv_get_version(state, buf, sizeof(buf)) != YKPIV_OK)
+    return CKR_FUNCTION_FAILED;
+
   memcpy(str, token_model, strlen(token_model));
+
+  if (buf[0] >= '4')
+    memcpy(str + strlen(token_model) - 3, "YK4", 3);
+  else
+    memcpy(str + strlen(token_model) - 3, "NEO", 3);
+
   return CKR_OK;
 
 }

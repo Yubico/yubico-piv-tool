@@ -8,7 +8,7 @@ CK_BBOOL has_token(const ykcs11_slot_t *slot) {
 
 }
 
-CK_RV parse_readers(const CK_BYTE_PTR readers, const CK_ULONG len,
+CK_RV parse_readers(ykpiv_state *state, const CK_BYTE_PTR readers, const CK_ULONG len,
                        ykcs11_slot_t *slots, CK_ULONG_PTR n_slots, CK_ULONG_PTR n_with_token) {
 
   CK_BYTE        i;
@@ -49,7 +49,7 @@ CK_RV parse_readers(const CK_BYTE_PTR readers, const CK_ULONG len,
         memset(slots[*n_slots].info.slotDescription, ' ', sizeof(slots[*n_slots].info.slotDescription));
         s = slots[*n_slots].info.slotDescription;
         l = sizeof(slots[*n_slots].info.slotDescription);
-        strncpy((char *)s, (char *)p, l);
+        strncpy((char *)s, (char*)p, l);
 
         memset(slots[*n_slots].info.manufacturerID, ' ', sizeof(slots[*n_slots].info.manufacturerID));
         s = slots[*n_slots].info.manufacturerID;
@@ -71,7 +71,7 @@ CK_RV parse_readers(const CK_BYTE_PTR readers, const CK_ULONG len,
           // Save token information
           (*n_with_token)++;
 
-          if (create_token(p, slots + *n_slots) != CKR_OK)
+          if (create_token(state, p, slots + *n_slots) != CKR_OK)
             goto failure;
         }
       }
@@ -90,7 +90,7 @@ failure:
   return CKR_FUNCTION_FAILED;
 }
 
-CK_RV create_token(CK_BYTE_PTR p, ykcs11_slot_t *slot) {
+CK_RV create_token(ykpiv_state *state, CK_BYTE_PTR p, ykcs11_slot_t *slot) {
 
   token_vendor_t token;
   CK_TOKEN_INFO_PTR t_info;
@@ -112,9 +112,12 @@ CK_RV create_token(CK_BYTE_PTR p, ykcs11_slot_t *slot) {
   if(token.get_token_manufacturer(t_info->manufacturerID, sizeof(t_info->manufacturerID)) != CKR_OK)
     return CKR_FUNCTION_FAILED;
 
-  memset(t_info->model, ' ', sizeof(t_info->model));
-  if(token.get_token_model(t_info->model, sizeof(t_info->model)) != CKR_OK)
+  if (ykpiv_connect(state, (char *)p) != YKPIV_OK)
     return CKR_FUNCTION_FAILED;
+  memset(t_info->model, ' ', sizeof(t_info->model));
+  if(token.get_token_model(state, t_info->model, sizeof(t_info->model)) != CKR_OK)
+    return CKR_FUNCTION_FAILED;
+  ykpiv_disconnect(state);
 
   memset(t_info->serialNumber, ' ', sizeof(t_info->serialNumber));
   if(token.get_token_serial(t_info->serialNumber, sizeof(t_info->serialNumber)) != CKR_OK)

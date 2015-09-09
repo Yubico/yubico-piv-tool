@@ -65,7 +65,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
     return CKR_FUNCTION_FAILED;
   }
 
-  if (parse_readers(readers, len, slots, &n_slots, &n_slots_with_token) != CK_TRUE)
+  if (parse_readers(piv_state, readers, len, slots, &n_slots, &n_slots_with_token) != CK_TRUE)
     CKR_FUNCTION_FAILED;
 
   DBG(("Found %lu slot(s) of which %lu tokenless/unsupported", n_slots, n_slots - n_slots_with_token));
