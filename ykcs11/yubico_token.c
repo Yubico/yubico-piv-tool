@@ -10,11 +10,11 @@
 #define MIN_ECC_KEY_SIZE 256
 #define MAX_ECC_KEY_SIZE 384
 
-static const char* token_label = "YubiKey PIV";
-static const char* token_manufacturer = "Yubico";
-static const char* token_model = "YubiKey XXX";
+static const char *token_label = "YubiKey PIV";
+static const char *token_manufacturer = "Yubico";
+static const char *token_model = "YubiKey XXX";
 static const CK_FLAGS token_flags = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
-static const CK_BYTE_PTR token_serial = "1234";
+static const char *token_serial = "1234";
 static const CK_MECHANISM_TYPE token_mechanisms[] = { // KEEP ALIGNED WITH token_mechanism_infos
   CKM_RSA_PKCS_KEY_PAIR_GEN,
   CKM_RSA_PKCS,
@@ -156,7 +156,7 @@ CK_RV YUBICO_get_token_flags(CK_FLAGS_PTR flags) {
 CK_RV YUBICO_get_token_version(CK_UTF8CHAR_PTR v_str, CK_ULONG len, CK_VERSION_PTR version) {
 
   CK_VERSION v = {0, 0};
-  int i = 0;
+  unsigned int i = 0;
 
   while (i < len && v_str[i] != '.') {
     v.major *= 10;
