@@ -7,7 +7,6 @@ slot_vendor_t get_slot_vendor(vendor_id_t vid) {
 
   switch (vid) {
   case YUBICO:
-    v.get_slot_description     = YUBICO_get_slot_description;
     v.get_slot_manufacturer    = YUBICO_get_slot_manufacturer;
     v.get_slot_flags           = YUBICO_get_slot_flags;
     v.get_slot_version         = YUBICO_get_slot_version;
@@ -15,7 +14,6 @@ slot_vendor_t get_slot_vendor(vendor_id_t vid) {
 
   case UNKNOWN:
   default:
-    v.get_slot_description     = NULL;
     v.get_slot_manufacturer    = NULL;
     v.get_slot_flags           = NULL;
     v.get_slot_version         = NULL;
