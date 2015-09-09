@@ -49,8 +49,7 @@ CK_RV parse_readers(const CK_BYTE_PTR readers, const CK_ULONG len,
         memset(slots[*n_slots].info.slotDescription, ' ', sizeof(slots[*n_slots].info.slotDescription));
         s = slots[*n_slots].info.slotDescription;
         l = sizeof(slots[*n_slots].info.slotDescription);
-        if (slot.get_slot_description(s, l) != CKR_OK)
-          goto failure;
+        strncpy((char *)s, (char *)p, l);
 
         memset(slots[*n_slots].info.manufacturerID, ' ', sizeof(slots[*n_slots].info.manufacturerID));
         s = slots[*n_slots].info.manufacturerID;

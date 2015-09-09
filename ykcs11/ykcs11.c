@@ -47,7 +47,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
 )
 {
   DIN;
-  char readers[2048];
+  CK_BYTE readers[2048];
   CK_ULONG len = sizeof(readers);
 
   // TODO: check for locks and mutexes
@@ -60,13 +60,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
     return CKR_FUNCTION_FAILED; // TODO: better error?
   }
 
-  if (ykpiv_list_readers(piv_state, readers, &len) != YKPIV_OK) {
+  if (ykpiv_list_readers(piv_state, (char*)readers, &len) != YKPIV_OK) {
     DBG(("Unable to list readers"));
-    return CKR_FUNCTION_FAILED;
-  }
-
-  if(ykpiv_connect(piv_state, NULL) != YKPIV_OK) {
-    DBG(("Unable to connect to reader"));
     return CKR_FUNCTION_FAILED;
   }
 
@@ -480,6 +475,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     return CKR_SESSION_PARALLEL_NOT_SUPPORTED;
   }
 
+  // Connect to the slot
+  if(ykpiv_connect(piv_state, (char *)slots[slotID].info.slotDescription) != YKPIV_OK) {
+    DBG(("Unable to connect to reader"));
+    return CKR_FUNCTION_FAILED;
+  }
+
   token = get_token_vendor(slots[slotID].token->vid);
 
   // Store the slot
@@ -605,6 +606,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
 
   memset(&session, 0, sizeof(ykcs11_session_t));
   session.handle = CK_INVALID_HANDLE;
+
+  ykpiv_disconnect(piv_state);
 
   DOUT;
   return CKR_OK;
