@@ -58,7 +58,7 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa, CK_BYTE
 
   // Create a new empty certificate for the key
   recv_len = sizeof(data);
-  if ((rv = do_create_empty_cert(data, recv_len, rsa, key_len, data, &recv_len)) != CKR_OK)
+  if ((rv = do_create_empty_cert(data, recv_len, rsa, data, &recv_len)) != CKR_OK)
     return rv;
 
   if (recv_len < 0x80)

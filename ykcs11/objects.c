@@ -186,7 +186,6 @@ static void asn1_encode_oid(CK_CHAR_PTR oid, CK_BYTE_PTR asn1_oid, CK_ULONG_PTR 
       p++;
     }
 
-    l = 0;
     if (*p == '.') {
       *p = 0;
       l = (CK_ULONG) atoi((char *)q);
@@ -195,7 +194,7 @@ static void asn1_encode_oid(CK_CHAR_PTR oid, CK_BYTE_PTR asn1_oid, CK_ULONG_PTR 
     }
     else {
       l = (CK_ULONG) atoi((char *)q);
-      q = p;
+      //      q = p;
     }
 
     /* Digit is in l. */

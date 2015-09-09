@@ -9,11 +9,6 @@ CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, X509 **cert) {
   const unsigned char *p = data; // Mandatory temp variable required by OpenSSL
   int                 cert_len;
 
-  /**cert = X509_new();
-  if (*cert == NULL)
-  return CKR_HOST_MEMORY;*/
-  //dump_hex(data, len, stderr, CK_TRUE);
-
   if (*p == 0x70) {
     // The certificate is in "PIV" format 0x70 len 0x30 len ...
     p++;
@@ -25,23 +20,18 @@ CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, X509 **cert) {
     cert_len += get_length(p + 1, &cert_len) + 1;
   }
 
+  if ((CK_ULONG)cert_len > len)
+    return CKR_ARGUMENTS_BAD;
+
   *cert = d2i_X509(NULL, &p, cert_len);
   if (*cert == NULL)
     return CKR_FUNCTION_FAILED;
-
-  /*
-  BIO *STDout = BIO_new_fp(stderr, BIO_NOCLOSE);
-
-  X509_print_ex(STDout, *cert, 0, 0);
-
-  BIO_free(STDout);
-  */
 
   return CKR_OK;
 
 }
 
-CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_ULONG key_len,
+CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa,
                            CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
 
   X509      *cert = NULL;
@@ -53,7 +43,6 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_
   EC_GROUP  *ecg = NULL;
   EC_POINT  *ecp = NULL;
   ASN1_TIME *tm = NULL;
-  time_t    t;
 
   unsigned char *data_ptr;
   unsigned char *p;
@@ -160,16 +149,16 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_
   if (len < 0)
     goto create_empty_cert_cleanup;
 
-  if (len > *out_len) {
+  if ((CK_ULONG)len > *out_len) {
     rv = CKR_BUFFER_TOO_SMALL;
     goto create_empty_cert_cleanup;
   }
 
-  p = in;
+  p = out;
   if ((*out_len = i2d_X509(cert, &p)) == 0)
     goto create_empty_cert_cleanup;
 
-  /* TODO REMOVE THIS */
+  /* TODO: REMOVE THIS */
   BIO *STDout = BIO_new_fp(stderr, BIO_NOCLOSE);
 
   X509_print_ex(STDout, cert, 0, 0);
@@ -320,7 +309,7 @@ CK_RV do_get_public_key(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
     rsa = EVP_PKEY_get1_RSA(key);
 
-    if (RSA_size(rsa) > *len) {
+    if ((CK_ULONG)RSA_size(rsa) > *len) {
       RSA_free(rsa);
       rsa = NULL;
       return CKR_BUFFER_TOO_SMALL;
@@ -461,13 +450,16 @@ CK_RV do_pkcs_pss(RSA *key, CK_BYTE_PTR in, CK_ULONG in_len, int nid,
   OpenSSL_add_all_digests();
 
   // TODO: rand must be seeded first (should be automatic)
-  if (*out_len < RSA_size(key))
+  if (*out_len < (CK_ULONG)RSA_size(key))
     CKR_BUFFER_TOO_SMALL;
 
   DBG(("Apply PSS padding to %lu bytes and get %d\n", in_len, RSA_size(key)));
 
+  if (out != in)
+    memcpy(out, in, in_len);
+
   // In case of raw PSS (no hash) this function will fail because OpenSSL requires an MD
-  if (RSA_padding_add_PKCS1_PSS(key, em, in, EVP_get_digestbynid(nid), -2) == 0) {
+  if (RSA_padding_add_PKCS1_PSS(key, em, out, EVP_get_digestbynid(nid), -2) == 0) {
     EVP_cleanup();
     return CKR_FUNCTION_FAILED;
   }
