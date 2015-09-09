@@ -87,6 +87,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Finalize)(
 )
 {
   DIN;
+  CK_ULONG i;
+
   if (pReserved != NULL_PTR) {
     DBG(("Finalized called with pReserved != NULL"));
     return CKR_ARGUMENTS_BAD;
@@ -97,6 +99,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_Finalize)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
+  for (i = 0; i < n_slots; i++) {
+    destroy_token(slots + i);
+  }
   memset(slots, 0, sizeof(slots));
 
   ykpiv_done(piv_state); // TODO: this calls disconnect...
@@ -546,6 +551,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
       goto failure;
     }
   }
+
+  free(cert_ids);
+  cert_ids = NULL;
 
   session.handle = YKCS11_SESSION_ID;
   // TODO: KEEP TRACK OF THE APPLICATION (possble to steal a session?)
