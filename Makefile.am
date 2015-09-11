@@ -57,7 +57,7 @@ endif
 
 if ENABLE_CPPCHECK
 cppcheck:
-	$(CPPCHECK) -q -v -f --enable=all -i tool/cmdline.c lib tool
+	$(CPPCHECK) -q -v -f --enable=all -i tool/cmdline.c lib tool ykcs11
 endif
 
 # Maintainer rules.
