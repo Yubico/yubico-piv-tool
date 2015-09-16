@@ -87,6 +87,8 @@ if test "x$with_backend" = xcheck; then
   elif test "x$ac_cv_header_winscard_h" = xyes; then
     with_backend=winscard
     AC_MSG_RESULT([Windows])
+  else
+    AC_MSG_RESULT([no])
   fi
 fi
 
