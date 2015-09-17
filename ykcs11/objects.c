@@ -538,12 +538,36 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     break;
 
   case CKA_EC_POINT:
-    // We're trying to get the key length, get the ec point of the PUBLIC key
-    // TODO: or just give an error and explicitly fetch the pubk len when needed
     DBG(("EC_POINT"));
     len = sizeof(b_tmp);
+
+    // Make sure that this is an EC key
+    ul_tmp = get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    if (ul_tmp == CKK_VENDOR_DEFINED)
+      return CKR_FUNCTION_FAILED;
+    if (ul_tmp != CKK_ECDSA)
+      return CKR_ATTRIBUTE_VALUE_INVALID;
+
     if (get_public_key(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
       return CKR_FUNCTION_FAILED;
+    data = b_tmp;
+    break;
+
+    case CKA_EC_PARAMS:
+    // Here we want the curve parameters (DER encoded OID)
+    DBG(("EC_PARAMS"));
+    len = sizeof(b_tmp);
+
+    // Make sure that this is an EC key
+    ul_tmp = get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    if (ul_tmp == CKK_VENDOR_DEFINED)
+      return CKR_FUNCTION_FAILED;
+    if (ul_tmp != CKK_ECDSA)
+      return CKR_ATTRIBUTE_VALUE_INVALID;
+
+    if (get_curve_parameters(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
+      return CKR_FUNCTION_FAILED;
+
     data = b_tmp;
     break;
 
@@ -732,9 +756,16 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     return CKR_FUNCTION_FAILED;
 
   case CKA_EC_POINT:
-    // We're trying to get the key length, get the ec point of the PUBLIC key
     DBG(("EC_POINT"));
     len = sizeof(b_tmp);
+
+    // Make sure that this is an EC key
+    ul_tmp = get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    if (ul_tmp == CKK_VENDOR_DEFINED)
+      return CKR_FUNCTION_FAILED;
+    if (ul_tmp != CKK_ECDSA)
+      return CKR_ATTRIBUTE_VALUE_INVALID;
+
     if (get_public_key(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
       return CKR_FUNCTION_FAILED;
     data = b_tmp;
@@ -744,6 +775,14 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     // Here we want the curve parameters (DER encoded OID)
     DBG(("EC_PARAMS"));
     len = sizeof(b_tmp);
+
+    // Make sure that this is an EC key
+    ul_tmp = get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    if (ul_tmp == CKK_VENDOR_DEFINED)
+      return CKR_FUNCTION_FAILED;
+    if (ul_tmp != CKK_ECDSA)
+      return CKR_ATTRIBUTE_VALUE_INVALID;
+
     if (get_curve_parameters(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
       return CKR_FUNCTION_FAILED;
 
