@@ -220,9 +220,9 @@ create_empty_cert_cleanup:
 
 CK_RV do_check_cert(CK_BYTE_PTR in, CK_ULONG_PTR cert_len) {
 
-  X509 *cert;
+  X509                *cert;
   const unsigned char *p = in; // Mandatory temp variable required by OpenSSL
-  int                  len;
+  int                 len;
 
   len = 0;
   len += get_length(p + 1, &len) + 1;
@@ -434,7 +434,7 @@ CK_RV do_pkcs_1_t1(CK_BYTE_PTR in, CK_ULONG in_len, CK_BYTE_PTR out, CK_ULONG_PT
 
   // TODO: rand must be seeded first (should be automatic)
   if (*out_len < key_len)
-    CKR_BUFFER_TOO_SMALL;
+    return CKR_BUFFER_TOO_SMALL;
 
   if (RSA_padding_add_PKCS1_type_1(buffer, key_len, in, in_len) == 0)
     return CKR_FUNCTION_FAILED;
@@ -468,7 +468,7 @@ CK_RV do_pkcs_pss(RSA *key, CK_BYTE_PTR in, CK_ULONG in_len, int nid,
 
   // TODO: rand must be seeded first (should be automatic)
   if (*out_len < (CK_ULONG)RSA_size(key))
-    CKR_BUFFER_TOO_SMALL;
+    return CKR_BUFFER_TOO_SMALL;
 
   DBG(("Apply PSS padding to %lu bytes and get %d\n", in_len, RSA_size(key)));
 
