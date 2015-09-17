@@ -221,6 +221,10 @@ static CK_ULONG get_modulus_bits(EVP_PKEY *key) {
   return do_get_rsa_modulus_length(key);
 }
 
+static CK_ULONG get_public_exponent(EVP_PKEY *key) {
+  return do_get_public_exponent(key);
+}
+
 static CK_RV get_public_key(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
   return do_get_public_key(key, data, len);
 }
@@ -520,6 +524,14 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   case CKA_MODULUS:
     DBG(("MODULUS"));
     len = sizeof(b_tmp);
+
+    // Make sure that this is an RSA key
+    ul_tmp = get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    if (ul_tmp == CKK_VENDOR_DEFINED)
+      return CKR_FUNCTION_FAILED;
+    if (ul_tmp != CKK_RSA)
+      return CKR_ATTRIBUTE_VALUE_INVALID;
+
     if (get_public_key(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
       return CKR_FUNCTION_FAILED;
     data = b_tmp;
@@ -538,13 +550,37 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   case CKA_MODULUS_BITS:
     DBG(("MODULUS BITS"));
     len = sizeof(CK_ULONG);
+
+    // Make sure that this is an RSA key
+    ul_tmp = get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    if (ul_tmp == CKK_VENDOR_DEFINED)
+      return CKR_FUNCTION_FAILED;
+    if (ul_tmp != CKK_RSA)
+      return CKR_ATTRIBUTE_VALUE_INVALID;
+
     ul_tmp = get_modulus_bits(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
     if (ul_tmp == 0)
       return CKR_FUNCTION_FAILED;
     data = (CK_BYTE_PTR) &ul_tmp;
     break;
 
-  /* case CKA_PUBLIC_EXPONENT: */
+  case CKA_PUBLIC_EXPONENT:
+    DBG(("PUBLIC EXPONENT"));
+    len = sizeof(CK_ULONG);
+
+    // Make sure that this is an RSA key
+    ul_tmp = get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    if (ul_tmp == CKK_VENDOR_DEFINED)
+      return CKR_FUNCTION_FAILED;
+    if (ul_tmp != CKK_RSA)
+      return CKR_ATTRIBUTE_VALUE_INVALID;
+
+    ul_tmp = get_public_exponent(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    if (ul_tmp == 0)
+      return CKR_FUNCTION_FAILED;
+    data = (CK_BYTE_PTR) &ul_tmp;
+    break;
+
   /* case CKA_PRIVATE_EXPONENT: */
   /* case CKA_PRIME_1: */
   /* case CKA_PRIME_2: */
@@ -714,10 +750,51 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     data = b_tmp;
     break;
 
+  case CKA_MODULUS:
+    DBG(("MODULUS"));
+    len = sizeof(b_tmp);
+
+    // Make sure that this is an RSA key
+    ul_tmp = get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    if (ul_tmp == CKK_VENDOR_DEFINED)
+      return CKR_FUNCTION_FAILED;
+    if (ul_tmp != CKK_RSA)
+      return CKR_ATTRIBUTE_VALUE_INVALID;
+
+    if (get_public_key(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
+      return CKR_FUNCTION_FAILED;
+    data = b_tmp;
+    break;
+
   case CKA_MODULUS_BITS:
     DBG(("MODULUS BITS"));
     len = sizeof(CK_ULONG);
+
+    // Make sure that this is an RSA key
+    ul_tmp = get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    if (ul_tmp == CKK_VENDOR_DEFINED)
+      return CKR_FUNCTION_FAILED;
+    if (ul_tmp != CKK_RSA)
+      return CKR_ATTRIBUTE_VALUE_INVALID;
+
     ul_tmp = get_modulus_bits(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    if (ul_tmp == 0)
+      return CKR_FUNCTION_FAILED;
+    data = (CK_BYTE_PTR) &ul_tmp;
+    break;
+
+  case CKA_PUBLIC_EXPONENT:
+    DBG(("PUBLIC EXPONENT"));
+    len = sizeof(CK_ULONG);
+
+    // Make sure that this is an RSA key
+    ul_tmp = get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    if (ul_tmp == CKK_VENDOR_DEFINED)
+      return CKR_FUNCTION_FAILED;
+    if (ul_tmp != CKK_RSA)
+      return CKR_ATTRIBUTE_VALUE_INVALID;
+
+    ul_tmp = get_public_exponent(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
     if (ul_tmp == 0)
       return CKR_FUNCTION_FAILED;
     data = (CK_BYTE_PTR) &ul_tmp;

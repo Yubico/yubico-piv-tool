@@ -288,6 +288,23 @@ CK_ULONG do_get_rsa_modulus_length(EVP_PKEY *key) {
 
 }
 
+CK_ULONG do_get_public_exponent(EVP_PKEY *key) {
+
+  CK_ULONG e = 0;
+  RSA *rsa;
+
+  rsa = EVP_PKEY_get1_RSA(key);
+  if (rsa == NULL)
+    return 0;
+
+  BN_bn2bin(rsa->e, (unsigned char *)&e);
+
+  RSA_free(rsa);
+  rsa = NULL;
+
+  return e;
+}
+
 /* #include <stdio.h> */
 /* #include <openssl/err.h> */
 /*   ERR_load_crypto_strings(); */
