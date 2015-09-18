@@ -98,7 +98,7 @@ static bool sign_data(ykpiv_state *state, const unsigned char *in, size_t len, u
     in = signinput;
     len = padlen;
   }
-  if(ykpiv_sign_data(state, signinput, len, out, out_len, algorithm, key) == YKPIV_OK) {
+  if(ykpiv_sign_data(state, in, len, out, out_len, algorithm, key) == YKPIV_OK) {
     return true;
   }
   return false;
