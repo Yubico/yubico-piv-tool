@@ -46,6 +46,7 @@
 #include <openssl/pem.h>
 #include <openssl/pkcs12.h>
 #include <openssl/rand.h>
+#include <openssl/sha.h>
 
 #include "cmdline.h"
 #include "util.h"
@@ -79,6 +80,7 @@ unsigned const char sha512oid[] = {
 };
 
 #define KEY_LEN 24
+#define SALT_LEN 16
 
 static void print_version(ykpiv_state *state, const char *output_file_name) {
   char version[7];
@@ -98,9 +100,212 @@ static void print_version(ykpiv_state *state, const char *output_file_name) {
   }
 }
 
-static bool generate_key(ykpiv_state *state, const char *slot,
-    enum enum_algorithm algorithm, const char *output_file_name,
-    enum enum_key_format key_format) {
+/**
+ * Reads the YKPIV_OBJ_PIVMAN_DATA area from the token.
+ *
+ * @brief read_pivman_data
+ * @param state
+ * @param data a pointer to where to put the data
+ * @param data_len
+ * @param verbosity logging level indicator
+ * @return YKPIV_OK (0) if success
+ */
+static ykpiv_rc read_pivman_data(ykpiv_state* state,
+                                 unsigned char* data,
+                                 size_t* data_len,
+                                 const int verbosity) {
+  unsigned char raw_data[*data_len];
+  ykpiv_rc ret = ykpiv_fetch_object(state, YKPIV_OBJ_PIVMAN_DATA, raw_data, data_len);
+
+  if (ret == YKPIV_OK) {
+
+    if (verbosity >= 2) {
+      fprintf(stderr, "pivman data: ");
+      dump_hex(raw_data, *data_len, stderr, false);
+    }
+
+    if (parse_value_from_tlv(YKPIV_TAG_PIVMAN_DATA, raw_data, data_len)) {
+      memcpy(data, raw_data, *data_len);
+    } else {
+      return YKPIV_PARSE_ERROR;
+    }
+  } else {
+    if (verbosity > 2) {
+      fprintf(stderr, "No pivman data found, error: %d\n", ret);
+    }
+  }
+  return ret;
+}
+
+/**
+ * Checks if there is a salt tagged in the YKPIV_OBJ_PIVMAN_DATA area.
+ *
+ * @brief has_salt
+ * @param state
+ * @param current_salt pointer to where to store the existing salt.
+ * @param current_salt_len
+ * @param verbosity logging level indicator
+ * @return true on success, otherwise false.
+ */
+static bool has_salt(ykpiv_state* state,
+                     unsigned char* current_salt,
+                     size_t* current_salt_len,
+                     const int verbosity) {
+  unsigned char data[256];
+  memset (data, 0x00, 256);
+  size_t data_len = 256;
+  ykpiv_rc ret = read_pivman_data(state, data, &data_len, verbosity);
+
+  if (ret == YKPIV_OK) {
+    unsigned char* salt_ptr = memchr(data, YKPIV_TAG_SALT, data_len);
+    if (salt_ptr != NULL) {
+      int length = 0;
+      int offset = get_length(++salt_ptr, &length);
+      salt_ptr = salt_ptr + offset;
+
+      if (salt_ptr != NULL && length == SALT_LEN) {
+
+        if (current_salt && *current_salt_len >= SALT_LEN) {
+          memcpy(current_salt, salt_ptr, SALT_LEN);
+          *current_salt_len = SALT_LEN;
+
+          if (verbosity >= 2) {
+            fprintf(stderr, "Salt found: ");
+            dump_hex(current_salt, *current_salt_len, stderr, false);
+          }
+        }
+        return true;
+      } else {
+        fprintf(stderr, "Read salt data is null or of wrong length.");
+        return false;
+      }
+    }
+
+  } else {
+    if(verbosity > 2) {
+      fprintf(stderr, "Failed to read salt data. %#x\n", ret);
+    }
+    return false;
+  }
+}
+
+/**
+ * Updates the salt entry, or writes a new entry, in YKPIV_OBJ_PIVMAN_DATA.
+ *
+ * @brief update_salt
+ * @param state
+ * @param new_salt the new salt to write, if NULL the salt will be removed.
+ * @param new_salt_len the new salt length, if 0 the salt will be removed.
+ * @param verbosity logging level indicator
+ * @return true on success
+ */
+static bool update_salt(ykpiv_state* state,
+                        const unsigned char* new_salt,
+                        const size_t new_salt_len,
+                        const int verbosity) {
+
+  ykpiv_rc ret = YKPIV_GENERIC_ERROR;
+  unsigned char pivman_data[256];
+  memset(pivman_data, 0x00, 256);
+  size_t data_len = 256;
+  ret = read_pivman_data(state, pivman_data, &data_len, verbosity);
+  if (ret == YKPIV_OK) {
+
+    if (verbosity >= 2) {
+      fprintf(stderr, "Current pivman data: ");
+      dump_hex(pivman_data, data_len, stderr, false);
+    }
+
+    unsigned char* salt_ptr = memchr(pivman_data, YKPIV_TAG_SALT, data_len);
+    if (salt_ptr != NULL) {
+      int length = 0;
+      int offset = get_length(salt_ptr + 1, &length);
+
+      // If salt is null and legth is 0 we want to remove the existing salt from PIVMAN_DATA
+      if (new_salt == NULL || new_salt_len == 0) {
+        size_t salt_tlv_size = 1 + offset + length;
+        memset(salt_ptr, 0x00, salt_tlv_size);
+        memmove(salt_ptr, salt_ptr + salt_tlv_size, data_len - salt_tlv_size - (salt_ptr - pivman_data));
+        data_len = data_len - salt_tlv_size;
+      } else {
+        salt_ptr = salt_ptr + 1 + offset;
+        memcpy(salt_ptr, new_salt, new_salt_len);
+      }
+
+    } else {
+      // No salt tag found to update, add new one.
+      pivman_data[data_len] = 0x82;
+      int offset = set_length(pivman_data + data_len + 1, new_salt_len);
+      memcpy(pivman_data + data_len + 1 + offset, new_salt, new_salt_len);
+      data_len = data_len + 1 + offset + new_salt_len;
+    }
+
+    if (verbosity >= 2) {
+      fprintf(stderr, "New pivman data: ");
+      dump_hex(pivman_data, data_len, stderr, false);
+    }
+
+    // Add PIVMAN_DATA tag and length and append the new data.
+    unsigned char data_to_write[256];
+    memset(data_to_write, 0x00, 256);
+    data_to_write[0] = 0x80;
+    unsigned char* length_ptr = data_to_write + 1;
+    int offset = set_length(length_ptr, data_len);
+    memcpy(length_ptr + offset, pivman_data, data_len);
+
+    ret = ykpiv_save_object(state, YKPIV_OBJ_PIVMAN_DATA, data_to_write, strlen(data_to_write));
+    if (ret == YKPIV_OK) {
+      printf("PIV Data written.\n");
+      return true;
+    }
+  }
+  fprintf(stderr, "Could not update salt. %d\n", ret);
+  return false;
+}
+
+static bool derive_key(const unsigned char* pin,
+                       const unsigned char* salt,
+                       const size_t salt_len,
+                       unsigned char* out,
+                       size_t* out_len,
+                       int verbosity) {
+
+  size_t pin_len = 0;
+
+  if(pin) {
+    pin_len = strlen(pin);
+  } else {
+    return false;
+  }
+
+  if(!salt && salt_len != SALT_LEN) {
+    fprintf(stderr, "Salt is not of right length. Actual: %zu. Expected: %d", salt_len, SALT_LEN);
+    return false;
+  }
+
+  if (*out_len >= KEY_LEN) {
+    unsigned char key[KEY_LEN];
+    memset(out, 0x00, KEY_LEN);
+    memset(key, 0x00, KEY_LEN);
+    *out_len = KEY_LEN;
+    PKCS5_PBKDF2_HMAC_SHA1(pin, pin_len, salt, salt_len, 10000, KEY_LEN, out);
+
+    if (verbosity >= 2) {
+      fprintf(stderr, "Derived key: ");
+      dump_hex(out, *out_len, stderr, false);
+    }
+
+    return true;
+  } else {
+    return false;
+  }
+}
+
+static bool generate_key(ykpiv_state *state,
+                         const char *slot,
+                         enum enum_algorithm algorithm,
+                         const char *output_file_name,
+                         enum enum_key_format key_format) {
   unsigned char in_data[5];
   unsigned char data[1024];
   unsigned char templ[] = {0, YKPIV_INS_GENERATE_ASYMMERTRIC, 0, 0};
@@ -969,8 +1174,10 @@ static bool verify_pin(ykpiv_state *state, const char *pin) {
 
 /* this function is called for all three of change-pin, change-puk and unblock pin
  * since they're very similar in what data they use. */
-static bool change_pin(ykpiv_state *state, enum enum_action action, const char *pin,
-    const char *new_pin) {
+static bool change_pin(ykpiv_state *state,
+                       enum enum_action action,
+                       const char *pin,
+                       const char *new_pin) {
   unsigned char templ[] = {0, YKPIV_INS_CHANGE_REFERENCE, 0, 0x80};
   unsigned char indata[0x10];
   unsigned char data[0xff];
@@ -978,7 +1185,7 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
   char pinbuf[9] = {0};
   char new_pinbuf[9] = {0};
   const char *name = action == action_arg_changeMINUS_pin ? "pin" : "puk";
-  const char *new_name = action == action_arg_changeMINUS_puk ? "new puk" : "new pin";
+  const char *new_name = action == action_arg_changeMINUS_pin ? "new pin" : "new puk";
   int sw;
   size_t pin_len;
   size_t new_len;
@@ -1033,6 +1240,32 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
     } else {
       fprintf(stderr, "Failed changing/unblocking code, error: %x\n", sw);
     }
+    return false;
+  }
+  return true;
+}
+
+static bool set_puk_blocked(ykpiv_state* state) {
+  unsigned char def_key[] = {
+    0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+    0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+    0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08
+  };
+
+  ykpiv_authenticate(state, def_key);
+
+  // Block the PUK
+  int i;
+  for (i = 0 ; i < 3 ; i++) {
+    change_pin(state, action_arg_changeMINUS_puk, "00000000", "00000000");
+  }
+
+  unsigned char puk_blocked[] = {
+    0x80, 0x03, 0x81, 0x01, 0x01
+  };
+
+  if (ykpiv_save_object(state, YKPIV_OBJ_PIVMAN_DATA, puk_blocked, 5) != YKPIV_OK) {
+    fprintf(stderr, "Failed to set puk blocked in PIVMAN_DATA.");
     return false;
   }
   return true;
@@ -1648,6 +1881,7 @@ decipher_out:
 }
 
 int main(int argc, char *argv[]) {
+  bool salt_present = false;
   struct gengetopt_args_info args_info;
   ykpiv_state *state;
   int verbosity;
@@ -1667,8 +1901,9 @@ int main(int argc, char *argv[]) {
       case action_arg_requestMINUS_certificate:
       case action_arg_selfsignMINUS_certificate:
         if(!args_info.subject_arg) {
-          fprintf(stderr, "The '%s' action needs a subject (-S) to operate on.\n",
-              cmdline_parser_action_values[action]);
+          fprintf(stderr,
+                  "The '%s' action needs a subject (-S) to operate on.\n",
+                  cmdline_parser_action_values[action]);
           return EXIT_FAILURE;
         }
       case action_arg_generate:
@@ -1679,15 +1914,17 @@ int main(int argc, char *argv[]) {
       case action_arg_testMINUS_signature:
       case action_arg_testMINUS_decipher:
         if(args_info.slot_arg == slot__NULL) {
-          fprintf(stderr, "The '%s' action needs a slot (-s) to operate on.\n",
-              cmdline_parser_action_values[action]);
+          fprintf(stderr,
+                  "The '%s' action needs a slot (-s) to operate on.\n",
+                  cmdline_parser_action_values[action]);
           return EXIT_FAILURE;
         }
         break;
       case action_arg_pinMINUS_retries:
         if(!args_info.pin_retries_arg || !args_info.puk_retries_arg) {
-          fprintf(stderr, "The '%s' action needs both --pin-retries and --puk-retries arguments.\n",
-              cmdline_parser_action_values[action]);
+          fprintf(stderr,
+                  "The '%s' action needs both --pin-retries and --puk-retries arguments.\n",
+                  cmdline_parser_action_values[action]);
           return EXIT_FAILURE;
         }
         break;
@@ -1696,6 +1933,7 @@ int main(int argc, char *argv[]) {
       case action_arg_unblockMINUS_pin:
       case action_arg_verifyMINUS_pin:
       case action_arg_setMINUS_mgmMINUS_key:
+      case action_arg_setMINUS_mgmMINUS_keyMINUS_withMINUS_pin:
       case action_arg_setMINUS_chuid:
       case action_arg_version:
       case action_arg_reset:
@@ -1716,29 +1954,46 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
+  // Check if salt data is present
+  unsigned char current_salt[0x20];
+  size_t current_salt_len = 0x20;
+  salt_present = has_salt(state, current_salt, &current_salt_len, verbosity);
+
   for(i = 0; i < args_info.action_given; i++) {
     bool needs_auth = false;
     action = *(args_info.action_arg + i);
     switch(action) {
       case action_arg_generate:
       case action_arg_setMINUS_mgmMINUS_key:
+      case action_arg_setMINUS_mgmMINUS_keyMINUS_withMINUS_pin:
       case action_arg_pinMINUS_retries:
       case action_arg_importMINUS_key:
       case action_arg_importMINUS_certificate:
       case action_arg_setMINUS_chuid:
       case action_arg_deleteMINUS_certificate:
         if(verbosity) {
-          fprintf(stderr, "Authenticating since action '%s' needs that.\n", cmdline_parser_action_values[action]);
+          fprintf(stderr,
+                  "Authenticating since action '%s' needs that.\n",
+                  cmdline_parser_action_values[action]);
         }
         needs_auth = true;
+        break;
+      case action_arg_changeMINUS_pin:
+      case action_arg_unblockMINUS_pin:
+        if (salt_present) {
+          needs_auth = true;
+          if(verbosity) {
+            fprintf(stderr,
+                    "Authenticating since action '%s' needs that.\n",
+                    cmdline_parser_action_values[action]);
+          }
+        }
         break;
       case action_arg_version:
       case action_arg_reset:
       case action_arg_requestMINUS_certificate:
       case action_arg_verifyMINUS_pin:
-      case action_arg_changeMINUS_pin:
       case action_arg_changeMINUS_puk:
-      case action_arg_unblockMINUS_pin:
       case action_arg_selfsignMINUS_certificate:
       case action_arg_readMINUS_certificate:
       case action_arg_status:
@@ -1751,21 +2006,45 @@ int main(int argc, char *argv[]) {
         }
         continue;
     }
+
     if(needs_auth) {
-      unsigned char key[KEY_LEN];
+      unsigned char key[KEY_LEN + 1] = {0};
+      unsigned char pin[8] = {0};
       size_t key_len = sizeof(key);
-      if(ykpiv_hex_decode(args_info.key_arg, strlen(args_info.key_arg), key, &key_len) != YKPIV_OK) {
-        fprintf(stderr, "Failed decoding key!\n");
-        return EXIT_FAILURE;
+
+      if (salt_present) {
+        if (!args_info.pin_arg) {
+          if (!read_pw("PIN", pin, sizeof(pin), false)) {
+            fprintf(stderr, "Failed to read pin from stdin.\n");
+            return EXIT_FAILURE;
+          }
+        } else {
+          memcpy(pin, args_info.pin_arg, strlen(args_info.pin_arg));
+        }
+
+        dump_hex(pin, strlen(pin), stderr, false);
+
+        if (!derive_key(pin, current_salt, current_salt_len, key, &key_len, verbosity)) {
+          fprintf(stderr, "Failed to derive key from pin\n");
+          return EXIT_FAILURE;
+        }
+      } else {
+        if(ykpiv_hex_decode(args_info.key_arg, strlen(args_info.key_arg), key, &key_len) != YKPIV_OK) {
+          fprintf(stderr, "Failed decoding key!\n");
+          return EXIT_FAILURE;
+        }
       }
 
+      dump_hex(key, key_len, stderr, false);
       if(ykpiv_authenticate(state, key) != YKPIV_OK) {
         fprintf(stderr, "Failed authentication with the applet.\n");
         return EXIT_FAILURE;
       }
+
       if(verbosity) {
         fprintf(stderr, "Successful applet authentication.\n");
       }
+
       break;
     }
   }
@@ -1775,6 +2054,8 @@ int main(int argc, char *argv[]) {
 
   for(i = 0; i < args_info.action_given; i++) {
     char new_keybuf[KEY_LEN*2+1] = {0};
+    char pin_buf[8] = {0};
+    size_t new_keybuf_len = sizeof(new_keybuf) / sizeof(new_keybuf[0]);
     char *new_mgm_key = args_info.new_key_arg;
     action = *(args_info.action_arg + i);
     if(verbosity) {
@@ -1794,8 +2075,8 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_setMINUS_mgmMINUS_key:
         if(!new_mgm_key) {
-          if(!read_pw("new management key", new_keybuf, sizeof(new_keybuf), true)) {
-            fprintf(stderr, "Failed to read management key from stdin,\n");
+          if(!read_pw("Enter new management key", new_keybuf, sizeof(new_keybuf), true)) {
+            fprintf(stderr, "Failed to read management key from stdin.\n");
             ret = EXIT_FAILURE;
             break;
           }
@@ -1812,15 +2093,91 @@ int main(int argc, char *argv[]) {
             ret = EXIT_FAILURE;
           } else {
             fprintf(stderr, "Successfully set new management key.\n");
+            // Remove the salt
+            if (salt_present) {
+              if (update_salt(state, NULL, 0, verbosity) == false) {
+                fprintf(stderr, "Failed to remove salt. You will have to reset the device.\n");
+                ret = EXIT_FAILURE;
+                break;
+              }
+            }
           }
         } else {
           fprintf(stderr, "The new management key has to be exactly %d character.\n", KEY_LEN * 2);
           ret = EXIT_FAILURE;
         }
         break;
+      case action_arg_setMINUS_mgmMINUS_keyMINUS_withMINUS_pin:
+        if (salt_present) {
+          if (!args_info.new_pin_arg) {
+            if (!read_pw("New PIN", pin_buf, sizeof(pin_buf),true)) {
+              fprintf(stderr, "Failed to read new PIN from stdin.\n");
+              ret = EXIT_FAILURE;
+              break;
+            }
+          } else {
+            if (strlen(args_info.new_pin_arg) > 8) {
+              fprintf(stderr, "Maximum 8 digits of PIN supported.\n");
+              ret = EXIT_FAILURE;
+              break;
+            }
+            memcpy(pin_buf, args_info.new_pin_arg, strlen(args_info.new_pin_arg));
+          }
+
+        } else {
+          if (!args_info.pin_arg) {
+            if (!read_pw("PIN", pin_buf, sizeof(pin_buf),true)) {
+              fprintf(stderr, "Failed to read new PIN from stdin.\n");
+              ret = EXIT_FAILURE;
+              break;
+            }
+          } else {
+            if (strlen(args_info.pin_arg) > 8) {
+              fprintf(stderr, "Maximum 8 digits of PIN supported.\n");
+              ret = EXIT_FAILURE;
+              break;
+            }
+            memcpy(pin_buf, args_info.pin_arg, strlen(args_info.pin_arg));
+          }
+          // Block puk and set flag in PIVMAN_DATA
+          set_puk_blocked(state);
+        }
+
+        unsigned char salt[SALT_LEN] = {0};
+        if (generate_salt(salt, SALT_LEN, verbosity) == false){
+          fprintf(stderr, "Failed to generate salt.\n");
+          ret = EXIT_FAILURE;
+          break;
+        }
+
+        if (derive_key(pin_buf, salt, SALT_LEN, new_keybuf, &new_keybuf_len, verbosity) == false){
+          fprintf(stderr, "Failed to derive key.\n");
+          ret = EXIT_FAILURE;
+          break;
+        }
+
+        if (ykpiv_set_mgmkey(state, new_keybuf) != YKPIV_OK) {
+          fprintf(stderr, "Failed setting the new key.\n");
+          ret = EXIT_FAILURE;
+          break;
+        }
+
+        if (change_pin(state, action_arg_changeMINUS_pin, args_info.pin_arg, pin_buf) == false) {
+          fprintf(stderr, "Failed to change pin.\n");
+          ret = EXIT_FAILURE;
+          break;
+        }
+
+        if (update_salt(state, salt, SALT_LEN, verbosity) == false){
+          fprintf(stderr, "Failed to update salt.\n");
+          ret = EXIT_FAILURE;
+          break;
+        }
+
+        break;
       case action_arg_reset:
         if(reset(state) == false) {
-	  fprintf(stderr, "Reset failed, are pincodes blocked?\n");
+          fprintf(stderr, "Reset failed, are pincodes blocked? If not, they have to be.\n");
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully reset the applet.\n");
@@ -1874,6 +2231,17 @@ int main(int argc, char *argv[]) {
       case action_arg_changeMINUS_pin:
       case action_arg_changeMINUS_puk:
       case action_arg_unblockMINUS_pin:
+        // TODO: set new management key if SALT is set
+        if (salt_present) {
+          derive_key(args_info.new_pin_arg, current_salt, current_salt_len, new_keybuf, &new_keybuf_len, 2);
+          ret = ykpiv_set_mgmkey(state, new_keybuf);
+          if (ret != YKPIV_OK) {
+            fprintf(stderr, "Failed to update mgmkey.\n");
+          }
+        } else {
+          fprintf(stderr, "Failed to verify pin.");
+        }
+
         if(change_pin(state, action, args_info.pin_arg, args_info.new_pin_arg)) {
           if(action == action_arg_unblockMINUS_pin) {
             fprintf(stderr, "Successfully unblocked the pin code.\n");
@@ -1936,10 +2304,13 @@ int main(int argc, char *argv[]) {
     if(args_info.slot_arg == slot__NULL) {
       fprintf(stderr, "The sign action needs a slot (-s) to operate on.\n");
       ret = EXIT_FAILURE;
-    }
-    else if(sign_file(state, args_info.input_arg, args_info.output_arg,
-        args_info.slot_orig, args_info.algorithm_arg, args_info.hash_arg,
-        verbosity)) {
+    } else if(sign_file(state,
+                        args_info.input_arg,
+                        args_info.output_arg,
+                        args_info.slot_orig,
+                        args_info.algorithm_arg,
+                        args_info.hash_arg,
+                        verbosity)) {
       fprintf(stderr, "Signature successful!\n");
     } else {
       fprintf(stderr, "Failed signing!\n");

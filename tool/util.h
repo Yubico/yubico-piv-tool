@@ -46,8 +46,14 @@ unsigned char get_algorithm(EVP_PKEY*);
 FILE *open_file(const char*, int);
 int get_object_id(enum enum_slot slot);
 bool set_component_with_len(unsigned char**, const BIGNUM*, int);
-bool prepare_rsa_signature(const unsigned char*, unsigned int, unsigned char*,
-    unsigned int*, int);
+bool prepare_rsa_signature(const unsigned char*,
+                           unsigned int,
+                           unsigned char*,
+                           unsigned int*,
+                           int);
 bool read_pw(const char*, char*, size_t, int);
+
+bool generate_salt(unsigned char*, const size_t, int);
+bool parse_value_from_tlv(const unsigned char, unsigned char*, size_t*);
 
 #endif
