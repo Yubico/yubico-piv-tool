@@ -226,9 +226,13 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
   return YKPIV_GENERIC_ERROR;
 }
 
-ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
-    const unsigned char *in_data, long in_len,
-    unsigned char *out_data, unsigned long *out_len, int *sw) {
+ykpiv_rc ykpiv_transfer_data(ykpiv_state *state,
+                             const unsigned char *templ,
+                             const unsigned char *in_data,
+                             long in_len,
+                             unsigned char *out_data,
+                             unsigned long *out_len,
+                             int *sw) {
   const unsigned char *in_ptr = in_data;
   unsigned long max_out = *out_len;
   ykpiv_rc res;
@@ -505,9 +509,13 @@ ykpiv_rc ykpiv_hex_decode(const char *hex_in, size_t in_len,
 }
 
 static ykpiv_rc _general_authenticate(ykpiv_state *state,
-    const unsigned char *raw_in, size_t in_len,
-    unsigned char *out, size_t *out_len,
-    unsigned char algorithm, unsigned char key, bool decipher) {
+                                      const unsigned char *raw_in,
+                                      size_t in_len,
+                                      unsigned char *out,
+                                      size_t *out_len,
+                                      unsigned char algorithm,
+                                      unsigned char key,
+                                      bool decipher) {
   unsigned char indata[1024];
   unsigned char *dataptr = indata;
   unsigned char data[1024];
