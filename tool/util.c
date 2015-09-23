@@ -47,7 +47,7 @@
 #include "util.h"
 
 bool generate_salt(unsigned char* salt, const size_t salt_len, int verbosity) {
-  if (salt != _NULL && RAND_bytes(salt, salt_len) == 1) {
+  if (salt != NULL && RAND_bytes(salt, salt_len) == 1) {
     if (verbosity > 2) {
       fprintf(stderr, "Generated salt: ");
       dump_hex(salt, salt_len, stderr, false);
@@ -61,7 +61,7 @@ bool generate_salt(unsigned char* salt, const size_t salt_len, int verbosity) {
 
 bool parse_value_from_tlv(const unsigned char tag, unsigned char* data, size_t* data_len) {
   if (data == NULL) {
-    fprintf(stderr, "%s - Indata is null.");
+    fprintf(stderr, "%s - Indata is null.", __FUNCTION__);
     return false;
   }
   if (data[0] != tag) {
