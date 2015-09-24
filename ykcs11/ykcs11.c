@@ -698,7 +698,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
 )
 {
   DIN;
-  CK_ULONG tries = 0;
+  CK_RV          rv;
+  token_vendor_t token;
 
   if (piv_state == NULL) {
     DBG(("libykpiv is not initialized or already finalized"));
@@ -727,6 +728,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
     return CKR_SESSION_READ_ONLY_EXISTS;
   }
 
+  token = get_token_vendor(session.slot->token->vid);
+
   switch (userType) {
   case CKU_USER:
     if (ulPinLen < PIV_MIN_PIN_LEN || ulPinLen > PIV_MAX_PIN_LEN)
@@ -742,13 +745,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
       return CKR_USER_ANOTHER_ALREADY_LOGGED_IN;
     }
 
-    tries = 0;
-    if (ykpiv_verify(piv_state, pPin, (int *)&tries) != YKPIV_OK) { // TODO: call this from vendors.c
-      DBG(("You loose! %lu", tries));
-      return CKR_PIN_INCORRECT;
+    rv = token.token_login(piv_state, CKU_USER, pPin, ulPinLen);
+    if (rv != CKR_OK) {
+      DBG(("Unable to login as regular user"));
+      return rv;
     }
 
-    if ((session.info.flags & CKF_RW_SESSION) == 0) // TODO: double check with the if line 678 for R/O
+    if ((session.info.flags & CKF_RW_SESSION) == 0)
       session.info.state = CKS_RO_USER_FUNCTIONS;
     else
       session.info.state = CKS_RW_USER_FUNCTIONS;
@@ -763,19 +766,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
         session.info.state == CKS_RW_USER_FUNCTIONS)
       return CKR_USER_ANOTHER_ALREADY_LOGGED_IN;
 
-    /***** TODO: replace this with a token function *****/
-    unsigned char key[24];
-    size_t key_len = sizeof(key);
-    if(ykpiv_hex_decode(pPin, ulPinLen, key, &key_len) != YKPIV_OK) {
-      DBG(("Failed decoding key"));
-      return CKR_FUNCTION_FAILED;
+    rv = token.token_login(piv_state, CKU_SO, pPin, ulPinLen);
+    if (rv != CKR_OK) {
+      DBG(("Unable to login as SO"));
+      return rv;
     }
-
-    if(ykpiv_authenticate(piv_state, key) != YKPIV_OK) {
-      DBG(("Failed to authenticate"));
-      return CKR_PIN_INCORRECT;
-    }
-    /***************************************************/
 
     session.info.state = CKS_RW_SO_FUNCTIONS;
     break;
@@ -795,7 +790,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
     return CKR_USER_TYPE_INVALID;
   }
 
-  DBG(("You win! %lu", tries));
+  DBG(("Successfully logged in"));
 
   DOUT;
   return CKR_OK;

@@ -4,6 +4,33 @@
 #include <string.h>
 #include "debug.h"
 
+static CK_RV COMMON_token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK_ULONG pin_len) {
+
+  int tries = 0; // TODO: this is effectively disregarded, should we add a better value in ykpiv_verify?
+  unsigned char key[24];
+  size_t key_len = sizeof(key);
+
+  if (user == CKU_USER) {
+    if (ykpiv_verify(state, (char *)pin, &tries) != YKPIV_OK) {
+      DBG(("Failed to login"));
+      return CKR_PIN_INCORRECT;
+    }
+  }
+  else if (user == CKU_SO) {
+    if(ykpiv_hex_decode((char *)pin, pin_len, key, &key_len) != YKPIV_OK) {
+      DBG(("Failed decoding key"));
+      return CKR_FUNCTION_FAILED;
+    }
+
+    if(ykpiv_authenticate(state, key) != YKPIV_OK) {
+      DBG(("Failed to authenticate"));
+      return CKR_PIN_INCORRECT;
+    }
+  }
+
+  return CKR_OK;
+}
+
 static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa, CK_BYTE key, CK_ULONG key_len) {
   // TODO: make a function in ykpiv for this
   unsigned char in_data[5];
@@ -200,6 +227,7 @@ token_vendor_t get_token_vendor(vendor_id_t vid) {
     v.get_token_objects_num     = YUBICO_get_token_objects_num;
     v.get_token_object_list     = YUBICO_get_token_object_list;
     v.get_token_raw_certificate = YUBICO_get_token_raw_certificate;
+    v.token_login               = COMMON_token_login;
     v.token_generate_key        = COMMON_token_generate_key;
     v.token_import_cert         = COMMON_token_import_cert;
     v.token_import_private_key  = COMMON_token_import_private_key;
@@ -219,6 +247,7 @@ token_vendor_t get_token_vendor(vendor_id_t vid) {
     v.get_token_objects_num     = NULL;
     v.get_token_object_list     = NULL;
     v.get_token_raw_certificate = NULL;
+    v.token_login               = NULL;
     v.token_generate_key        = NULL;
     v.token_import_cert         = NULL;
     v.token_import_private_key  = NULL;

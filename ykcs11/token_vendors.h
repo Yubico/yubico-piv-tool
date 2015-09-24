@@ -20,6 +20,7 @@ typedef CK_RV (*get_t_object_list_f)(ykpiv_state *, piv_obj_id_t *, CK_ULONG);
 typedef CK_RV (*get_t_raw_certificate_f)(ykpiv_state *, piv_obj_id_t, CK_BYTE_PTR, CK_ULONG_PTR);
 
 // Common token functions below
+typedef CK_RV (*t_login_f)(ykpiv_state *, CK_USER_TYPE, CK_UTF8CHAR_PTR, CK_ULONG);
 typedef CK_RV (*t_generate_key_f)(ykpiv_state *, CK_BBOOL, CK_BYTE, CK_ULONG);
 typedef CK_RV (*t_import_cert_f)(ykpiv_state *, CK_ULONG, CK_BYTE_PTR);
 typedef CK_RV (*t_import_private_key_f)(ykpiv_state *, CK_BYTE, CK_BYTE_PTR, CK_BYTE_PTR, CK_BYTE_PTR,
@@ -40,6 +41,7 @@ typedef struct {
   get_t_objects_num_f     get_token_objects_num;
   get_t_object_list_f     get_token_object_list;
   get_t_raw_certificate_f get_token_raw_certificate;
+  t_login_f               token_login;
   t_generate_key_f        token_generate_key;
   t_import_cert_f         token_import_cert;
   t_import_private_key_f  token_import_private_key;
