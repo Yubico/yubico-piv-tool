@@ -1021,7 +1021,7 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
     return false;
   } else if(sw != 0x9000) {
     if((sw >> 8) == 0x63) {
-      int tries = sw & 0xff;
+      int tries = sw & 0xf;
       fprintf(stderr, "Failed verifying %s code, now %d tries left before blocked.\n",
           name, tries);
     } else if(sw == 0x6983) {
