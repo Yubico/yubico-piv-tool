@@ -244,8 +244,8 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
   }
   do {
     size_t this_size = 0xff;
-    unsigned long recv_len = 0xff;
-    unsigned char data[0xff];
+    unsigned char data[261];
+    unsigned long recv_len = sizeof(data);
     APDU apdu;
 
     memset(apdu.raw, 0, sizeof(apdu.raw));
@@ -281,8 +281,8 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
   } while(in_ptr < in_data + in_len);
   while(*sw >> 8 == 0x61) {
     APDU apdu;
-    unsigned long recv_len = 0xff;
-    unsigned char data[0xff];
+    unsigned char data[261];
+    unsigned long recv_len = sizeof(data);
 
     if(state->verbose > 2) {
       fprintf(stderr, "The card indicates there is %d bytes more data for us.\n", *sw & 0xff);
@@ -348,7 +348,7 @@ static ykpiv_rc send_data(ykpiv_state *state, APDU *apdu,
 
 ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
   APDU apdu;
-  unsigned char data[0xff];
+  unsigned char data[261];
   DES_cblock challenge;
   unsigned long recv_len = sizeof(data);
   int sw;
@@ -391,7 +391,7 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
     DES_cblock response;
     DES_ecb3_encrypt(&challenge, &response, &ks1, &ks2, &ks3, 0);
 
-    recv_len = 0xff;
+    recv_len = sizeof(data);
     memset(apdu.raw, 0, sizeof(apdu));
     apdu.st.ins = YKPIV_INS_AUTHENTICATE;
     apdu.st.p1 = YKPIV_ALGO_3DES; /* triple des */
@@ -434,7 +434,7 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
 
 ykpiv_rc ykpiv_set_mgmkey(ykpiv_state *state, const unsigned char *new_key) {
   APDU apdu;
-  unsigned char data[0xff];
+  unsigned char data[261];
   unsigned long recv_len = sizeof(data);
   int sw;
   size_t i;
@@ -629,7 +629,7 @@ ykpiv_rc ykpiv_decipher_data(ykpiv_state *state, const unsigned char *in,
 
 ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len) {
   APDU apdu;
-  unsigned char data[0xff];
+  unsigned char data[261];
   unsigned long recv_len = sizeof(data);
   int sw;
   ykpiv_rc res;
@@ -651,7 +651,7 @@ ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len) {
 
 ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
   APDU apdu;
-  unsigned char data[0xff];
+  unsigned char data[261];
   unsigned long recv_len = sizeof(data);
   int sw;
   size_t len = 0;
