@@ -1,6 +1,12 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
-* Version 1.0.3 (unreleased)
+* Version 1.0.3 (released 2015-10-01)
+
+** Correct wording on unblock-pin action.
+
+** Show pin retries correctly.
+
+** Use a bigger buffer for receiving data.
 
 * Version 1.0.2 (released 2015-09-04)
 
