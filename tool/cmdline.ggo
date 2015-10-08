@@ -28,7 +28,7 @@
 option "verbose" v "Print more information" int optional default="0" argoptional
 option "reader" r "Only use a matching reader" string optional default="Yubikey"
 option "key" k "Authentication key to use" string optional default="010203040506070801020304050607080102030405060708"
-option "action" a "Action to take" values="version","generate","set-mgm-key",
+option "action" a "Action to take" values="version","generate","set-mgm-key", "set-mgm-key-with-pin",
        "reset","pin-retries","import-key","import-certificate","set-chuid",
        "request-certificate","verify-pin","change-pin","change-puk","unblock-pin",
        "selfsign-certificate","delete-certificate","read-certificate","status",
@@ -55,6 +55,6 @@ option "subject" S "The subject to use for certificate request" string optional
 text   "
        The subject must be written as:
        /CN=host.example.com/OU=test/O=example.com/\n"
-option "pin" P "Pin/puk code for verification" string optional
-option "new-pin" N "New pin/puk code for changing" string optional dependon="pin"
+option "pin" P "Pin/puk code for verification or management key derivation based on pin" string optional
+option "new-pin" N "New pin/puk code for changing or setting new management key derived from pin" string optional dependon="pin"
 option "sign" - "Sign data" flag off hidden

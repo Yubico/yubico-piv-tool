@@ -64,6 +64,12 @@ Building from Git
 Recent versions of autoconf, automake, pkg-config and libtool must
 be installed.  Help2man is used to generate the manpages.  Gengetopt
 version 2.22.6 or later is needed for command line parameter handling.
+libpcsclite-dev is needed to determine what scard library to use.
+
+Debian/Ubuntu:   apt-get install autoconf
+Debian/Ubuntu:   apt-get install gengetopt
+Debian/Ubuntu:   apt-get install help2man
+Debian/Ubuntu:   apt-get install libpcsclite-dev
 
 Generate the build system using:
 
@@ -71,6 +77,9 @@ Generate the build system using:
 
 Then you follow the normal build instructions, see above.
 To turn on all warnings add --enable-gcc-warnings to ./configure
+
+
+
 
 Portability
 -----------

@@ -39,11 +39,49 @@
 
 #include <openssl/evp.h>
 #include <openssl/x509.h>
+#include <openssl/rand.h>
 
 #include <ykpiv.h>
 
 #include "cmdline.h"
 #include "util.h"
+
+bool generate_salt(unsigned char* salt, const size_t salt_len, int verbosity) {
+  if (salt != NULL && RAND_bytes(salt, salt_len) == 1) {
+    if (verbosity > 2) {
+      fprintf(stderr, "Generated salt: ");
+      dump_hex(salt, salt_len, stderr, false);
+    }
+    return true;
+  } else {
+    fprintf(stderr, "Failed to generate salt.");
+    return false;
+  }
+}
+
+bool parse_value_from_tlv(const unsigned char tag, unsigned char* data, size_t* data_len) {
+  if (data == NULL) {
+    fprintf(stderr, "%s - Indata is null.", __FUNCTION__);
+    return false;
+  }
+  if (data[0] != tag) {
+    fprintf(stderr, "Actual tag (%#x) did not match expected tag (%#x).\n", data[0], tag);
+    return false;
+  }
+
+  int l = 0x00;
+  unsigned char* len_ptr = data + 1;
+  int offset = get_length(len_ptr, &l);
+  if (l > 0x00) {
+    memmove(data, len_ptr + offset, l);
+    memset(data + l, 0x00, *data_len - l);
+    *data_len = l;
+    return true;
+  } else {
+    fprintf(stderr, "Length parsed from TLV is 0.");
+    return false;
+  }
+}
 
 FILE *open_file(const char *file_name, int mode) {
   FILE *file;

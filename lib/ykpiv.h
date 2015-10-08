@@ -66,23 +66,42 @@ extern "C"
 	ykpiv_rc ykpiv_done(ykpiv_state *state);
 	ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted);
 	ykpiv_rc ykpiv_disconnect(ykpiv_state *state);
-	ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
-			const unsigned char *in_data, long in_len,
-			unsigned char *out_data, unsigned long *out_len, int *sw);
+
+	ykpiv_rc ykpiv_transfer_data(ykpiv_state *state,
+				     const unsigned char *templ,
+				     const unsigned char *in_data, long in_len,
+				     unsigned char *out_data, unsigned long *out_len, int *sw);
+
 	ykpiv_rc ykpiv_authenticate(ykpiv_state *state, const unsigned char *key);
 	ykpiv_rc ykpiv_set_mgmkey(ykpiv_state *state, const unsigned char *new_key);
-	ykpiv_rc ykpiv_hex_decode(const char *hex_in, size_t in_len,
-	            unsigned char *hex_out, size_t *out_len);
-	ykpiv_rc ykpiv_sign_data(ykpiv_state *state, const unsigned char *sign_in,
-			size_t in_len,unsigned char *sign_out, size_t *out_len,
-			unsigned char algorithm, unsigned char key);
-        ykpiv_rc ykpiv_decipher_data(ykpiv_state *state, const unsigned char *enc_in,
-                        size_t in_len, unsigned char *enc_out, size_t *out_len,
-                        unsigned char algorithm, unsigned char key);
+
+	ykpiv_rc ykpiv_hex_decode(const char *hex_in,
+				  size_t in_len,
+				  unsigned char *hex_out,
+				  size_t *out_len);
+
+	ykpiv_rc ykpiv_sign_data(ykpiv_state *state,
+				 const unsigned char *sign_in,
+				 size_t in_len,
+				 unsigned char *sign_out,
+				 size_t *out_len,
+				 unsigned char algorithm,
+				 unsigned char key);
+
+        ykpiv_rc ykpiv_decipher_data(ykpiv_state *state,
+                                     const unsigned char *enc_in,
+                                     size_t in_len,
+                                     unsigned char *enc_out,
+                                     size_t *out_len,
+                                     unsigned char algorithm,
+                                     unsigned char key);
+
 	ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len);
 	ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries);
-	ykpiv_rc ykpiv_fetch_object(ykpiv_state *state, int object_id,
-			unsigned char *data, unsigned long *len);
+	ykpiv_rc ykpiv_fetch_object(ykpiv_state *state,
+				    int object_id,
+				    unsigned char *data,
+				    unsigned long *len);
   ykpiv_rc ykpiv_save_object(ykpiv_state *state, int object_id,
       unsigned char *indata, size_t len);
 
@@ -110,6 +129,14 @@ extern "C"
 #define YKPIV_OBJ_DISCOVERY 0x7e
 #define YKPIV_OBJ_KEY_HISTORY 0x5fc10c
 #define YKPIV_OBJ_IRIS 0x5fc121
+
+// Data area for salt etc, for pin key derivation
+#define YKPIV_OBJ_PIVMAN_DATA 0x5fff00
+#define YKPIV_TAG_PIVMAN_DATA 0x80
+#define YKPIV_TAG_FLAGS_1 0x81
+#define YKPIV_TAG_SALT 0x82
+#define YKPIV_TAG_TIMESTAMP 0x83
+#define FLAG1_PUK_BLOCKED 0x01
 
 #define YKPIV_INS_VERIFY 0x20
 #define YKPIV_INS_CHANGE_REFERENCE 0x24
