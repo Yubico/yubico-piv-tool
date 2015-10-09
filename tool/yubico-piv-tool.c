@@ -1754,7 +1754,16 @@ int main(int argc, char *argv[]) {
     if(needs_auth) {
       unsigned char key[KEY_LEN];
       size_t key_len = sizeof(key);
-      if(ykpiv_hex_decode(args_info.key_arg, strlen(args_info.key_arg), key, &key_len) != YKPIV_OK) {
+      char keybuf[KEY_LEN*2+1];
+      char *key_ptr = args_info.key_arg;
+      if(args_info.key_given && args_info.key_orig == NULL) {
+        if(!read_pw("management key", keybuf, sizeof(keybuf), false)) {
+          fprintf(stderr, "Failed to read management key from stdin,\n");
+          return EXIT_FAILURE;
+        }
+        key_ptr = keybuf;
+      }
+      if(ykpiv_hex_decode(key_ptr, strlen(key_ptr), key, &key_len) != YKPIV_OK) {
         fprintf(stderr, "Failed decoding key!\n");
         return EXIT_FAILURE;
       }
