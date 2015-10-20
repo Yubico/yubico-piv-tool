@@ -34,4 +34,4 @@ LDADD = ../libykpiv.la
 check_PROGRAMS = basic parse_key
 TESTS = $(check_PROGRAMS)
 
-TESTS_ENVIRONMENT = $(VALGRIND)
+LOG_COMPILER = $(VALGRIND)

@@ -1,4 +1,7 @@
 language: c
+os:
+  - osx
+  - linux
 compiler:
   - gcc
   - clang
@@ -6,16 +9,14 @@ env:
   - EXTRA=libpcsclite-dev
 script:
   - ./build-and-test.sh
-before_install:
-  - sudo apt-get update -qq
-  - sudo apt-get remove -qq -y $REMOVE
-  - sudo apt-get autoremove -qq
-  - sudo apt-get install -qq -y gengetopt help2man $EXTRA
 matrix:
   include:
     - compiler: gcc
+      os: linux
       env: EXTRA="wine mingw-w64 mingw-w64-dev" REMOVE=mingw32 ARCH=32
     - compiler: gcc
+      os: linux
       env: EXTRA="wine mingw-w64 mingw-w64-dev" REMOVE=mingw32 ARCH=64
     - compiler: gcc
+      os: linux
       env: COVERAGE="--enable-coverage" EXTRA="libpcsclite-dev lcov"

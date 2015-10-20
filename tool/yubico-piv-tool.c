@@ -943,7 +943,7 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
   char pinbuf[9] = {0};
   char new_pinbuf[9] = {0};
   const char *name = action == action_arg_changeMINUS_pin ? "pin" : "puk";
-  const char *new_name = action == action_arg_changeMINUS_pin ? "new pin" : "new puk";
+  const char *new_name = action == action_arg_changeMINUS_puk ? "new puk" : "new pin";
   int sw;
   size_t pin_len;
   size_t new_len;
@@ -986,7 +986,7 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
     return false;
   } else if(sw != 0x9000) {
     if((sw >> 8) == 0x63) {
-      int tries = sw & 0xff;
+      int tries = sw & 0xf;
       fprintf(stderr, "Failed verifying %s code, now %d tries left before blocked.\n",
           name, tries);
     } else if(sw == 0x6983) {
@@ -1708,7 +1708,16 @@ int main(int argc, char *argv[]) {
     if(needs_auth) {
       unsigned char key[KEY_LEN];
       size_t key_len = sizeof(key);
-      if(ykpiv_hex_decode(args_info.key_arg, strlen(args_info.key_arg), key, &key_len) != YKPIV_OK) {
+      char keybuf[KEY_LEN*2+1];
+      char *key_ptr = args_info.key_arg;
+      if(args_info.key_given && args_info.key_orig == NULL) {
+        if(!read_pw("management key", keybuf, sizeof(keybuf), false)) {
+          fprintf(stderr, "Failed to read management key from stdin,\n");
+          return EXIT_FAILURE;
+        }
+        key_ptr = keybuf;
+      }
+      if(ykpiv_hex_decode(key_ptr, strlen(key_ptr), key, &key_len) != YKPIV_OK) {
         fprintf(stderr, "Failed decoding key!\n");
         return EXIT_FAILURE;
       }

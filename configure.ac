@@ -81,13 +81,16 @@ fi
 
 if test "x$with_backend" = xcheck; then
   AC_CHECK_HEADERS([PCSC/winscard.h])
+  AC_CHECK_HEADERS([winscard.h])
   AC_MSG_CHECKING([between Mac/Windows winscard])
   if test "x$ac_cv_header_PCSC_winscard_h" = xyes; then
     with_backend=macscard
     AC_MSG_RESULT([Mac])
-  else
+  elif test "x$ac_cv_header_winscard_h" = xyes; then
     with_backend=winscard
     AC_MSG_RESULT([Windows])
+  else
+    AC_MSG_RESULT([no])
   fi
 fi
 
@@ -122,7 +125,7 @@ if test "x$with_backend" = xpcsc || test "x$with_backend" = xwinscard \
   || test "x$with_backend" = xmacscard; then
   AC_DEFINE([BACKEND_PCSC], 1, [Define to 1 if you the PCSC backend.])
 else
-  AC_MSG_ERROR([cannot find PCSC/winscard library/headers])
+  AC_MSG_ERROR([cannot find PCSC library])
 fi
 
 AC_ARG_ENABLE([coverage],

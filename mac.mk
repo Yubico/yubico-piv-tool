@@ -61,7 +61,7 @@ doit:
 	tar xfz $(PACKAGE)-$(VERSION).tar.gz && \
 	cd $(PACKAGE)-$(VERSION)/ && \
 	PKG_CONFIG_PATH=$(PWD)/tmp/root/lib/pkgconfig ./configure --prefix=$(PWD)/tmp/root && \
-	make install check && \
+	make install $(CHECK) && \
 	chmod u+w $(PWD)/tmp/root/lib/libcrypto.1.0.0.dylib && \
 	install_name_tool -id @executable_path/../lib/libcrypto.1.0.0.dylib $(PWD)/tmp/root/lib/libcrypto.1.0.0.dylib && \
 	install_name_tool -id @executable_path/../lib/libykpiv.1.dylib $(PWD)/tmp/root/lib/libykpiv.1.dylib && \
