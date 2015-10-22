@@ -65,7 +65,7 @@ libykcs11_la_LDFLAGS += -version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE)
 if HAVE_LD_VERSION_SCRIPT
 libykcs11_la_LDFLAGS += -Wl,--version-script=$(srcdir)/ykcs11.map
 else
-libykcs11_la_LDFLAGS += -export-symbols-regex '^ykcs11_.*'
+libykcs11_la_LDFLAGS += -export-symbols-regex '^C_.*'
 endif
 
 pkgconfigdir = $(libdir)/pkgconfig
