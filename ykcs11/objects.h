@@ -15,10 +15,10 @@ CK_RV    store_cert(piv_obj_id_t cert_id, CK_BYTE_PTR data, CK_ULONG len);
 CK_RV check_create_cert(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
                         CK_BYTE_PTR *value, CK_ULONG_PTR cert_len);
 CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
-                          CK_BYTE_PTR *value, CK_ULONG_PTR value_len);
+                          CK_BYTE_PTR *value, CK_ULONG_PTR value_len, CK_ULONG_PTR vendor_defined);
 CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
                            CK_BYTE_PTR *p, CK_BYTE_PTR *q, CK_BYTE_PTR *dp,
-                           CK_BYTE_PTR *dq, CK_BYTE_PTR *qinv, CK_ULONG_PTR value_len);
+                           CK_BYTE_PTR *dq, CK_BYTE_PTR *qinv, CK_ULONG_PTR value_len, CK_ULONG_PTR vendor_defined);
 
 
 #endif

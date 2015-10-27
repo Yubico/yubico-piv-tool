@@ -6,7 +6,7 @@
 #include "openssl_types.h"
 #include "vendors.h"
 
-#define  YKCS11_OP_BUFSIZE  4096
+#define YKCS11_OP_BUFSIZE  4096
 
 typedef struct {
   vendor_id_t   vid;

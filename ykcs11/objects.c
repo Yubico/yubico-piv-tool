@@ -1063,7 +1063,7 @@ CK_RV check_create_cert(CK_ATTRIBUTE_PTR templ, CK_ULONG n,
 }
 
 CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
-                          CK_BYTE_PTR *value, CK_ULONG_PTR value_len) {
+                          CK_BYTE_PTR *value, CK_ULONG_PTR value_len, CK_ULONG_PTR vendor_defined) {
 
   CK_ULONG i;
   CK_BBOOL has_id = CK_FALSE;
@@ -1072,6 +1072,8 @@ CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
 
   CK_BYTE_PTR ec_params;
   CK_ULONG    ec_params_len;
+
+  *vendor_defined = 0;
 
   for (i = 0; i < n; i++) {
     switch (templ[i].type) {
@@ -1108,6 +1110,10 @@ CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
 
       break;
 
+    case CKA_VENDOR_DEFINED:
+      *vendor_defined = *((CK_ULONG_PTR)templ[i].pValue);
+      break;
+
     case CKA_TOKEN:
     case CKA_LABEL:
     case CKA_SUBJECT:
@@ -1138,7 +1144,7 @@ CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
 
 CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
                            CK_BYTE_PTR *p, CK_BYTE_PTR *q, CK_BYTE_PTR *dp,
-                           CK_BYTE_PTR *dq, CK_BYTE_PTR *qinv, CK_ULONG_PTR value_len) {
+                           CK_BYTE_PTR *dq, CK_BYTE_PTR *qinv, CK_ULONG_PTR value_len, CK_ULONG_PTR vendor_defined) {
 
   CK_ULONG i;
   CK_BBOOL has_id = CK_FALSE;
@@ -1153,6 +1159,8 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
   CK_ULONG dp_len;
   CK_ULONG dq_len;
   CK_ULONG qinv_len;
+
+  *vendor_defined = 0;
 
   for (i = 0; i < n; i++) {
     switch (templ[i].type) {
@@ -1215,6 +1223,10 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
       *qinv = (CK_BYTE_PTR)templ[i].pValue;
       qinv_len = templ[i].ulValueLen;
 
+      break;
+
+    case CKA_VENDOR_DEFINED:
+      *vendor_defined = *((CK_ULONG_PTR)templ[i].pValue);
       break;
 
     case CKA_TOKEN:

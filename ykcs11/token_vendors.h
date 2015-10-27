@@ -24,7 +24,7 @@ typedef CK_RV (*t_login_f)(ykpiv_state *, CK_USER_TYPE, CK_UTF8CHAR_PTR, CK_ULON
 typedef CK_RV (*t_generate_key_f)(ykpiv_state *, CK_BBOOL, CK_BYTE, CK_ULONG);
 typedef CK_RV (*t_import_cert_f)(ykpiv_state *, CK_ULONG, CK_BYTE_PTR);
 typedef CK_RV (*t_import_private_key_f)(ykpiv_state *, CK_BYTE, CK_BYTE_PTR, CK_BYTE_PTR, CK_BYTE_PTR,
-                                        CK_BYTE_PTR, CK_BYTE_PTR, CK_BYTE_PTR, CK_ULONG);
+                                        CK_BYTE_PTR, CK_BYTE_PTR, CK_BYTE_PTR, CK_ULONG, CK_ULONG);
 
 // TODO: replace all the common calls with functions defined in .c that use libykpiv
 

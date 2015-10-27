@@ -163,6 +163,7 @@ CK_RV apply_sign_mechanism_init(op_info_t *op_info) {
     case CKM_RSA_X_509:
     case CKM_ECDSA:
       // No hash required for this mechanism
+      op_info->op.sign.md_ctx = NULL;
       return CKR_OK;
 
     case CKM_SHA1_RSA_PKCS:

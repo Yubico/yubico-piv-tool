@@ -854,6 +854,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
   CK_BYTE_PTR      dp;
   CK_BYTE_PTR      dq;
   CK_BYTE_PTR      qinv;
+  CK_ULONG         vendor_defined;
   token_vendor_t   token;
   CK_BBOOL         is_new;
   CK_BBOOL         is_rsa;
@@ -974,11 +975,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     // Try to parse the key as EC
     is_rsa = CK_FALSE;
-    rv = check_create_ec_key(pTemplate, ulCount, &id, &value, &value_len);
+    rv = check_create_ec_key(pTemplate, ulCount, &id, &value, &value_len, &vendor_defined);
     if (rv != CKR_OK) {
       // Try to parse the key as RSA
       is_rsa = CK_TRUE;
-      rv = check_create_rsa_key(pTemplate, ulCount, &id, &p, &q, &dp, &dq, &qinv, &value_len);
+      rv = check_create_rsa_key(pTemplate, ulCount, &id, &p, &q, &dp, &dq, &qinv, &value_len, &vendor_defined);
       if (rv != CKR_OK) {
         DBG(("Private key template not valid"));
         return rv;
@@ -993,7 +994,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       DBG(("Key is RSA"));
       rv = token.token_import_private_key(piv_state, piv_2_ykpiv(object), p, q, dp, dq, qinv,
                                           NULL,
-                                          value_len);
+                                          value_len, vendor_defined);
       if (rv != CKR_OK) {
         DBG(("Unable to import RSA private key"));
         return rv;
@@ -1003,7 +1004,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       DBG(("Key is ECDSA"));
       rv = token.token_import_private_key(piv_state, piv_2_ykpiv(object), NULL, NULL, NULL, NULL, NULL,
                                           value,
-                                          value_len);
+                                          value_len, vendor_defined);
       if (rv != CKR_OK) {
         DBG(("Unable to import ECDSA private key"));
         return rv;
