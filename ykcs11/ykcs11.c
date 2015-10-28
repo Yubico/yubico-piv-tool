@@ -10,6 +10,9 @@
 #include "openssl_types.h"
 #include "debug.h"
 
+#include <stdbool.h>
+#include "../tool/util.h"
+
 #define YKCS11_MANUFACTURER "Yubico (www.yubico.com)"
 #define YKCS11_LIBDESC      "PKCS#11 PIV Library (SP-800-73)"
 

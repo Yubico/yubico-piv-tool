@@ -4,6 +4,9 @@
 #include <string.h>
 #include "debug.h"
 
+#include <stdbool.h>
+#include "../tool/util.h"
+
 static CK_RV COMMON_token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK_ULONG pin_len) {
 
   int tries = 0; // TODO: this is effectively disregarded, should we add a better value in ykpiv_verify?

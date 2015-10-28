@@ -2,6 +2,7 @@
 #include "pkcs11.h"
 #include <string.h>
 #include "debug.h"
+#include "objects.h"
 
 #define YUBICO_MECHANISMS_NUM 5
 
