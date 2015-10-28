@@ -4,6 +4,9 @@
 #include <string.h>
 #include "debug.h"
 
+#include <stdbool.h>
+#include "../tool/util.h"
+
 static CK_RV COMMON_token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK_ULONG pin_len) {
 
   int tries = 0; // TODO: this is effectively disregarded, should we add a better value in ykpiv_verify?
@@ -31,9 +34,11 @@ static CK_RV COMMON_token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CH
   return CKR_OK;
 }
 
-static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa, CK_BYTE key, CK_ULONG key_len) {
+static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa,
+                                       CK_BYTE key, CK_ULONG key_len, CK_ULONG vendor_defined) {
   // TODO: make a function in ykpiv for this
-  unsigned char in_data[5];
+  unsigned char in_data[11];
+  unsigned char *in_ptr = in_data;
   unsigned char data[1024];
   unsigned char templ[] = {0, YKPIV_INS_GENERATE_ASYMMERTRIC, 0, 0};
   unsigned char *certptr;
@@ -45,10 +50,10 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa, CK_BYTE
 
   templ[3] = key;
 
-  in_data[0] = 0xac;
-  in_data[1] = 3;
-  in_data[2] = 0x80;
-  in_data[3] = 1;
+  *in_ptr++ = 0xac;
+  *in_ptr++ = 3;
+  *in_ptr++ = 0x80;
+  *in_ptr++ = 1;
 
   switch(key_len) {
   case 2048:
@@ -61,7 +66,7 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa, CK_BYTE
 
   case 1024:
     if (rsa == CK_TRUE)
-      in_data[4] = YKPIV_ALGO_RSA1024;
+      *in_ptr++ = YKPIV_ALGO_RSA1024;
     else
       return CKR_FUNCTION_FAILED;
 
@@ -69,7 +74,7 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa, CK_BYTE
 
   case 256:
     if (rsa == CK_FALSE)
-      in_data[4] = YKPIV_ALGO_ECCP256;
+      *in_ptr++ = YKPIV_ALGO_ECCP256;
     else
       return CKR_FUNCTION_FAILED;
 
@@ -78,8 +83,30 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa, CK_BYTE
   default:
     return CKR_FUNCTION_FAILED;
   }
-  //DBG(("Generating key %x with algorithm %u and length %lu", templ[3], in_data[4], key_len));
-  if(ykpiv_transfer_data(state, templ, in_data, sizeof(in_data), data, &recv_len, &sw) != YKPIV_OK ||
+  // PIN policy and touch
+  if (vendor_defined != 0) {
+    if (vendor_defined & CKA_PIN_ONCE) {
+      in_data[1] += 3;
+      *in_ptr++ = YKPIV_PINPOLICY_TAG;
+      *in_ptr++ = 0x01;
+      *in_ptr++ = YKPIV_PINPOLICY_ONCE;
+    }
+    else if (vendor_defined & CKA_PIN_ALWAYS) {
+      in_data[1] += 3;
+      *in_ptr++ = YKPIV_PINPOLICY_TAG;
+      *in_ptr++ = 0x01;
+      *in_ptr++ = YKPIV_PINPOLICY_ALWAYS;
+    }
+
+    if (vendor_defined & CKA_TOUCH_ALWAYS) {
+      in_data[1] += 3;
+      *in_ptr++ = YKPIV_TOUCHPOLICY_TAG;
+      *in_ptr++ = 0x01;
+      *in_ptr++ = YKPIV_TOUCHPOLICY_ALWAYS;
+    }
+  }
+
+  if(ykpiv_transfer_data(state, templ, in_data, in_ptr - in_data, data, &recv_len, &sw) != YKPIV_OK ||
      sw != 0x9000)
     return CKR_DEVICE_ERROR;
 
@@ -151,7 +178,7 @@ static CK_RV COMMON_token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_B
 
 CK_RV COMMON_token_import_private_key(ykpiv_state *state, CK_BYTE key_id, CK_BYTE_PTR p, CK_BYTE_PTR q,
                                       CK_BYTE_PTR dp, CK_BYTE_PTR dq, CK_BYTE_PTR qinv,
-                                      CK_BYTE_PTR ec_data, CK_ULONG elem_len) {
+                                      CK_BYTE_PTR ec_data, CK_ULONG elem_len, CK_ULONG vendor_defined) {
 
   unsigned char key_data[1024];
   unsigned char *in_ptr = key_data;
@@ -193,17 +220,37 @@ CK_RV COMMON_token_import_private_key(ykpiv_state *state, CK_BYTE key_id, CK_BYT
     memcpy(in_ptr, qinv, (size_t)(elem_len));
     in_ptr += elem_len;
   }
-  else if(templ[2] == YKPIV_ALGO_ECCP256) {
+  else if (templ[2] == YKPIV_ALGO_ECCP256) {
     *in_ptr++ = 0x06;
     in_ptr += set_length(in_ptr, elem_len);
     memcpy(in_ptr, ec_data, (size_t)(elem_len));
     in_ptr += elem_len;
   }
 
-  if(ykpiv_transfer_data(state, templ, key_data, in_ptr - key_data, data, &recv_len, &sw) != YKPIV_OK)
+  // PIN policy and touch
+  if (vendor_defined != 0) {
+    if (vendor_defined & CKA_PIN_ONCE) {
+      *in_ptr++ = YKPIV_PINPOLICY_TAG;
+      *in_ptr++ = 0x01;
+      *in_ptr++ = YKPIV_PINPOLICY_ONCE;
+    }
+    else if (vendor_defined & CKA_PIN_ALWAYS) {
+      *in_ptr++ = YKPIV_PINPOLICY_TAG;
+      *in_ptr++ = 0x01;
+      *in_ptr++ = YKPIV_PINPOLICY_ALWAYS;
+    }
+
+    if (vendor_defined & CKA_TOUCH_ALWAYS) {
+      *in_ptr++ = YKPIV_TOUCHPOLICY_TAG;
+      *in_ptr++ = 0x01;
+      *in_ptr++ = YKPIV_TOUCHPOLICY_ALWAYS;
+    }
+  }
+
+  if (ykpiv_transfer_data(state, templ, key_data, in_ptr - key_data, data, &recv_len, &sw) != YKPIV_OK)
     return CKR_FUNCTION_FAILED;
 
-  if(sw != 0x9000)
+  if (sw != 0x9000)
     return CKR_DEVICE_ERROR;
 
   return CKR_OK;
@@ -211,7 +258,7 @@ CK_RV COMMON_token_import_private_key(ykpiv_state *state, CK_BYTE key_id, CK_BYT
 }
 
 token_vendor_t get_token_vendor(vendor_id_t vid) {
-   token_vendor_t v;
+  token_vendor_t v;
 
   switch (vid) {
   case YUBICO:

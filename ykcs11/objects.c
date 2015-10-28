@@ -233,6 +233,10 @@ static CK_RV get_curve_parameters(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR 
   return do_get_curve_parameters(key, data, len);
 }
 
+static CK_RV get_raw_cert(X509 *cert, CK_BYTE_PTR data, CK_ULONG_PTR len) {
+  return do_get_raw_cert(cert, data, len);
+}
+
 /* Get data object attribute */
 CK_RV get_doa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
@@ -319,31 +323,32 @@ CK_RV get_doa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 /* Get certificate object attribute */
 CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
-  CK_BYTE     tmp[64];
+  CK_BYTE     b_tmp[1024];
+  CK_ULONG    ul_tmp;
   CK_ULONG    len = 0;
   DBG(("For certificate object %lu, get ", obj));
 
-  switch (template->type) { // TODO: is this needed here? or is it enough ot have one a "level" above?
+  switch (template->type) {
   case CKA_CLASS:
     DBG(("CLASS"));
-    len = 1;
-    tmp[0] = CKO_CERTIFICATE;
-    data = tmp;
+    len = sizeof(CK_ULONG);
+    ul_tmp = CKO_CERTIFICATE;
+    data = (CK_BYTE_PTR) &ul_tmp;
     break;
 
   case CKA_TOKEN:
     // Technically all these objects are token objects
     DBG(("TOKEN"));
-    len = 1;
-    tmp[0] = piv_objects[obj].token;
-    data = tmp;
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = piv_objects[obj].token;
+    data = b_tmp;
     break;
 
   case CKA_PRIVATE:
     DBG(("PRIVATE"));
-    len = 1;
-    tmp[0] = piv_objects[obj].private;
-    data = tmp;
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = piv_objects[obj].private;
+    data = b_tmp;
     break;
 
   case CKA_LABEL:
@@ -353,14 +358,18 @@ CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     break;
 
   case CKA_VALUE:
-    DBG(("VALUE TODO"));
-    return CKR_FUNCTION_FAILED;
+    DBG(("VALUE"));
+    len = sizeof(b_tmp);
+    if (get_raw_cert(cert_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
+      return CKR_FUNCTION_FAILED;
+    data = b_tmp;
+    break;
 
   case CKA_CERTIFICATE_TYPE:
     DBG(("CERTIFICATE TYPE"));
-    len = 1;
-    tmp[0] = CKC_X_509; // Support only X.509 certs
-    data = tmp;
+    len = sizeof(CK_ULONG);
+    ul_tmp = CKC_X_509; // Support only X.509 certs
+    data = (CK_BYTE_PTR) ul_tmp;
     break;
 
   case CKA_ISSUER:
@@ -377,9 +386,9 @@ CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
   case CKA_ID:
     DBG(("ID"));
-    len = 1;
-    tmp[0] = piv_objects[obj].sub_id;
-    data = tmp;
+    len = sizeof(CK_BYTE);
+    b_tmp[0] = piv_objects[obj].sub_id;
+    data = b_tmp;
     break;
 
   case CKA_START_DATE:
@@ -392,9 +401,9 @@ CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
   case CKA_MODIFIABLE:
     DBG(("MODIFIABLE"));
-    len = 1;
-    tmp[0] = piv_objects[obj].modifiable;
-    data = tmp;
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = piv_objects[obj].modifiable;
+    data = b_tmp;
     break;
 
   default: // TODO: there are other attributes for a (x509) certificate
@@ -666,7 +675,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
   CK_BYTE     b_tmp[1024];
-  CK_ULONG    ul_tmp; // TODO: fix elsewhere too
+  CK_ULONG    ul_tmp;
   CK_ULONG    len = 0;
   DBG(("For public key object %lu, get ", obj));
 
@@ -1054,7 +1063,7 @@ CK_RV check_create_cert(CK_ATTRIBUTE_PTR templ, CK_ULONG n,
 }
 
 CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
-                          CK_BYTE_PTR *value, CK_ULONG_PTR value_len) {
+                          CK_BYTE_PTR *value, CK_ULONG_PTR value_len, CK_ULONG_PTR vendor_defined) {
 
   CK_ULONG i;
   CK_BBOOL has_id = CK_FALSE;
@@ -1063,6 +1072,8 @@ CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
 
   CK_BYTE_PTR ec_params;
   CK_ULONG    ec_params_len;
+
+  *vendor_defined = 0;
 
   for (i = 0; i < n; i++) {
     switch (templ[i].type) {
@@ -1099,6 +1110,10 @@ CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
 
       break;
 
+    case CKA_VENDOR_DEFINED:
+      *vendor_defined = *((CK_ULONG_PTR)templ[i].pValue);
+      break;
+
     case CKA_TOKEN:
     case CKA_LABEL:
     case CKA_SUBJECT:
@@ -1129,7 +1144,7 @@ CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
 
 CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
                            CK_BYTE_PTR *p, CK_BYTE_PTR *q, CK_BYTE_PTR *dp,
-                           CK_BYTE_PTR *dq, CK_BYTE_PTR *qinv, CK_ULONG_PTR value_len) {
+                           CK_BYTE_PTR *dq, CK_BYTE_PTR *qinv, CK_ULONG_PTR value_len, CK_ULONG_PTR vendor_defined) {
 
   CK_ULONG i;
   CK_BBOOL has_id = CK_FALSE;
@@ -1144,6 +1159,8 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
   CK_ULONG dp_len;
   CK_ULONG dq_len;
   CK_ULONG qinv_len;
+
+  *vendor_defined = 0;
 
   for (i = 0; i < n; i++) {
     switch (templ[i].type) {
@@ -1206,6 +1223,10 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
       *qinv = (CK_BYTE_PTR)templ[i].pValue;
       qinv_len = templ[i].ulValueLen;
 
+      break;
+
+    case CKA_VENDOR_DEFINED:
+      *vendor_defined = *((CK_ULONG_PTR)templ[i].pValue);
       break;
 
     case CKA_TOKEN:

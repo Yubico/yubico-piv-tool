@@ -163,6 +163,7 @@ CK_RV apply_sign_mechanism_init(op_info_t *op_info) {
     case CKM_RSA_X_509:
     case CKM_ECDSA:
       // No hash required for this mechanism
+      op_info->op.sign.md_ctx = NULL;
       return CKR_OK;
 
     case CKM_SHA1_RSA_PKCS:
@@ -419,7 +420,7 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
 
     default:
       DBG(("Invalid attribute %lx in public key template", templ[i].type));
-      return CKR_ATTRIBUTE_VALUE_INVALID;
+      return CKR_ATTRIBUTE_TYPE_INVALID;
     }
   }
 
@@ -432,6 +433,7 @@ CK_RV check_pvtkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
   CK_ULONG i;
 
   op_info->op.gen.rsa = is_RSA_mechanism(op_info->mechanism.mechanism);
+  op_info->op.gen.vendor_defined = 0;
 
   for (i = 0; i < n; i++) {
     switch (templ[i].type) {
@@ -472,6 +474,9 @@ CK_RV check_pvtkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
       op_info->op.gen.key_id = PIV_PVTK_OBJ_PIV_AUTH + *((CK_BYTE_PTR)templ[i].pValue);
       break;
 
+    case CKA_VENDOR_DEFINED:
+      op_info->op.gen.vendor_defined = (*((CK_ULONG_PTR)templ[i].pValue));
+
     case CKA_SENSITIVE:
     case CKA_DECRYPT:
     case CKA_UNWRAP:
@@ -484,7 +489,7 @@ CK_RV check_pvtkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
 
     default:
       DBG(("Invalid attribute %lx in private key template", templ[i].type));
-      return CKR_ATTRIBUTE_VALUE_INVALID;
+      return CKR_ATTRIBUTE_TYPE_INVALID;
     }
   }
 

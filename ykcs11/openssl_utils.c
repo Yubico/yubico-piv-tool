@@ -236,6 +236,26 @@ CK_RV do_check_cert(CK_BYTE_PTR in, CK_ULONG_PTR cert_len) {
   return CKR_OK;
 }
 
+CK_RV do_get_raw_cert(X509 *cert, CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
+
+  CK_BYTE_PTR p;
+  int         len;
+
+  len = i2d_X509(cert, NULL);
+
+  if (len < 0)
+    return CKR_FUNCTION_FAILED;
+
+  if ((CK_ULONG)len > *out_len)
+    return CKR_BUFFER_TOO_SMALL;
+
+  p = out;
+  if ((*out_len = i2d_X509(cert, &p)) == 0)
+    return CKR_FUNCTION_FAILED;
+
+  return CKR_OK;
+}
+
 CK_RV free_cert(X509 *cert) {
 
   X509_free((X509 *) cert);

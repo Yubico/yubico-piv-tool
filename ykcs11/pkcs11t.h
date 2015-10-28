@@ -1183,4 +1183,11 @@ typedef CK_EXTRACT_PARAMS CK_PTR CK_EXTRACT_PARAMS_PTR;
 /* undo packing */
 //#include "pkcs11u.h" // TODO: msc specific?
 
+// YUBICO specific attributes
+#define CKA_TOUCH_PIN_DEFAULT 0x00000000U
+#define CKA_TOUCH_ALWAYS      0x00000001U
+#define CKA_PIN_ONCE          0x00000002U
+#define CKA_PIN_ALWAYS        0x00000004U
+
+
 #endif
