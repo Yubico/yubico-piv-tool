@@ -28,7 +28,6 @@ typedef struct {
   ykcs11_slot_t     *slot;
 } ykcs11_session_t;
 
-
 typedef enum {
   YKCS11_NOOP,
   YKCS11_GEN,
@@ -38,9 +37,10 @@ typedef enum {
 } ykcs11_op_type_t;
 
 typedef struct {
-  CK_BBOOL rsa;     // RSA or EC key
-  CK_BYTE  key_id;  // Key id
-  CK_ULONG key_len; // Length in bits
+  CK_BBOOL rsa;            // RSA or EC key
+  CK_BYTE  key_id;         // Key id
+  CK_ULONG key_len;        // Length in bits
+  CK_ULONG vendor_defined; // Additional parameters (touch and PIN policy)
 } gen_info_t;
 
 typedef struct {
