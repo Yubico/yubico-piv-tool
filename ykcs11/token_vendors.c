@@ -227,14 +227,14 @@ CK_RV COMMON_token_import_private_key(ykpiv_state *state, CK_BYTE key_id, CK_BYT
   // PIN policy and touch
   if (vendor_defined != 0) {
     if (vendor_defined & CKA_PIN_ONCE) {
-        *in_ptr++ = YKPIV_PINPOLICY_TAG;
-        *in_ptr++ = 0x01;
-        *in_ptr++ = YKPIV_PINPOLICY_ONCE;
+      *in_ptr++ = YKPIV_PINPOLICY_TAG;
+      *in_ptr++ = 0x01;
+      *in_ptr++ = YKPIV_PINPOLICY_ONCE;
     }
     else if (vendor_defined & CKA_PIN_ALWAYS) {
-        *in_ptr++ = YKPIV_PINPOLICY_TAG;
-        *in_ptr++ = 0x01;
-        *in_ptr++ = YKPIV_PINPOLICY_ALWAYS;
+      *in_ptr++ = YKPIV_PINPOLICY_TAG;
+      *in_ptr++ = 0x01;
+      *in_ptr++ = YKPIV_PINPOLICY_ALWAYS;
     }
 
     if (vendor_defined & CKA_TOUCH_ALWAYS) {
@@ -255,7 +255,7 @@ CK_RV COMMON_token_import_private_key(ykpiv_state *state, CK_BYTE key_id, CK_BYT
 }
 
 token_vendor_t get_token_vendor(vendor_id_t vid) {
-   token_vendor_t v;
+  token_vendor_t v;
 
   switch (vid) {
   case YUBICO:
