@@ -1796,6 +1796,7 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_pinMINUS_retries:
         if(set_pin_retries(state, args_info.pin_retries_arg, args_info.puk_retries_arg, verbosity) == false) {
+          fprintf(stderr, "Failed changing pin retries.\n");
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully changed pin retries to %d and puk retries to %d, both codes have been reset to default now.\n",
