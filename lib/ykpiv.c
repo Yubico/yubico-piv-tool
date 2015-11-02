@@ -103,6 +103,7 @@ ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose) {
   }
   memset(s, 0, sizeof(ykpiv_state));
   s->verbose = verbose;
+  s->context = -1;
   *state = s;
   return YKPIV_OK;
 }
@@ -204,14 +205,12 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
   unsigned long num_readers = 0;
   long rc;
 
-  if(SCardIsValidContext(state->context) != SCARD_S_SUCCESS) {
-    rc = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &state->context);
-    if (rc != SCARD_S_SUCCESS) {
-      if(state->verbose) {
-        fprintf (stderr, "error: SCardEstablishContext failed, rc=%08lx\n", rc);
-      }
-      return YKPIV_PCSC_ERROR;
+  rc = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &state->context);
+  if (rc != SCARD_S_SUCCESS) {
+    if(state->verbose) {
+      fprintf (stderr, "error: SCardEstablishContext failed, rc=%08lx\n", rc);
     }
+    return YKPIV_PCSC_ERROR;
   }
 
   rc = SCardListReaders(state->context, NULL, NULL, &num_readers);
