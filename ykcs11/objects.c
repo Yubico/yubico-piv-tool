@@ -369,7 +369,7 @@ CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     DBG(("CERTIFICATE TYPE"));
     len = sizeof(CK_ULONG);
     ul_tmp = CKC_X_509; // Support only X.509 certs
-    data = (CK_BYTE_PTR) ul_tmp;
+    data = (CK_BYTE_PTR) &ul_tmp;
     break;
 
   case CKA_ISSUER:
