@@ -257,6 +257,14 @@ CK_RV COMMON_token_import_private_key(ykpiv_state *state, CK_BYTE key_id, CK_BYT
 
 }
 
+CK_RV COMMON_token_delete_cert(ykpiv_state *state, CK_ULONG cert_id) {
+
+  if (ykpiv_save_object(state, cert_id, NULL, 0) != YKPIV_OK)
+    return CKR_DEVICE_ERROR;
+
+  return CKR_OK;
+}
+
 token_vendor_t get_token_vendor(vendor_id_t vid) {
   token_vendor_t v;
 
@@ -278,6 +286,7 @@ token_vendor_t get_token_vendor(vendor_id_t vid) {
     v.token_generate_key        = COMMON_token_generate_key;
     v.token_import_cert         = COMMON_token_import_cert;
     v.token_import_private_key  = COMMON_token_import_private_key;
+    v.token_delete_cert         = COMMON_token_delete_cert;
     break;
 
   case UNKNOWN:
@@ -298,6 +307,7 @@ token_vendor_t get_token_vendor(vendor_id_t vid) {
     v.token_generate_key        = NULL;
     v.token_import_cert         = NULL;
     v.token_import_private_key  = NULL;
+    v.token_delete_cert         = NULL;
   }
 
   return v;

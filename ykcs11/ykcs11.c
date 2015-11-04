@@ -1044,7 +1044,93 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
 )
 {
   DIN;
-  DBG(("TODO!!!"));
+
+  CK_RV          rv;
+  token_vendor_t token;
+  CK_ULONG       i;
+  CK_ULONG       j;
+  CK_BYTE        id;
+  CK_ULONG       cert_id;
+  CK_ULONG       pvtk_id;
+  CK_ULONG       pubk_id;
+  piv_obj_id_t   *obj_ptr;
+
+  DBG(("Deleting object %lu", hObject));
+
+  if (piv_state == NULL) {
+    DBG(("libykpiv is not initialized or already finalized"));
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  if (session.handle != YKCS11_SESSION_ID) {
+    DBG(("Session is not open"));
+    return CKR_SESSION_CLOSED;
+  }
+
+  if (hSession != session.handle) {
+    DBG(("Unknown session %lu", hSession));
+    return CKR_SESSION_HANDLE_INVALID;
+  }
+
+  // Only certificates can be deleted
+  // SO must be logged in
+  if (session.info.state != CKS_RW_SO_FUNCTIONS) {
+    DBG(("Unable to delete objects, SO must be logged in"));
+    return CKR_ACTION_PROHIBITED;
+  }
+
+  rv = check_delete_cert(hObject, &id);
+  if (rv != CKR_OK) {
+    DBG(("Object %lu can not be deleted", hObject));
+    return rv;
+  }
+
+  token = get_token_vendor(session.slot->token->vid);
+
+  rv = token.token_delete_cert(piv_state, piv_2_ykpiv(hObject));
+  if (rv != CKR_OK) {
+    DBG(("Unable to delete object %lu", hObject));
+    return rv;
+  }
+
+  // Remove the object from the session
+  // Do it in a slightly inefficient way but preserve ordering
+
+  cert_id = PIV_CERT_OBJ_X509_PIV_AUTH + id; // TODO: make function for these
+  pvtk_id = PIV_PVTK_OBJ_PIV_AUTH + id;
+  pubk_id = PIV_PUBK_OBJ_PIV_AUTH + id;
+
+  obj_ptr = malloc((session.slot->token->n_objects - 3) * sizeof(piv_obj_id_t));
+  if (obj_ptr == NULL) {
+    DBG(("Unable to allocate memory"));
+    return CKR_HOST_MEMORY;
+  }
+
+  i = 0;
+  j = 0;
+  while (i < session.slot->token->n_objects) {
+    if (session.slot->token->objects[i] == cert_id ||
+        session.slot->token->objects[i] == pvtk_id ||
+        session.slot->token->objects[i] == pubk_id) {
+      i++;
+      continue;
+    }
+
+    obj_ptr[j++] = session.slot->token->objects[i++];
+  }
+
+  rv = delete_cert(cert_id);
+  if (rv != CKR_OK) {
+    DBG(("Unable to delete certificate data"));
+    return CKR_FUNCTION_FAILED;
+  }
+
+  free(session.slot->token->objects);
+
+  session.slot->token->n_objects -= 3;
+  session.slot->token->n_certs--;
+  session.slot->token->objects = obj_ptr;
+
   DOUT;
   return CKR_OK;
 }

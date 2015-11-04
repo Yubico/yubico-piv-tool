@@ -1012,6 +1012,22 @@ CK_RV store_cert(piv_obj_id_t cert_id, CK_BYTE_PTR data, CK_ULONG len) {
   return CKR_OK;
 }
 
+CK_RV delete_cert(piv_obj_id_t cert_id) {
+  CK_RV rv;
+
+  // Clear the object containing the certificate
+  rv = do_delete_cert(&cert_objects[piv_objects[cert_id].sub_id].data);
+  if (rv != CKR_OK)
+    return rv;
+
+  // Clear the object containing the public key
+  rv = do_delete_pubk(&pubkey_objects[piv_objects[cert_id].sub_id].data);
+  if (rv != CKR_OK)
+    return rv;
+
+  return CKR_OK;
+}
+
 CK_RV check_create_cert(CK_ATTRIBUTE_PTR templ, CK_ULONG n,
                         CK_BYTE_PTR id, CK_BYTE_PTR *value, CK_ULONG_PTR cert_len) {
 
@@ -1260,6 +1276,16 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
   if (q_len != p_len || dp_len != p_len ||
       dq_len != p_len || qinv_len != p_len)
     return CKR_ATTRIBUTE_VALUE_INVALID;
+
+  return CKR_OK;
+}
+
+CK_RV check_delete_cert(CK_OBJECT_HANDLE hObject, CK_BYTE_PTR id) {
+
+  if (hObject < PIV_CERT_OBJ_X509_PIV_AUTH || hObject >= PIV_CERT_OBJ_LAST)
+    return CKR_ACTION_PROHIBITED;
+
+  *id = hObject - PIV_CERT_OBJ_X509_PIV_AUTH;
 
   return CKR_OK;
 }

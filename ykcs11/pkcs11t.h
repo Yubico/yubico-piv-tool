@@ -755,6 +755,8 @@ typedef CK_ULONG          CK_RV;
 #define CKR_ATTRIBUTE_SENSITIVE               0x00000011UL
 #define CKR_ATTRIBUTE_TYPE_INVALID            0x00000012UL
 #define CKR_ATTRIBUTE_VALUE_INVALID           0x00000013UL
+#define CKR_COPY_PROHIBITED                   0x0000001AUL
+#define CKR_ACTION_PROHIBITED                 0x0000001BUL
 #define CKR_DATA_INVALID                      0x00000020UL
 #define CKR_DATA_LEN_RANGE                    0x00000021UL
 #define CKR_DEVICE_ERROR                      0x00000030UL

@@ -256,12 +256,21 @@ CK_RV do_get_raw_cert(X509 *cert, CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
   return CKR_OK;
 }
 
-CK_RV free_cert(X509 *cert) {
+CK_RV do_delete_cert(X509 **cert) {
+
+  X509_free(*cert);
+  cert = NULL;
+
+  return CKR_OK;
+
+}
+
+/*CK_RV free_cert(X509 *cert) {
 
   X509_free((X509 *) cert);
 
   return CKR_OK;
-}
+}*/
 
 
 CK_RV do_store_pubk(X509 *cert, EVP_PKEY **key) {
@@ -438,13 +447,22 @@ CK_RV do_get_curve_parameters(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len)
   return CKR_OK;
 }
 
-CK_RV free_key(EVP_PKEY *key) {
+CK_RV do_delete_pubk(EVP_PKEY **key) {
+
+  EVP_PKEY_free(*key);
+  key = NULL;
+
+  return CKR_OK;
+
+}
+
+/*CK_RV free_key(EVP_PKEY *key) {
 
   EVP_PKEY_free(key);
 
   return CKR_OK;
 
-}
+  }*/
 
 CK_RV do_pkcs_1_t1(CK_BYTE_PTR in, CK_ULONG in_len, CK_BYTE_PTR out, CK_ULONG_PTR out_len, CK_ULONG key_len) {
   unsigned char buffer[512];
