@@ -990,8 +990,6 @@ CK_RV get_available_certificate_ids(ykcs11_session_t *s, piv_obj_id_t *cert_ids,
     if (IS_CERT(s->slot->token->objects[i]) == CK_TRUE)
       cert_ids[j++] = s->slot->token->objects[i];
 
-  DBG("Just to check: %lu %lu", j, n_certs);
-
   return CKR_OK;
 }
 
