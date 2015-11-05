@@ -985,6 +985,9 @@ CK_BBOOL is_private_object(ykcs11_session_t *s, CK_OBJECT_HANDLE obj) {
 CK_RV get_available_certificate_ids(ykcs11_session_t *s, piv_obj_id_t *cert_ids, CK_ULONG n_certs) {
   CK_ULONG i, j;
 
+  if (n_certs > s->slot->token->n_objects)
+    return CKR_BUFFER_TOO_SMALL;
+
   j = 0;
   for (i = 0; i < s->slot->token->n_objects; i++)
     if (IS_CERT(s->slot->token->objects[i]) == CK_TRUE)
