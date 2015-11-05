@@ -1084,8 +1084,8 @@ CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
   CK_BBOOL has_value = CK_FALSE;
   CK_BBOOL has_params = CK_FALSE;
 
-  CK_BYTE_PTR ec_params;
-  CK_ULONG    ec_params_len;
+  CK_BYTE_PTR ec_params = NULL;
+  CK_ULONG    ec_params_len = 0;
 
   *vendor_defined = 0;
 
@@ -1168,11 +1168,11 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
   CK_BBOOL has_dp = CK_FALSE;
   CK_BBOOL has_dq = CK_FALSE;
   CK_BBOOL has_qinv = CK_FALSE;
-  CK_ULONG p_len;
-  CK_ULONG q_len;
-  CK_ULONG dp_len;
-  CK_ULONG dq_len;
-  CK_ULONG qinv_len;
+  CK_ULONG p_len = 0;
+  CK_ULONG q_len = 0;
+  CK_ULONG dp_len = 0;
+  CK_ULONG dq_len = 0;
+  CK_ULONG qinv_len = 0;
 
   *vendor_defined = 0;
 
