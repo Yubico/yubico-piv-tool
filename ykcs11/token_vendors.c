@@ -15,18 +15,18 @@ static CK_RV COMMON_token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CH
 
   if (user == CKU_USER) {
     if (ykpiv_verify(state, (char *)pin, &tries) != YKPIV_OK) {
-      DBG(("Failed to login"));
+      DBG("Failed to login");
       return CKR_PIN_INCORRECT;
     }
   }
   else if (user == CKU_SO) {
     if(ykpiv_hex_decode((char *)pin, pin_len, key, &key_len) != YKPIV_OK) {
-      DBG(("Failed decoding key"));
+      DBG("Failed decoding key");
       return CKR_FUNCTION_FAILED;
     }
 
     if(ykpiv_authenticate(state, key) != YKPIV_OK) {
-      DBG(("Failed to authenticate"));
+      DBG("Failed to authenticate");
       return CKR_PIN_INCORRECT;
     }
   }

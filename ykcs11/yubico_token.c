@@ -247,7 +247,7 @@ static CK_RV get_objects(ykpiv_state *state, CK_BBOOL num_only,
     pvtkeys[n_cert] = PIV_PVTK_OBJ_PIV_AUTH;
     pubkeys[n_cert] = PIV_PUBK_OBJ_PIV_AUTH;
     n_cert++;
-    DBG(("Found AUTH cert (9a)"));
+    DBG("Found AUTH cert (9a)");
   }
 
   buf_len = sizeof(buf);
@@ -256,7 +256,7 @@ static CK_RV get_objects(ykpiv_state *state, CK_BBOOL num_only,
     pvtkeys[n_cert] = PIV_PVTK_OBJ_CARD_AUTH;
     pubkeys[n_cert] = PIV_PUBK_OBJ_CARD_AUTH;
     n_cert++;
-    DBG(("Found CARD AUTH cert (9e)"));
+    DBG("Found CARD AUTH cert (9e)");
   }
 
   buf_len = sizeof(buf);
@@ -265,7 +265,7 @@ static CK_RV get_objects(ykpiv_state *state, CK_BBOOL num_only,
     pvtkeys[n_cert] = PIV_PVTK_OBJ_DS;
     pubkeys[n_cert] = PIV_PUBK_OBJ_DS;
     n_cert++;
-    DBG(("Found SIGNATURE cert (9c)"));
+    DBG("Found SIGNATURE cert (9c)");
   }
 
   buf_len = sizeof(buf);
@@ -274,10 +274,10 @@ static CK_RV get_objects(ykpiv_state *state, CK_BBOOL num_only,
     pvtkeys[n_cert] = PIV_PVTK_OBJ_KM;
     pubkeys[n_cert] = PIV_PUBK_OBJ_KM;
     n_cert++;
-    DBG(("Found KMK cert (9d)"));
+    DBG("Found KMK cert (9d)");
   }
 
-  DBG(("The total number of objects for this token is %lu", (n_cert * 3) + token_objects_num));
+  DBG("The total number of objects for this token is %lu", (n_cert * 3) + token_objects_num);
 
   if (num_only == CK_TRUE) {
     // We just want the number of objects

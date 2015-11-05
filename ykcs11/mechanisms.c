@@ -376,7 +376,7 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
 
       // Only support F4
       if (templ[i].ulValueLen != 3 || memcmp((CK_BYTE_PTR)templ[i].pValue, F4, 3) != 0) {
-        DBG(("Unsupported public exponent"));
+        DBG("Unsupported public exponent");
         return CKR_ATTRIBUTE_VALUE_INVALID;
       }
 
@@ -388,7 +388,7 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
 
       if (*((CK_ULONG_PTR) templ[i].pValue) != 1024 &&
           *((CK_ULONG_PTR) templ[i].pValue) != 2048) { // TODO: make define?
-        DBG(("Unsupported MODULUS_BITS (key length)"));
+        DBG("Unsupported MODULUS_BITS (key length)");
         return CKR_ATTRIBUTE_VALUE_INVALID;
       }
 
@@ -419,7 +419,7 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
       break;
 
     default:
-      DBG(("Invalid attribute %lx in public key template", templ[i].type));
+      DBG("Invalid attribute %lx in public key template", templ[i].type);
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
   }
@@ -488,7 +488,7 @@ CK_RV check_pvtkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
       break;
 
     default:
-      DBG(("Invalid attribute %lx in private key template", templ[i].type));
+      DBG("Invalid attribute %lx in private key template", templ[i].type);
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
   }
