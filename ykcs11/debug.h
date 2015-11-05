@@ -14,7 +14,7 @@
 #include <stdio.h>
 #define DBG(x...) D(x);
 #else
-#define DBG(x)
+#define DBG(x...)
 #endif
 
 #if YKCS11_DINOUT
