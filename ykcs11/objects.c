@@ -463,7 +463,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   case CKA_LABEL:
     DBG("LABEL");
     len = strlen(piv_objects[obj].label) + 1;
-    data =(CK_BYTE_PTR) piv_objects[obj].label;
+    data = (CK_BYTE_PTR) piv_objects[obj].label;
     break;
 
   case CKA_KEY_TYPE:
@@ -705,7 +705,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   case CKA_LABEL:
     DBG("LABEL");
     len = strlen(piv_objects[obj].label) + 1;
-    data = (CK_BYTE_PTR)piv_objects[obj].label;
+    data = (CK_BYTE_PTR) piv_objects[obj].label;
     break;
 
   case CKA_KEY_TYPE:

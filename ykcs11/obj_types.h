@@ -126,7 +126,7 @@ typedef struct {
   CK_BBOOL     token; // TODO: not used yet
   CK_BBOOL     private;
   CK_BBOOL     modifiable;
-  char        *label;
+  const char   *label;
   CK_BBOOL     copyable; // TODO: Optional, not used so far (default TRUE)
   CK_BBOOL     destroyable; // TODO: Optional, not used so far (default TRUE)
   get_attr_f   get_attribute;
