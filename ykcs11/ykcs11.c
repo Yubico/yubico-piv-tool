@@ -1747,7 +1747,30 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     goto sign_out;
   }
 
-  // TODO: check other conditions
+  if (session.handle != YKCS11_SESSION_ID) {
+    DBG(("Session is not open"));
+    rv = CKR_SESSION_CLOSED;
+    goto sign_out;
+  }
+
+  if (hSession != session.handle) {
+    DBG(("Unknown session %lu", hSession));
+    rv = CKR_SESSION_HANDLE_INVALID;
+    goto sign_out;
+  }
+
+  if (op_info.type != YKCS11_SIGN) {
+    DBG(("Operation not initialized"));
+    rv = CKR_OPERATION_NOT_INITIALIZED;
+    goto sign_out;
+  }
+
+  if (session.info.state == CKS_RO_PUBLIC_SESSION ||
+      session.info.state == CKS_RW_PUBLIC_SESSION) {
+    DBG(("User is not logged in"));
+    rv = CKR_USER_NOT_LOGGED_IN;
+    goto sign_out;
+  }
 
   if (pSignature == NULL_PTR) {
     // Just return the size of the signature
