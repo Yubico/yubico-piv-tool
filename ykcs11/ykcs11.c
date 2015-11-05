@@ -1,5 +1,4 @@
 #include "ykcs11.h"
-//#include "pkcs11.h"
 #include <stdlib.h>
 #include <ykpiv.h>
 #include <string.h>
@@ -18,6 +17,7 @@
 
 #define PIV_MIN_PIN_LEN 6
 #define PIV_MAX_PIN_LEN 8
+#define PIV_MGM_KEY_LEN 48
 
 #define YKCS11_MAX_SLOTS       16
 #define YKCS11_MAX_SIG_BUF_LEN 1024
@@ -26,11 +26,11 @@
 
 static ykpiv_state *piv_state = NULL;
 
-static ykcs11_slot_t slots[YKCS11_MAX_SLOTS]; // TODO: build at runtime?
+static ykcs11_slot_t slots[YKCS11_MAX_SLOTS];
 static CK_ULONG      n_slots = 0;
 static CK_ULONG      n_slots_with_token = 0;
 
-static ykcs11_session_t session; // TODO: support multiple sessions?
+static ykcs11_session_t session;
 
 static struct {
   CK_BBOOL        active;
@@ -41,7 +41,7 @@ static struct {
 
 op_info_t op_info;
 
-extern CK_FUNCTION_LIST function_list; // TODO: check all return values
+extern CK_FUNCTION_LIST function_list;
 
 /* General Purpose */
 
@@ -53,14 +53,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
   CK_BYTE readers[2048];
   CK_ULONG len = sizeof(readers);
 
-  // TODO: check for locks and mutexes
-
   if (piv_state != NULL)
     return CKR_CRYPTOKI_ALREADY_INITIALIZED;
 
   if (ykpiv_init(&piv_state, YKCS11_DBG) != YKPIV_OK) {
     DBG(("Unable to initialize libykpiv"));
-    return CKR_FUNCTION_FAILED; // TODO: better error?
+    return CKR_FUNCTION_FAILED;
   }
 
   if (ykpiv_list_readers(piv_state, (char*)readers, &len) != YKPIV_OK) {
@@ -102,7 +100,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Finalize)(
   }
   memset(slots, 0, sizeof(slots));
 
-  ykpiv_done(piv_state); // TODO: this calls disconnect...
+  ykpiv_done(piv_state);
   piv_state = NULL;
 
   DOUT;
@@ -140,7 +138,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetFunctionList)(
     DBG(("GetFunctionList called with ppFunctionList = NULL"));
     return CKR_ARGUMENTS_BAD;
   }
-  *ppFunctionList = &function_list; // TODO: filter out unsupported functions
+  *ppFunctionList = &function_list;
 
   DOUT;
   return CKR_OK;
@@ -183,7 +181,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 
   for (j = 0, i = 0; i < n_slots; i++) {
     if (tokenPresent) {
-      if (has_token(slots + i)) // TODO: use more to check if TOKEN_REMOVED
+      if (has_token(slots + i))
         pSlotList[j++] = i;
     }
     else
@@ -255,14 +253,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
   memcpy(pInfo, &slots[slotID].token->info, sizeof(CK_TOKEN_INFO));
 
   // Overwrite values that are application specific
-  pInfo->ulMaxSessionCount = CK_UNAVAILABLE_INFORMATION; // TODO: should this be 1?
-  pInfo->ulSessionCount = CK_UNAVAILABLE_INFORMATION; // number of sessions that this application currently has open with the token
-
+  pInfo->ulMaxSessionCount = CK_UNAVAILABLE_INFORMATION;   // TODO: should this be 1?
+  pInfo->ulSessionCount = CK_UNAVAILABLE_INFORMATION;      // number of sessions that this application currently has open with the token
   pInfo->ulMaxRwSessionCount = CK_UNAVAILABLE_INFORMATION; // maximum number of read/write sessions that can be opened with the token at one time by a single TODO: should this be 1?
-
-  pInfo->ulRwSessionCount =  CK_UNAVAILABLE_INFORMATION; // number of read/write sessions that this application currently has open with the token
-  pInfo->ulMaxPinLen = PIV_MAX_PIN_LEN; // maximum length in bytes of the PIN
-  pInfo->ulMinPinLen = PIV_MIN_PIN_LEN; // minimum length in bytes of the PIN
+  pInfo->ulRwSessionCount =  CK_UNAVAILABLE_INFORMATION;   // number of read/write sessions that this application currently has open with the token
+  pInfo->ulMaxPinLen = PIV_MAX_PIN_LEN;                    // maximum length in bytes of the PIN
+  pInfo->ulMinPinLen = PIV_MIN_PIN_LEN;                    // minimum length in bytes of the PIN
   pInfo->ulTotalPublicMemory = CK_UNAVAILABLE_INFORMATION;
   pInfo->ulFreePublicMemory = CK_UNAVAILABLE_INFORMATION;
   pInfo->ulTotalPrivateMemory = CK_UNAVAILABLE_INFORMATION;
@@ -560,7 +556,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   cert_ids = NULL;
 
   session.handle = YKCS11_SESSION_ID;
-  // TODO: KEEP TRACK OF THE APPLICATION (possble to steal a session?)
 
   *phSession = session.handle;
 
@@ -738,10 +733,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
     if (ulPinLen < PIV_MIN_PIN_LEN || ulPinLen > PIV_MAX_PIN_LEN)
       return CKR_ARGUMENTS_BAD;
 
-    /*if (session.info.state == CKS_RW_USER_FUNCTIONS) { // TODO: make sure to set session default state as not logged
+    /*if (session.info.state == CKS_RW_USER_FUNCTIONS) {
       DBG(("This user type is already logged in"));
       return CKR_USER_ALREADY_LOGGED_IN;
-      }*/ //TODO: TEMPORARY FIX TO ALLOW MULTIPLE LOGIN. THIS MUST GO BACK IN!
+      }*/ //TODO: FIx to allow multiple login. Decide on context specific.
 
     if (session.info.state == CKS_RW_SO_FUNCTIONS) {
       DBG(("A different uyser type is already logged in"));
@@ -761,7 +756,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
     break;
 
   case CKU_SO:
-    // TODO: check for mgmt key length?
+    if (ulPinLen != PIV_MGM_KEY_LEN)
+      return CKR_ARGUMENTS_BAD;
+
     if (session.info.state == CKS_RW_SO_FUNCTIONS)
       return CKR_USER_ALREADY_LOGGED_IN;
 
@@ -820,8 +817,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Logout)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  // TODO: check more conditions
-
   if (session.info.state == CKS_RO_PUBLIC_SESSION ||
       session.info.state == CKS_RW_PUBLIC_SESSION)
     return CKR_USER_NOT_LOGGED_IN;
@@ -830,8 +825,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Logout)(
     session.info.state = CKS_RO_PUBLIC_SESSION;
   else
     session.info.state = CKS_RW_PUBLIC_SESSION;
-
-  // TODO: more things to clean?
 
   DOUT;
   return CKR_OK;
@@ -883,7 +876,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (session.info.state != CKS_RW_SO_FUNCTIONS) { // TODO: does a regular user ever call this function?
+  if (session.info.state != CKS_RW_SO_FUNCTIONS) {
     DBG(("Authentication required to import objects"));
     return CKR_SESSION_READ_ONLY;
   }
@@ -1694,14 +1687,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     if (op_info.op.sign.key_len == 256)
       op_info.op.sign.algo = YKPIV_ALGO_ECCP256;
     /*else
-      op_info.algo = ;*/
+      op_info.op.sign.algo = YKPIV_ALGO_ECCP384;*/ // TODO: add support for P384
   }
-
-  //op_info.hash = get_mechanism_hash(pMechanism->mechanism);
 
   DBG(("Key length is %lu bit", op_info.op.sign.key_len));
 
-  op_info.op.sign.key_id = piv_2_ykpiv(hKey); // TODO: have to set this!!!
+  op_info.op.sign.key_id = piv_2_ykpiv(hKey);
   if (op_info.op.sign.key_id == 0) {
     DBG(("Incorrect key %lu", hKey));
     return CKR_KEY_HANDLE_INVALID;
@@ -1804,7 +1795,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
       // ECDSA
       if (ulDataLen > 128) {
         // Specs say ECDSA only supports 1024 bit
-        DBG(("Meximum data length for ECDSA is 128 bytes"));
+        DBG(("Maximum data length for ECDSA is 128 bytes"));
         rv = CKR_FUNCTION_FAILED;
         goto sign_out;
       }
@@ -1852,7 +1843,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     dump_hex(pSignature, *pulSignatureLen, stderr, CK_TRUE);
   }
 
-  op_info.type = YKCS11_NOOP; // TODO: anything to clear here?
+  op_info.type = YKCS11_NOOP;
 
   rv = CKR_OK;
 
@@ -2202,18 +2193,18 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     *obj_ptr++ = pubk_id;
   }
 
-  // Write/Update the  object
+  // Write/Update the object
   cert_len = sizeof(cert_data);
-  rv = token.get_token_raw_certificate(piv_state, cert_id, cert_data, &cert_len); // TODO: double check len here (check inside, never changed but used below). One more time above
+  rv = token.get_token_raw_certificate(piv_state, cert_id, cert_data, &cert_len);
   if (rv != CKR_OK) {
     DBG(("Unable to get certificate data from token"));
-    return CKR_FUNCTION_FAILED; // TODO: although key generation succeeded at this point
+    return CKR_FUNCTION_FAILED;
   }
 
   rv = store_cert(cert_id, cert_data, cert_len);
   if (rv != CKR_OK) {
     DBG(("Unable to store certificate data"));
-    return CKR_FUNCTION_FAILED;  // TODO: although key generation succeeded at this point
+    return CKR_FUNCTION_FAILED;
   }
 
   *phPrivateKey = op_info.op.gen.key_id;
