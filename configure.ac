@@ -182,6 +182,11 @@ if test "$gl_gcc_warnings" = yes; then
   gl_WARN_ADD([-fdiagnostics-show-option])
 fi
 
+AC_SUBST(YKPIV_VERSION_MAJOR, `echo $PACKAGE_VERSION | sed 's/\(.*\)\..*\..*/\1/g'`)
+AC_SUBST(YKPIV_VERSION_MINOR, `echo $PACKAGE_VERSION | sed 's/.*\.\(.*\)\..*/\1/g'`)
+AC_SUBST(YKPIV_VERSION_PATCH, `echo $PACKAGE_VERSION | sed 's/.*\..*\.\(.*\)/\1/g'`)
+AC_SUBST(YKPIV_VERSION_NUMBER, `printf "0x%02x%02x%02x" $YKPIV_VERSION_MAJOR $YKPIV_VERSION_MINOR $YKPIV_VERSION_PATCH`)
+
 AC_CONFIG_FILES([
   Makefile
   lib/Makefile
