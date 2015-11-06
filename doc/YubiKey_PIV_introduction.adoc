@@ -1,5 +1,5 @@
 Introduction to the YubiKey PIV Application
-===============================================
+===========================================
 
 The YubiKey supports the Personal Identity Verification (PIV) card
 interface specified in NIST SP 800-73 document "Cryptographic
@@ -30,7 +30,7 @@ Currently all functionality are available over both contact and
 contactless interfaces (contrary to what the specifications mandate).
 
 Preparing a for real use
-----------------------------
+------------------------
 
 You would typically change the management key to make sure nobody but
 you can modify the state of the PIV application on the.  Make sure to
