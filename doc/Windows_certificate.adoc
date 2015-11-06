@@ -1,14 +1,14 @@
 Request and load a certificate from Windows CA
 ----------------------------------------------
 
-This is a short step-by-step on how to generate a key in the Neo,
+This is a short step-by-step on how to generate a key in the,
 create a certificate request, submit that request to a Windows CA
-and then load the certificate in the Neo.
+and then load the certificate in the.
 
 Prerequisites
 -------------
 
-* a YubiKey Neo with the PIV applet loaded
+* a YubiKey with the PIV application loaded
 * the yubico-piv-tool software
 * credentials to request certs from a Windows CA
 
@@ -29,7 +29,7 @@ Steps
 
   certreq -submit -attrib "CertificateTemplate:User" request.csr cert.crt
 
-4. Load the certificate in the Neo:
+4. Load the certificate in the:
 
   yubico-piv-tool -s 9a -a import-certificate -i cert.crt
 

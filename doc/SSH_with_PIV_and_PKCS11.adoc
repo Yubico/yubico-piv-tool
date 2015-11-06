@@ -1,14 +1,14 @@
 Using PIV for SSH through PKCS11
 --------------------------------
 
-This is a step-by-step for how to get a Neo with PIV to work for
+This is a step-by-step for how to get a with PIV to work for
 public-key authentication with OpenSSH through PKCS11.
 Primarily on a OS X or Linux system.
 
 Prerequisites
 -------------
 
-* a YubiKey Neo with the PIV applet loaded
+* a YubiKey with the PIV application loaded
 * the yubico-piv-tool software
 * the OpenSC software
 * OpenSSH

@@ -1,14 +1,14 @@
 Request, load and use OS X code signing certificates
 ---------------------------------------------------
 
-This is a short step-by-step on how to generate a key in the Neo,
+This is a short step-by-step on how to generate a key in the,
 create a certificate request, submit that request to apple, load the
-certificate in the Neo and use it for code signing.
+certificate in the and use it for code signing.
 
 Prerequisites
 -------------
 
-* a YubiKey Neo with the PIV applet loaded
+* a YubiKey with the PIV application loaded
 * the yubico-piv-tool software
 * the OpenSC software
 * membership in the mac developer program
@@ -45,11 +45,11 @@ Steps
 +
 NOTE: -K DER is available from version 0.1.3, with earlier convert to PEM and import.
 
-8. Set a new chuid in the applet to make sure nothing is cached for the key:
+8. Set a new chuid in the application to make sure nothing is cached for the key:
 
    $ yubico-piv-tool -a set-chuid
 
-9. Re-plug the Neo and make sure the certificates show up under the keychain
+9. Re-plug the and make sure the certificates show up under the keychain
 "PIV_II" in Keychain Access.
 
 10. Use the certificates as usual with codesign/pkgbuild/productbuild/productsign

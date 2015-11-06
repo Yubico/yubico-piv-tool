@@ -103,6 +103,7 @@ ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose) {
   }
   memset(s, 0, sizeof(ykpiv_state));
   s->verbose = verbose;
+  s->context = -1;
   *state = s;
   return YKPIV_OK;
 }
@@ -128,41 +129,15 @@ ykpiv_rc ykpiv_disconnect(ykpiv_state *state) {
 }
 
 ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
-  unsigned long num_readers = 0;
   unsigned long active_protocol;
-  char reader_buf[1024];
+  char reader_buf[2048];
+  size_t num_readers = sizeof(reader_buf);
   long rc;
   char *reader_ptr;
 
-  rc = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &state->context);
-  if (rc != SCARD_S_SUCCESS) {
-    if(state->verbose) {
-      fprintf (stderr, "error: SCardEstablishContext failed, rc=%08lx\n", rc);
-    }
-    return YKPIV_PCSC_ERROR;
-  }
-
-  rc = SCardListReaders(state->context, NULL, NULL, &num_readers);
-  if (rc != SCARD_S_SUCCESS) {
-    if(state->verbose) {
-      fprintf (stderr, "error: SCardListReaders failed, rc=%08lx\n", rc);
-    }
-    SCardReleaseContext(state->context);
-    return YKPIV_PCSC_ERROR;
-  }
-
-  if (num_readers > sizeof(reader_buf)) {
-    num_readers = sizeof(reader_buf);
-  }
-
-  rc = SCardListReaders(state->context, NULL, reader_buf, &num_readers);
-  if (rc != SCARD_S_SUCCESS)
-  {
-    if(state->verbose) {
-      fprintf (stderr, "error: SCardListReaders failed, rc=%08lx\n", rc);
-    }
-    SCardReleaseContext(state->context);
-    return YKPIV_PCSC_ERROR;
+  ykpiv_rc ret = ykpiv_list_readers(state, reader_buf, &num_readers);
+  if(ret != YKPIV_OK) {
+    return ret;
   }
 
   for(reader_ptr = reader_buf; *reader_ptr != '\0'; reader_ptr += strlen(reader_ptr) + 1) {
@@ -209,7 +184,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
         return YKPIV_OK;
       } else {
         if(state->verbose) {
-          fprintf(stderr, "Failed selecting applet: %04x\n", sw);
+          fprintf(stderr, "Failed selecting application: %04x\n", sw);
         }
       }
     }
@@ -224,6 +199,46 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
   }
 
   return YKPIV_GENERIC_ERROR;
+}
+
+ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
+  unsigned long num_readers = 0;
+  long rc;
+
+  rc = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &state->context);
+  if (rc != SCARD_S_SUCCESS) {
+    if(state->verbose) {
+      fprintf (stderr, "error: SCardEstablishContext failed, rc=%08lx\n", rc);
+    }
+    return YKPIV_PCSC_ERROR;
+  }
+
+  rc = SCardListReaders(state->context, NULL, NULL, &num_readers);
+  if (rc != SCARD_S_SUCCESS) {
+    if(state->verbose) {
+      fprintf (stderr, "error: SCardListReaders failed, rc=%08lx\n", rc);
+    }
+    SCardReleaseContext(state->context);
+    return YKPIV_PCSC_ERROR;
+  }
+
+  if (num_readers > *len) {
+    num_readers = *len;
+  }
+
+  rc = SCardListReaders(state->context, NULL, readers, &num_readers);
+  if (rc != SCARD_S_SUCCESS)
+  {
+    if(state->verbose) {
+      fprintf (stderr, "error: SCardListReaders failed, rc=%08lx\n", rc);
+    }
+    SCardReleaseContext(state->context);
+    return YKPIV_PCSC_ERROR;
+  }
+
+  *len = num_readers;
+
+  return YKPIV_OK;
 }
 
 ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
@@ -268,7 +283,7 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
     }
     if(*out_len + recv_len - 2 > max_out) {
       if(state->verbose) {
-	fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.\n", *out_len + recv_len - 2, max_out);
+  fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.\n", *out_len + recv_len - 2, max_out);
       }
       return YKPIV_SIZE_ERROR;
     }
@@ -406,7 +421,7 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
     *dataptr++ = 8;
     if(RAND_pseudo_bytes(dataptr, 8) == -1) {
       if(state->verbose) {
-	fprintf(stderr, "Failed getting randomness for authentication.\n");
+  fprintf(stderr, "Failed getting randomness for authentication.\n");
       }
       return YKPIV_RANDOMNESS_ERROR;
     }
@@ -433,6 +448,10 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
 }
 
 ykpiv_rc ykpiv_set_mgmkey(ykpiv_state *state, const unsigned char *new_key) {
+  return ykpiv_set_mgmkey2(state, new_key, 0);
+}
+
+ykpiv_rc ykpiv_set_mgmkey2(ykpiv_state *state, const unsigned char *new_key, const unsigned char touch) {
   APDU apdu;
   unsigned char data[261];
   unsigned long recv_len = sizeof(data);
@@ -446,11 +465,11 @@ ykpiv_rc ykpiv_set_mgmkey(ykpiv_state *state, const unsigned char *new_key) {
     DES_set_odd_parity(&key_tmp);
     if(DES_is_weak_key(&key_tmp) != 0) {
       if(state->verbose) {
-	fprintf(stderr, "Won't set new key '");
-	dump_hex(new_key + i * 8, 8);
-	fprintf(stderr, "' since it's weak (with parity the key is: ");
-	dump_hex(key_tmp, 8);
-	fprintf(stderr, ").\n");
+  fprintf(stderr, "Won't set new key '");
+  dump_hex(new_key + i * 8, 8);
+  fprintf(stderr, "' since it's weak (with parity the key is: ");
+  dump_hex(key_tmp, 8);
+  fprintf(stderr, ").\n");
       }
       return YKPIV_GENERIC_ERROR;
     }
@@ -459,7 +478,13 @@ ykpiv_rc ykpiv_set_mgmkey(ykpiv_state *state, const unsigned char *new_key) {
   memset(apdu.raw, 0, sizeof(apdu));
   apdu.st.ins = YKPIV_INS_SET_MGMKEY;
   apdu.st.p1 = 0xff;
-  apdu.st.p2 = 0xff;
+  if(touch == 0) {
+    apdu.st.p2 = 0xff;
+  } else if(touch == 1) {
+    apdu.st.p2 = 0xfe;
+  } else {
+    return YKPIV_GENERIC_ERROR;
+  }
   apdu.st.lc = DES_KEY_SZ * 3 + 3;
   apdu.st.data[0] = YKPIV_ALGO_3DES;
   apdu.st.data[1] = YKPIV_KEY_CARDMGM;
@@ -505,7 +530,7 @@ ykpiv_rc ykpiv_hex_decode(const char *hex_in, size_t in_len,
 }
 
 static ykpiv_rc _general_authenticate(ykpiv_state *state,
-    const unsigned char *raw_in, size_t in_len,
+    const unsigned char *sign_in, size_t in_len,
     unsigned char *out, size_t *out_len,
     unsigned char algorithm, unsigned char key, bool decipher) {
   unsigned char indata[1024];
@@ -513,8 +538,7 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   unsigned char data[1024];
   unsigned char templ[] = {0, YKPIV_INS_AUTHENTICATE, algorithm, key};
   unsigned long recv_len = sizeof(data);
-  unsigned char sign_in[256];
-  size_t pad_len = 0;
+  size_t key_len = 0;
   int sw;
   size_t bytes;
   size_t len = 0;
@@ -522,31 +546,26 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
 
   switch(algorithm) {
     case YKPIV_ALGO_RSA1024:
-      pad_len = 128;
+      key_len = 128;
     case YKPIV_ALGO_RSA2048:
-      if(pad_len == 0) {
-	pad_len = 256;
+      if(key_len == 0) {
+	key_len = 256;
       }
-      if(!decipher) {
-	if(in_len + RSA_PKCS1_PADDING_SIZE > pad_len) {
-	  return YKPIV_SIZE_ERROR;
-	}
-	RSA_padding_add_PKCS1_type_1(sign_in, pad_len, raw_in, in_len);
-	in_len = pad_len;
-      } else {
-	if(in_len != pad_len) {
-	  return YKPIV_SIZE_ERROR;
-	}
-	memcpy(sign_in, raw_in, in_len);
+      if(in_len != key_len) {
+	return YKPIV_SIZE_ERROR;
       }
       break;
     case YKPIV_ALGO_ECCP256:
-      if(!decipher && in_len > 32) {
+      key_len = 32;
+    case YKPIV_ALGO_ECCP384:
+      if(key_len == 0) {
+	key_len = 48;
+      }
+      if(!decipher && in_len > key_len) {
 	return YKPIV_SIZE_ERROR;
-      } else if(decipher && in_len != 65) {
+      } else if(decipher && in_len != (key_len * 2) + 1) {
 	return YKPIV_SIZE_ERROR;
       }
-      memcpy(sign_in, raw_in, in_len);
       break;
     default:
       return YKPIV_ALGORITHM_ERROR;
@@ -564,7 +583,7 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   dataptr += set_length(dataptr, in_len + bytes + 3);
   *dataptr++ = 0x82;
   *dataptr++ = 0x00;
-  *dataptr++ = algorithm == YKPIV_ALGO_ECCP256 && decipher ? 0x85 : 0x81;
+  *dataptr++ = YKPIV_IS_EC(algorithm) && decipher ? 0x85 : 0x81;
   dataptr += set_length(dataptr, in_len);
   memcpy(dataptr, sign_in, (size_t)in_len);
   dataptr += in_len;
@@ -579,7 +598,10 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
     if(state->verbose) {
       fprintf(stderr, "Failed sign command with code %x.\n", sw);
     }
-    return YKPIV_GENERIC_ERROR;
+    if (sw == 0x6982)
+      return YKPIV_AUTHENTICATION_ERROR;
+    else
+      return YKPIV_GENERIC_ERROR;
   }
   /* skip the first 7c tag */
   if(data[0] != 0x7c) {
@@ -616,15 +638,14 @@ ykpiv_rc ykpiv_sign_data(ykpiv_state *state,
     unsigned char algorithm, unsigned char key) {
 
   return _general_authenticate(state, raw_in, in_len, sign_out, out_len,
-      algorithm, key, false);
+                               algorithm, key, false);
 }
-
 
 ykpiv_rc ykpiv_decipher_data(ykpiv_state *state, const unsigned char *in,
     size_t in_len, unsigned char *out, size_t *out_len,
     unsigned char algorithm, unsigned char key) {
   return _general_authenticate(state, in, in_len, out, out_len,
-      algorithm, key, true);
+                               algorithm, key, true);
 }
 
 ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len) {
@@ -745,7 +766,7 @@ ykpiv_rc ykpiv_save_object(ykpiv_state *state, int object_id,
   dataptr += len;
 
   if((res = ykpiv_transfer_data(state, templ, data, dataptr - data, NULL, &outlen,
-	  &sw)) != YKPIV_OK) {
+    &sw)) != YKPIV_OK) {
     return res;
   }
 

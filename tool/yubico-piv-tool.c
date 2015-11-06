@@ -63,20 +63,7 @@ unsigned const char chuid_tmpl[] = {
 };
 #define CHUID_GUID_OFFS 29
 
-unsigned const char sha1oid[] = {
-  0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2B, 0x0E, 0x03, 0x02, 0x1A, 0x05, 0x00,
-  0x04, 0x14
-};
-
-unsigned const char sha256oid[] = {
-  0x30, 0x31, 0x30, 0x0D, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04,
-  0x02, 0x01, 0x05, 0x00, 0x04, 0x20
-};
-
-unsigned const char sha512oid[] = {
-  0x30, 0x51, 0x30, 0x0D, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04,
-  0x02, 0x03, 0x05, 0x00, 0x04, 0x40
-};
+#define MAX_OID_LEN 19
 
 #define KEY_LEN 24
 
@@ -88,9 +75,9 @@ static void print_version(ykpiv_state *state, const char *output_file_name) {
   }
 
   if(ykpiv_get_version(state, version, sizeof(version)) == YKPIV_OK) {
-    fprintf(output_file, "Applet version %s found.\n", version);
+    fprintf(output_file, "Application version %s found.\n", version);
   } else {
-    fprintf(stderr, "Failed to retrieve applet version.\n");
+    fprintf(stderr, "Failed to retrieve application version.\n");
   }
 
   if(output_file != stdout) {
@@ -98,10 +85,31 @@ static void print_version(ykpiv_state *state, const char *output_file_name) {
   }
 }
 
+static bool sign_data(ykpiv_state *state, const unsigned char *in, size_t len, unsigned char *out,
+    size_t *out_len, unsigned char algorithm, int key) {
+
+  unsigned char signinput[1024];
+  if(YKPIV_IS_RSA(algorithm)) {
+    size_t padlen = algorithm == YKPIV_ALGO_RSA1024 ? 128 : 256;
+    if(RSA_padding_add_PKCS1_type_1(signinput, padlen, in, len) == 0) {
+      fprintf(stderr, "Failed adding padding.\n");
+      return false;
+    }
+    in = signinput;
+    len = padlen;
+  }
+  if(ykpiv_sign_data(state, in, len, out, out_len, algorithm, key) == YKPIV_OK) {
+    return true;
+  }
+  return false;
+}
+
 static bool generate_key(ykpiv_state *state, const char *slot,
     enum enum_algorithm algorithm, const char *output_file_name,
-    enum enum_key_format key_format) {
-  unsigned char in_data[5];
+    enum enum_key_format key_format, enum enum_pin_policy pin_policy,
+    enum enum_touch_policy touch_policy) {
+  unsigned char in_data[11];
+  unsigned char *in_ptr = in_data;
   unsigned char data[1024];
   unsigned char templ[] = {0, YKPIV_INS_GENERATE_ASYMMERTRIC, 0, 0};
   unsigned long recv_len = sizeof(data);
@@ -124,31 +132,46 @@ static bool generate_key(ykpiv_state *state, const char *slot,
     return false;
   }
 
-  in_data[0] = 0xac;
-  in_data[1] = 3;
-  in_data[2] = 0x80;
-  in_data[3] = 1;
-  switch(algorithm) {
-    case algorithm_arg_RSA2048:
-      in_data[4] = YKPIV_ALGO_RSA2048;
-      break;
-    case algorithm_arg_RSA1024:
-      in_data[4] = YKPIV_ALGO_RSA1024;
-      break;
-    case algorithm_arg_ECCP256:
-      in_data[4] = YKPIV_ALGO_ECCP256;
-      break;
-    case algorithm__NULL:
-    default:
-      fprintf(stderr, "Unexepcted algorithm.\n");
-      goto generate_out;
+  *in_ptr++ = 0xac;
+  *in_ptr++ = 3;
+  *in_ptr++ = 0x80;
+  *in_ptr++ = 1;
+  *in_ptr++ = get_piv_algorithm(algorithm);
+  if(in_data[4] == 0) {
+    fprintf(stderr, "Unexepcted algorithm.\n");
+    goto generate_out;
   }
-  if(ykpiv_transfer_data(state, templ, in_data, sizeof(in_data), data,
+  if(pin_policy != pin_policy__NULL) {
+    in_data[1] += 3;
+    *in_ptr++ = YKPIV_PINPOLICY_TAG;
+    *in_ptr++ = 1;
+    *in_ptr++ = get_pin_policy(pin_policy);
+  }
+  if(touch_policy != touch_policy__NULL) {
+    in_data[1] += 3;
+    *in_ptr++ = YKPIV_TOUCHPOLICY_TAG;
+    *in_ptr++ = 1;
+    *in_ptr++ = get_touch_policy(touch_policy);
+  }
+  if(ykpiv_transfer_data(state, templ, in_data, in_ptr - in_data, data,
         &recv_len, &sw) != YKPIV_OK) {
     fprintf(stderr, "Failed to communicate.\n");
     goto generate_out;
   } else if(sw != 0x9000) {
-    fprintf(stderr, "Failed to generate new key.\n");
+    fprintf(stderr, "Failed to generate new key (");
+    if(sw == 0x6b00) {
+      fprintf(stderr, "slot not supported?)\n");
+    } else if(sw == 0x6a80) {
+      if(pin_policy != pin_policy__NULL) {
+        fprintf(stderr, "pin policy not supported?)\n");
+      } else if(touch_policy != touch_policy__NULL) {
+        fprintf(stderr, "touch policy not supported?)\n");
+      } else {
+        fprintf(stderr, "algorithm not supported?)\n");
+      }
+    } else {
+      fprintf(stderr, "error %x)\n", sw);
+    }
     goto generate_out;
   }
 
@@ -187,24 +210,34 @@ static bool generate_key(ykpiv_state *state, const char *slot,
       rsa->n = bignum_n;
       rsa->e = bignum_e;
       EVP_PKEY_set1_RSA(public_key, rsa);
-    } else if(algorithm == algorithm_arg_ECCP256) {
+    } else if(algorithm == algorithm_arg_ECCP256 || algorithm == algorithm_arg_ECCP384) {
       EC_GROUP *group;
       unsigned char *data_ptr = data + 3;
+      int nid;
+      size_t len;
+
+      if(algorithm == algorithm_arg_ECCP256) {
+        nid = NID_X9_62_prime256v1;
+        len = 65;
+      } else {
+        nid = NID_secp384r1;
+        len = 97;
+      }
 
       eckey = EC_KEY_new();
-      group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
-      EC_GROUP_set_asn1_flag(group, NID_X9_62_prime256v1);
+      group = EC_GROUP_new_by_curve_name(nid);
+      EC_GROUP_set_asn1_flag(group, nid);
       EC_KEY_set_group(eckey, group);
       point = EC_POINT_new(group);
       if(*data_ptr++ != 0x86) {
         fprintf(stderr, "Failed to parse public key structure.\n");
         goto generate_out;
       }
-      if(*data_ptr++ != 65) { /* the curve point should always be 65 bytes */
+      if(*data_ptr++ != len) { /* the curve point should always be 65 bytes */
         fprintf(stderr, "Unexpected length.\n");
         goto generate_out;
       }
-      if(!EC_POINT_oct2point(group, point, data_ptr, 65, NULL)) {
+      if(!EC_POINT_oct2point(group, point, data_ptr, len, NULL)) {
         fprintf(stderr, "Failed to load public point.\n");
         goto generate_out;
       }
@@ -283,7 +316,8 @@ static bool set_pin_retries(ykpiv_state *state, int pin_retries, int puk_retries
 }
 
 static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
-    const char *input_file_name, const char *slot, char *password) {
+    const char *input_file_name, const char *slot, char *password,
+    enum enum_pin_policy pin_policy, enum enum_touch_policy touch_policy) {
   int key = 0;
   FILE *input_file = NULL;
   EVP_PKEY *private_key = NULL;
@@ -336,7 +370,7 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
       unsigned char *in_ptr = in_data;
       unsigned char templ[] = {0, YKPIV_INS_IMPORT_KEY, algorithm, key};
       int sw;
-      if(algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048) {
+      if(YKPIV_IS_RSA(algorithm)) {
         RSA *rsa_private_key = EVP_PKEY_get1_RSA(private_key);
         unsigned char e[4];
         unsigned char *e_ptr = e;
@@ -380,20 +414,45 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
           fprintf(stderr, "Failed setting iqmp component.\n");
           goto import_out;
         }
-      } else if(algorithm == YKPIV_ALGO_ECCP256) {
+      } else if(YKPIV_IS_EC(algorithm)) {
         EC_KEY *ec = EVP_PKEY_get1_EC_KEY(private_key);
         const BIGNUM *s = EC_KEY_get0_private_key(ec);
+        int element_len = 32;
+
+        if(algorithm == YKPIV_ALGO_ECCP384) {
+          element_len = 48;
+        }
 
         *in_ptr++ = 0x06;
-        if(set_component_with_len(&in_ptr, s, 32) == false) {
+        if(set_component_with_len(&in_ptr, s, element_len) == false) {
           fprintf(stderr, "Failed setting ec private key.\n");
           goto import_out;
         }
       }
 
+      if(pin_policy != pin_policy__NULL) {
+        *in_ptr++ = YKPIV_PINPOLICY_TAG;
+        *in_ptr++ = 1;
+        *in_ptr++ = get_pin_policy(pin_policy);
+      }
+      if(touch_policy != touch_policy__NULL) {
+        *in_ptr++ = YKPIV_TOUCHPOLICY_TAG;
+        *in_ptr++ = 1;
+        *in_ptr++ = get_touch_policy(touch_policy);
+      }
+
       if(ykpiv_transfer_data(state, templ, in_data, in_ptr - in_data, data,
             &recv_len, &sw) != YKPIV_OK) {
         return false;
+      } else if(sw == 0x6a80) {
+        fprintf(stderr, "Failed import.");
+        if(pin_policy != pin_policy__NULL) {
+          fprintf(stderr, "Maybe pin-policy is not supported on this key?\n");
+        } else if(touch_policy != touch_policy__NULL) {
+          fprintf(stderr, "Maybe touch-policy is not supported on this key?\n");
+        } else {
+          fprintf(stderr, "Maybe algorithm is not supported on this key?\n");
+        }
       } else if(sw != 0x9000) {
         fprintf(stderr, "Failed import command with code %x.\n", sw);
       } else {
@@ -559,7 +618,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
   EVP_PKEY *public_key = NULL;
   const EVP_MD *md;
   bool ret = false;
-  unsigned char digest[EVP_MAX_MD_SIZE + sizeof(sha512oid)]; // maximum..
+  unsigned char digest[EVP_MAX_MD_SIZE + MAX_OID_LEN];
   unsigned int digest_len;
   unsigned int md_len;
   unsigned char algorithm;
@@ -597,25 +656,9 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     goto request_out;
   }
 
-  switch(hash) {
-    case hash_arg_SHA1:
-      md = EVP_sha1();
-      oid = sha1oid;
-      oid_len = sizeof(sha1oid);
-      break;
-    case hash_arg_SHA256:
-      md = EVP_sha256();
-      oid = sha256oid;
-      oid_len = sizeof(sha256oid);
-      break;
-    case hash_arg_SHA512:
-      md = EVP_sha512();
-      oid = sha512oid;
-      oid_len = sizeof(sha512oid);
-      break;
-    case hash__NULL:
-    default:
-      goto request_out;
+  md = get_hash(hash, &oid, &oid_len);
+  if(md == NULL) {
+    goto request_out;
   }
 
   md_len = (unsigned int)EVP_MD_size(md);
@@ -651,54 +694,24 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     goto request_out;
   }
 
-  switch(algorithm) {
-    case YKPIV_ALGO_RSA1024:
-    case YKPIV_ALGO_RSA2048:
-      signinput = digest;
-      len = oid_len + digest_len;
-      switch(hash) {
-        case hash_arg_SHA1:
-          nid = NID_sha1WithRSAEncryption;
-          break;
-        case hash_arg_SHA256:
-          nid = NID_sha256WithRSAEncryption;
-          break;
-        case hash_arg_SHA512:
-          nid = NID_sha512WithRSAEncryption;
-          break;
-        case hash__NULL:
-        default:
-          goto request_out;
-      }
-      break;
-    case YKPIV_ALGO_ECCP256:
-      signinput = digest + oid_len;
-      len = digest_len;
-      switch(hash) {
-        case hash_arg_SHA1:
-          nid = NID_ecdsa_with_SHA1;
-          break;
-        case hash_arg_SHA256:
-          nid = NID_ecdsa_with_SHA256;
-          break;
-        case hash_arg_SHA512:
-          nid = NID_ecdsa_with_SHA512;
-          break;
-        case hash__NULL:
-        default:
-          goto request_out;
-      }
-      break;
-    default:
-      fprintf(stderr, "Unsupported algorithm %x.\n", algorithm);
-      goto request_out;
+  nid = get_hashnid(hash, algorithm);
+  if(nid == 0) {
+    fprintf(stderr, "Unsupported algorithm %x or hash %x\n", algorithm, hash);
+    goto request_out;
   }
+  if(YKPIV_IS_RSA(algorithm)) {
+    signinput = digest;
+    len = oid_len + digest_len;
+  } else {
+    signinput = digest + oid_len;
+    len = digest_len;
+  }
+
   req->sig_alg->algorithm = OBJ_nid2obj(nid);
   {
     unsigned char signature[1024];
     size_t sig_len = sizeof(signature);
-    if(ykpiv_sign_data(state, signinput, len, signature, &sig_len, algorithm, key)
-        != YKPIV_OK) {
+    if(!sign_data(state, signinput, len, signature, &sig_len, algorithm, key)) {
       fprintf(stderr, "Failed signing request.\n");
       goto request_out;
     }
@@ -743,7 +756,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   X509 *x509 = NULL;
   X509_NAME *name = NULL;
   const EVP_MD *md;
-  unsigned char digest[EVP_MAX_MD_SIZE + sizeof(sha512oid)];
+  unsigned char digest[EVP_MAX_MD_SIZE + MAX_OID_LEN];
   unsigned int digest_len;
   unsigned char algorithm;
   int key = 0;
@@ -781,27 +794,10 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     goto selfsign_out;
   }
 
-  switch(hash) {
-    case hash_arg_SHA1:
-      md = EVP_sha1();
-      oid = sha1oid;
-      oid_len = sizeof(sha1oid);
-      break;
-    case hash_arg_SHA256:
-      md = EVP_sha256();
-      oid = sha256oid;
-      oid_len = sizeof(sha256oid);
-      break;
-    case hash_arg_SHA512:
-      md = EVP_sha512();
-      oid = sha512oid;
-      oid_len = sizeof(sha512oid);
-      break;
-    case hash__NULL:
-    default:
-      goto selfsign_out;
+  md = get_hash(hash, &oid, &oid_len);
+  if(md == NULL) {
+    goto selfsign_out;
   }
-
   md_len = (unsigned int)EVP_MD_size(md);
   digest_len = sizeof(digest) - md_len;
 
@@ -843,48 +839,18 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     fprintf(stderr, "Failed setting certificate issuer.\n");
     goto selfsign_out;
   }
-  switch(algorithm) {
-    case YKPIV_ALGO_RSA1024:
-    case YKPIV_ALGO_RSA2048:
-      signinput = digest;
-      len = oid_len + md_len;
-      switch(hash) {
-        case hash_arg_SHA1:
-          nid = NID_sha1WithRSAEncryption;
-          break;
-        case hash_arg_SHA256:
-          nid = NID_sha256WithRSAEncryption;
-          break;
-        case hash_arg_SHA512:
-          nid = NID_sha512WithRSAEncryption;
-          break;
-        case hash__NULL:
-        default:
-          goto selfsign_out;
-      }
-      break;
-    case YKPIV_ALGO_ECCP256:
-      signinput = digest + oid_len;
-      len = md_len;
-      switch(hash) {
-        case hash_arg_SHA1:
-          nid = NID_ecdsa_with_SHA1;
-          break;
-        case hash_arg_SHA256:
-          nid = NID_ecdsa_with_SHA256;
-          break;
-        case hash_arg_SHA512:
-          nid = NID_ecdsa_with_SHA512;
-          break;
-        case hash__NULL:
-        default:
-          goto selfsign_out;
-      }
-      break;
-    default:
-      fprintf(stderr, "Unsupported algorithm %x.\n", algorithm);
-      goto selfsign_out;
+  nid = get_hashnid(hash, algorithm);
+  if(nid == 0) {
+    goto selfsign_out;
   }
+  if(YKPIV_IS_RSA(algorithm)) {
+    signinput = digest;
+    len = oid_len + md_len;
+  } else {
+    signinput = digest + oid_len;
+    len = md_len;
+  }
+
   x509->sig_alg->algorithm = OBJ_nid2obj(nid);
   x509->cert_info->signature->algorithm = x509->sig_alg->algorithm;
   memcpy(digest, oid, oid_len);
@@ -897,8 +863,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   {
     unsigned char signature[1024];
     size_t sig_len = sizeof(signature);
-    if(ykpiv_sign_data(state, signinput, len, signature, &sig_len, algorithm, key)
-        != YKPIV_OK) {
+    if(!sign_data(state, signinput, len, signature, &sig_len, algorithm, key)) {
       fprintf(stderr, "Failed signing certificate.\n");
       goto selfsign_out;
     }
@@ -1028,7 +993,7 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
       if(action == action_arg_changeMINUS_pin) {
         fprintf(stderr, "The pin code is blocked, use the unblock-pin action to unblock it.\n");
       } else {
-        fprintf(stderr, "The puk code is blocked, you will have to reinitialize the applet.\n");
+        fprintf(stderr, "The puk code is blocked, you will have to reinitialize the application.\n");
       }
     } else {
       fprintf(stderr, "Failed changing/unblocking code, error: %x\n", sw);
@@ -1138,37 +1103,17 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
     return false;
   }
 
-  switch(algorithm) {
-    case algorithm_arg_RSA2048:
-      algo = YKPIV_ALGO_RSA2048;
-      break;
-    case algorithm_arg_RSA1024:
-      algo = YKPIV_ALGO_RSA1024;
-      break;
-    case algorithm_arg_ECCP256:
-      algo = YKPIV_ALGO_ECCP256;
-      break;
-    case algorithm__NULL:
-    default:
-      goto out;
+  algo = get_piv_algorithm(algorithm);
+  if(algo == 0) {
+    goto out;
   }
 
   {
     EVP_MD_CTX *mdctx;
 
-    switch(hash) {
-      case hash_arg_SHA1:
-        md = EVP_sha1();
-        break;
-      case hash_arg_SHA256:
-        md = EVP_sha256();
-        break;
-      case hash_arg_SHA512:
-        md = EVP_sha512();
-        break;
-      case hash__NULL:
-      default:
-        goto out;
+    md = get_hash(hash, NULL, NULL);
+    if(md == NULL) {
+      goto out;
     }
 
     mdctx = EVP_MD_CTX_create();
@@ -1187,16 +1132,15 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
     EVP_MD_CTX_destroy(mdctx);
   }
 
-  if(algo == YKPIV_ALGO_RSA1024 || algo == YKPIV_ALGO_RSA2048) {
+  if(YKPIV_IS_RSA(algo)) {
     prepare_rsa_signature(hashed, hash_len, hashed, &hash_len, EVP_MD_type(md));
   }
 
   {
     unsigned char buf[1024];
     size_t len = sizeof(buf);
-    ykpiv_rc rc = ykpiv_sign_data(state, hashed, hash_len, buf, &len, algo, key);
-    if(rc != YKPIV_OK) {
-      fprintf(stderr, "failed signing file: %s\n", ykpiv_strerror(rc));
+    if(!sign_data(state, hashed, hash_len, buf, &len, algo, key)) {
+      fprintf(stderr, "failed signing file\n");
       goto out;
     }
 
@@ -1268,6 +1212,9 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
         case YKPIV_ALGO_ECCP256:
           fprintf(output, "ECCP256\n");
           break;
+        case YKPIV_ALGO_ECCP384:
+          fprintf(output, "ECCP384\n");
+          break;
         default:
           fprintf(output, "Unknown\n");
       }
@@ -1328,19 +1275,9 @@ static bool status(ykpiv_state *state, enum enum_hash hash,
     return false;
   }
 
-  switch(hash) {
-    case hash_arg_SHA1:
-      md = EVP_sha1();
-      break;
-    case hash_arg_SHA256:
-      md = EVP_sha256();
-      break;
-    case hash_arg_SHA512:
-      md = EVP_sha512();
-      break;
-    case hash__NULL:
-    default:
-      return false;
+  md = get_hash(hash, NULL, NULL);
+  if(md == NULL) {
+    return false;
   }
 
   fprintf(output_file, "CHUID:\t");
@@ -1404,19 +1341,9 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
     goto test_out;
   }
 
-  switch(hash) {
-    case hash_arg_SHA1:
-      md = EVP_sha1();
-      break;
-    case hash_arg_SHA256:
-      md = EVP_sha256();
-      break;
-    case hash_arg_SHA512:
-      md = EVP_sha512();
-      break;
-    case hash__NULL:
-    default:
-      return false;
+  md = get_hash(hash, NULL, NULL);
+  if(md == NULL) {
+    return false;
   }
 
   {
@@ -1456,14 +1383,13 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
       goto test_out;
     }
     sscanf(cmdline_parser_slot_values[slot], "%2x", &key);
-    if(algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048) {
+    if(YKPIV_IS_RSA(algorithm)) {
       prepare_rsa_signature(data, data_len, encoded, &enc_len, EVP_MD_type(md));
       ptr = encoded;
     } else {
       enc_len = data_len;
     }
-    if(ykpiv_sign_data(state, ptr, enc_len, signature, &sig_len, algorithm, key)
-      != YKPIV_OK) {
+    if(!sign_data(state, ptr, enc_len, signature, &sig_len, algorithm, key)) {
       fprintf(stderr, "Failed signing test data.\n");
       goto test_out;
     }
@@ -1490,6 +1416,7 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
 
         break;
       case YKPIV_ALGO_ECCP256:
+      case YKPIV_ALGO_ECCP384:
         {
           EC_KEY *ec = EVP_PKEY_get1_EC_KEY(pubkey);
           if(ECDSA_verify(0, data, (int)data_len, signature, (int)sig_len, ec) == 1) {
@@ -1561,7 +1488,7 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
       goto decipher_out;
     }
     sscanf(cmdline_parser_slot_values[slot], "%2x", &key);
-    if(algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048) {
+    if(YKPIV_IS_RSA(algorithm)) {
       unsigned char secret[32];
       unsigned char secret2[32];
       unsigned char data[256];
@@ -1602,20 +1529,30 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
       } else {
         fprintf(stderr, "Failed unwrapping PKCS1 envelope.\n");
       }
-    } else {
-      unsigned char secret[32];
-      unsigned char secret2[32];
-      unsigned char public_key[65];
+    } else if(YKPIV_IS_EC(algorithm)) {
+      unsigned char secret[48];
+      unsigned char secret2[48];
+      unsigned char public_key[97];
       unsigned char *ptr = public_key;
       size_t len = sizeof(secret);
       EC_KEY *ec = EVP_PKEY_get1_EC_KEY(pubkey);
+      int nid;
+      size_t key_len;
 
-      tmpkey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+      if(algorithm == YKPIV_ALGO_ECCP256) {
+        nid = NID_X9_62_prime256v1;
+        key_len = 32;
+      } else {
+        nid = NID_secp384r1;
+        key_len = 48;
+      }
+
+      tmpkey = EC_KEY_new_by_curve_name(nid);
       EC_KEY_generate_key(tmpkey);
       ECDH_compute_key(secret, len, EC_KEY_get0_public_key(ec), tmpkey, NULL);
 
       i2o_ECPublicKey(tmpkey, &ptr);
-      if(ykpiv_decipher_data(state, public_key, sizeof(public_key), secret2, &len, algorithm, key) != YKPIV_OK) {
+      if(ykpiv_decipher_data(state, public_key, (key_len * 2) + 1, secret2, &len, algorithm, key) != YKPIV_OK) {
         fprintf(stderr, "Failed ECDH exchange!\n");
         goto decipher_out;
       }
@@ -1625,7 +1562,7 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
         fprintf(stderr, "ECDH card generated: ");
         dump_hex(secret2, len, stderr, true);
       }
-      if(memcmp(secret, secret2, 32) == 0) {
+      if(memcmp(secret, secret2, key_len) == 0) {
         fprintf(stderr, "Successfully performed ECDH exchange with card.\n");
         ret = true;
       } else {
@@ -1645,6 +1582,21 @@ decipher_out:
     fclose(input_file);
   }
   return ret;
+}
+
+static bool list_readers(ykpiv_state *state) {
+  char readers[2048];
+  char *reader_ptr;
+  size_t len = sizeof(readers);
+  ykpiv_rc rc = ykpiv_list_readers(state, readers, &len);
+  if(rc != YKPIV_OK) {
+    fprintf(stderr, "Failed listing readers.\n");
+    return false;
+  }
+  for(reader_ptr = readers; *reader_ptr != '\0'; reader_ptr += strlen(reader_ptr) + 1) {
+    printf("%s\n", reader_ptr);
+  }
+  return true;
 }
 
 int main(int argc, char *argv[]) {
@@ -1700,6 +1652,7 @@ int main(int argc, char *argv[]) {
       case action_arg_version:
       case action_arg_reset:
       case action_arg_status:
+      case action_arg_listMINUS_readers:
       case action__NULL:
       default:
         continue;
@@ -1744,6 +1697,7 @@ int main(int argc, char *argv[]) {
       case action_arg_status:
       case action_arg_testMINUS_signature:
       case action_arg_testMINUS_decipher:
+      case action_arg_listMINUS_readers:
       case action__NULL:
       default:
         if(verbosity) {
@@ -1769,11 +1723,11 @@ int main(int argc, char *argv[]) {
       }
 
       if(ykpiv_authenticate(state, key) != YKPIV_OK) {
-        fprintf(stderr, "Failed authentication with the applet.\n");
+        fprintf(stderr, "Failed authentication with the application.\n");
         return EXIT_FAILURE;
       }
       if(verbosity) {
-        fprintf(stderr, "Successful applet authentication.\n");
+        fprintf(stderr, "Successful application authentication.\n");
       }
       break;
     }
@@ -1795,7 +1749,8 @@ int main(int argc, char *argv[]) {
         print_version(state, args_info.output_arg);
         break;
       case action_arg_generate:
-        if(generate_key(state, args_info.slot_orig, args_info.algorithm_arg, args_info.output_arg, args_info.key_format_arg) == false) {
+        if(generate_key(state, args_info.slot_orig, args_info.algorithm_arg, args_info.output_arg, args_info.key_format_arg,
+              args_info.pin_policy_arg, args_info.touch_policy_arg) == false) {
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully generated a new private key.\n");
@@ -1816,8 +1771,12 @@ int main(int argc, char *argv[]) {
           if(ykpiv_hex_decode(new_mgm_key, strlen(new_mgm_key), new_key, &new_key_len) != YKPIV_OK) {
             fprintf(stderr, "Failed decoding new key!\n");
             ret = EXIT_FAILURE;
-          } else if(ykpiv_set_mgmkey(state, new_key) != YKPIV_OK) {
-            fprintf(stderr, "Failed setting the new key!\n");
+          } else if(ykpiv_set_mgmkey2(state, new_key, args_info.touch_policy_arg == touch_policy_arg_always ? 1 : 0) != YKPIV_OK) {
+            fprintf(stderr, "Failed setting the new key!");
+            if(args_info.touch_policy_arg != touch_policy__NULL) {
+              fprintf(stderr, " Maybe touch policy is not supported on this key?");
+            }
+            fprintf(stderr, "\n");
             ret = EXIT_FAILURE;
           } else {
             fprintf(stderr, "Successfully set new management key.\n");
@@ -1832,7 +1791,7 @@ int main(int argc, char *argv[]) {
 	  fprintf(stderr, "Reset failed, are pincodes blocked?\n");
           ret = EXIT_FAILURE;
         } else {
-          fprintf(stderr, "Successfully reset the applet.\n");
+          fprintf(stderr, "Successfully reset the application.\n");
         }
         break;
       case action_arg_pinMINUS_retries:
@@ -1845,7 +1804,8 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_importMINUS_key:
-        if(import_key(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_orig, args_info.password_arg) == false) {
+        if(import_key(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_orig, args_info.password_arg,
+              args_info.pin_policy_arg, args_info.touch_policy_arg) == false) {
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully imported a new private key.\n");
@@ -1929,6 +1889,11 @@ int main(int argc, char *argv[]) {
       case action_arg_testMINUS_decipher:
         if(test_decipher(state, args_info.slot_arg, args_info.input_arg,
               args_info.key_format_arg, verbosity) == false) {
+          ret = EXIT_FAILURE;
+        }
+        break;
+      case action_arg_listMINUS_readers:
+        if(list_readers(state) == false) {
           ret = EXIT_FAILURE;
         }
         break;

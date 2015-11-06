@@ -25,13 +25,13 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-SUBDIRS = lib tool
+SUBDIRS = lib tool ykcs11
 
 ACLOCAL_AMFLAGS = -I m4
 
 EXTRA_DIST = windows.mk mac.mk tool/tests/basic.sh tools/fasc.pl
 
-EXTRA_DIST += doc/Certificate_Authority_with_NEO.adoc doc/OS_X_code_signing.adoc doc/SSH_with_PIV_and_PKCS11.adoc doc/Windows_certificate.adoc doc/YubiKey_NEO_PIV_introduction.adoc
+EXTRA_DIST += doc/Certificate_Authority.adoc doc/OS_X_code_signing.adoc doc/SSH_with_PIV_and_PKCS11.adoc doc/Windows_certificate.adoc doc/YubiKey_PIV_introduction.adoc
 
 if ENABLE_COV
 cov-reset:
@@ -57,7 +57,7 @@ endif
 
 if ENABLE_CPPCHECK
 cppcheck:
-	$(CPPCHECK) -q -v -f --enable=all -i tool/cmdline.c lib tool
+	$(CPPCHECK) -q -v -f --enable=all -i tool/cmdline.c lib tool ykcs11
 endif
 
 # Maintainer rules.

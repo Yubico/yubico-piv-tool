@@ -82,6 +82,8 @@ unsigned char get_algorithm(EVP_PKEY *key) {
         int curve = EC_GROUP_get_curve_name(group);
         if(curve == NID_X9_62_prime256v1) {
           return YKPIV_ALGO_ECCP256;
+        } else if(curve == NID_secp384r1) {
+          return YKPIV_ALGO_ECCP384;
         } else {
           fprintf(stderr, "Unknown EC curve %d\n", curve);
           return 0;
@@ -200,9 +202,91 @@ int get_object_id(enum enum_slot slot) {
     case slot_arg_9e:
       object = YKPIV_OBJ_CARD_AUTH;
       break;
+    case slot_arg_82:
+      object = YKPIV_OBJ_RETIRED1;
+      break;
+    case slot_arg_83:
+      object = YKPIV_OBJ_RETIRED2;
+      break;
+    case slot_arg_84:
+      object = YKPIV_OBJ_RETIRED3;
+      break;
+    case slot_arg_85:
+      object = YKPIV_OBJ_RETIRED4;
+      break;
+    case slot_arg_86:
+      object = YKPIV_OBJ_RETIRED5;
+      break;
+    case slot_arg_87:
+      object = YKPIV_OBJ_RETIRED6;
+      break;
+    case slot_arg_88:
+      object = YKPIV_OBJ_RETIRED7;
+      break;
+    case slot_arg_89:
+      object = YKPIV_OBJ_RETIRED8;
+      break;
+    case slot_arg_8a:
+      object = YKPIV_OBJ_RETIRED9;
+      break;
+    case slot_arg_8b:
+      object = YKPIV_OBJ_RETIRED10;
+      break;
+    case slot_arg_8c:
+      object = YKPIV_OBJ_RETIRED11;
+      break;
+    case slot_arg_8d:
+      object = YKPIV_OBJ_RETIRED12;
+      break;
+    case slot_arg_8e:
+      object = YKPIV_OBJ_RETIRED13;
+      break;
+    case slot_arg_8f:
+      object = YKPIV_OBJ_RETIRED14;
+      break;
+    case slot_arg_90:
+      object = YKPIV_OBJ_RETIRED15;
+      break;
+    case slot_arg_91:
+      object = YKPIV_OBJ_RETIRED16;
+      break;
+    case slot_arg_92:
+      object = YKPIV_OBJ_RETIRED17;
+      break;
+    case slot_arg_93:
+      object = YKPIV_OBJ_RETIRED18;
+      break;
+    case slot_arg_94:
+      object = YKPIV_OBJ_RETIRED19;
+      break;
+    case slot_arg_95:
+      object = YKPIV_OBJ_RETIRED20;
+      break;
     case slot__NULL:
     default:
       object = 0;
+  }
+  return object;
+}
+
+int key_to_object_id(int key) {
+  int object;
+
+  switch(key) {
+  case 0x9a:
+    object = YKPIV_OBJ_AUTHENTICATION;
+    break;
+  case 0x9c:
+    object = YKPIV_OBJ_SIGNATURE;
+    break;
+  case 0x9d:
+    object = YKPIV_OBJ_KEY_MANAGEMENT;
+    break;
+  case 0x9e:
+    object = YKPIV_OBJ_CARD_AUTH;
+    break;
+  default:
+    object = 0;
   }
   return object;
 }
@@ -261,4 +345,135 @@ bool read_pw(const char *name, char *pwbuf, size_t pwbuflen, int verify) {
     return false;
   }
   return true;
+}
+
+static unsigned const char sha1oid[] = {
+  0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2B, 0x0E, 0x03, 0x02, 0x1A, 0x05, 0x00,
+  0x04, 0x14
+};
+
+static unsigned const char sha256oid[] = {
+  0x30, 0x31, 0x30, 0x0D, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04,
+  0x02, 0x01, 0x05, 0x00, 0x04, 0x20
+};
+
+static unsigned const char sha384oid[] = {
+  0x30, 0x41, 0x30, 0x0D, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04,
+  0x02, 0x02, 0x05, 0x00, 0x04, 0x30
+};
+
+static unsigned const char sha512oid[] = {
+  0x30, 0x51, 0x30, 0x0D, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04,
+  0x02, 0x03, 0x05, 0x00, 0x04, 0x40
+};
+
+const EVP_MD *get_hash(enum enum_hash hash, const unsigned char **oid, size_t *oid_len) {
+  switch(hash) {
+    case hash_arg_SHA1:
+      if(oid) {
+        *oid = sha1oid;
+        *oid_len = sizeof(sha1oid);
+      }
+      return EVP_sha1();
+    case hash_arg_SHA256:
+      if(oid) {
+        *oid = sha256oid;
+        *oid_len = sizeof(sha256oid);
+      }
+      return EVP_sha256();
+    case hash_arg_SHA384:
+      if(oid) {
+        *oid = sha384oid;
+        *oid_len = sizeof(sha384oid);
+      }
+      return EVP_sha384();
+    case hash_arg_SHA512:
+      if(oid) {
+        *oid = sha512oid;
+        *oid_len = sizeof(sha512oid);
+      }
+      return EVP_sha512();
+    case hash__NULL:
+    default:
+      return NULL;
+  }
+}
+
+int get_hashnid(enum enum_hash hash, unsigned char algorithm) {
+  switch(algorithm) {
+    case YKPIV_ALGO_RSA1024:
+    case YKPIV_ALGO_RSA2048:
+      switch(hash) {
+        case hash_arg_SHA1:
+          return NID_sha1WithRSAEncryption;
+        case hash_arg_SHA256:
+          return NID_sha256WithRSAEncryption;
+        case hash_arg_SHA384:
+          return NID_sha384WithRSAEncryption;
+        case hash_arg_SHA512:
+          return NID_sha512WithRSAEncryption;
+        case hash__NULL:
+        default:
+          return 0;
+      }
+    case YKPIV_ALGO_ECCP256:
+    case YKPIV_ALGO_ECCP384:
+      switch(hash) {
+        case hash_arg_SHA1:
+          return NID_ecdsa_with_SHA1;
+        case hash_arg_SHA256:
+          return NID_ecdsa_with_SHA256;
+        case hash_arg_SHA384:
+          return NID_ecdsa_with_SHA384;
+        case hash_arg_SHA512:
+          return NID_ecdsa_with_SHA512;
+        case hash__NULL:
+        default:
+          return 0;
+      }
+    default:
+      return 0;
+  }
+}
+
+unsigned char get_piv_algorithm(enum enum_algorithm algorithm) {
+  switch(algorithm) {
+    case algorithm_arg_RSA2048:
+      return YKPIV_ALGO_RSA2048;
+    case algorithm_arg_RSA1024:
+      return YKPIV_ALGO_RSA1024;
+    case algorithm_arg_ECCP256:
+      return YKPIV_ALGO_ECCP256;
+    case algorithm_arg_ECCP384:
+      return YKPIV_ALGO_ECCP384;
+    case algorithm__NULL:
+    default:
+      return 0;
+  }
+}
+
+unsigned char get_pin_policy(enum enum_pin_policy policy) {
+  switch(policy) {
+    case pin_policy_arg_never:
+      return YKPIV_PINPOLICY_NEVER;
+    case pin_policy_arg_once:
+      return YKPIV_PINPOLICY_ONCE;
+    case pin_policy_arg_always:
+      return YKPIV_PINPOLICY_ALWAYS;
+    case pin_policy__NULL:
+    default:
+      return 0;
+  }
+}
+
+unsigned char get_touch_policy(enum enum_touch_policy policy) {
+  switch(policy) {
+    case touch_policy_arg_never:
+      return YKPIV_TOUCHPOLICY_NEVER;
+    case touch_policy_arg_always:
+      return YKPIV_TOUCHPOLICY_ALWAYS;
+    case touch_policy__NULL:
+    default:
+      return 0;
+  }
 }

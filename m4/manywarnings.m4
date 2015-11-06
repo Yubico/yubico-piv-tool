@@ -132,7 +132,6 @@ AC_DEFUN([gl_MANYWARN_ALL_GCC],
     -Wstack-protector \
     -Woverlength-strings \
     -Wbuiltin-macro-redefined \
-    -Wmudflap \
     -Wpacked-bitfield-compat \
     -Wsync-nand \
     ; do

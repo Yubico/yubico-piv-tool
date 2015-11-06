@@ -41,55 +41,62 @@ extern "C"
 {
 #endif
 
-	typedef struct ykpiv_state ykpiv_state;
+  typedef struct ykpiv_state ykpiv_state;
 
-	typedef enum {
-		YKPIV_OK = 0,
-		YKPIV_MEMORY_ERROR = -1,
-		YKPIV_PCSC_ERROR = -2,
-		YKPIV_SIZE_ERROR = -3,
-		YKPIV_APPLET_ERROR = -4,
-		YKPIV_AUTHENTICATION_ERROR = -5,
-		YKPIV_RANDOMNESS_ERROR = -6,
-		YKPIV_GENERIC_ERROR = -7,
-		YKPIV_KEY_ERROR = -8,
-		YKPIV_PARSE_ERROR = -9,
-		YKPIV_WRONG_PIN = -10,
-		YKPIV_INVALID_OBJECT = -11,
-		YKPIV_ALGORITHM_ERROR = -12,
-	} ykpiv_rc;
+  typedef enum {
+    YKPIV_OK = 0,
+    YKPIV_MEMORY_ERROR = -1,
+    YKPIV_PCSC_ERROR = -2,
+    YKPIV_SIZE_ERROR = -3,
+    YKPIV_APPLET_ERROR = -4,
+    YKPIV_AUTHENTICATION_ERROR = -5,
+    YKPIV_RANDOMNESS_ERROR = -6,
+    YKPIV_GENERIC_ERROR = -7,
+    YKPIV_KEY_ERROR = -8,
+    YKPIV_PARSE_ERROR = -9,
+    YKPIV_WRONG_PIN = -10,
+    YKPIV_INVALID_OBJECT = -11,
+    YKPIV_ALGORITHM_ERROR = -12,
+  } ykpiv_rc;
 
-	const char *ykpiv_strerror(ykpiv_rc err);
-	const char *ykpiv_strerror_name(ykpiv_rc err);
+  const char *ykpiv_strerror(ykpiv_rc err);
+  const char *ykpiv_strerror_name(ykpiv_rc err);
 
-	ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose);
-	ykpiv_rc ykpiv_done(ykpiv_state *state);
-	ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted);
-	ykpiv_rc ykpiv_disconnect(ykpiv_state *state);
-	ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
-			const unsigned char *in_data, long in_len,
-			unsigned char *out_data, unsigned long *out_len, int *sw);
-	ykpiv_rc ykpiv_authenticate(ykpiv_state *state, const unsigned char *key);
-	ykpiv_rc ykpiv_set_mgmkey(ykpiv_state *state, const unsigned char *new_key);
-	ykpiv_rc ykpiv_hex_decode(const char *hex_in, size_t in_len,
-	            unsigned char *hex_out, size_t *out_len);
-	ykpiv_rc ykpiv_sign_data(ykpiv_state *state, const unsigned char *sign_in,
-			size_t in_len,unsigned char *sign_out, size_t *out_len,
-			unsigned char algorithm, unsigned char key);
-        ykpiv_rc ykpiv_decipher_data(ykpiv_state *state, const unsigned char *enc_in,
-                        size_t in_len, unsigned char *enc_out, size_t *out_len,
-                        unsigned char algorithm, unsigned char key);
-	ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len);
-	ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries);
-	ykpiv_rc ykpiv_fetch_object(ykpiv_state *state, int object_id,
-			unsigned char *data, unsigned long *len);
+  ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose);
+  ykpiv_rc ykpiv_done(ykpiv_state *state);
+  ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted);
+  ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len);
+  ykpiv_rc ykpiv_disconnect(ykpiv_state *state);
+  ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
+                               const unsigned char *in_data, long in_len,
+                               unsigned char *out_data, unsigned long *out_len, int *sw);
+  ykpiv_rc ykpiv_authenticate(ykpiv_state *state, const unsigned char *key);
+  ykpiv_rc ykpiv_set_mgmkey(ykpiv_state *state, const unsigned char *new_key);
+  ykpiv_rc ykpiv_hex_decode(const char *hex_in, size_t in_len,
+                            unsigned char *hex_out, size_t *out_len);
+  ykpiv_rc ykpiv_sign_data(ykpiv_state *state, const unsigned char *sign_in,
+                           size_t in_len, unsigned char *sign_out, size_t *out_len,
+                           unsigned char algorithm, unsigned char key);
+  ykpiv_rc ykpiv_sign_data2(ykpiv_state *state, const unsigned char *sign_in,
+                            size_t in_len, unsigned char *sign_out, size_t *out_len,
+                            unsigned char algorithm, unsigned char key, int padding); // Allow not to add padding
+  ykpiv_rc ykpiv_decipher_data(ykpiv_state *state, const unsigned char *enc_in,
+                               size_t in_len, unsigned char *enc_out, size_t *out_len,
+                               unsigned char algorithm, unsigned char key);
+  ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len);
+  ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries);
+  ykpiv_rc ykpiv_fetch_object(ykpiv_state *state, int object_id,
+                              unsigned char *data, unsigned long *len);
+  ykpiv_rc ykpiv_set_mgmkey2(ykpiv_state *state, const unsigned char *new_key,
+      const unsigned char touch);
   ykpiv_rc ykpiv_save_object(ykpiv_state *state, int object_id,
-      unsigned char *indata, size_t len);
+                             unsigned char *indata, size_t len);
 
 #define YKPIV_ALGO_3DES 0x03
 #define YKPIV_ALGO_RSA1024 0x06
 #define YKPIV_ALGO_RSA2048 0x07
 #define YKPIV_ALGO_ECCP256 0x11
+#define YKPIV_ALGO_ECCP384 0x14
 
 #define YKPIV_KEY_AUTHENTICATION 0x9a
 #define YKPIV_KEY_CARDMGM 0x9b
@@ -111,6 +118,27 @@ extern "C"
 #define YKPIV_OBJ_KEY_HISTORY 0x5fc10c
 #define YKPIV_OBJ_IRIS 0x5fc121
 
+#define YKPIV_OBJ_RETIRED1  0x5fc10d
+#define YKPIV_OBJ_RETIRED2  0x5fc10e
+#define YKPIV_OBJ_RETIRED3  0x5fc10f
+#define YKPIV_OBJ_RETIRED4  0x5fc110
+#define YKPIV_OBJ_RETIRED5  0x5fc111
+#define YKPIV_OBJ_RETIRED6  0x5fc112
+#define YKPIV_OBJ_RETIRED7  0x5fc113
+#define YKPIV_OBJ_RETIRED8  0x5fc114
+#define YKPIV_OBJ_RETIRED9  0x5fc115
+#define YKPIV_OBJ_RETIRED10 0x5fc116
+#define YKPIV_OBJ_RETIRED11 0x5fc117
+#define YKPIV_OBJ_RETIRED12 0x5fc118
+#define YKPIV_OBJ_RETIRED13 0x5fc119
+#define YKPIV_OBJ_RETIRED14 0x5fc11a
+#define YKPIV_OBJ_RETIRED15 0x5fc11b
+#define YKPIV_OBJ_RETIRED16 0x5fc11c
+#define YKPIV_OBJ_RETIRED17 0x5fc11d
+#define YKPIV_OBJ_RETIRED18 0x5fc11e
+#define YKPIV_OBJ_RETIRED19 0x5fc11f
+#define YKPIV_OBJ_RETIRED20 0x5fc120
+
 #define YKPIV_INS_VERIFY 0x20
 #define YKPIV_INS_CHANGE_REFERENCE 0x24
 #define YKPIV_INS_RESET_RETRY 0x2c
@@ -119,12 +147,24 @@ extern "C"
 #define YKPIV_INS_GET_DATA 0xcb
 #define YKPIV_INS_PUT_DATA 0xdb
 
-	/* Yubico vendor specific instructions */
+  /* Yubico vendor specific instructions */
 #define YKPIV_INS_SET_MGMKEY 0xff
 #define YKPIV_INS_IMPORT_KEY 0xfe
 #define YKPIV_INS_GET_VERSION 0xfd
 #define YKPIV_INS_RESET 0xfb
 #define YKPIV_INS_SET_PIN_RETRIES 0xfa
+
+#define YKPIV_PINPOLICY_TAG 0xaa
+#define YKPIV_PINPOLICY_NEVER 1
+#define YKPIV_PINPOLICY_ONCE 2
+#define YKPIV_PINPOLICY_ALWAYS 3
+
+#define YKPIV_TOUCHPOLICY_TAG 0xab
+#define YKPIV_TOUCHPOLICY_NEVER 1
+#define YKPIV_TOUCHPOLICY_ALWAYS 2
+
+#define YKPIV_IS_EC(a) ((a == YKPIV_ALGO_ECCP256 || a == YKPIV_ALGO_ECCP384))
+#define YKPIV_IS_RSA(a) ((a == YKPIV_ALGO_RSA1024 || a == YKPIV_ALGO_RSA2048))
 
 #ifdef __cplusplus
 }
