@@ -14,6 +14,10 @@ Prerequisites
 * OpenSSH
 ** on OS X for ssh-agent to work a newer OpenSSH than is delivered with the system
 
+[NOTE]
+The following example assume that you have not yet changed the management key.
+
+
 Steps
 -----
 
@@ -21,7 +25,10 @@ Steps
 
   $ yubico-piv-tool -s 9a -a generate -o public.pem
 
-2. Create a selfsigned certificate for that key:
+2. Create a selfsigned certificate for that key.
+The only use for the X.509 certificate is to make PIV/PKCS#11 lib happy.
+They would want to be able to extract the public-key from the smartcard,
+and do that through the X.509 certificate.
 
   $ yubico-piv-tool -a verify-pin -P 123456 -a selfsign-certificate -s 9a \
         -S "/CN=SSH key/" -i public.pem -o cert.pem
@@ -38,10 +45,15 @@ Steps
 +
 After this we'll call this location `$OPENSC_LIBS`
 
-5. Get the public key in correct format for ssh and add to authorized_keys on
-the target system.
+5. Export the public key in correct format for ssh and once you got it,
+add it to authorized_keys on the target system.
 
-   $ ssh-keygen -D $OPENSC_LIBS/opensc-pkcs11.so
+   $ ssh-keygen -D $OPENSC_LIBS/opensc-pkcs11.so -e
++
+[NOTE]
+The command will export all keys stored on the YubiKey Neo.
+Hopefully it will keep the slot order so it should be not hard to guess which
+is the public key associated with your targeted private key.
 
 6. Authenticate to the target system using the new key:
 
