@@ -1,5 +1,5 @@
-Introduction to the YubiKey NEO PIV Applet
-==========================================
+Introduction to the YubiKey NEO PIV Application
+===============================================
 
 The YubiKey NEO supports the Personal Identity Verification (PIV) card
 interface specified in NIST SP 800-73 document "Cryptographic
@@ -33,7 +33,7 @@ Preparing a NEO for real use
 ----------------------------
 
 You would typically change the management key to make sure nobody but
-you can modify the state of the PIV applet on the NEO.  Make sure to
+you can modify the state of the PIV application on the NEO.  Make sure to
 keep a copy of the key around for later use.
 
   key=`dd if=/dev/random bs=1 count=24 2>/dev/null | hexdump -v -e '/1 "%02X"'`
@@ -63,7 +63,7 @@ To reset PIN/PUK retry counter AND codes (default pin 123456 puk
 
   yubico-piv-tool -k $key -a verify -P $pin -a pin-retries --pin-retries 3 --puk-retries 3
 
-To reset the applet (PIN/PUK need to be blocked hence trying a couple
+To reset the application (PIN/PUK need to be blocked hence trying a couple
 of times -- you need to modify this if you have changed the default
 number of PIN/PUK retries).
 
@@ -94,7 +94,7 @@ middleware.
 Card Holder Unique Identifier
 -----------------------------
 
-For the applet to be usable in windows the object CHUID (Card Holder
+For the application to be usable in windows the object CHUID (Card Holder
 Unique Identifier) has to be set and unique. The card contents are
 also aggressively cached so the CHUID has to be changed if the card
 contents change.

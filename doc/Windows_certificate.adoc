@@ -8,7 +8,7 @@ and then load the certificate in the Neo.
 Prerequisites
 -------------
 
-* a YubiKey Neo with the PIV applet loaded
+* a YubiKey Neo with the PIV application loaded
 * the yubico-piv-tool software
 * credentials to request certs from a Windows CA
 

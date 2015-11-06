@@ -8,7 +8,7 @@ Primarily on a OS X or Linux system.
 Prerequisites
 -------------
 
-* a YubiKey Neo with the PIV applet loaded
+* a YubiKey Neo with the PIV application loaded
 * the yubico-piv-tool software
 * the OpenSC software
 * OpenSSH

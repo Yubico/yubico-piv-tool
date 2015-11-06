@@ -184,7 +184,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
         return YKPIV_OK;
       } else {
         if(state->verbose) {
-          fprintf(stderr, "Failed selecting applet: %04x\n", sw);
+          fprintf(stderr, "Failed selecting application: %04x\n", sw);
         }
       }
     }

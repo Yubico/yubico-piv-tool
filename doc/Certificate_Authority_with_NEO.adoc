@@ -39,7 +39,7 @@ offline machine, booted from a LiveCD.  Some additional packages may
 be required (pcscd, etc, see below) and will have to be transferred on
 a USB stick.
 
-You need a YubiKey NEO with the PIV applet on, which you can purchase
+You need a YubiKey NEO with the PIV application on, which you can purchase
 from Yubico.
 
 You need to install the PKCS#11 Engine:

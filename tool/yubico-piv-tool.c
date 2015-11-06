@@ -75,9 +75,9 @@ static void print_version(ykpiv_state *state, const char *output_file_name) {
   }
 
   if(ykpiv_get_version(state, version, sizeof(version)) == YKPIV_OK) {
-    fprintf(output_file, "Applet version %s found.\n", version);
+    fprintf(output_file, "Application version %s found.\n", version);
   } else {
-    fprintf(stderr, "Failed to retrieve applet version.\n");
+    fprintf(stderr, "Failed to retrieve application version.\n");
   }
 
   if(output_file != stdout) {
@@ -993,7 +993,7 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
       if(action == action_arg_changeMINUS_pin) {
         fprintf(stderr, "The pin code is blocked, use the unblock-pin action to unblock it.\n");
       } else {
-        fprintf(stderr, "The puk code is blocked, you will have to reinitialize the applet.\n");
+        fprintf(stderr, "The puk code is blocked, you will have to reinitialize the application.\n");
       }
     } else {
       fprintf(stderr, "Failed changing/unblocking code, error: %x\n", sw);
@@ -1723,11 +1723,11 @@ int main(int argc, char *argv[]) {
       }
 
       if(ykpiv_authenticate(state, key) != YKPIV_OK) {
-        fprintf(stderr, "Failed authentication with the applet.\n");
+        fprintf(stderr, "Failed authentication with the application.\n");
         return EXIT_FAILURE;
       }
       if(verbosity) {
-        fprintf(stderr, "Successful applet authentication.\n");
+        fprintf(stderr, "Successful application authentication.\n");
       }
       break;
     }
@@ -1791,7 +1791,7 @@ int main(int argc, char *argv[]) {
 	  fprintf(stderr, "Reset failed, are pincodes blocked?\n");
           ret = EXIT_FAILURE;
         } else {
-          fprintf(stderr, "Successfully reset the applet.\n");
+          fprintf(stderr, "Successfully reset the application.\n");
         }
         break;
       case action_arg_pinMINUS_retries:
