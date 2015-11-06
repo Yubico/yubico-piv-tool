@@ -1784,7 +1784,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   }
 
   DBG("Sending %lu bytes to sign", ulDataLen);
+#if YKCS11_DBG == 1
   dump_hex(pData, ulDataLen, stderr, CK_TRUE);
+#endif
 
   if (is_hashed_mechanism(op_info.mechanism.mechanism) == CK_TRUE) {
     if (apply_sign_mechanism_update(&op_info, pData, ulDataLen) != CKR_OK) {
@@ -1824,7 +1826,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   DBG("Using key %lx", op_info.op.sign.key_id);
   DBG("After padding and transformation there are %lu bytes", op_info.buf_len);
+#if YKCS11_DBG == 1
   dump_hex(op_info.buf, op_info.buf_len, stderr, CK_TRUE);
+#endif
 
   *pulSignatureLen = sizeof(op_info.buf);
 
@@ -1843,7 +1847,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   }
 
   DBG("Got %lu bytes back", *pulSignatureLen);
+#if YKCS11_DBG == 1
   dump_hex(pSignature, *pulSignatureLen, stderr, CK_TRUE);
+#endif
 
   if (!is_RSA_mechanism(op_info.mechanism.mechanism)) {
     // ECDSA, we must remove the DER encoding and only return R,S
@@ -1851,7 +1857,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     strip_DER_encoding_from_ECSIG(pSignature, pulSignatureLen);
 
     DBG("After removing DER encoding %lu", *pulSignatureLen);
+#if YKCS11_DBG == 1
     dump_hex(pSignature, *pulSignatureLen, stderr, CK_TRUE);
+#endif
   }
 
   op_info.type = YKCS11_NOOP;

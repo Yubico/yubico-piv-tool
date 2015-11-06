@@ -123,7 +123,7 @@ CK_RV YUBICO_get_token_manufacturer(CK_UTF8CHAR_PTR str, CK_ULONG len) {
   return CKR_OK;
 
 }
-#include "debug.h"
+
 CK_RV YUBICO_get_token_model(ykpiv_state *state, CK_UTF8CHAR_PTR str, CK_ULONG len) {
 
   char buf[16];
