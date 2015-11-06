@@ -1,7 +1,5 @@
 #!/bin/sh
 
-set -e
-
 autoreconf -i
 
 if [ "x$TRAVIS_OS_NAME" != "xosx" ]; then
@@ -19,6 +17,9 @@ else
     brew install gnu-tar
     TAR=gtar
 fi
+
+set -e
+
 if [ "x$ARCH" != "x" ]; then
     version=`cat NEWS  | grep unreleased | cut -d' ' -f3`
     set +e
