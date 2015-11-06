@@ -126,7 +126,13 @@ valid information except for the public key.
 DEBUGGING
 ^^^^^^^^^
 
-By default the module has debugging enabled. This is _highly_ verbose
-and might be confusing. In order to disable it, the two macros
-`YKCS11_DBG` and `YKCS11_DINOUT` in the file `debug.h` should be set
-to `0`. Once this is done the module must be recompiled.
+By default the module has debugging disabled. This is _highly_ verbose
+and might be confusing. In order to enabled it rebuild the project as
+follows:
+
+----
+yubico-piv-tool$ autoreconf --install
+yubico-piv-tool$ ./configure --enable-ykcs11-debug
+yubico-piv-tool$ make
+yubico-piv-tool$ sudo make install
+----
