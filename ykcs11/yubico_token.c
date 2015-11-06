@@ -4,8 +4,6 @@
 #include "debug.h"
 #include "objects.h"
 
-#define YUBICO_MECHANISMS_NUM 5
-
 #define MIN_RSA_KEY_SIZE 1024
 #define MAX_RSA_KEY_SIZE 2048
 #define MIN_ECC_KEY_SIZE 256

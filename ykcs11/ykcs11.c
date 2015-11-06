@@ -20,7 +20,7 @@
 #define PIV_MGM_KEY_LEN 48
 
 #define YKCS11_MAX_SLOTS       16
-#define YKCS11_MAX_SIG_BUF_LEN 1024
+//#define YKCS11_MAX_SIG_BUF_LEN 1024
 
 #define YKCS11_SESSION_ID 5355104
 
@@ -49,9 +49,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
   CK_VOID_PTR pInitArgs
 )
 {
-  DIN;
   CK_BYTE readers[2048];
   CK_ULONG len = sizeof(readers);
+
+  DIN;
 
   if (piv_state != NULL)
     return CKR_CRYPTOKI_ALREADY_INITIALIZED;
@@ -82,8 +83,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_Finalize)(
   CK_VOID_PTR pReserved
 )
 {
-  DIN;
   CK_ULONG i;
+
+  DIN;
 
   if (pReserved != NULL_PTR) {
     DBG("Finalized called with pReserved != NULL");
@@ -111,8 +113,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetInfo)(
   CK_INFO_PTR pInfo
 )
 {
-  DIN;
   CK_VERSION ver = {0, 0}; // TODO: set version number
+
+  DIN;
+
   pInfo->cryptokiVersion = function_list.version;
 
   memset(pInfo->manufacturerID, ' ', sizeof(pInfo->manufacturerID));
@@ -134,6 +138,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetFunctionList)(
 )
 {
   DIN;
+
   if(ppFunctionList == NULL_PTR) {
     DBG("GetFunctionList called with ppFunctionList = NULL");
     return CKR_ARGUMENTS_BAD;
@@ -152,9 +157,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
   CK_ULONG_PTR pulCount
 )
 {
-  DIN;
   CK_ULONG i;
   int j;
+
+  DIN;
 
   if (piv_state == NULL) {
     DBG("libykpiv is not initialized or already finalized");
@@ -286,9 +292,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
   CK_ULONG_PTR pulCount
 )
 {
-  DIN;
   token_vendor_t token;
   CK_ULONG count;
+
+  DIN;
 
   if (piv_state == NULL) {
     DBG("libykpiv is not initialized or already finalized");
@@ -344,8 +351,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismInfo)(
   CK_MECHANISM_INFO_PTR pInfo
 )
 {
-  DIN;
   token_vendor_t token;
+
+  DIN;
 
   if (piv_state == NULL) {
     DBG("libykpiv is not initialized or already finalized");
@@ -425,14 +433,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   CK_SESSION_HANDLE_PTR phSession
 )
 {
-  DIN; // TODO: pApplication and Notify
-
   token_vendor_t token;
   CK_RV          rv;
   piv_obj_id_t   *cert_ids;
   CK_ULONG       i;
   CK_BYTE        cert_data[2100];  // Max cert value for ykpiv
   CK_ULONG       cert_len = sizeof(cert_data);
+
+  DIN; // TODO: pApplication and Notify
 
   if (piv_state == NULL) {
     DBG("libykpiv is not initialized or already finalized");
@@ -615,8 +623,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
   CK_SLOT_ID slotID
 )
 {
-  DIN;
   CK_RV rv;
+
+  DIN;
 
   if (piv_state == NULL) {
     DBG("libykpiv is not initialized or already finalized");
@@ -837,8 +846,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
   CK_OBJECT_HANDLE_PTR phObject
 )
 {
-  DIN;
-
   CK_ULONG         i;
   CK_RV            rv;
   CK_OBJECT_CLASS  class;
@@ -860,6 +867,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
   CK_ULONG         pubk_id;
   piv_obj_id_t     *obj_ptr;
 
+  DIN;
 
   if (piv_state == NULL) {
     DBG("libykpiv is not initialized or already finalized");
@@ -1036,8 +1044,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
   CK_OBJECT_HANDLE hObject
 )
 {
-  DIN;
-
   CK_RV          rv;
   token_vendor_t token;
   CK_ULONG       i;
@@ -1047,6 +1053,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
   CK_ULONG       pvtk_id;
   CK_ULONG       pubk_id;
   piv_obj_id_t   *obj_ptr;
+
+  DIN;
 
   DBG("Deleting object %lu", hObject);
 
@@ -1147,9 +1155,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
   CK_ULONG ulCount
 )
 {
-  DIN;
   CK_ULONG i;
   CK_RV rv, rv_final;
+
+  DIN;
 
   if (piv_state == NULL) {
     DBG("libykpiv is not initialized or already finalized");
@@ -1204,12 +1213,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
   CK_ULONG ulCount
 )
 {
-  DIN;
   CK_ULONG i;
   CK_ULONG j;
   CK_ULONG total;
   CK_BBOOL private;
 
+  DIN;
 
   if (piv_state == NULL) {
     DBG("libykpiv is not initialized or already finalized");
@@ -1585,8 +1594,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
   CK_OBJECT_HANDLE hKey
 )
 {
-  DIN;
-  CK_KEY_TYPE  type = 0; // TODO: replace these with sign_info's fields?
+  CK_KEY_TYPE  type = 0;
   CK_ULONG     key_len = 0;
   CK_BYTE      buf[1024];
   CK_ATTRIBUTE template[] = {
@@ -1595,6 +1603,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     {CKA_MODULUS, NULL, 0},
     {CKA_EC_POINT, buf, sizeof(buf)},
   };
+
+  DIN;
 
   if (piv_state == NULL) {
     DBG("libykpiv is not initialized or already finalized");
@@ -1682,7 +1692,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     // The buffer contains an uncompressed point of the form 04, len, 04, x, y
     // Where len is |x| + |y| + 1 bytes
 
-    op_info.op.sign.key_len = ((buf[1] - 1) / 2) * 8;
+    op_info.op.sign.key_len = (CK_ULONG) (((buf[1] - 1) / 2) * 8);
 
     if (op_info.op.sign.key_len == 256)
       op_info.op.sign.algo = YKPIV_ALGO_ECCP256;
@@ -1727,10 +1737,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   CK_ULONG_PTR pulSignatureLen
 )
 {
-  DIN;
-
   ykpiv_rc piv_rv;
   CK_RV    rv;
+
+  DIN;
 
   if (op_info.type != YKCS11_SIGN) {
     DBG("Signature operation not initialized");
@@ -2062,7 +2072,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   CK_OBJECT_HANDLE_PTR phPrivateKey
 )
 {
-  DIN;
   CK_RV          rv;
   token_vendor_t token;
   CK_ULONG       i;
@@ -2075,6 +2084,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   CK_BYTE        cert_data[2100];
   CK_ULONG       cert_len;
 
+  DIN;
 
   if (piv_state == NULL) {
     DBG("libykpiv is not initialized or already finalized");

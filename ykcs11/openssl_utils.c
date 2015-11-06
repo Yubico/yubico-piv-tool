@@ -155,15 +155,15 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa,
   }
 
   p = out;
-  if ((*out_len = i2d_X509(cert, &p)) == 0)
+  if ((*out_len = (CK_ULONG) i2d_X509(cert, &p)) == 0)
     goto create_empty_cert_cleanup;
 
-  /* TODO: REMOVE THIS */
-  BIO *STDout = BIO_new_fp(stderr, BIO_NOCLOSE);
+  /********************/
+  /*BIO *STDout = BIO_new_fp(stderr, BIO_NOCLOSE);
 
   X509_print_ex(STDout, cert, 0, 0);
 
-  BIO_free(STDout);
+  BIO_free(STDout);*/
   /********************/
 
   rv = CKR_OK;
@@ -227,9 +227,9 @@ CK_RV do_check_cert(CK_BYTE_PTR in, CK_ULONG_PTR cert_len) {
   len = 0;
   len += get_length(p + 1, &len) + 1;
 
-  *cert_len = len;
+  *cert_len = (CK_ULONG) len;
 
-  cert = d2i_X509(NULL, &p, *cert_len);
+  cert = d2i_X509(NULL, &p, (long) *cert_len);
   if (cert == NULL)
     return CKR_FUNCTION_FAILED;
 
@@ -250,7 +250,7 @@ CK_RV do_get_raw_cert(X509 *cert, CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
     return CKR_BUFFER_TOO_SMALL;
 
   p = out;
-  if ((*out_len = i2d_X509(cert, &p)) == 0)
+  if ((*out_len = (CK_ULONG) i2d_X509(cert, &p)) == 0)
     return CKR_FUNCTION_FAILED;
 
   return CKR_OK;
@@ -308,7 +308,7 @@ CK_ULONG do_get_rsa_modulus_length(EVP_PKEY *key) {
   if (rsa == NULL)
     return 0;
 
-  key_len = RSA_size(rsa) * 8; // There is also RSA_bits but only in >= 1.1.0
+  key_len = (CK_ULONG) (RSA_size(rsa) * 8); // There is also RSA_bits but only in >= 1.1.0
 
   RSA_free(rsa);
   rsa = NULL;
@@ -363,7 +363,7 @@ CK_RV do_get_public_key(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
     p = data;
 
-    if ((*len = i2d_RSAPublicKey(rsa, &p)) == 0) {
+    if ((*len = (CK_ULONG) i2d_RSAPublicKey(rsa, &p)) == 0) {
       RSA_free(rsa);
       rsa = NULL;
       return CKR_FUNCTION_FAILED;
@@ -417,7 +417,7 @@ CK_RV do_encode_rsa_public_key(CK_BYTE_PTR data, CK_ULONG len, RSA **key) {
   if (data == NULL)
     return CKR_ARGUMENTS_BAD;
 
-  if ((*key = d2i_RSAPublicKey(NULL, &p, len)) == NULL)
+  if ((*key = d2i_RSAPublicKey(NULL, &p, (long) len)) == NULL)
     return CKR_FUNCTION_FAILED;
 
   return CKR_OK;
@@ -435,7 +435,7 @@ CK_RV do_get_curve_parameters(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len)
 
   p = data;
 
-  if ((*len = i2d_ECPKParameters(ecg, &p)) == 0) {
+  if ((*len = (CK_ULONG) i2d_ECPKParameters(ecg, &p)) == 0) {
     EC_KEY_free(eck);
     eck = NULL;
     return CKR_FUNCTION_FAILED;
@@ -519,7 +519,7 @@ CK_RV do_pkcs_pss(RSA *key, CK_BYTE_PTR in, CK_ULONG in_len, int nid,
     return CKR_FUNCTION_FAILED;
   }
 
-  *out_len = RSA_size(key);
+  *out_len = (CK_ULONG) RSA_size(key);
 
   EVP_cleanup();
 
