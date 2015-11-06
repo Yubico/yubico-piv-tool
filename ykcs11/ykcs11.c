@@ -1,4 +1,5 @@
 #include "ykcs11.h"
+#include "ykcs11-version.h"
 #include <stdlib.h>
 #include <ykpiv.h>
 #include <string.h>
@@ -113,7 +114,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetInfo)(
   CK_INFO_PTR pInfo
 )
 {
-  CK_VERSION ver = {0, 0}; // TODO: set version number
+  CK_VERSION ver = {YKCS11_VERSION_MAJOR, (YKCS11_VERSION_MINOR * 100) + YKCS11_VERSION_PATCH};
 
   DIN;
 
