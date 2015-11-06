@@ -182,6 +182,19 @@ if test "$gl_gcc_warnings" = yes; then
   gl_WARN_ADD([-fdiagnostics-show-option])
 fi
 
+AC_ARG_ENABLE([ykcs11-debug],
+              [AS_HELP_STRING([--enable-ykcs11-debug],
+                              [enables YKCS11 debug messages])],
+                              [enable_ykcs11_debug="$enableval"],
+                              [enable_ykcs11_debug="no"])
+
+AS_IF([test "x$enable_ykcs11_debug" != xno],
+            [AC_DEFINE([YKCS11_DBG], [1], [Regular debug flag])
+             AC_DEFINE([YKCS11_DINOUT], [1], [Function accessed/left debug flag])],
+      [true],
+            [AC_DEFINE([YKCS11_DBG], [0], [Regular debug flag])
+            AC_DEFINE([YKCS11_DINOUT], [0], [Function accessed/left debug flag])])
+
 AC_SUBST(YKPIV_VERSION_MAJOR, `echo $PACKAGE_VERSION | sed 's/\(.*\)\..*\..*/\1/g'`)
 AC_SUBST(YKPIV_VERSION_MINOR, `echo $PACKAGE_VERSION | sed 's/.*\.\(.*\)\..*/\1/g'`)
 AC_SUBST(YKPIV_VERSION_PATCH, `echo $PACKAGE_VERSION | sed 's/.*\..*\.\(.*\)/\1/g'`)
@@ -223,4 +236,5 @@ AC_MSG_NOTICE([summary of build options:
             LIBS:   ${PCSC_WIN_LIBS}
   Mac PCSC
             LIBS:   ${PCSC_MACOSX_LIBS}
+
 ])
