@@ -5,7 +5,7 @@ Introduction
 ------------
 
 The Yubico PIV tool is used for interacting with the Privilege and
-Identification Card (PIV) application on a https://www.yubico.com[YubiKey NEO].
+Identification Card (PIV) application on a https://www.yubico.com[YubiKey].
 
 With it you may generate keys on the device, importing keys and
 certificates, and create certificate requests, and other operations.

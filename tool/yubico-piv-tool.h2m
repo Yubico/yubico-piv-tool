@@ -30,7 +30,7 @@
 For more information about what's happening \-\-verbose can be added
 to any command. For much more information \-\-verbose=2 may be used.
 
-Display what version of the application is running on the YubiKey Neo:
+Display what version of the application is running on the YubiKey:
 
    yubico\-piv\-tool \-a version
 

@@ -1,8 +1,8 @@
-Certificate Authority with NEO
+Certificate Authority with
 ------------------------------
 
 This document explains how to set up a Certificate Authority (CA) with
-Sub-CA private keys stored on YubiKey NEOs.  Typical use for this is
+Sub-CA private keys stored on YubiKeys.  Typical use for this is
 to generate HTTPS certificates for internal servers.
 
 Considerations
@@ -10,12 +10,12 @@ Considerations
 
 For our example, we have chosen to use one root CA with a private key
 stored in an offline machine, that signs sub-CAs with private keys
-stored on YubiKey NEOs, which signs end-entity (EE) certs.  We'll
+stored on YubiKeys, which signs end-entity (EE) certs.  We'll
 generate the Sub-CA private keys on an offline host and save a copy of
 those keys.
 
 We have chosen to use a RSA 3744 bit root CA key, and RSA 2048 bit
-keys for the NEO Sub-CAs and EE certificates.  The NEO is limited to
+keys for the Sub-CAs and EE certificates.  The is limited to
 RSA 1k and 2k keys (it supports ECDSA too but we chose to not use that
 here).
 
@@ -39,7 +39,7 @@ offline machine, booted from a LiveCD.  Some additional packages may
 be required (pcscd, etc, see below) and will have to be transferred on
 a USB stick.
 
-You need a YubiKey NEO with the PIV application on, which you can purchase
+You need a YubiKey with the PIV application on, which you can purchase
 from Yubico.
 
 You need to install the PKCS#11 Engine:
@@ -89,15 +89,15 @@ You may inspect the newly generated root CA with:
 
   openssl x509 -text < yubico-internal-https-ca-crt.pem
 
-Preparing a Sub-CA NEO
+Preparing a Sub-CA
 ----------------------
 
 We need to change the management key, PIN and PUK code following the
-YubiKey-NEO-PIV-Introduction.txt document.  We also want to save a
+YubiKey-PIV-Introduction.txt document.  We also want to save a
 copy of these values.  Here are the steps that are needed to be done
-for each new Sub-CA NEO.
+for each new Sub-CA.
 
-This step is parametrized with the name of the YubiKey NEO user.
+This step is parametrized with the name of the YubiKey user.
 Generate new management code, PIN and PUK as follows:
 
   user=Simon
@@ -108,7 +108,7 @@ Generate new management code, PIN and PUK as follows:
   puk=`dd if=/dev/random bs=1 count=6 2>/dev/null | hexdump -v -e '/1 "%u"'|cut -c1-8`
   echo $puk > yubico-internal-https-$user-puk.txt
 
-Configure a fresh NEO with these parameters as follows:
+Configure a fresh with these parameters as follows:
 
   yubico-piv-tool -a set-mgm-key -n $key
   yubico-piv-tool -k $key -a change-pin -P 123456 -N $pin
@@ -117,7 +117,7 @@ Configure a fresh NEO with these parameters as follows:
 Creating a Sub-CA
 -----------------
 
-This step is parametrized with the name of the YubiKey NEO user.  This
+This step is parametrized with the name of the YubiKey user.  This
 means we will have one Sub-CA for every person authorized to sign
 certificates in our CA.
 
@@ -157,11 +157,11 @@ You may inspect the newly generated EE cert with this command:
 
   openssl x509 -text < yubico-internal-https-subca-$user-crt.pem
 
-Import Sub-CA key to NEO:
+Import Sub-CA key to:
 
   yubico-piv-tool -k $key -a import-key -s 9c < yubico-internal-https-subca-$user-key.pem 
 
-Import Sub-CA cert to NEO:
+Import Sub-CA cert to:
 
   yubico-piv-tool -k $key -a import-certificate -s 9c < yubico-internal-https-subca-$user-crt.pem 
 
@@ -190,7 +190,7 @@ Then generate a new private key and certificate request:
   EOF
   openssl req -sha256 -new -config yubico-internal-https-ee-$host-csr.conf -key yubico-internal-https-ee-$host-key.pem -nodes -out yubico-internal-https-ee-$host-csr.pem
 
-Then sign the certificate using the NEO:
+Then sign the certificate using the:
 
   cat>yubico-internal-https-ee-$host-crt.conf<<EOF
   basicConstraints = critical,CA:false
