@@ -1150,11 +1150,12 @@ CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
       has_params == CK_FALSE)
     return CKR_TEMPLATE_INCOMPLETE;
 
-  if (*value_len != 32)
+  if (*value_len == 32 || *value_len == 31) {
+    if (ec_params_len != 10 || memcmp(ec_params, PRIME256V1, ec_params_len) != 0)
+      return CKR_ATTRIBUTE_VALUE_INVALID;
+  }
+  else /*if () TODO: P384*/
     return CKR_ATTRIBUTE_VALUE_INVALID;
-
-  if (*value_len == 32 && (ec_params_len != 10 || memcmp(ec_params, PRIME256V1, ec_params_len)) != 0)
-    return CKR_TEMPLATE_INCONSISTENT;
 
   return CKR_OK;
 }
