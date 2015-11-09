@@ -4,6 +4,12 @@ YKCS11
 This is a PKCS#11 module that allows to communicate with the PIV
 application running on a YubiKey.
 
+This module is based on version 2.40 of the PKCS#11 (Cryptoki)
+specifications.
+
+The complete specifications are available at
+http://docs.oasis-open.org/pkcs11/pkcs11-base/v2.40/os/pkcs11-base-v2.40-os.html.
+
 BUILDING
 ~~~~~~~~
 
