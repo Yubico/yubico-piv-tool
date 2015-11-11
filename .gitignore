@@ -86,3 +86,4 @@ ykcs11/*.lo
 ykcs11/ykcs11.pc
 ykcs11/libykcs11.la
 ykcs11/ykcs11-version.h
+ykcs11/tests/basic.log
