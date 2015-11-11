@@ -216,6 +216,7 @@ AC_CONFIG_FILES([
   ykcs11/Makefile
   ykcs11/ykcs11-version.h
   ykcs11/ykcs11.pc
+  ykcs11/tests/Makefile
 ])
 AC_OUTPUT
 
