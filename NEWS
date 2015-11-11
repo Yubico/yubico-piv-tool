@@ -1,6 +1,10 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
-* Version 1.1.1 (unreleased)
+* Version 1.1.2 (unreleased)
+
+* Version 1.1.1 (released 2015-11-11)
+
+** Make sure SCardContext is properly acquired and released.
 
 * Version 1.1.0 (released 2015-11-06)
 
