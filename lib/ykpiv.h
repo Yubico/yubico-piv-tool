@@ -91,6 +91,14 @@ extern "C"
       const unsigned char touch);
   ykpiv_rc ykpiv_save_object(ykpiv_state *state, int object_id,
                              unsigned char *indata, size_t len);
+  ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, unsigned char algorithm,
+                                    const unsigned char *p, size_t p_len,
+                                    const unsigned char *q, size_t q_len,
+                                    const unsigned char *dp, size_t dp_len,
+                                    const unsigned char *dq, size_t dq_len,
+                                    const unsigned char *qinv, size_t qinv_len,
+                                    const unsigned char *ec_data, unsigned char ec_data_len,
+                                    const unsigned char pin_policy, const unsigned char touch_policy);
 
 #define YKPIV_ALGO_3DES 0x03
 #define YKPIV_ALGO_RSA1024 0x06

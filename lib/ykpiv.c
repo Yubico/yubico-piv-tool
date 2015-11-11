@@ -5,15 +5,15 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
- * 
+ *
  *   * Redistributions of source code must retain the above copyright
  *     notice, this list of conditions and the following disclaimer.
- * 
+ *
  *   * Redistributions in binary form must reproduce the above
  *     copyright notice, this list of conditions and the following
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -780,4 +780,80 @@ ykpiv_rc ykpiv_save_object(ykpiv_state *state, int object_id,
   } else {
     return YKPIV_GENERIC_ERROR;
   }
+}
+
+ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, unsigned char algorithm,
+                                    const unsigned char *p, size_t p_len,
+                                    const unsigned char *q, size_t q_len,
+                                    const unsigned char *dp, size_t dp_len,
+                                    const unsigned char *dq, size_t dq_len,
+                                    const unsigned char *qinv, size_t qinv_len,
+                                    const unsigned char *ec_data, unsigned char ec_data_len,
+                                  const unsigned char pin_policy, const unsigned char touch_policy) {
+
+  /*unsigned char key_data[1024];
+  unsigned char *in_ptr = key_data;
+  unsigned char templ[] = {0, YKPIV_INS_IMPORT_KEY, 0, key};
+  unsigned char data[256];
+  unsigned long recv_len = sizeof(data);
+  unsigned elem_len;
+  int sw;
+  const unsigned char *params[5];
+  unsigned char n_params;
+  int i;
+  int param_tag;
+
+  if (state == NULL)
+    return YKPIV_GENERIC_ERROR;
+
+  if (key != YKPIV_KEY_AUTHENTICATION &&
+      key != YKPIV_KEY_SIGNATURE &&
+      key != YKPIV_KEY_KEYMGM &&
+      key != YKPIV_KEY_CARDAUTH) {
+    return YKPIV_KEY_ERROR;
+  }
+
+  if (pin_policy != YKPIV_PINPOLICY_NEVER &&
+      pin_policy != YKPIV_PINPOLICY_ONCE &&
+      pin_policy != YKPIV_PINPOLICY_ALWAYS)
+    return YKPIV_GENERIC_ERROR;
+
+  if (touch_policy != YKPIV_TOUCHPOLICY_NEVER &&
+      touch_policy != YKPIV_TOUCHPOLICY_ALWAYS)
+    return YKPIV_GENERIC_ERROR;
+
+  if (algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048) {
+
+    if (algorithm == YKPIV_ALGO_RSA1024)
+      elem_len = 64;
+    if (algorithm == YKPIV_ALGO_RSA2048)
+      elem_len = 128;
+
+    params[0] = p;
+    params[1] = q;
+    params[2] = dp;
+    params[3] = dq;
+    params[4] = qinv;
+    param_tag = 0x00;
+    n_params = 5;
+  }
+  else if (algorithm == YKPIV_ALGO_ECCP256 || algorithm == YKPIV_ALGO_ECCP384) {
+    if (algorithm == YKPIV_ALGO_ECCP256)
+      elem_len = 32;
+    if (algorithm == YKPIV_ALGO_ECCP384)
+      elem_len = 48;
+
+    params[0] = ec_data;
+    param_tag =
+    n_params = 1;
+  }
+  else
+    return YKPIV_ALGORITHM_ERROR;
+
+  for (i = 0; i < n_params; i++) {
+
+  }*/
+
+  return YKPIV_OK;
+
 }
