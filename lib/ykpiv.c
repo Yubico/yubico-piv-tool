@@ -195,6 +195,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
       fprintf(stderr, "error: no useable reader found.\n");
     }
     SCardReleaseContext(state->context);
+    state->context = SCARD_E_INVALID_HANDLE;
     return YKPIV_PCSC_ERROR;
   }
 
@@ -221,6 +222,7 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
       fprintf (stderr, "error: SCardListReaders failed, rc=%08lx\n", rc);
     }
     SCardReleaseContext(state->context);
+    state->context = SCARD_E_INVALID_HANDLE;
     return YKPIV_PCSC_ERROR;
   }
 
@@ -235,6 +237,7 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
       fprintf (stderr, "error: SCardListReaders failed, rc=%08lx\n", rc);
     }
     SCardReleaseContext(state->context);
+    state->context = SCARD_E_INVALID_HANDLE;
     return YKPIV_PCSC_ERROR;
   }
 
