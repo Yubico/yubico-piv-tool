@@ -19,11 +19,6 @@ static void lib_info() {
     exit(EXIT_FAILURE);
   }
 
-  if (funcs->C_Initialize(NULL) != CKR_OK) {
-    fprintf(stderr, "Initialize failed\n");
-    exit(EXIT_FAILURE);
-  }
-
   if (funcs->C_GetInfo(&info) != CKR_OK) {
     fprintf(stderr, "GetInfo failed\n");
     exit(EXIT_FAILURE);
@@ -48,11 +43,6 @@ static void lib_info() {
 
   if (strcmp(info.libraryDescription, YKCS11_DESCRIPTION) != 0) {
     fprintf(stderr, "unexpected description %s\n", info.libraryDescription);
-    exit(EXIT_FAILURE);
-  }
-
-  if (funcs->C_Finalize(NULL) != CKR_OK) {
-    fprintf(stderr, "Finalize failed\n");
     exit(EXIT_FAILURE);
   }
 
