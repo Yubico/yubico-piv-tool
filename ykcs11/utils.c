@@ -179,21 +179,53 @@ CK_BBOOL is_valid_key_id(CK_BYTE id) {
 
 void strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
-  CK_BYTE_PTR  ptr;
-  CK_ULONG     n_len;
+  CK_BYTE_PTR  data_ptr;
+  CK_ULONG     sig_halflen;
+  CK_BYTE      buf[128];
+  CK_BYTE_PTR  buf_ptr;
+  CK_BYTE      elem_len;
 
   // Maximum DER length for P256 is 2 + 2 + 33 + 2 + 33 = 72
   if (*len <= 72)
-    n_len = 32;
+    sig_halflen = 32;
   else
-    n_len = 48;
+    sig_halflen = 48;
 
-  ptr = data + 4;
-  if (*ptr == 0)
-    ptr++;
+  memset(buf, 0, sizeof(buf));
+  data_ptr = data + 3;
+  buf_ptr = buf;
 
-  memmove(data, ptr, n_len);
-  memmove(data+n_len, data + *len - n_len, n_len);
+  // copy r
+  elem_len = *data_ptr;
+  if (elem_len == (sig_halflen - 1))
+    buf_ptr++; // One shorter, prepend a zero
+  else if (elem_len == (sig_halflen + 1)) {
+    data_ptr++; // One longer, skip a zero
+    elem_len--;
+  }
 
-  *len = n_len * 2;
+  data_ptr++;
+  memcpy(buf_ptr, data_ptr, elem_len);
+  data_ptr += elem_len;
+  buf_ptr += elem_len;
+
+  data_ptr++;
+
+  // copy s
+  elem_len = *data_ptr;
+  if (elem_len == (sig_halflen - 1))
+    buf_ptr++; // One shorter, prepend a zero
+  else if (elem_len == (sig_halflen + 1)) {
+    data_ptr++; // One longer, skip a zero
+    elem_len --;
+  }
+
+  data_ptr++;
+  memcpy(buf_ptr, data_ptr, elem_len);
+  data_ptr += elem_len;
+  buf_ptr += elem_len;
+
+  *len = sig_halflen * 2;
+  memcpy(data, buf, *len);
+
 }

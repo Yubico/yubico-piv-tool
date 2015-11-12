@@ -1783,6 +1783,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     return CKR_OK;
   }
 
+  fprintf(stderr, "MI HAI DATO %lu!!!!!!!!!!!!!!!!!!!!!\n", *pulSignatureLen);
+
+
   DBG("Sending %lu bytes to sign", ulDataLen);
 #if YKCS11_DBG == 1
   dump_hex(pData, ulDataLen, stderr, CK_TRUE);
