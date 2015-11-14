@@ -1,5 +1,7 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
+* Version 1.1.3 (unreleased)
+
 * Version 1.1.2 (released 2015-11-13)
 
 ** Properly handle DER encoding in ECDSA signatures.
