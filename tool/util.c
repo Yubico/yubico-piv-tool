@@ -262,6 +262,9 @@ int get_object_id(enum enum_slot slot) {
     case slot_arg_95:
       object = YKPIV_OBJ_RETIRED20;
       break;
+    case slot_arg_f9:
+      object = YKPIV_OBJ_ATTESTATION;
+      break;
     case slot__NULL:
     default:
       object = 0;
