@@ -155,6 +155,7 @@ extern "C"
 #define YKPIV_INS_GET_VERSION 0xfd
 #define YKPIV_INS_RESET 0xfb
 #define YKPIV_INS_SET_PIN_RETRIES 0xfa
+#define YKPIV_INS_ATTEST 0xf9
 
 #define YKPIV_PINPOLICY_TAG 0xaa
 #define YKPIV_PINPOLICY_NEVER 1
