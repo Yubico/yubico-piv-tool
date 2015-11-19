@@ -1161,8 +1161,12 @@ CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
 }
 
 CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
-                           CK_BYTE_PTR *p, CK_BYTE_PTR *q, CK_BYTE_PTR *dp,
-                           CK_BYTE_PTR *dq, CK_BYTE_PTR *qinv, CK_ULONG_PTR value_len, CK_ULONG_PTR vendor_defined) {
+                           CK_BYTE_PTR *p, CK_ULONG_PTR p_len,
+                           CK_BYTE_PTR *q, CK_ULONG_PTR q_len,
+                           CK_BYTE_PTR *dp, CK_ULONG_PTR dp_len,
+                           CK_BYTE_PTR *dq, CK_ULONG_PTR dq_len,
+                           CK_BYTE_PTR *qinv, CK_ULONG_PTR qinv_len,
+                           CK_ULONG_PTR vendor_defined) {
 
   CK_ULONG i;
   CK_BBOOL has_id = CK_FALSE;
@@ -1172,11 +1176,6 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
   CK_BBOOL has_dp = CK_FALSE;
   CK_BBOOL has_dq = CK_FALSE;
   CK_BBOOL has_qinv = CK_FALSE;
-  CK_ULONG p_len = 0;
-  CK_ULONG q_len = 0;
-  CK_ULONG dp_len = 0;
-  CK_ULONG dq_len = 0;
-  CK_ULONG qinv_len = 0;
 
   *vendor_defined = 0;
 
@@ -1211,35 +1210,35 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
     case CKA_PRIME_1:
       has_p = CK_TRUE;
       *p = (CK_BYTE_PTR)templ[i].pValue;
-      p_len = templ[i].ulValueLen;
+      *p_len = templ[i].ulValueLen;
 
       break;
 
     case CKA_PRIME_2:
       has_q = CK_TRUE;
       *q = (CK_BYTE_PTR)templ[i].pValue;
-      q_len = templ[i].ulValueLen;
+      *q_len = templ[i].ulValueLen;
 
       break;
 
     case CKA_EXPONENT_1:
       has_dp = CK_TRUE;
       *dp = (CK_BYTE_PTR)templ[i].pValue;
-      dp_len = templ[i].ulValueLen;
+      *dp_len = templ[i].ulValueLen;
 
       break;
 
     case CKA_EXPONENT_2:
       has_dq = CK_TRUE;
       *dq = (CK_BYTE_PTR)templ[i].pValue;
-      dq_len = templ[i].ulValueLen;
+      *dq_len = templ[i].ulValueLen;
 
       break;
 
     case CKA_COEFFICIENT:
       has_qinv = CK_TRUE;
       *qinv = (CK_BYTE_PTR)templ[i].pValue;
-      qinv_len = templ[i].ulValueLen;
+      *qinv_len = templ[i].ulValueLen;
 
       break;
 
@@ -1270,13 +1269,12 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
       has_qinv == CK_FALSE)
     return CKR_TEMPLATE_INCOMPLETE;
 
-  if (p_len != 64 && p_len != 128)
+  if (*p_len != 64 && *p_len != 128)
     return CKR_ATTRIBUTE_VALUE_INVALID;
 
-  *value_len = p_len;
 
-  if (q_len != p_len || dp_len != p_len ||
-      dq_len != p_len || qinv_len != p_len)
+  if (*q_len != *p_len || *dp_len > *p_len ||
+      *dq_len > *p_len || *qinv_len > *p_len)
     return CKR_ATTRIBUTE_VALUE_INVALID;
 
   return CKR_OK;
