@@ -783,22 +783,24 @@ ykpiv_rc ykpiv_save_object(ykpiv_state *state, int object_id,
 }
 
 ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, unsigned char algorithm,
-                                    const unsigned char *p, size_t p_len,
-                                    const unsigned char *q, size_t q_len,
-                                    const unsigned char *dp, size_t dp_len,
-                                    const unsigned char *dq, size_t dq_len,
-                                    const unsigned char *qinv, size_t qinv_len,
-                                    const unsigned char *ec_data, unsigned char ec_data_len,
+                                  const unsigned char *p, size_t p_len,
+                                  const unsigned char *q, size_t q_len,
+                                  const unsigned char *dp, size_t dp_len,
+                                  const unsigned char *dq, size_t dq_len,
+                                  const unsigned char *qinv, size_t qinv_len,
+                                  const unsigned char *ec_data, unsigned char ec_data_len,
                                   const unsigned char pin_policy, const unsigned char touch_policy) {
 
-  /*unsigned char key_data[1024];
+  unsigned char key_data[1024];
   unsigned char *in_ptr = key_data;
-  unsigned char templ[] = {0, YKPIV_INS_IMPORT_KEY, 0, key};
+  unsigned char templ[] = {0, YKPIV_INS_IMPORT_KEY, algorithm, key};
   unsigned char data[256];
   unsigned long recv_len = sizeof(data);
   unsigned elem_len;
   int sw;
   const unsigned char *params[5];
+  size_t lens[5];
+  size_t padding;
   unsigned char n_params;
   int i;
   int param_tag;
@@ -813,12 +815,14 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
     return YKPIV_KEY_ERROR;
   }
 
-  if (pin_policy != YKPIV_PINPOLICY_NEVER &&
+  if (pin_policy != YKPIV_PINPOLICY_DEFAULT &&
+      pin_policy != YKPIV_PINPOLICY_NEVER &&
       pin_policy != YKPIV_PINPOLICY_ONCE &&
       pin_policy != YKPIV_PINPOLICY_ALWAYS)
     return YKPIV_GENERIC_ERROR;
 
-  if (touch_policy != YKPIV_TOUCHPOLICY_NEVER &&
+  if (touch_policy != YKPIV_TOUCHPOLICY_DEFAULT &&
+      touch_policy != YKPIV_TOUCHPOLICY_NEVER &&
       touch_policy != YKPIV_TOUCHPOLICY_ALWAYS)
     return YKPIV_GENERIC_ERROR;
 
@@ -829,12 +833,22 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
     if (algorithm == YKPIV_ALGO_RSA2048)
       elem_len = 128;
 
+    if (p == NULL || q == NULL || dp == NULL ||
+        dq == NULL || qinv == NULL)
+      return YKPIV_GENERIC_ERROR;
+
     params[0] = p;
+    lens[0] = p_len;
     params[1] = q;
+    lens[1] = q_len;
     params[2] = dp;
+    lens[2] = dp_len;
     params[3] = dq;
+    lens[3] = dq_len;
     params[4] = qinv;
-    param_tag = 0x00;
+    lens[4] = qinv_len;
+    param_tag = 0x01;
+
     n_params = 5;
   }
   else if (algorithm == YKPIV_ALGO_ECCP256 || algorithm == YKPIV_ALGO_ECCP384) {
@@ -843,16 +857,47 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
     if (algorithm == YKPIV_ALGO_ECCP384)
       elem_len = 48;
 
+    if (ec_data == NULL)
+      return YKPIV_GENERIC_ERROR;
+
     params[0] = ec_data;
-    param_tag =
+    lens[0] = ec_data_len;
+    param_tag = 0x06;
     n_params = 1;
   }
   else
     return YKPIV_ALGORITHM_ERROR;
 
   for (i = 0; i < n_params; i++) {
+    *in_ptr++ = param_tag + i;
+    in_ptr += set_length(in_ptr, elem_len);
+    padding = elem_len - lens[i];
+    memset(in_ptr, 0, padding);
+    in_ptr += padding;
+    memcpy(in_ptr, params[i], lens[i]);
+    in_ptr += lens[i];
+  }
 
-  }*/
+  if (pin_policy != YKPIV_PINPOLICY_DEFAULT) {
+    *in_ptr++ = YKPIV_PINPOLICY_TAG;
+    *in_ptr++ = 0x01;
+    *in_ptr++ = pin_policy;
+  }
+
+  if (touch_policy != YKPIV_TOUCHPOLICY_DEFAULT) {
+    *in_ptr++ = YKPIV_TOUCHPOLICY_TAG;
+    *in_ptr++ = 0x01;
+    *in_ptr++ = touch_policy;
+  }
+
+  if (ykpiv_transfer_data(state, templ, key_data, in_ptr - key_data, data, &recv_len, &sw) != YKPIV_OK)
+    return YKPIV_GENERIC_ERROR;
+  printf("IMPORTING %x, %d\n", sw, n_params);
+  if (sw == 0x6982)
+    return YKPIV_AUTHENTICATION_ERROR;
+
+  if (sw != 0x9000)
+    return YKPIV_GENERIC_ERROR;
 
   return YKPIV_OK;
 
