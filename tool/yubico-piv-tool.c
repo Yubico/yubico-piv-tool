@@ -1168,6 +1168,7 @@ out:
 static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_MD *md,
     FILE *output) {
   int object = get_object_id(slot);
+  int slot_name;
   unsigned char data[2048];
   const unsigned char *ptr = data;
   unsigned long len = sizeof(data);
@@ -1177,9 +1178,17 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
   BIO *bio = NULL;
 
   if(ykpiv_fetch_object(state, object, data, &len) != YKPIV_OK) {
-    fprintf(output, "No data available.\n");
     return;
   }
+
+  if (slot == slot_arg_9a)
+    slot_name = 0x9a;
+  else if (slot >= slot_arg_9c && slot <= slot_arg_9e)
+    slot_name = 0x9b + slot;
+  else
+    slot_name = 0x82 + (slot - slot_arg_82);
+
+  fprintf(output, "Slot %x:\t", slot_name);
 
   if(*ptr++ == 0x70) {
     unsigned int md_len = sizeof(data);
@@ -1267,10 +1276,12 @@ cert_out:
 }
 
 static bool status(ykpiv_state *state, enum enum_hash hash,
-  const char *output_file_name) {
+                   enum enum_slot slot,
+                   const char *output_file_name) {
   const EVP_MD *md;
   unsigned char chuid[2048];
   long unsigned len = sizeof(chuid);
+  int i;
   FILE *output_file = open_file(output_file_name, OUTPUT);
   if(!output_file) {
     return false;
@@ -1288,14 +1299,18 @@ static bool status(ykpiv_state *state, enum enum_hash hash,
     dump_hex(chuid, len, output_file, false);
   }
 
-  fprintf(output_file, "Slot 9a:\t");
-  print_cert_info(state, slot_arg_9a, md, output_file);
-  fprintf(output_file, "Slot 9c:\t");
+  if (slot == slot__NULL)
+    for (i = 0; i < 24; i++) {
+      print_cert_info(state, i, md, output_file);
+    }
+  else
+    print_cert_info(state, slot, md, output_file);
+  /*fprintf(output_file, "Slot 9c:\t");
   print_cert_info(state, slot_arg_9c, md, output_file);
   fprintf(output_file, "Slot 9d:\t");
   print_cert_info(state, slot_arg_9d, md, output_file);
   fprintf(output_file, "Slot 9e:\t");
-  print_cert_info(state, slot_arg_9e, md, output_file);
+  print_cert_info(state, slot_arg_9e, md, output_file);*/
 
   {
     int tries;
@@ -1877,7 +1892,7 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_status:
-        if(status(state, args_info.hash_arg, args_info.output_arg) == false) {
+        if(status(state, args_info.hash_arg, args_info.slot_arg, args_info.output_arg) == false) {
           ret = EXIT_FAILURE;
         }
         break;
