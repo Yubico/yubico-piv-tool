@@ -46,7 +46,7 @@ unsigned char get_algorithm(EVP_PKEY*);
 FILE *open_file(const char*, int);
 int get_object_id(enum enum_slot slot);
 int key_to_object_id(int key);
-bool set_component_with_len(unsigned char**, const BIGNUM*, int);
+bool set_component(unsigned char *in_ptr, const BIGNUM *bn, int element_len);
 bool prepare_rsa_signature(const unsigned char*, unsigned int, unsigned char*,
     unsigned int*, int);
 bool read_pw(const char*, char*, size_t, int);

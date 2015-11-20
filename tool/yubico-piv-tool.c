@@ -316,14 +316,15 @@ static bool set_pin_retries(ykpiv_state *state, int pin_retries, int puk_retries
 }
 
 static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
-    const char *input_file_name, const char *slot, char *password,
-    enum enum_pin_policy pin_policy, enum enum_touch_policy touch_policy) {
+                       const char *input_file_name, const char *slot, char *password,
+                       enum enum_pin_policy pin_policy, enum enum_touch_policy touch_policy) {
   int key = 0;
   FILE *input_file = NULL;
   EVP_PKEY *private_key = NULL;
   PKCS12 *p12 = NULL;
   X509 *cert = NULL;
   bool ret = false;
+  ykpiv_rc rc = YKPIV_GENERIC_ERROR;
 
   sscanf(slot, "%2x", &key);
 
@@ -360,119 +361,123 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
 
   {
     unsigned char algorithm = get_algorithm(private_key);
+    unsigned char pp = YKPIV_PINPOLICY_DEFAULT;
+    unsigned char tp = YKPIV_TOUCHPOLICY_DEFAULT;
+
     if(algorithm == 0) {
       goto import_out;
     }
-    {
-      unsigned char data[0xff];
-      unsigned long recv_len = sizeof(data);
-      unsigned char in_data[1024];
-      unsigned char *in_ptr = in_data;
-      unsigned char templ[] = {0, YKPIV_INS_IMPORT_KEY, algorithm, key};
-      int sw;
-      if(YKPIV_IS_RSA(algorithm)) {
-        RSA *rsa_private_key = EVP_PKEY_get1_RSA(private_key);
-        unsigned char e[4];
-        unsigned char *e_ptr = e;
-        int element_len = 128;
-        if(algorithm == YKPIV_ALGO_RSA1024) {
-          element_len = 64;
-        }
 
-        if((set_component_with_len(&e_ptr, rsa_private_key->e, 3) == false) ||
-            !(e[1] == 0x01 && e[2] == 0x00 && e[3] == 0x01)) {
-          fprintf(stderr, "Invalid public exponent for import (only 0x10001 supported)\n");
-          goto import_out;
-        }
+    if(pin_policy != pin_policy__NULL) {
+        pp = get_pin_policy(pin_policy);
+    }
 
-        *in_ptr++ = 0x01;
-        if(set_component_with_len(&in_ptr, rsa_private_key->p, element_len) == false) {
-          fprintf(stderr, "Failed setting p component.\n");
-          goto import_out;
-        }
+    if(touch_policy != touch_policy__NULL) {
+      tp = get_touch_policy(touch_policy);
+    }
 
-        *in_ptr++ = 0x02;
-        if(set_component_with_len(&in_ptr, rsa_private_key->q, element_len) == false) {
-          fprintf(stderr, "Failed setting q component.\n");
-          goto import_out;
-        }
+    if(YKPIV_IS_RSA(algorithm)) {
+      RSA *rsa_private_key = EVP_PKEY_get1_RSA(private_key);
+      unsigned char e[4];
+      unsigned char p[128];
+      unsigned char q[128];
+      unsigned char dmp1[128];
+      unsigned char dmq1[128];
+      unsigned char iqmp[128];
 
-        *in_ptr++ = 0x03;
-        if(set_component_with_len(&in_ptr, rsa_private_key->dmp1, element_len) == false) {
-          fprintf(stderr, "Failed setting dmp1 component.\n");
-          goto import_out;
-        }
-
-        *in_ptr++ = 0x04;
-        if(set_component_with_len(&in_ptr, rsa_private_key->dmq1, element_len) == false) {
-          fprintf(stderr, "Failed setting dmq1 component.\n");
-          goto import_out;
-        }
-
-        *in_ptr++ = 0x05;
-        if(set_component_with_len(&in_ptr, rsa_private_key->iqmp, element_len) == false) {
-          fprintf(stderr, "Failed setting iqmp component.\n");
-          goto import_out;
-        }
-      } else if(YKPIV_IS_EC(algorithm)) {
-        EC_KEY *ec = EVP_PKEY_get1_EC_KEY(private_key);
-        const BIGNUM *s = EC_KEY_get0_private_key(ec);
-        int element_len = 32;
-
-        if(algorithm == YKPIV_ALGO_ECCP384) {
-          element_len = 48;
-        }
-
-        *in_ptr++ = 0x06;
-        if(set_component_with_len(&in_ptr, s, element_len) == false) {
-          fprintf(stderr, "Failed setting ec private key.\n");
-          goto import_out;
-        }
+      int element_len = 128;
+      if(algorithm == YKPIV_ALGO_RSA1024) {
+        element_len = 64;
       }
 
-      if(pin_policy != pin_policy__NULL) {
-        *in_ptr++ = YKPIV_PINPOLICY_TAG;
-        *in_ptr++ = 1;
-        *in_ptr++ = get_pin_policy(pin_policy);
-      }
-      if(touch_policy != touch_policy__NULL) {
-        *in_ptr++ = YKPIV_TOUCHPOLICY_TAG;
-        *in_ptr++ = 1;
-        *in_ptr++ = get_touch_policy(touch_policy);
+      if((set_component(e, rsa_private_key->e, 3) == false) ||
+         !(e[0] == 0x01 && e[1] == 0x00 && e[2] == 0x01)) {
+        fprintf(stderr, "Invalid public exponent for import (only 0x10001 supported)\n");
+        goto import_out;
       }
 
-      if(ykpiv_transfer_data(state, templ, in_data, in_ptr - in_data, data,
-            &recv_len, &sw) != YKPIV_OK) {
-        return false;
-      } else if(sw == 0x6a80) {
-        fprintf(stderr, "Failed import.");
-        if(pin_policy != pin_policy__NULL) {
-          fprintf(stderr, "Maybe pin-policy is not supported on this key?\n");
-        } else if(touch_policy != touch_policy__NULL) {
-          fprintf(stderr, "Maybe touch-policy is not supported on this key?\n");
-        } else {
-          fprintf(stderr, "Maybe algorithm is not supported on this key?\n");
-        }
-      } else if(sw != 0x9000) {
-        fprintf(stderr, "Failed import command with code %x.\n", sw);
-      } else {
-        ret = true;
+      if(set_component(p, rsa_private_key->p, element_len) == false) {
+        fprintf(stderr, "Failed setting p component.\n");
+        goto import_out;
       }
+
+      if(set_component(q, rsa_private_key->q, element_len) == false) {
+        fprintf(stderr, "Failed setting q component.\n");
+        goto import_out;
+      }
+
+      if(set_component(dmp1, rsa_private_key->dmp1, element_len) == false) {
+        fprintf(stderr, "Failed setting dmp1 component.\n");
+        goto import_out;
+      }
+
+      if(set_component(dmq1, rsa_private_key->dmq1, element_len) == false) {
+        fprintf(stderr, "Failed setting dmq1 component.\n");
+        goto import_out;
+      }
+
+      if(set_component(iqmp, rsa_private_key->iqmp, element_len) == false) {
+        fprintf(stderr, "Failed setting iqmp component.\n");
+        goto import_out;
+      }
+
+      rc = ykpiv_import_private_key(state, key, algorithm,
+                                    p, element_len,
+                                    q, element_len,
+                                    dmp1, element_len,
+                                    dmq1, element_len,
+                                    iqmp, element_len,
+                                    NULL, 0,
+                                    pp, tp);
+    }
+    else if(YKPIV_IS_EC(algorithm)) {
+      EC_KEY *ec = EVP_PKEY_get1_EC_KEY(private_key);
+      const BIGNUM *s = EC_KEY_get0_private_key(ec);
+      unsigned char s_ptr[48];
+
+      int element_len = 32;
+      if(algorithm == YKPIV_ALGO_ECCP384) {
+        element_len = 48;
+      }
+
+      if(set_component(s_ptr, s, element_len) == false) {
+        fprintf(stderr, "Failed setting ec private key.\n");
+        goto import_out;
+      }
+
+      ret = true;
+      rc = ykpiv_import_private_key(state, key, algorithm,
+                                    NULL, 0,
+                                    NULL, 0,
+                                    NULL, 0,
+                                    NULL, 0,
+                                    NULL, 0,
+                                    s_ptr, element_len,
+                                    pp, tp);
+    }
+
+    if(rc != YKPIV_OK) {
+      ret = false;
     }
   }
+
 import_out:
   if(private_key) {
     EVP_PKEY_free(private_key);
   }
+
   if(p12) {
     PKCS12_free(p12);
   }
+
   if(cert) {
     X509_free(cert);
   }
+
   if(input_file != stdin) {
     fclose(input_file);
   }
+
   return ret;
 }
 

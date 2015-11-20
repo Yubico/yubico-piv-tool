@@ -291,15 +291,16 @@ int key_to_object_id(int key) {
   return object;
 }
 
-bool set_component_with_len(unsigned char **in_ptr, const BIGNUM *bn, int element_len) {
+bool set_component(unsigned char *in_ptr, const BIGNUM *bn, int element_len) {
   int real_len = BN_num_bytes(bn);
-  *in_ptr += set_length(*in_ptr, element_len);
+
   if(real_len > element_len) {
     return false;
   }
-  memset(*in_ptr, 0, (size_t)(element_len - real_len));
-  *in_ptr += element_len - real_len;
-  *in_ptr += BN_bn2bin(bn, *in_ptr);
+  memset(in_ptr, 0, (size_t)(element_len - real_len));
+  in_ptr += element_len - real_len;
+  BN_bn2bin(bn, in_ptr);
+
   return true;
 }
 
