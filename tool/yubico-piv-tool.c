@@ -541,15 +541,11 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
   }
 
   {
-    unsigned char certdata[2100];
+    unsigned char certdata[3072];
     unsigned char *certptr = certdata;
     int object = get_object_id(slot);
     ykpiv_rc res;
 
-    if(cert_len > 2048) {
-      fprintf(stderr, "Certificate to large, maximum 2048 bytes (was %d bytes).\n", cert_len);
-      goto import_cert_out;
-    }
     *certptr++ = 0x70;
     certptr += set_length(certptr, cert_len);
     if (compress) {
@@ -1024,7 +1020,7 @@ static bool read_certificate(ykpiv_state *state, enum enum_slot slot,
     enum enum_key_format key_format, const char *output_file_name) {
   FILE *output_file;
   int object = get_object_id(slot);
-  unsigned char data[2048];
+  unsigned char data[3072];
   const unsigned char *ptr = data;
   unsigned long len = sizeof(data);
   int cert_len;

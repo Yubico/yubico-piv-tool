@@ -751,7 +751,7 @@ ykpiv_rc ykpiv_fetch_object(ykpiv_state *state, int object_id,
 ykpiv_rc ykpiv_save_object(ykpiv_state *state, int object_id,
     unsigned char *indata, size_t len) {
 
-  unsigned char data[2048];
+  unsigned char data[3072];
   unsigned char *dataptr = data;
   unsigned char templ[] = {0, YKPIV_INS_PUT_DATA, 0x3f, 0xff};
   int sw;
