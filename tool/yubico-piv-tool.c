@@ -5,15 +5,15 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
- * 
+ *
  *   * Redistributions of source code must retain the above copyright
  *     notice, this list of conditions and the following disclaimer.
- * 
+ *
  *   * Redistributions in binary form must reproduce the above
  *     copyright notice, this list of conditions and the following
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -694,7 +694,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
   memcpy(digest, oid, oid_len);
   /* XXX: this should probably use X509_REQ_digest() but that's buggy */
   if(!ASN1_item_digest(ASN1_ITEM_rptr(X509_REQ_INFO), md, req->req_info,
-			  digest + oid_len, &digest_len)) {
+              digest + oid_len, &digest_len)) {
     fprintf(stderr, "Failed doing digest of request.\n");
     goto request_out;
   }
@@ -861,7 +861,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   memcpy(digest, oid, oid_len);
   /* XXX: this should probably use X509_digest() but that looks buggy */
   if(!ASN1_item_digest(ASN1_ITEM_rptr(X509_CINF), md, x509->cert_info,
-			  digest + oid_len, &digest_len)) {
+              digest + oid_len, &digest_len)) {
     fprintf(stderr, "Failed doing digest of certificate.\n");
     goto selfsign_out;
   }
@@ -1793,7 +1793,7 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_reset:
         if(reset(state) == false) {
-	  fprintf(stderr, "Reset failed, are pincodes blocked?\n");
+      fprintf(stderr, "Reset failed, are pincodes blocked?\n");
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully reset the application.\n");
