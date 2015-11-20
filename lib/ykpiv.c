@@ -892,7 +892,7 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
 
   if (ykpiv_transfer_data(state, templ, key_data, in_ptr - key_data, data, &recv_len, &sw) != YKPIV_OK)
     return YKPIV_GENERIC_ERROR;
-  printf("IMPORTING %x, %d\n", sw, n_params);
+
   if (sw == 0x6982)
     return YKPIV_AUTHENTICATION_ERROR;
 
