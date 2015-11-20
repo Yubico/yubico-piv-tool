@@ -808,10 +808,10 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
   if (state == NULL)
     return YKPIV_GENERIC_ERROR;
 
-  if (key != YKPIV_KEY_AUTHENTICATION &&
-      key != YKPIV_KEY_SIGNATURE &&
-      key != YKPIV_KEY_KEYMGM &&
-      key != YKPIV_KEY_CARDAUTH) {
+  if (key == YKPIV_KEY_CARDMGM ||
+      key < YKPIV_KEY_RETIRED1 ||
+      (key > YKPIV_KEY_RETIRED20 && key < YKPIV_KEY_AUTHENTICATION) ||
+      key > YKPIV_KEY_CARDAUTH) {
     return YKPIV_KEY_ERROR;
   }
 

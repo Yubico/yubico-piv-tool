@@ -445,7 +445,6 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
         goto import_out;
       }
 
-      ret = true;
       rc = ykpiv_import_private_key(state, key, algorithm,
                                     NULL, 0,
                                     NULL, 0,
@@ -456,6 +455,7 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
                                     pp, tp);
     }
 
+    ret = true;
     if(rc != YKPIV_OK) {
       ret = false;
     }
@@ -1822,6 +1822,7 @@ int main(int argc, char *argv[]) {
       case action_arg_importMINUS_key:
         if(import_key(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_orig, args_info.password_arg,
               args_info.pin_policy_arg, args_info.touch_policy_arg) == false) {
+          fprintf(stderr, "Unable to import private key\n");
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully imported a new private key.\n");
