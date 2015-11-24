@@ -11,26 +11,26 @@ typedef enum {
   PIV_DATA_OBJ_X509_CARD_AUTH,    // Certificate for card authentication
   PIV_DATA_OBJ_X509_DS,           // Certificate for digital signature
   PIV_DATA_OBJ_X509_KM,           // Certificate for key management
-  PIV_DATA_OBJ_X509_RETIRED_1,    // Certificate for retired key 1
-  PIV_DATA_OBJ_X509_RETIRED_2,    // Certificate for retired key 2
-  PIV_DATA_OBJ_X509_RETIRED_3,    // Certificate for retired key 3
-  PIV_DATA_OBJ_X509_RETIRED_4,    // Certificate for retired key 4
-  PIV_DATA_OBJ_X509_RETIRED_5,    // Certificate for retired key 5
-  PIV_DATA_OBJ_X509_RETIRED_6,    // Certificate for retired key 6
-  PIV_DATA_OBJ_X509_RETIRED_7,    // Certificate for retired key 7
-  PIV_DATA_OBJ_X509_RETIRED_8,    // Certificate for retired key 8
-  PIV_DATA_OBJ_X509_RETIRED_9,    // Certificate for retired key 9
-  PIV_DATA_OBJ_X509_RETIRED_10,   // Certificate for retired key 10
-  PIV_DATA_OBJ_X509_RETIRED_11,   // Certificate for retired key 11
-  PIV_DATA_OBJ_X509_RETIRED_12,   // Certificate for retired key 12
-  PIV_DATA_OBJ_X509_RETIRED_13,   // Certificate for retired key 13
-  PIV_DATA_OBJ_X509_RETIRED_14,   // Certificate for retired key 14
-  PIV_DATA_OBJ_X509_RETIRED_15,   // Certificate for retired key 15
-  PIV_DATA_OBJ_X509_RETIRED_16,   // Certificate for retired key 16
-  PIV_DATA_OBJ_X509_RETIRED_17,   // Certificate for retired key 17
-  PIV_DATA_OBJ_X509_RETIRED_18,   // Certificate for retired key 18
-  PIV_DATA_OBJ_X509_RETIRED_19,   // Certificate for retired key 19
-  PIV_DATA_OBJ_X509_RETIRED_20,   // Certificate for retired key 20
+  PIV_DATA_OBJ_X509_RETIRED1,     // Certificate for retired key 1
+  PIV_DATA_OBJ_X509_RETIRED2,     // Certificate for retired key 2
+  PIV_DATA_OBJ_X509_RETIRED3,     // Certificate for retired key 3
+  PIV_DATA_OBJ_X509_RETIRED4,     // Certificate for retired key 4
+  PIV_DATA_OBJ_X509_RETIRED5,     // Certificate for retired key 5
+  PIV_DATA_OBJ_X509_RETIRED6,     // Certificate for retired key 6
+  PIV_DATA_OBJ_X509_RETIRED7,     // Certificate for retired key 7
+  PIV_DATA_OBJ_X509_RETIRED8,     // Certificate for retired key 8
+  PIV_DATA_OBJ_X509_RETIRED9,     // Certificate for retired key 9
+  PIV_DATA_OBJ_X509_RETIRED10,    // Certificate for retired key 10
+  PIV_DATA_OBJ_X509_RETIRED11,    // Certificate for retired key 11
+  PIV_DATA_OBJ_X509_RETIRED12,    // Certificate for retired key 12
+  PIV_DATA_OBJ_X509_RETIRED13,    // Certificate for retired key 13
+  PIV_DATA_OBJ_X509_RETIRED14,    // Certificate for retired key 14
+  PIV_DATA_OBJ_X509_RETIRED15,    // Certificate for retired key 15
+  PIV_DATA_OBJ_X509_RETIRED16,    // Certificate for retired key 16
+  PIV_DATA_OBJ_X509_RETIRED17,    // Certificate for retired key 17
+  PIV_DATA_OBJ_X509_RETIRED18,    // Certificate for retired key 18
+  PIV_DATA_OBJ_X509_RETIRED19,    // Certificate for retired key 19
+  PIV_DATA_OBJ_X509_RETIRED20,    // Certificate for retired key 20
   PIV_DATA_OBJ_CCC,               // Card capability container
   PIV_DATA_OBJ_CHUI,              // Cardholder unique id
   PIV_DATA_OBJ_CHF,               // Cardholder fingerprints
@@ -49,78 +49,78 @@ typedef enum {
   PIV_CERT_OBJ_X509_CARD_AUTH,    // Certificate for card authentication
   PIV_CERT_OBJ_X509_DS,           // Certificate for digital signature
   PIV_CERT_OBJ_X509_KM,           // Certificate for key management
-  PIV_CERT_OBJ_X509_RETIRED_1,    // Certificate for retired key 1
-  PIV_CERT_OBJ_X509_RETIRED_2,    // Certificate for retired key 2
-  PIV_CERT_OBJ_X509_RETIRED_3,    // Certificate for retired key 3
-  PIV_CERT_OBJ_X509_RETIRED_4,    // Certificate for retired key 4
-  PIV_CERT_OBJ_X509_RETIRED_5,    // Certificate for retired key 5
-  PIV_CERT_OBJ_X509_RETIRED_6,    // Certificate for retired key 6
-  PIV_CERT_OBJ_X509_RETIRED_7,    // Certificate for retired key 7
-  PIV_CERT_OBJ_X509_RETIRED_8,    // Certificate for retired key 8
-  PIV_CERT_OBJ_X509_RETIRED_9,    // Certificate for retired key 9
-  PIV_CERT_OBJ_X509_RETIRED_10,   // Certificate for retired key 10
-  PIV_CERT_OBJ_X509_RETIRED_11,   // Certificate for retired key 11
-  PIV_CERT_OBJ_X509_RETIRED_12,   // Certificate for retired key 12
-  PIV_CERT_OBJ_X509_RETIRED_13,   // Certificate for retired key 13
-  PIV_CERT_OBJ_X509_RETIRED_14,   // Certificate for retired key 14
-  PIV_CERT_OBJ_X509_RETIRED_15,   // Certificate for retired key 15
-  PIV_CERT_OBJ_X509_RETIRED_16,   // Certificate for retired key 16
-  PIV_CERT_OBJ_X509_RETIRED_17,   // Certificate for retired key 17
-  PIV_CERT_OBJ_X509_RETIRED_18,   // Certificate for retired key 18
-  PIV_CERT_OBJ_X509_RETIRED_19,   // Certificate for retired key 19
-  PIV_CERT_OBJ_X509_RETIRED_20,   // Certificate for retired key 20
+  PIV_CERT_OBJ_X509_RETIRED1,     // Certificate for retired key 1
+  PIV_CERT_OBJ_X509_RETIRED2,     // Certificate for retired key 2
+  PIV_CERT_OBJ_X509_RETIRED3,     // Certificate for retired key 3
+  PIV_CERT_OBJ_X509_RETIRED4,     // Certificate for retired key 4
+  PIV_CERT_OBJ_X509_RETIRED5,     // Certificate for retired key 5
+  PIV_CERT_OBJ_X509_RETIRED6,     // Certificate for retired key 6
+  PIV_CERT_OBJ_X509_RETIRED7,     // Certificate for retired key 7
+  PIV_CERT_OBJ_X509_RETIRED8,     // Certificate for retired key 8
+  PIV_CERT_OBJ_X509_RETIRED9,     // Certificate for retired key 9
+  PIV_CERT_OBJ_X509_RETIRED10,    // Certificate for retired key 10
+  PIV_CERT_OBJ_X509_RETIRED11,    // Certificate for retired key 11
+  PIV_CERT_OBJ_X509_RETIRED12,    // Certificate for retired key 12
+  PIV_CERT_OBJ_X509_RETIRED13,    // Certificate for retired key 13
+  PIV_CERT_OBJ_X509_RETIRED14,    // Certificate for retired key 14
+  PIV_CERT_OBJ_X509_RETIRED15,    // Certificate for retired key 15
+  PIV_CERT_OBJ_X509_RETIRED16,    // Certificate for retired key 16
+  PIV_CERT_OBJ_X509_RETIRED17,    // Certificate for retired key 17
+  PIV_CERT_OBJ_X509_RETIRED18,    // Certificate for retired key 18
+  PIV_CERT_OBJ_X509_RETIRED19,    // Certificate for retired key 19
+  PIV_CERT_OBJ_X509_RETIRED20,    // Certificate for retired key 20
   PIV_CERT_OBJ_LAST,
 
   PIV_PVTK_OBJ_PIV_AUTH,          // Private key for PIV authentication
   PIV_PVTK_OBJ_CARD_AUTH,         // Private key for card authentication
   PIV_PVTK_OBJ_DS,                // Private key for digital signature
   PIV_PVTK_OBJ_KM,                // Private key for key management
-  PIV_PVTK_OBJ_RETIRED_1,         // Private key for retired key 1
-  PIV_PVTK_OBJ_RETIRED_2,         // Private key for retired key 2
-  PIV_PVTK_OBJ_RETIRED_3,         // Private key for retired key 3
-  PIV_PVTK_OBJ_RETIRED_4,         // Private key for retired key 4
-  PIV_PVTK_OBJ_RETIRED_5,         // Private key for retired key 5
-  PIV_PVTK_OBJ_RETIRED_6,         // Private key for retired key 6
-  PIV_PVTK_OBJ_RETIRED_7,         // Private key for retired key 7
-  PIV_PVTK_OBJ_RETIRED_8,         // Private key for retired key 8
-  PIV_PVTK_OBJ_RETIRED_9,         // Private key for retired key 9
-  PIV_PVTK_OBJ_RETIRED_10,        // Private key for retired key 10
-  PIV_PVTK_OBJ_RETIRED_11,        // Private key for retired key 11
-  PIV_PVTK_OBJ_RETIRED_12,        // Private key for retired key 12
-  PIV_PVTK_OBJ_RETIRED_13,        // Private key for retired key 13
-  PIV_PVTK_OBJ_RETIRED_14,        // Private key for retired key 14
-  PIV_PVTK_OBJ_RETIRED_15,        // Private key for retired key 15
-  PIV_PVTK_OBJ_RETIRED_16,        // Private key for retired key 16
-  PIV_PVTK_OBJ_RETIRED_17,        // Private key for retired key 17
-  PIV_PVTK_OBJ_RETIRED_18,        // Private key for retired key 18
-  PIV_PVTK_OBJ_RETIRED_19,        // Private key for retired key 19
-  PIV_PVTK_OBJ_RETIRED_20,        // Private key for retired key 20
+  PIV_PVTK_OBJ_RETIRED1,          // Private key for retired key 1
+  PIV_PVTK_OBJ_RETIRED2,          // Private key for retired key 2
+  PIV_PVTK_OBJ_RETIRED3,          // Private key for retired key 3
+  PIV_PVTK_OBJ_RETIRED4,          // Private key for retired key 4
+  PIV_PVTK_OBJ_RETIRED5,          // Private key for retired key 5
+  PIV_PVTK_OBJ_RETIRED6,          // Private key for retired key 6
+  PIV_PVTK_OBJ_RETIRED7,          // Private key for retired key 7
+  PIV_PVTK_OBJ_RETIRED8,          // Private key for retired key 8
+  PIV_PVTK_OBJ_RETIRED9,          // Private key for retired key 9
+  PIV_PVTK_OBJ_RETIRED10,         // Private key for retired key 10
+  PIV_PVTK_OBJ_RETIRED11,         // Private key for retired key 11
+  PIV_PVTK_OBJ_RETIRED12,         // Private key for retired key 12
+  PIV_PVTK_OBJ_RETIRED13,         // Private key for retired key 13
+  PIV_PVTK_OBJ_RETIRED14,         // Private key for retired key 14
+  PIV_PVTK_OBJ_RETIRED15,         // Private key for retired key 15
+  PIV_PVTK_OBJ_RETIRED16,         // Private key for retired key 16
+  PIV_PVTK_OBJ_RETIRED17,         // Private key for retired key 17
+  PIV_PVTK_OBJ_RETIRED18,         // Private key for retired key 18
+  PIV_PVTK_OBJ_RETIRED19,         // Private key for retired key 19
+  PIV_PVTK_OBJ_RETIRED20,         // Private key for retired key 20
   PIV_PVTK_OBJ_LAST,
 
   PIV_PUBK_OBJ_PIV_AUTH,          // Public key for PIV authentication
   PIV_PUBK_OBJ_CARD_AUTH,         // Public key for card authentication
   PIV_PUBK_OBJ_DS,                // Public key for digital signature
   PIV_PUBK_OBJ_KM,                // Public key for key management
-  PIV_PUBK_OBJ_RETIRED_1,         // Public key for retired key 1
-  PIV_PUBK_OBJ_RETIRED_2,         // Public key for retired key 2
-  PIV_PUBK_OBJ_RETIRED_3,         // Public key for retired key 3
-  PIV_PUBK_OBJ_RETIRED_4,         // Public key for retired key 4
-  PIV_PUBK_OBJ_RETIRED_5,         // Public key for retired key 5
-  PIV_PUBK_OBJ_RETIRED_6,         // Public key for retired key 6
-  PIV_PUBK_OBJ_RETIRED_7,         // Public key for retired key 7
-  PIV_PUBK_OBJ_RETIRED_8,         // Public key for retired key 8
-  PIV_PUBK_OBJ_RETIRED_9,         // Public key for retired key 9
-  PIV_PUBK_OBJ_RETIRED_10,        // Public key for retired key 10
-  PIV_PUBK_OBJ_RETIRED_11,        // Public key for retired key 11
-  PIV_PUBK_OBJ_RETIRED_12,        // Public key for retired key 12
-  PIV_PUBK_OBJ_RETIRED_13,        // Public key for retired key 13
-  PIV_PUBK_OBJ_RETIRED_14,        // Public key for retired key 14
-  PIV_PUBK_OBJ_RETIRED_15,        // Public key for retired key 15
-  PIV_PUBK_OBJ_RETIRED_16,        // Public key for retired key 16
-  PIV_PUBK_OBJ_RETIRED_17,        // Public key for retired key 17
-  PIV_PUBK_OBJ_RETIRED_18,        // Public key for retired key 18
-  PIV_PUBK_OBJ_RETIRED_19,        // Public key for retired key 19
-  PIV_PUBK_OBJ_RETIRED_20,        // Public key for retired key 20
+  PIV_PUBK_OBJ_RETIRED1,          // Public key for retired key 1
+  PIV_PUBK_OBJ_RETIRED2,          // Public key for retired key 2
+  PIV_PUBK_OBJ_RETIRED3,          // Public key for retired key 3
+  PIV_PUBK_OBJ_RETIRED4,          // Public key for retired key 4
+  PIV_PUBK_OBJ_RETIRED5,          // Public key for retired key 5
+  PIV_PUBK_OBJ_RETIRED6,          // Public key for retired key 6
+  PIV_PUBK_OBJ_RETIRED7,          // Public key for retired key 7
+  PIV_PUBK_OBJ_RETIRED8,          // Public key for retired key 8
+  PIV_PUBK_OBJ_RETIRED9,          // Public key for retired key 9
+  PIV_PUBK_OBJ_RETIRED10,         // Public key for retired key 10
+  PIV_PUBK_OBJ_RETIRED11,         // Public key for retired key 11
+  PIV_PUBK_OBJ_RETIRED12,         // Public key for retired key 12
+  PIV_PUBK_OBJ_RETIRED13,         // Public key for retired key 13
+  PIV_PUBK_OBJ_RETIRED14,         // Public key for retired key 14
+  PIV_PUBK_OBJ_RETIRED15,         // Public key for retired key 15
+  PIV_PUBK_OBJ_RETIRED16,         // Public key for retired key 16
+  PIV_PUBK_OBJ_RETIRED17,         // Public key for retired key 17
+  PIV_PUBK_OBJ_RETIRED18,         // Public key for retired key 18
+  PIV_PUBK_OBJ_RETIRED19,         // Public key for retired key 19
+  PIV_PUBK_OBJ_RETIRED20,         // Public key for retired key 20
   PIV_PUBK_OBJ_LAST
 
 } piv_obj_id_t;

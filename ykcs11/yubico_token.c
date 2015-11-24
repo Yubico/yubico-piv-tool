@@ -228,9 +228,10 @@ static CK_RV get_objects(ykpiv_state *state, CK_BBOOL num_only,
   CK_BYTE buf[2048];
   CK_ULONG buf_len;
 
-  piv_obj_id_t certs[4]; // TODO: this can be > 4 if there are retired keys
-  piv_obj_id_t pvtkeys[4];
-  piv_obj_id_t pubkeys[4];
+  piv_obj_id_t certs[24];
+  piv_obj_id_t pvtkeys[24];
+  piv_obj_id_t pubkeys[24];
+  CK_ULONG i;
   CK_ULONG n_cert = 0;
 
   if (state == NULL || len == NULL_PTR)
@@ -273,6 +274,17 @@ static CK_RV get_objects(ykpiv_state *state, CK_BBOOL num_only,
     pubkeys[n_cert] = PIV_PUBK_OBJ_KM;
     n_cert++;
     DBG("Found KMK cert (9d)");
+  }
+
+  for (i = 0; i < 20; i++) {
+    buf_len = sizeof(buf);
+    if (ykpiv_fetch_object(state, YKPIV_OBJ_RETIRED1 + i, buf, &buf_len) == YKPIV_OK) {
+      certs[n_cert] = PIV_CERT_OBJ_X509_RETIRED1 + i;
+      pvtkeys[n_cert] = PIV_PVTK_OBJ_RETIRED1 + i;
+      pubkeys[n_cert] = PIV_PUBK_OBJ_RETIRED1 + i;
+      n_cert++;
+      DBG("Found RETIRED cert (%lx)", 0x82 + i);
+    }
   }
 
   DBG("The total number of objects for this token is %lu", (n_cert * 3) + token_objects_num);
