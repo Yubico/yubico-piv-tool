@@ -2,11 +2,14 @@
 #include <ykcs11-version.h>
 
 #include <string.h>
+#include <assert.h>
 
 #define MANUFACTURER_ID      "Yubico (www.yubico.com)"
 #define YKCS11_DESCRIPTION   "PKCS#11 PIV Library (SP-800-73)"
 #define CRYPTOKI_VERSION_MAJ 2
 #define CRYPTOKI_VERSION_MIN 40
+
+CK_FUNCTION_LIST_PTR funcs;
 
 static void get_functions(CK_FUNCTION_LIST_PTR_PTR funcs) {
 
@@ -20,9 +23,6 @@ static void get_functions(CK_FUNCTION_LIST_PTR_PTR funcs) {
 static void test_lib_info() {
 
   CK_INFO info;
-  CK_FUNCTION_LIST_PTR funcs;
-
-  get_functions(&funcs);
 
   if (funcs->C_GetInfo(&info) != CKR_OK) {
     fprintf(stderr, "GetInfo failed\n");
@@ -55,10 +55,6 @@ static void test_lib_info() {
 
 static void test_initalize() {
 
-  CK_FUNCTION_LIST_PTR funcs;
-
-  get_functions(&funcs);
-
   if (funcs->C_Initialize(NULL) != CKR_OK) {
     fprintf(stderr, "Unable to initialize YKCS11\n");
     exit(EXIT_FAILURE);
@@ -71,12 +67,25 @@ static void test_initalize() {
 
 }
 
+static void test_token_info() {
+
+  CK_TOKEN_INFO info;
+
+  assert(funcs->C_GetTokenInfo(0, &info) == CKR_OK);
+  /*fprintf
+  }*/
+
+}
+
 int main(void) {
+
+  get_functions(&funcs);
 
   test_lib_info();
 
 #ifdef HW_TESTS
   test_initalize();
+  test_token_info();
 #endif
 
   return EXIT_SUCCESS;
