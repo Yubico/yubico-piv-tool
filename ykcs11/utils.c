@@ -175,8 +175,8 @@ void destroy_token(ykcs11_slot_t *slot) {
 
 CK_BBOOL is_valid_key_id(CK_BYTE id) {
 
-  // Valid ids are 0, 1, 2, 3
-  if (id > 3)
+  // Valid ids are [0, 23] aka [0x00, 0x17]
+  if (id > 23)
     return CK_FALSE;
 
   return CK_TRUE;
