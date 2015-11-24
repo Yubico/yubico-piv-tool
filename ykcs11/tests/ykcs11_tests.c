@@ -8,21 +8,28 @@
 #define CRYPTOKI_VERSION_MAJ 2
 #define CRYPTOKI_VERSION_MIN 40
 
+static void get_functions(CK_FUNCTION_LIST_PTR_PTR funcs) {
 
-static void lib_info() {
+  if (C_GetFunctionList(funcs) != CKR_OK) {
+    fprintf(stderr, "Get function list failed\n");
+    exit(EXIT_FAILURE);
+  }
+
+}
+
+static void test_lib_info() {
 
   CK_INFO info;
   CK_FUNCTION_LIST_PTR funcs;
 
-  if (C_GetFunctionList(&funcs) != CKR_OK) {
-    fprintf(stderr, "Get function list failed\n");
-    exit(EXIT_FAILURE);
-  }
+  get_functions(&funcs);
+
 
   if (funcs->C_GetInfo(&info) != CKR_OK) {
     fprintf(stderr, "GetInfo failed\n");
     exit(EXIT_FAILURE);
   }
+
 
   if (strcmp(info.manufacturerID, MANUFACTURER_ID) != 0) {
     fprintf(stderr, "unexpected manufacturer ID %s\n", info.manufacturerID);
@@ -48,9 +55,27 @@ static void lib_info() {
 
 }
 
+static void test_initalize() {
+
+  CK_FUNCTION_LIST_PTR funcs;
+
+  get_functions(&funcs);
+
+  if (funcs->C_Initialize(NULL) != CKR_OK)
+    exit(EXIT_FAILURE);
+
+  if (funcs->C_Finalize(NULL) != CKR_OK)
+    exit(EXIT_FAILURE);
+
+}
+
 int main(void) {
 
-  lib_info();
+  test_lib_info();
+
+#ifdef HW_TESTS
+  test_initalize();
+#endif
 
   return EXIT_SUCCESS;
 

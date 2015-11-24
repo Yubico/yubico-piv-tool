@@ -52,8 +52,6 @@ PKG_PROG_PKG_CONFIG
 
 PKG_CHECK_MODULES(OPENSSL, libcrypto)
 
-#PKG_CHECK_MODULES([LIBNSPR], [nspr], [], [])
-
 gl_LD_VERSION_SCRIPT
 gl_VALGRIND_TESTS
 
@@ -190,10 +188,24 @@ AC_ARG_ENABLE([ykcs11-debug],
 
 AS_IF([test "x$enable_ykcs11_debug" != xno],
             [AC_DEFINE([YKCS11_DBG], [1], [Regular debug flag])
-             AC_DEFINE([YKCS11_DINOUT], [1], [Function accessed/left debug flag])],
+             AC_DEFINE([YKCS11_DINOUT], [1], [Function accessed/left debug flag])
+             ykcs11_debug="ENABLED"],
       [true],
             [AC_DEFINE([YKCS11_DBG], [0], [Regular debug flag])
-            AC_DEFINE([YKCS11_DINOUT], [0], [Function accessed/left debug flag])])
+            AC_DEFINE([YKCS11_DINOUT], [0], [Function accessed/left debug flag])
+            ykcs11_debug="DISABLED"])
+
+AC_ARG_ENABLE([hardware-tests],
+              [AS_HELP_STRING([--enable-hardware-tests],
+                              [enables tests that require a YubiKey to be plugged in])],
+                              [enable_hardware_tests="$enableval"],
+                              [enable_hardware_tests="no"])
+
+AS_IF([test "x$enable_hardware_tests" != xno],
+            [AC_DEFINE([HW_TESTS], [1], [Flag for hardware tests])
+             hw_tests="ENABLED"],
+      [true],
+            [hw_tests="DISABLED"])
 
 AC_SUBST(YKPIV_VERSION_MAJOR, `echo $PACKAGE_VERSION | sed 's/\(.*\)\..*\..*/\1/g'`)
 AC_SUBST(YKPIV_VERSION_MINOR, `echo $PACKAGE_VERSION | sed 's/.*\.\(.*\)\..*/\1/g'`)
@@ -238,4 +250,6 @@ AC_MSG_NOTICE([summary of build options:
   Mac PCSC
             LIBS:   ${PCSC_MACOSX_LIBS}
 
+  YKCS11 debug:    ${ykcs11_debug}
+  Hardware tests:  ${hw_tests}
 ])
