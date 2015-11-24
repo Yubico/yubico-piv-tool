@@ -114,6 +114,7 @@ CK_RV create_token(ykpiv_state *state, CK_BYTE_PTR p, ykcs11_slot_t *slot) {
 
   if (ykpiv_connect(state, (char *)p) != YKPIV_OK)
     return CKR_FUNCTION_FAILED;
+
   memset(t_info->model, ' ', sizeof(t_info->model));
   if(token.get_token_model(state, t_info->model, sizeof(t_info->model)) != CKR_OK)
     return CKR_FUNCTION_FAILED;
