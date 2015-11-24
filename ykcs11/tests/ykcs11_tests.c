@@ -30,24 +30,24 @@ static void test_lib_info() {
   }
 
   if (strcmp(info.manufacturerID, MANUFACTURER_ID) != 0) {
-    fprintf(stderr, "unexpected manufacturer ID %s\n", info.manufacturerID);
+    fprintf(stderr, "Unexpected manufacturer ID %s\n", info.manufacturerID);
     exit(EXIT_FAILURE);
   }
 
   if (info.cryptokiVersion.major != CRYPTOKI_VERSION_MAJ ||
       info.cryptokiVersion.minor != CRYPTOKI_VERSION_MIN ) {
-    fprintf(stderr, "unexpected Cryptoki version %d.%d\n", info.cryptokiVersion.major, info.cryptokiVersion.minor);
+    fprintf(stderr, "Unexpected Cryptoki version %d.%d\n", info.cryptokiVersion.major, info.cryptokiVersion.minor);
     exit(EXIT_FAILURE);
   }
 
   if (info.libraryVersion.major != YKCS11_VERSION_MAJOR ||
       info.libraryVersion.minor != ((YKCS11_VERSION_MINOR * 100) + YKCS11_VERSION_PATCH )) {
-    fprintf(stderr, "unexpected YKCS11 version %d.%d\n", info.libraryVersion.major, info.libraryVersion.minor);
+    fprintf(stderr, "Unexpected YKCS11 version %d.%d\n", info.libraryVersion.major, info.libraryVersion.minor);
     exit(EXIT_FAILURE);
   }
 
   if (strcmp(info.libraryDescription, YKCS11_DESCRIPTION) != 0) {
-    fprintf(stderr, "unexpected description %s\n", info.libraryDescription);
+    fprintf(stderr, "Unexpected description %s\n", info.libraryDescription);
     exit(EXIT_FAILURE);
   }
 
@@ -59,11 +59,15 @@ static void test_initalize() {
 
   get_functions(&funcs);
 
-  if (funcs->C_Initialize(NULL) != CKR_OK)
+  if (funcs->C_Initialize(NULL) != CKR_OK) {
+    fprintf(stderr, "Unable to initialize YKCS11\n");
     exit(EXIT_FAILURE);
+  }
 
-  if (funcs->C_Finalize(NULL) != CKR_OK)
+  if (funcs->C_Finalize(NULL) != CKR_OK) {
+    fprintf(stderr, "Unable to finalize YKCS11\n");
     exit(EXIT_FAILURE);
+  }
 
 }
 
