@@ -92,7 +92,7 @@ failure:
 
 CK_RV create_token(ykpiv_state *state, CK_BYTE_PTR p, ykcs11_slot_t *slot) {
 
-  token_vendor_t token;
+  token_vendor_t    token;
   CK_TOKEN_INFO_PTR t_info;
 
   slot->token = malloc(sizeof(ykcs11_token_t)); // TODO: free
@@ -116,16 +116,21 @@ CK_RV create_token(ykpiv_state *state, CK_BYTE_PTR p, ykcs11_slot_t *slot) {
     return CKR_FUNCTION_FAILED;
 
   memset(t_info->model, ' ', sizeof(t_info->model));
-  if(token.get_token_model(state, t_info->model, sizeof(t_info->model)) != CKR_OK)
+  if(token.get_token_model(state, t_info->model, sizeof(t_info->model)) != CKR_OK) {
+    ykpiv_disconnect(state);
     return CKR_FUNCTION_FAILED;
-  ykpiv_disconnect(state);
+  }
 
   memset(t_info->serialNumber, ' ', sizeof(t_info->serialNumber));
-  if(token.get_token_serial(t_info->serialNumber, sizeof(t_info->serialNumber)) != CKR_OK)
+  if(token.get_token_serial(t_info->serialNumber, sizeof(t_info->serialNumber)) != CKR_OK) {
+    ykpiv_disconnect(state);
     return CKR_FUNCTION_FAILED;
+  }
 
-  if (token.get_token_flags(&t_info->flags) != CKR_OK)
+  if (token.get_token_flags(&t_info->flags) != CKR_OK) {
+    ykpiv_disconnect(state);
     return CKR_FUNCTION_FAILED;
+  }
 
   t_info->ulMaxSessionCount = CK_UNAVAILABLE_INFORMATION;
 
@@ -147,19 +152,18 @@ CK_RV create_token(ykpiv_state *state, CK_BYTE_PTR p, ykcs11_slot_t *slot) {
 
   t_info->ulFreePrivateMemory = CK_UNAVAILABLE_INFORMATION;
 
-  //ykpiv_get_version(piv_state, buf, sizeof(buf));
-  //if (token_vendor.get_token_version(buf, strlen(buf), &ver) != CKR_OK) // TODO: fix this
-  //  return CKR_FUNCTION_FAILED;
-
-  //t_info->hardwareVersion = ver; // version number of hardware // TODO: fix
-
-  //t_info->firmwareVersion = ver; // version number of firmware // TODO: fix
+  // Ignore hardware version, report firmware version
+  if (token.get_token_version(state, &t_info->firmwareVersion) != CKR_OK) {
+    ykpiv_disconnect(state);
+    return CKR_FUNCTION_FAILED;
+  }
 
   memset(t_info->utcTime, ' ', sizeof(t_info->utcTime)); // No clock present, clear
 
-  // TODO: also get token objects here? (and destroy on failure)
   slot->token->objects = NULL;
   slot->token->n_objects = 0;
+
+  ykpiv_disconnect(state);
 
   return CKR_OK;
 }

@@ -153,32 +153,18 @@ CK_RV YUBICO_get_token_flags(CK_FLAGS_PTR flags) {
 
 }
 
-CK_RV YUBICO_get_token_version(CK_UTF8CHAR_PTR v_str, CK_ULONG len, CK_VERSION_PTR version) {
+CK_RV YUBICO_get_token_version(ykpiv_state *state, CK_VERSION_PTR version) {
 
-  CK_VERSION v = {0, 0};
-  unsigned int i = 0;
+  char buf[16];
 
-  while (i < len && v_str[i] != '.') {
-    v.major *= 10;
-    v.major += v_str[i++] - '0';
-  }
+  if (version == NULL)
+    return CKR_ARGUMENTS_BAD;
 
-  i++;
+  if (ykpiv_get_version(state, buf, sizeof(buf)) != YKPIV_OK)
+    return CKR_FUNCTION_FAILED;
 
-  while (i < len && v_str[i] != '.') {
-    v.minor *= 10;
-    v.minor += v_str[i++] - '0';
-  }
-
-  i++;
-
-  while (i < len && v_str[i] != '.') {
-    v.minor *= 10;
-    v.minor += v_str[i++] - '0';
-  }
-
-  version->major = v.major;
-  version->minor = v.minor;
+  version->major = (buf[0] - '0');
+  version->minor = (buf[2] - '0') * 100 + (buf[4] - '0');
 
   return CKR_OK;
 }
