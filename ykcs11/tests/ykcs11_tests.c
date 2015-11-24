@@ -24,12 +24,10 @@ static void test_lib_info() {
 
   get_functions(&funcs);
 
-
   if (funcs->C_GetInfo(&info) != CKR_OK) {
     fprintf(stderr, "GetInfo failed\n");
     exit(EXIT_FAILURE);
   }
-
 
   if (strcmp(info.manufacturerID, MANUFACTURER_ID) != 0) {
     fprintf(stderr, "unexpected manufacturer ID %s\n", info.manufacturerID);
