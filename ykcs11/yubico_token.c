@@ -69,40 +69,41 @@ static const piv_obj_id_t token_objects[] = { // TODO: is there a way to get thi
   PIV_DATA_OBJ_X509_CARD_AUTH,  // Certificate for card authentication
   PIV_DATA_OBJ_X509_DS,         // Certificate for digital signature
   PIV_DATA_OBJ_X509_KM,         // Certificate for key management
+  PIV_DATA_OBJ_X509_RETIRED1,   // Certificate for retired key 1
+  PIV_DATA_OBJ_X509_RETIRED2,   // Certificate for retired key 2
+  PIV_DATA_OBJ_X509_RETIRED3,   // Certificate for retired key 3
+  PIV_DATA_OBJ_X509_RETIRED4,   // Certificate for retired key 4
+  PIV_DATA_OBJ_X509_RETIRED5,   // Certificate for retired key 5
+  PIV_DATA_OBJ_X509_RETIRED6,   // Certificate for retired key 6
+  PIV_DATA_OBJ_X509_RETIRED7,   // Certificate for retired key 7
+  PIV_DATA_OBJ_X509_RETIRED8,   // Certificate for retired key 8
+  PIV_DATA_OBJ_X509_RETIRED9,   // Certificate for retired key 9
+  PIV_DATA_OBJ_X509_RETIRED10,  // Certificate for retired key 10
+  PIV_DATA_OBJ_X509_RETIRED11,  // Certificate for retired key 11
+  PIV_DATA_OBJ_X509_RETIRED12,  // Certificate for retired key 12
+  PIV_DATA_OBJ_X509_RETIRED13,  // Certificate for retired key 13
+  PIV_DATA_OBJ_X509_RETIRED14,  // Certificate for retired key 14
+  PIV_DATA_OBJ_X509_RETIRED15,  // Certificate for retired key 15
+  PIV_DATA_OBJ_X509_RETIRED16,  // Certificate for retired key 16
+  PIV_DATA_OBJ_X509_RETIRED17,  // Certificate for retired key 17
+  PIV_DATA_OBJ_X509_RETIRED18,  // Certificate for retired key 18
+  PIV_DATA_OBJ_X509_RETIRED19,  // Certificate for retired key 19
+  PIV_DATA_OBJ_X509_RETIRED20,  // Certificate for retired key 20
   PIV_DATA_OBJ_CCC,             // Card capability container
   PIV_DATA_OBJ_CHUI,            // Cardholder unique id
   PIV_DATA_OBJ_CHF,             // Cardholder fingerprints
   PIV_DATA_OBJ_SEC_OBJ,         // Security object
   PIV_DATA_OBJ_CHFI,            // Cardholder facial images
-  //PIV_DATA_OBJ_PI,              // Cardholder printed information
-  //PIV_DATA_OBJ_DISCOVERY,       // Discovery object
-  //PIV_DATA_OBJ_HISTORY,         // History object
-/*  PIV_DATA_OBJ_RETIRED_X509_1,  // Retired certificate for KM 1
-  PIV_DATA_OBJ_RETIRED_X509_2,  // Retired certificate for KM 2
-  PIV_DATA_OBJ_RETIRED_X509_3,  // Retired certificate for KM 3
-  PIV_DATA_OBJ_RETIRED_X509_4,  // Retired certificate for KM 4
-  PIV_DATA_OBJ_RETIRED_X509_5,  // Retired certificate for KM 5
-  PIV_DATA_OBJ_RETIRED_X509_6,  // Retired certificate for KM 6
-  PIV_DATA_OBJ_RETIRED_X509_7,  // Retired certificate for KM 7
-  PIV_DATA_OBJ_RETIRED_X509_8,  // Retired certificate for KM 8
-  PIV_DATA_OBJ_RETIRED_X509_9,  // Retired certificate for KM 9
-  PIV_DATA_OBJ_RETIRED_X509_10, // Retired certificate for KM 10
-  PIV_DATA_OBJ_RETIRED_X509_11, // Retired certificate for KM 11
-  PIV_DATA_OBJ_RETIRED_X509_12, // Retired certificate for KM 12
-  PIV_DATA_OBJ_RETIRED_X509_13, // Retired certificate for KM 13
-  PIV_DATA_OBJ_RETIRED_X509_14, // Retired certificate for KM 14
-  PIV_DATA_OBJ_RETIRED_X509_15, // Retired certificate for KM 15
-  PIV_DATA_OBJ_RETIRED_X509_16, // Retired certificate for KM 16
-  PIV_DATA_OBJ_RETIRED_X509_17, // Retired certificate for KM 17
-  PIV_DATA_OBJ_RETIRED_X509_18, // Retired certificate for KM 18
-  PIV_DATA_OBJ_RETIRED_X509_19, // Retired certificate for KM 19
-  PIV_DATA_OBJ_RETIRED_X509_20, // Retired certificate for KM 20*/
-  //PIV_DATA_OBJ_IRIS_IMAGE,      // Cardholder iris images
-  //PIV_DATA_OBJ_BITGT,           // Biometric information templates group template
-  //PIV_DATA_OBJ_SM_SIGNER,       // Secure messaging signer
-  //PIV_DATA_OBJ_PC_REF_DATA,      // Pairing code reference data
+  //PIV_DATA_OBJ_PI,            // Cardholder printed information
+  //PIV_DATA_OBJ_DISCOVERY,     // Discovery object
+  //PIV_DATA_OBJ_HISTORY,       // History object
+  //PIV_DATA_OBJ_IRIS_IMAGE,    // Cardholder iris images
+  //PIV_DATA_OBJ_BITGT,         // Biometric information templates group template
+  //PIV_DATA_OBJ_SM_SIGNER,     // Secure messaging signer
+  //PIV_DATA_OBJ_PC_REF_DATA,   // Pairing code reference data
 };
-static const CK_ULONG token_objects_num = sizeof(token_objects) / sizeof(piv_obj_id_t);
+static const CK_ULONG neo_token_objects_num = sizeof(token_objects) / sizeof(piv_obj_id_t) - 20;
+static const CK_ULONG yk4_token_objects_num = sizeof(token_objects) / sizeof(piv_obj_id_t);
 
 CK_RV YUBICO_get_token_label(CK_UTF8CHAR_PTR str, CK_ULONG len) {
 
@@ -225,20 +226,27 @@ CK_RV YUBICO_get_token_mechanism_info(CK_MECHANISM_TYPE mec, CK_MECHANISM_INFO_P
 
 static CK_RV get_objects(ykpiv_state *state, CK_BBOOL num_only,
                          piv_obj_id_t *obj, CK_ULONG_PTR len, CK_ULONG_PTR num_certs) {
-  CK_BYTE buf[2048];
-  CK_ULONG buf_len;
+  CK_BYTE      buf[2048];
+  CK_ULONG     buf_len;
+  CK_BYTE      major;
+  CK_ULONG     i;
 
   piv_obj_id_t certs[24];
   piv_obj_id_t pvtkeys[24];
   piv_obj_id_t pubkeys[24];
-  CK_ULONG i;
-  CK_ULONG n_cert = 0;
+  CK_ULONG     n_cert = 0;
+  CK_ULONG     token_objects_num = neo_token_objects_num;
 
   if (state == NULL || len == NULL_PTR)
     return CKR_ARGUMENTS_BAD;
 
   if (num_only == CK_FALSE && obj == NULL)
     return CKR_ARGUMENTS_BAD;
+
+  if (ykpiv_get_version(state, (char *) buf, sizeof(buf)) != YKPIV_OK)
+    return CKR_FUNCTION_FAILED;
+
+  major = buf[0] - '0';
 
   buf_len = sizeof(buf);
   if (ykpiv_fetch_object(state, YKPIV_OBJ_AUTHENTICATION, buf, &buf_len) == YKPIV_OK) {
@@ -276,15 +284,18 @@ static CK_RV get_objects(ykpiv_state *state, CK_BBOOL num_only,
     DBG("Found KMK cert (9d)");
   }
 
-  for (i = 0; i < 20; i++) {
-    buf_len = sizeof(buf);
-    if (ykpiv_fetch_object(state, YKPIV_OBJ_RETIRED1 + i, buf, &buf_len) == YKPIV_OK) {
-      certs[n_cert] = PIV_CERT_OBJ_X509_RETIRED1 + i;
-      pvtkeys[n_cert] = PIV_PVTK_OBJ_RETIRED1 + i;
-      pubkeys[n_cert] = PIV_PUBK_OBJ_RETIRED1 + i;
-      n_cert++;
-      DBG("Found RETIRED cert (%lx)", 0x82 + i);
+  if (major >= 4) {
+    for (i = 0; i < 20; i++) {
+      buf_len = sizeof(buf);
+      if (ykpiv_fetch_object(state, YKPIV_OBJ_RETIRED1 + i, buf, &buf_len) == YKPIV_OK) {
+        certs[n_cert] = PIV_CERT_OBJ_X509_RETIRED1 + i;
+        pvtkeys[n_cert] = PIV_PVTK_OBJ_RETIRED1 + i;
+        pubkeys[n_cert] = PIV_PUBK_OBJ_RETIRED1 + i;
+        n_cert++;
+        DBG("Found RETIRED cert (%lx)", 0x82 + i);
+      }
     }
+    token_objects_num = yk4_token_objects_num;
   }
 
   DBG("The total number of objects for this token is %lu", (n_cert * 3) + token_objects_num);
@@ -301,8 +312,16 @@ static CK_RV get_objects(ykpiv_state *state, CK_BBOOL num_only,
   if (*len < (n_cert * 3) + token_objects_num)
     return CKR_BUFFER_TOO_SMALL;
 
-  // Copy mandatory data objects
-  memcpy(obj, token_objects, token_objects_num * sizeof(piv_obj_id_t));
+  // Copy data objects
+  if (major >= 4) {
+    // YK4: just copy all the objects
+    memcpy(obj, token_objects, token_objects_num * sizeof(piv_obj_id_t));
+  }
+  else {
+    // NEO: remove retired keys
+    memcpy(obj, token_objects, 4 * sizeof(piv_obj_id_t));
+    memcpy(obj + 4, token_objects + 24, (neo_token_objects_num - 4) * sizeof(piv_obj_id_t));
+  }
 
   // Copy certificates
   if (n_cert > 0) {
