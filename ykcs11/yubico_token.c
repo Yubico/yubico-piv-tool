@@ -66,29 +66,29 @@ static const CK_MECHANISM_INFO token_mechanism_infos[] = { // KEEP ALIGNED WITH 
 
 static const piv_obj_id_t token_objects[] = { // TODO: is there a way to get this from the token?
   PIV_DATA_OBJ_X509_PIV_AUTH,   // PIV authentication
-  PIV_DATA_OBJ_X509_CARD_AUTH,  // Certificate for card authentication
-  PIV_DATA_OBJ_X509_DS,         // Certificate for digital signature
-  PIV_DATA_OBJ_X509_KM,         // Certificate for key management
-  PIV_DATA_OBJ_X509_RETIRED1,   // Certificate for retired key 1
-  PIV_DATA_OBJ_X509_RETIRED2,   // Certificate for retired key 2
-  PIV_DATA_OBJ_X509_RETIRED3,   // Certificate for retired key 3
-  PIV_DATA_OBJ_X509_RETIRED4,   // Certificate for retired key 4
-  PIV_DATA_OBJ_X509_RETIRED5,   // Certificate for retired key 5
-  PIV_DATA_OBJ_X509_RETIRED6,   // Certificate for retired key 6
-  PIV_DATA_OBJ_X509_RETIRED7,   // Certificate for retired key 7
-  PIV_DATA_OBJ_X509_RETIRED8,   // Certificate for retired key 8
-  PIV_DATA_OBJ_X509_RETIRED9,   // Certificate for retired key 9
-  PIV_DATA_OBJ_X509_RETIRED10,  // Certificate for retired key 10
-  PIV_DATA_OBJ_X509_RETIRED11,  // Certificate for retired key 11
-  PIV_DATA_OBJ_X509_RETIRED12,  // Certificate for retired key 12
-  PIV_DATA_OBJ_X509_RETIRED13,  // Certificate for retired key 13
-  PIV_DATA_OBJ_X509_RETIRED14,  // Certificate for retired key 14
-  PIV_DATA_OBJ_X509_RETIRED15,  // Certificate for retired key 15
-  PIV_DATA_OBJ_X509_RETIRED16,  // Certificate for retired key 16
-  PIV_DATA_OBJ_X509_RETIRED17,  // Certificate for retired key 17
-  PIV_DATA_OBJ_X509_RETIRED18,  // Certificate for retired key 18
-  PIV_DATA_OBJ_X509_RETIRED19,  // Certificate for retired key 19
-  PIV_DATA_OBJ_X509_RETIRED20,  // Certificate for retired key 20
+  PIV_DATA_OBJ_X509_CARD_AUTH,  // card authentication
+  PIV_DATA_OBJ_X509_DS,         // digital signature
+  PIV_DATA_OBJ_X509_KM,         // key management
+  PIV_DATA_OBJ_X509_RETIRED1,   // Retired key 1
+  PIV_DATA_OBJ_X509_RETIRED2,   // Retired key 2
+  PIV_DATA_OBJ_X509_RETIRED3,   // Retired key 3
+  PIV_DATA_OBJ_X509_RETIRED4,   // Retired key 4
+  PIV_DATA_OBJ_X509_RETIRED5,   // Retired key 5
+  PIV_DATA_OBJ_X509_RETIRED6,   // Retired key 6
+  PIV_DATA_OBJ_X509_RETIRED7,   // Retired key 7
+  PIV_DATA_OBJ_X509_RETIRED8,   // Retired key 8
+  PIV_DATA_OBJ_X509_RETIRED9,   // Retired key 9
+  PIV_DATA_OBJ_X509_RETIRED10,  // Retired key 10
+  PIV_DATA_OBJ_X509_RETIRED11,  // Retired key 11
+  PIV_DATA_OBJ_X509_RETIRED12,  // Retired key 12
+  PIV_DATA_OBJ_X509_RETIRED13,  // Retired key 13
+  PIV_DATA_OBJ_X509_RETIRED14,  // Retired key 14
+  PIV_DATA_OBJ_X509_RETIRED15,  // Retired key 15
+  PIV_DATA_OBJ_X509_RETIRED16,  // Retired key 16
+  PIV_DATA_OBJ_X509_RETIRED17,  // Retired key 17
+  PIV_DATA_OBJ_X509_RETIRED18,  // Retired key 18
+  PIV_DATA_OBJ_X509_RETIRED19,  // Retired key 19
+  PIV_DATA_OBJ_X509_RETIRED20,  // Retired key 20
   PIV_DATA_OBJ_CCC,             // Card capability container
   PIV_DATA_OBJ_CHUI,            // Cardholder unique id
   PIV_DATA_OBJ_CHF,             // Cardholder fingerprints
