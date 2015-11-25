@@ -35,7 +35,8 @@ b. Import the key and cert (PKCS12 format) in slot 9a:
 
 3. Check that keytool can see the key:
 
-  $ keytool -providerClass sun.security.pkcs11.SunPKCS11 -providerArg /tmp/pkcs11_java.cfg -keystore NONE -storetype PKCS11 -list
+  $ keytool -providerClass sun.security.pkcs11.SunPKCS11 -providerArg /tmp/pkcs11_java.cfg \
+    -keystore NONE -storetype PKCS11 -list
   Enter keystore password:
 
   Keystore type: PKCS11
@@ -50,7 +51,8 @@ Password here is the PIN of the key (default 123456).
 
 4. Sign the apk with jarsigner:
 
-  $ jarsigner -providerClass sun.security.pkcs11.SunPKCS11 -providerArg /tmp/pkcs11_java.cfg -keystore NONE -storetype PKCS11 app.apk "Certificate for PIV Authentication"
+  $ jarsigner -providerClass sun.security.pkcs11.SunPKCS11 -providerArg /tmp/pkcs11_java.cfg \
+    -keystore NONE -storetype PKCS11 app.apk "Certificate for PIV Authentication"
   Enter Passphrase for keystore: 
   jar signed.
 
