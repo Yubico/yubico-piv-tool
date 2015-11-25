@@ -169,6 +169,25 @@ static void test_mechanism_list_and_info() {
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
 }
 
+static void test_session() {
+
+  CK_SESSION_HANDLE session;
+
+  asrt(funcs->C_Initialize(NULL), CKR_OK, "INITIALIZE");
+
+  asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
+  asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
+
+  asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession2");
+  asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
+
+  asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession3");
+  asrt(funcs->C_CloseAllSessions(0), CKR_OK, "CloseAllSessions");
+
+  asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
+
+}
+
 int main(void) {
 
   get_functions(&funcs);
@@ -179,6 +198,7 @@ int main(void) {
   test_initalize();
   test_token_info();
   test_mechanism_list_and_info();
+  test_session();
 #endif
 
   return EXIT_SUCCESS;
