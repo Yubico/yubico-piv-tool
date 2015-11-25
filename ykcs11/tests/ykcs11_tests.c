@@ -3,6 +3,10 @@
 
 #include <string.h>
 
+#include <openssl/ec.h>
+#include <openssl/bn.h>
+#include <openssl/x509.h>
+
 CK_FUNCTION_LIST_PTR funcs;
 
 #define asrt(c, e, m) _asrt(__LINE__, c, e, m);
@@ -203,7 +207,7 @@ static void test_login() {
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
 
   asrt(funcs->C_Login(session, CKU_USER, "123456", 8), CKR_OK, "Login USER");
-  asrt(funcs->C_Logout(session), CKR_OK, "Loout USER");
+  asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
 
   asrt(funcs->C_Login(session, CKU_SO, "010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
@@ -212,6 +216,83 @@ static void test_login() {
 
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
 
+}
+
+// Import a newly generated P256 pvt key and a certificate
+// to every slot and use the key to sign some data
+static void test_import_and_sign_100() {
+
+  EC_KEY   *k1;
+  EC_KEY   *k2;
+  EC_POINT *ecp1;
+  EC_POINT *ecp2;
+  BIGNUM   *bn1;
+  BIGNUM   *bn2;
+  char     pk1[32];
+  char     pk2[32];
+  X509     *cert1;
+  X509     *cert2;
+  CK_BYTE  i;
+  CK_BYTE  some_data[] = "0123456789012345678901";
+
+
+  CK_ULONG class = CKO_PRIVATE_KEY;
+  CK_ULONG kt = CKK_ECDSA;
+  CK_BYTE  id = 0;
+  CK_BYTE  params[] = {0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07};
+  CK_BYTE  value[32];
+
+  CK_ATTRIBUTE publicKeyTemplate[] = {
+    {CKA_CLASS, &class, sizeof(class)},
+    {CKA_KEY_TYPE, &kt, sizeof(kt)},
+    {CKA_ID, &id, sizeof(id)},
+    {CKA_EC_PARAMS, &params, sizeof(params)},
+    {CKA_VALUE, value, sizeof(value)}
+  };
+
+  CK_OBJECT_HANDLE obj;
+
+  CK_SESSION_HANDLE session;
+
+  k1 = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+  k2 = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+
+  if (k1 == NULL || k2 == NULL)
+    exit(EXIT_FAILURE);
+
+  cert1 = X509_new();
+
+  if (cert1 == NULL)
+    exit(EXIT_FAILURE);
+
+  asrt(EC_KEY_generate_key(k1), 1, "GENERATE K1");
+  asrt(EC_KEY_generate_key(k2), 1, "GENERATE K2");
+
+  bn1 = EC_KEY_get0_private_key(k1);
+  bn2 = EC_KEY_get0_private_key(k2);
+
+  asrt(BN_bn2bin(bn1, pk1), 32, "EXTRACT PK1");
+  asrt(BN_bn2bin(bn2, pk2), 32, "EXTRACT PK2");
+
+  /*ecp1 = EC_KEY_get0_public_key(k1);
+  ecp2 = EC_KEY_get0_public_key(k2);
+
+  if (ecp1 == NULL || ecp2 == NULL)
+  exit(EXIT_FAILURE);*/
+
+  asrt(funcs->C_Initialize(NULL), CKR_OK, "INITIALIZE");
+  asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
+  asrt(funcs->C_Login(session, CKU_SO, "010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
+
+  asrt(funcs->C_CreateObject(session, publicKeyTemplate, 5, &obj), CKR_OK, "IMPORT KEY");
+
+  asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
+  asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
+  asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
+
+  //for (i = 0; i < 100f; i++) {
+
+  //}
 }
 
 int main(void) {
@@ -226,6 +307,7 @@ int main(void) {
   test_mechanism_list_and_info();
   test_session();
   test_login();
+  test_import_and_sign_100();
 #else
   fprintf(stderr, "HARDWARE TESTS DISABLED!, skipping...\n");
 #endif
