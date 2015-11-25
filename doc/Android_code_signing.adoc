@@ -10,7 +10,7 @@ Prerequisites
 * a YubiKey with the PIV application
 * the yubico-piv-tool software
 * the OpenSC software
-* jarsigner and keytool from the JDK (openjdk 8 used here)
+* jarsigner and keytool from the JDK (OpenJDK 8 used here)
 
 Steps
 -----
