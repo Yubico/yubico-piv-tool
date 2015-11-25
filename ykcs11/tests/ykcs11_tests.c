@@ -172,6 +172,7 @@ static void test_mechanism_list_and_info() {
 static void test_session() {
 
   CK_SESSION_HANDLE session;
+  CK_SESSION_INFO   info;
 
   asrt(funcs->C_Initialize(NULL), CKR_OK, "INITIALIZE");
 
@@ -179,6 +180,10 @@ static void test_session() {
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
 
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession2");
+  asrt(funcs->C_GetSessionInfo(session, &info), CKR_OK, "GetSessionInfo");
+  asrt(info.state, CKS_RW_PUBLIC_SESSION, "CHECK STATE");
+  asrt(info.flags, CKF_SERIAL_SESSION | CKF_RW_SESSION, "CHECK FLAGS");
+  asrt(info.ulDeviceError, 0, "CHECK DEVICE ERROR");
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
 
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession3");
