@@ -15,7 +15,7 @@ Prerequisites
 Steps
 -----
 
-1. Import the key and cert, do a or b
+1. Import the key and cert, do one of the below:
 a. Import the key and cert (PEM format) in slot 9a:
 
   $ yubico-piv-tool -s 9a -a import-key -i key.pem
