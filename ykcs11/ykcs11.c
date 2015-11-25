@@ -479,7 +479,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   }
 
   if ((flags & CKF_SERIAL_SESSION) == 0) {
-    DBG("Open session called without CKF_SERIAL_SESSION set"); // Reuired by spes
+    DBG("Open session called without CKF_SERIAL_SESSION set"); // Required by specs
     return CKR_SESSION_PARALLEL_NOT_SUPPORTED;
   }
 
