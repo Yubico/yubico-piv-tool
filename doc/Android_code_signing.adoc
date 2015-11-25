@@ -38,12 +38,12 @@ b. Import the key and cert (PKCS12 format) in slot 9a:
   $ keytool -providerClass sun.security.pkcs11.SunPKCS11 -providerArg /tmp/pkcs11_java.cfg \
     -keystore NONE -storetype PKCS11 -list
   Enter keystore password:
-
++
   Keystore type: PKCS11
   Keystore provider: SunPKCS11-OpenSC-PKCS11
-
++
   Your keystore contains 1 entry
-
++
   Certificate for PIV Authentication, PrivateKeyEntry,
   Certificate fingerprint (SHA1): 26:D7:CB:71:6D:42:3C:AB:58:69:E0:9D:F0:16:DF:84:7E:1C:5A:9A
 +
