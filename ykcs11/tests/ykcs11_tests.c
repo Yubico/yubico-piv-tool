@@ -204,6 +204,8 @@ int main(void) {
   test_token_info();
   test_mechanism_list_and_info();
   test_session();
+#else
+  fprintf(stderr, "HARDWARE TESTS DISABLED!, skipping...\n");
 #endif
 
   return EXIT_SUCCESS;
