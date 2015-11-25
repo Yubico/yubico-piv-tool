@@ -193,6 +193,27 @@ static void test_session() {
 
 }
 
+static void test_login() {
+
+  CK_SESSION_HANDLE session;
+  CK_SESSION_INFO   info;
+
+  asrt(funcs->C_Initialize(NULL), CKR_OK, "INITIALIZE");
+
+  asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
+
+  asrt(funcs->C_Login(session, CKU_USER, "123456", 8), CKR_OK, "Login USER");
+  asrt(funcs->C_Logout(session), CKR_OK, "Loout USER");
+
+  asrt(funcs->C_Login(session, CKU_SO, "010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
+  asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
+
+  asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
+
+  asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
+
+}
+
 int main(void) {
 
   get_functions(&funcs);
@@ -204,6 +225,7 @@ int main(void) {
   test_token_info();
   test_mechanism_list_and_info();
   test_session();
+  test_login();
 #else
   fprintf(stderr, "HARDWARE TESTS DISABLED!, skipping...\n");
 #endif
