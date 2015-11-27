@@ -1038,6 +1038,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
         return rv;
       }
     }
+
+    *phObject = PIV_PVTK_OBJ_PIV_AUTH + id;
+
     break;
 
   default:
