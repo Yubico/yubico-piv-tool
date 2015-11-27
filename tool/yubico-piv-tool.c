@@ -71,7 +71,7 @@ static void print_version(ykpiv_state *state, const char *output_file_name) {
   char version[7];
   FILE *output_file = open_file(output_file_name, OUTPUT);
   if(!output_file) {
-    fprintf(stderr, "Failed opening output_file_name\n");
+    return;
   }
 
   if(ykpiv_get_version(state, version, sizeof(version)) == YKPIV_OK) {
@@ -1101,6 +1101,9 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
 
   output_file = open_file(output, OUTPUT);
   if(!output_file) {
+    if(input_file && input_file != stdin) {
+      fclose(input_file);
+    }
     return false;
   }
 
