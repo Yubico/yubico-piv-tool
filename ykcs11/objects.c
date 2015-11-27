@@ -404,7 +404,7 @@ CK_RV get_doa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
   case CKA_OBJECT_ID: // TODO: how about just storing the OID in DER ?
     DBG("OID");
-    strcpy((char *)tmp, data_objects[piv_objects[obj].sub_id].oid);
+    memcpy((char *)tmp, data_objects[piv_objects[obj].sub_id].oid, sizeof(tmp));
     asn1_encode_oid(tmp, tmp, &len);
     data = tmp;
     break;
