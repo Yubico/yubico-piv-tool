@@ -49,7 +49,7 @@ CK_RV parse_readers(ykpiv_state *state, const CK_BYTE_PTR readers, const CK_ULON
         memset(slots[*n_slots].info.slotDescription, ' ', sizeof(slots[*n_slots].info.slotDescription));
         s = slots[*n_slots].info.slotDescription;
         l = sizeof(slots[*n_slots].info.slotDescription);
-        strncpy((char *)s, (char*)p, l);
+        memcpy((char *)s, (char*)p, l);
 
         memset(slots[*n_slots].info.manufacturerID, ' ', sizeof(slots[*n_slots].info.manufacturerID));
         s = slots[*n_slots].info.manufacturerID;
