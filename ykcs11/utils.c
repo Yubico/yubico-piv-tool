@@ -29,16 +29,16 @@ CK_RV parse_readers(ykpiv_state *state, const CK_BYTE_PTR readers, const CK_ULON
 
   for (i = 0; i < len; i++)
     if (readers[i] == '\0' && i != len - 1) {
-      slots[*n_slots].vid = get_vendor_id(p);
+      slots[*n_slots].vid = get_vendor_id((char *)p);
 
       if (slots[*n_slots].vid == UNKNOWN) { // TODO: distinguish between tokenless and unsupported?
         // Unknown slot, just save what info we have
         memset(&slots[*n_slots].info, 0, sizeof(CK_SLOT_INFO));
         memset(slots[*n_slots].info.slotDescription, ' ', sizeof(slots[*n_slots].info.slotDescription));
-        if (strlen(p) <= sizeof(slots[*n_slots].info.slotDescription))
-          strncpy(slots[*n_slots].info.slotDescription, p, strlen(p));
+        if (strlen((char *)p) <= sizeof(slots[*n_slots].info.slotDescription))
+          memcpy(slots[*n_slots].info.slotDescription, p, strlen((char *)p));
         else
-          strncpy(slots[*n_slots].info.slotDescription, p, sizeof(slots[*n_slots].info.slotDescription));
+          memcpy(slots[*n_slots].info.slotDescription, p, sizeof(slots[*n_slots].info.slotDescription));
       }
       else {
         // Supported slot
