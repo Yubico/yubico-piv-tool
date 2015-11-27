@@ -1653,8 +1653,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     return CKR_OPERATION_ACTIVE;
   }
 
-  if (pMechanism == NULL_PTR ||
-      hKey == NULL_PTR)
+  if (pMechanism == NULL_PTR)
     return CKR_ARGUMENTS_BAD;
 
   DBG("Trying to sign some data with mechanism %lu and key %lu", pMechanism->mechanism, hKey);
