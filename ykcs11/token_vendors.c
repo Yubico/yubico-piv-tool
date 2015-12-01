@@ -13,6 +13,7 @@ static CK_RV COMMON_token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CH
   unsigned char key[24];
   size_t key_len = sizeof(key);
   unsigned char *term_pin;
+  ykpiv_rc res;
 
   if (user == CKU_USER) {
     // add null termination for the pin
@@ -23,12 +24,15 @@ static CK_RV COMMON_token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CH
     memcpy(term_pin, pin, pin_len);
     term_pin[pin_len] = 0;
 
-    if (ykpiv_verify(state, (char *)term_pin, &tries) != YKPIV_OK) {
-      free(term_pin);
+    res = ykpiv_verify(state, (char *)term_pin, &tries);
+
+    OPENSSL_cleanse(term_pin, pin_len);
+    free(term_pin);
+
+    if (res != YKPIV_OK) {
       DBG("Failed to login");
       return CKR_PIN_INCORRECT;
     }
-    free(term_pin);
   }
   else if (user == CKU_SO) {
     if(ykpiv_hex_decode((char *)pin, pin_len, key, &key_len) != YKPIV_OK) {
