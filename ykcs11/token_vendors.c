@@ -73,7 +73,7 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa,
   switch(key_len) {
   case 2048:
     if (rsa == CK_TRUE)
-      in_data[4] = YKPIV_ALGO_RSA2048;
+      *in_ptr++ = YKPIV_ALGO_RSA2048;
     else
       return CKR_FUNCTION_FAILED;
 
