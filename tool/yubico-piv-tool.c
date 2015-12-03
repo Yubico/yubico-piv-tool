@@ -1872,7 +1872,7 @@ int main(int argc, char *argv[]) {
         if(set_dataobject(state, verbosity, action == action_arg_setMINUS_chuid ? CHUID : CCC) == false) {
           ret = EXIT_FAILURE;
         } else {
-          fprintf(stderr, "Successfully set new CHUID.\n");
+          fprintf(stderr, "Successfully set new %s.\n", action == action_arg_setMINUS_chuid ? "CHUID" : "CCC");
         }
         break;
       case action_arg_requestMINUS_certificate:
