@@ -12,9 +12,24 @@ static CK_RV COMMON_token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CH
   int tries = 0; // TODO: this is effectively disregarded, should we add a better value in ykpiv_verify?
   unsigned char key[24];
   size_t key_len = sizeof(key);
+  unsigned char *term_pin;
+  ykpiv_rc res;
 
   if (user == CKU_USER) {
-    if (ykpiv_verify(state, (char *)pin, &tries) != YKPIV_OK) {
+    // add null termination for the pin
+    term_pin = malloc(pin_len + 1);
+    if (term_pin == NULL) {
+      return CKR_HOST_MEMORY;
+    }
+    memcpy(term_pin, pin, pin_len);
+    term_pin[pin_len] = 0;
+
+    res = ykpiv_verify(state, (char *)term_pin, &tries);
+
+    OPENSSL_cleanse(term_pin, pin_len);
+    free(term_pin);
+
+    if (res != YKPIV_OK) {
       DBG("Failed to login");
       return CKR_PIN_INCORRECT;
     }
