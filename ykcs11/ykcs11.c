@@ -731,8 +731,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if ((session.info.flags & CKF_RW_SESSION) == 0) { // TODO: make macros for these?
-    DBG("Tried to log-in to a read-only session");
+  if (userType == CKU_SO && (session.info.flags & CKF_RW_SESSION) == 0) { // TODO: make macros for these?
+    DBG("Tried to log-in SO user to a read-only session");
     return CKR_SESSION_READ_ONLY_EXISTS;
   }
 
