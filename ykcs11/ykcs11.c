@@ -438,7 +438,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   CK_RV          rv;
   piv_obj_id_t   *cert_ids;
   CK_ULONG       i;
-  CK_BYTE        cert_data[2100];  // Max cert value for ykpiv
+  CK_BYTE        cert_data[3072];  // Max cert value for ykpiv
   CK_ULONG       cert_len = sizeof(cert_data);
 
   DIN; // TODO: pApplication and Notify
@@ -2115,7 +2115,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   CK_ULONG       pvtk_id;
   CK_ULONG       pubk_id;
   piv_obj_id_t   *obj_ptr;
-  CK_BYTE        cert_data[2100];
+  CK_BYTE        cert_data[3072];
   CK_ULONG       cert_len;
 
   DIN;

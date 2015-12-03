@@ -158,7 +158,7 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa,
 
 static CK_RV COMMON_token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_BYTE_PTR in) {
 
-  unsigned char certdata[2100];
+  unsigned char certdata[3072];
   unsigned char *certptr;
   CK_ULONG cert_len;
 
@@ -168,7 +168,7 @@ static CK_RV COMMON_token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_B
   if ((rv = do_check_cert(in, &cert_len)) != CKR_OK)
     return rv;
 
-  if (cert_len > 2100)
+  if (cert_len > 3072)
     return CKR_FUNCTION_FAILED;
 
   certptr = certdata;
