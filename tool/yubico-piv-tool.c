@@ -63,6 +63,17 @@ unsigned const char chuid_tmpl[] = {
 };
 #define CHUID_GUID_OFFS 29
 
+unsigned const char ccc_tmpl[] = {
+  0xf0, 0x15, 0xa0, 0x00, 0x00, 0x01, 0x16, 0xff, 0x02, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf1, 0x01, 0x21,
+  0xf2, 0x01, 0x21, 0xf3, 0x00, 0xf4, 0x01, 0x00, 0xf5, 0x01, 0x10, 0xf6, 0x00,
+  0xf7, 0x00, 0xfa, 0x00, 0xfb, 0x00, 0xfc, 0x00, 0xfd, 0x00, 0xfe, 0x00
+};
+#define CCC_ID_OFFS 9
+
+#define CHUID 0
+#define CCC 1
+
 #define MAX_OID_LEN 19
 
 #define KEY_LEN 24
@@ -588,20 +599,36 @@ import_cert_out:
   return ret;
 }
 
-static bool set_chuid(ykpiv_state *state, int verbose) {
-  unsigned char chuid[sizeof(chuid_tmpl)];
+static bool set_dataobject(ykpiv_state *state, int verbose, int type) {
+  unsigned char obj[1024];
   ykpiv_rc res;
+  size_t offs, rand_len, len;
+  const unsigned char *tmpl;
+  int id;
 
-  memcpy(chuid, chuid_tmpl, sizeof(chuid));
-  if(RAND_pseudo_bytes(chuid + CHUID_GUID_OFFS, 0x10) == -1) {
+  if(type == CHUID) {
+    offs = CHUID_GUID_OFFS;
+    len = sizeof(chuid_tmpl);
+    rand_len = 0x10;
+    tmpl = chuid_tmpl;
+    id = YKPIV_OBJ_CHUID;
+  } else {
+    offs = CCC_ID_OFFS;
+    rand_len = 0xe;
+    len = sizeof(ccc_tmpl);
+    tmpl = ccc_tmpl;
+    id = YKPIV_OBJ_CAPABILITY;
+  }
+  memcpy(obj, tmpl, len);
+  if(RAND_pseudo_bytes(obj + offs, rand_len) == -1) {
     fprintf(stderr, "error: no randomness.\n");
     return false;
   }
   if(verbose) {
-    fprintf(stderr, "Setting the CHUID to: ");
-    dump_hex(chuid, sizeof(chuid), stderr, true);
+    fprintf(stderr, "Setting the %s to: ", type == CHUID ? "CHUID" : "CCC");
+    dump_hex(obj, len, stderr, true);
   }
-  if((res = ykpiv_save_object(state, YKPIV_OBJ_CHUID, chuid, sizeof(chuid))) != YKPIV_OK) {
+  if((res = ykpiv_save_object(state, id, obj, len)) != YKPIV_OK) {
     fprintf(stderr, "Failed communicating with device: %s\n", ykpiv_strerror(res));
     return false;
   }
@@ -1668,6 +1695,7 @@ int main(int argc, char *argv[]) {
       case action_arg_verifyMINUS_pin:
       case action_arg_setMINUS_mgmMINUS_key:
       case action_arg_setMINUS_chuid:
+      case action_arg_setMINUS_ccc:
       case action_arg_version:
       case action_arg_reset:
       case action_arg_status:
@@ -1698,6 +1726,7 @@ int main(int argc, char *argv[]) {
       case action_arg_importMINUS_key:
       case action_arg_importMINUS_certificate:
       case action_arg_setMINUS_chuid:
+      case action_arg_setMINUS_ccc:
       case action_arg_deleteMINUS_certificate:
         if(verbosity) {
           fprintf(stderr, "Authenticating since action '%s' needs that.\n", cmdline_parser_action_values[action]);
@@ -1838,8 +1867,9 @@ int main(int argc, char *argv[]) {
           fprintf(stderr, "Successfully imported a new certificate.\n");
         }
         break;
+      case action_arg_setMINUS_ccc:
       case action_arg_setMINUS_chuid:
-        if(set_chuid(state, verbosity) == false) {
+        if(set_dataobject(state, verbosity, action == action_arg_setMINUS_chuid ? CHUID : CCC) == false) {
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully set new CHUID.\n");
