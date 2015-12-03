@@ -273,17 +273,77 @@ int key_to_object_id(int key) {
   int object;
 
   switch(key) {
-  case 0x9a:
+  case YKPIV_KEY_AUTHENTICATION:
     object = YKPIV_OBJ_AUTHENTICATION;
     break;
-  case 0x9c:
+  case YKPIV_KEY_CARDMGM:
     object = YKPIV_OBJ_SIGNATURE;
     break;
-  case 0x9d:
+  case YKPIV_KEY_KEYMGM:
     object = YKPIV_OBJ_KEY_MANAGEMENT;
     break;
-  case 0x9e:
+  case YKPIV_KEY_CARDAUTH:
     object = YKPIV_OBJ_CARD_AUTH;
+    break;
+  case YKPIV_KEY_RETIRED1:
+    object = YKPIV_OBJ_RETIRED1;
+    break;
+  case YKPIV_KEY_RETIRED2:
+    object = YKPIV_OBJ_RETIRED2;
+    break;
+  case YKPIV_KEY_RETIRED3:
+    object = YKPIV_OBJ_RETIRED3;
+    break;
+  case YKPIV_KEY_RETIRED4:
+    object = YKPIV_OBJ_RETIRED4;
+    break;
+  case YKPIV_KEY_RETIRED5:
+    object = YKPIV_OBJ_RETIRED5;
+    break;
+  case YKPIV_KEY_RETIRED6:
+    object = YKPIV_OBJ_RETIRED6;
+    break;
+  case YKPIV_KEY_RETIRED7:
+    object = YKPIV_OBJ_RETIRED7;
+    break;
+  case YKPIV_KEY_RETIRED8:
+    object = YKPIV_OBJ_RETIRED8;
+    break;
+  case YKPIV_KEY_RETIRED9:
+    object = YKPIV_OBJ_RETIRED9;
+    break;
+  case YKPIV_KEY_RETIRED10:
+    object = YKPIV_OBJ_RETIRED10;
+    break;
+  case YKPIV_KEY_RETIRED11:
+    object = YKPIV_OBJ_RETIRED11;
+    break;
+  case YKPIV_KEY_RETIRED12:
+    object = YKPIV_OBJ_RETIRED12;
+    break;
+  case YKPIV_KEY_RETIRED13:
+    object = YKPIV_OBJ_RETIRED13;
+    break;
+  case YKPIV_KEY_RETIRED14:
+    object = YKPIV_OBJ_RETIRED14;
+    break;
+  case YKPIV_KEY_RETIRED15:
+    object = YKPIV_OBJ_RETIRED15;
+    break;
+  case YKPIV_KEY_RETIRED16:
+    object = YKPIV_OBJ_RETIRED16;
+    break;
+  case YKPIV_KEY_RETIRED17:
+    object = YKPIV_OBJ_RETIRED17;
+    break;
+  case YKPIV_KEY_RETIRED18:
+    object = YKPIV_OBJ_RETIRED18;
+    break;
+  case YKPIV_KEY_RETIRED19:
+    object = YKPIV_OBJ_RETIRED19;
+    break;
+  case YKPIV_KEY_RETIRED20:
+    object = YKPIV_OBJ_RETIRED20;
     break;
   default:
     object = 0;
