@@ -493,15 +493,15 @@ CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
   case CKA_ISSUER:
     DBG("ISSUER TODO"); // Default empty
-    return CKR_FUNCTION_FAILED;
+    return CKR_ATTRIBUTE_TYPE_INVALID;
 
   case CKA_SERIAL_NUMBER:
     DBG("SERIAL NUMBER TODO"); // Default empty
-    return CKR_FUNCTION_FAILED;
+    return CKR_ATTRIBUTE_TYPE_INVALID;
 
   case CKA_SUBJECT:
     DBG("SUBJECT TODO"); // Required
-    return CKR_FUNCTION_FAILED;
+    return CKR_ATTRIBUTE_TYPE_INVALID;
 
   case CKA_ID:
     DBG("ID");
@@ -512,11 +512,11 @@ CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
   case CKA_START_DATE:
     DBG("START DATE TODO"); // Default empty
-    return CKR_FUNCTION_FAILED;
+    return CKR_ATTRIBUTE_TYPE_INVALID;
 
   case CKA_END_DATE:
     DBG("END DATE TODO"); // Default empty
-    return CKR_FUNCTION_FAILED;
+    return CKR_ATTRIBUTE_TYPE_INVALID;
 
   case CKA_MODIFIABLE:
     DBG("MODIFIABLE");
@@ -596,7 +596,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
   case CKA_SUBJECT:
     DBG("SUBJECT TODO"); // Default empty
-    return CKR_FUNCTION_FAILED;
+    return CKR_ATTRIBUTE_TYPE_INVALID;
 
   case CKA_ID:
     DBG("ID");
@@ -607,7 +607,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
   case CKA_SENSITIVE:
     DBG("SENSITIVE TODO"); // Default empty
-    return CKR_FUNCTION_FAILED;
+    return CKR_ATTRIBUTE_TYPE_INVALID;
 
   case CKA_DECRYPT:
     DBG("DECRYPT"); // Default empy
@@ -632,7 +632,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
   case CKA_SIGN_RECOVER:
     DBG("SIGN RECOVER TODO"); // Default empty
-    return CKR_FUNCTION_FAILED;
+    return CKR_ATTRIBUTE_TYPE_INVALID;
 
   case CKA_DERIVE:
     DBG("DERIVE"); // Default false
@@ -643,11 +643,11 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
   case CKA_START_DATE:
     DBG("START DATE TODO"); // Default empty
-    return CKR_FUNCTION_FAILED;
+    return CKR_ATTRIBUTE_TYPE_INVALID;
 
   case CKA_END_DATE:
     DBG("END DATE TODO"); // Default empty
-    return CKR_FUNCTION_FAILED;
+    return CKR_ATTRIBUTE_TYPE_INVALID;
 
   case CKA_MODULUS:
     DBG("MODULUS");
@@ -747,7 +747,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   /* case CKA_EXTRACTABLE: */
   case CKA_LOCAL:
     DBG("LOCAL TODO"); // Required
-    return CKR_FUNCTION_FAILED;
+    return CKR_ATTRIBUTE_TYPE_INVALID;
 
   /* case CKA_NEVER_EXTRACTABLE: */
   /*case CKA_ALWAYS_SENSITIVE:*/
@@ -838,7 +838,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
   case CKA_SUBJECT:
     DBG("SUBJECT TODO"); // Default empty
-    return CKR_FUNCTION_FAILED;
+    return CKR_ATTRIBUTE_TYPE_INVALID;
 
   case CKA_ID:
     DBG("ID");
@@ -877,11 +877,11 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
   case CKA_START_DATE:
     DBG("START DATE TODO"); // Default empty
-    return CKR_FUNCTION_FAILED;
+    return CKR_ATTRIBUTE_TYPE_INVALID;
 
   case CKA_END_DATE:
     DBG("END DATE TODO"); // Default empty
-    return CKR_FUNCTION_FAILED;
+    return CKR_ATTRIBUTE_TYPE_INVALID;
 
   case CKA_EC_POINT:
     DBG("EC_POINT");
@@ -969,7 +969,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
   case CKA_LOCAL:
     DBG("LOCAL TODO"); // Required
-    return CKR_FUNCTION_FAILED;
+    return CKR_ATTRIBUTE_TYPE_INVALID;
 
   case CKA_MODIFIABLE:
     DBG("MODIFIABLE");
