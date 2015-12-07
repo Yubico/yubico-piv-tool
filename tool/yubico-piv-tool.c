@@ -1204,7 +1204,7 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     FILE *output) {
   int object = get_object_id(slot);
   int slot_name;
-  unsigned char data[2048];
+  unsigned char data[3072];
   const unsigned char *ptr = data;
   unsigned long len = sizeof(data);
   int cert_len;
@@ -1314,7 +1314,7 @@ static bool status(ykpiv_state *state, enum enum_hash hash,
                    enum enum_slot slot,
                    const char *output_file_name) {
   const EVP_MD *md;
-  unsigned char chuid[2048];
+  unsigned char chuid[3072];
   long unsigned len = sizeof(chuid);
   int i;
   FILE *output_file = open_file(output_file_name, OUTPUT);
