@@ -1,5 +1,7 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
+* Version 1.2.1 (unreleased)
+
 * Version 1.2.0 (released 2015-12-07)
 
 ** On OSX use @loader_path instead of @executable_path for ykcs11.
