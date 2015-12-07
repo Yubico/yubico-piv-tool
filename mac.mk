@@ -27,6 +27,7 @@
 
 PACKAGE=yubico-piv-tool
 OPENSSLVERSION=1.0.1q
+CFLAGS="-mmacosx-version-min=10.6"
 
 all: usage mac
 
@@ -47,7 +48,7 @@ doit:
 		curl -L -O "https://www.openssl.org/source/openssl-$(OPENSSLVERSION).tar.gz" && \
 	tar xfz openssl-$(OPENSSLVERSION).tar.gz && \
 	cd openssl-$(OPENSSLVERSION) && \
-	./Configure darwin64-x86_64-cc shared no-ssl2 no-ssl3 no-engines --prefix=$(PWD)/tmp/root && \
+	./Configure darwin64-x86_64-cc shared no-ssl2 no-ssl3 no-engines --prefix=$(PWD)/tmp/root $(CFLAGS) && \
 	make all install_sw && \
 	cp LICENSE $(PWD)/tmp$(ARCH)/root/licenses/openssl.txt && \
 	rm -rf $(PWD)/tmp/root/ssl/ && \
@@ -60,7 +61,7 @@ doit:
 	cp ../$(PACKAGE)-$(VERSION).tar.gz . && \
 	tar xfz $(PACKAGE)-$(VERSION).tar.gz && \
 	cd $(PACKAGE)-$(VERSION)/ && \
-	PKG_CONFIG_PATH=$(PWD)/tmp/root/lib/pkgconfig ./configure --prefix=$(PWD)/tmp/root && \
+	CFLAGS=$(CFLAGS) PKG_CONFIG_PATH=$(PWD)/tmp/root/lib/pkgconfig ./configure --prefix=$(PWD)/tmp/root && \
 	make install $(CHECK) && \
 	chmod u+w $(PWD)/tmp/root/lib/libcrypto.1.0.0.dylib && \
 	install_name_tool -id @loader_path/libcrypto.1.0.0.dylib $(PWD)/tmp/root/lib/libcrypto.1.0.0.dylib && \
