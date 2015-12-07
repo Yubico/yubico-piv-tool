@@ -557,6 +557,11 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
     int object = get_object_id(slot);
     ykpiv_rc res;
 
+    if(4 + cert_len + 5 > 3072) { /* 4 is prefix size, 5 is postfix size */
+      fprintf(stderr, "Certificate is to large to fit in buffer.\n");
+      goto import_cert_out;
+    }
+
     *certptr++ = 0x70;
     certptr += set_length(certptr, cert_len);
     if (compress) {
