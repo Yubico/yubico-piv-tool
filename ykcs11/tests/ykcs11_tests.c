@@ -65,6 +65,7 @@ static void test_lib_info() {
   asrt(strcmp(info.libraryDescription, YKCS11_DESCRIPTION), 0, "LIB_DESC");
 }
 
+#ifdef HW_TESTS
 static void test_initalize() {
 
   asrt(funcs->C_Initialize(NULL), CKR_OK, "INITIALIZE");
@@ -594,6 +595,7 @@ static void test_import_and_sign_all_10_RSA() {
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
 
 }
+#endif
 
 int main(void) {
 
