@@ -1013,7 +1013,7 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
   }
   memcpy(indata + 8, new_pin, new_len);
   if(new_len < 8) {
-    memset(indata + 8 + new_len, 0xff, 16 - new_len);
+    memset(indata + 8 + new_len, 0xff, 8 - new_len);
   }
   if(ykpiv_transfer_data(state, templ, indata, sizeof(indata), data, &recv_len, &sw) != YKPIV_OK) {
     return false;
