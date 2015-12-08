@@ -1,6 +1,8 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
-* Version 1.2.1 (unreleased)
+* Version 1.2.1 (released 2015-12-08)
+
+** Fix issue with big certificates and status.
 
 * Version 1.2.0 (released 2015-12-07)
 
