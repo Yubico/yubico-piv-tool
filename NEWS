@@ -1,5 +1,7 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
+* Version 1.2.3 (unreleased)
+
 * Version 1.2.2 (released 2015-12-08)
 
 ** Fix old buffer overflow in change-pin functionality.
