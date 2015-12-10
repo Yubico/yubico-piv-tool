@@ -969,17 +969,16 @@ static bool verify_pin(ykpiv_state *state, const char *pin) {
  * since they're very similar in what data they use. */
 static bool change_pin(ykpiv_state *state, enum enum_action action, const char *pin,
     const char *new_pin) {
-  unsigned char templ[] = {0, YKPIV_INS_CHANGE_REFERENCE, 0, 0x80};
-  unsigned char indata[0x10];
-  unsigned char data[0xff];
-  unsigned long recv_len = sizeof(data);
   char pinbuf[9] = {0};
   char new_pinbuf[9] = {0};
   const char *name = action == action_arg_changeMINUS_pin ? "pin" : "puk";
   const char *new_name = action == action_arg_changeMINUS_puk ? "new puk" : "new pin";
-  int sw;
+  int (*op)(ykpiv_state *state, const char * puk, size_t puk_len,
+            const char * new_pin, size_t new_pin_len, int *tries) = ykpiv_change_pin;
   size_t pin_len;
   size_t new_len;
+  int tries;
+  ykpiv_rc res;
 
   if(!pin) {
     if (!read_pw(name, pinbuf, sizeof(pinbuf), false)) {
@@ -1002,38 +1001,33 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
   }
 
   if(action == action_arg_unblockMINUS_pin) {
-    templ[1] = YKPIV_INS_RESET_RETRY;
+    op = ykpiv_unblock_pin;
   }
   else if(action == action_arg_changeMINUS_puk) {
-    templ[3] = 0x81;
+    op = ykpiv_change_puk;
   }
-  memcpy(indata, pin, pin_len);
-  if(pin_len < 8) {
-    memset(indata + pin_len, 0xff, 8 - pin_len);
-  }
-  memcpy(indata + 8, new_pin, new_len);
-  if(new_len < 8) {
-    memset(indata + 8 + new_len, 0xff, 8 - new_len);
-  }
-  if(ykpiv_transfer_data(state, templ, indata, sizeof(indata), data, &recv_len, &sw) != YKPIV_OK) {
-    return false;
-  } else if(sw != 0x9000) {
-    if((sw >> 8) == 0x63) {
-      int tries = sw & 0xf;
+  res = op(state, pin, pin_len, new_pin, new_len, &tries);
+  switch (res) {
+    case YKPIV_OK:
+      return true;
+
+    case YKPIV_WRONG_PIN:
       fprintf(stderr, "Failed verifying %s code, now %d tries left before blocked.\n",
-          name, tries);
-    } else if(sw == 0x6983) {
+              name, tries);
+      return false;
+
+    case YKPIV_PIN_LOCKED:
       if(action == action_arg_changeMINUS_pin) {
         fprintf(stderr, "The pin code is blocked, use the unblock-pin action to unblock it.\n");
       } else {
         fprintf(stderr, "The puk code is blocked, you will have to reinitialize the application.\n");
       }
-    } else {
-      fprintf(stderr, "Failed changing/unblocking code, error: %x\n", sw);
-    }
-    return false;
+      return false;
+
+    default:
+      fprintf(stderr, "Failed changing/unblocking code, error: %x\n", res);
+      return false;
   }
-  return true;
 }
 
 static bool delete_certificate(ykpiv_state *state, enum enum_slot slot) {

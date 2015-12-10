@@ -716,6 +716,68 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
   }
 }
 
+#define CHREF_ACT_CHANGE_PIN 0
+#define CHREF_ACT_UNBLOCK_PIN 1
+#define CHREF_ACT_CHANGE_PUK 2
+
+static ykpiv_rc _change_pin_internal(ykpiv_state *state, int action, const char * current_pin, size_t current_pin_len, const char * new_pin, size_t new_pin_len, int *tries) {
+  int sw;
+  unsigned char templ[] = {0, YKPIV_INS_CHANGE_REFERENCE, 0, 0x80};
+  unsigned char indata[0x10];
+  unsigned char data[0xff];
+  unsigned long recv_len = sizeof(data);
+  ykpiv_rc res;
+  if (current_pin_len > 8) {
+    return YKPIV_SIZE_ERROR;
+  }
+  if (new_pin_len > 8) {
+    return YKPIV_SIZE_ERROR;
+  }
+  if(action == CHREF_ACT_UNBLOCK_PIN) {
+    templ[1] = YKPIV_INS_RESET_RETRY;
+  }
+  else if(action == CHREF_ACT_CHANGE_PUK) {
+    templ[3] = 0x81;
+  }
+  memcpy(indata, current_pin, current_pin_len);
+  if(current_pin_len < 8) {
+    memset(indata + current_pin_len, 0xff, 8 - current_pin_len);
+  }
+  memcpy(indata + 8, new_pin, new_pin_len);
+  if(new_pin_len < 8) {
+    memset(indata + 8 + new_pin_len, 0xff, 8 - new_pin_len);
+  }
+  res = ykpiv_transfer_data(state, templ, indata, sizeof(indata), data, &recv_len, &sw);
+  if(res != YKPIV_OK) {
+    return res;
+  } else if(sw != 0x9000) {
+    if((sw >> 8) == 0x63) {
+      *tries = sw & 0xf;
+      return YKPIV_WRONG_PIN;
+    } else if(sw == 0x6983) {
+      return YKPIV_PIN_LOCKED;
+    } else {
+      if(state->verbose) {
+        fprintf(stderr, "Failed changing pin, token response code: %x.\n", sw);
+      }
+      return YKPIV_GENERIC_ERROR;
+    }
+  }
+  return YKPIV_OK;
+}
+
+ykpiv_rc ykpiv_change_pin(ykpiv_state *state, const char * current_pin, size_t current_pin_len, const char * new_pin, size_t new_pin_len, int *tries) {
+  return _change_pin_internal(state, CHREF_ACT_CHANGE_PIN, current_pin, current_pin_len, new_pin, new_pin_len, tries);
+}
+
+ykpiv_rc ykpiv_change_puk(ykpiv_state *state, const char * current_puk, size_t current_puk_len, const char * new_puk, size_t new_puk_len, int *tries) {
+  return _change_pin_internal(state, CHREF_ACT_CHANGE_PUK, current_puk, current_puk_len, new_puk, new_puk_len, tries);
+}
+
+ykpiv_rc ykpiv_unblock_pin(ykpiv_state *state, const char * puk, size_t puk_len, const char * new_pin, size_t new_pin_len, int *tries) {
+  return _change_pin_internal(state, CHREF_ACT_CHANGE_PUK, puk, puk_len, new_pin, new_pin_len, tries);
+}
+
 ykpiv_rc ykpiv_fetch_object(ykpiv_state *state, int object_id,
     unsigned char *data, unsigned long *len) {
   int sw;

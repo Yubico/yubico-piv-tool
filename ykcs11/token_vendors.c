@@ -290,6 +290,7 @@ token_vendor_t get_token_vendor(vendor_id_t vid) {
     v.token_import_cert         = COMMON_token_import_cert;
     v.token_import_private_key  = COMMON_token_import_private_key;
     v.token_delete_cert         = COMMON_token_delete_cert;
+    v.token_change_pin          = YUBICO_token_change_pin;
     break;
 
   case UNKNOWN:

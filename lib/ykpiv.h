@@ -57,6 +57,7 @@ extern "C"
     YKPIV_WRONG_PIN = -10,
     YKPIV_INVALID_OBJECT = -11,
     YKPIV_ALGORITHM_ERROR = -12,
+    YKPIV_PIN_LOCKED = -13,
   } ykpiv_rc;
 
   const char *ykpiv_strerror(ykpiv_rc err);
@@ -85,6 +86,15 @@ extern "C"
                                unsigned char algorithm, unsigned char key);
   ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len);
   ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries);
+  ykpiv_rc ykpiv_change_pin(ykpiv_state *state, const char * current_pin, size_t current_pin_len,
+                            const char * new_pin, size_t new_pin_len,
+                            int *tries);
+  ykpiv_rc ykpiv_change_puk(ykpiv_state *state, const char * current_puk, size_t current_puk_len,
+                            const char * new_puk, size_t new_puk_len,
+                            int *tries);
+  ykpiv_rc ykpiv_unblock_pin(ykpiv_state *state, const char * puk, size_t puk_len,
+                             const char * new_pin, size_t new_pin_len,
+                             int *tries);
   ykpiv_rc ykpiv_fetch_object(ykpiv_state *state, int object_id,
                               unsigned char *data, unsigned long *len);
   ykpiv_rc ykpiv_set_mgmkey2(ykpiv_state *state, const unsigned char *new_key,
