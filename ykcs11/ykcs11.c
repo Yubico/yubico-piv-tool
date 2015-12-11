@@ -421,7 +421,36 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetPIN)(
 )
 {
   DIN;
-  DBG("TODO!!!");
+  CK_RV          rv;
+  token_vendor_t token;
+
+  if (piv_state == NULL) {
+    DBG("libykpiv is not initialized or already finalized");
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  if (session.handle == CK_INVALID_HANDLE) {
+    DBG("User called SetPIN on closed session");
+    return CKR_SESSION_CLOSED;
+  }
+
+  if (hSession != YKCS11_SESSION_ID) {
+    DBG("Unknown session %lu", hSession);
+    return CKR_SESSION_HANDLE_INVALID;
+  }
+
+  CK_USER_TYPE user_type = CKU_USER;
+  if (session.info.state == CKS_RW_SO_FUNCTIONS) {
+    user_type = CKU_SO;
+  }
+
+  token = get_token_vendor(session.slot->token->vid);
+  rv = token.token_change_pin(piv_state, user_type, pOldPin, ulOldLen, pNewPin, ulNewLen);
+  if (rv != CKR_OK) {
+    DBG("Pin change failed %lx", rv);
+    return rv;
+  }
+
   DOUT;
   return CKR_OK;
 }
@@ -979,6 +1008,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       DBG("Unable to store certificate data");
       return CKR_FUNCTION_FAILED;
     }
+    *phObject = cert_id;
 
     break;
 

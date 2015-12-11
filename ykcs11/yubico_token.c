@@ -334,3 +334,25 @@ CK_RV YUBICO_get_token_raw_certificate(ykpiv_state *state, piv_obj_id_t obj, CK_
 
   return CKR_OK;
 }
+
+CK_RV YUBICO_token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF8CHAR_PTR pOldPin, CK_ULONG ulOldLen, CK_UTF8CHAR_PTR pNewPin, CK_ULONG ulNewLen) {
+  int tries;
+  ykpiv_rc res;
+  if (user_type != CKU_USER) {
+    DBG("TODO implement other users pin change");
+    return CKR_FUNCTION_FAILED;
+  }
+  res = ykpiv_change_pin(state, pOldPin, ulOldLen, pNewPin, ulNewLen, &tries);
+  switch (res) {
+    case YKPIV_OK:
+      return CKR_OK;
+    case YKPIV_SIZE_ERROR:
+      return CKR_PIN_LEN_RANGE;
+    case YKPIV_WRONG_PIN:
+      return CKR_PIN_INCORRECT;
+    case YKPIV_PIN_LOCKED:
+      return CKR_PIN_LOCKED;
+    default:
+      return CKR_FUNCTION_FAILED;
+  }
+}
