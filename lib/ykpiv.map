@@ -28,42 +28,42 @@
 YKPIV_0.1.0
 {
 global:
-	ykpiv_check_version;
-	ykpiv_strerror_name;
-	ykpiv_strerror;
-	ykpiv_init;
-	ykpiv_done;
-	ykpiv_connect;
-	ykpiv_disconnect;
-	ykpiv_transfer_data;
-	ykpiv_authenticate;
-	ykpiv_set_mgmkey;
-	ykpiv_sign_data;
-	ykpiv_get_version;
-	ykpiv_verify;
-	ykpiv_fetch_object;
-  ykpiv_save_object;
-	ykpiv_hex_decode;
+    ykpiv_check_version;
+    ykpiv_strerror_name;
+    ykpiv_strerror;
+    ykpiv_init;
+    ykpiv_done;
+    ykpiv_connect;
+    ykpiv_disconnect;
+    ykpiv_transfer_data;
+    ykpiv_authenticate;
+    ykpiv_set_mgmkey;
+    ykpiv_sign_data;
+    ykpiv_get_version;
+    ykpiv_verify;
+    ykpiv_fetch_object;
+    ykpiv_save_object;
+    ykpiv_hex_decode;
 
 local:
-	*;
+    *;
 };
 
 YKPIV_0.2.0
 {
 global:
-	ykpiv_decipher_data;
+    ykpiv_decipher_data;
 } YKPIV_0.1.0;
 
 YKPIV_1.1.0
 {
 global:
-	ykpiv_set_mgmkey2;
-	ykpiv_list_readers;
+    ykpiv_set_mgmkey2;
+    ykpiv_list_readers;
     ykpiv_import_private_key;
-} YKPIV_0.1.0;
+} YKPIV_0.2.0;
 
-YKPIV_1.2.1
+YKPIV_1.2.3
 {
 global:
     ykpiv_change_pin;
