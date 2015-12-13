@@ -1102,6 +1102,124 @@ read_cert_out:
   return ret;
 }
 
+static bool export_chuid(ykpiv_state *state, const char *output_file_name) {
+  unsigned char chuid[3072];
+  long unsigned chuid_len = sizeof(chuid);
+  FILE *output_file = open_file(output_file_name, OUTPUT);
+  bool ret = false;
+  BIO *bio, *b64;
+
+  if(!output_file) {
+    return false;
+  }
+
+  if(ykpiv_fetch_object(state, YKPIV_OBJ_CHUID, chuid, &chuid_len) != YKPIV_OK) {
+    fprintf(stderr, "Failed getting CHUID from card (set a CHUID first with -a set-chuid ?)\n");
+    goto export_chuid_out;
+  }
+
+  if(chuid[0] == 0x30) { // sanity check: FASC-N tag is 0x30
+    fprintf(output_file, YKPIV_CHUID_BEGIN);
+    fprintf(output_file, "\n");
+    b64 = BIO_new(BIO_f_base64());
+    bio = BIO_new_fp(output_file, BIO_NOCLOSE | BIO_FP_TEXT);
+    BIO_push(b64, bio);
+    BIO_write(b64, chuid, chuid_len);
+    BIO_flush(b64);
+    BIO_free_all(b64);
+    //fwrite(chuid, (size_t)chuid_len, 1, output_file);
+    fprintf(output_file, YKPIV_CHUID_END);
+    fprintf(output_file, "\n");
+    ret = true;
+  } else {
+    fprintf(stderr, "Failed parsing CHUID data.\n");
+  }
+
+export_chuid_out:
+  if(output_file != stdout) {
+      fclose(output_file);
+  }
+  return ret;
+}
+
+static bool import_chuid(ykpiv_state *state, const char *input_file_name) {
+  unsigned char chuid[YKPIV_CHUID_MAX];
+  unsigned char buf[YKPIV_BASE64_ENCODED_CHUID_MAX];  // base64 encoding. worst case is 4*(n/3) where n=sizeof(chuid), rounded up to multiple of 4
+  unsigned char c;
+  unsigned char *ptr = buf;
+  int bytes_read = 0;
+  long unsigned chuid_len = sizeof(chuid);
+  FILE *input_file = NULL;
+  bool ret = false;
+  BIO *bmem, *b64;
+  ykpiv_rc res;
+
+  input_file = open_file(input_file_name, INPUT);
+  if(!input_file) {
+    return false;
+  }
+
+  if(isatty(fileno(input_file))) {
+    fprintf(stderr, "Please paste the private key...\n");
+  }
+
+  // look for '-' in "-----BEGIN CHUID-----"
+  while(true) {
+      if(fread(&c, 1, 1, input_file) != 1) {
+        fprintf(stderr, "Failed locating CHUID header.\n");
+        fflush(stderr);
+        goto import_chuid_out;
+      }
+      if(c == '-') {
+        break;
+      }
+  }
+
+  // skip to end of "-----BEGIN CHUID-----"
+  fseek(input_file, sizeof(YKPIV_CHUID_BEGIN)-1, SEEK_CUR);
+
+  // copy until we find another '-' which will be the end footer "-----END CHUID-----"
+  ptr = buf;
+  while(true) {
+      if(fread(&c, 1, 1, input_file) != 1) {
+        fprintf(stderr, "Failed locating CHUID footer.\n");
+        goto import_chuid_out;
+      }
+      if(c == '-') {
+        break;
+      } else {
+        if(bytes_read < YKPIV_BASE64_ENCODED_CHUID_MAX-1) {
+          *ptr++ = c;
+          *ptr = '\0';
+          bytes_read++;
+        }
+      }
+  }
+
+  bmem = BIO_new_mem_buf(buf, -1);
+  b64 = BIO_new(BIO_f_base64());
+  //BIO_set_callback(b64, BIO_debug_callback);
+  bmem = BIO_push(b64, bmem);
+  BIO_set_flags(bmem, BIO_FLAGS_BASE64_NO_NL);
+  chuid_len = BIO_read(bmem, chuid, bytes_read);
+  BIO_flush(bmem);
+  BIO_free_all(bmem);
+
+  if((res = ykpiv_save_object(state, YKPIV_OBJ_CHUID, chuid, chuid_len)) != YKPIV_OK) {
+    fprintf(stderr, "Failed communicating with device: %s\n", ykpiv_strerror(res));
+    goto import_chuid_out;
+  } else {
+    ret = true;
+  }
+
+import_chuid_out:
+    if(input_file != stdin) {
+    fclose(input_file);
+  }
+
+  return ret;
+}
+
 static bool sign_file(ykpiv_state *state, const char *input, const char *output,
     const char *slot, enum enum_algorithm algorithm, enum enum_hash hash,
     int verbosity) {
@@ -1727,6 +1845,7 @@ int main(int argc, char *argv[]) {
       case action_arg_setMINUS_chuid:
       case action_arg_setMINUS_ccc:
       case action_arg_deleteMINUS_certificate:
+      case action_arg_importMINUS_chuid:
         if(verbosity) {
           fprintf(stderr, "Authenticating since action '%s' needs that.\n", cmdline_parser_action_values[action]);
         }
@@ -1872,6 +1991,20 @@ int main(int argc, char *argv[]) {
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully set new %s.\n", action == action_arg_setMINUS_chuid ? "CHUID" : "CCC");
+        }
+        break;
+      case action_arg_exportMINUS_chuid:
+        if(export_chuid(state, args_info.output_arg) == false) {
+            ret = EXIT_FAILURE;
+        } else {
+            fprintf(stderr, "Successfully exported CHUID.\n");
+        }
+        break;
+      case action_arg_importMINUS_chuid:
+        if(import_chuid(state, args_info.input_arg) == false) {
+            ret = EXIT_FAILURE;
+        } else {
+            fprintf(stderr, "Successfully imported CHUID.\n");
         }
         break;
       case action_arg_requestMINUS_certificate:
