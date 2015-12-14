@@ -32,7 +32,7 @@ AM_CPPFLAGS = $(OPENSSL_CFLAGS)
 AM_CPPFLAGS += -I$(top_srcdir)/lib -I$(top_builddir)/lib
 
 bin_PROGRAMS = yubico-piv-tool
-yubico_piv_tool_SOURCES = yubico-piv-tool.c yubico-piv-tool.h2m
+yubico_piv_tool_SOURCES = yubico-piv-tool.c yubico-piv-tool.h2m $(top_srcdir)/configure.ac
 yubico_piv_tool_LDADD = $(OPENSSL_LIBS) ../lib/libykpiv.la
 yubico_piv_tool_LDADD += libpiv_cmd.la libpiv_util.la
 
@@ -54,8 +54,7 @@ MAINTAINERCLEANFILES = $(BUILT_SOURCES)
 dist_man_MANS = yubico-piv-tool.1
 MAINTAINERCLEANFILES += $(dist_man_MANS)
 
-yubico-piv-tool.1: $(yubico_piv_tool_SOURCES) \
-		$(top_srcdir)/configure.ac
+yubico-piv-tool.1: $(yubico_piv_tool_SOURCES)
 	$(HELP2MAN) --no-info \
 		--name="Yubico PIV tool" \
 		--include=$(srcdir)/yubico-piv-tool.h2m \
