@@ -60,7 +60,7 @@ static void test_lib_info() {
   asrt(info.cryptokiVersion.minor, CRYPTOKI_VERSION_MIN, "CK_MIN");
 
   asrt(info.libraryVersion.major, YKCS11_VERSION_MAJOR, "LIB_MAJ");
-  asrt(info.libraryVersion.minor, ((YKCS11_VERSION_MINOR * 100) + YKCS11_VERSION_PATCH ), "LIB_MIN");
+  asrt(info.libraryVersion.minor, ((YKCS11_VERSION_MINOR * 10) + YKCS11_VERSION_PATCH ), "LIB_MIN");
 
   asrt(strcmp(info.libraryDescription, YKCS11_DESCRIPTION), 0, "LIB_DESC");
 }
