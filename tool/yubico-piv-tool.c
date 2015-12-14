@@ -1644,6 +1644,82 @@ static bool list_readers(ykpiv_state *state) {
   return true;
 }
 
+static bool write_object(ykpiv_state *state, int id,
+    const char *input_file_name, int verbosity) {
+  bool ret = false;
+  FILE *input_file = NULL;
+  unsigned char data[3072];
+  char raw_data[3072 * 2];
+  size_t len = sizeof(data);
+  size_t raw_len = sizeof(raw_data);
+  ykpiv_rc res;
+
+  input_file = open_file(input_file_name, INPUT);
+  if(!input_file) {
+    return false;
+  }
+
+  if(isatty(fileno(input_file))) {
+    fprintf(stderr, "Please paste the data...\n");
+  }
+
+  raw_len = fread(raw_data, 1, raw_len, input_file);
+  if(raw_len == 0) {
+    fprintf(stderr, "Failed reading data\n");
+    goto write_out;
+  }
+  if(raw_data[raw_len - 1] == '\n') {
+    raw_len -= 1;
+  }
+
+  if(ykpiv_hex_decode(raw_data, raw_len, data, &len) != YKPIV_OK) {
+    fprintf(stderr, "Failed decoding data\n");
+    goto write_out;
+  }
+
+  if(verbosity) {
+    fprintf(stderr, "Writing %lu bytes of data to object %x.\n", len, id);
+  }
+
+  if((res = ykpiv_save_object(state, id, data, len)) != YKPIV_OK) {
+    fprintf(stderr, "Failed writing data to device: %s\n", ykpiv_strerror(res));
+  } else {
+    ret = true;
+  }
+
+write_out:
+  if(input_file != stdin) {
+    fclose(input_file);
+  }
+  return ret;
+}
+
+static bool read_object(ykpiv_state *state, int id, const char *output_file_name) {
+  FILE *output_file = NULL;
+  unsigned char data[3072];
+  size_t len = sizeof(data);
+  bool ret = false;
+
+  output_file = open_file(output_file_name, OUTPUT);
+  if(!output_file) {
+    return false;
+  }
+
+  if(ykpiv_fetch_object(state, id, data, &len) != YKPIV_OK) {
+    fprintf(stderr, "Failed fetching object.\n");
+    goto read_out;
+  }
+
+  dump_hex(data, len, output_file, false);
+  ret = true;
+
+read_out:
+  if(output_file != stdout) {
+    fclose(output_file);
+  }
+  return ret;
+}
+
 int main(int argc, char *argv[]) {
   struct gengetopt_args_info args_info;
   ykpiv_state *state;
@@ -1688,6 +1764,14 @@ int main(int argc, char *argv[]) {
           return EXIT_FAILURE;
         }
         break;
+      case action_arg_writeMINUS_object:
+      case action_arg_readMINUS_object:
+        if(!args_info.id_given) {
+          fprintf(stderr, "The '%s' action needs the --id argument.\n",
+              cmdline_parser_action_values[action]);
+          return EXIT_FAILURE;
+        }
+        break;
       case action_arg_changeMINUS_pin:
       case action_arg_changeMINUS_puk:
       case action_arg_unblockMINUS_pin:
@@ -1727,6 +1811,7 @@ int main(int argc, char *argv[]) {
       case action_arg_setMINUS_chuid:
       case action_arg_setMINUS_ccc:
       case action_arg_deleteMINUS_certificate:
+      case action_arg_writeMINUS_object:
         if(verbosity) {
           fprintf(stderr, "Authenticating since action '%s' needs that.\n", cmdline_parser_action_values[action]);
         }
@@ -1745,6 +1830,7 @@ int main(int argc, char *argv[]) {
       case action_arg_testMINUS_signature:
       case action_arg_testMINUS_decipher:
       case action_arg_listMINUS_readers:
+      case action_arg_readMINUS_object:
       case action__NULL:
       default:
         if(verbosity) {
@@ -1943,6 +2029,15 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_listMINUS_readers:
         if(list_readers(state) == false) {
+          ret = EXIT_FAILURE;
+        }
+      case action_arg_writeMINUS_object:
+        if(write_object(state, args_info.id_arg, args_info.input_arg, verbosity) == false) {
+          ret = EXIT_FAILURE;
+        }
+        break;
+      case action_arg_readMINUS_object:
+        if(read_object(state, args_info.id_arg, args_info.output_arg) == false) {
           ret = EXIT_FAILURE;
         }
         break;

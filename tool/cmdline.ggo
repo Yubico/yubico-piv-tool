@@ -32,7 +32,8 @@ option "action" a "Action to take" values="version","generate","set-mgm-key",
        "reset","pin-retries","import-key","import-certificate","set-chuid",
        "request-certificate","verify-pin","change-pin","change-puk","unblock-pin",
        "selfsign-certificate","delete-certificate","read-certificate","status",
-       "test-signature","test-decipher","list-readers","set-ccc" enum multiple
+       "test-signature","test-decipher","list-readers","set-ccc","write-object",
+       "read-object" enum multiple
 text   "
        Multiple actions may be given at once and will be executed in order
        for example --action=verify-pin --action=request-certificate\n"
@@ -60,4 +61,5 @@ option "pin" P "Pin/puk code for verification" string optional
 option "new-pin" N "New pin/puk code for changing" string optional dependon="pin"
 option "pin-policy" - "Set pin policy for action generate or import-key" values="never","once","always" enum optional
 option "touch-policy" - "Set touch policy for action generate, import-key or set-mgm-key" values="never","always" enum optional
+option "id" - "Id of object for write/get" int optional
 option "sign" - "Sign data" flag off hidden
