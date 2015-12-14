@@ -60,13 +60,18 @@ YKPIV_1.1.0
 global:
     ykpiv_set_mgmkey2;
     ykpiv_list_readers;
-    ykpiv_import_private_key;
 } YKPIV_0.2.0;
 
-YKPIV_1.2.3
+YKPIV_1.2.0
+{
+global:
+    ykpiv_import_private_key;
+} YKPIV_1.1.0;
+
+YKPIV_1.3.0
 {
 global:
     ykpiv_change_pin;
     ykpiv_change_puk;
     ykpiv_unblock_pin;
-} YKPIV_1.1.0;
+} YKPIV_1.2.0;
