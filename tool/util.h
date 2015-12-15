@@ -31,6 +31,8 @@
 #ifndef YUBICO_PIV_TOOL_INTERNAL_H
 #define YUBICO_PIV_TOOL_INTERNAL_H
 
+#include <stdbool.h>
+
 #include <openssl/x509.h>
 
 #include "cmdline.h"
