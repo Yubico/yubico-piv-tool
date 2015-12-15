@@ -1840,7 +1840,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   DBG("Sending %lu bytes to sign", ulDataLen);
 #if YKCS11_DBG == 1
-  dump_hex(pData, ulDataLen, stderr, CK_TRUE);
+  dump_data(pData, ulDataLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
   if (is_hashed_mechanism(op_info.mechanism.mechanism) == CK_TRUE) {
@@ -1882,7 +1882,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   DBG("Using key %lx", op_info.op.sign.key_id);
   DBG("After padding and transformation there are %lu bytes", op_info.buf_len);
 #if YKCS11_DBG == 1
-  dump_hex(op_info.buf, op_info.buf_len, stderr, CK_TRUE);
+  dump_data(op_info.buf, op_info.buf_len, stderr, CK_TRUE, format_arg_hex);
 #endif
 
   *pulSignatureLen = sizeof(op_info.buf);
@@ -1903,7 +1903,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   DBG("Got %lu bytes back", *pulSignatureLen);
 #if YKCS11_DBG == 1
-  dump_hex(pSignature, *pulSignatureLen, stderr, CK_TRUE);
+  dump_data(pSignature, *pulSignatureLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
   if (!is_RSA_mechanism(op_info.mechanism.mechanism)) {
@@ -1913,7 +1913,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
     DBG("After removing DER encoding %lu", *pulSignatureLen);
 #if YKCS11_DBG == 1
-    dump_hex(pSignature, *pulSignatureLen, stderr, CK_TRUE);
+    dump_data(pSignature, *pulSignatureLen, stderr, CK_TRUE, format_arg_hex);
 #endif
   }
 

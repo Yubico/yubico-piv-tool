@@ -218,10 +218,6 @@ void dump_data(const unsigned char *buf, unsigned int len, FILE *output, bool sp
   }
 }
 
-void dump_hex(const unsigned char *buf, unsigned int len, FILE *output, bool space) {
-  dump_data(buf, len, output, space, format_arg_hex);
-}
-
 int get_length(const unsigned char *buffer, int *len) {
   if(buffer[0] < 0x81) {
     *len = buffer[0];

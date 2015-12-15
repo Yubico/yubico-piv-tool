@@ -631,7 +631,7 @@ static bool set_dataobject(ykpiv_state *state, int verbose, int type) {
   }
   if(verbose) {
     fprintf(stderr, "Setting the %s to: ", type == CHUID ? "CHUID" : "CCC");
-    dump_hex(obj, len, stderr, true);
+    dump_data(obj, len, stderr, true, format_arg_hex);
   }
   if((res = ykpiv_save_object(state, id, obj, len)) != YKPIV_OK) {
     fprintf(stderr, "Failed communicating with device: %s\n", ykpiv_strerror(res));
@@ -1157,7 +1157,7 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
 
     if(verbosity) {
       fprintf(stderr, "file hashed as: ");
-      dump_hex(hashed, hash_len, stderr, true);
+      dump_data(hashed, hash_len, stderr, true, format_arg_hex);
     }
     EVP_MD_CTX_destroy(mdctx);
   }
@@ -1176,7 +1176,7 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
 
     if(verbosity) {
       fprintf(stderr, "file signed as: ");
-      dump_hex(buf, len, stderr, true);
+      dump_data(buf, len, stderr, true, format_arg_hex);
     }
     fwrite(buf, 1, len, output_file);
     ret = true;
@@ -1276,7 +1276,7 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     fprintf(output, "\n");
     X509_digest(x509, md, data, &md_len);
     fprintf(output, "\tFingerprint:\t");
-    dump_hex(data, md_len, output, false);
+    dump_data(data, md_len, output, false, format_arg_hex);
 
     bio = BIO_new_fp(output, BIO_NOCLOSE | BIO_FP_TEXT);
     not_before = X509_get_notBefore(x509);
@@ -1325,7 +1325,7 @@ static bool status(ykpiv_state *state, enum enum_hash hash,
   if(ykpiv_fetch_object(state, YKPIV_OBJ_CHUID, chuid, &len) != YKPIV_OK) {
     fprintf(output_file, "No data available\n");
   } else {
-    dump_hex(chuid, len, output_file, false);
+    dump_data(chuid, len, output_file, false, format_arg_hex);
   }
 
   if (slot == slot__NULL)
@@ -1405,7 +1405,7 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
     EVP_DigestFinal_ex(mdctx, data, &data_len);
     if(verbose) {
       fprintf(stderr, "Test data hashes as: ");
-      dump_hex(data, data_len, stderr, true);
+      dump_data(data, data_len, stderr, true, format_arg_hex);
     }
   }
 
@@ -1561,9 +1561,9 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
       if(len == sizeof(secret)) {
         if(verbose) {
           fprintf(stderr, "Generated nonce: ");
-          dump_hex(secret, sizeof(secret), stderr, true);
+          dump_data(secret, sizeof(secret), stderr, true, format_arg_hex);
           fprintf(stderr, "Decrypted nonce: ");
-          dump_hex(secret2, sizeof(secret2), stderr, true);
+          dump_data(secret2, sizeof(secret2), stderr, true, format_arg_hex);
         }
         if(memcmp(secret, secret2, sizeof(secret)) == 0) {
           fprintf(stderr, "Successfully performed RSA decryption!\n");
@@ -1603,9 +1603,9 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
       }
       if(verbose) {
         fprintf(stderr, "ECDH host generated: ");
-        dump_hex(secret, len, stderr, true);
+        dump_data(secret, len, stderr, true, format_arg_hex);
         fprintf(stderr, "ECDH card generated: ");
-        dump_hex(secret2, len, stderr, true);
+        dump_data(secret2, len, stderr, true, format_arg_hex);
       }
       if(memcmp(secret, secret2, key_len) == 0) {
         fprintf(stderr, "Successfully performed ECDH exchange with card.\n");
