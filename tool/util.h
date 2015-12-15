@@ -38,6 +38,8 @@
 #define INPUT 1
 #define OUTPUT 2
 
+size_t read_data(unsigned char*, size_t, FILE*, enum enum_format);
+void dump_data(unsigned const char*, unsigned int, FILE*, bool, enum enum_format);
 void dump_hex(unsigned const char*, unsigned int, FILE*, bool);
 int set_length(unsigned char*, int);
 int get_length(const unsigned char*, int*);

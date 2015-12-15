@@ -1645,13 +1645,11 @@ static bool list_readers(ykpiv_state *state) {
 }
 
 static bool write_object(ykpiv_state *state, int id,
-    const char *input_file_name, int verbosity) {
+    const char *input_file_name, int verbosity, enum enum_format format) {
   bool ret = false;
   FILE *input_file = NULL;
   unsigned char data[3072];
-  char raw_data[3072 * 2];
   size_t len = sizeof(data);
-  size_t raw_len = sizeof(raw_data);
   ykpiv_rc res;
 
   input_file = open_file(input_file_name, INPUT);
@@ -1663,17 +1661,9 @@ static bool write_object(ykpiv_state *state, int id,
     fprintf(stderr, "Please paste the data...\n");
   }
 
-  raw_len = fread(raw_data, 1, raw_len, input_file);
-  if(raw_len == 0) {
+  len = read_data(data, len, input_file, format);
+  if(len == 0) {
     fprintf(stderr, "Failed reading data\n");
-    goto write_out;
-  }
-  if(raw_data[raw_len - 1] == '\n') {
-    raw_len -= 1;
-  }
-
-  if(ykpiv_hex_decode(raw_data, raw_len, data, &len) != YKPIV_OK) {
-    fprintf(stderr, "Failed decoding data\n");
     goto write_out;
   }
 
@@ -1694,7 +1684,8 @@ write_out:
   return ret;
 }
 
-static bool read_object(ykpiv_state *state, int id, const char *output_file_name) {
+static bool read_object(ykpiv_state *state, int id, const char *output_file_name,
+    enum enum_format format) {
   FILE *output_file = NULL;
   unsigned char data[3072];
   size_t len = sizeof(data);
@@ -1710,7 +1701,7 @@ static bool read_object(ykpiv_state *state, int id, const char *output_file_name
     goto read_out;
   }
 
-  dump_hex(data, len, output_file, false);
+  dump_data(data, len, output_file, false, format);
   ret = true;
 
 read_out:
@@ -2032,12 +2023,14 @@ int main(int argc, char *argv[]) {
           ret = EXIT_FAILURE;
         }
       case action_arg_writeMINUS_object:
-        if(write_object(state, args_info.id_arg, args_info.input_arg, verbosity) == false) {
+        if(write_object(state, args_info.id_arg, args_info.input_arg, verbosity,
+              args_info.format_arg) == false) {
           ret = EXIT_FAILURE;
         }
         break;
       case action_arg_readMINUS_object:
-        if(read_object(state, args_info.id_arg, args_info.output_arg) == false) {
+        if(read_object(state, args_info.id_arg, args_info.output_arg,
+              args_info.format_arg) == false) {
           ret = EXIT_FAILURE;
         }
         break;

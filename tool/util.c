@@ -148,12 +148,78 @@ parse_err:
   return NULL;
 }
 
-void dump_hex(const unsigned char *buf, unsigned int len, FILE *output, bool space) {
-  unsigned int i;
-  for (i = 0; i < len; i++) {
-    fprintf(output, "%02x%s", buf[i], space == true ? " " : "");
+size_t read_data(unsigned char *buf, size_t len, FILE* input, enum enum_format format) {
+  char raw_buf[3072 * 2];
+  size_t raw_len = sizeof(raw_buf);
+  raw_len = fread(raw_buf, 1, raw_len, input);
+  switch(format) {
+    case format_arg_hex:
+      if(raw_buf[raw_len - 1] == '\n') {
+        raw_len -= 1;
+      }
+      if(ykpiv_hex_decode(raw_buf, raw_len, buf, &len) != YKPIV_OK) {
+        return 0;
+      }
+      return len;
+    case format_arg_base64:
+      {
+        int read;
+        BIO *b64 = BIO_new(BIO_f_base64());
+        BIO *bio = BIO_new_mem_buf(raw_buf, raw_len);
+        BIO_push(b64, bio);
+        read = BIO_read(b64, buf, len);
+        BIO_free_all(b64);
+        if(read <= 0) {
+          return 0;
+        } else {
+          return (size_t)read;
+        }
+      }
+      break;
+    case format_arg_binary:
+      if(raw_len > len) {
+        return 0;
+      }
+      memcpy(buf, raw_buf, raw_len);
+      return raw_len;
+    case format__NULL:
+    default:
+      return 0;
   }
-  fprintf(output, "\n");
+}
+
+void dump_data(const unsigned char *buf, unsigned int len, FILE *output, bool space, enum enum_format format) {
+  switch(format) {
+    case format_arg_hex:
+      {
+        unsigned int i;
+        for (i = 0; i < len; i++) {
+          fprintf(output, "%02x%s", buf[i], space == true ? " " : "");
+        }
+        fprintf(output, "\n");
+      }
+      return;
+    case format_arg_base64:
+      {
+        BIO *b64 = BIO_new(BIO_f_base64());
+        BIO *bio = BIO_new_fp(output, BIO_NOCLOSE);
+        BIO_push(b64, bio);
+        BIO_write(b64, buf, (int)len);
+        BIO_flush(b64);
+        BIO_free_all(b64);
+      }
+      return;
+    case format_arg_binary:
+      fwrite(buf, 1, len, output);
+      return;
+    case format__NULL:
+    default:
+      return;
+  }
+}
+
+void dump_hex(const unsigned char *buf, unsigned int len, FILE *output, bool space) {
+  dump_data(buf, len, output, space, format_arg_hex);
 }
 
 int get_length(const unsigned char *buffer, int *len) {
