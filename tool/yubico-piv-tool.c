@@ -1688,7 +1688,7 @@ static bool read_object(ykpiv_state *state, int id, const char *output_file_name
     enum enum_format format) {
   FILE *output_file = NULL;
   unsigned char data[3072];
-  size_t len = sizeof(data);
+  unsigned long len = sizeof(data);
   bool ret = false;
 
   output_file = open_file(output_file_name, OUTPUT);
