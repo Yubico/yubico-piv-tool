@@ -192,11 +192,17 @@ void dump_data(const unsigned char *buf, unsigned int len, FILE *output, bool sp
   switch(format) {
     case format_arg_hex:
       {
+        char tmp[3072 * 3 + 1];
         unsigned int i;
-        for (i = 0; i < len; i++) {
-          fprintf(output, "%02x%s", buf[i], space == true ? " " : "");
+        int step = 2;
+        if(space) step += 1;
+        if(len > 3072) {
+          return;
         }
-        fprintf(output, "\n");
+        for (i = 0; i < len; i++) {
+          sprintf(tmp + i * step, "%02x%s", buf[i], space == true ? " " : "");
+        }
+        fprintf(output, "%s\n", tmp);
       }
       return;
     case format_arg_base64:
