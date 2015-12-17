@@ -31,22 +31,28 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <unistd.h>
 
 #include "util.h"
+
+#ifdef _WIN32
+#define pipe(fds) _pipe(fds,4096, 0)
+#endif
 
 static void test_inout(enum enum_format format) {
   const unsigned char buf[] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
   unsigned char buf2[sizeof(buf)];
-  char filename[] = "/tmp/pivtool_test_XXXXXX";
-  int fd = mkstemp(filename);
-  FILE *tmp = fdopen(fd, "r+");
+  int pipefd[2];
+  FILE *tmp1, *tmp2;
 
-  dump_data(buf, sizeof(buf), tmp, false, format);
-  rewind(tmp);
-  read_data(buf2, sizeof(buf2), tmp, format);
+  assert(pipe(pipefd) == 0);
+  tmp1 = fdopen(pipefd[1], "w");
+  dump_data(buf, sizeof(buf), tmp1, false, format);
+  fclose(tmp1);
+  tmp2 = fdopen(pipefd[0], "r");
+  read_data(buf2, sizeof(buf2), tmp2, format);
   assert(memcmp(buf, buf2, sizeof(buf)) == 0);
-  fclose(tmp);
-  remove(filename);
+  fclose(tmp2);
 }
 
 int main(void) {
