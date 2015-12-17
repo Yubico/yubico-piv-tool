@@ -35,14 +35,18 @@
 #include "util.h"
 
 static void test_inout(enum enum_format format) {
-  unsigned char buf[] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
+  const unsigned char buf[] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
   unsigned char buf2[sizeof(buf)];
-  FILE *tmp = tmpfile();
+  char filename[] = "/tmp/pivtool_test_XXXXXX";
+  int fd = mkstemp(filename);
+  FILE *tmp = fdopen(fd, "r+");
 
   dump_data(buf, sizeof(buf), tmp, false, format);
   rewind(tmp);
   read_data(buf2, sizeof(buf2), tmp, format);
   assert(memcmp(buf, buf2, sizeof(buf)) == 0);
+  fclose(tmp);
+  remove(filename);
 }
 
 int main(void) {
