@@ -73,6 +73,10 @@ tool/tests/parse_name
 tool/tests/parse_name.log
 tool/tests/parse_name.o
 tool/tests/parse_name.trs
+tool/tests/test_inout
+tool/tests/test_inout.log
+tool/tests/test_inout.o
+tool/tests/test_inout.trs
 coverage/
 lib/error.gcno
 lib/version.gcno

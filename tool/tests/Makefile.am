@@ -37,8 +37,9 @@ AM_CPPFLAGS += $(OPENSSL_CFLAGS)
 AM_LDFLAGS = -no-install
 
 parse_name_LDADD = ../libpiv_util.la $(OPENSSL_LIBS)
+test_inout_LDADD = ../libpiv_util.la
 
-check_PROGRAMS = parse_name
+check_PROGRAMS = parse_name test_inout
 TESTS = basic.sh $(check_PROGRAMS)
 
 if ENABLE_COV
