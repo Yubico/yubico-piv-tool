@@ -41,7 +41,7 @@ libpiv_cmd_la_SOURCES = cmdline.ggo cmdline.c cmdline.h
 libpiv_cmd_la_CFLAGS =
 
 libpiv_util_la_SOURCES = util.c util.h
-libpiv_util_la_LIBADD = $(OPENSSL_LIBS)
+libpiv_util_la_LIBADD = $(top_builddir)/lib/libykpiv.la $(OPENSSL_LIBS)
 
 cmdline.c cmdline.h: cmdline.ggo Makefile.am $(top_srcdir)/configure.ac
 	$(GENGETOPT) --input $^

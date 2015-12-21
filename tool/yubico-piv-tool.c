@@ -631,7 +631,7 @@ static bool set_dataobject(ykpiv_state *state, int verbose, int type) {
   }
   if(verbose) {
     fprintf(stderr, "Setting the %s to: ", type == CHUID ? "CHUID" : "CCC");
-    dump_hex(obj, len, stderr, true);
+    dump_data(obj, len, stderr, true, format_arg_hex);
   }
   if((res = ykpiv_save_object(state, id, obj, len)) != YKPIV_OK) {
     fprintf(stderr, "Failed communicating with device: %s\n", ykpiv_strerror(res));
@@ -1157,7 +1157,7 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
 
     if(verbosity) {
       fprintf(stderr, "file hashed as: ");
-      dump_hex(hashed, hash_len, stderr, true);
+      dump_data(hashed, hash_len, stderr, true, format_arg_hex);
     }
     EVP_MD_CTX_destroy(mdctx);
   }
@@ -1176,7 +1176,7 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
 
     if(verbosity) {
       fprintf(stderr, "file signed as: ");
-      dump_hex(buf, len, stderr, true);
+      dump_data(buf, len, stderr, true, format_arg_hex);
     }
     fwrite(buf, 1, len, output_file);
     ret = true;
@@ -1276,7 +1276,7 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     fprintf(output, "\n");
     X509_digest(x509, md, data, &md_len);
     fprintf(output, "\tFingerprint:\t");
-    dump_hex(data, md_len, output, false);
+    dump_data(data, md_len, output, false, format_arg_hex);
 
     bio = BIO_new_fp(output, BIO_NOCLOSE | BIO_FP_TEXT);
     not_before = X509_get_notBefore(x509);
@@ -1325,7 +1325,7 @@ static bool status(ykpiv_state *state, enum enum_hash hash,
   if(ykpiv_fetch_object(state, YKPIV_OBJ_CHUID, chuid, &len) != YKPIV_OK) {
     fprintf(output_file, "No data available\n");
   } else {
-    dump_hex(chuid, len, output_file, false);
+    dump_data(chuid, len, output_file, false, format_arg_hex);
   }
 
   if (slot == slot__NULL)
@@ -1405,7 +1405,7 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
     EVP_DigestFinal_ex(mdctx, data, &data_len);
     if(verbose) {
       fprintf(stderr, "Test data hashes as: ");
-      dump_hex(data, data_len, stderr, true);
+      dump_data(data, data_len, stderr, true, format_arg_hex);
     }
   }
 
@@ -1561,9 +1561,9 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
       if(len == sizeof(secret)) {
         if(verbose) {
           fprintf(stderr, "Generated nonce: ");
-          dump_hex(secret, sizeof(secret), stderr, true);
+          dump_data(secret, sizeof(secret), stderr, true, format_arg_hex);
           fprintf(stderr, "Decrypted nonce: ");
-          dump_hex(secret2, sizeof(secret2), stderr, true);
+          dump_data(secret2, sizeof(secret2), stderr, true, format_arg_hex);
         }
         if(memcmp(secret, secret2, sizeof(secret)) == 0) {
           fprintf(stderr, "Successfully performed RSA decryption!\n");
@@ -1603,9 +1603,9 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
       }
       if(verbose) {
         fprintf(stderr, "ECDH host generated: ");
-        dump_hex(secret, len, stderr, true);
+        dump_data(secret, len, stderr, true, format_arg_hex);
         fprintf(stderr, "ECDH card generated: ");
-        dump_hex(secret2, len, stderr, true);
+        dump_data(secret2, len, stderr, true, format_arg_hex);
       }
       if(memcmp(secret, secret2, key_len) == 0) {
         fprintf(stderr, "Successfully performed ECDH exchange with card.\n");
@@ -1642,6 +1642,73 @@ static bool list_readers(ykpiv_state *state) {
     printf("%s\n", reader_ptr);
   }
   return true;
+}
+
+static bool write_object(ykpiv_state *state, int id,
+    const char *input_file_name, int verbosity, enum enum_format format) {
+  bool ret = false;
+  FILE *input_file = NULL;
+  unsigned char data[3072];
+  size_t len = sizeof(data);
+  ykpiv_rc res;
+
+  input_file = open_file(input_file_name, INPUT);
+  if(!input_file) {
+    return false;
+  }
+
+  if(isatty(fileno(input_file))) {
+    fprintf(stderr, "Please paste the data...\n");
+  }
+
+  len = read_data(data, len, input_file, format);
+  if(len == 0) {
+    fprintf(stderr, "Failed reading data\n");
+    goto write_out;
+  }
+
+  if(verbosity) {
+    fprintf(stderr, "Writing %lu bytes of data to object %x.\n", len, id);
+  }
+
+  if((res = ykpiv_save_object(state, id, data, len)) != YKPIV_OK) {
+    fprintf(stderr, "Failed writing data to device: %s\n", ykpiv_strerror(res));
+  } else {
+    ret = true;
+  }
+
+write_out:
+  if(input_file != stdin) {
+    fclose(input_file);
+  }
+  return ret;
+}
+
+static bool read_object(ykpiv_state *state, int id, const char *output_file_name,
+    enum enum_format format) {
+  FILE *output_file = NULL;
+  unsigned char data[3072];
+  unsigned long len = sizeof(data);
+  bool ret = false;
+
+  output_file = open_file(output_file_name, OUTPUT);
+  if(!output_file) {
+    return false;
+  }
+
+  if(ykpiv_fetch_object(state, id, data, &len) != YKPIV_OK) {
+    fprintf(stderr, "Failed fetching object.\n");
+    goto read_out;
+  }
+
+  dump_data(data, len, output_file, false, format);
+  ret = true;
+
+read_out:
+  if(output_file != stdout) {
+    fclose(output_file);
+  }
+  return ret;
 }
 
 int main(int argc, char *argv[]) {
@@ -1688,6 +1755,14 @@ int main(int argc, char *argv[]) {
           return EXIT_FAILURE;
         }
         break;
+      case action_arg_writeMINUS_object:
+      case action_arg_readMINUS_object:
+        if(!args_info.id_given) {
+          fprintf(stderr, "The '%s' action needs the --id argument.\n",
+              cmdline_parser_action_values[action]);
+          return EXIT_FAILURE;
+        }
+        break;
       case action_arg_changeMINUS_pin:
       case action_arg_changeMINUS_puk:
       case action_arg_unblockMINUS_pin:
@@ -1727,6 +1802,7 @@ int main(int argc, char *argv[]) {
       case action_arg_setMINUS_chuid:
       case action_arg_setMINUS_ccc:
       case action_arg_deleteMINUS_certificate:
+      case action_arg_writeMINUS_object:
         if(verbosity) {
           fprintf(stderr, "Authenticating since action '%s' needs that.\n", cmdline_parser_action_values[action]);
         }
@@ -1745,6 +1821,7 @@ int main(int argc, char *argv[]) {
       case action_arg_testMINUS_signature:
       case action_arg_testMINUS_decipher:
       case action_arg_listMINUS_readers:
+      case action_arg_readMINUS_object:
       case action__NULL:
       default:
         if(verbosity) {
@@ -1943,6 +2020,17 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_listMINUS_readers:
         if(list_readers(state) == false) {
+          ret = EXIT_FAILURE;
+        }
+      case action_arg_writeMINUS_object:
+        if(write_object(state, args_info.id_arg, args_info.input_arg, verbosity,
+              args_info.format_arg) == false) {
+          ret = EXIT_FAILURE;
+        }
+        break;
+      case action_arg_readMINUS_object:
+        if(read_object(state, args_info.id_arg, args_info.output_arg,
+              args_info.format_arg) == false) {
           ret = EXIT_FAILURE;
         }
         break;
