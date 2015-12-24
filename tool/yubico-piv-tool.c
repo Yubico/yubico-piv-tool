@@ -1308,8 +1308,8 @@ static bool status(ykpiv_state *state, enum enum_hash hash,
                    enum enum_slot slot,
                    const char *output_file_name) {
   const EVP_MD *md;
-  unsigned char chuid[3072];
-  long unsigned len = sizeof(chuid);
+  unsigned char buf[3072];
+  long unsigned len = sizeof(buf);
   int i;
   FILE *output_file = open_file(output_file_name, OUTPUT);
   if(!output_file) {
@@ -1322,10 +1322,18 @@ static bool status(ykpiv_state *state, enum enum_hash hash,
   }
 
   fprintf(output_file, "CHUID:\t");
-  if(ykpiv_fetch_object(state, YKPIV_OBJ_CHUID, chuid, &len) != YKPIV_OK) {
+  if(ykpiv_fetch_object(state, YKPIV_OBJ_CHUID, buf, &len) != YKPIV_OK) {
     fprintf(output_file, "No data available\n");
   } else {
-    dump_data(chuid, len, output_file, false, format_arg_hex);
+    dump_data(buf, len, output_file, false, format_arg_hex);
+  }
+
+  len = sizeof(buf);
+  fprintf(output_file, "CCC:\t");
+  if(ykpiv_fetch_object(state, YKPIV_OBJ_CAPABILITY, buf, &len) != YKPIV_OK) {
+    fprintf(output_file, "No data available\n");
+  } else {
+    dump_data(buf, len, output_file, false, format_arg_hex);
   }
 
   if (slot == slot__NULL)
