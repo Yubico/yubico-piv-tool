@@ -1342,12 +1342,6 @@ static bool status(ykpiv_state *state, enum enum_hash hash,
     }
   else
     print_cert_info(state, slot, md, output_file);
-  /*fprintf(output_file, "Slot 9c:\t");
-  print_cert_info(state, slot_arg_9c, md, output_file);
-  fprintf(output_file, "Slot 9d:\t");
-  print_cert_info(state, slot_arg_9d, md, output_file);
-  fprintf(output_file, "Slot 9e:\t");
-  print_cert_info(state, slot_arg_9e, md, output_file);*/
 
   {
     int tries;
