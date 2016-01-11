@@ -258,7 +258,7 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
   rc = SCardBeginTransaction(state->card);
   if(rc != SCARD_S_SUCCESS) {
     if(state->verbose) {
-      fprintf(stderr, "error: Failed to being pcsc transaction, rc=%08lx\n", rc);
+      fprintf(stderr, "error: Failed to begin pcsc transaction, rc=%08lx\n", rc);
     }
     return YKPIV_PCSC_ERROR;
   }
