@@ -46,12 +46,9 @@
 #define MAX_READERS 16
 
 struct ykpiv_state {
-	SCARDCONTEXT context;
-	SCARDHANDLE card;
-  unsigned long  n_readers;
-  char readers[MAX_READERS][READER_LEN];
-  unsigned long tot_readers_len;
-	int  verbose;
+  SCARDCONTEXT context;
+  SCARDHANDLE card;
+  int  verbose;
 };
 
 union u_APDU {
