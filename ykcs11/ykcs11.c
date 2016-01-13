@@ -51,7 +51,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
 )
 {
   CK_BYTE readers[2048];
-  CK_ULONG len = sizeof(readers);
+  size_t len = sizeof(readers);
 
   DIN;
 
@@ -536,6 +536,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     session.info.state = CKS_RO_PUBLIC_SESSION; // Nobody has logged in, default RW session
   }
 
+  session.info.slotID = slotID;
   session.info.flags = flags;
   session.info.ulDeviceError = 0;
 

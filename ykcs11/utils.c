@@ -76,7 +76,7 @@ CK_RV parse_readers(ykpiv_state *state, const CK_BYTE_PTR readers, const CK_ULON
         }
       }
       (*n_slots)++;
-      p += i + 1;
+      p = readers + i + 1;
     }
 
   return CKR_OK;
