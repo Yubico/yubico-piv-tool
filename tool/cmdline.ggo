@@ -57,6 +57,7 @@ option "subject" S "The subject to use for certificate request" string optional
 text   "
        The subject must be written as:
        /CN=host.example.com/OU=test/O=example.com/\n"
+option "serial" - "Serial number of the self-signed certificate" int optional default="1"
 option "valid-days" - "Time (in days) until the self-signed certificate expires" int optional default="365"
 option "pin" P "Pin/puk code for verification" string optional
 option "new-pin" N "New pin/puk code for changing" string optional dependon="pin"
