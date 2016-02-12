@@ -781,7 +781,7 @@ request_out:
 
 static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_format,
     const char *input_file_name, const char *slot, char *subject, enum enum_hash hash,
-    const int serial, const int validDays, const char *output_file_name) {
+    int serial, int validDays, const char *output_file_name) {
   FILE *input_file = NULL;
   FILE *output_file = NULL;
   bool ret = false;
