@@ -355,10 +355,18 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
       goto import_out;
     }
   } else if(key_format == key_format_arg_PKCS12) {
+    char pwbuf[128];
     p12 = d2i_PKCS12_fp(input_file, NULL);
     if(!p12) {
       fprintf(stderr, "Failed to load PKCS12 from file.\n");
       goto import_out;
+    }
+    if(!PKCS12_verify_mac(p12, password, password ? strlen(password) : 0)) {
+      if(!read_pw("PKCS12 Password", pwbuf, sizeof(pwbuf), false)) {
+        fprintf(stderr, "Failed to get password.\n");
+        return false;
+      }
+      password = pwbuf;
     }
     if(PKCS12_parse(p12, password, &private_key, &cert, NULL) == 0) {
       fprintf(stderr, "Failed to parse PKCS12 structure. (wrong password?)\n");
