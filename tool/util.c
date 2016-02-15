@@ -194,7 +194,7 @@ void dump_data(const unsigned char *buf, unsigned int len, FILE *output, bool sp
       {
         char tmp[3072 * 3 + 1];
         unsigned int i;
-        int step = 2;
+        unsigned int step = 2;
         if(space) step += 1;
         if(len > 3072) {
           return;
