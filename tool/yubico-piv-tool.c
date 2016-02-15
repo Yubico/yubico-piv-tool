@@ -789,7 +789,7 @@ request_out:
 
 static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_format,
     const char *input_file_name, const char *slot, char *subject, enum enum_hash hash,
-    const char *output_file_name) {
+    int serial, int validDays, const char *output_file_name) {
   FILE *input_file = NULL;
   FILE *output_file = NULL;
   bool ret = false;
@@ -855,7 +855,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     fprintf(stderr, "Failed to set the certificate public key.\n");
     goto selfsign_out;
   }
-  if(!ASN1_INTEGER_set(X509_get_serialNumber(x509), 1)) {
+  if(!ASN1_INTEGER_set(X509_get_serialNumber(x509), serial)) {
     fprintf(stderr, "Failed to set certificate serial.\n");
     goto selfsign_out;
   }
@@ -863,7 +863,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     fprintf(stderr, "Failed to set certificate notBefore.\n");
     goto selfsign_out;
   }
-  if(!X509_gmtime_adj(X509_get_notAfter(x509), 31536000L)) {
+  if(!X509_gmtime_adj(X509_get_notAfter(x509), 60L * 60L * 24L * validDays)) {
     fprintf(stderr, "Failed to set certificate notAfter.\n");
     goto selfsign_out;
   }
@@ -1994,6 +1994,7 @@ int main(int argc, char *argv[]) {
       case action_arg_selfsignMINUS_certificate:
         if(selfsign_certificate(state, args_info.key_format_arg, args_info.input_arg,
               args_info.slot_orig, args_info.subject_arg, args_info.hash_arg,
+              args_info.serial_arg, args_info.valid_days_arg,
               args_info.output_arg) == false) {
           ret = EXIT_FAILURE;
         } else {
