@@ -355,18 +355,10 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
       goto import_out;
     }
   } else if(key_format == key_format_arg_PKCS12) {
-    char pwbuf[128];
     p12 = d2i_PKCS12_fp(input_file, NULL);
     if(!p12) {
       fprintf(stderr, "Failed to load PKCS12 from file.\n");
       goto import_out;
-    }
-    if(!PKCS12_verify_mac(p12, password, password ? strlen(password) : 0)) {
-      if(!read_pw("PKCS12 Password", pwbuf, sizeof(pwbuf), false)) {
-        fprintf(stderr, "Failed to get password.\n");
-        return false;
-      }
-      password = pwbuf;
     }
     if(PKCS12_parse(p12, password, &private_key, &cert, NULL) == 0) {
       fprintf(stderr, "Failed to parse PKCS12 structure. (wrong password?)\n");
@@ -1728,12 +1720,16 @@ int main(int argc, char *argv[]) {
   enum enum_action action;
   unsigned int i;
   int ret = EXIT_SUCCESS;
+  bool authed = false;
+  char pwbuf[128];
+  char *password;
 
   if(cmdline_parser(argc, argv, &args_info) != 0) {
     return EXIT_FAILURE;
   }
 
   verbosity = args_info.verbose_arg + (int)args_info.verbose_given;
+  password = args_info.password_arg;
 
   for(i = 0; i < args_info.action_given; i++) {
     action = *(args_info.action_arg + i);
@@ -1801,22 +1797,60 @@ int main(int argc, char *argv[]) {
   }
 
   for(i = 0; i < args_info.action_given; i++) {
-    bool needs_auth = false;
     action = *(args_info.action_arg + i);
     switch(action) {
+      case action_arg_importMINUS_key:
+      case action_arg_importMINUS_certificate:
+        if(args_info.key_format_arg == key_format_arg_PKCS12 && !password) {
+          if(verbosity) {
+            fprintf(stderr, "Asking for password since '%s' needs it.\n", cmdline_parser_action_values[action]);
+          }
+          if(!read_pw("Password", pwbuf, sizeof(pwbuf), false)) {
+            fprintf(stderr, "Failed to get password.\n");
+            return false;
+          }
+          password = pwbuf;
+        }
       case action_arg_generate:
       case action_arg_setMINUS_mgmMINUS_key:
       case action_arg_pinMINUS_retries:
-      case action_arg_importMINUS_key:
-      case action_arg_importMINUS_certificate:
       case action_arg_setMINUS_chuid:
       case action_arg_setMINUS_ccc:
       case action_arg_deleteMINUS_certificate:
       case action_arg_writeMINUS_object:
-        if(verbosity) {
-          fprintf(stderr, "Authenticating since action '%s' needs that.\n", cmdline_parser_action_values[action]);
+        if(!authed) {
+          unsigned char key[KEY_LEN];
+          size_t key_len = sizeof(key);
+          char keybuf[KEY_LEN*2+1];
+          char *key_ptr = args_info.key_arg;
+          if(verbosity) {
+            fprintf(stderr, "Authenticating since action '%s' needs that.\n", cmdline_parser_action_values[action]);
+          }
+          if(args_info.key_given && args_info.key_orig == NULL) {
+            if(!read_pw("management key", keybuf, sizeof(keybuf), false)) {
+              fprintf(stderr, "Failed to read management key from stdin,\n");
+              return EXIT_FAILURE;
+            }
+            key_ptr = keybuf;
+          }
+          if(ykpiv_hex_decode(key_ptr, strlen(key_ptr), key, &key_len) != YKPIV_OK) {
+            fprintf(stderr, "Failed decoding key!\n");
+            return EXIT_FAILURE;
+          }
+
+          if(ykpiv_authenticate(state, key) != YKPIV_OK) {
+            fprintf(stderr, "Failed authentication with the application.\n");
+            return EXIT_FAILURE;
+          }
+          if(verbosity) {
+            fprintf(stderr, "Successful application authentication.\n");
+          }
+          authed = true;
+        } else {
+          if(verbosity) {
+            fprintf(stderr, "Skipping authentication for '%s' since it's already done.\n", cmdline_parser_action_values[action]);
+          }
         }
-        needs_auth = true;
         break;
       case action_arg_version:
       case action_arg_reset:
@@ -1837,38 +1871,13 @@ int main(int argc, char *argv[]) {
         if(verbosity) {
           fprintf(stderr, "Action '%s' does not need authentication.\n", cmdline_parser_action_values[action]);
         }
-        continue;
-    }
-    if(needs_auth) {
-      unsigned char key[KEY_LEN];
-      size_t key_len = sizeof(key);
-      char keybuf[KEY_LEN*2+1];
-      char *key_ptr = args_info.key_arg;
-      if(args_info.key_given && args_info.key_orig == NULL) {
-        if(!read_pw("management key", keybuf, sizeof(keybuf), false)) {
-          fprintf(stderr, "Failed to read management key from stdin,\n");
-          return EXIT_FAILURE;
-        }
-        key_ptr = keybuf;
-      }
-      if(ykpiv_hex_decode(key_ptr, strlen(key_ptr), key, &key_len) != YKPIV_OK) {
-        fprintf(stderr, "Failed decoding key!\n");
-        return EXIT_FAILURE;
-      }
-
-      if(ykpiv_authenticate(state, key) != YKPIV_OK) {
-        fprintf(stderr, "Failed authentication with the application.\n");
-        return EXIT_FAILURE;
-      }
-      if(verbosity) {
-        fprintf(stderr, "Successful application authentication.\n");
-      }
-      break;
     }
   }
 
+
   /* openssl setup.. */
   OpenSSL_add_all_algorithms();
+
 
   for(i = 0; i < args_info.action_given; i++) {
     char new_keybuf[KEY_LEN*2+1] = {0};
@@ -1938,7 +1947,7 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_importMINUS_key:
-        if(import_key(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_orig, args_info.password_arg,
+        if(import_key(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_orig, password,
               args_info.pin_policy_arg, args_info.touch_policy_arg) == false) {
           fprintf(stderr, "Unable to import private key\n");
           ret = EXIT_FAILURE;
@@ -1947,7 +1956,7 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_importMINUS_certificate:
-        if(import_cert(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_arg, args_info.password_arg) == false) {
+        if(import_cert(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_arg, password) == false) {
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully imported a new certificate.\n");
