@@ -1,6 +1,23 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
-* Version 1.3.0 (unreleased)
+* Version 1.3.0 (released 2016-02-19)
+
+** Fixed extraction of RSA modulus and exponent for pkcs11.
+
+** Implemented C_SetPIN for pkcs11.
+
+** Add generic write and read object actions for the tool.
+Supports hex/binary/base64 formats
+
+** Add ykpiv_change_pin(), ykpiv_change_puk() and ykpiv_unblock_pin()
+
+** Print CCC with status action.
+
+** Address bugs with pkcs11 on windows.
+
+** Add --valid-days and --serial to tool for selfsign-certificate action.
+
+** Ask for password for pkcs12 if none is given.
 
 * Version 1.2.2 (released 2015-12-08)
 
