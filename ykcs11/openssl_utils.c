@@ -317,16 +317,43 @@ CK_ULONG do_get_rsa_modulus_length(EVP_PKEY *key) {
 
 }
 
-CK_ULONG do_get_public_exponent(EVP_PKEY *key) {
+CK_RV do_get_modulus(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
+  RSA *rsa;
+
+  rsa = EVP_PKEY_get1_RSA(key);
+  if (rsa == NULL)
+    return CKR_FUNCTION_FAILED;
+
+  if ((CK_ULONG)BN_num_bytes(rsa->n) > *len) {
+    RSA_free(rsa);
+    rsa = NULL;
+    return CKR_BUFFER_TOO_SMALL;
+  }
+
+  *len = (CK_ULONG)BN_bn2bin(rsa->n, data);
+
+  RSA_free(rsa);
+  rsa = NULL;
+
+  return CKR_OK;
+}
+
+CK_RV do_get_public_exponent(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
   CK_ULONG e = 0;
   RSA *rsa;
 
   rsa = EVP_PKEY_get1_RSA(key);
   if (rsa == NULL)
-    return 0;
+    return CKR_FUNCTION_FAILED;
 
-  BN_bn2bin(rsa->e, (unsigned char *)&e);
+  if ((CK_ULONG)BN_num_bytes(rsa->e) > *len) {
+    RSA_free(rsa);
+    rsa = NULL;
+    return CKR_BUFFER_TOO_SMALL;
+  }
+
+  *len = (CK_ULONG)BN_bn2bin(rsa->e, data);
 
   RSA_free(rsa);
   rsa = NULL;

@@ -29,16 +29,16 @@ CK_RV parse_readers(ykpiv_state *state, const CK_BYTE_PTR readers, const CK_ULON
 
   for (i = 0; i < len; i++)
     if (readers[i] == '\0' && i != len - 1) {
-      slots[*n_slots].vid = get_vendor_id(p);
+      slots[*n_slots].vid = get_vendor_id((char *)p);
 
       if (slots[*n_slots].vid == UNKNOWN) { // TODO: distinguish between tokenless and unsupported?
         // Unknown slot, just save what info we have
         memset(&slots[*n_slots].info, 0, sizeof(CK_SLOT_INFO));
         memset(slots[*n_slots].info.slotDescription, ' ', sizeof(slots[*n_slots].info.slotDescription));
-        if (strlen(p) <= sizeof(slots[*n_slots].info.slotDescription))
-          strncpy(slots[*n_slots].info.slotDescription, p, strlen(p));
+        if (strlen((char *)p) <= sizeof(slots[*n_slots].info.slotDescription))
+          memcpy(slots[*n_slots].info.slotDescription, p, strlen((char *)p));
         else
-          strncpy(slots[*n_slots].info.slotDescription, p, sizeof(slots[*n_slots].info.slotDescription));
+          memcpy(slots[*n_slots].info.slotDescription, p, sizeof(slots[*n_slots].info.slotDescription));
       }
       else {
         // Supported slot
@@ -49,7 +49,7 @@ CK_RV parse_readers(ykpiv_state *state, const CK_BYTE_PTR readers, const CK_ULON
         memset(slots[*n_slots].info.slotDescription, ' ', sizeof(slots[*n_slots].info.slotDescription));
         s = slots[*n_slots].info.slotDescription;
         l = sizeof(slots[*n_slots].info.slotDescription);
-        strncpy((char *)s, (char*)p, l);
+        memcpy((char *)s, (char*)p, l);
 
         memset(slots[*n_slots].info.manufacturerID, ' ', sizeof(slots[*n_slots].info.manufacturerID));
         s = slots[*n_slots].info.manufacturerID;
@@ -76,7 +76,7 @@ CK_RV parse_readers(ykpiv_state *state, const CK_BYTE_PTR readers, const CK_ULON
         }
       }
       (*n_slots)++;
-      p += i + 1;
+      p = readers + i + 1;
     }
 
   return CKR_OK;
@@ -92,7 +92,7 @@ failure:
 
 CK_RV create_token(ykpiv_state *state, CK_BYTE_PTR p, ykcs11_slot_t *slot) {
 
-  token_vendor_t token;
+  token_vendor_t    token;
   CK_TOKEN_INFO_PTR t_info;
 
   slot->token = malloc(sizeof(ykcs11_token_t)); // TODO: free
@@ -114,17 +114,23 @@ CK_RV create_token(ykpiv_state *state, CK_BYTE_PTR p, ykcs11_slot_t *slot) {
 
   if (ykpiv_connect(state, (char *)p) != YKPIV_OK)
     return CKR_FUNCTION_FAILED;
+
   memset(t_info->model, ' ', sizeof(t_info->model));
-  if(token.get_token_model(state, t_info->model, sizeof(t_info->model)) != CKR_OK)
+  if(token.get_token_model(state, t_info->model, sizeof(t_info->model)) != CKR_OK) {
+    ykpiv_disconnect(state);
     return CKR_FUNCTION_FAILED;
-  ykpiv_disconnect(state);
+  }
 
   memset(t_info->serialNumber, ' ', sizeof(t_info->serialNumber));
-  if(token.get_token_serial(t_info->serialNumber, sizeof(t_info->serialNumber)) != CKR_OK)
+  if(token.get_token_serial(t_info->serialNumber, sizeof(t_info->serialNumber)) != CKR_OK) {
+    ykpiv_disconnect(state);
     return CKR_FUNCTION_FAILED;
+  }
 
-  if (token.get_token_flags(&t_info->flags) != CKR_OK)
+  if (token.get_token_flags(&t_info->flags) != CKR_OK) {
+    ykpiv_disconnect(state);
     return CKR_FUNCTION_FAILED;
+  }
 
   t_info->ulMaxSessionCount = CK_UNAVAILABLE_INFORMATION;
 
@@ -146,19 +152,18 @@ CK_RV create_token(ykpiv_state *state, CK_BYTE_PTR p, ykcs11_slot_t *slot) {
 
   t_info->ulFreePrivateMemory = CK_UNAVAILABLE_INFORMATION;
 
-  //ykpiv_get_version(piv_state, buf, sizeof(buf));
-  //if (token_vendor.get_token_version(buf, strlen(buf), &ver) != CKR_OK) // TODO: fix this
-  //  return CKR_FUNCTION_FAILED;
-
-  //t_info->hardwareVersion = ver; // version number of hardware // TODO: fix
-
-  //t_info->firmwareVersion = ver; // version number of firmware // TODO: fix
+  // Ignore hardware version, report firmware version
+  if (token.get_token_version(state, &t_info->firmwareVersion) != CKR_OK) {
+    ykpiv_disconnect(state);
+    return CKR_FUNCTION_FAILED;
+  }
 
   memset(t_info->utcTime, ' ', sizeof(t_info->utcTime)); // No clock present, clear
 
-  // TODO: also get token objects here? (and destroy on failure)
   slot->token->objects = NULL;
   slot->token->n_objects = 0;
+
+  ykpiv_disconnect(state);
 
   return CKR_OK;
 }
@@ -170,8 +175,8 @@ void destroy_token(ykcs11_slot_t *slot) {
 
 CK_BBOOL is_valid_key_id(CK_BYTE id) {
 
-  // Valid ids are 0, 1, 2, 3
-  if (id > 3)
+  // Valid ids are [0, 23] aka [0x00, 0x17]
+  if (id > 23)
     return CK_FALSE;
 
   return CK_TRUE;

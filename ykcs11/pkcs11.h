@@ -239,6 +239,9 @@ extern "C" {
 
 #define __PASTE(x,y)      x##y
 
+#if defined _WIN32 || _WIN64
+#pragma pack(push, cryptoki, 1)
+#endif
 
 /* packing defines */
 //#include "pkcs11p.h" // TODO: msc specific?
@@ -308,6 +311,11 @@ struct CK_FUNCTION_LIST {
 
 /* unpack */
 //#include "pkcs11u.h" // TODO: msc specific?
+
+#if defined _WIN32 || _WIN64
+#pragma pack(pop, cryptoki)
+#endif
+
 
 #ifdef __cplusplus
 }

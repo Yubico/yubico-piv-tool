@@ -51,7 +51,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
 )
 {
   CK_BYTE readers[2048];
-  CK_ULONG len = sizeof(readers);
+  size_t len = sizeof(readers);
 
   DIN;
 
@@ -114,7 +114,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetInfo)(
   CK_INFO_PTR pInfo
 )
 {
-  CK_VERSION ver = {YKCS11_VERSION_MAJOR, (YKCS11_VERSION_MINOR * 100) + YKCS11_VERSION_PATCH};
+  CK_VERSION ver = {YKCS11_VERSION_MAJOR, (YKCS11_VERSION_MINOR * 10) + YKCS11_VERSION_PATCH};
 
   DIN;
 
@@ -421,7 +421,36 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetPIN)(
 )
 {
   DIN;
-  DBG("TODO!!!");
+  CK_RV          rv;
+  token_vendor_t token;
+
+  if (piv_state == NULL) {
+    DBG("libykpiv is not initialized or already finalized");
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  if (session.handle == CK_INVALID_HANDLE) {
+    DBG("User called SetPIN on closed session");
+    return CKR_SESSION_CLOSED;
+  }
+
+  if (hSession != YKCS11_SESSION_ID) {
+    DBG("Unknown session %lu", hSession);
+    return CKR_SESSION_HANDLE_INVALID;
+  }
+
+  CK_USER_TYPE user_type = CKU_USER;
+  if (session.info.state == CKS_RW_SO_FUNCTIONS) {
+    user_type = CKU_SO;
+  }
+
+  token = get_token_vendor(session.slot->token->vid);
+  rv = token.token_change_pin(piv_state, user_type, pOldPin, ulOldLen, pNewPin, ulNewLen);
+  if (rv != CKR_OK) {
+    DBG("Pin change failed %lx", rv);
+    return rv;
+  }
+
   DOUT;
   return CKR_OK;
 }
@@ -438,7 +467,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   CK_RV          rv;
   piv_obj_id_t   *cert_ids;
   CK_ULONG       i;
-  CK_BYTE        cert_data[2100];  // Max cert value for ykpiv
+  CK_BYTE        cert_data[3072];  // Max cert value for ykpiv
   CK_ULONG       cert_len = sizeof(cert_data);
 
   DIN; // TODO: pApplication and Notify
@@ -479,7 +508,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   }
 
   if ((flags & CKF_SERIAL_SESSION) == 0) {
-    DBG("Open session called without CKF_SERIAL_SESSION set"); // Reuired by spes
+    DBG("Open session called without CKF_SERIAL_SESSION set"); // Required by specs
     return CKR_SESSION_PARALLEL_NOT_SUPPORTED;
   }
 
@@ -507,6 +536,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     session.info.state = CKS_RO_PUBLIC_SESSION; // Nobody has logged in, default RW session
   }
 
+  session.info.slotID = slotID;
   session.info.flags = flags;
   session.info.ulDeviceError = 0;
 
@@ -731,8 +761,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if ((session.info.flags & CKF_RW_SESSION) == 0) { // TODO: make macros for these?
-    DBG("Tried to log-in to a read-only session");
+  if (userType == CKU_SO && (session.info.flags & CKF_RW_SESSION) == 0) { // TODO: make macros for these?
+    DBG("Tried to log-in SO user to a read-only session");
     return CKR_SESSION_READ_ONLY_EXISTS;
   }
 
@@ -858,6 +888,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
   CK_BYTE_PTR      dp;
   CK_BYTE_PTR      dq;
   CK_BYTE_PTR      qinv;
+  CK_ULONG         p_len;
+  CK_ULONG         q_len;
+  CK_ULONG         dp_len;
+  CK_ULONG         dq_len;
+  CK_ULONG         qinv_len;
+  CK_BYTE_PTR      ec_data;
+  CK_ULONG         ec_data_len;
   CK_ULONG         vendor_defined;
   token_vendor_t   token;
   CK_BBOOL         is_new;
@@ -972,6 +1009,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       DBG("Unable to store certificate data");
       return CKR_FUNCTION_FAILED;
     }
+    *phObject = cert_id;
 
     break;
 
@@ -980,11 +1018,17 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     // Try to parse the key as EC
     is_rsa = CK_FALSE;
-    rv = check_create_ec_key(pTemplate, ulCount, &id, &value, &value_len, &vendor_defined);
+    rv = check_create_ec_key(pTemplate, ulCount, &id, &ec_data, &ec_data_len, &vendor_defined);
     if (rv != CKR_OK) {
       // Try to parse the key as RSA
       is_rsa = CK_TRUE;
-      rv = check_create_rsa_key(pTemplate, ulCount, &id, &p, &q, &dp, &dq, &qinv, &value_len, &vendor_defined);
+      rv = check_create_rsa_key(pTemplate, ulCount, &id,
+                                &p, &p_len,
+                                &q, &q_len,
+                                &dp, &dp_len,
+                                &dq, &dq_len,
+                                &qinv, &qinv_len,
+                                &vendor_defined);
       if (rv != CKR_OK) {
         DBG("Private key template not valid");
         return rv;
@@ -997,9 +1041,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     if (is_rsa == CK_TRUE) {
       DBG("Key is RSA");
-      rv = token.token_import_private_key(piv_state, piv_2_ykpiv(object), p, q, dp, dq, qinv,
-                                          NULL,
-                                          value_len, vendor_defined);
+      rv = token.token_import_private_key(piv_state, piv_2_ykpiv(object),
+                                          p, p_len,
+                                          q, q_len,
+                                          dp, dp_len,
+                                          dq, dq_len,
+                                          qinv, qinv_len,
+                                          NULL, 0,
+                                          vendor_defined);
       if (rv != CKR_OK) {
         DBG("Unable to import RSA private key");
         return rv;
@@ -1007,14 +1056,22 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     }
     else {
       DBG("Key is ECDSA");
-      rv = token.token_import_private_key(piv_state, piv_2_ykpiv(object), NULL, NULL, NULL, NULL, NULL,
-                                          value,
-                                          value_len, vendor_defined);
+      rv = token.token_import_private_key(piv_state, piv_2_ykpiv(object),
+                                          NULL, 0,
+                                          NULL, 0,
+                                          NULL, 0,
+                                          NULL, 0,
+                                          NULL, 0,
+                                          ec_data, ec_data_len,
+                                          vendor_defined);
       if (rv != CKR_OK) {
         DBG("Unable to import ECDSA private key");
         return rv;
       }
     }
+
+    *phObject = PIV_PVTK_OBJ_PIV_AUTH + id;
+
     break;
 
   default:
@@ -1627,8 +1684,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     return CKR_OPERATION_ACTIVE;
   }
 
-  if (pMechanism == NULL_PTR ||
-      hKey == NULL_PTR)
+  if (pMechanism == NULL_PTR)
     return CKR_ARGUMENTS_BAD;
 
   DBG("Trying to sign some data with mechanism %lu and key %lu", pMechanism->mechanism, hKey);
@@ -1785,7 +1841,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   DBG("Sending %lu bytes to sign", ulDataLen);
 #if YKCS11_DBG == 1
-  dump_hex(pData, ulDataLen, stderr, CK_TRUE);
+  dump_data(pData, ulDataLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
   if (is_hashed_mechanism(op_info.mechanism.mechanism) == CK_TRUE) {
@@ -1827,7 +1883,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   DBG("Using key %lx", op_info.op.sign.key_id);
   DBG("After padding and transformation there are %lu bytes", op_info.buf_len);
 #if YKCS11_DBG == 1
-  dump_hex(op_info.buf, op_info.buf_len, stderr, CK_TRUE);
+  dump_data(op_info.buf, op_info.buf_len, stderr, CK_TRUE, format_arg_hex);
 #endif
 
   *pulSignatureLen = sizeof(op_info.buf);
@@ -1848,7 +1904,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   DBG("Got %lu bytes back", *pulSignatureLen);
 #if YKCS11_DBG == 1
-  dump_hex(pSignature, *pulSignatureLen, stderr, CK_TRUE);
+  dump_data(pSignature, *pulSignatureLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
   if (!is_RSA_mechanism(op_info.mechanism.mechanism)) {
@@ -1858,7 +1914,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
     DBG("After removing DER encoding %lu", *pulSignatureLen);
 #if YKCS11_DBG == 1
-    dump_hex(pSignature, *pulSignatureLen, stderr, CK_TRUE);
+    dump_data(pSignature, *pulSignatureLen, stderr, CK_TRUE, format_arg_hex);
 #endif
   }
 
@@ -2090,7 +2146,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   CK_ULONG       pvtk_id;
   CK_ULONG       pubk_id;
   piv_obj_id_t   *obj_ptr;
-  CK_BYTE        cert_data[2100];
+  CK_BYTE        cert_data[3072];
   CK_ULONG       cert_len;
 
   DIN;

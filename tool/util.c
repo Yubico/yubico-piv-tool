@@ -148,12 +148,80 @@ parse_err:
   return NULL;
 }
 
-void dump_hex(const unsigned char *buf, unsigned int len, FILE *output, bool space) {
-  unsigned int i;
-  for (i = 0; i < len; i++) {
-    fprintf(output, "%02x%s", buf[i], space == true ? " " : "");
+size_t read_data(unsigned char *buf, size_t len, FILE* input, enum enum_format format) {
+  char raw_buf[3072 * 2];
+  size_t raw_len = sizeof(raw_buf);
+  raw_len = fread(raw_buf, 1, raw_len, input);
+  switch(format) {
+    case format_arg_hex:
+      if(raw_buf[raw_len - 1] == '\n') {
+        raw_len -= 1;
+      }
+      if(ykpiv_hex_decode(raw_buf, raw_len, buf, &len) != YKPIV_OK) {
+        return 0;
+      }
+      return len;
+    case format_arg_base64:
+      {
+        int read;
+        BIO *b64 = BIO_new(BIO_f_base64());
+        BIO *bio = BIO_new_mem_buf(raw_buf, raw_len);
+        BIO_push(b64, bio);
+        read = BIO_read(b64, buf, len);
+        BIO_free_all(b64);
+        if(read <= 0) {
+          return 0;
+        } else {
+          return (size_t)read;
+        }
+      }
+      break;
+    case format_arg_binary:
+      if(raw_len > len) {
+        return 0;
+      }
+      memcpy(buf, raw_buf, raw_len);
+      return raw_len;
+    case format__NULL:
+    default:
+      return 0;
   }
-  fprintf(output, "\n");
+}
+
+void dump_data(const unsigned char *buf, unsigned int len, FILE *output, bool space, enum enum_format format) {
+  switch(format) {
+    case format_arg_hex:
+      {
+        char tmp[3072 * 3 + 1];
+        unsigned int i;
+        unsigned int step = 2;
+        if(space) step += 1;
+        if(len > 3072) {
+          return;
+        }
+        for (i = 0; i < len; i++) {
+          sprintf(tmp + i * step, "%02x%s", buf[i], space == true ? " " : "");
+        }
+        fprintf(output, "%s\n", tmp);
+      }
+      return;
+    case format_arg_base64:
+      {
+        BIO *b64 = BIO_new(BIO_f_base64());
+        BIO *bio = BIO_new_fp(output, BIO_NOCLOSE);
+        BIO_push(b64, bio);
+        BIO_write(b64, buf, (int)len);
+        BIO_flush(b64);
+        BIO_free_all(b64);
+      }
+      return;
+    case format_arg_binary:
+      fwrite(buf, 1, len, output);
+      return;
+    case format__NULL:
+    default:
+      return;
+  }
 }
 
 int get_length(const unsigned char *buffer, int *len) {
@@ -276,17 +344,77 @@ int key_to_object_id(int key) {
   int object;
 
   switch(key) {
-  case 0x9a:
+  case YKPIV_KEY_AUTHENTICATION:
     object = YKPIV_OBJ_AUTHENTICATION;
     break;
-  case 0x9c:
+  case YKPIV_KEY_CARDMGM:
     object = YKPIV_OBJ_SIGNATURE;
     break;
-  case 0x9d:
+  case YKPIV_KEY_KEYMGM:
     object = YKPIV_OBJ_KEY_MANAGEMENT;
     break;
-  case 0x9e:
+  case YKPIV_KEY_CARDAUTH:
     object = YKPIV_OBJ_CARD_AUTH;
+    break;
+  case YKPIV_KEY_RETIRED1:
+    object = YKPIV_OBJ_RETIRED1;
+    break;
+  case YKPIV_KEY_RETIRED2:
+    object = YKPIV_OBJ_RETIRED2;
+    break;
+  case YKPIV_KEY_RETIRED3:
+    object = YKPIV_OBJ_RETIRED3;
+    break;
+  case YKPIV_KEY_RETIRED4:
+    object = YKPIV_OBJ_RETIRED4;
+    break;
+  case YKPIV_KEY_RETIRED5:
+    object = YKPIV_OBJ_RETIRED5;
+    break;
+  case YKPIV_KEY_RETIRED6:
+    object = YKPIV_OBJ_RETIRED6;
+    break;
+  case YKPIV_KEY_RETIRED7:
+    object = YKPIV_OBJ_RETIRED7;
+    break;
+  case YKPIV_KEY_RETIRED8:
+    object = YKPIV_OBJ_RETIRED8;
+    break;
+  case YKPIV_KEY_RETIRED9:
+    object = YKPIV_OBJ_RETIRED9;
+    break;
+  case YKPIV_KEY_RETIRED10:
+    object = YKPIV_OBJ_RETIRED10;
+    break;
+  case YKPIV_KEY_RETIRED11:
+    object = YKPIV_OBJ_RETIRED11;
+    break;
+  case YKPIV_KEY_RETIRED12:
+    object = YKPIV_OBJ_RETIRED12;
+    break;
+  case YKPIV_KEY_RETIRED13:
+    object = YKPIV_OBJ_RETIRED13;
+    break;
+  case YKPIV_KEY_RETIRED14:
+    object = YKPIV_OBJ_RETIRED14;
+    break;
+  case YKPIV_KEY_RETIRED15:
+    object = YKPIV_OBJ_RETIRED15;
+    break;
+  case YKPIV_KEY_RETIRED16:
+    object = YKPIV_OBJ_RETIRED16;
+    break;
+  case YKPIV_KEY_RETIRED17:
+    object = YKPIV_OBJ_RETIRED17;
+    break;
+  case YKPIV_KEY_RETIRED18:
+    object = YKPIV_OBJ_RETIRED18;
+    break;
+  case YKPIV_KEY_RETIRED19:
+    object = YKPIV_OBJ_RETIRED19;
+    break;
+  case YKPIV_KEY_RETIRED20:
+    object = YKPIV_OBJ_RETIRED20;
     break;
   default:
     object = 0;
@@ -294,15 +422,16 @@ int key_to_object_id(int key) {
   return object;
 }
 
-bool set_component_with_len(unsigned char **in_ptr, const BIGNUM *bn, int element_len) {
+bool set_component(unsigned char *in_ptr, const BIGNUM *bn, int element_len) {
   int real_len = BN_num_bytes(bn);
-  *in_ptr += set_length(*in_ptr, element_len);
+
   if(real_len > element_len) {
     return false;
   }
-  memset(*in_ptr, 0, (size_t)(element_len - real_len));
-  *in_ptr += element_len - real_len;
-  *in_ptr += BN_bn2bin(bn, *in_ptr);
+  memset(in_ptr, 0, (size_t)(element_len - real_len));
+  in_ptr += element_len - real_len;
+  BN_bn2bin(bn, in_ptr);
+
   return true;
 }
 

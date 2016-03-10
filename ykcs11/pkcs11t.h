@@ -108,7 +108,9 @@ typedef CK_VOID_PTR CK_PTR CK_VOID_PTR_PTR;
 
 
 /* pack */
-//#include "pkcs11p.h" // TODO: msc specific?
+#if defined _WIN32 || _WIN64
+#pragma pack(push, cryptoki, 1)
+#endif
 
 typedef struct CK_VERSION {
   CK_BYTE       major;  /* integer portion of version number */
@@ -1163,33 +1165,36 @@ typedef CK_EXTRACT_PARAMS CK_PTR CK_EXTRACT_PARAMS_PTR;
  * PKCS #11 interface. Most of these are place holders for other mechanism
  * and will change in the future.
  */
-#define CKM_NETSCAPE_PBE_KEY_GEN		0x80000001UL
-#define CKM_NETSCAPE_PBE_SHA1_DES_CBC		0x80000002UL
-#define CKM_NETSCAPE_PBE_SHA1_TRIPLE_DES_CBC	0x80000003UL
-#define CKM_NETSCAPE_PBE_SHA1_40_BIT_RC2_CBC	0x80000004UL
-#define CKM_NETSCAPE_PBE_SHA1_128_BIT_RC2_CBC	0x80000005UL
-#define CKM_NETSCAPE_PBE_SHA1_40_BIT_RC4	0x80000006UL
-#define CKM_NETSCAPE_PBE_SHA1_128_BIT_RC4	0x80000007UL
-#define CKM_NETSCAPE_PBE_SHA1_FAULTY_3DES_CBC	0x80000008UL
-#define CKM_NETSCAPE_PBE_SHA1_HMAC_KEY_GEN      0x80000009UL
-#define CKM_NETSCAPE_PBE_MD5_HMAC_KEY_GEN       0x8000000aUL
-#define CKM_NETSCAPE_PBE_MD2_HMAC_KEY_GEN       0x8000000bUL
-#define CKM_TLS_MASTER_KEY_DERIVE		0x80000371UL
-#define CKM_TLS_KEY_AND_MAC_DERIVE		0x80000372UL
-#define CKM_TLS_PRF_GENERAL                     0x80000373UL
+#define CKM_NETSCAPE_PBE_KEY_GEN              0x80000001UL
+#define CKM_NETSCAPE_PBE_SHA1_DES_CBC         0x80000002UL
+#define CKM_NETSCAPE_PBE_SHA1_TRIPLE_DES_CBC  0x80000003UL
+#define CKM_NETSCAPE_PBE_SHA1_40_BIT_RC2_CBC  0x80000004UL
+#define CKM_NETSCAPE_PBE_SHA1_128_BIT_RC2_CBC 0x80000005UL
+#define CKM_NETSCAPE_PBE_SHA1_40_BIT_RC4      0x80000006UL
+#define CKM_NETSCAPE_PBE_SHA1_128_BIT_RC4     0x80000007UL
+#define CKM_NETSCAPE_PBE_SHA1_FAULTY_3DES_CBC 0x80000008UL
+#define CKM_NETSCAPE_PBE_SHA1_HMAC_KEY_GEN    0x80000009UL
+#define CKM_NETSCAPE_PBE_MD5_HMAC_KEY_GEN     0x8000000aUL
+#define CKM_NETSCAPE_PBE_MD2_HMAC_KEY_GEN     0x8000000bUL
+#define CKM_TLS_MASTER_KEY_DERIVE             0x80000371UL
+#define CKM_TLS_KEY_AND_MAC_DERIVE            0x80000372UL
+#define CKM_TLS_PRF_GENERAL                   0x80000373UL
 
 /* define used to pass in the database key for DSA private keys */
-#define CKA_NETSCAPE_DB				0xD5A0DB00UL
-#define CKA_NETSCAPE_TRUST			0x80000001UL
-
-/* undo packing */
-//#include "pkcs11u.h" // TODO: msc specific?
+#define CKA_NETSCAPE_DB                       0xD5A0DB00UL
+#define CKA_NETSCAPE_TRUST                    0x80000001UL
 
 // YUBICO specific attributes
 #define CKA_TOUCH_PIN_DEFAULT 0x00000000U
 #define CKA_TOUCH_ALWAYS      0x00000001U
 #define CKA_PIN_ONCE          0x00000002U
 #define CKA_PIN_ALWAYS        0x00000004U
+#define CKA_PIN_NEVER         0x00000008U
+#define CKA_TOUCH_NEVER       0x00000016U
 
+/* undo packing */
+#if defined _WIN32 || _WIN64
+#pragma pack(pop, cryptoki)
+#endif
 
 #endif

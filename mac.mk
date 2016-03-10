@@ -26,7 +26,8 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 PACKAGE=yubico-piv-tool
-OPENSSLVERSION=1.0.1p
+OPENSSLVERSION=1.0.1r
+CFLAGS="-mmacosx-version-min=10.6"
 
 all: usage mac
 
@@ -47,7 +48,7 @@ doit:
 		curl -L -O "https://www.openssl.org/source/openssl-$(OPENSSLVERSION).tar.gz" && \
 	tar xfz openssl-$(OPENSSLVERSION).tar.gz && \
 	cd openssl-$(OPENSSLVERSION) && \
-	./Configure darwin64-x86_64-cc shared no-ssl2 no-ssl3 no-engines --prefix=$(PWD)/tmp/root && \
+	./Configure darwin64-x86_64-cc shared no-ssl2 no-ssl3 no-engines --prefix=$(PWD)/tmp/root $(CFLAGS) && \
 	make all install_sw && \
 	cp LICENSE $(PWD)/tmp$(ARCH)/root/licenses/openssl.txt && \
 	rm -rf $(PWD)/tmp/root/ssl/ && \
@@ -60,16 +61,16 @@ doit:
 	cp ../$(PACKAGE)-$(VERSION).tar.gz . && \
 	tar xfz $(PACKAGE)-$(VERSION).tar.gz && \
 	cd $(PACKAGE)-$(VERSION)/ && \
-	PKG_CONFIG_PATH=$(PWD)/tmp/root/lib/pkgconfig ./configure --prefix=$(PWD)/tmp/root && \
+	CFLAGS=$(CFLAGS) PKG_CONFIG_PATH=$(PWD)/tmp/root/lib/pkgconfig ./configure --prefix=$(PWD)/tmp/root && \
 	make install $(CHECK) && \
 	chmod u+w $(PWD)/tmp/root/lib/libcrypto.1.0.0.dylib && \
-	install_name_tool -id @executable_path/../lib/libcrypto.1.0.0.dylib $(PWD)/tmp/root/lib/libcrypto.1.0.0.dylib && \
-	install_name_tool -id @executable_path/../lib/libykpiv.1.dylib $(PWD)/tmp/root/lib/libykpiv.1.dylib && \
-	install_name_tool -id @executable_path/../lib/libykcs11.1.dylib $(PWD)/tmp/root/lib/libykcs11.1.dylib && \
-	install_name_tool -change $(PWD)/tmp/root/lib/libcrypto.1.0.0.dylib @executable_path/../lib/libcrypto.1.0.0.dylib $(PWD)/tmp/root/lib/libykpiv.1.dylib && \
-	install_name_tool -change $(PWD)/tmp/root/lib/libcrypto.1.0.0.dylib @executable_path/../lib/libcrypto.1.0.0.dylib $(PWD)/tmp/root/lib/libykcs11.1.dylib && \
+	install_name_tool -id @loader_path/libcrypto.1.0.0.dylib $(PWD)/tmp/root/lib/libcrypto.1.0.0.dylib && \
+	install_name_tool -id @loader_path/libykpiv.1.dylib $(PWD)/tmp/root/lib/libykpiv.1.dylib && \
+	install_name_tool -id @loader_path/libykcs11.1.dylib $(PWD)/tmp/root/lib/libykcs11.1.dylib && \
+	install_name_tool -change $(PWD)/tmp/root/lib/libcrypto.1.0.0.dylib @loader_path/libcrypto.1.0.0.dylib $(PWD)/tmp/root/lib/libykpiv.1.dylib && \
+	install_name_tool -change $(PWD)/tmp/root/lib/libcrypto.1.0.0.dylib @loader_path/libcrypto.1.0.0.dylib $(PWD)/tmp/root/lib/libykcs11.1.dylib && \
 	install_name_tool -change $(PWD)/tmp/root/lib/libcrypto.1.0.0.dylib @executable_path/../lib/libcrypto.1.0.0.dylib $(PWD)/tmp/root/bin/yubico-piv-tool && \
-	install_name_tool -change $(PWD)/tmp/root/lib/libykpiv.1.dylib @executable_path/../lib/libykpiv.1.dylib $(PWD)/tmp/root/lib/libykcs11.1.dylib && \
+	install_name_tool -change $(PWD)/tmp/root/lib/libykpiv.1.dylib @loader_path/libykpiv.1.dylib $(PWD)/tmp/root/lib/libykcs11.1.dylib && \
 	install_name_tool -change $(PWD)/tmp/root/lib/libykpiv.1.dylib @executable_path/../lib/libykpiv.1.dylib $(PWD)/tmp/root/bin/yubico-piv-tool ; \
 	if otool -L $(PWD)/tmp/root/lib/*.dylib $(PWD)/tmp/root/bin/* | grep '$(PWD)/tmp/root' | grep -q compatibility; then \
 		echo "something is incorrectly linked!"; \

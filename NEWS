@@ -1,6 +1,49 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
-* Version 1.1.3 (unreleased)
+* Version 1.3.1 (unreleased)
+
+* Version 1.3.0 (released 2016-02-19)
+
+** Fixed extraction of RSA modulus and exponent for pkcs11.
+
+** Implemented C_SetPIN for pkcs11.
+
+** Add generic write and read object actions for the tool.
+Supports hex/binary/base64 formats
+
+** Add ykpiv_change_pin(), ykpiv_change_puk() and ykpiv_unblock_pin()
+
+** Print CCC with status action.
+
+** Address bugs with pkcs11 on windows.
+
+** Add --valid-days and --serial to tool for selfsign-certificate action.
+
+** Ask for password for pkcs12 if none is given.
+
+* Version 1.2.2 (released 2015-12-08)
+
+** Fix old buffer overflow in change-pin functionality.
+
+* Version 1.2.1 (released 2015-12-08)
+
+** Fix issue with big certificates and status.
+
+* Version 1.2.0 (released 2015-12-07)
+
+** On OSX use @loader_path instead of @executable_path for ykcs11.
+
+** Add ykpiv_import_private_key to libykpiv.
+
+** Raise buffer sizes to support bigger objects.
+
+** Change behavior of action status, only list populated slots.
+
+** Add retired keys to ykcs11.
+
+** In ykcs11 support login with non null terminated pin.
+
+** Add a new action set-ccc to yubico-piv-tool to set the CCC.
 
 * Version 1.1.2 (released 2015-11-13)
 

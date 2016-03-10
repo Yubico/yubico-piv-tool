@@ -18,8 +18,12 @@ CK_RV check_create_cert(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
 CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
                           CK_BYTE_PTR *value, CK_ULONG_PTR value_len, CK_ULONG_PTR vendor_defined);
 CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
-                           CK_BYTE_PTR *p, CK_BYTE_PTR *q, CK_BYTE_PTR *dp,
-                           CK_BYTE_PTR *dq, CK_BYTE_PTR *qinv, CK_ULONG_PTR value_len, CK_ULONG_PTR vendor_defined);
+                           CK_BYTE_PTR *p, CK_ULONG_PTR p_len,
+                           CK_BYTE_PTR *q, CK_ULONG_PTR q_len,
+                           CK_BYTE_PTR *dp, CK_ULONG_PTR dp_len,
+                           CK_BYTE_PTR *dq, CK_ULONG_PTR dq_len,
+                           CK_BYTE_PTR *qinv, CK_ULONG_PTR qinv_len,
+                           CK_ULONG_PTR vendor_defined);
 CK_RV check_delete_cert(CK_OBJECT_HANDLE hObject, CK_BYTE_PTR id);
 
 #endif

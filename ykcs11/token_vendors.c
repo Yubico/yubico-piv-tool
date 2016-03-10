@@ -12,9 +12,24 @@ static CK_RV COMMON_token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CH
   int tries = 0; // TODO: this is effectively disregarded, should we add a better value in ykpiv_verify?
   unsigned char key[24];
   size_t key_len = sizeof(key);
+  unsigned char *term_pin;
+  ykpiv_rc res;
 
   if (user == CKU_USER) {
-    if (ykpiv_verify(state, (char *)pin, &tries) != YKPIV_OK) {
+    // add null termination for the pin
+    term_pin = malloc(pin_len + 1);
+    if (term_pin == NULL) {
+      return CKR_HOST_MEMORY;
+    }
+    memcpy(term_pin, pin, pin_len);
+    term_pin[pin_len] = 0;
+
+    res = ykpiv_verify(state, (char *)term_pin, &tries);
+
+    OPENSSL_cleanse(term_pin, pin_len);
+    free(term_pin);
+
+    if (res != YKPIV_OK) {
       DBG("Failed to login");
       return CKR_PIN_INCORRECT;
     }
@@ -58,7 +73,7 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa,
   switch(key_len) {
   case 2048:
     if (rsa == CK_TRUE)
-      in_data[4] = YKPIV_ALGO_RSA2048;
+      *in_ptr++ = YKPIV_ALGO_RSA2048;
     else
       return CKR_FUNCTION_FAILED;
 
@@ -143,7 +158,7 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa,
 
 static CK_RV COMMON_token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_BYTE_PTR in) {
 
-  unsigned char certdata[2100];
+  unsigned char certdata[3072];
   unsigned char *certptr;
   CK_ULONG cert_len;
 
@@ -153,7 +168,7 @@ static CK_RV COMMON_token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_B
   if ((rv = do_check_cert(in, &cert_len)) != CKR_OK)
     return rv;
 
-  if (cert_len > 2100)
+  if (cert_len > 3072)
     return CKR_FUNCTION_FAILED;
 
   certptr = certdata;
@@ -176,85 +191,73 @@ static CK_RV COMMON_token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_B
   return CKR_OK;
 }
 
-CK_RV COMMON_token_import_private_key(ykpiv_state *state, CK_BYTE key_id, CK_BYTE_PTR p, CK_BYTE_PTR q,
-                                      CK_BYTE_PTR dp, CK_BYTE_PTR dq, CK_BYTE_PTR qinv,
-                                      CK_BYTE_PTR ec_data, CK_ULONG elem_len, CK_ULONG vendor_defined) {
+CK_RV COMMON_token_import_private_key(ykpiv_state *state, CK_BYTE key_id,
+                                      CK_BYTE_PTR p, CK_ULONG p_len,
+                                      CK_BYTE_PTR q, CK_ULONG q_len,
+                                      CK_BYTE_PTR dp, CK_ULONG dp_len,
+                                      CK_BYTE_PTR dq, CK_ULONG dq_len,
+                                      CK_BYTE_PTR qinv, CK_ULONG qinv_len,
+                                      CK_BYTE_PTR ec_data, CK_ULONG ec_data_len,
+                                      CK_ULONG vendor_defined) {
 
-  unsigned char key_data[1024];
-  unsigned char *in_ptr = key_data;
-  unsigned char templ[] = {0, YKPIV_INS_IMPORT_KEY, 0, key_id};
-  unsigned char data[0xff];
-  unsigned long recv_len = sizeof(data);
-  int sw;
+  CK_BYTE  pin_policy;
+  CK_BYTE  touch_policy;
+  CK_BYTE  algo;
+  ykpiv_rc rc;
 
-  if (elem_len == 128) // TODO: add a flag to check algo type ?
-    templ[2] = YKPIV_ALGO_RSA2048;
-  else if (elem_len == 64)
-    templ[2] = YKPIV_ALGO_RSA1024;
-  else if(elem_len == 32)
-    templ[2] = YKPIV_ALGO_ECCP256;
-
-  if (templ[2] == YKPIV_ALGO_RSA1024 ||templ[2] == YKPIV_ALGO_RSA2048) {
-    *in_ptr++ = 0x01;
-    in_ptr += set_length(in_ptr, elem_len);
-    memcpy(in_ptr, p, (size_t)(elem_len));
-    in_ptr += elem_len;
-
-    *in_ptr++ = 0x02;
-    in_ptr += set_length(in_ptr, elem_len);
-    memcpy(in_ptr, q, (size_t)(elem_len));
-    in_ptr += elem_len;
-
-    *in_ptr++ = 0x03;
-    in_ptr += set_length(in_ptr, elem_len);
-    memcpy(in_ptr, dp, (size_t)(elem_len));
-    in_ptr += elem_len;
-
-    *in_ptr++ = 0x04;
-    in_ptr += set_length(in_ptr, elem_len);
-    memcpy(in_ptr, dq, (size_t)(elem_len));
-    in_ptr += elem_len;
-
-    *in_ptr++ = 0x05;
-    in_ptr += set_length(in_ptr, elem_len);
-    memcpy(in_ptr, qinv, (size_t)(elem_len));
-    in_ptr += elem_len;
+  if (p == NULL) {
+    if (ec_data_len == 32 || ec_data_len == 31)
+      algo = YKPIV_ALGO_ECCP256;
+    else
+      algo = YKPIV_ALGO_ECCP384;
   }
-  else if (templ[2] == YKPIV_ALGO_ECCP256) {
-    *in_ptr++ = 0x06;
-    in_ptr += set_length(in_ptr, elem_len);
-    memcpy(in_ptr, ec_data, (size_t)(elem_len));
-    in_ptr += elem_len;
+  else if (ec_data == NULL) {
+    if (p_len == 64)
+      algo = YKPIV_ALGO_RSA1024;
+    else
+      algo = YKPIV_ALGO_RSA2048;
   }
-
-  // PIN policy and touch
-  if (vendor_defined != 0) {
-    if (vendor_defined & CKA_PIN_ONCE) {
-      *in_ptr++ = YKPIV_PINPOLICY_TAG;
-      *in_ptr++ = 0x01;
-      *in_ptr++ = YKPIV_PINPOLICY_ONCE;
-    }
-    else if (vendor_defined & CKA_PIN_ALWAYS) {
-      *in_ptr++ = YKPIV_PINPOLICY_TAG;
-      *in_ptr++ = 0x01;
-      *in_ptr++ = YKPIV_PINPOLICY_ALWAYS;
-    }
-
-    if (vendor_defined & CKA_TOUCH_ALWAYS) {
-      *in_ptr++ = YKPIV_TOUCHPOLICY_TAG;
-      *in_ptr++ = 0x01;
-      *in_ptr++ = YKPIV_TOUCHPOLICY_ALWAYS;
-    }
-  }
-
-  if (ykpiv_transfer_data(state, templ, key_data, in_ptr - key_data, data, &recv_len, &sw) != YKPIV_OK)
+  else
     return CKR_FUNCTION_FAILED;
 
-  if (sw != 0x9000)
-    return CKR_DEVICE_ERROR;
+  pin_policy = YKPIV_PINPOLICY_DEFAULT;
+  touch_policy = YKPIV_TOUCHPOLICY_DEFAULT;
+  if (vendor_defined != 0) {
+    if (vendor_defined & CKA_PIN_ONCE) {
+      pin_policy = YKPIV_PINPOLICY_ONCE;
+    }
+    else if (vendor_defined & CKA_PIN_ALWAYS) {
+      pin_policy = YKPIV_PINPOLICY_ALWAYS;
+    }
+    else if (vendor_defined & CKA_PIN_NEVER) {
+      pin_policy = YKPIV_PINPOLICY_NEVER;
+    }
+    else
+      return CKR_ATTRIBUTE_VALUE_INVALID;
 
-  return CKR_OK;
+    if (vendor_defined & CKA_TOUCH_ALWAYS) {
+      touch_policy = YKPIV_TOUCHPOLICY_ALWAYS;
+    }
+    else if (vendor_defined & CKA_TOUCH_NEVER) {
+      touch_policy = YKPIV_TOUCHPOLICY_NEVER;
+    }
+    else
+      return CKR_ATTRIBUTE_VALUE_INVALID;
+  }
 
+ rc = ykpiv_import_private_key(state, key_id, algo,
+                                  p, p_len,
+                                  q, q_len,
+                                  dp, dp_len,
+                                  dq, dq_len,
+                                  qinv, qinv_len,
+                                  ec_data, ec_data_len,
+                                  pin_policy, touch_policy);
+
+ if (rc != YKPIV_OK)
+   return CKR_FUNCTION_FAILED;
+
+ return CKR_OK;
 }
 
 CK_RV COMMON_token_delete_cert(ykpiv_state *state, CK_ULONG cert_id) {
@@ -287,6 +290,7 @@ token_vendor_t get_token_vendor(vendor_id_t vid) {
     v.token_import_cert         = COMMON_token_import_cert;
     v.token_import_private_key  = COMMON_token_import_private_key;
     v.token_delete_cert         = COMMON_token_delete_cert;
+    v.token_change_pin          = YUBICO_token_change_pin;
     break;
 
   case UNKNOWN:

@@ -26,7 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 PACKAGE=yubico-piv-tool
-OPENSSLVERSION=1.0.1p
+OPENSSLVERSION=1.0.1r
 
 all: usage 32bit 64bit
 
@@ -53,17 +53,14 @@ doit:
 	rm -rf $(PWD)/tmp$(ARCH)/root/ssl/ && \
 	rm $(PWD)/tmp$(ARCH)/root/bin/openssl.exe && \
 	rm $(PWD)/tmp$(ARCH)/root/bin/c_rehash && \
-	rm $(PWD)/tmp$(ARCH)/root/bin/ssleay32.dll && \
 	rm -rf $(PWD)/tmp$(ARCH)/root/lib/engines/ && \
-	rm -rf $(PWD)/tmp$(ARCH)/root/lib/libssl* && \
-	rm $(PWD)/tmp$(ARCH)/root/lib/pkgconfig/libssl.pc && \
-	rm $(PWD)/tmp$(ARCH)/root/lib/pkgconfig/openssl.pc && \
 	cd .. && \
 	cp ../$(PACKAGE)-$(VERSION).tar.gz . && \
 	tar xfa $(PACKAGE)-$(VERSION).tar.gz && \
 	cd $(PACKAGE)-$(VERSION)/ && \
 	CC=$(HOST)-gcc PKG_CONFIG_PATH=$(PWD)/tmp$(ARCH)/root/lib/pkgconfig lt_cv_deplibs_check_method=pass_all ./configure --host=$(HOST) --build=x86_64-unknown-linux-gnu --prefix=$(PWD)/tmp$(ARCH)/root LDFLAGS=-L$(PWD)/tmp$(ARCH)/root/lib CPPFLAGS=-I$(PWD)/tmp$(ARCH)/root/include && \
 	make install $(CHECK) && \
+	rm -rf $(PWD)/tmp$(ARCH)/root/lib/pkgconfig/ && \
 	cp COPYING $(PWD)/tmp$(ARCH)/root/licenses/$(PACKAGE).txt && \
 	cd .. && \
 	cd root && \

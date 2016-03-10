@@ -5,15 +5,15 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
- * 
+ *
  *   * Redistributions of source code must retain the above copyright
  *     notice, this list of conditions and the following disclaimer.
- * 
+ *
  *   * Redistributions in binary form must reproduce the above
  *     copyright notice, this list of conditions and the following
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -63,6 +63,17 @@ unsigned const char chuid_tmpl[] = {
 };
 #define CHUID_GUID_OFFS 29
 
+unsigned const char ccc_tmpl[] = {
+  0xf0, 0x15, 0xa0, 0x00, 0x00, 0x01, 0x16, 0xff, 0x02, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf1, 0x01, 0x21,
+  0xf2, 0x01, 0x21, 0xf3, 0x00, 0xf4, 0x01, 0x00, 0xf5, 0x01, 0x10, 0xf6, 0x00,
+  0xf7, 0x00, 0xfa, 0x00, 0xfb, 0x00, 0xfc, 0x00, 0xfd, 0x00, 0xfe, 0x00
+};
+#define CCC_ID_OFFS 9
+
+#define CHUID 0
+#define CCC 1
+
 #define MAX_OID_LEN 19
 
 #define KEY_LEN 24
@@ -71,7 +82,7 @@ static void print_version(ykpiv_state *state, const char *output_file_name) {
   char version[7];
   FILE *output_file = open_file(output_file_name, OUTPUT);
   if(!output_file) {
-    fprintf(stderr, "Failed opening output_file_name\n");
+    return;
   }
 
   if(ykpiv_get_version(state, version, sizeof(version)) == YKPIV_OK) {
@@ -316,14 +327,15 @@ static bool set_pin_retries(ykpiv_state *state, int pin_retries, int puk_retries
 }
 
 static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
-    const char *input_file_name, const char *slot, char *password,
-    enum enum_pin_policy pin_policy, enum enum_touch_policy touch_policy) {
+                       const char *input_file_name, const char *slot, char *password,
+                       enum enum_pin_policy pin_policy, enum enum_touch_policy touch_policy) {
   int key = 0;
   FILE *input_file = NULL;
   EVP_PKEY *private_key = NULL;
   PKCS12 *p12 = NULL;
   X509 *cert = NULL;
   bool ret = false;
+  ykpiv_rc rc = YKPIV_GENERIC_ERROR;
 
   sscanf(slot, "%2x", &key);
 
@@ -360,119 +372,123 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
 
   {
     unsigned char algorithm = get_algorithm(private_key);
+    unsigned char pp = YKPIV_PINPOLICY_DEFAULT;
+    unsigned char tp = YKPIV_TOUCHPOLICY_DEFAULT;
+
     if(algorithm == 0) {
       goto import_out;
     }
-    {
-      unsigned char data[0xff];
-      unsigned long recv_len = sizeof(data);
-      unsigned char in_data[1024];
-      unsigned char *in_ptr = in_data;
-      unsigned char templ[] = {0, YKPIV_INS_IMPORT_KEY, algorithm, key};
-      int sw;
-      if(YKPIV_IS_RSA(algorithm)) {
-        RSA *rsa_private_key = EVP_PKEY_get1_RSA(private_key);
-        unsigned char e[4];
-        unsigned char *e_ptr = e;
-        int element_len = 128;
-        if(algorithm == YKPIV_ALGO_RSA1024) {
-          element_len = 64;
-        }
 
-        if((set_component_with_len(&e_ptr, rsa_private_key->e, 3) == false) ||
-            !(e[1] == 0x01 && e[2] == 0x00 && e[3] == 0x01)) {
-          fprintf(stderr, "Invalid public exponent for import (only 0x10001 supported)\n");
-          goto import_out;
-        }
+    if(pin_policy != pin_policy__NULL) {
+        pp = get_pin_policy(pin_policy);
+    }
 
-        *in_ptr++ = 0x01;
-        if(set_component_with_len(&in_ptr, rsa_private_key->p, element_len) == false) {
-          fprintf(stderr, "Failed setting p component.\n");
-          goto import_out;
-        }
+    if(touch_policy != touch_policy__NULL) {
+      tp = get_touch_policy(touch_policy);
+    }
 
-        *in_ptr++ = 0x02;
-        if(set_component_with_len(&in_ptr, rsa_private_key->q, element_len) == false) {
-          fprintf(stderr, "Failed setting q component.\n");
-          goto import_out;
-        }
+    if(YKPIV_IS_RSA(algorithm)) {
+      RSA *rsa_private_key = EVP_PKEY_get1_RSA(private_key);
+      unsigned char e[4];
+      unsigned char p[128];
+      unsigned char q[128];
+      unsigned char dmp1[128];
+      unsigned char dmq1[128];
+      unsigned char iqmp[128];
 
-        *in_ptr++ = 0x03;
-        if(set_component_with_len(&in_ptr, rsa_private_key->dmp1, element_len) == false) {
-          fprintf(stderr, "Failed setting dmp1 component.\n");
-          goto import_out;
-        }
-
-        *in_ptr++ = 0x04;
-        if(set_component_with_len(&in_ptr, rsa_private_key->dmq1, element_len) == false) {
-          fprintf(stderr, "Failed setting dmq1 component.\n");
-          goto import_out;
-        }
-
-        *in_ptr++ = 0x05;
-        if(set_component_with_len(&in_ptr, rsa_private_key->iqmp, element_len) == false) {
-          fprintf(stderr, "Failed setting iqmp component.\n");
-          goto import_out;
-        }
-      } else if(YKPIV_IS_EC(algorithm)) {
-        EC_KEY *ec = EVP_PKEY_get1_EC_KEY(private_key);
-        const BIGNUM *s = EC_KEY_get0_private_key(ec);
-        int element_len = 32;
-
-        if(algorithm == YKPIV_ALGO_ECCP384) {
-          element_len = 48;
-        }
-
-        *in_ptr++ = 0x06;
-        if(set_component_with_len(&in_ptr, s, element_len) == false) {
-          fprintf(stderr, "Failed setting ec private key.\n");
-          goto import_out;
-        }
+      int element_len = 128;
+      if(algorithm == YKPIV_ALGO_RSA1024) {
+        element_len = 64;
       }
 
-      if(pin_policy != pin_policy__NULL) {
-        *in_ptr++ = YKPIV_PINPOLICY_TAG;
-        *in_ptr++ = 1;
-        *in_ptr++ = get_pin_policy(pin_policy);
-      }
-      if(touch_policy != touch_policy__NULL) {
-        *in_ptr++ = YKPIV_TOUCHPOLICY_TAG;
-        *in_ptr++ = 1;
-        *in_ptr++ = get_touch_policy(touch_policy);
+      if((set_component(e, rsa_private_key->e, 3) == false) ||
+         !(e[0] == 0x01 && e[1] == 0x00 && e[2] == 0x01)) {
+        fprintf(stderr, "Invalid public exponent for import (only 0x10001 supported)\n");
+        goto import_out;
       }
 
-      if(ykpiv_transfer_data(state, templ, in_data, in_ptr - in_data, data,
-            &recv_len, &sw) != YKPIV_OK) {
-        return false;
-      } else if(sw == 0x6a80) {
-        fprintf(stderr, "Failed import.");
-        if(pin_policy != pin_policy__NULL) {
-          fprintf(stderr, "Maybe pin-policy is not supported on this key?\n");
-        } else if(touch_policy != touch_policy__NULL) {
-          fprintf(stderr, "Maybe touch-policy is not supported on this key?\n");
-        } else {
-          fprintf(stderr, "Maybe algorithm is not supported on this key?\n");
-        }
-      } else if(sw != 0x9000) {
-        fprintf(stderr, "Failed import command with code %x.\n", sw);
-      } else {
-        ret = true;
+      if(set_component(p, rsa_private_key->p, element_len) == false) {
+        fprintf(stderr, "Failed setting p component.\n");
+        goto import_out;
       }
+
+      if(set_component(q, rsa_private_key->q, element_len) == false) {
+        fprintf(stderr, "Failed setting q component.\n");
+        goto import_out;
+      }
+
+      if(set_component(dmp1, rsa_private_key->dmp1, element_len) == false) {
+        fprintf(stderr, "Failed setting dmp1 component.\n");
+        goto import_out;
+      }
+
+      if(set_component(dmq1, rsa_private_key->dmq1, element_len) == false) {
+        fprintf(stderr, "Failed setting dmq1 component.\n");
+        goto import_out;
+      }
+
+      if(set_component(iqmp, rsa_private_key->iqmp, element_len) == false) {
+        fprintf(stderr, "Failed setting iqmp component.\n");
+        goto import_out;
+      }
+
+      rc = ykpiv_import_private_key(state, key, algorithm,
+                                    p, element_len,
+                                    q, element_len,
+                                    dmp1, element_len,
+                                    dmq1, element_len,
+                                    iqmp, element_len,
+                                    NULL, 0,
+                                    pp, tp);
+    }
+    else if(YKPIV_IS_EC(algorithm)) {
+      EC_KEY *ec = EVP_PKEY_get1_EC_KEY(private_key);
+      const BIGNUM *s = EC_KEY_get0_private_key(ec);
+      unsigned char s_ptr[48];
+
+      int element_len = 32;
+      if(algorithm == YKPIV_ALGO_ECCP384) {
+        element_len = 48;
+      }
+
+      if(set_component(s_ptr, s, element_len) == false) {
+        fprintf(stderr, "Failed setting ec private key.\n");
+        goto import_out;
+      }
+
+      rc = ykpiv_import_private_key(state, key, algorithm,
+                                    NULL, 0,
+                                    NULL, 0,
+                                    NULL, 0,
+                                    NULL, 0,
+                                    NULL, 0,
+                                    s_ptr, element_len,
+                                    pp, tp);
+    }
+
+    ret = true;
+    if(rc != YKPIV_OK) {
+      ret = false;
     }
   }
+
 import_out:
   if(private_key) {
     EVP_PKEY_free(private_key);
   }
+
   if(p12) {
     PKCS12_free(p12);
   }
+
   if(cert) {
     X509_free(cert);
   }
+
   if(input_file != stdin) {
     fclose(input_file);
   }
+
   return ret;
 }
 
@@ -536,15 +552,16 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
   }
 
   {
-    unsigned char certdata[2100];
+    unsigned char certdata[3072];
     unsigned char *certptr = certdata;
     int object = get_object_id(slot);
     ykpiv_rc res;
 
-    if(cert_len > 2048) {
-      fprintf(stderr, "Certificate to large, maximum 2048 bytes (was %d bytes).\n", cert_len);
+    if(4 + cert_len + 5 > 3072) { /* 4 is prefix size, 5 is postfix size */
+      fprintf(stderr, "Certificate is to large to fit in buffer.\n");
       goto import_cert_out;
     }
+
     *certptr++ = 0x70;
     certptr += set_length(certptr, cert_len);
     if (compress) {
@@ -587,20 +604,36 @@ import_cert_out:
   return ret;
 }
 
-static bool set_chuid(ykpiv_state *state, int verbose) {
-  unsigned char chuid[sizeof(chuid_tmpl)];
+static bool set_dataobject(ykpiv_state *state, int verbose, int type) {
+  unsigned char obj[1024];
   ykpiv_rc res;
+  size_t offs, rand_len, len;
+  const unsigned char *tmpl;
+  int id;
 
-  memcpy(chuid, chuid_tmpl, sizeof(chuid));
-  if(RAND_pseudo_bytes(chuid + CHUID_GUID_OFFS, 0x10) == -1) {
+  if(type == CHUID) {
+    offs = CHUID_GUID_OFFS;
+    len = sizeof(chuid_tmpl);
+    rand_len = 0x10;
+    tmpl = chuid_tmpl;
+    id = YKPIV_OBJ_CHUID;
+  } else {
+    offs = CCC_ID_OFFS;
+    rand_len = 0xe;
+    len = sizeof(ccc_tmpl);
+    tmpl = ccc_tmpl;
+    id = YKPIV_OBJ_CAPABILITY;
+  }
+  memcpy(obj, tmpl, len);
+  if(RAND_pseudo_bytes(obj + offs, rand_len) == -1) {
     fprintf(stderr, "error: no randomness.\n");
     return false;
   }
   if(verbose) {
-    fprintf(stderr, "Setting the CHUID to: ");
-    dump_hex(chuid, sizeof(chuid), stderr, true);
+    fprintf(stderr, "Setting the %s to: ", type == CHUID ? "CHUID" : "CCC");
+    dump_data(obj, len, stderr, true, format_arg_hex);
   }
-  if((res = ykpiv_save_object(state, YKPIV_OBJ_CHUID, chuid, sizeof(chuid))) != YKPIV_OK) {
+  if((res = ykpiv_save_object(state, id, obj, len)) != YKPIV_OK) {
     fprintf(stderr, "Failed communicating with device: %s\n", ykpiv_strerror(res));
     return false;
   }
@@ -689,7 +722,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
   memcpy(digest, oid, oid_len);
   /* XXX: this should probably use X509_REQ_digest() but that's buggy */
   if(!ASN1_item_digest(ASN1_ITEM_rptr(X509_REQ_INFO), md, req->req_info,
-			  digest + oid_len, &digest_len)) {
+              digest + oid_len, &digest_len)) {
     fprintf(stderr, "Failed doing digest of request.\n");
     goto request_out;
   }
@@ -748,7 +781,7 @@ request_out:
 
 static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_format,
     const char *input_file_name, const char *slot, char *subject, enum enum_hash hash,
-    const char *output_file_name) {
+    int serial, int validDays, const char *output_file_name) {
   FILE *input_file = NULL;
   FILE *output_file = NULL;
   bool ret = false;
@@ -814,7 +847,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     fprintf(stderr, "Failed to set the certificate public key.\n");
     goto selfsign_out;
   }
-  if(!ASN1_INTEGER_set(X509_get_serialNumber(x509), 1)) {
+  if(!ASN1_INTEGER_set(X509_get_serialNumber(x509), serial)) {
     fprintf(stderr, "Failed to set certificate serial.\n");
     goto selfsign_out;
   }
@@ -822,7 +855,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     fprintf(stderr, "Failed to set certificate notBefore.\n");
     goto selfsign_out;
   }
-  if(!X509_gmtime_adj(X509_get_notAfter(x509), 31536000L)) {
+  if(!X509_gmtime_adj(X509_get_notAfter(x509), 60L * 60L * 24L * validDays)) {
     fprintf(stderr, "Failed to set certificate notAfter.\n");
     goto selfsign_out;
   }
@@ -856,7 +889,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   memcpy(digest, oid, oid_len);
   /* XXX: this should probably use X509_digest() but that looks buggy */
   if(!ASN1_item_digest(ASN1_ITEM_rptr(X509_CINF), md, x509->cert_info,
-			  digest + oid_len, &digest_len)) {
+              digest + oid_len, &digest_len)) {
     fprintf(stderr, "Failed doing digest of certificate.\n");
     goto selfsign_out;
   }
@@ -936,17 +969,16 @@ static bool verify_pin(ykpiv_state *state, const char *pin) {
  * since they're very similar in what data they use. */
 static bool change_pin(ykpiv_state *state, enum enum_action action, const char *pin,
     const char *new_pin) {
-  unsigned char templ[] = {0, YKPIV_INS_CHANGE_REFERENCE, 0, 0x80};
-  unsigned char indata[0x10];
-  unsigned char data[0xff];
-  unsigned long recv_len = sizeof(data);
   char pinbuf[9] = {0};
   char new_pinbuf[9] = {0};
   const char *name = action == action_arg_changeMINUS_pin ? "pin" : "puk";
   const char *new_name = action == action_arg_changeMINUS_puk ? "new puk" : "new pin";
-  int sw;
+  int (*op)(ykpiv_state *state, const char * puk, size_t puk_len,
+            const char * new_pin, size_t new_pin_len, int *tries) = ykpiv_change_pin;
   size_t pin_len;
   size_t new_len;
+  int tries;
+  ykpiv_rc res;
 
   if(!pin) {
     if (!read_pw(name, pinbuf, sizeof(pinbuf), false)) {
@@ -969,38 +1001,33 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
   }
 
   if(action == action_arg_unblockMINUS_pin) {
-    templ[1] = YKPIV_INS_RESET_RETRY;
+    op = ykpiv_unblock_pin;
   }
   else if(action == action_arg_changeMINUS_puk) {
-    templ[3] = 0x81;
+    op = ykpiv_change_puk;
   }
-  memcpy(indata, pin, pin_len);
-  if(pin_len < 8) {
-    memset(indata + pin_len, 0xff, 8 - pin_len);
-  }
-  memcpy(indata + 8, new_pin, new_len);
-  if(new_len < 8) {
-    memset(indata + 8 + new_len, 0xff, 16 - new_len);
-  }
-  if(ykpiv_transfer_data(state, templ, indata, sizeof(indata), data, &recv_len, &sw) != YKPIV_OK) {
-    return false;
-  } else if(sw != 0x9000) {
-    if((sw >> 8) == 0x63) {
-      int tries = sw & 0xf;
+  res = op(state, pin, pin_len, new_pin, new_len, &tries);
+  switch (res) {
+    case YKPIV_OK:
+      return true;
+
+    case YKPIV_WRONG_PIN:
       fprintf(stderr, "Failed verifying %s code, now %d tries left before blocked.\n",
-          name, tries);
-    } else if(sw == 0x6983) {
+              name, tries);
+      return false;
+
+    case YKPIV_PIN_LOCKED:
       if(action == action_arg_changeMINUS_pin) {
         fprintf(stderr, "The pin code is blocked, use the unblock-pin action to unblock it.\n");
       } else {
         fprintf(stderr, "The puk code is blocked, you will have to reinitialize the application.\n");
       }
-    } else {
-      fprintf(stderr, "Failed changing/unblocking code, error: %x\n", sw);
-    }
-    return false;
+      return false;
+
+    default:
+      fprintf(stderr, "Failed changing/unblocking code, error: %x\n", res);
+      return false;
   }
-  return true;
 }
 
 static bool delete_certificate(ykpiv_state *state, enum enum_slot slot) {
@@ -1019,7 +1046,7 @@ static bool read_certificate(ykpiv_state *state, enum enum_slot slot,
     enum enum_key_format key_format, const char *output_file_name) {
   FILE *output_file;
   int object = get_object_id(slot);
-  unsigned char data[2048];
+  unsigned char data[3072];
   const unsigned char *ptr = data;
   unsigned long len = sizeof(data);
   int cert_len;
@@ -1100,6 +1127,9 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
 
   output_file = open_file(output, OUTPUT);
   if(!output_file) {
+    if(input_file && input_file != stdin) {
+      fclose(input_file);
+    }
     return false;
   }
 
@@ -1127,7 +1157,7 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
 
     if(verbosity) {
       fprintf(stderr, "file hashed as: ");
-      dump_hex(hashed, hash_len, stderr, true);
+      dump_data(hashed, hash_len, stderr, true, format_arg_hex);
     }
     EVP_MD_CTX_destroy(mdctx);
   }
@@ -1146,7 +1176,7 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
 
     if(verbosity) {
       fprintf(stderr, "file signed as: ");
-      dump_hex(buf, len, stderr, true);
+      dump_data(buf, len, stderr, true, format_arg_hex);
     }
     fwrite(buf, 1, len, output_file);
     ret = true;
@@ -1167,7 +1197,8 @@ out:
 static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_MD *md,
     FILE *output) {
   int object = get_object_id(slot);
-  unsigned char data[2048];
+  int slot_name;
+  unsigned char data[3072];
   const unsigned char *ptr = data;
   unsigned long len = sizeof(data);
   int cert_len;
@@ -1176,9 +1207,17 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
   BIO *bio = NULL;
 
   if(ykpiv_fetch_object(state, object, data, &len) != YKPIV_OK) {
-    fprintf(output, "No data available.\n");
     return;
   }
+
+  if (slot == slot_arg_9a)
+    slot_name = 0x9a;
+  else if (slot >= slot_arg_9c && slot <= slot_arg_9e)
+    slot_name = 0x9b + slot;
+  else
+    slot_name = 0x82 + (slot - slot_arg_82);
+
+  fprintf(output, "Slot %x:\t", slot_name);
 
   if(*ptr++ == 0x70) {
     unsigned int md_len = sizeof(data);
@@ -1237,7 +1276,7 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     fprintf(output, "\n");
     X509_digest(x509, md, data, &md_len);
     fprintf(output, "\tFingerprint:\t");
-    dump_hex(data, md_len, output, false);
+    dump_data(data, md_len, output, false, format_arg_hex);
 
     bio = BIO_new_fp(output, BIO_NOCLOSE | BIO_FP_TEXT);
     not_before = X509_get_notBefore(x509);
@@ -1266,10 +1305,12 @@ cert_out:
 }
 
 static bool status(ykpiv_state *state, enum enum_hash hash,
-  const char *output_file_name) {
+                   enum enum_slot slot,
+                   const char *output_file_name) {
   const EVP_MD *md;
-  unsigned char chuid[2048];
-  long unsigned len = sizeof(chuid);
+  unsigned char buf[3072];
+  long unsigned len = sizeof(buf);
+  int i;
   FILE *output_file = open_file(output_file_name, OUTPUT);
   if(!output_file) {
     return false;
@@ -1281,20 +1322,26 @@ static bool status(ykpiv_state *state, enum enum_hash hash,
   }
 
   fprintf(output_file, "CHUID:\t");
-  if(ykpiv_fetch_object(state, YKPIV_OBJ_CHUID, chuid, &len) != YKPIV_OK) {
+  if(ykpiv_fetch_object(state, YKPIV_OBJ_CHUID, buf, &len) != YKPIV_OK) {
     fprintf(output_file, "No data available\n");
   } else {
-    dump_hex(chuid, len, output_file, false);
+    dump_data(buf, len, output_file, false, format_arg_hex);
   }
 
-  fprintf(output_file, "Slot 9a:\t");
-  print_cert_info(state, slot_arg_9a, md, output_file);
-  fprintf(output_file, "Slot 9c:\t");
-  print_cert_info(state, slot_arg_9c, md, output_file);
-  fprintf(output_file, "Slot 9d:\t");
-  print_cert_info(state, slot_arg_9d, md, output_file);
-  fprintf(output_file, "Slot 9e:\t");
-  print_cert_info(state, slot_arg_9e, md, output_file);
+  len = sizeof(buf);
+  fprintf(output_file, "CCC:\t");
+  if(ykpiv_fetch_object(state, YKPIV_OBJ_CAPABILITY, buf, &len) != YKPIV_OK) {
+    fprintf(output_file, "No data available\n");
+  } else {
+    dump_data(buf, len, output_file, false, format_arg_hex);
+  }
+
+  if (slot == slot__NULL)
+    for (i = 0; i < 24; i++) {
+      print_cert_info(state, i, md, output_file);
+    }
+  else
+    print_cert_info(state, slot, md, output_file);
 
   {
     int tries;
@@ -1360,7 +1407,7 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
     EVP_DigestFinal_ex(mdctx, data, &data_len);
     if(verbose) {
       fprintf(stderr, "Test data hashes as: ");
-      dump_hex(data, data_len, stderr, true);
+      dump_data(data, data_len, stderr, true, format_arg_hex);
     }
   }
 
@@ -1516,9 +1563,9 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
       if(len == sizeof(secret)) {
         if(verbose) {
           fprintf(stderr, "Generated nonce: ");
-          dump_hex(secret, sizeof(secret), stderr, true);
+          dump_data(secret, sizeof(secret), stderr, true, format_arg_hex);
           fprintf(stderr, "Decrypted nonce: ");
-          dump_hex(secret2, sizeof(secret2), stderr, true);
+          dump_data(secret2, sizeof(secret2), stderr, true, format_arg_hex);
         }
         if(memcmp(secret, secret2, sizeof(secret)) == 0) {
           fprintf(stderr, "Successfully performed RSA decryption!\n");
@@ -1558,9 +1605,9 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
       }
       if(verbose) {
         fprintf(stderr, "ECDH host generated: ");
-        dump_hex(secret, len, stderr, true);
+        dump_data(secret, len, stderr, true, format_arg_hex);
         fprintf(stderr, "ECDH card generated: ");
-        dump_hex(secret2, len, stderr, true);
+        dump_data(secret2, len, stderr, true, format_arg_hex);
       }
       if(memcmp(secret, secret2, key_len) == 0) {
         fprintf(stderr, "Successfully performed ECDH exchange with card.\n");
@@ -1618,11 +1665,6 @@ static bool attest(ykpiv_state *state, const char *slot,
     return false;
   }
 
-  output_file = open_file(output_file_name, OUTPUT);
-  if(!output_file) {
-    return false;
-  }
-
   if(ykpiv_transfer_data(state, templ, NULL, 0, data, &len, &sw) != YKPIV_OK) {
     fprintf(stderr, "Failed to communicate.\n");
     goto attest_out;
@@ -1660,7 +1702,73 @@ attest_out:
   if(x509) {
     X509_free(x509);
   }
+  return ret;
+}
 
+static bool write_object(ykpiv_state *state, int id,
+    const char *input_file_name, int verbosity, enum enum_format format) {
+  bool ret = false;
+  FILE *input_file = NULL;
+  unsigned char data[3072];
+  size_t len = sizeof(data);
+  ykpiv_rc res;
+
+  input_file = open_file(input_file_name, INPUT);
+  if(!input_file) {
+    return false;
+  }
+
+  if(isatty(fileno(input_file))) {
+    fprintf(stderr, "Please paste the data...\n");
+  }
+
+  len = read_data(data, len, input_file, format);
+  if(len == 0) {
+    fprintf(stderr, "Failed reading data\n");
+    goto write_out;
+  }
+
+  if(verbosity) {
+    fprintf(stderr, "Writing %lu bytes of data to object %x.\n", len, id);
+  }
+
+  if((res = ykpiv_save_object(state, id, data, len)) != YKPIV_OK) {
+    fprintf(stderr, "Failed writing data to device: %s\n", ykpiv_strerror(res));
+  } else {
+    ret = true;
+  }
+
+write_out:
+  if(input_file != stdin) {
+    fclose(input_file);
+  }
+  return ret;
+}
+
+static bool read_object(ykpiv_state *state, int id, const char *output_file_name,
+    enum enum_format format) {
+  FILE *output_file = NULL;
+  unsigned char data[3072];
+  unsigned long len = sizeof(data);
+  bool ret = false;
+
+  output_file = open_file(output_file_name, OUTPUT);
+  if(!output_file) {
+    return false;
+  }
+
+  if(ykpiv_fetch_object(state, id, data, &len) != YKPIV_OK) {
+    fprintf(stderr, "Failed fetching object.\n");
+    goto read_out;
+  }
+
+  dump_data(data, len, output_file, false, format);
+  ret = true;
+
+read_out:
+  if(output_file != stdout) {
+    fclose(output_file);
+  }
   return ret;
 }
 
@@ -1671,12 +1779,16 @@ int main(int argc, char *argv[]) {
   enum enum_action action;
   unsigned int i;
   int ret = EXIT_SUCCESS;
+  bool authed = false;
+  char pwbuf[128];
+  char *password;
 
   if(cmdline_parser(argc, argv, &args_info) != 0) {
     return EXIT_FAILURE;
   }
 
   verbosity = args_info.verbose_arg + (int)args_info.verbose_given;
+  password = args_info.password_arg;
 
   for(i = 0; i < args_info.action_given; i++) {
     action = *(args_info.action_arg + i);
@@ -1709,12 +1821,21 @@ int main(int argc, char *argv[]) {
           return EXIT_FAILURE;
         }
         break;
+      case action_arg_writeMINUS_object:
+      case action_arg_readMINUS_object:
+        if(!args_info.id_given) {
+          fprintf(stderr, "The '%s' action needs the --id argument.\n",
+              cmdline_parser_action_values[action]);
+          return EXIT_FAILURE;
+        }
+        break;
       case action_arg_changeMINUS_pin:
       case action_arg_changeMINUS_puk:
       case action_arg_unblockMINUS_pin:
       case action_arg_verifyMINUS_pin:
       case action_arg_setMINUS_mgmMINUS_key:
       case action_arg_setMINUS_chuid:
+      case action_arg_setMINUS_ccc:
       case action_arg_version:
       case action_arg_reset:
       case action_arg_status:
@@ -1736,20 +1857,60 @@ int main(int argc, char *argv[]) {
   }
 
   for(i = 0; i < args_info.action_given; i++) {
-    bool needs_auth = false;
     action = *(args_info.action_arg + i);
     switch(action) {
+      case action_arg_importMINUS_key:
+      case action_arg_importMINUS_certificate:
+        if(args_info.key_format_arg == key_format_arg_PKCS12 && !password) {
+          if(verbosity) {
+            fprintf(stderr, "Asking for password since '%s' needs it.\n", cmdline_parser_action_values[action]);
+          }
+          if(!read_pw("Password", pwbuf, sizeof(pwbuf), false)) {
+            fprintf(stderr, "Failed to get password.\n");
+            return false;
+          }
+          password = pwbuf;
+        }
       case action_arg_generate:
       case action_arg_setMINUS_mgmMINUS_key:
       case action_arg_pinMINUS_retries:
-      case action_arg_importMINUS_key:
-      case action_arg_importMINUS_certificate:
       case action_arg_setMINUS_chuid:
+      case action_arg_setMINUS_ccc:
       case action_arg_deleteMINUS_certificate:
-        if(verbosity) {
-          fprintf(stderr, "Authenticating since action '%s' needs that.\n", cmdline_parser_action_values[action]);
+      case action_arg_writeMINUS_object:
+        if(!authed) {
+          unsigned char key[KEY_LEN];
+          size_t key_len = sizeof(key);
+          char keybuf[KEY_LEN*2+1];
+          char *key_ptr = args_info.key_arg;
+          if(verbosity) {
+            fprintf(stderr, "Authenticating since action '%s' needs that.\n", cmdline_parser_action_values[action]);
+          }
+          if(args_info.key_given && args_info.key_orig == NULL) {
+            if(!read_pw("management key", keybuf, sizeof(keybuf), false)) {
+              fprintf(stderr, "Failed to read management key from stdin,\n");
+              return EXIT_FAILURE;
+            }
+            key_ptr = keybuf;
+          }
+          if(ykpiv_hex_decode(key_ptr, strlen(key_ptr), key, &key_len) != YKPIV_OK) {
+            fprintf(stderr, "Failed decoding key!\n");
+            return EXIT_FAILURE;
+          }
+
+          if(ykpiv_authenticate(state, key) != YKPIV_OK) {
+            fprintf(stderr, "Failed authentication with the application.\n");
+            return EXIT_FAILURE;
+          }
+          if(verbosity) {
+            fprintf(stderr, "Successful application authentication.\n");
+          }
+          authed = true;
+        } else {
+          if(verbosity) {
+            fprintf(stderr, "Skipping authentication for '%s' since it's already done.\n", cmdline_parser_action_values[action]);
+          }
         }
-        needs_auth = true;
         break;
       case action_arg_version:
       case action_arg_reset:
@@ -1765,43 +1926,19 @@ int main(int argc, char *argv[]) {
       case action_arg_testMINUS_decipher:
       case action_arg_listMINUS_readers:
       case action_arg_attest:
+      case action_arg_readMINUS_object:
       case action__NULL:
       default:
         if(verbosity) {
           fprintf(stderr, "Action '%s' does not need authentication.\n", cmdline_parser_action_values[action]);
         }
-        continue;
-    }
-    if(needs_auth) {
-      unsigned char key[KEY_LEN];
-      size_t key_len = sizeof(key);
-      char keybuf[KEY_LEN*2+1];
-      char *key_ptr = args_info.key_arg;
-      if(args_info.key_given && args_info.key_orig == NULL) {
-        if(!read_pw("management key", keybuf, sizeof(keybuf), false)) {
-          fprintf(stderr, "Failed to read management key from stdin,\n");
-          return EXIT_FAILURE;
-        }
-        key_ptr = keybuf;
-      }
-      if(ykpiv_hex_decode(key_ptr, strlen(key_ptr), key, &key_len) != YKPIV_OK) {
-        fprintf(stderr, "Failed decoding key!\n");
-        return EXIT_FAILURE;
-      }
-
-      if(ykpiv_authenticate(state, key) != YKPIV_OK) {
-        fprintf(stderr, "Failed authentication with the application.\n");
-        return EXIT_FAILURE;
-      }
-      if(verbosity) {
-        fprintf(stderr, "Successful application authentication.\n");
-      }
-      break;
     }
   }
 
+
   /* openssl setup.. */
   OpenSSL_add_all_algorithms();
+
 
   for(i = 0; i < args_info.action_given; i++) {
     char new_keybuf[KEY_LEN*2+1] = {0};
@@ -1855,7 +1992,7 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_reset:
         if(reset(state) == false) {
-	  fprintf(stderr, "Reset failed, are pincodes blocked?\n");
+      fprintf(stderr, "Reset failed, are pincodes blocked?\n");
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully reset the application.\n");
@@ -1871,25 +2008,27 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_importMINUS_key:
-        if(import_key(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_orig, args_info.password_arg,
+        if(import_key(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_orig, password,
               args_info.pin_policy_arg, args_info.touch_policy_arg) == false) {
+          fprintf(stderr, "Unable to import private key\n");
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully imported a new private key.\n");
         }
         break;
       case action_arg_importMINUS_certificate:
-        if(import_cert(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_arg, args_info.password_arg) == false) {
+        if(import_cert(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_arg, password) == false) {
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully imported a new certificate.\n");
         }
         break;
+      case action_arg_setMINUS_ccc:
       case action_arg_setMINUS_chuid:
-        if(set_chuid(state, verbosity) == false) {
+        if(set_dataobject(state, verbosity, action == action_arg_setMINUS_chuid ? CHUID : CCC) == false) {
           ret = EXIT_FAILURE;
         } else {
-          fprintf(stderr, "Successfully set new CHUID.\n");
+          fprintf(stderr, "Successfully set new %s.\n", action == action_arg_setMINUS_chuid ? "CHUID" : "CCC");
         }
         break;
       case action_arg_requestMINUS_certificate:
@@ -1925,6 +2064,7 @@ int main(int argc, char *argv[]) {
       case action_arg_selfsignMINUS_certificate:
         if(selfsign_certificate(state, args_info.key_format_arg, args_info.input_arg,
               args_info.slot_orig, args_info.subject_arg, args_info.hash_arg,
+              args_info.serial_arg, args_info.valid_days_arg,
               args_info.output_arg) == false) {
           ret = EXIT_FAILURE;
         } else {
@@ -1943,7 +2083,7 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_status:
-        if(status(state, args_info.hash_arg, args_info.output_arg) == false) {
+        if(status(state, args_info.hash_arg, args_info.slot_arg, args_info.output_arg) == false) {
           ret = EXIT_FAILURE;
         }
         break;
@@ -1961,6 +2101,17 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_listMINUS_readers:
         if(list_readers(state) == false) {
+          ret = EXIT_FAILURE;
+        }
+      case action_arg_writeMINUS_object:
+        if(write_object(state, args_info.id_arg, args_info.input_arg, verbosity,
+              args_info.format_arg) == false) {
+          ret = EXIT_FAILURE;
+        }
+        break;
+      case action_arg_readMINUS_object:
+        if(read_object(state, args_info.id_arg, args_info.output_arg,
+              args_info.format_arg) == false) {
           ret = EXIT_FAILURE;
         }
         break;
