@@ -1648,7 +1648,6 @@ static bool list_readers(ykpiv_state *state) {
 
 static bool attest(ykpiv_state *state, const char *slot,
     enum enum_key_format key_format, const char *output_file_name) {
-  FILE *output_file;
   unsigned char data[2048];
   unsigned long len = sizeof(data);
   bool ret = false;
@@ -1656,6 +1655,10 @@ static bool attest(ykpiv_state *state, const char *slot,
   unsigned char templ[] = {0, YKPIV_INS_ATTEST, 0, 0};
   int key;
   int sw;
+  FILE *output_file = open_file(output_file_name, OUTPUT);
+  if(!output_file) {
+    return false;
+  }
 
   sscanf(slot, "%2x", &key);
   templ[2] = key;
