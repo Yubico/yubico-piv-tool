@@ -604,6 +604,8 @@ unsigned char get_touch_policy(enum enum_touch_policy policy) {
       return YKPIV_TOUCHPOLICY_NEVER;
     case touch_policy_arg_always:
       return YKPIV_TOUCHPOLICY_ALWAYS;
+    case touch_policy_arg_cached:
+      return YKPIV_TOUCHPOLICY_CACHED;
     case touch_policy__NULL:
     default:
       return 0;
