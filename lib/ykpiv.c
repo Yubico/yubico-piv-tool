@@ -885,7 +885,8 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
 
   if (touch_policy != YKPIV_TOUCHPOLICY_DEFAULT &&
       touch_policy != YKPIV_TOUCHPOLICY_NEVER &&
-      touch_policy != YKPIV_TOUCHPOLICY_ALWAYS)
+      touch_policy != YKPIV_TOUCHPOLICY_ALWAYS &&
+      touch_policy != YKPIV_TOUCHPOLICY_CACHED)
     return YKPIV_GENERIC_ERROR;
 
   if (algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048) {
