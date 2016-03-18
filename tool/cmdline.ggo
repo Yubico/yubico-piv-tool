@@ -46,7 +46,7 @@ text   "
        82-95 is for Retired Key Management\n"
 option "algorithm" A "What algorithm to use" values="RSA1024","RSA2048","ECCP256","ECCP384" enum optional default="RSA2048"
 option "hash" H "Hash to use for signatures" values="SHA1","SHA256","SHA384","SHA512" enum optional default="SHA256"
-option "new-key" n "New authentication key to use" string optional
+option "new-key" n "New authentication key to use for action set-mgm-key" string optional
 option "pin-retries" - "Number of retries before the pin code is blocked" int optional dependon="puk-retries"
 option "puk-retries" - "Number of retries before the puk code is blocked" int optional dependon="pin-retries"
 option "input" i "Filename to use as input, - for stdin" string optional default="-"
