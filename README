@@ -83,8 +83,8 @@ the PCSC backend.
 Example Usage
 -------------
 
-For help text on all commands --help can be given to the command, for more
-output --verbose or --verbose=2 may be added.
+For a list of all available options --help can be given. For more information
+on exactly what happens --verbose or --verbose=2 may be added.
 
 Generate a new ECC-P256 key on device in slot 9a, will print the public
 key on stdout:
@@ -130,3 +130,8 @@ Read out the certificate from a slot and then run a signature test:
 
   yubico-piv-tool -a read-cert -s 9a
   yubico-piv-tool -a verify-pin -P 123456 -a test-signature -s 9a
+
+Import a key into slot 85 (only available on YubiKey 4) and set the
+touch policy (also only available on YubiKey 4):
+
+  yubico-piv-tool -a import-key -s 85 --touch-policy=always -i key.pem
