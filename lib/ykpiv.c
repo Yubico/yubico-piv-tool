@@ -775,7 +775,7 @@ ykpiv_rc ykpiv_change_puk(ykpiv_state *state, const char * current_puk, size_t c
 }
 
 ykpiv_rc ykpiv_unblock_pin(ykpiv_state *state, const char * puk, size_t puk_len, const char * new_pin, size_t new_pin_len, int *tries) {
-  return _change_pin_internal(state, CHREF_ACT_CHANGE_PUK, puk, puk_len, new_pin, new_pin_len, tries);
+  return _change_pin_internal(state, CHREF_ACT_UNBLOCK_PIN, puk, puk_len, new_pin, new_pin_len, tries);
 }
 
 ykpiv_rc ykpiv_fetch_object(ykpiv_state *state, int object_id,
