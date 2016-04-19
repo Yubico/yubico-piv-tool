@@ -1025,7 +1025,7 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
       return false;
 
     default:
-      fprintf(stderr, "Failed changing/unblocking code, error: %x\n", res);
+      fprintf(stderr, "Failed changing/unblocking code, error: %s\n", ykpiv_strerror(res));
       return false;
   }
 }
