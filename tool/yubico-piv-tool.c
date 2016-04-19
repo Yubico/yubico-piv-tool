@@ -1000,6 +1000,11 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
     return false;
   }
 
+  if(new_len < 6) {
+    fprintf(stderr, "Minimum 6 digits of PIN supported.\n");
+    return false;
+  }
+
   if(action == action_arg_unblockMINUS_pin) {
     op = ykpiv_unblock_pin;
   }
