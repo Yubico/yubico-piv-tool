@@ -67,14 +67,14 @@ To reset the application (PIN/PUK need to be blocked hence trying a couple
 of times -- you need to modify this if you have changed the default
 number of PIN/PUK retries).
 
-  yubico-piv-tool -a verify-pin -P 4711
-  yubico-piv-tool -a verify-pin -P 4711
-  yubico-piv-tool -a verify-pin -P 4711
-  yubico-piv-tool -a verify-pin -P 4711
-  yubico-piv-tool -a change-puk -P 4711 -N 67567
-  yubico-piv-tool -a change-puk -P 4711 -N 67567
-  yubico-piv-tool -a change-puk -P 4711 -N 67567
-  yubico-piv-tool -a change-puk -P 4711 -N 67567
+  yubico-piv-tool -a verify-pin -P 471112
+  yubico-piv-tool -a verify-pin -P 471112
+  yubico-piv-tool -a verify-pin -P 471112
+  yubico-piv-tool -a verify-pin -P 471112
+  yubico-piv-tool -a change-puk -P 471112 -N 6756789
+  yubico-piv-tool -a change-puk -P 471112 -N 6756789
+  yubico-piv-tool -a change-puk -P 471112 -N 6756789
+  yubico-piv-tool -a change-puk -P 471112 -N 6756789
   yubico-piv-tool -a reset
 
 Software
