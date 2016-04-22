@@ -2047,6 +2047,7 @@ int main(int argc, char *argv[]) {
         if(list_readers(state) == false) {
           ret = EXIT_FAILURE;
         }
+        break;
       case action_arg_writeMINUS_object:
         if(write_object(state, args_info.id_arg, args_info.input_arg, verbosity,
               args_info.format_arg) == false) {
