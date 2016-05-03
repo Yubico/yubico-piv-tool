@@ -1651,6 +1651,68 @@ static bool list_readers(ykpiv_state *state) {
   return true;
 }
 
+static bool attest(ykpiv_state *state, const char *slot,
+    enum enum_key_format key_format, const char *output_file_name) {
+  unsigned char data[2048];
+  unsigned long len = sizeof(data);
+  bool ret = false;
+  X509 *x509 = NULL;
+  unsigned char templ[] = {0, YKPIV_INS_ATTEST, 0, 0};
+  int key;
+  int sw;
+  FILE *output_file = open_file(output_file_name, OUTPUT);
+  if(!output_file) {
+    return false;
+  }
+
+  sscanf(slot, "%2x", &key);
+  templ[2] = key;
+
+  if(key_format != key_format_arg_PEM && key_format != key_format_arg_DER) {
+    fprintf(stderr, "Only PEM and DER format are supported for attest..\n");
+    return false;
+  }
+
+  if(ykpiv_transfer_data(state, templ, NULL, 0, data, &len, &sw) != YKPIV_OK) {
+    fprintf(stderr, "Failed to communicate.\n");
+    goto attest_out;
+  } else if(sw != 0x9000) {
+    fprintf(stderr, "Failed to attest key.\n");
+    goto attest_out;
+  }
+
+  if(data[0] == 0x30) {
+    if(key_format == key_format_arg_PEM) {
+      const unsigned char *ptr = data;
+      int len2 = len;
+      x509 = X509_new();
+      if(!x509) {
+        fprintf(stderr, "Failed allocating x509 structure.\n");
+        goto attest_out;
+      }
+      x509 = d2i_X509(NULL, &ptr, len2);
+      if(!x509) {
+        fprintf(stderr, "Failed parsing x509 information.\n");
+        goto attest_out;
+      }
+      PEM_write_X509(output_file, x509);
+      ret = true;
+    } else {
+      fwrite(data, len, 1, output_file);
+    }
+    ret = true;
+  }
+
+attest_out:
+  if(output_file != stdout) {
+    fclose(output_file);
+  }
+  if(x509) {
+    X509_free(x509);
+  }
+  return ret;
+}
+
 static bool write_object(ykpiv_state *state, int id,
     const char *input_file_name, int verbosity, enum enum_format format) {
   bool ret = false;
@@ -1753,6 +1815,7 @@ int main(int argc, char *argv[]) {
       case action_arg_readMINUS_certificate:
       case action_arg_testMINUS_signature:
       case action_arg_testMINUS_decipher:
+      case action_arg_attest:
         if(args_info.slot_arg == slot__NULL) {
           fprintf(stderr, "The '%s' action needs a slot (-s) to operate on.\n",
               cmdline_parser_action_values[action]);
@@ -1870,6 +1933,7 @@ int main(int argc, char *argv[]) {
       case action_arg_testMINUS_signature:
       case action_arg_testMINUS_decipher:
       case action_arg_listMINUS_readers:
+      case action_arg_attest:
       case action_arg_readMINUS_object:
       case action__NULL:
       default:
@@ -2057,6 +2121,12 @@ int main(int argc, char *argv[]) {
       case action_arg_readMINUS_object:
         if(read_object(state, args_info.id_arg, args_info.output_arg,
               args_info.format_arg) == false) {
+          ret = EXIT_FAILURE;
+        }
+        break;
+      case action_arg_attest:
+        if(attest(state, args_info.slot_orig, args_info.key_format_arg,
+              args_info.output_arg) == false) {
           ret = EXIT_FAILURE;
         }
         break;
