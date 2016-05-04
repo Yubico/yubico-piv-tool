@@ -192,7 +192,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
 
   if(*reader_ptr == '\0') {
     if(state->verbose) {
-      fprintf(stderr, "error: no useable reader found.\n");
+      fprintf(stderr, "error: no usable reader found.\n");
     }
     SCardReleaseContext(state->context);
     state->context = SCARD_E_INVALID_HANDLE;
