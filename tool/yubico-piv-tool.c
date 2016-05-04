@@ -145,7 +145,7 @@ static bool generate_key(ykpiv_state *state, const char *slot,
 
   *in_ptr++ = 0xac;
   *in_ptr++ = 3;
-  *in_ptr++ = 0x80;
+  *in_ptr++ = YKPIV_ALGO_TAG;
   *in_ptr++ = 1;
   *in_ptr++ = get_piv_algorithm(algorithm);
   if(in_data[4] == 0) {
