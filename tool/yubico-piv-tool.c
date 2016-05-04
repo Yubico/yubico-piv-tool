@@ -122,7 +122,7 @@ static bool generate_key(ykpiv_state *state, const char *slot,
   unsigned char in_data[11];
   unsigned char *in_ptr = in_data;
   unsigned char data[1024];
-  unsigned char templ[] = {0, YKPIV_INS_GENERATE_ASYMMERTRIC, 0, 0};
+  unsigned char templ[] = {0, YKPIV_INS_GENERATE_ASYMMETRIC, 0, 0};
   unsigned long recv_len = sizeof(data);
   int sw;
   int key = 0;
