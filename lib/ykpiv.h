@@ -189,6 +189,14 @@ extern "C"
 #define YKPIV_INS_GET_DATA 0xcb
 #define YKPIV_INS_PUT_DATA 0xdb
 
+/* sw is status words, see NIST special publication 800-73-4, section 5.6 */
+#define SW_SUCCESS 0x9000
+#define SW_ERR_SECURITY_STATUS 0x6982
+#define SW_ERR_AUTH_BLOCKED 0x6983
+#define SW_ERR_INCORRECT_PARAM 0x6a80
+/* this is a custom sw for yubikey */
+#define SW_ERR_INCORRECT_SLOT 0x6b00
+
   /* Yubico vendor specific instructions */
 #define YKPIV_INS_SET_MGMKEY 0xff
 #define YKPIV_INS_IMPORT_KEY 0xfe
