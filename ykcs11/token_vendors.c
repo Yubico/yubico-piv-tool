@@ -55,7 +55,7 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa,
   unsigned char in_data[11];
   unsigned char *in_ptr = in_data;
   unsigned char data[1024];
-  unsigned char templ[] = {0, YKPIV_INS_GENERATE_ASYMMERTRIC, 0, 0};
+  unsigned char templ[] = {0, YKPIV_INS_GENERATE_ASYMMETRIC, 0, 0};
   unsigned char *certptr;
   unsigned long recv_len = sizeof(data);
   int len_bytes;
