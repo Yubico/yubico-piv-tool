@@ -71,7 +71,7 @@ unsigned char get_algorithm(EVP_PKEY *key) {
         } else if(size == 128) {
           return YKPIV_ALGO_RSA1024;
         } else {
-          fprintf(stderr, "Unuseable key of %d bits, only 1024 and 2048 is supported.\n", size * 8);
+          fprintf(stderr, "Unusable key of %d bits, only 1024 and 2048 are supported.\n", size * 8);
           return 0;
         }
       }
@@ -102,7 +102,7 @@ X509_NAME *parse_name(const char *orig_name) {
   char *part;
 
   if(strlen(orig_name) > 1024) {
-    fprintf(stderr, "Name is to long!\n");
+    fprintf(stderr, "Name is too long!\n");
     return NULL;
   }
   strcpy(name, orig_name);

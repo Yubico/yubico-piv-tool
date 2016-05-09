@@ -149,7 +149,7 @@ static bool generate_key(ykpiv_state *state, const char *slot,
   *in_ptr++ = 1;
   *in_ptr++ = get_piv_algorithm(algorithm);
   if(in_data[4] == 0) {
-    fprintf(stderr, "Unexepcted algorithm.\n");
+    fprintf(stderr, "Unexpected algorithm.\n");
     goto generate_out;
   }
   if(pin_policy != pin_policy__NULL) {
@@ -558,7 +558,7 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
     ykpiv_rc res;
 
     if(4 + cert_len + 5 > sizeof(certdata)) { /* 4 is prefix size, 5 is postfix size */
-      fprintf(stderr, "Certificate is to large to fit in buffer.\n");
+      fprintf(stderr, "Certificate is too large to fit in buffer.\n");
       goto import_cert_out;
     }
 
