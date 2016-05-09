@@ -168,11 +168,11 @@ static bool generate_key(ykpiv_state *state, const char *slot,
         &recv_len, &sw) != YKPIV_OK) {
     fprintf(stderr, "Failed to communicate.\n");
     goto generate_out;
-  } else if(sw != 0x9000) {
+  } else if(sw != SW_SUCCESS) {
     fprintf(stderr, "Failed to generate new key (");
-    if(sw == 0x6b00) {
+    if(sw == SW_ERR_INCORRECT_SLOT) {
       fprintf(stderr, "slot not supported?)\n");
-    } else if(sw == 0x6a80) {
+    } else if(sw == SW_ERR_INCORRECT_PARAM) {
       if(pin_policy != pin_policy__NULL) {
         fprintf(stderr, "pin policy not supported?)\n");
       } else if(touch_policy != touch_policy__NULL) {
@@ -297,7 +297,7 @@ static bool reset(ykpiv_state *state) {
   /* note: the reset function is only available when both pins are blocked. */
   if(ykpiv_transfer_data(state, templ, NULL, 0, data, &recv_len, &sw) != YKPIV_OK) {
     return false;
-  } else if(sw == 0x9000) {
+  } else if(sw == SW_SUCCESS) {
     return true;
   }
   return false;
@@ -320,7 +320,7 @@ static bool set_pin_retries(ykpiv_state *state, int pin_retries, int puk_retries
 
   if(ykpiv_transfer_data(state, templ, NULL, 0, data, &recv_len, &sw) != YKPIV_OK) {
     return false;
-  } else if(sw == 0x9000) {
+  } else if(sw == SW_SUCCESS) {
     return true;
   }
   return false;
@@ -1676,7 +1676,7 @@ static bool attest(ykpiv_state *state, const char *slot,
   if(ykpiv_transfer_data(state, templ, NULL, 0, data, &len, &sw) != YKPIV_OK) {
     fprintf(stderr, "Failed to communicate.\n");
     goto attest_out;
-  } else if(sw != 0x9000) {
+  } else if(sw != SW_SUCCESS) {
     fprintf(stderr, "Failed to attest key.\n");
     goto attest_out;
   }

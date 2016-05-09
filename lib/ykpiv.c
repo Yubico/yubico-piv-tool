@@ -180,7 +180,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
           fprintf(stderr, "Failed communicating with card: '%s'\n", ykpiv_strerror(res));
         }
         continue;
-      } else if(sw == 0x9000) {
+      } else if(sw == SW_SUCCESS) {
         return YKPIV_OK;
       } else {
         if(state->verbose) {
@@ -283,7 +283,7 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
     res = send_data(state, &apdu, data, &recv_len, sw);
     if(res != YKPIV_OK) {
       return res;
-    } else if(*sw != 0x9000 && *sw >> 8 != 0x61) {
+    } else if(*sw != SW_SUCCESS && *sw >> 8 != 0x61) {
       return YKPIV_OK;
     }
     if(*out_len + recv_len - 2 > max_out) {
@@ -313,7 +313,7 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
     res = send_data(state, &apdu, data, &recv_len, sw);
     if(res != YKPIV_OK) {
       return res;
-    } else if(*sw != 0x9000 && *sw >> 8 != 0x61) {
+    } else if(*sw != SW_SUCCESS && *sw >> 8 != 0x61) {
       return YKPIV_OK;
     }
     if(*out_len + recv_len - 2 > max_out) {
@@ -399,7 +399,7 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
     apdu.st.data[2] = 0x80;
     if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
       return res;
-    } else if(sw != 0x9000) {
+    } else if(sw != SW_SUCCESS) {
       return YKPIV_AUTHENTICATION_ERROR;
     }
     memcpy(challenge, data + 4, 8);
@@ -435,7 +435,7 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
     apdu.st.lc = dataptr - apdu.st.data;
     if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
       return res;
-    } else if(sw != 0x9000) {
+    } else if(sw != SW_SUCCESS) {
       return YKPIV_AUTHENTICATION_ERROR;
     }
   }
@@ -497,7 +497,7 @@ ykpiv_rc ykpiv_set_mgmkey2(ykpiv_state *state, const unsigned char *new_key, con
   memcpy(apdu.st.data + 3, new_key, DES_KEY_SZ * 3);
   if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
     return res;
-  } else if(sw == 0x9000) {
+  } else if(sw == SW_SUCCESS) {
     return YKPIV_OK;
   }
   return YKPIV_GENERIC_ERROR;
@@ -599,11 +599,11 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
       fprintf(stderr, "Sign command failed to communicate.\n");
     }
     return res;
-  } else if(sw != 0x9000) {
+  } else if(sw != SW_SUCCESS) {
     if(state->verbose) {
       fprintf(stderr, "Failed sign command with code %x.\n", sw);
     }
-    if (sw == 0x6982)
+    if (sw == SW_ERR_SECURITY_STATUS)
       return YKPIV_AUTHENTICATION_ERROR;
     else
       return YKPIV_GENERIC_ERROR;
@@ -664,7 +664,7 @@ ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len) {
   apdu.st.ins = YKPIV_INS_GET_VERSION;
   if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
     return res;
-  } else if(sw == 0x9000) {
+  } else if(sw == SW_SUCCESS) {
     int result = snprintf(version, len, "%d.%d.%d", data[0], data[1], data[2]);
     if(result < 0) {
       return YKPIV_SIZE_ERROR;
@@ -703,12 +703,12 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
   }
   if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
     return res;
-  } else if(sw == 0x9000) {
+  } else if(sw == SW_SUCCESS) {
     return YKPIV_OK;
   } else if((sw >> 8) == 0x63) {
     *tries = (sw & 0xf);
     return YKPIV_WRONG_PIN;
-  } else if(sw == 0x6983) {
+  } else if(sw == SW_ERR_AUTH_BLOCKED) {
     *tries = 0;
     return YKPIV_WRONG_PIN;
   } else {
@@ -750,11 +750,11 @@ static ykpiv_rc _change_pin_internal(ykpiv_state *state, int action, const char 
   res = ykpiv_transfer_data(state, templ, indata, sizeof(indata), data, &recv_len, &sw);
   if(res != YKPIV_OK) {
     return res;
-  } else if(sw != 0x9000) {
+  } else if(sw != SW_SUCCESS) {
     if((sw >> 8) == 0x63) {
       *tries = sw & 0xf;
       return YKPIV_WRONG_PIN;
-    } else if(sw == 0x6983) {
+    } else if(sw == SW_ERR_AUTH_BLOCKED) {
       return YKPIV_PIN_LOCKED;
     } else {
       if(state->verbose) {
@@ -796,7 +796,7 @@ ykpiv_rc ykpiv_fetch_object(ykpiv_state *state, int object_id,
     return res;
   }
 
-  if(sw == 0x9000) {
+  if(sw == SW_SUCCESS) {
     size_t outlen;
     int offs = get_length(data + 1, &outlen);
     if(offs == 0) {
@@ -837,7 +837,7 @@ ykpiv_rc ykpiv_save_object(ykpiv_state *state, int object_id,
     return res;
   }
 
-  if(sw == 0x9000) {
+  if(sw == SW_SUCCESS) {
     return YKPIV_OK;
   } else {
     return YKPIV_GENERIC_ERROR;
@@ -956,10 +956,10 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
   if (ykpiv_transfer_data(state, templ, key_data, in_ptr - key_data, data, &recv_len, &sw) != YKPIV_OK)
     return YKPIV_GENERIC_ERROR;
 
-  if (sw == 0x6982)
+  if (sw == SW_ERR_SECURITY_STATUS)
     return YKPIV_AUTHENTICATION_ERROR;
 
-  if (sw != 0x9000)
+  if (sw != SW_SUCCESS)
     return YKPIV_GENERIC_ERROR;
 
   return YKPIV_OK;
