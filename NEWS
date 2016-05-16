@@ -5,13 +5,13 @@ yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 * Version 1.4.0 (released 2016-05-03)
 
 ** Add attest action
-Will when used on a slot with a generated key output a signed x509 certificate
-for that slot showing that the key was generated in hardware. Available in
-firmware 4.3.0 and newer.
+When used on a slot with a generated key, outputs a signed x509 certificate for
+that slot showing that the key was generated in hardware. Available in firmware
+4.3.0 and newer.
 
-** Add touch-policy cached
-Will treat the touch as valid for additional usage for 15s when used. Available
-in firmware 4.3.0 and newer.
+** Add cached parameter for touch-policy
+With cached, the touch is valid for an additional 15s. Available in firmware
+4.3.0 and newer.
 
 ** Enforce a minimum PIN length of 6 characters.
 
