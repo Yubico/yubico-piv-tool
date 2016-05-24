@@ -1,8 +1,12 @@
 Using Attestation
 -----------------
 
+== Introduction
 This feature is only available in YubiKey 4.3 and newer.
 
+A high level description of the thinking and how this can be used can be found link:/PIV/Introduction/PIV_attestation.html[here].
+
+== Usage
 Attestation works through a special key slot called “f9” this comes
 pre-loaded from factory with a key and cert signed by Yubico, but can be
 overwritten.
