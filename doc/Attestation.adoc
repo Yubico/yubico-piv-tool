@@ -28,7 +28,7 @@ https://developers.yubico.com/PIV/Introduction/piv-attestation-ca.pem
 
 Then add the keys attestation certificate to that file:
 
-  $ yubico-piv-tool --action=read-certificate --slot=f9 > certs.pem
+  $ yubico-piv-tool --action=read-certificate --slot=f9 >> certs.pem
 
 Now we're ready to verify the attestation:
 
