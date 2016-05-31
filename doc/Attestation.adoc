@@ -4,7 +4,8 @@ Using Attestation
 == Introduction
 This feature is only available in YubiKey 4.3 and newer.
 
-A high level description of the thinking and how this can be used can be found link:/PIV/Introduction/PIV_attestation.html[here].
+A high level description of the thinking and how this can be used can be found
+at https://developers.yubico.com/PIV/Introduction/PIV_attestation.html
 
 == Usage
 Attestation works through a special key slot called “f9” this comes
@@ -18,3 +19,19 @@ special key, this can be realised by using the yubico-piv-tool action attest:
   $ yubico-piv-tool --action=attest --slot=9a
 
 The output of this is a PEM encoded certificate, signed by the key in slot f9.
+
+== Verifying
+To verify an attestation step 1 is to build the certificate chain. Put the
+attestation root certificate in a file (or if you trust several put all
+of them in said file). The Yubico root certificate can be found at
+https://developers.yubico.com/PIV/Introduction/piv-attestation-ca.pem
+
+Then add the keys attestation certificate to that file:
+
+  $ yubico-piv-tool --action=read-certificate --slot=f9 > certs.pem
+
+Now we're ready to verify the attestation:
+
+  $ yubico-piv-tool --action=attest --slot=f9 > attestation.pem
+  $ openssl verify -CAfile certs.pem attestation.pem
+  attestation.pem: OK
