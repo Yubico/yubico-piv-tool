@@ -16,7 +16,7 @@ Steps
 -----
 
 1. Generate the key:
-   (--key[=STRING] is needed if the management key value is not the default value)
+   (--key[=STRING] is needed if the management key value is no longer the default value)
   
   yubico-piv-tool -s 9a -a generate -o public.pem --key[=STRING]
   
@@ -38,6 +38,6 @@ Steps
 
 5. For it to be useful in windows a chuid must be set as well:
    (only if that wasn't done earlier)
-   (--key[=STRING] is needed if the management key value is not the default value)
+   (--key[=STRING] is needed if the management key value is no longer the default value)
 
    yubico-piv-tool -a set-chuid --key[=STRING]
