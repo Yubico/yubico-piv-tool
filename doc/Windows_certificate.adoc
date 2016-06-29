@@ -16,8 +16,10 @@ Steps
 -----
 
 1. Generate the key:
-
-  yubico-piv-tool -s 9a -a generate -o public.pem
+   (--key[=STRING] is needed if the management key value is no longer the default value)
+  
+  yubico-piv-tool -s 9a -a generate -o public.pem --key[=STRING]
+  
 
 2. Request a certificate:
 
@@ -30,10 +32,12 @@ Steps
   certreq -submit -attrib "CertificateTemplate:User" request.csr cert.crt
 
 4. Load the certificate in the:
+   (--key[=STRING] is needed if the management key value is not the default value)
 
-  yubico-piv-tool -s 9a -a import-certificate -i cert.crt
+  yubico-piv-tool -s 9a -a import-certificate -i cert.crt --key[=STRING]
 
 5. For it to be useful in windows a chuid must be set as well:
    (only if that wasn't done earlier)
+   (--key[=STRING] is needed if the management key value is no longer the default value)
 
-	 yubico-piv-tool -a set-chuid
+   yubico-piv-tool -a set-chuid --key[=STRING]
