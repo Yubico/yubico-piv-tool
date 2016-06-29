@@ -18,6 +18,7 @@ Steps
 1. Generate the key:
 
   yubico-piv-tool -s 9a -a generate -o public.pem
+  (if the management key has been modified, also, supply --key at the end like: yubico-piv-tool -s 9a -a generate -o public.pem --key)
 
 2. Request a certificate:
 
