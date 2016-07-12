@@ -1058,8 +1058,10 @@ static bool read_certificate(ykpiv_state *state, enum enum_slot slot,
   bool ret = false;
   X509 *x509 = NULL;
 
-  if(key_format != key_format_arg_PEM && key_format != key_format_arg_DER) {
-    fprintf(stderr, "Only PEM and DER format are supported for read-certificate.\n");
+  if(key_format != key_format_arg_PEM &&
+     key_format != key_format_arg_DER &&
+     key_format != key_format_arg_SSH) {
+    fprintf(stderr, "Only PEM, DER and SSH format are supported for read-certificate.\n");
     return false;
   }
 
@@ -1075,7 +1077,8 @@ static bool read_certificate(ykpiv_state *state, enum enum_slot slot,
 
   if(*ptr++ == 0x70) {
     ptr += get_length(ptr, &cert_len);
-    if(key_format == key_format_arg_PEM) {
+    if(key_format == key_format_arg_PEM ||
+       key_format == key_format_arg_SSH) {
       x509 = X509_new();
       if(!x509) {
         fprintf(stderr, "Failed allocating x509 structure.\n");
@@ -1086,8 +1089,18 @@ static bool read_certificate(ykpiv_state *state, enum enum_slot slot,
         fprintf(stderr, "Failed parsing x509 information.\n");
         goto read_cert_out;
       }
-      PEM_write_X509(output_file, x509);
-      ret = true;
+
+      if (key_format == key_format_arg_PEM) {
+        PEM_write_X509(output_file, x509);
+        ret = true;
+      }
+      else {
+        if (!SSH_write_X509(output_file, x509)) {
+          fprintf(stderr, "Unable to extract public key or not an RSA key.\n");
+          goto read_cert_out;
+        }
+        ret = true;
+      }
     } else { /* key_format_arg_DER */
       /* XXX: This will just dump the raw data in tag 0x70.. */
       fwrite(ptr, (size_t)cert_len, 1, output_file);

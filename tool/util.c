@@ -39,6 +39,7 @@
 
 #include <openssl/evp.h>
 #include <openssl/x509.h>
+#include <openssl/rsa.h>
 
 #include <ykpiv.h>
 
@@ -610,4 +611,73 @@ unsigned char get_touch_policy(enum enum_touch_policy policy) {
     default:
       return 0;
   }
+}
+
+int SSH_write_X509(FILE *fp, X509 *x) {
+
+  EVP_PKEY *pkey = NULL;
+  int ret = 0;
+
+  pkey = X509_get_pubkey(x);
+
+  if (pkey == NULL) {
+    return ret;
+  }
+
+  switch (pkey->type) {
+  case EVP_PKEY_RSA:
+  case EVP_PKEY_RSA2: {
+    RSA *rsa;
+    unsigned char n[256];
+
+    char rsa_id[] = "\x00\x00\x00\x07ssh-rsa";
+    char rsa_f4[] = "\x00\x00\x00\x03\x01\x00\x01";
+
+    rsa = EVP_PKEY_get1_RSA(pkey);
+
+    set_component(n, rsa->n, RSA_size(rsa));
+
+    uint32_t bytes = BN_num_bytes(rsa->n);
+    char len_buf[5];
+    int len = 4;
+
+    len_buf[0] = (bytes >> 24) & 0x000000ff;
+    len_buf[1] = (bytes << 16) & 0x000000ff;
+    len_buf[2] = (bytes >> 8) & 0x000000ff;
+    len_buf[3] = (bytes) & 0x000000ff;
+
+    if (n[0] >= 0x80) {
+      // High bit set, need an extra byte
+      len++;
+      len_buf[3]++;
+      len_buf[4] = 0;
+    }
+
+    fprintf(fp, "ssh-rsa ");
+
+    BIO *b64 = BIO_new(BIO_f_base64());
+    BIO *bio = BIO_new_fp(fp, BIO_NOCLOSE);
+
+    BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+    BIO_push(b64, bio);
+
+    BIO_write(b64, rsa_id, sizeof(rsa_id) - 1);
+    BIO_write(b64, rsa_f4, sizeof(rsa_f4) - 1);
+    BIO_write(b64, len_buf, len);
+    BIO_write(b64, n, RSA_size(rsa));
+    BIO_flush(b64);
+    BIO_free_all(b64);
+
+    ret = 1;
+
+  } break;
+
+  case EVP_PKEY_EC:
+    break;
+  }
+
+  EVP_PKEY_free(pkey);
+
+  return ret;
+
 }
