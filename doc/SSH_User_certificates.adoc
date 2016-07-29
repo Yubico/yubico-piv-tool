@@ -2,7 +2,7 @@ Using SSH User Certificates with PIV keys
 -----------------------------------------
 
 This is a step-by-step on how to setup SSH user certificates using PIV
-for hardware-backed keys. There guide is primarily for an OS X or
+for hardware-backed keys. This guide is primarily for an OS X or
 Linux system.
 
 Prerequisites
@@ -21,7 +21,7 @@ It has also been tested as *not working* with OpenSSH version 6.9p1.
 Steps
 -----
 
-1. GENERATE an "ssh user CA" key and trust it for this account on this
+1. Generate an "ssh user CA" key and trust it for this account on this
 host
 
   $ ssh-keygen -N '' -C user-ca -f ~/.ssh/ca
