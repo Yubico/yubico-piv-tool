@@ -57,7 +57,7 @@ operation will require touch)
   $ ssh-add -L > ~/.ssh/id_rsa.pub
   $ ssh-keygen -s ~/.ssh/ca -I identity -n "${LOGNAME}" ~/.ssh/id_rsa.pub
 
-6. Authenticate to the target system using the new key:
+7. Authenticate to the target system using the new key:
 
    $ ssh user@remote.example.com
 
