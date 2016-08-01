@@ -63,6 +63,10 @@ operation will require touch)
 
 If you have followed these steps to the letter, you will not be asked for the PIV PIN, but your YubiKey will start blinking, waiting for touch.
 
+More info
+---------
+
+For more information see the CERTIFICATES section of http://man.openbsd.org/OpenBSD-current/man1/ssh-keygen.1[ssh-keygen(1)].
 
 Thanks
 ------
