@@ -446,7 +446,7 @@ CK_RV get_doa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 /* Get certificate object attribute */
 CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
-  CK_BYTE     b_tmp[1024];
+  CK_BYTE     b_tmp[2048];
   CK_ULONG    ul_tmp;
   CK_ULONG    len = 0;
   DBG("For certificate object %lu, get ", obj);
