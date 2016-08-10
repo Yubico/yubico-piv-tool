@@ -781,7 +781,7 @@ request_out:
 
 static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_format,
     const char *input_file_name, const char *slot, char *subject, enum enum_hash hash,
-    int serial, int validDays, const char *output_file_name) {
+    const int *serial, int validDays, const char *output_file_name) {
   FILE *input_file = NULL;
   FILE *output_file = NULL;
   bool ret = false;
@@ -799,6 +799,8 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   const unsigned char *oid;
   int nid;
   unsigned int md_len;
+  ASN1_INTEGER *sno = ASN1_INTEGER_new();
+  BIGNUM *ser = NULL;
 
   sscanf(slot, "%2x", &key);
 
@@ -847,7 +849,24 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     fprintf(stderr, "Failed to set the certificate public key.\n");
     goto selfsign_out;
   }
-  if(!ASN1_INTEGER_set(X509_get_serialNumber(x509), serial)) {
+  if(serial) {
+    ASN1_INTEGER_set(sno, *serial);
+  } else {
+    ser = BN_new();
+    if(!ser) {
+      fprintf(stderr, "Failed to allocate BIGNUM.\n");
+      goto selfsign_out;
+    }
+    if(!BN_pseudo_rand(ser, 64, 0, 0)) {
+      fprintf(stderr, "Failed to generate randomness.\n");
+      goto selfsign_out;
+    }
+    if(!BN_to_ASN1_INTEGER(ser, sno)) {
+      fprintf(stderr, "Failed to set random serial.\n");
+      goto selfsign_out;
+    }
+  }
+  if(!X509_set_serialNumber(x509, sno)) {
     fprintf(stderr, "Failed to set certificate serial.\n");
     goto selfsign_out;
   }
@@ -929,6 +948,12 @@ selfsign_out:
   }
   if(name) {
     X509_NAME_free(name);
+  }
+  if(ser) {
+    BN_free(ser);
+  }
+  if(sno) {
+    ASN1_INTEGER_free(sno);
   }
   return ret;
 }
@@ -2085,7 +2110,7 @@ int main(int argc, char *argv[]) {
       case action_arg_selfsignMINUS_certificate:
         if(selfsign_certificate(state, args_info.key_format_arg, args_info.input_arg,
               args_info.slot_orig, args_info.subject_arg, args_info.hash_arg,
-              args_info.serial_arg, args_info.valid_days_arg,
+              args_info.serial_given ? &args_info.serial_arg : NULL, args_info.valid_days_arg,
               args_info.output_arg) == false) {
           ret = EXIT_FAILURE;
         } else {
