@@ -1,5 +1,5 @@
-Certificate Authority with
-------------------------------
+Certificate Authority with a YubiKey
+------------------------------------
 
 This document explains how to set up a Certificate Authority (CA) with
 Sub-CA private keys stored on YubiKeys.  Typical use for this is
@@ -15,7 +15,7 @@ generate the Sub-CA private keys on an offline host and save a copy of
 those keys.
 
 We have chosen to use a RSA 3744 bit root CA key, and RSA 2048 bit
-keys for the Sub-CAs and EE certificates.  The is limited to
+keys for the Sub-CAs and EE certificates.  The YubiKey is limited to
 RSA 1k and 2k keys (it supports ECDSA too but we chose to not use that
 here).
 
@@ -108,7 +108,7 @@ Generate new management code, PIN and PUK as follows:
   puk=`dd if=/dev/random bs=1 count=6 2>/dev/null | hexdump -v -e '/1 "%u"'|cut -c1-8`
   echo $puk > yubico-internal-https-$user-puk.txt
 
-Configure a fresh with these parameters as follows:
+Configure a fresh YubiKey with these parameters as follows:
 
   yubico-piv-tool -a set-mgm-key -n $key
   yubico-piv-tool -k $key -a change-pin -P 123456 -N $pin
@@ -157,11 +157,11 @@ You may inspect the newly generated EE cert with this command:
 
   openssl x509 -text < yubico-internal-https-subca-$user-crt.pem
 
-Import Sub-CA key to:
+Import Sub-CA key to the YubiKey:
 
   yubico-piv-tool -k $key -a import-key -s 9c < yubico-internal-https-subca-$user-key.pem 
 
-Import Sub-CA cert to:
+Import Sub-CA cert to the YubiKey:
 
   yubico-piv-tool -k $key -a import-certificate -s 9c < yubico-internal-https-subca-$user-crt.pem 
 

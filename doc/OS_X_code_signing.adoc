@@ -1,9 +1,9 @@
 Request, load and use OS X code signing certificates
 ---------------------------------------------------
 
-This is a short step-by-step on how to generate a key in the,
+This is a short step-by-step on how to generate a key on a YubiKey,
 create a certificate request, submit that request to apple, load the
-certificate in the and use it for code signing.
+certificate in the YubiKey and use it for code signing.
 
 Prerequisites
 -------------
@@ -49,7 +49,7 @@ NOTE: -K DER is available from version 0.1.3, with earlier convert to PEM and im
 
    $ yubico-piv-tool -a set-chuid
 
-9. Re-plug the and make sure the certificates show up under the keychain
+9. Re-plug the YubiKey and make sure the certificates show up under the keychain
 "PIV_II" in Keychain Access.
 
 10. Use the certificates as usual with codesign/pkgbuild/productbuild/productsign

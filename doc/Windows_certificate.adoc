@@ -1,9 +1,9 @@
 Request and load a certificate from Windows CA
 ----------------------------------------------
 
-This is a short step-by-step on how to generate a key in the,
+This is a short step-by-step on how to generate a key on a YubiKey,
 create a certificate request, submit that request to a Windows CA
-and then load the certificate in the.
+and then load the certificate on the YubiKey.
 
 Prerequisites
 -------------
@@ -17,9 +17,9 @@ Steps
 
 1. Generate the key:
    (--key[=STRING] is needed if the management key value is no longer the default value)
-  
+
   yubico-piv-tool -s 9a -a generate -o public.pem --key[=STRING]
-  
+
 
 2. Request a certificate:
 
@@ -31,7 +31,7 @@ Steps
 
   certreq -submit -attrib "CertificateTemplate:User" request.csr cert.crt
 
-4. Load the certificate in the:
+4. Load the certificate on the YubiKe:
    (--key[=STRING] is needed if the management key value is not the default value)
 
   yubico-piv-tool -s 9a -a import-certificate -i cert.crt --key[=STRING]

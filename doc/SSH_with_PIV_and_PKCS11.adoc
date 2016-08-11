@@ -1,7 +1,7 @@
 Using PIV for SSH through PKCS11
 --------------------------------
 
-This is a step-by-step for how to get a with PIV to work for
+This is a step-by-step for how to get a YubiKey with PIV to work for
 public-key authentication with OpenSSH through PKCS11.
 Primarily on a OS X or Linux system.
 
