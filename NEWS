@@ -1,6 +1,12 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
-* Version 1.4.1 (unreleased)
+* Version 1.4.1 (released 2016-08-11)
+
+** Documentation updates
+
+** Add possibility to export certificates in SSH format.
+
+** Make certificate serial number random by default.
 
 * Version 1.4.0 (released 2016-05-03)
 
