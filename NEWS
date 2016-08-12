@@ -2,6 +2,15 @@ yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
 * Version 1.4.2 (unreleased)
 
+** Clarify license headers and clean up YKCS11 licensing.
+Now uses pkcs11.h from the Scute project.
+
+** Don't install ykcs11-version.h.
+
+** No cflags in ykcs11.pc.
+
+** Unimplemented YKCS11 functions now return CKR_FUNCTION_FAILED.
+
 * Version 1.4.1 (released 2016-08-11)
 
 ** Documentation updates
