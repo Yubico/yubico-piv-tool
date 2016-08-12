@@ -35,5 +35,3 @@ Description: Yubico PIV PKCS#11 Module
 URL: https://www.yubico.com/
 Version: @VERSION@
 Libs: -L${libdir} -lykcs11
-Cflags: -I${includedir}/ykpiv
-
