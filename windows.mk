@@ -47,8 +47,8 @@ doit:
 		curl -L -O "https://www.openssl.org/source/openssl-$(OPENSSLVERSION).tar.gz" && \
 	tar xfa openssl-$(OPENSSLVERSION).tar.gz && \
 	cd openssl-$(OPENSSLVERSION) && \
-	CROSS_COMPILE="$(HOST)-" ./Configure mingw64 no-asm no-ssl2 no-ssl3 no-engines shared --prefix=$(PWD)/tmp$(ARCH)/root -static-libgcc && \
-	make all install_sw && \
+	CROSS_COMPILE="$(HOST)-" ./Configure mingw$(64) no-ssl2 no-ssl3 no-engines shared --prefix=$(PWD)/tmp$(ARCH)/root -static-libgcc && \
+	make depend all install_sw && \
 	cp LICENSE $(PWD)/tmp$(ARCH)/root/licenses/openssl.txt && \
 	rm -rf $(PWD)/tmp$(ARCH)/root/ssl/ && \
 	rm $(PWD)/tmp$(ARCH)/root/bin/openssl.exe && \
@@ -70,7 +70,7 @@ doit:
 	$(MAKE) -f windows.mk doit ARCH=32 HOST=i686-w64-mingw32 CHECK=check
 
 64bit:
-	$(MAKE) -f windows.mk doit ARCH=64 HOST=x86_64-w64-mingw32 CHECK=check
+	$(MAKE) -f windows.mk doit ARCH=64 HOST=x86_64-w64-mingw32 64=64 CHECK=check
 
 upload:
 	@if test ! -d "$(YUBICO_GITHUB_REPO)"; then \
