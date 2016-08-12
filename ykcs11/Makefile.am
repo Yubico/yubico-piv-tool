@@ -33,7 +33,7 @@ AM_CPPFLAGS += -I$(top_srcdir)/lib -I$(top_builddir)/lib
 
 lib_LTLIBRARIES = libykcs11.la
 
-libykcs11_la_SOURCES = ykcs11.c version.c ykcs11.pc.in ykcs11.map
+libykcs11_la_SOURCES = ykcs11.c ykcs11.pc.in ykcs11.map
 libykcs11_la_SOURCES += ykcs11.h debug.h
 libykcs11_la_SOURCES += vendors.c vendors.h vendor_ids.h
 libykcs11_la_SOURCES += slot_vendors.c slot_vendors.h

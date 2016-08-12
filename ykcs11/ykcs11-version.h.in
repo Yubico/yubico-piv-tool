@@ -82,9 +82,6 @@ extern "C"
 	 */
 #define YKCS11_VERSION_PATCH @YKCS11_VERSION_PATCH@
 
-	const char *ykcs11_check_version (const char *req_version);
-
-
 #ifdef __cplusplus
 }
 #endif
