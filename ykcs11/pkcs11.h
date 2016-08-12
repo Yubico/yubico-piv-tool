@@ -86,7 +86,13 @@ extern "C" {
 #ifdef CRYPTOKI_EXPORTS
 #define CK_SPEC __declspec(dllexport)
 #else
-#define CK_SPEC __declspec(dllimport)
+/*
+ * Yubico: we're using libtool to declare exports, this
+ * messes up the build.
+ *
+ * #define CK_SPEC __declspec(dllimport)
+ */
+#define CK_SPEC
 #endif
 
 #else
