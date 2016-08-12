@@ -1,5 +1,7 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
+* Version 1.4.3 (unreleased)
+
 * Version 1.4.2 (released 2016-08-12)
 
 ** Clarify license headers and clean up YKCS11 licensing.
