@@ -1555,7 +1555,7 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
 CK_RV check_delete_cert(CK_OBJECT_HANDLE hObject, CK_BYTE_PTR id) {
 
   if (hObject < PIV_CERT_OBJ_X509_PIV_AUTH || hObject >= PIV_CERT_OBJ_LAST)
-    return CKR_ACTION_PROHIBITED;
+    return CKR_FUNCTION_FAILED;
 
   *id = hObject - PIV_CERT_OBJ_X509_PIV_AUTH;
 

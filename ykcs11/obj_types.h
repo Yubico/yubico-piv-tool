@@ -31,7 +31,7 @@
 #ifndef OBJ_TYPES_H
 #define OBJ_TYPES_H
 
-#include "pkcs11t.h"
+#include "pkcs11y.h"
 
 #include <openssl/x509.h>
 

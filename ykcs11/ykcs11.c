@@ -1165,7 +1165,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
   // SO must be logged in
   if (session.info.state != CKS_RW_SO_FUNCTIONS) {
     DBG("Unable to delete objects, SO must be logged in");
-    return CKR_ACTION_PROHIBITED;
+    return CKR_USER_NOT_LOGGED_IN;
   }
 
   rv = check_delete_cert(hObject, &id);

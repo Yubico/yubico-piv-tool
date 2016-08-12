@@ -37,7 +37,7 @@
 /* #include <openssl/ec.h> */
 
 #include "openssl_types.h"
-#include "pkcs11t.h"
+#include "pkcs11y.h"
 
 CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, X509 **cert);
 CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa,

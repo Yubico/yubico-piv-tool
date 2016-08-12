@@ -42,7 +42,7 @@ libykcs11_la_SOURCES += yubico_slot.c yubico_slot.h yubico_token.c yubico_token.
 libykcs11_la_SOURCES += utils.c utils.h
 libykcs11_la_SOURCES += openssl_utils.c openssl_utils.h openssl_types.h
 libykcs11_la_SOURCES += objects.c objects.h obj_types.h
-libykcs11_la_SOURCES += pkcs11.h  pkcs11f.h  pkcs11t.h
+libykcs11_la_SOURCES += pkcs11.h  pkcs11y.h
 
 #internal.h
 #libykcs11_la_SOURCES += error.c

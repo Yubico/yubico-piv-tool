@@ -28,23 +28,19 @@
  *
  */
 
-#ifndef SLOT_VENDORS_H
-#define SLOT_VENDORS_H
+#ifndef PKCS11Y_H
+#define PKCS11Y_H
 
-#include "pkcs11y.h"
-#include "vendor_ids.h"
+#include "pkcs11.h"
 
-typedef CK_RV (*get_s_manufacturer_f)(CK_UTF8CHAR_PTR, CK_ULONG);
-typedef CK_RV (*get_s_flags_f)(CK_FLAGS_PTR);
-typedef CK_RV (*get_s_version_f)(CK_VERSION_PTR);
+typedef CK_FLAGS * CK_FLAGS_PTR;
 
-
-typedef struct {
-  get_s_manufacturer_f   get_slot_manufacturer;
-  get_s_flags_f          get_slot_flags;
-  get_s_version_f        get_slot_version;
-} slot_vendor_t;
-
-slot_vendor_t get_slot_vendor(vendor_id_t vid);
+// YUBICO specific attributes
+#define CKA_TOUCH_PIN_DEFAULT 0x00000000U
+#define CKA_TOUCH_ALWAYS      0x00000001U
+#define CKA_PIN_ONCE          0x00000002U
+#define CKA_PIN_ALWAYS        0x00000004U
+#define CKA_PIN_NEVER         0x00000008U
+#define CKA_TOUCH_NEVER       0x00000016U
 
 #endif

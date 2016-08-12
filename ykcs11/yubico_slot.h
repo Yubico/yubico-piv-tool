@@ -31,7 +31,7 @@
 #ifndef YUBICO_SLOT_H
 #define YUBICO_SLOT_H
 
-#include "pkcs11.h"
+#include "pkcs11y.h"
 
 CK_RV YUBICO_get_slot_manufacturer(CK_UTF8CHAR_PTR str, CK_ULONG len);
 CK_RV YUBICO_get_slot_flags(CK_FLAGS_PTR flags);

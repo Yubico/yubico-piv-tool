@@ -428,7 +428,7 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
     case CKA_EC_PARAMS:
       // Only support PRIME256V1
       if (templ[i].ulValueLen != 10 || memcmp((CK_BYTE_PTR)templ[i].pValue, PRIME256V1, 10) != 0)
-        return CKR_CURVE_NOT_SUPPORTED;
+        return CKR_FUNCTION_FAILED;
 
       op_info->op.gen.key_len = 256;
       break;
