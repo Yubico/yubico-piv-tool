@@ -44,18 +44,10 @@ libykcs11_la_SOURCES += utils.c utils.h
 libykcs11_la_SOURCES += openssl_utils.c openssl_utils.h openssl_types.h
 libykcs11_la_SOURCES += objects.c objects.h obj_types.h
 libykcs11_la_SOURCES += pkcs11.h  pkcs11y.h
+libykcs11_la_SOURCES += ykcs11-version.h
 
-#internal.h
-#libykcs11_la_SOURCES += error.c
-#libykcs11_la_LDADD = ../lib/libykpiv.la
-#$(OPENSSL_LIBS)
-libykcs11_la_includedir = $(includedir)/ykcs11
-libykcs11_la_include_HEADERS = ykcs11-version.h
-#ykcs11.h
 EXTRA_libykcs11_la_DEPENDENCIES = ykcs11.map
 
-#libykcs11_la_LIBADD = $(OPENSSL_LIBS) $(PCSC_LIBS)
-#libykcs11_la_LIBADD += $(PCSC_WIN_LIBS) $(PCSC_MACOSX_LIBS)
 libykcs11_la_LIBADD = ../lib/libykpiv.la
 libykcs11_la_LIBADD += ../tool/libpiv_util.la
 
