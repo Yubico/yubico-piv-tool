@@ -1,11 +1,13 @@
-Introduction to the YubiKey PIV Application
-===========================================
+Yubico PIV Tool
+===============
 
 The YubiKey supports the Personal Identity Verification (PIV) card
 interface specified in NIST SP 800-73 document "Cryptographic
-Algorithms and Key Sizes for PIV".  This enables you to perform RSA or
+Algorithms and Key Sizes for PIV".  PIV enables you to perform RSA or
 ECC sign/decrypt operations using a private key stored on the
-smartcard, through common interfaces like PKCS#11.
+smartcard, through common interfaces like PKCS#11.  This project
+contain the library, tools and PKCS#11 module to interact with the
+hardware functionality.
 
 * PIV Standards http://csrc.nist.gov/groups/SNS/piv/standards.html
 
