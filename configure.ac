@@ -1,6 +1,6 @@
-# Copyright (c) 2014 Yubico AB
+# Copyright (c) 2014-2016 Yubico AB
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -24,7 +24,6 @@
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 
 AC_INIT([yubico-piv-tool], [1.4.2])
 AC_CONFIG_AUX_DIR([build-aux])
