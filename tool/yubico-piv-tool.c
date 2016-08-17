@@ -661,6 +661,10 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
   size_t oid_len;
   const unsigned char *oid;
   int nid;
+  ASN1_TYPE null_parameter;
+
+  null_parameter.type = V_ASN1_NULL;
+  null_parameter.value.ptr = NULL;
 
   sscanf(slot, "%2x", &key);
 
@@ -735,6 +739,8 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
   if(YKPIV_IS_RSA(algorithm)) {
     signinput = digest;
     len = oid_len + digest_len;
+    /* if it's RSA the parameter must be NULL, if ec non-present */
+    req->sig_alg->parameter = &null_parameter;
   } else {
     signinput = digest + oid_len;
     len = digest_len;
@@ -771,6 +777,9 @@ request_out:
     EVP_PKEY_free(public_key);
   }
   if(req) {
+    if(req->sig_alg->parameter) {
+      req->sig_alg->parameter = NULL;
+    }
     X509_REQ_free(req);
   }
   if(name) {
@@ -801,6 +810,10 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   unsigned int md_len;
   ASN1_INTEGER *sno = ASN1_INTEGER_new();
   BIGNUM *ser = NULL;
+  ASN1_TYPE null_parameter;
+
+  null_parameter.type = V_ASN1_NULL;
+  null_parameter.value.ptr = NULL;
 
   sscanf(slot, "%2x", &key);
 
@@ -898,6 +911,9 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   if(YKPIV_IS_RSA(algorithm)) {
     signinput = digest;
     len = oid_len + md_len;
+    /* for RSA parameter must be NULL, for ec non-present */
+    x509->sig_alg->parameter = &null_parameter;
+    x509->cert_info->signature->parameter = &null_parameter;
   } else {
     signinput = digest + oid_len;
     len = md_len;
@@ -941,6 +957,10 @@ selfsign_out:
     fclose(output_file);
   }
   if(x509) {
+    if(x509->sig_alg->parameter) {
+      x509->sig_alg->parameter = NULL;
+      x509->cert_info->signature->parameter = NULL;
+    }
     X509_free(x509);
   }
   if(public_key) {
