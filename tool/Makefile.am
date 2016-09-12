@@ -54,7 +54,7 @@ MAINTAINERCLEANFILES = $(BUILT_SOURCES)
 dist_man_MANS = yubico-piv-tool.1
 MAINTAINERCLEANFILES += $(dist_man_MANS)
 
-yubico-piv-tool.1: $(yubico_piv_tool_SOURCES) $(libpiv_cmd_la_SOURCES)
+yubico-piv-tool.1: $(yubico_piv_tool_SOURCES) $(libpiv_cmd_la_SOURCES) $(top_srcdir)/configure.ac | $(builddir)/yubico-piv-tool$(EXEEXT)
 	$(HELP2MAN) --no-info \
 		--name="Yubico PIV tool" \
 		--include=$(srcdir)/yubico-piv-tool.h2m \
