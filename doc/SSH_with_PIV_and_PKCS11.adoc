@@ -12,7 +12,7 @@ Prerequisites
 * the yubico-piv-tool software
 * the OpenSC software
 * OpenSSH
-** on OS X for ssh-agent to work a newer OpenSSH than is delivered with the system
+** If you are using OSX El Capitan (10.11) or earlier, for ssh-agent to work a newer OpenSSH than is delivered with the system; macOS Sierra (10.12) contains a compatible version
 
 [NOTE]
 The following example assume that you have not yet changed the management key.
