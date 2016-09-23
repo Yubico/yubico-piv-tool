@@ -37,6 +37,7 @@ if [ "x$TRAVIS_OS_NAME" != "xosx" ]; then
 else
     ARCH=osx
     brew update
+    brew uninstall libtool
     brew install libtool
     brew install help2man
     brew install pkg-config
