@@ -27,7 +27,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-autoreconf -i
 
 if [ "x$TRAVIS_OS_NAME" != "xosx" ]; then
     sudo apt-get update -qq
@@ -46,6 +45,8 @@ else
 fi
 
 set -e
+
+autoreconf -ifv
 
 if [ "x$ARCH" != "x" ]; then
     version=`cat NEWS  | grep unreleased | cut -d' ' -f3`
