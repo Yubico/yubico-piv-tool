@@ -15,7 +15,7 @@ Prerequisites
 ** If you are using OSX El Capitan (10.11) or earlier, for ssh-agent to work a newer OpenSSH than is delivered with the system; macOS Sierra (10.12) contains a compatible version
 
 [NOTE]
-The following example assume that you have not yet changed the management key.
+The following example assume that you have not yet changed the management key. If you have changed the management key, add `--key` to the `yubico-piv-tool -a import-certificate` command below.
 
 
 Steps
@@ -23,15 +23,17 @@ Steps
 
 1. Generate a key in slot 9a (any slot should suffice):
 
-  $ yubico-piv-tool -s 9a -a generate -o public.pem
+  $ yubico-piv-tool -s 9a -a generate -o public.pem 
 
-2. Create a selfsigned certificate for that key.
+[NOTE]
+RSA 4096-bit keys are not currently supported due to a limitation in the PIV spec: https://github.com/Yubico/yubico-piv-tool/issues/58
+
+2. Create a self-signed certificate for that key.
 The only use for the X.509 certificate is to make PIV/PKCS#11 lib happy.
 They would want to be able to extract the public-key from the smartcard,
 and do that through the X.509 certificate.
 
-  $ yubico-piv-tool -a verify-pin -P 123456 -a selfsign-certificate -s 9a \
-        -S "/CN=SSH key/" -i public.pem -o cert.pem
+  $ yubico-piv-tool -a verify-pin -a selfsign-certificate -s 9a -S "/CN=SSH key/" -i public.pem -o cert.pem
 
 3. Load the certificate:
 
@@ -39,7 +41,7 @@ and do that through the X.509 certificate.
 
 4. Find out where OpenSC has installed the pkcs11 module.
 
-  * For OS X with binary installation this is typically in `/Library/OpenSC/lib/`
+  * For OS X with binary installation this is typically in `/Library/OpenSC/lib/`. Homebrew users can use `export OPENSC_LIBS=$(brew --prefix opensc)/lib`.
 
   * For a Debian based system this is typically in `/usr/lib/x86_64-linux-gnu/`
 +
@@ -63,8 +65,8 @@ is the public key associated with your targeted private key.
 
    $ ssh-add -s $OPENSC_LIBS/opensc-pkcs11.so
 +
-NOTE: On OS X this typically requires installation of a third-party OpenSSH from Homebrew or the like and using that ssh-agent.
+NOTE: On OS X prior to macOS 10.12 “Sierra” this typically requires installation of a third-party OpenSSH from Homebrew or the like and using that ssh-agent.
 +
-To See that the ssh-agent correctly finds that key and getting the public key in correct format:
+To confirm that the ssh-agent correctly finds that key and getting the public key in correct format:
 
    $ ssh-add -L
