@@ -23,7 +23,7 @@ Steps
 
 1. Generate a key in slot 9a (any slot should suffice):
 
-  $ yubico-piv-tool -s 9a -a generate -o public.pem 
+  $ yubico-piv-tool -s 9a -a generate -o public.pem
 
 [NOTE]
 RSA 4096-bit keys are not currently supported due to a limitation in the PIV spec: https://github.com/Yubico/yubico-piv-tool/issues/58
