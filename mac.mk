@@ -76,6 +76,8 @@ doit:
 		echo "something is incorrectly linked!"; \
 		exit 1; \
 	fi && \
+	rm $(PWD)/tmp/root/lib/*.la && \
+	rm -rf $(PWD)/tmp/root/lib/pkgconfig && \
 	cp COPYING $(PWD)/tmp/root/licenses/$(PACKAGE).txt && \
 	cd .. && \
 	cd root && \
