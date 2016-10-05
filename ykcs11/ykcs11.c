@@ -198,14 +198,17 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (pSlotList == NULL_PTR) {
-    // Just return the number of slots
+  if (pulCount) {
     *pulCount = n_slots;
 
     if (tokenPresent)
       *pulCount = n_slots_with_token;
     else
       *pulCount = n_slots;
+  }
+
+  if (pSlotList == NULL_PTR) {
+    // Just return the number of slots
 
     DOUT;
     return CKR_OK;
