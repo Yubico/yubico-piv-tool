@@ -1865,7 +1865,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   if (pSignature == NULL_PTR) {
     // Just return the size of the signature
-    *pulSignatureLen = op_info.op.sign.key_len / 8 * 2 + 32; // Approximate the size of the signature. Specs agree with this.
+    if (is_RSA_mechanism(op_info.mechanism.mechanism)) {
+      // RSA
+       *pulSignatureLen = (op_info.op.sign.key_len + 7) / 8;
+    }
+    else {
+      // ECDSA
+      *pulSignatureLen = ((op_info.op.sign.key_len + 7) / 8) * 2;
+    }
+
     DBG("The size of the signature will be %lu", *pulSignatureLen);
 
     DOUT;
