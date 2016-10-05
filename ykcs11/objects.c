@@ -694,7 +694,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     if (ul_tmp != CKK_RSA)
       return CKR_ATTRIBUTE_VALUE_INVALID;
 
-    if (get_public_key(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
+    if (get_modulus(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
       return CKR_FUNCTION_FAILED;
     data = b_tmp;
     break;
