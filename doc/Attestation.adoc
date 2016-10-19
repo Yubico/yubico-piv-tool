@@ -1,13 +1,12 @@
-Using Attestation
------------------
+== Using Attestation
 
-== Introduction
+=== Introduction
 This feature is only available in YubiKey 4.3 and newer.
 
 A high level description of the thinking and how this can be used can be found
 at https://developers.yubico.com/PIV/Introduction/PIV_attestation.html
 
-== Usage
+=== Usage
 Attestation works through a special key slot called “f9” this comes
 pre-loaded from factory with a key and cert signed by Yubico, but can be
 overwritten.
@@ -20,7 +19,7 @@ special key, this can be realised by using the yubico-piv-tool action attest:
 
 The output of this is a PEM encoded certificate, signed by the key in slot f9.
 
-== Verifying
+=== Verifying
 To verify an attestation step 1 is to build the certificate chain. Put the
 attestation root certificate in a file (or if you trust several put all
 of them in said file). The Yubico root certificate can be found at

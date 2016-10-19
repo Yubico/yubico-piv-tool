@@ -1,6 +1,4 @@
-Yubico PIV Tool
-===============
-
+== Yubico PIV Tool
 The YubiKey supports the Personal Identity Verification (PIV) card
 interface specified in NIST SP 800-73 document "Cryptographic
 Algorithms and Key Sizes for PIV".  PIV enables you to perform RSA or
@@ -11,9 +9,7 @@ hardware functionality.
 
 * PIV Standards http://csrc.nist.gov/groups/SNS/piv/standards.html
 
-General information
--------------------
-
+=== General information
 The default PIN code is 123456.  The default PUK code is 12345678.
 
 The default 3DES management key (9B) is
@@ -31,57 +27,51 @@ The maximum size of stored objects is 2005 bytes.
 Currently all functionality are available over both contact and
 contactless interfaces (contrary to what the specifications mandate).
 
-Preparing a YubiKey for real use
---------------------------------
-
+=== Preparing a YubiKey for real use
 You would typically change the management key to make sure nobody but
 you can modify the state of the PIV application on the YubiKey.  Make sure to
 keep a copy of the key around for later use.
 
-  key=`dd if=/dev/random bs=1 count=24 2>/dev/null | hexdump -v -e '/1 "%02X"'`
-  echo $key
-  yubico-piv-tool -a set-mgm-key -n $key
+  $ key=`dd if=/dev/random bs=1 count=24 2>/dev/null | hexdump -v -e '/1 "%02X"'`
+  $ echo $key
+  $ yubico-piv-tool -a set-mgm-key -n $key
 
 The PIN and PUK should be changed as well.
 
-  pin=`dd if=/dev/random bs=1 count=6 2>/dev/null | hexdump -v -e '/1 "%u"'|cut -c1-6`
-  echo $pin
+  $ pin=`dd if=/dev/random bs=1 count=6 2>/dev/null | hexdump -v -e '/1 "%u"'|cut -c1-6`
+  $ echo $pin
 
-  puk=`dd if=/dev/random bs=1 count=6 2>/dev/null | hexdump -v -e '/1 "%u"'|cut -c1-8`
-  echo $puk
+  $ puk=`dd if=/dev/random bs=1 count=6 2>/dev/null | hexdump -v -e '/1 "%u"'|cut -c1-8`
+  $ echo $puk
 
-  yubico-piv-tool -a change-pin -P 123456 -N $pin
-  yubico-piv-tool -a change-puk -P 12345678 -N $puk
+  $ yubico-piv-tool -a change-pin -P 123456 -N $pin
+  $ yubico-piv-tool -a change-puk -P 12345678 -N $puk
 
-Other useful commands
----------------------
-
+=== Other useful commands
 To generate a new private key:
 
-  yubico-piv-tool -k $key -a generate -s 9c
+  $ yubico-piv-tool -k $key -a generate -s 9c
 
 To reset PIN/PUK retry counter AND codes (default pin 123456 puk
 12345678):
 
-  yubico-piv-tool -k $key -a verify -P $pin -a pin-retries --pin-retries 3 --puk-retries 3
+  $ yubico-piv-tool -k $key -a verify -P $pin -a pin-retries --pin-retries 3 --puk-retries 3
 
 To reset the application (PIN/PUK need to be blocked hence trying a couple
 of times -- you need to modify this if you have changed the default
 number of PIN/PUK retries).
 
-  yubico-piv-tool -a verify-pin -P 471112
-  yubico-piv-tool -a verify-pin -P 471112
-  yubico-piv-tool -a verify-pin -P 471112
-  yubico-piv-tool -a verify-pin -P 471112
-  yubico-piv-tool -a change-puk -P 471112 -N 6756789
-  yubico-piv-tool -a change-puk -P 471112 -N 6756789
-  yubico-piv-tool -a change-puk -P 471112 -N 6756789
-  yubico-piv-tool -a change-puk -P 471112 -N 6756789
-  yubico-piv-tool -a reset
+  $ yubico-piv-tool -a verify-pin -P 471112
+  $ yubico-piv-tool -a verify-pin -P 471112
+  $ yubico-piv-tool -a verify-pin -P 471112
+  $ yubico-piv-tool -a verify-pin -P 471112
+  $ yubico-piv-tool -a change-puk -P 471112 -N 6756789
+  $ yubico-piv-tool -a change-puk -P 471112 -N 6756789
+  $ yubico-piv-tool -a change-puk -P 471112 -N 6756789
+  $ yubico-piv-tool -a change-puk -P 471112 -N 6756789
+  $ yubico-piv-tool -a reset
 
-Software
---------
-
+=== Software
 Card management has been tested with the tools from the OpenSC
 project, specifically piv-tool, and Yubico's PIV software (see
 below).  Basic features should work with any PIV compliant 
@@ -93,9 +83,7 @@ middleware.
 * https://github.com/OpenSC/OpenSC/wiki/US-PIV
 * https://github.com/OpenSC/OpenSC/wiki/PivTool
 
-Card Holder Unique Identifier
------------------------------
-
+=== Card Holder Unique Identifier
 For the application to be usable in windows the object CHUID (Card Holder
 Unique Identifier) has to be set and unique. The card contents are
 also aggressively cached so the CHUID has to be changed if the card

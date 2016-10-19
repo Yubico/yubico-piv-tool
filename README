@@ -1,9 +1,6 @@
-Yubico PIV Tool
-===============
+== Yubico PIV Tool
 
-Introduction
-------------
-
+=== Introduction
 The Yubico PIV tool is used for interacting with the Privilege and
 Identification Card (PIV) application on a https://www.yubico.com[YubiKey].
 
@@ -11,9 +8,11 @@ With it you may generate keys on the device, importing keys and
 certificates, and create certificate requests, and other operations.
 A shared library and a command-line tool is included.
 
-License
--------
+==== Usage guides
+For information and examples on what you can do with a PIV enabled YubiKey,
+see https://developers.yubico.com/PIV/
 
+=== License
 In general the project is covered by the following BSD license.  The
 file ykcs11/pkcs11.h has additional copyright and licensing
 information, please see it for more information.  Some other files
@@ -49,15 +48,13 @@ infrastructure.
    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ----
 
-Building
---------
-
+=== Building
 After downloading and unpacking the package tarball, you build it as
 follows.
 
-  ./configure
-  make
-  sudo make install
+  $ ./configure
+  $ make
+  $ sudo make install
 
 The backend to use is decided at compile time, see the summary at the
 end of the ./configure output.  Use --with-backend=foo to chose
@@ -69,80 +66,74 @@ under Mac OS X, and "winscard" is used under Windows.  In most
 situations, running ./configure should automatically find the proper
 backend to use.
 
-Building from Git
------------------
-
+=== Building from Git
 Recent versions of autoconf, automake, pkg-config and libtool must
 be installed.  Help2man is used to generate the manpages.  Gengetopt
 version 2.22.6 or later is needed for command line parameter handling.
 
 Generate the build system using:
 
-  autoreconf --install
+  $ autoreconf --install
 
 Then you follow the normal build instructions, see above.
 To turn on all warnings add --enable-gcc-warnings to ./configure
 
-Portability
------------
-
+=== Portability
 The main development platform is Debian GNU/Linux.  The project is
 cross-compiled to Windows using MinGW (see windows.mk) using the PCSC
 backend.  It may also be built for Mac OS X (see mac.mk), also using
 the PCSC backend.
 
-Example Usage
--------------
-
+=== Example Usage
 For a list of all available options --help can be given. For more information
 on exactly what happens --verbose or --verbose=2 may be added.
 
 Generate a new ECC-P256 key on device in slot 9a, will print the public
 key on stdout:
 
-  yubico-piv-tool -s 9a -A ECCP256 -a generate
+  $ yubico-piv-tool -s 9a -A ECCP256 -a generate
 
 Generate a certificate request with public key from stdin, will print
 the resulting request on stdout:
 
-  yubico-piv-tool -s 9a -S '/CN=foo/OU=test/O=example.com/' -P 123456 \
+  $ yubico-piv-tool -s 9a -S '/CN=foo/OU=test/O=example.com/' -P 123456 \
     -a verify -a request
 
 Generate a self-signed certificate with public key from stdin, will print
 the certificate, for later import, on stdout:
 
-  yubico-piv-tool -s 9a -S '/CN=bar/OU=test/O=example.com/' -P 123456 \
+  $ yubico-piv-tool -s 9a -S '/CN=bar/OU=test/O=example.com/' -P 123456 \
     -a verify -a selfsign
 
 Import a certificate from stdin:
 
-  yubico-piv-tool -s 9a -a import-certificate
+  $ yubico-piv-tool -s 9a -a import-certificate
 
 Set a random chuid, import a key and import a certificate from a PKCS12
 file with password test, into slot 9c:
 
-  yubico-piv-tool -s 9c -i test.pfx -K PKCS12 -p test -a set-chuid \
+  $ yubico-piv-tool -s 9c -i test.pfx -K PKCS12 -p test -a set-chuid \
     -a import-key -a import-cert
 
 Change the management key used for administrative authentication:
 
-  yubico-piv-tool -n 0807605403020108070605040302010807060504030201 \
+  $ yubico-piv-tool -n 0807605403020108070605040302010807060504030201 \
     -a set-mgm-key
 
 Delete a certificate in slot 9a:
 
-  yubico-piv-tool -a delete-certificate -s 9a
+  $ yubico-piv-tool -a delete-certificate -s 9a
 
 Show some information on certificates and other data:
 
-  yubico-piv-tool -a status
+  $ yubico-piv-tool -a status
 
 Read out the certificate from a slot and then run a signature test:
 
-  yubico-piv-tool -a read-cert -s 9a
-  yubico-piv-tool -a verify-pin -P 123456 -a test-signature -s 9a
+  $ yubico-piv-tool -a read-cert -s 9a
+  $ yubico-piv-tool -a verify-pin -P 123456 -a test-signature -s 9a
 
 Import a key into slot 85 (only available on YubiKey 4) and set the
 touch policy (also only available on YubiKey 4):
 
-  yubico-piv-tool -a import-key -s 85 --touch-policy=always -i key.pem
+  $ yubico-piv-tool -a import-key -s 85 --touch-policy=always -i key.pem

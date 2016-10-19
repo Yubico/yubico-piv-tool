@@ -1,6 +1,4 @@
-YKCS11
-------
-
+== YKCS11
 This is a PKCS#11 module that allows to communicate with the PIV
 application running on a YubiKey.
 
@@ -10,18 +8,14 @@ specifications.
 The complete specifications are available at
 http://docs.oasis-open.org/pkcs11/pkcs11-base/v2.40/os/pkcs11-base-v2.40-os.html.
 
-BUILDING
-~~~~~~~~
-
+=== BUILDING
 YKCS11 is automatically built as part of `yubico-piv-tool` and the
-following command will suffice
+following command will suffice:
 
-----
-yubico-piv-tool$ autoreconf --install
-yubico-piv-tool$ ./configure
-yubico-piv-tool$ make
-yubico-piv-tool$ sudo make install
-----
+  $ autoreconf --install
+  $ ./configure
+  $ make
+  $ sudo make install
 
 More info about building yubico-piv-tool can be found in the related
 `README` file or over at
@@ -31,9 +25,7 @@ Once installed, the module will be found by default in
 /usr/local/lib/libykcs11.so otherwise it will be built locally in
 yubico-piv-tool/ykcs11/.libs/libykcs11.so
 
-PORTABILITY
-~~~~~~~~~~~
-
+=== PORTABILITY
 The module has been developed and tested using Debian GNU/Linux and
 Ubuntu Linux. It is however possible to cross-compile it for Windows
 and Mac OS X using the relative makefiles (windows.mk and mac.mk).
@@ -47,9 +39,7 @@ Further testing at this stage has *not* been carried out, so
 additional tweaks might be needed to use operating systems different
 from Linux.
 
-SUPPORTED FUNCTIONALITY AND KNOWN ISSUES
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+=== SUPPORTED FUNCTIONALITY AND KNOWN ISSUES
 YKCS11 is not a full implementation of PKCS#11. Some functionality are
 not present and others are not yet implemented.
 
@@ -84,9 +74,7 @@ officer (SO). These have been mapped to perform regular usage of the
 private key material (PIN-associated operations) and device management
 (management-key associated operations).
 
-Key Mapping
-^^^^^^^^^^^
-
+==== Key Mapping
 The module provides four main keys that can be used. These correspond
 to the four main keys in PIV and accessible through yubico-piv-tool.
 The mapping is as follows:
@@ -100,9 +88,7 @@ The mapping is as follows:
 |3|9d
 |===
 
-PINs and Management Key
-^^^^^^^^^^^^^^^^^^^^^^
-
+==== PINs and Management Key
 The default user PIN for the YubiKey is `123456`. +
 The default management key is
 `010203040506070801020304050607080102030405060708`. +
@@ -119,9 +105,7 @@ According to PKCS#11 however, a special user called `CONTEXT_SPECIFIC`
 should be used for such operations. This is also supported and *might
 become the only available mechanism in the future*.
 
-Key Generation
-^^^^^^^^^^^^^^
-
+==== Key Generation
 Key pair generation is a particular operation, in the sense that
 within PIV this is the only moment where the newly created public key
 is given back to the user. To prevent the key from being lost it is
@@ -129,16 +113,12 @@ automatically stored within the YubiKey by wrapping it in an X.509
 certificate. This certificate is however empty. It does not have other
 valid information except for the public key.
 
-DEBUGGING
-^^^^^^^^^
-
+==== DEBUGGING
 By default the module has debugging disabled. This is _highly_ verbose
 and might be confusing. In order to enabled it rebuild the project as
 follows:
 
-----
-yubico-piv-tool$ autoreconf --install
-yubico-piv-tool$ ./configure --enable-ykcs11-debug
-yubico-piv-tool$ make
-yubico-piv-tool$ sudo make install
-----
+  $ autoreconf --install
+  $ ./configure --enable-ykcs11-debug
+  $ make
+  $ sudo make install
