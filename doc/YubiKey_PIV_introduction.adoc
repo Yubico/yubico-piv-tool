@@ -22,7 +22,8 @@ The following key slots exists:
 
 * 9B: Triple-DES key (algorithm 3) for PIV management.
 
-The maximum size of stored objects is 2005 bytes.
+The maximum size of stored objects is 2025/3049 bytes for current versions of
+YubiKey NEO and YubiKey 4, respectively.
 
 Currently all functionality are available over both contact and
 contactless interfaces (contrary to what the specifications mandate).
