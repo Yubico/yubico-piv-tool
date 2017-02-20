@@ -42,6 +42,7 @@
 #include <windows.h>
 #endif
 
+#include "openssl-compat.h"
 #include <openssl/des.h>
 #include <openssl/pem.h>
 #include <openssl/pkcs12.h>
@@ -234,8 +235,7 @@ static bool generate_key(ykpiv_state *state, const char *slot,
         goto generate_out;
       }
 
-      rsa->n = bignum_n;
-      rsa->e = bignum_e;
+      RSA_set0_key(rsa, bignum_n, bignum_e, NULL);
       EVP_PKEY_set1_RSA(public_key, rsa);
     } else if(algorithm == algorithm_arg_ECCP256 || algorithm == algorithm_arg_ECCP384) {
       EC_GROUP *group;

@@ -37,6 +37,7 @@
 #include <windows.h>
 #endif
 
+#include "openssl-compat.h"
 #include <openssl/evp.h>
 #include <openssl/x509.h>
 #include <openssl/rsa.h>
@@ -61,7 +62,7 @@ FILE *open_file(const char *file_name, int mode) {
 }
 
 unsigned char get_algorithm(EVP_PKEY *key) {
-  int type = EVP_PKEY_type(key->type);
+  int type = EVP_PKEY_type(EVP_PKEY_id(key));
   switch(type) {
     case EVP_PKEY_RSA:
       {
@@ -641,15 +642,17 @@ int SSH_write_X509(FILE *fp, X509 *x) {
   case EVP_PKEY_RSA2: {
     RSA *rsa;
     unsigned char n[256];
+    const BIGNUM *bn_n;
 
     char rsa_id[] = "\x00\x00\x00\x07ssh-rsa";
     char rsa_f4[] = "\x00\x00\x00\x03\x01\x00\x01";
 
     rsa = EVP_PKEY_get1_RSA(pkey);
+    RSA_get0_key(rsa, &bn_n, NULL, NULL);
 
-    set_component(n, rsa->n, RSA_size(rsa));
+    set_component(n, bn_n, RSA_size(rsa));
 
-    uint32_t bytes = BN_num_bytes(rsa->n);
+    uint32_t bytes = BN_num_bytes(bn_n);
     char len_buf[5];
     int len = 4;
 
