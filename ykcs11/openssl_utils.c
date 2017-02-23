@@ -31,6 +31,7 @@
 #include "openssl_utils.h"
 #include <stdbool.h>
 #include "../tool/util.h" // TODO: share this better?
+#include "../tool/openssl-compat.h" // TODO: share this better?
 #include "debug.h"
 #include <string.h>
 
@@ -115,8 +116,7 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa,
     if(bignum_e == NULL)
       goto create_empty_cert_cleanup;
 
-    rsa->n = bignum_n;
-    rsa->e = bignum_e;
+    RSA_set0_key(rsa, bignum_n, bignum_e, NULL);
 
     if (EVP_PKEY_set1_RSA(key, rsa) == 0)
       goto create_empty_cert_cleanup;
@@ -316,7 +316,7 @@ CK_RV do_store_pubk(X509 *cert, EVP_PKEY **key) {
 
 CK_KEY_TYPE do_get_key_type(EVP_PKEY *key) {
 
-  switch (key->type) {
+  switch (EVP_PKEY_id(key)) {
   case EVP_PKEY_RSA:
   case EVP_PKEY_RSA2:
     return CKK_RSA;
@@ -349,18 +349,20 @@ CK_ULONG do_get_rsa_modulus_length(EVP_PKEY *key) {
 
 CK_RV do_get_modulus(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
   RSA *rsa;
+  const BIGNUM *n;
 
   rsa = EVP_PKEY_get1_RSA(key);
   if (rsa == NULL)
     return CKR_FUNCTION_FAILED;
 
-  if ((CK_ULONG)BN_num_bytes(rsa->n) > *len) {
+  RSA_get0_key(rsa, &n, NULL, NULL);
+  if ((CK_ULONG)BN_num_bytes(n) > *len) {
     RSA_free(rsa);
     rsa = NULL;
     return CKR_BUFFER_TOO_SMALL;
   }
 
-  *len = (CK_ULONG)BN_bn2bin(rsa->n, data);
+  *len = (CK_ULONG)BN_bn2bin(n, data);
 
   RSA_free(rsa);
   rsa = NULL;
@@ -372,18 +374,20 @@ CK_RV do_get_public_exponent(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) 
 
   CK_ULONG e = 0;
   RSA *rsa;
+  const BIGNUM *bn_e;
 
   rsa = EVP_PKEY_get1_RSA(key);
   if (rsa == NULL)
     return CKR_FUNCTION_FAILED;
 
-  if ((CK_ULONG)BN_num_bytes(rsa->e) > *len) {
+  RSA_get0_key(rsa, NULL, &bn_e, NULL);
+  if ((CK_ULONG)BN_num_bytes(bn_e) > *len) {
     RSA_free(rsa);
     rsa = NULL;
     return CKR_BUFFER_TOO_SMALL;
   }
 
-  *len = (CK_ULONG)BN_bn2bin(rsa->e, data);
+  *len = (CK_ULONG)BN_bn2bin(bn_e, data);
 
   RSA_free(rsa);
   rsa = NULL;
@@ -406,7 +410,7 @@ CK_RV do_get_public_key(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
   const EC_POINT *ecp;
   point_conversion_form_t pcf = POINT_CONVERSION_UNCOMPRESSED;
 
-  switch(key->type) {
+  switch(EVP_PKEY_id(key)) {
   case EVP_PKEY_RSA:
   case EVP_PKEY_RSA2:
 

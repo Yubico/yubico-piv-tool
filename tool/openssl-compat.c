@@ -7,6 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
+#include <openssl/opensslv.h>
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 
 #include <string.h>
@@ -48,6 +49,35 @@ void RSA_get0_key(const RSA *r,
         *e = r->e;
     if (d != NULL)
         *d = r->d;
+}
+
+void RSA_get0_factors(const RSA *r, const BIGNUM **p, const BIGNUM **q)
+{
+    if (p != NULL)
+        *p = r->p;
+    if (q != NULL)
+        *q = r->q;
+}
+
+void RSA_get0_crt_params(const RSA *r,
+                         const BIGNUM **dmp1, const BIGNUM **dmq1,
+                         const BIGNUM **iqmp)
+{
+    if (dmp1 != NULL)
+        *dmp1 = r->dmp1;
+    if (dmq1 != NULL)
+        *dmq1 = r->dmq1;
+    if (iqmp != NULL)
+        *iqmp = r->iqmp;
+}
+
+void X509_SIG_getm(X509_SIG *sig, X509_ALGOR **palg,
+                   ASN1_OCTET_STRING **pdigest)
+{
+    if (palg)
+        *palg = sig->algor;
+    if (pdigest)
+        *pdigest = sig->digest;
 }
 
 #endif /* OPENSSL_VERSION_NUMBER */

@@ -411,39 +411,43 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
       unsigned char dmp1[128];
       unsigned char dmq1[128];
       unsigned char iqmp[128];
+      const BIGNUM *bn_e, *bn_p, *bn_q, *bn_dmp1, *bn_dmq1, *bn_iqmp;
 
       int element_len = 128;
       if(algorithm == YKPIV_ALGO_RSA1024) {
         element_len = 64;
       }
 
-      if((set_component(e, rsa_private_key->e, 3) == false) ||
+      RSA_get0_key(rsa_private_key, NULL, &bn_e, NULL);
+      RSA_get0_factors(rsa_private_key, &bn_p, &bn_q);
+      RSA_get0_crt_params(rsa_private_key, &bn_dmp1, &bn_dmq1, &bn_iqmp);
+      if((set_component(e, bn_e, 3) == false) ||
          !(e[0] == 0x01 && e[1] == 0x00 && e[2] == 0x01)) {
         fprintf(stderr, "Invalid public exponent for import (only 0x10001 supported)\n");
         goto import_out;
       }
 
-      if(set_component(p, rsa_private_key->p, element_len) == false) {
+      if(set_component(p, bn_p, element_len) == false) {
         fprintf(stderr, "Failed setting p component.\n");
         goto import_out;
       }
 
-      if(set_component(q, rsa_private_key->q, element_len) == false) {
+      if(set_component(q, bn_q, element_len) == false) {
         fprintf(stderr, "Failed setting q component.\n");
         goto import_out;
       }
 
-      if(set_component(dmp1, rsa_private_key->dmp1, element_len) == false) {
+      if(set_component(dmp1, bn_dmp1, element_len) == false) {
         fprintf(stderr, "Failed setting dmp1 component.\n");
         goto import_out;
       }
 
-      if(set_component(dmq1, rsa_private_key->dmq1, element_len) == false) {
+      if(set_component(dmq1, bn_dmq1, element_len) == false) {
         fprintf(stderr, "Failed setting dmq1 component.\n");
         goto import_out;
       }
 
-      if(set_component(iqmp, rsa_private_key->iqmp, element_len) == false) {
+      if(set_component(iqmp, bn_iqmp, element_len) == false) {
         fprintf(stderr, "Failed setting iqmp component.\n");
         goto import_out;
       }

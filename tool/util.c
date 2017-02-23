@@ -438,23 +438,23 @@ bool set_component(unsigned char *in_ptr, const BIGNUM *bn, int element_len) {
 }
 
 bool prepare_rsa_signature(const unsigned char *in, unsigned int in_len, unsigned char *out, unsigned int *out_len, int nid) {
-  X509_SIG digestInfo;
-  X509_ALGOR algor;
+  X509_SIG *digestInfo;
+  X509_ALGOR *algor;
   ASN1_TYPE parameter;
-  ASN1_OCTET_STRING digest;
+  ASN1_OCTET_STRING *digest;
   unsigned char data[1024];
 
   memcpy(data, in, in_len);
 
-  digestInfo.algor = &algor;
-  digestInfo.algor->algorithm = OBJ_nid2obj(nid);
-  digestInfo.algor->parameter = &parameter;
-  digestInfo.algor->parameter->type = V_ASN1_NULL;
-  digestInfo.algor->parameter->value.ptr = NULL;
-  digestInfo.digest = &digest;
-  digestInfo.digest->data = data;
-  digestInfo.digest->length = (int)in_len;
-  *out_len = (unsigned int)i2d_X509_SIG(&digestInfo, &out);
+  digestInfo = X509_SIG_new();
+  X509_SIG_getm(digestInfo, &algor, &digest);
+  algor = X509_ALGOR_new();
+  X509_ALGOR_set0(algor, OBJ_nid2obj(nid), V_ASN1_NULL, &parameter);
+  parameter.type = V_ASN1_NULL;
+  parameter.value.ptr = NULL;
+  digest->data = data;
+  digest->length = (int)in_len;
+  *out_len = (unsigned int)i2d_X509_SIG(digestInfo, &out);
   return true;
 }
 
@@ -637,7 +637,7 @@ int SSH_write_X509(FILE *fp, X509 *x) {
     return ret;
   }
 
-  switch (pkey->type) {
+  switch (EVP_PKEY_id(pkey)) {
   case EVP_PKEY_RSA:
   case EVP_PKEY_RSA2: {
     RSA *rsa;

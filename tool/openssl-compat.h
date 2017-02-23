@@ -17,10 +17,17 @@
 #include <openssl/ecdsa.h>
 #include <openssl/dh.h>
 #include <openssl/evp.h>
+#include <openssl/x509.h>
 
 int RSA_set0_key(RSA *r, BIGNUM *n, BIGNUM *e, BIGNUM *d);
 void RSA_get0_key(const RSA *r,
                   const BIGNUM **n, const BIGNUM **e, const BIGNUM **d);
+void RSA_get0_factors(const RSA *r, const BIGNUM **p, const BIGNUM **q);
+void RSA_get0_crt_params(const RSA *r,
+                         const BIGNUM **dmp1, const BIGNUM **dmq1,
+                         const BIGNUM **iqmp);
+void X509_SIG_getm(X509_SIG *sig, X509_ALGOR **palg,
+                   ASN1_OCTET_STRING **pdigest);
 
 #endif /* OPENSSL_VERSION_NUMBER */
 #endif /* LIBCRYPTO_COMPAT_H */
