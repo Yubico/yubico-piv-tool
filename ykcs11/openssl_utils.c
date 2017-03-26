@@ -557,16 +557,13 @@ CK_RV do_pkcs_1_digest_info(CK_BYTE_PTR in, CK_ULONG in_len, int nid, CK_BYTE_PT
 
 CK_RV do_pkcs_pss(RSA *key, CK_BYTE_PTR in, CK_ULONG in_len, int nid,
           CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
-  unsigned char em[512]; // Max for this is ceil((|key_len_bits| - 1) / 8)
+  unsigned char em[RSA_size(key)];
 
   OpenSSL_add_all_digests();
 
+  DBG("Apply PSS padding to %lu bytes and get %d", in_len, RSA_size(key));
+
   // TODO: rand must be seeded first (should be automatic)
-  if (*out_len < (CK_ULONG)RSA_size(key))
-    return CKR_BUFFER_TOO_SMALL;
-
-  DBG("Apply PSS padding to %lu bytes and get %d\n", in_len, RSA_size(key));
-
   if (out != in)
     memcpy(out, in, in_len);
 
@@ -576,7 +573,8 @@ CK_RV do_pkcs_pss(RSA *key, CK_BYTE_PTR in, CK_ULONG in_len, int nid,
     return CKR_FUNCTION_FAILED;
   }
 
-  *out_len = (CK_ULONG) RSA_size(key);
+  memcpy(out, em, sizeof(em));
+  *out_len = (CK_ULONG) sizeof(em);
 
   EVP_cleanup();
 
