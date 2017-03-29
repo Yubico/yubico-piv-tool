@@ -38,6 +38,7 @@
 #include "utils.h"
 #include "mechanisms.h"
 #include "openssl_types.h"
+#include "openssl_utils.h"
 #include "debug.h"
 
 #include <stdbool.h>
@@ -1756,10 +1757,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
 
     // Also store the raw public key if the mechanism is PSS
     if (is_PSS_mechanism(pMechanism->mechanism)) {
-      op_info.op.sign.key = RSA_new();
-      if (op_info.op.sign.key == NULL)
-        return CKR_HOST_MEMORY;
-
       template[2].pValue = buf;
       template[2].ulValueLen = (key_len + 7) / 8 ;
 
@@ -1767,20 +1764,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
         DBG("Unable to get public key");
         return CKR_KEY_HANDLE_INVALID;
       }
-      op_info.op.sign.key->n = BN_bin2bn(buf, (key_len + 7) / 8, NULL);
-      if(op_info.op.sign.key->n == NULL) {
-        DBG("Failed to parse public key modulus.");
-        return CKR_KEY_HANDLE_INVALID;
-      }
 
       if (get_attribute(&session, hKey, template + 3) != CKR_OK) {
         DBG("Unable to get public exponent");
         return CKR_KEY_HANDLE_INVALID;
       }
-      op_info.op.sign.key->e = BN_bin2bn(exp, sizeof(exp), NULL);
-      if(op_info.op.sign.key->e == NULL) {
-        DBG("Failed to parse public key exponent.");
-        return CKR_KEY_HANDLE_INVALID;
+
+      if (do_encode_rsa_public_key(&op_info.op.sign.key, buf, (key_len + 7) / 8, exp, sizeof(exp)) != CKR_OK) {
+        return CKR_FUNCTION_FAILED;
       }
     }
     else {

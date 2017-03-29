@@ -282,7 +282,7 @@ CK_RV apply_sign_mechanism_finalize(op_info_t *op_info) {
     // Compute padding for all PSS variants
     // TODO: digestinfo/paraminfo ?
     rv = do_pkcs_pss(op_info->op.sign.key, op_info->buf, op_info->buf_len, nid, op_info->buf, &op_info->buf_len);
-    RSA_free(op_info->op.sign.key);
+    do_free_rsa_public_key(op_info->op.sign.key);
 
     return rv;
 
