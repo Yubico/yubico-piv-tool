@@ -38,6 +38,7 @@
 #include "utils.h"
 #include "mechanisms.h"
 #include "openssl_types.h"
+#include "openssl_utils.h"
 #include "debug.h"
 
 #include <stdbool.h>
@@ -1687,11 +1688,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
 {
   CK_KEY_TYPE  type = 0;
   CK_ULONG     key_len = 0;
+  CK_BYTE      exp[3];
   CK_BYTE      buf[1024];
   CK_ATTRIBUTE template[] = {
     {CKA_KEY_TYPE, &type, sizeof(type)},
     {CKA_MODULUS_BITS, &key_len, sizeof(key_len)},
     {CKA_MODULUS, NULL, 0},
+    {CKA_PUBLIC_EXPONENT, exp, sizeof(exp)},
     {CKA_EC_POINT, buf, sizeof(buf)},
   };
 
@@ -1754,18 +1757,22 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
 
     // Also store the raw public key if the mechanism is PSS
     if (is_PSS_mechanism(pMechanism->mechanism)) {
-      op_info.op.sign.key = malloc(key_len);
-      if (op_info.op.sign.key == NULL)
-        return CKR_HOST_MEMORY;
-
-      template[2].pValue = op_info.op.sign.key;
-      template[2].ulValueLen = key_len;
+      template[2].pValue = buf;
+      template[2].ulValueLen = (key_len + 7) / 8 ;
 
       if (get_attribute(&session, hKey, template + 2) != CKR_OK) {
         DBG("Unable to get public key");
         return CKR_KEY_HANDLE_INVALID;
       }
 
+      if (get_attribute(&session, hKey, template + 3) != CKR_OK) {
+        DBG("Unable to get public exponent");
+        return CKR_KEY_HANDLE_INVALID;
+      }
+
+      if (do_encode_rsa_public_key(&op_info.op.sign.key, buf, (key_len + 7) / 8, exp, sizeof(exp)) != CKR_OK) {
+        return CKR_FUNCTION_FAILED;
+      }
     }
     else {
       op_info.op.sign.key = NULL;
@@ -1774,7 +1781,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
   }
   else {
     // ECDSA key
-    if (get_attribute(&session, hKey, template + 3) != CKR_OK) {
+    if (get_attribute(&session, hKey, template + 4) != CKR_OK) {
       DBG("Unable to get key length");
       return CKR_KEY_HANDLE_INVALID;
     }

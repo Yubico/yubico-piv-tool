@@ -53,10 +53,12 @@ CK_ULONG    do_get_rsa_modulus_length(EVP_PKEY *key);
 CK_RV       do_get_public_exponent(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
 CK_RV       do_get_public_key(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
 CK_RV       do_get_modulus(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
-CK_RV       do_encode_rsa_public_key(CK_BYTE_PTR data, CK_ULONG len, RSA **key);
 CK_RV       do_get_curve_parameters(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
 CK_RV       do_delete_pubk(EVP_PKEY **key);
 //CK_RV       free_key(EVP_PKEY *key);
+
+CK_RV do_encode_rsa_public_key(ykcs11_rsa_key_t **key, CK_BYTE_PTR modulus, CK_ULONG mlen, CK_BYTE_PTR exponent, CK_ULONG elen);
+CK_RV do_free_rsa_public_key(ykcs11_rsa_key_t *key);
 
 CK_RV do_pkcs_1_t1(CK_BYTE_PTR in, CK_ULONG in_len, CK_BYTE_PTR out, CK_ULONG_PTR out_len, CK_ULONG key_len);
 CK_RV do_pkcs_1_digest_info(CK_BYTE_PTR in, CK_ULONG in_len, int nid, CK_BYTE_PTR out, CK_ULONG_PTR out_len);

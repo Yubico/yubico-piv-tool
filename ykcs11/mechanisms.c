@@ -262,7 +262,6 @@ CK_RV apply_sign_mechanism_finalize(op_info_t *op_info) {
 
   CK_RV    rv;
   int      nid = NID_undef;
-  RSA      *rsa;
   CK_ULONG len;
 
   if (op_info->type != YKCS11_SIGN)
@@ -282,14 +281,8 @@ CK_RV apply_sign_mechanism_finalize(op_info_t *op_info) {
   case CKM_RSA_PKCS_PSS:
     // Compute padding for all PSS variants
     // TODO: digestinfo/paraminfo ?
-
-    rv = do_encode_rsa_public_key(op_info->op.sign.key, op_info->op.sign.key_len, &rsa);
-    if (rv != CKR_OK)
-      return CKR_FUNCTION_FAILED;
-
-    rv = do_pkcs_pss(rsa, op_info->buf, op_info->buf_len, nid, op_info->buf, &op_info->buf_len);
-
-    // TODO: does rsa have to be free'd ?
+    rv = do_pkcs_pss(op_info->op.sign.key, op_info->buf, op_info->buf_len, nid, op_info->buf, &op_info->buf_len);
+    do_free_rsa_public_key(op_info->op.sign.key);
 
     return rv;
 

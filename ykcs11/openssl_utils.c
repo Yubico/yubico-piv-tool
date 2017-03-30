@@ -467,18 +467,28 @@ CK_RV do_get_public_key(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
 }
 
-CK_RV do_encode_rsa_public_key(CK_BYTE_PTR data, CK_ULONG len, RSA **key) {
-
-  const unsigned char *p = data;
-
-  if (data == NULL)
+CK_RV do_encode_rsa_public_key(ykcs11_rsa_key_t **key, CK_BYTE_PTR modulus,
+          CK_ULONG mlen, CK_BYTE_PTR exponent, CK_ULONG elen) {
+  ykcs11_rsa_key_t *k;
+  if (modulus == NULL || exponent == NULL)
     return CKR_ARGUMENTS_BAD;
 
-  if ((*key = d2i_RSAPublicKey(NULL, &p, (long) len)) == NULL)
+  if ((k = RSA_new()) == NULL)
+    return CKR_HOST_MEMORY;
+
+  if ((k->n = BN_bin2bn(modulus, mlen, NULL)) == NULL)
     return CKR_FUNCTION_FAILED;
 
-  return CKR_OK;
+  if ((k->e = BN_bin2bn(exponent, elen, NULL)) == NULL)
+    return CKR_FUNCTION_FAILED;
 
+  *key = k;
+  return CKR_OK;
+}
+
+CK_RV do_free_rsa_public_key(ykcs11_rsa_key_t *key) {
+  RSA_free(key);
+  return CKR_OK;
 }
 
 CK_RV do_get_curve_parameters(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
@@ -555,18 +565,15 @@ CK_RV do_pkcs_1_digest_info(CK_BYTE_PTR in, CK_ULONG in_len, int nid, CK_BYTE_PT
 
 }
 
-CK_RV do_pkcs_pss(RSA *key, CK_BYTE_PTR in, CK_ULONG in_len, int nid,
-          CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
-  unsigned char em[512]; // Max for this is ceil((|key_len_bits| - 1) / 8)
+CK_RV do_pkcs_pss(ykcs11_rsa_key_t *key, CK_BYTE_PTR in, CK_ULONG in_len,
+          int nid, CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
+  unsigned char em[RSA_size(key)];
 
   OpenSSL_add_all_digests();
 
+  DBG("Apply PSS padding to %lu bytes and get %d", in_len, RSA_size(key));
+
   // TODO: rand must be seeded first (should be automatic)
-  if (*out_len < (CK_ULONG)RSA_size(key))
-    return CKR_BUFFER_TOO_SMALL;
-
-  DBG("Apply PSS padding to %lu bytes and get %d\n", in_len, RSA_size(key));
-
   if (out != in)
     memcpy(out, in, in_len);
 
@@ -576,7 +583,8 @@ CK_RV do_pkcs_pss(RSA *key, CK_BYTE_PTR in, CK_ULONG in_len, int nid,
     return CKR_FUNCTION_FAILED;
   }
 
-  *out_len = (CK_ULONG) RSA_size(key);
+  memcpy(out, em, sizeof(em));
+  *out_len = (CK_ULONG) sizeof(em);
 
   EVP_cleanup();
 
