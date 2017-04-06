@@ -982,13 +982,6 @@ static bool verify_pin(ykpiv_state *state, const char *pin) {
   int tries = -1;
   ykpiv_rc res;
   int len;
-  char pinbuf[9] = {0};
-  if(!pin) {
-    if (!read_pw("PIN", pinbuf, sizeof(pinbuf), false)) {
-      return false;
-    }
-    pin = pinbuf;
-  }
   len = strlen(pin);
 
   if(len > 8) {
@@ -1014,10 +1007,7 @@ static bool verify_pin(ykpiv_state *state, const char *pin) {
  * since they're very similar in what data they use. */
 static bool change_pin(ykpiv_state *state, enum enum_action action, const char *pin,
     const char *new_pin) {
-  char pinbuf[9] = {0};
-  char new_pinbuf[9] = {0};
   const char *name = action == action_arg_changeMINUS_pin ? "pin" : "puk";
-  const char *new_name = action == action_arg_changeMINUS_puk ? "new puk" : "new pin";
   int (*op)(ykpiv_state *state, const char * puk, size_t puk_len,
             const char * new_pin, size_t new_pin_len, int *tries) = ykpiv_change_pin;
   size_t pin_len;
@@ -1025,18 +1015,6 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
   int tries;
   ykpiv_rc res;
 
-  if(!pin) {
-    if (!read_pw(name, pinbuf, sizeof(pinbuf), false)) {
-      return false;
-    }
-    pin = pinbuf;
-  }
-  if(!new_pin) {
-    if (!read_pw(new_name, new_pinbuf, sizeof(new_pinbuf), true)) {
-      return false;
-    }
-    new_pin = new_pinbuf;
-  }
   pin_len = strlen(pin);
   new_len = strlen(new_pin);
 
@@ -1931,7 +1909,7 @@ int main(int argc, char *argv[]) {
           if(verbosity) {
             fprintf(stderr, "Asking for password since '%s' needs it.\n", cmdline_parser_action_values[action]);
           }
-          if(!read_pw("Password", pwbuf, sizeof(pwbuf), false)) {
+          if(!read_pw("Password", pwbuf, sizeof(pwbuf), false, args_info.stdin_input_flag)) {
             fprintf(stderr, "Failed to get password.\n");
             return false;
           }
@@ -1947,13 +1925,13 @@ int main(int argc, char *argv[]) {
         if(!authed) {
           unsigned char key[KEY_LEN];
           size_t key_len = sizeof(key);
-          char keybuf[KEY_LEN*2+1];
+          char keybuf[KEY_LEN*2+2]; /* one extra byte for potential \n */
           char *key_ptr = args_info.key_arg;
           if(verbosity) {
             fprintf(stderr, "Authenticating since action '%s' needs that.\n", cmdline_parser_action_values[action]);
           }
           if(args_info.key_given && args_info.key_orig == NULL) {
-            if(!read_pw("management key", keybuf, sizeof(keybuf), false)) {
+            if(!read_pw("management key", keybuf, sizeof(keybuf), false, args_info.stdin_input_flag)) {
               fprintf(stderr, "Failed to read management key from stdin,\n");
               return EXIT_FAILURE;
             }
@@ -2007,7 +1985,7 @@ int main(int argc, char *argv[]) {
 
 
   for(i = 0; i < args_info.action_given; i++) {
-    char new_keybuf[KEY_LEN*2+1] = {0};
+    char new_keybuf[KEY_LEN*2+2] = {0}; /* one extra byte for potential \n */
     char *new_mgm_key = args_info.new_key_arg;
     action = *(args_info.action_arg + i);
     if(verbosity) {
@@ -2028,7 +2006,7 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_setMINUS_mgmMINUS_key:
         if(!new_mgm_key) {
-          if(!read_pw("new management key", new_keybuf, sizeof(new_keybuf), true)) {
+          if(!read_pw("new management key", new_keybuf, sizeof(new_keybuf), true, args_info.stdin_input_flag)) {
             fprintf(stderr, "Failed to read management key from stdin,\n");
             ret = EXIT_FAILURE;
             break;
@@ -2106,17 +2084,46 @@ int main(int argc, char *argv[]) {
           fprintf(stderr, "Successfully generated a certificate request.\n");
         }
         break;
-      case action_arg_verifyMINUS_pin:
-        if(verify_pin(state, args_info.pin_arg)) {
+      case action_arg_verifyMINUS_pin: {
+        char pinbuf[8+2] = {0};
+        char *pin = args_info.pin_arg;
+
+        if(!pin) {
+          if (!read_pw("PIN", pinbuf, sizeof(pinbuf), false, args_info.stdin_input_flag)) {
+            return false;
+          }
+          pin = pinbuf;
+        }
+        if(verify_pin(state, pin)) {
           fprintf(stderr, "Successfully verified PIN.\n");
         } else {
           ret = EXIT_FAILURE;
         }
         break;
+      }
       case action_arg_changeMINUS_pin:
       case action_arg_changeMINUS_puk:
-      case action_arg_unblockMINUS_pin:
-        if(change_pin(state, action, args_info.pin_arg, args_info.new_pin_arg)) {
+      case action_arg_unblockMINUS_pin: {
+        char pinbuf[8+2] = {0};
+        char new_pinbuf[8+2] = {0};
+        char *pin = args_info.pin_arg;
+        char *new_pin = args_info.new_pin_arg;
+        const char *name = action == action_arg_changeMINUS_pin ? "pin" : "puk";
+        const char *new_name = action == action_arg_changeMINUS_puk ? "new puk" : "new pin";
+
+        if(!pin) {
+          if (!read_pw(name, pinbuf, sizeof(pinbuf), false, args_info.stdin_input_flag)) {
+            return false;
+          }
+          pin = pinbuf;
+        }
+        if(!new_pin) {
+          if (!read_pw(new_name, new_pinbuf, sizeof(new_pinbuf), true, args_info.stdin_input_flag)) {
+            return false;
+          }
+          new_pin = new_pinbuf;
+        }
+        if(change_pin(state, action, pin, new_pin)) {
           if(action == action_arg_unblockMINUS_pin) {
             fprintf(stderr, "Successfully unblocked the pin code.\n");
           } else {
@@ -2127,6 +2134,7 @@ int main(int argc, char *argv[]) {
           ret = EXIT_FAILURE;
         }
         break;
+      }
       case action_arg_selfsignMINUS_certificate:
         if(selfsign_certificate(state, args_info.key_format_arg, args_info.input_arg,
               args_info.slot_orig, args_info.subject_arg, args_info.hash_arg,

@@ -457,7 +457,7 @@ bool prepare_rsa_signature(const unsigned char *in, unsigned int in_len, unsigne
   return true;
 }
 
-bool read_pw(const char *name, char *pwbuf, size_t pwbuflen, int verify) {
+bool read_pw(const char *name, char *pwbuf, size_t pwbuflen, int verify, int stdin_input) {
   #define READ_PW_PROMPT_BASE "Enter %s: "
   char prompt[sizeof(READ_PW_PROMPT_BASE) + 32] = {0};
   int ret;
@@ -465,6 +465,18 @@ bool read_pw(const char *name, char *pwbuf, size_t pwbuflen, int verify) {
   if (pwbuflen < 1) {
     fprintf(stderr, "Failed to read %s: buffer too small.", name);
     return false;
+  }
+
+  if(stdin_input) {
+    fprintf(stdout, "%s\n", name);
+    if(fgets(pwbuf, pwbuflen, stdin)) {
+      if(pwbuf[strlen(pwbuf) - 1] == '\n') {
+        pwbuf[strlen(pwbuf) - 1] = '\0';
+      }
+      return true;
+    } else {
+      return false;
+    }
   }
 
   ret = snprintf(prompt, sizeof(prompt), READ_PW_PROMPT_BASE, name);

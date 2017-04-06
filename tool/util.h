@@ -52,7 +52,7 @@ int key_to_object_id(int key);
 bool set_component(unsigned char *in_ptr, const BIGNUM *bn, int element_len);
 bool prepare_rsa_signature(const unsigned char*, unsigned int, unsigned char*,
     unsigned int*, int);
-bool read_pw(const char*, char*, size_t, int);
+bool read_pw(const char*, char*, size_t, int, int);
 const EVP_MD *get_hash(enum enum_hash, const unsigned char**, size_t*);
 int get_hashnid(enum enum_hash, unsigned char);
 unsigned char get_piv_algorithm(enum enum_algorithm);
