@@ -1,6 +1,18 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
-* Version 1.4.3 (unreleased)
+* Version 1.4.3 (released 2017-04-18)
+
+** Encode RSA x509 certificates correctly.
+
+** Documentation updates.
+
+** In ykcs11 return CKA_MODULUS correctly for private keys.
+
+** In ykcs11 fix for signature size approximation.
+
+** Fix PSS signatures in ykcs11.
+
+** Add a CLI flag --stdin-input to make batch execution easier.
 
 * Version 1.4.2 (released 2016-08-12)
 
