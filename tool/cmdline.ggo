@@ -27,7 +27,7 @@
 
 option "verbose" v "Print more information" int optional default="0" argoptional
 option "reader" r "Only use a matching reader" string optional default="Yubikey"
-option "key" k "Management key to use" string optional default="010203040506070801020304050607080102030405060708" argoptional
+option "key" k "Management key to use, if no value is specified key will be asked for" string optional default="010203040506070801020304050607080102030405060708" argoptional
 option "action" a "Action to take" values="version","generate","set-mgm-key",
        "reset","pin-retries","import-key","import-certificate","set-chuid",
        "request-certificate","verify-pin","change-pin","change-puk","unblock-pin",
@@ -46,21 +46,21 @@ text   "
        82-95 is for Retired Key Management\n"
 option "algorithm" A "What algorithm to use" values="RSA1024","RSA2048","ECCP256","ECCP384" enum optional default="RSA2048"
 option "hash" H "Hash to use for signatures" values="SHA1","SHA256","SHA384","SHA512" enum optional default="SHA256"
-option "new-key" n "New management key to use for action set-mgm-key" string optional
+option "new-key" n "New management key to use for action set-mgm-key, if omitted key will be asked for" string optional
 option "pin-retries" - "Number of retries before the pin code is blocked" int optional dependon="puk-retries"
 option "puk-retries" - "Number of retries before the puk code is blocked" int optional dependon="pin-retries"
 option "input" i "Filename to use as input, - for stdin" string optional default="-"
 option "output" o "Filename to use as output, - for stdout" string optional default="-"
 option "key-format" K "Format of the key being read/written" values="PEM","PKCS12","GZIP","DER","SSH" enum optional default="PEM"
-option "password" p "Password for decryption of private key file" string optional
+option "password" p "Password for decryption of private key file, if omitted password will be asked for" string optional
 option "subject" S "The subject to use for certificate request" string optional
 text   "
        The subject must be written as:
        /CN=host.example.com/OU=test/O=example.com/\n"
 option "serial" - "Serial number of the self-signed certificate" int optional
 option "valid-days" - "Time (in days) until the self-signed certificate expires" int optional default="365"
-option "pin" P "Pin/puk code for verification" string optional
-option "new-pin" N "New pin/puk code for changing" string optional dependon="pin"
+option "pin" P "Pin/puk code for verification, if omitted pin/puk will be asked for" string optional
+option "new-pin" N "New pin/puk code for changing, if omitted pin/puk will be asked for" string optional dependon="pin"
 option "pin-policy" - "Set pin policy for action generate or import-key" values="never","once","always" enum optional
 option "touch-policy" - "Set touch policy for action generate, import-key or set-mgm-key" values="never","always","cached" enum optional
 option "id" - "Id of object for write/read object" int optional

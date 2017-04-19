@@ -32,10 +32,14 @@ contactless interfaces (contrary to what the specifications mandate).
 You would typically change the management key to make sure nobody but
 you can modify the state of the PIV application on the YubiKey.  Make sure to
 keep a copy of the key around for later use.
+All of these invocations will leave traces of keys and pins in the command line
+history, this can be avoided by leaving the argument out all-together and the
+software will ask for key/pin to be input. For the management key option (-k)
+this is achieved by leaving out the value but will specifying -k.
 
   $ key=`dd if=/dev/random bs=1 count=24 2>/dev/null | hexdump -v -e '/1 "%02X"'`
   $ echo $key
-  $ yubico-piv-tool -a set-mgm-key -n $key
+  $ yubico-piv-tool -aset-mgm-key -n$key
 
 The PIN and PUK should be changed as well.
 
@@ -45,37 +49,37 @@ The PIN and PUK should be changed as well.
   $ puk=`dd if=/dev/random bs=1 count=6 2>/dev/null | hexdump -v -e '/1 "%u"'|cut -c1-8`
   $ echo $puk
 
-  $ yubico-piv-tool -a change-pin -P 123456 -N $pin
-  $ yubico-piv-tool -a change-puk -P 12345678 -N $puk
+  $ yubico-piv-tool -achange-pin -P123456 -N$pin
+  $ yubico-piv-tool -achange-puk -P12345678 -N$puk
 
 === Other useful commands
 To generate a new private key:
 
-  $ yubico-piv-tool -k $key -a generate -s 9c
+  $ yubico-piv-tool -k$key -agenerate -s9c
 
 To reset PIN/PUK retry counter AND codes (default pin 123456 puk
 12345678):
 
-  $ yubico-piv-tool -k $key -a verify -P $pin -a pin-retries --pin-retries 3 --puk-retries 3
+  $ yubico-piv-tool -k$key -averify -P$pin -apin-retries --pin-retries=3 --puk-retries=3
 
 To reset the application (PIN/PUK need to be blocked hence trying a couple
 of times -- you need to modify this if you have changed the default
 number of PIN/PUK retries).
 
-  $ yubico-piv-tool -a verify-pin -P 471112
-  $ yubico-piv-tool -a verify-pin -P 471112
-  $ yubico-piv-tool -a verify-pin -P 471112
-  $ yubico-piv-tool -a verify-pin -P 471112
-  $ yubico-piv-tool -a change-puk -P 471112 -N 6756789
-  $ yubico-piv-tool -a change-puk -P 471112 -N 6756789
-  $ yubico-piv-tool -a change-puk -P 471112 -N 6756789
-  $ yubico-piv-tool -a change-puk -P 471112 -N 6756789
-  $ yubico-piv-tool -a reset
+  $ yubico-piv-tool -averify-pin -P471112
+  $ yubico-piv-tool -averify-pin -P471112
+  $ yubico-piv-tool -averify-pin -P471112
+  $ yubico-piv-tool -averify-pin -P471112
+  $ yubico-piv-tool -achange-puk -P471112 -N6756789
+  $ yubico-piv-tool -achange-puk -P471112 -N6756789
+  $ yubico-piv-tool -achange-puk -P471112 -N6756789
+  $ yubico-piv-tool -achange-puk -P471112 -N6756789
+  $ yubico-piv-tool -areset
 
 === Software
 Card management has been tested with the tools from the OpenSC
 project, specifically piv-tool, and Yubico's PIV software (see
-below).  Basic features should work with any PIV compliant 
+below).  Basic features should work with any PIV compliant
 middleware.
 
 * https://github.com/OpenSC/OpenSC/wiki

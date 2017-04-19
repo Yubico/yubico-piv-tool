@@ -32,60 +32,59 @@ to any command. For much more information \-\-verbose=2 may be used.
 
 Display what version of the application is running on the YubiKey:
 
-   yubico\-piv\-tool \-a version
+   yubico\-piv\-tool \-aversion
 
 Generate a new ECC\-P256 key on device in slot 9a, will print the public
 key on stdout:
 
-   yubico\-piv\-tool \-s 9a \-A ECCP256 \-a generate
+   yubico\-piv\-tool \-s9a \-AECCP256 \-agenerate
 
 Generate a certificate request with public key from stdin, will print
 the resulting request on stdout:
 
-   yubico\-piv\-tool \-s 9a \-S '/CN=foo/OU=test/O=example.com/' \-P 123456 \\
-     \-a verify \-a request
+   yubico\-piv\-tool \-s9a \-S'/CN=foo/OU=test/O=example.com/' \-averify \\
+     \-arequest
 
 Generate a self\-signed certificate with public key from stdin, will print
 the certificate, for later import, on stdout:
 
-   yubico\-piv\-tool \-s 9a \-S '/CN=bar/OU=test/O=example.com/' \-P 123456 \\
-     \-a verify \-a selfsign
+   yubico\-piv\-tool \-s9a \-S'/CN=bar/OU=test/O=example.com/' \-averify \\
+     \-aselfsign
 
 Import a certificate from stdin:
 
-   yubico\-piv\-tool \-s 9a \-a import\-certificate
+   yubico\-piv\-tool \-s9a \-aimport\-certificate
 
 Set a random chuid, import a key and import a certificate from a PKCS12
-file with password test, into slot 9c:
+file, into slot 9c:
 
-   yubico\-piv\-tool \-s 9c \-i test.pfx \-K PKCS12 \-p test \-a set\-chuid \\
-     \-a import\-key \-a import\-cert
+   yubico\-piv\-tool \-s9c \-itest.pfx \-KPKCS12 \-aset\-chuid \\
+     \-aimport\-key \-aimport\-cert
 
 Import a certificate which is larger than 2048 bytes and thus requires
 compression in order to fit:
 
   openssl x509 \-in cert.pem \-outform DER | gzip \-9 > der.gz
-  yubico\-piv\-tool \-s 9c \-i der.gz \-K GZIP \-a import\-cert
+  yubico\-piv\-tool \-s9c \-ider.gz \-KGZIP \-aimport\-cert
 
 Change the management key used for administrative authentication:
 
-   yubico\-piv\-tool \-n 0807605403020108070605040302010807060504030201 \\
-     \-a set\-mgm\-key
+   yubico\-piv\-tool \-aset\-mgm\-key
 
-Delete a certificate in slot 9a:
+Delete a certificate in slot 9a, with management key being asked for:
 
-  yubico\-piv\-tool \-a delete\-certificate \-s 9a
+  yubico\-piv\-tool \-adelete\-certificate \-s9a \-k
 
 Show some information on certificates and other data:
 
-  yubico\-piv\-tool \-a status
+  yubico\-piv\-tool \-astatus
 
 Read out the certificate from a slot and then run a signature test:
 
-  yubico\-piv\-tool \-a read\-cert \-s 9a
-  yubico\-piv\-tool \-a verify\-pin \-P 123456 \-a test\-signature \-s 9a
+  yubico\-piv\-tool \-aread\-cert \-s9a
+  yubico\-piv\-tool \-averify\-pin \-atest\-signature \-s9a
 
 Import a key into slot 85 (only available on YubiKey 4) and set the
 touch policy (also only available on YubiKey 4):
 
-  yubico-piv-tool \-a import\-key \-s 85 \-\-touch-policy=always \-i key.pem
+  yubico-piv-tool \-aimport\-key \-s85 \-\-touch-policy=always \-ikey.pem
