@@ -90,6 +90,6 @@ release:
 	git tag -sm "$(PACKAGE)-$(VERSION)" $(PACKAGE)-$(VERSION)
 	git push
 	git push --tags
-	$(HELP2ADOC) -e tool/yubico-piv-tool -n "Yubico PIV Tool" -i tool/yubico-piv-tool.adoc > yubico-piv-tool.1.txt
+	$(HELP2ADOC) -e tool/yubico-piv-tool -n "Yubico PIV Tool" -i tool/yubico-piv-tool.h2m > yubico-piv-tool.1.txt
 	$(YUBICO_GITHUB_REPO)/save-mans $(PACKAGE) yubico-piv-tool.1.txt
 	$(YUBICO_GITHUB_REPO)/publish $(PACKAGE) $(VERSION) $(PACKAGE)-$(VERSION).tar.gz*
