@@ -815,6 +815,7 @@ ykpiv_rc ykpiv_change_pin(ykpiv_state *state, const char * current_pin, size_t c
     state->pin = malloc(new_pin_len * sizeof(char) + 1);
     strcpy(state->pin, new_pin);
   }
+  return res;
 }
 
 ykpiv_rc ykpiv_change_puk(ykpiv_state *state, const char * current_puk, size_t current_puk_len, const char * new_puk, size_t new_puk_len, int *tries) {
