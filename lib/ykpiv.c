@@ -102,6 +102,7 @@ ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose) {
     return YKPIV_MEMORY_ERROR;
   }
   memset(s, 0, sizeof(ykpiv_state));
+  s->pin = NULL;
   s->verbose = verbose;
   s->context = SCARD_E_INVALID_HANDLE;
   *state = s;
@@ -154,8 +155,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
     }
     rc = SCardConnect(state->context, reader_ptr, SCARD_SHARE_SHARED,
         SCARD_PROTOCOL_T1, &state->card, &active_protocol);
-    if(rc != SCARD_S_SUCCESS)
-    {
+    if(rc != SCARD_S_SUCCESS) {
       if(state->verbose) {
         fprintf(stderr, "SCardConnect failed, rc=%08lx\n", rc);
       }
@@ -197,6 +197,53 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
     SCardReleaseContext(state->context);
     state->context = SCARD_E_INVALID_HANDLE;
     return YKPIV_PCSC_ERROR;
+  }
+
+  return YKPIV_GENERIC_ERROR;
+}
+
+ykpiv_rc ykpiv_reconnect(ykpiv_state *state) {
+  unsigned long active_protocol;
+  long rc;
+
+  if(state->verbose) {
+    fprintf(stderr, "trying to reconnect to current reader.\n");
+  }
+  rc = SCardReconnect(state->card, SCARD_SHARE_SHARED,
+    SCARD_PROTOCOL_T1, SCARD_RESET_CARD, &active_protocol);
+  if(rc != SCARD_S_SUCCESS) {
+    if(state->verbose) {
+      fprintf(stderr, "SCardReconnect failed, rc=%08lx\n", rc);
+    }
+    return YKPIV_PCSC_ERROR;
+  }
+
+  {
+    APDU apdu;
+    unsigned char data[0xff];
+    unsigned long recv_len = sizeof(data);
+    int sw, tries;
+    ykpiv_rc res;
+
+    memset(apdu.raw, 0, sizeof(apdu));
+    apdu.st.ins = 0xa4;
+    apdu.st.p1 = 0x04;
+    apdu.st.lc = sizeof(aid);
+    memcpy(apdu.st.data, aid, sizeof(aid));
+
+    if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
+      if(state->verbose) {
+        fprintf(stderr, "Failed communicating with card: '%s'\n", ykpiv_strerror(res));
+      }
+      return YKPIV_PCSC_ERROR;
+    } else if(sw == SW_SUCCESS) {
+      return ykpiv_verify(state, state->pin, &tries);
+    } else {
+      if(state->verbose) {
+        fprintf(stderr, "Failed selecting application: %04x\n", sw);
+      }
+      return YKPIV_GENERIC_ERROR;
+    }
   }
 
   return YKPIV_GENERIC_ERROR;
@@ -254,11 +301,20 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
   ykpiv_rc res;
   long rc;
   *out_len = 0;
+  unsigned long active_protocol;
 
+BeginTransaction:
   rc = SCardBeginTransaction(state->card);
+  if((rc & 0xFFFFFFFF) == SCARD_W_RESET_CARD) {
+    res = ykpiv_reconnect(state);
+    if(res != YKPIV_OK) {
+      return res;
+    }
+    goto BeginTransaction;
+  }
   if(rc != SCARD_S_SUCCESS) {
     if(state->verbose) {
-      fprintf(stderr, "error: Failed to begin pcsc transaction, rc=%08lx\n", rc);
+      fprintf(stderr, "error: Failed to start pcsc transaction, rc=%08lx\n", rc);
     }
     return YKPIV_PCSC_ERROR;
   }
@@ -704,6 +760,10 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
   if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
     return res;
   } else if(sw == SW_SUCCESS) {
+    if (state->pin == NULL) {
+      state->pin = malloc(strlen(pin) * sizeof(char));
+      strcpy(state->pin, pin);
+    }
     return YKPIV_OK;
   } else if((sw >> 8) == 0x63) {
     *tries = (sw & 0xf);
