@@ -742,9 +742,7 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
     return res;
   } else if(sw == SW_SUCCESS) {
     if (pin) {
-      if (state->pin) {
-        free(state->pin);
-      }
+      free(state->pin);
       state->pin = malloc(len * sizeof(char) + 1);
       strcpy(state->pin, pin);
     }
@@ -813,9 +811,7 @@ static ykpiv_rc _change_pin_internal(ykpiv_state *state, int action, const char 
 ykpiv_rc ykpiv_change_pin(ykpiv_state *state, const char * current_pin, size_t current_pin_len, const char * new_pin, size_t new_pin_len, int *tries) {
   ykpiv_rc res = _change_pin_internal(state, CHREF_ACT_CHANGE_PIN, current_pin, current_pin_len, new_pin, new_pin_len, tries);
   if (res == YKPIV_OK && new_pin != NULL) {
-    if (state->pin) {
-      free(state->pin);
-    }
+    free(state->pin);
     state->pin = malloc(new_pin_len * sizeof(char) + 1);
     strcpy(state->pin, new_pin);
   }
