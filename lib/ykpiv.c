@@ -314,7 +314,7 @@ BeginTransaction:
   }
   if(rc != SCARD_S_SUCCESS) {
     if(state->verbose) {
-      fprintf(stderr, "error: Failed to start pcsc transaction, rc=%08lx\n", rc);
+      fprintf(stderr, "error: Failed to begin pcsc transaction, rc=%08lx\n", rc);
     }
     return YKPIV_PCSC_ERROR;
   }
