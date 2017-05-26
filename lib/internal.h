@@ -49,6 +49,7 @@ struct ykpiv_state {
   SCARDCONTEXT context;
   SCARDHANDLE card;
   int  verbose;
+  char *pin;
 };
 
 union u_APDU {
