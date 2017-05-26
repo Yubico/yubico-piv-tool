@@ -111,6 +111,7 @@ ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose) {
 
 ykpiv_rc ykpiv_done(ykpiv_state *state) {
   ykpiv_disconnect(state);
+  free(state->pin);
   free(state);
   return YKPIV_OK;
 }
