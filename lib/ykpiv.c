@@ -130,7 +130,7 @@ ykpiv_rc ykpiv_disconnect(ykpiv_state *state) {
   return YKPIV_OK;
 }
 
-static ykpiv_rc _select_application(ykpiv_state *state) {
+static ykpiv_rc select_application(ykpiv_state *state) {
   APDU apdu;
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
@@ -191,7 +191,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
       }
       continue;
     }
-    if (_select_application(state) != YKPIV_OK) {
+    if (select_application(state) != YKPIV_OK) {
       continue;
     }
     return YKPIV_OK;
@@ -209,7 +209,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
   return YKPIV_GENERIC_ERROR;
 }
 
-static ykpiv_rc _reconnect(ykpiv_state *state) {
+static ykpiv_rc reconnect(ykpiv_state *state) {
   unsigned long active_protocol;
   long rc;
   ykpiv_rc res;
@@ -226,7 +226,7 @@ static ykpiv_rc _reconnect(ykpiv_state *state) {
     }
     return YKPIV_PCSC_ERROR;
   }
-  if ((res = _select_application(state)) != YKPIV_OK) {
+  if ((res = select_application(state)) != YKPIV_OK) {
     return res;
   }
   if (state->pin) {
@@ -279,13 +279,13 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
   return YKPIV_OK;
 }
 
-static ykpiv_rc _begin_transaction(ykpiv_state *state) {
+static ykpiv_rc begin_transaction(ykpiv_state *state) {
   long rc;
   ykpiv_rc res;
 
   rc = SCardBeginTransaction(state->card);
   if((rc & 0xFFFFFFFF) == SCARD_W_RESET_CARD) {
-    if((res = _reconnect(state)) != YKPIV_OK) {
+    if((res = reconnect(state)) != YKPIV_OK) {
       return res;
     }
     rc = SCardBeginTransaction(state->card);
@@ -299,7 +299,7 @@ static ykpiv_rc _begin_transaction(ykpiv_state *state) {
   return YKPIV_OK;
 }
 
-static ykpiv_rc _end_transaction(ykpiv_state *state) {
+static ykpiv_rc end_transaction(ykpiv_state *state) {
   long rc = SCardEndTransaction(state->card, SCARD_LEAVE_CARD);
   if(rc != SCARD_S_SUCCESS && state->verbose) {
     fprintf(stderr, "error: Failed to end pcsc transaction, rc=%08lx\n", rc);
@@ -317,7 +317,7 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
   long rc;
   *out_len = 0;
 
-  res = _begin_transaction(state);
+  res = begin_transaction(state);
   if (res != YKPIV_OK) {
     return res;
   }
@@ -341,17 +341,16 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
     memcpy(apdu.st.data, in_ptr, this_size);
     res = send_data(state, &apdu, data, &recv_len, sw);
     if(res != YKPIV_OK) {
-      _end_transaction(state);
+      end_transaction(state);
       return res;
     } else if(*sw != SW_SUCCESS && *sw >> 8 != 0x61) {
-      _end_transaction(state);
-      return YKPIV_OK;
+      return end_transaction(state);
     }
     if(*out_len + recv_len - 2 > max_out) {
       if(state->verbose) {
   fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.\n", *out_len + recv_len - 2, max_out);
       }
-      _end_transaction(state);
+      end_transaction(state);
       return YKPIV_SIZE_ERROR;
     }
     if(out_data) {
@@ -374,11 +373,10 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
     apdu.st.ins = 0xc0;
     res = send_data(state, &apdu, data, &recv_len, sw);
     if(res != YKPIV_OK) {
-      _end_transaction(state);
+      end_transaction(state);
       return res;
     } else if(*sw != SW_SUCCESS && *sw >> 8 != 0x61) {
-      _end_transaction(state);
-      return YKPIV_OK;
+      return end_transaction(state);
     }
     if(*out_len + recv_len - 2 > max_out) {
       fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.", *out_len + recv_len - 2, max_out);
@@ -389,7 +387,7 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
       *out_len += recv_len - 2;
     }
   }
-  return _end_transaction(state);
+  return end_transaction(state);
 }
 
 static ykpiv_rc send_data(ykpiv_state *state, APDU *apdu,
@@ -764,6 +762,9 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
     if (pin) {
       free(state->pin);
       state->pin = malloc(len * sizeof(char) + 1);
+      if (state->pin == NULL) {
+        return YKPIV_MEMORY_ERROR;
+      }
       strcpy(state->pin, pin);
     }
     return YKPIV_OK;
@@ -833,6 +834,9 @@ ykpiv_rc ykpiv_change_pin(ykpiv_state *state, const char * current_pin, size_t c
   if (res == YKPIV_OK && new_pin != NULL) {
     free(state->pin);
     state->pin = malloc(new_pin_len * sizeof(char) + 1);
+    if (state->pin == NULL) {
+      return YKPIV_MEMORY_ERROR;
+    }
     strcpy(state->pin, new_pin);
   }
   return res;
