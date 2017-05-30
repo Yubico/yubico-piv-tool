@@ -314,7 +314,6 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
   const unsigned char *in_ptr = in_data;
   unsigned long max_out = *out_len;
   ykpiv_rc res;
-  long rc;
   *out_len = 0;
 
   res = begin_transaction(state);
