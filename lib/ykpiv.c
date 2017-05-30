@@ -102,6 +102,7 @@ ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose) {
     return YKPIV_MEMORY_ERROR;
   }
   memset(s, 0, sizeof(ykpiv_state));
+  s->pin = NULL;
   s->verbose = verbose;
   s->context = SCARD_E_INVALID_HANDLE;
   *state = s;
@@ -110,6 +111,7 @@ ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose) {
 
 ykpiv_rc ykpiv_done(ykpiv_state *state) {
   ykpiv_disconnect(state);
+  free(state->pin);
   free(state);
   return YKPIV_OK;
 }
@@ -126,6 +128,34 @@ ykpiv_rc ykpiv_disconnect(ykpiv_state *state) {
   }
 
   return YKPIV_OK;
+}
+
+static ykpiv_rc select_application(ykpiv_state *state) {
+  APDU apdu;
+  unsigned char data[0xff];
+  unsigned long recv_len = sizeof(data);
+  int sw;
+  ykpiv_rc res;
+
+  memset(apdu.raw, 0, sizeof(apdu));
+  apdu.st.ins = 0xa4;
+  apdu.st.p1 = 0x04;
+  apdu.st.lc = sizeof(aid);
+  memcpy(apdu.st.data, aid, sizeof(aid));
+
+  if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
+    if(state->verbose) {
+      fprintf(stderr, "Failed communicating with card: '%s'\n", ykpiv_strerror(res));
+    }
+    return res;
+  } else if(sw == SW_SUCCESS) {
+    return YKPIV_OK;
+  } else {
+    if(state->verbose) {
+      fprintf(stderr, "Failed selecting application: %04x\n", sw);
+    }
+    return YKPIV_GENERIC_ERROR;
+  }
 }
 
 ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
@@ -161,33 +191,10 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
       }
       continue;
     }
-
-    {
-      APDU apdu;
-      unsigned char data[0xff];
-      unsigned long recv_len = sizeof(data);
-      int sw;
-      ykpiv_rc res;
-
-      memset(apdu.raw, 0, sizeof(apdu));
-      apdu.st.ins = 0xa4;
-      apdu.st.p1 = 0x04;
-      apdu.st.lc = sizeof(aid);
-      memcpy(apdu.st.data, aid, sizeof(aid));
-
-      if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
-        if(state->verbose) {
-          fprintf(stderr, "Failed communicating with card: '%s'\n", ykpiv_strerror(res));
-        }
-        continue;
-      } else if(sw == SW_SUCCESS) {
-        return YKPIV_OK;
-      } else {
-        if(state->verbose) {
-          fprintf(stderr, "Failed selecting application: %04x\n", sw);
-        }
-      }
+    if (select_application(state) != YKPIV_OK) {
+      continue;
     }
+    return YKPIV_OK;
   }
 
   if(*reader_ptr == '\0') {
@@ -200,6 +207,32 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
   }
 
   return YKPIV_GENERIC_ERROR;
+}
+
+static ykpiv_rc reconnect(ykpiv_state *state) {
+  unsigned long active_protocol;
+  long rc;
+  ykpiv_rc res;
+  int tries;
+
+  if(state->verbose) {
+    fprintf(stderr, "trying to reconnect to current reader.\n");
+  }
+  rc = SCardReconnect(state->card, SCARD_SHARE_SHARED,
+    SCARD_PROTOCOL_T1, SCARD_RESET_CARD, &active_protocol);
+  if(rc != SCARD_S_SUCCESS) {
+    if(state->verbose) {
+      fprintf(stderr, "SCardReconnect failed, rc=%08lx\n", rc);
+    }
+    return YKPIV_PCSC_ERROR;
+  }
+  if ((res = select_application(state)) != YKPIV_OK) {
+    return res;
+  }
+  if (state->pin) {
+    return ykpiv_verify(state, state->pin, &tries);
+  }
+  return YKPIV_OK;
 }
 
 ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
@@ -246,6 +279,35 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
   return YKPIV_OK;
 }
 
+static ykpiv_rc begin_transaction(ykpiv_state *state) {
+  long rc;
+  ykpiv_rc res;
+
+  rc = SCardBeginTransaction(state->card);
+  if((rc & 0xFFFFFFFF) == SCARD_W_RESET_CARD) {
+    if((res = reconnect(state)) != YKPIV_OK) {
+      return res;
+    }
+    rc = SCardBeginTransaction(state->card);
+  }
+  if(rc != SCARD_S_SUCCESS) {
+    if(state->verbose) {
+      fprintf(stderr, "error: Failed to begin pcsc transaction, rc=%08lx\n", rc);
+    }
+    return YKPIV_PCSC_ERROR;
+  }
+  return YKPIV_OK;
+}
+
+static ykpiv_rc end_transaction(ykpiv_state *state) {
+  long rc = SCardEndTransaction(state->card, SCARD_LEAVE_CARD);
+  if(rc != SCARD_S_SUCCESS && state->verbose) {
+    fprintf(stderr, "error: Failed to end pcsc transaction, rc=%08lx\n", rc);
+    return YKPIV_PCSC_ERROR;
+  }
+  return YKPIV_OK;
+}
+
 ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
     const unsigned char *in_data, long in_len,
     unsigned char *out_data, unsigned long *out_len, int *sw) {
@@ -255,12 +317,9 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
   long rc;
   *out_len = 0;
 
-  rc = SCardBeginTransaction(state->card);
-  if(rc != SCARD_S_SUCCESS) {
-    if(state->verbose) {
-      fprintf(stderr, "error: Failed to begin pcsc transaction, rc=%08lx\n", rc);
-    }
-    return YKPIV_PCSC_ERROR;
+  res = begin_transaction(state);
+  if (res != YKPIV_OK) {
+    return res;
   }
   do {
     size_t this_size = 0xff;
@@ -282,14 +341,16 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
     memcpy(apdu.st.data, in_ptr, this_size);
     res = send_data(state, &apdu, data, &recv_len, sw);
     if(res != YKPIV_OK) {
+      end_transaction(state);
       return res;
     } else if(*sw != SW_SUCCESS && *sw >> 8 != 0x61) {
-      return YKPIV_OK;
+      return end_transaction(state);
     }
     if(*out_len + recv_len - 2 > max_out) {
       if(state->verbose) {
-  fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.\n", *out_len + recv_len - 2, max_out);
+        fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.\n", *out_len + recv_len - 2, max_out);
       }
+      end_transaction(state);
       return YKPIV_SIZE_ERROR;
     }
     if(out_data) {
@@ -312,9 +373,10 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
     apdu.st.ins = 0xc0;
     res = send_data(state, &apdu, data, &recv_len, sw);
     if(res != YKPIV_OK) {
+      end_transaction(state);
       return res;
     } else if(*sw != SW_SUCCESS && *sw >> 8 != 0x61) {
-      return YKPIV_OK;
+      return end_transaction(state);
     }
     if(*out_len + recv_len - 2 > max_out) {
       fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.", *out_len + recv_len - 2, max_out);
@@ -325,14 +387,7 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
       *out_len += recv_len - 2;
     }
   }
-  rc = SCardEndTransaction(state->card, SCARD_LEAVE_CARD);
-  if(rc != SCARD_S_SUCCESS) {
-    if(state->verbose) {
-      fprintf(stderr, "error: Failed to end pcsc transaction, rc=%08lx\n", rc);
-    }
-    return YKPIV_PCSC_ERROR;
-  }
-  return YKPIV_OK;
+  return end_transaction(state);
 }
 
 static ykpiv_rc send_data(ykpiv_state *state, APDU *apdu,
@@ -704,6 +759,14 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
   if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
     return res;
   } else if(sw == SW_SUCCESS) {
+    if (pin) {
+      free(state->pin);
+      state->pin = malloc(len * sizeof(char) + 1);
+      if (state->pin == NULL) {
+        return YKPIV_MEMORY_ERROR;
+      }
+      strcpy(state->pin, pin);
+    }
     return YKPIV_OK;
   } else if((sw >> 8) == 0x63) {
     *tries = (sw & 0xf);
@@ -767,7 +830,16 @@ static ykpiv_rc _change_pin_internal(ykpiv_state *state, int action, const char 
 }
 
 ykpiv_rc ykpiv_change_pin(ykpiv_state *state, const char * current_pin, size_t current_pin_len, const char * new_pin, size_t new_pin_len, int *tries) {
-  return _change_pin_internal(state, CHREF_ACT_CHANGE_PIN, current_pin, current_pin_len, new_pin, new_pin_len, tries);
+  ykpiv_rc res = _change_pin_internal(state, CHREF_ACT_CHANGE_PIN, current_pin, current_pin_len, new_pin, new_pin_len, tries);
+  if (res == YKPIV_OK && new_pin != NULL) {
+    free(state->pin);
+    state->pin = malloc(new_pin_len * sizeof(char) + 1);
+    if (state->pin == NULL) {
+      return YKPIV_MEMORY_ERROR;
+    }
+    strcpy(state->pin, new_pin);
+  }
+  return res;
 }
 
 ykpiv_rc ykpiv_change_puk(ykpiv_state *state, const char * current_puk, size_t current_puk_len, const char * new_puk, size_t new_puk_len, int *tries) {
