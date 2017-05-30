@@ -2214,7 +2214,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (session.info.state != CKS_RW_SO_FUNCTIONS) {
+  if (session.info.state != CKS_RW_SO_FUNCTIONS && session.info.state != CKS_RW_USER_FUNCTIONS) {
     DBG("Authentication required to generate keys");
     return CKR_SESSION_READ_ONLY;
   }
