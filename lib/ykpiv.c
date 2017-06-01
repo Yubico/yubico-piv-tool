@@ -96,6 +96,12 @@ static unsigned char *set_object(int object_id, unsigned char *buffer) {
   return buffer;
 }
 
+static void scrub_and_free_pin(char *pin) {
+  int len = strlen(pin) * sizeof(char);
+  memset(pin, 0, len);
+  free(pin);
+}
+
 ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose) {
   ykpiv_state *s = malloc(sizeof(ykpiv_state));
   if(s == NULL) {
@@ -111,7 +117,7 @@ ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose) {
 
 ykpiv_rc ykpiv_done(ykpiv_state *state) {
   ykpiv_disconnect(state);
-  free(state->pin);
+  scrub_and_free_pin(state->pin);
   free(state);
   return YKPIV_OK;
 }
@@ -759,7 +765,7 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
     return res;
   } else if(sw == SW_SUCCESS) {
     if (pin) {
-      free(state->pin);
+      scrub_and_free_pin(state->pin);
       state->pin = malloc(len * sizeof(char) + 1);
       if (state->pin == NULL) {
         return YKPIV_MEMORY_ERROR;
@@ -831,7 +837,7 @@ static ykpiv_rc change_pin_internal(ykpiv_state *state, int action, const char *
 ykpiv_rc ykpiv_change_pin(ykpiv_state *state, const char * current_pin, size_t current_pin_len, const char * new_pin, size_t new_pin_len, int *tries) {
   ykpiv_rc res = change_pin_internal(state, CHREF_ACT_CHANGE_PIN, current_pin, current_pin_len, new_pin, new_pin_len, tries);
   if (res == YKPIV_OK && new_pin != NULL) {
-    free(state->pin);
+    scrub_and_free_pin(state->pin);
     state->pin = malloc(new_pin_len * sizeof(char) + 1);
     if (state->pin == NULL) {
       return YKPIV_MEMORY_ERROR;
