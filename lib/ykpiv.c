@@ -97,7 +97,7 @@ static unsigned char *set_object(int object_id, unsigned char *buffer) {
 }
 
 static void scrub_and_free_pin(char *pin) {
-  int len = strlen(pin) * sizeof(char);
+  size_t len = strlen(pin) * sizeof(char);
   memset(pin, 0, len);
   free(pin);
 }
