@@ -138,7 +138,7 @@ static void test_token_info() {
   if (info.firmwareVersion.major != 4 && info.firmwareVersion.major != 0)
     asrt(info.firmwareVersion.major, 4, "FW_MAJ");
 
-  asrt(strcmp(info.utcTime, TOKEN_TIME), 0, "TOKEN_TIME");
+  asrt(strncmp(info.utcTime, TOKEN_TIME, sizeof(info.utcTime)), 0, "TOKEN_TIME");
 
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
 
