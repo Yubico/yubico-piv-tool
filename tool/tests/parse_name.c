@@ -28,6 +28,8 @@
  *
  */
 
+#include <check.h>
+
 #include <string.h>
 #include <stdbool.h>
 
@@ -39,18 +41,26 @@
 
 #include "util.h"
 
-static void test_name(const char *name, const char *expected, bool fail) {
+struct name {
+  const char *name;
+  const char *parsed_name;
+  bool valid;
+} names[] = {
+  {"/CN=test foo/", "CN = test foo", true},
+  {"/CN=test/OU=bar/O=EXAMPLE/", "CN = test, OU = bar, O = EXAMPLE", true},
+  {"/CN=test/OU=bar/O=EXAMPLE/", "CN = test, OU = wrong, O = EXAMPLE", false},
+  {"/foo/", "", false},
+  {"/CN=test/foobar/", "", false},
+  {"/CN=test/foo=bar/", "", false},
+};
+
+static bool test_name(const char *name, const char *expected) {
   char buf[1024];
   BIO *bio;
   const char none[] = {0};
   X509_NAME *parsed = parse_name(name);
   if(parsed == NULL) {
-    if(fail) {
-      return;
-    } else {
-      printf("Failed parsing of '%s'!\n", name);
-      exit(EXIT_FAILURE);
-    }
+    return false;
   }
 
   bio = BIO_new(BIO_s_mem());
@@ -61,17 +71,39 @@ static void test_name(const char *name, const char *expected, bool fail) {
   BIO_free(bio);
   X509_NAME_free(parsed);
   if(strcmp(buf, expected) != 0) {
-    printf("Names not matching: '%s' != '%s'\n", expected, buf);
-    exit(EXIT_FAILURE);
+    fprintf(stderr, "Names not matching: '%s' != '%s'\n", expected, buf);
+    return false;
   }
+  return true;
 }
 
-int main(void) {
-  test_name("/CN=test foo/", "CN = test foo", false);
-  test_name("/CN=test/OU=bar/O=EXAMPLE/", "CN = test, OU = bar, O = EXAMPLE", false);
-  test_name("/foo/", "", true);
-  test_name("/CN=test/foobar/", "", true);
-  test_name("/CN=test/foo=bar/", "", true);
+START_TEST(test_parse_name) {
+  ck_assert(test_name(names[_i].name, names[_i].parsed_name) == names[_i].valid);
+}
+END_TEST
 
-  return EXIT_SUCCESS;
+Suite *test_suite(void) {
+  Suite *s;
+  TCase *tc;
+
+  s = suite_create("yubico-piv-tool parse_name");
+  tc = tcase_create("parse_name");
+  tcase_add_loop_test(tc, test_parse_name, 0, sizeof(names) / sizeof(struct name));
+  suite_add_tcase(s, tc);
+
+  return s;
+}
+
+int main(void)
+{
+  int number_failed;
+  Suite *s;
+  SRunner *sr;
+
+  s = test_suite();
+  sr = srunner_create(s);
+  srunner_run_all(sr, CK_NORMAL);
+  number_failed = srunner_ntests_failed(sr);
+  srunner_free(sr);
+  return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

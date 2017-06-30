@@ -29,12 +29,12 @@
 
 #LOG_COMPILER = $(VALGRIND)
 
-AM_CFLAGS = $(WARN_CFLAGS)
+AM_CFLAGS = $(WARN_CFLAGS) @CHECK_CFLAGS@
 AM_CPPFLAGS = -I$(top_srcdir)/lib -I$(top_builddir)/lib
 AM_CPPFLAGS += -I$(top_srcdir)/ykcs11 -I$(top_builddir)/ykcs11
 AM_CPPFLAGS += $(OPENSSL_CFLAGS)
 
-AM_LDFLAGS = -no-install
+AM_LDFLAGS = -no-install @CHECK_LIBS@
 
 ykcs11_tests_LDADD = ../libykcs11.la $(OPENSSL_LIBS)
 

@@ -35,41 +35,64 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <check.h>
+
+START_TEST(test_version_string) {
+  if (strcmp(YKPIV_VERSION_STRING, ykpiv_check_version(NULL)) != 0) {
+    ck_abort_msg("version mismatch %s != %s\n", YKPIV_VERSION_STRING,
+                 ykpiv_check_version(NULL));
+  }
+
+  if (ykpiv_check_version(YKPIV_VERSION_STRING) == NULL) {
+    ck_abort_msg("version NULL?\n");
+  }
+
+  if (ykpiv_check_version("99.99.99") != NULL) {
+    ck_abort_msg("version not NULL?\n");
+  }
+
+  fprintf(stderr, "ykpiv version: header %s library %s\n",
+          YKPIV_VERSION_STRING, ykpiv_check_version (NULL));
+}
+END_TEST
+
+START_TEST(test_strerror) {
+  const char *s;
+
+  if (ykpiv_strerror(YKPIV_OK) == NULL) {
+    ck_abort_msg("ykpiv_strerror NULL\n");
+  }
+
+  s = ykpiv_strerror_name(YKPIV_OK);
+  if (s == NULL || strcmp(s, "YKPIV_OK") != 0) {
+    ck_abort_msg("ykpiv_strerror_name %s\n", s);
+  }
+}
+END_TEST
+
+Suite *basic_suite(void) {
+  Suite *s;
+  TCase *tc;
+
+  s = suite_create("libykpiv basic");
+  tc = tcase_create("basic");
+  tcase_add_test(tc, test_version_string);
+  tcase_add_test(tc, test_strerror);
+  suite_add_tcase(s, tc);
+
+  return s;
+}
+
 int main(void)
 {
-  if(strcmp(YKPIV_VERSION_STRING, ykpiv_check_version (NULL)) != 0) {
-    printf("version mismatch %s != %s\n", YKPIV_VERSION_STRING,
-	ykpiv_check_version(NULL));
-    return EXIT_FAILURE;
-  }
+  int number_failed;
+  Suite *s;
+  SRunner *sr;
 
-  if(ykpiv_check_version(YKPIV_VERSION_STRING) == NULL) {
-    printf("version NULL?\n");
-    return EXIT_FAILURE;
-  }
-
-  if(ykpiv_check_version("99.99.99") != NULL) {
-    printf ("version not NULL?\n");
-    return EXIT_FAILURE;
-  }
-
-  printf ("ykpiv version: header %s library %s\n",
-	  YKPIV_VERSION_STRING, ykpiv_check_version (NULL));
-
-
-  if(ykpiv_strerror(YKPIV_OK) == NULL) {
-    printf ("ykpiv_strerror NULL\n");
-    return EXIT_FAILURE;
-  }
-
-  {
-    const char *s;
-    s = ykpiv_strerror_name(YKPIV_OK);
-    if(s == NULL || strcmp(s, "YKPIV_OK") != 0) {
-      printf("ykpiv_strerror_name %s\n", s);
-      return EXIT_FAILURE;
-    }
-  }
-
-  return EXIT_SUCCESS;
+  s = basic_suite();
+  sr = srunner_create(s);
+  srunner_run_all(sr, CK_NORMAL);
+  number_failed = srunner_ntests_failed(sr);
+  srunner_free(sr);
+  return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

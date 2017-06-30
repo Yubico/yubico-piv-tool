@@ -28,6 +28,8 @@
  *
  */
 
+#include <check.h>
+
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -40,25 +42,58 @@
 #define pipe(fds) _pipe(fds,4096, 0)
 #endif
 
-static void test_inout(enum enum_format format) {
+enum enum_format formats[] = {
+  format_arg_base64,
+  format_arg_hex,
+  format_arg_binary,
+};
+
+static bool inout(enum enum_format format) {
   const unsigned char buf[] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
   unsigned char buf2[sizeof(buf)];
   int pipefd[2];
   FILE *tmp1, *tmp2;
 
-  assert(pipe(pipefd) == 0);
+  if (pipe(pipefd) != 0)
+    return false;
   tmp1 = fdopen(pipefd[1], "w");
   dump_data(buf, sizeof(buf), tmp1, false, format);
   fclose(tmp1);
   tmp2 = fdopen(pipefd[0], "r");
   read_data(buf2, sizeof(buf2), tmp2, format);
-  assert(memcmp(buf, buf2, sizeof(buf)) == 0);
+  if (memcmp(buf, buf2, sizeof(buf)) != 0)
+    return false;
   fclose(tmp2);
+  return true;
 }
 
-int main(void) {
-  test_inout(format_arg_base64);
-  test_inout(format_arg_hex);
-  test_inout(format_arg_binary);
-  exit(0);
+START_TEST(test_inout) {
+  ck_assert(inout(formats[_i]));
+}
+END_TEST
+
+Suite *test_suite(void) {
+  Suite *s;
+  TCase *tc;
+
+  s = suite_create("yubico-piv-tool inout");
+  tc = tcase_create("inout");
+  tcase_add_loop_test(tc, test_inout, 0, sizeof(formats) / sizeof(*formats));
+  suite_add_tcase(s, tc);
+
+  return s;
+}
+
+int main(void)
+{
+  int number_failed;
+  Suite *s;
+  SRunner *sr;
+
+  s = test_suite();
+  sr = srunner_create(s);
+  srunner_run_all(sr, CK_NORMAL);
+  number_failed = srunner_ntests_failed(sr);
+  srunner_free(sr);
+  return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

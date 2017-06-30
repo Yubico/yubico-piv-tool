@@ -29,12 +29,12 @@ TESTS_ENVIRONMENT = export VERSION=$(PACKAGE_VERSION); export EXEEXT=$(EXEEXT);
 
 LOG_COMPILER = $(VALGRIND)
 
-AM_CFLAGS = $(WARN_CFLAGS)
+AM_CFLAGS = $(WARN_CFLAGS) @CHECK_CFLAGS@
 AM_CPPFLAGS = -I$(top_srcdir)/lib -I$(top_builddir)/lib
 AM_CPPFLAGS += -I$(top_srcdir)/tool -I$(top_builddir)/tool
 AM_CPPFLAGS += $(OPENSSL_CFLAGS)
 
-AM_LDFLAGS = -no-install
+AM_LDFLAGS = -no-install @CHECK_LIBS@
 
 parse_name_LDADD = ../libpiv_util.la $(OPENSSL_LIBS)
 test_inout_LDADD = ../libpiv_util.la
