@@ -941,6 +941,10 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
   if (state == NULL)
     return YKPIV_GENERIC_ERROR;
 
+  if (p_len + q_len + dp_len + dq_len + qinv_len + ec_data_len >= sizeof(key_data)) {
+    return YKPIV_SIZE_ERROR;
+  }
+
   if (key == YKPIV_KEY_CARDMGM ||
       key < YKPIV_KEY_RETIRED1 ||
       (key > YKPIV_KEY_RETIRED20 && key < YKPIV_KEY_AUTHENTICATION) ||
