@@ -44,6 +44,33 @@
 static ykpiv_rc send_data(ykpiv_state *state, APDU *apdu,
     unsigned char *data, unsigned long *recv_len, int *sw);
 
+unsigned const char aid[] = {
+	0xa0, 0x00, 0x00, 0x03, 0x08
+};
+
+
+static void* _default_alloc(void *data, size_t cb) {
+  (void)data;
+  return calloc(cb, 1);
+}
+
+static void * _default_realloc(void *data, void *p, size_t cb) {
+  (void)data;
+  return realloc(p, cb);
+}
+
+static void _default_free(void *data, void *p) {
+  (void)data;
+  free(p);
+}
+
+ykpiv_allocator _default_allocator = {
+  .pfn_alloc = _default_alloc,
+  .pfn_realloc = _default_realloc,
+  .pfn_free = _default_free,
+  .alloc_data = 0
+};
+
 static void dump_hex(const unsigned char *buf, unsigned int len) {
   unsigned int i;
   for (i = 0; i < len; i++) {
@@ -51,7 +78,7 @@ static void dump_hex(const unsigned char *buf, unsigned int len) {
   }
 }
 
-static int set_length(unsigned char *buffer, size_t length) {
+int _ykpiv_set_length(unsigned char *buffer, size_t length) {
   if(length < 0x80) {
     *buffer++ = length;
     return 1;
@@ -67,7 +94,7 @@ static int set_length(unsigned char *buffer, size_t length) {
   }
 }
 
-static int get_length(const unsigned char *buffer, size_t *len) {
+int _ykpiv_get_length(const unsigned char *buffer, size_t *len) {
   if(buffer[0] < 0x81) {
     *len = buffer[0];
     return 1;
@@ -96,17 +123,31 @@ static unsigned char *set_object(int object_id, unsigned char *buffer) {
   return buffer;
 }
 
-ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose) {
-  ykpiv_state *s = malloc(sizeof(ykpiv_state));
-  if(s == NULL) {
+ykpiv_rc ykpiv_init_with_allocator(ykpiv_state **state, int verbose, const ykpiv_allocator *allocator) {
+  ykpiv_state *s;
+  if (NULL == state) {
+    return YKPIV_GENERIC_ERROR;
+  }
+  if (NULL == allocator || !allocator->pfn_alloc || !allocator->pfn_realloc || !allocator->pfn_free) {
     return YKPIV_MEMORY_ERROR;
   }
+
+  s = allocator->pfn_alloc(allocator->alloc_data, sizeof(ykpiv_state));
+  if (NULL == s) {
+    return YKPIV_MEMORY_ERROR;
+  }
+
   memset(s, 0, sizeof(ykpiv_state));
   s->pin = NULL;
+  s->allocator = *allocator;
   s->verbose = verbose;
-  s->context = SCARD_E_INVALID_HANDLE;
+  s->context = SCARD_E_INVALID_HANDLE; // TREV TODO -1 on Windows  
   *state = s;
   return YKPIV_OK;
+}
+
+ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose) {
+  return ykpiv_init_with_allocator(state, verbose, &_default_allocator);
 }
 
 ykpiv_rc ykpiv_done(ykpiv_state *state) {
@@ -130,7 +171,7 @@ ykpiv_rc ykpiv_disconnect(ykpiv_state *state) {
   return YKPIV_OK;
 }
 
-static ykpiv_rc select_application(ykpiv_state *state) {
+ykpiv_rc _ykpiv_select_application(ykpiv_state *state) {
   APDU apdu;
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
@@ -158,12 +199,32 @@ static ykpiv_rc select_application(ykpiv_state *state) {
   }
 }
 
+ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state) {
+  ykpiv_rc res = YKPIV_OK;
+
+  if (NULL == state) {
+    return YKPIV_GENERIC_ERROR;
+  }
+
+  res = ykpiv_verify(state, NULL, 0);
+
+  if ((YKPIV_OK != res) && (YKPIV_WRONG_PIN != res)) {
+    res = _ykpiv_select_application(state);
+  }
+  else {
+    res = YKPIV_OK;
+  }
+
+  return res;
+}
+
 ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
   unsigned long active_protocol;
   char reader_buf[2048];
   size_t num_readers = sizeof(reader_buf);
   long rc;
   char *reader_ptr;
+  SCARDHANDLE card = (SCARDHANDLE)-1;
 
   ykpiv_rc ret = ykpiv_list_readers(state, reader_buf, &num_readers);
   if(ret != YKPIV_OK) {
@@ -183,7 +244,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
       fprintf(stderr, "trying to connect to reader '%s'.\n", reader_ptr);
     }
     rc = SCardConnect(state->context, reader_ptr, SCARD_SHARE_SHARED,
-        SCARD_PROTOCOL_T1, &state->card, &active_protocol);
+        SCARD_PROTOCOL_T1, &card, &active_protocol);
     if(rc != SCARD_S_SUCCESS)
     {
       if(state->verbose) {
@@ -191,7 +252,24 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
       }
       continue;
     }
-    if (select_application(state) != YKPIV_OK) {
+
+    // if card handle has changed, determine if handle is valid (less efficient, but complete)
+    if ((card != state->card)) {
+      char reader[CB_BUF_MAX];
+      uint32_t reader_len = (uint32_t)sizeof(reader);
+      uint8_t atr[CB_ATR_MAX];
+      uint32_t atr_len = (uint32_t)sizeof(atr);
+
+      // Cannot set the reader len to NULL.  Confirmed in OSX 10.10, so we have to retrieve it even though we don't need it.
+      if (SCARD_S_SUCCESS != SCardStatus(card, reader, &reader_len, NULL, NULL, atr, &atr_len)) {
+        return YKPIV_PCSC_ERROR;
+      }
+
+      state->isNEO = (((sizeof(ATR_NEO_R3) - 1) == atr_len) && (0 == memcmp(ATR_NEO_R3, atr, atr_len)));
+    }
+    state->card = card;
+
+    if (_ykpiv_select_application(state) != YKPIV_OK) {
       continue;
     }
     return YKPIV_OK;
@@ -226,7 +304,7 @@ static ykpiv_rc reconnect(ykpiv_state *state) {
     }
     return YKPIV_PCSC_ERROR;
   }
-  if ((res = select_application(state)) != YKPIV_OK) {
+  if ((res = _ykpiv_select_application(state)) != YKPIV_OK) {
     return res;
   }
   if (state->pin) {
@@ -279,7 +357,7 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
   return YKPIV_OK;
 }
 
-static ykpiv_rc begin_transaction(ykpiv_state *state) {
+ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state) {
   long rc;
   ykpiv_rc res;
 
@@ -299,7 +377,7 @@ static ykpiv_rc begin_transaction(ykpiv_state *state) {
   return YKPIV_OK;
 }
 
-static ykpiv_rc end_transaction(ykpiv_state *state) {
+ykpiv_rc _ykpiv_end_transaction(ykpiv_state *state) {
   long rc = SCardEndTransaction(state->card, SCARD_LEAVE_CARD);
   if(rc != SCARD_S_SUCCESS && state->verbose) {
     fprintf(stderr, "error: Failed to end pcsc transaction, rc=%08lx\n", rc);
@@ -316,7 +394,7 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
   ykpiv_rc res;
   *out_len = 0;
 
-  res = begin_transaction(state);
+  res = _ykpiv_begin_transaction(state);
   if (res != YKPIV_OK) {
     return res;
   }
@@ -340,16 +418,16 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
     memcpy(apdu.st.data, in_ptr, this_size);
     res = send_data(state, &apdu, data, &recv_len, sw);
     if(res != YKPIV_OK) {
-      end_transaction(state);
+      _ykpiv_end_transaction(state);
       return res;
     } else if(*sw != SW_SUCCESS && *sw >> 8 != 0x61) {
-      return end_transaction(state);
+      return _ykpiv_end_transaction(state);
     }
     if(*out_len + recv_len - 2 > max_out) {
       if(state->verbose) {
         fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.\n", *out_len + recv_len - 2, max_out);
       }
-      end_transaction(state);
+      _ykpiv_end_transaction(state);
       return YKPIV_SIZE_ERROR;
     }
     if(out_data) {
@@ -372,10 +450,10 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
     apdu.st.ins = 0xc0;
     res = send_data(state, &apdu, data, &recv_len, sw);
     if(res != YKPIV_OK) {
-      end_transaction(state);
+      _ykpiv_end_transaction(state);
       return res;
     } else if(*sw != SW_SUCCESS && *sw >> 8 != 0x61) {
-      return end_transaction(state);
+      return _ykpiv_end_transaction(state);
     }
     if(*out_len + recv_len - 2 > max_out) {
       fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.", *out_len + recv_len - 2, max_out);
@@ -386,7 +464,7 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
       *out_len += recv_len - 2;
     }
   }
-  return end_transaction(state);
+  return _ykpiv_end_transaction(state);
 }
 
 static ykpiv_rc send_data(ykpiv_state *state, APDU *apdu,
@@ -429,6 +507,8 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
   ykpiv_rc res;
 
   DES_key_schedule ks1, ks2, ks3;
+
+  // TREV TODO: default/derived key 
 
   /* set up our key */
   {
@@ -639,11 +719,11 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   }
 
   *dataptr++ = 0x7c;
-  dataptr += set_length(dataptr, in_len + bytes + 3);
+  dataptr += _ykpiv_set_length(dataptr, in_len + bytes + 3);
   *dataptr++ = 0x82;
   *dataptr++ = 0x00;
   *dataptr++ = YKPIV_IS_EC(algorithm) && decipher ? 0x85 : 0x81;
-  dataptr += set_length(dataptr, in_len);
+  dataptr += _ykpiv_set_length(dataptr, in_len);
   memcpy(dataptr, sign_in, (size_t)in_len);
   dataptr += in_len;
 
@@ -670,7 +750,7 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
     return YKPIV_PARSE_ERROR;
   }
   dataptr = data + 1;
-  dataptr += get_length(dataptr, &len);
+  dataptr += _ykpiv_get_length(dataptr, &len);
   /* skip the 82 tag */
   if(*dataptr != 0x82) {
     if(state->verbose) {
@@ -679,7 +759,7 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
     return YKPIV_PARSE_ERROR;
   }
   dataptr++;
-  dataptr += get_length(dataptr, &len);
+  dataptr += _ykpiv_get_length(dataptr, &len);
   if(len > *out_len) {
     if(state->verbose) {
       fprintf(stderr, "Wrong size on output buffer.\n");
@@ -768,10 +848,10 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
     }
     return YKPIV_OK;
   } else if((sw >> 8) == 0x63) {
-    *tries = (sw & 0xf);
+    if (tries) *tries = (sw & 0xf);
     return YKPIV_WRONG_PIN;
   } else if(sw == SW_ERR_AUTH_BLOCKED) {
-    *tries = 0;
+    if (tries) *tries = 0;
     return YKPIV_WRONG_PIN;
   } else {
     return YKPIV_GENERIC_ERROR;
@@ -869,7 +949,7 @@ ykpiv_rc ykpiv_fetch_object(ykpiv_state *state, int object_id,
 
   if(sw == SW_SUCCESS) {
     size_t outlen;
-    int offs = get_length(data + 1, &outlen);
+    int offs = _ykpiv_get_length(data + 1, &outlen);
     if(offs == 0) {
       return YKPIV_SIZE_ERROR;
     }
@@ -884,6 +964,7 @@ ykpiv_rc ykpiv_fetch_object(ykpiv_state *state, int object_id,
 ykpiv_rc ykpiv_save_object(ykpiv_state *state, int object_id,
     unsigned char *indata, size_t len) {
 
+  // TREV TODO: buffer sizes different in minidriver
   unsigned char data[3072];
   unsigned char *dataptr = data;
   unsigned char templ[] = {0, YKPIV_INS_PUT_DATA, 0x3f, 0xff};
@@ -899,7 +980,7 @@ ykpiv_rc ykpiv_save_object(ykpiv_state *state, int object_id,
     return YKPIV_INVALID_OBJECT;
   }
   *dataptr++ = 0x53;
-  dataptr += set_length(dataptr, len);
+  dataptr += _ykpiv_set_length(dataptr, len);
   memcpy(dataptr, indata, len);
   dataptr += len;
 
@@ -908,9 +989,13 @@ ykpiv_rc ykpiv_save_object(ykpiv_state *state, int object_id,
     return res;
   }
 
-  if(sw == SW_SUCCESS) {
+  if(SW_SUCCESS == sw) {
     return YKPIV_OK;
-  } else {
+  }
+  else if (SW_ERR_SECURITY_STATUS == sw) {
+    return YKPIV_AUTHENTICATION_ERROR;
+  }
+  else {
     return YKPIV_GENERIC_ERROR;
   }
 }
@@ -1008,7 +1093,7 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
 
   for (i = 0; i < n_params; i++) {
     *in_ptr++ = param_tag + i;
-    in_ptr += set_length(in_ptr, elem_len);
+    in_ptr += _ykpiv_set_length(in_ptr, elem_len);
     padding = elem_len - lens[i];
     memset(in_ptr, 0, padding);
     in_ptr += padding;

@@ -58,6 +58,9 @@ extern "C"
     YKPIV_INVALID_OBJECT = -11,
     YKPIV_ALGORITHM_ERROR = -12,
     YKPIV_PIN_LOCKED = -13,
+
+    YKPIV_ARGUMENT_ERROR = -14, //i.e. invalid input argument
+    YKPIV_RANGE_ERROR = -15 //i.e. value range error
   } ykpiv_rc;
 
   const char *ykpiv_strerror(ykpiv_rc err);
@@ -219,6 +222,124 @@ extern "C"
 
 #define YKPIV_IS_EC(a) ((a == YKPIV_ALGO_ECCP256 || a == YKPIV_ALGO_ECCP384))
 #define YKPIV_IS_RSA(a) ((a == YKPIV_ALGO_RSA1024 || a == YKPIV_ALGO_RSA2048))
+
+
+
+
+//
+// UTIL
+//
+
+#define DEVTYPE_UNKNOWN  0x00000000
+#define DEVTYPE_NEO      0x4E450000 //"NE"
+#define DEVTYPE_YK       0x594B0000 //"YK"
+#define DEVTYPE_NEOr3    (DEVTYPE_NEO | 0x00007233) //"r3"
+#define DEVTYPE_YK4      (DEVTYPE_YK  | 0x00000034) // "4"
+  typedef uint32_t ykpiv_devmodel;
+
+#pragma pack(push, 1)
+
+  typedef struct _ykpiv_key {
+    uint8_t slot;
+    uint16_t cert_len;
+    uint8_t cert[1];
+  } ykpiv_key;
+
+  typedef struct _ykpiv_container {
+    wchar_t name[40];
+    uint8_t slot;
+    uint8_t key_spec;
+    uint16_t key_size_bits;
+    uint8_t flags;
+    uint8_t pin_id;
+    uint8_t associated_echd_container;
+    uint8_t cert_fingerprint[20];
+  } ykpiv_container;
+
+#pragma pack(pop)
+
+  /* Util api always allocates data on your behalf, if data = 0, *data != 0, or data_len = 0 an invalid parameter will be returned; to free data, call ykpiv_util_free(). */
+
+  /**
+   * Free allocated data
+   *
+   * @param state state
+   * @param data pointer to buffer allocated by ykpiv
+   *
+   * @return ypiv_rc error code
+   */
+  ykpiv_rc ykpiv_util_free(ykpiv_state *state, void *data);
+
+  ykpiv_rc ykpiv_util_list_keys(ykpiv_state *state, uint8_t *key_count, ykpiv_key **data, size_t *data_len);
+  ykpiv_rc ykpiv_util_read_cert(ykpiv_state *state, uint8_t slot, uint8_t **data, size_t *data_len);
+  ykpiv_rc ykpiv_util_write_cert(ykpiv_state *state, uint8_t slot, uint8_t *data, size_t data_len);
+  ykpiv_rc ykpiv_util_delete_cert(ykpiv_state *state, uint8_t slot);
+
+  /**
+   * Generate Key
+   *
+   * @param state state
+   * @param slot key slot
+   * @param algorithm algorithm
+   *
+   * @return ykpiv_rc error code
+   *
+   * If algorithm is RSA1024 or RSA2048, the modulus, modulus_len, exp, and exp_len output parameters must be supplied.  They are filled with with public modulus (big-endian), its size, the public exponent (big-endian), and its size respectively.
+   * If algorithm is ECCP256 or ECCP384, the point and point_len output parameters must be supplied.  They are filled with the public point (uncompressed octet-string encoded per SEC1 section 2.3.4)
+   * If algorithm is ECCP256, the curve is always ANSI X9.62 Prime 256v1
+   * If algorithm is ECCP384, the curve is always secp384r1
+   */
+  ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algorithm, uint8_t pin_policy, uint8_t touch_policy, uint8_t **modulus, size_t *modulus_len, uint8_t **exp, size_t *exp_len, uint8_t **point, size_t *point_len);
+
+  ykpiv_rc ykpiv_util_read_mscmap(ykpiv_state *state, ykpiv_container **containers, size_t *n_containers);
+  ykpiv_rc ykpiv_util_write_mscmap(ykpiv_state *state, ykpiv_container *containers, size_t n_containers);
+  ykpiv_rc ykpiv_util_read_msroots(ykpiv_state  *state, uint8_t **data, size_t *data_len);
+  ykpiv_rc ykpiv_util_write_msroots(ykpiv_state *state, uint8_t *data, size_t data_len);
+
+  ykpiv_rc ykpiv_util_reset(ykpiv_state *state);
+
+  /**
+   * Card identifier 
+   */
+  typedef struct {
+    uint8_t data[16];
+  } ykpiv_cardid;
+
+  /**
+   * Get card identifier
+   * 
+   * @param state state
+   * @param cardid ykpiv_cardid return value
+   *
+   * @return ykpiv_rc error code
+   */
+  ykpiv_rc ykpiv_util_get_cardid(ykpiv_state *state, ykpiv_cardid *cardid);
+
+  /**
+   * Set card identifier
+   * 
+   * The card must be authenticated to call this function.
+   *
+   * @param state state
+   * @param cardid cardid to set, if NULL, randomly generate
+   *
+   * @return ypiv_rc error code
+   *
+   */
+  ykpiv_rc ykpiv_util_set_cardid(ykpiv_state *state, const ykpiv_cardid *cardid);
+
+  /**
+   * Get device model
+   *
+   * The card must be connected to call this function.
+   *
+   * @param state state
+   *
+   * @return device model
+   *
+   */
+  ykpiv_devmodel ykpiv_util_devicemodel(ykpiv_state *state);
+
 
 #ifdef __cplusplus
 }

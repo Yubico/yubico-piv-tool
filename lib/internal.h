@@ -45,11 +45,32 @@
 #define READER_LEN  32
 #define MAX_READERS 16
 
+#define DES_LEN_3DES  8*3
+#define CB_MGM_KEY DES_LEN_3DES
+
+  typedef void* (*ykpiv_pfn_alloc)(void* alloc_data, size_t size);
+  typedef void* (*ykpiv_pfn_realloc)(void* alloc_data, void* address, size_t size);
+  typedef void  (*ykpiv_pfn_free)(void* alloc_data, void* address);
+  typedef struct {
+    ykpiv_pfn_alloc   pfn_alloc;
+    ykpiv_pfn_realloc pfn_realloc;
+    ykpiv_pfn_free    pfn_free;
+    void *         alloc_data;
+  } ykpiv_allocator;
+
+extern ykpiv_allocator _mem_default_allocator;
+
 struct ykpiv_state {
   SCARDCONTEXT context;
   SCARDHANDLE card;
   int  verbose;
   char *pin;
+
+  ykpiv_allocator allocator;
+  bool isNEO;
+  uint8_t mgmKey[CB_MGM_KEY];
+  bool fMgmKeySet;
+
 };
 
 union u_APDU {
@@ -66,8 +87,23 @@ union u_APDU {
 
 typedef union u_APDU APDU;
 
-unsigned const char aid[] = {
-	0xa0, 0x00, 0x00, 0x03, 0x08
-};
+extern unsigned const char aid[];
+
+// the object size is restricted to the firmware's message buffer size, which
+// always contains 0x5C + 1 byte len + 3 byte id + 0x53 + 3 byte len = 9 bytes,
+// so while the message buffer == CB_BUF_MAX, the maximum object we can store
+// is CB_BUF_MAX - 9
+#define CB_OBJ_MAX_NEO      (CB_BUF_MAX_NEO - 9)
+#define CB_OBJ_MAX_YK4      (CB_BUF_MAX_YK4 - 9)
+#define CB_OBJ_MAX          CB_OBJ_MAX_YK4
+
+#define CB_BUF_MAX_NEO      2048
+#define CB_BUF_MAX_YK4      3072
+#define CB_BUF_MAX          CB_BUF_MAX_YK4
+
+#define CB_ATR_MAX          33
+
+#define ATR_NEO_R3 "\x3b\xfc\x13\x00\x00\x81\x31\xfe\x15\x59\x75\x62\x69\x6b\x65\x79\x4e\x45\x4f\x72\x33\xe1"
+#define ATR_YK4    "\x3b\xf8\x13\x00\x00\x81\x31\xfe\x15\x59\x75\x62\x69\x6b\x65\x79\x34\xd4"
 
 #endif
