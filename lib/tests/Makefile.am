@@ -31,7 +31,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/lib -I$(top_builddir)/lib
 AM_LDFLAGS = -no-install @CHECK_LIBS@
 LDADD = ../libykpiv.la
 
-check_PROGRAMS = basic parse_key
+check_PROGRAMS = basic parse_key util
 TESTS = $(check_PROGRAMS)
 
 LOG_COMPILER = $(VALGRIND)
