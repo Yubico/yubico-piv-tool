@@ -878,10 +878,10 @@ ykpiv_rc ykpiv_util_reset(ykpiv_state *state) {
 
   /* note: the reset function is only available when both pins are blocked. */
   res = ykpiv_transfer_data(state, templ, NULL, 0, data, &recv_len, &sw);
-  if (SW_SUCCESS == sw) {
+  if (YKPIV_OK == res && SW_SUCCESS == sw) {
      return YKPIV_OK;
   }
-  return res;
+  return YKPIV_GENERIC_ERROR;
 }
 
 static int _slot2object(uint8_t slot) {

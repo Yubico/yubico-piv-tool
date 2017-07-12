@@ -38,6 +38,8 @@
 
 #include <check.h>
 
+int confirm_destruction(void);
+
 ykpiv_state *g_state;
 const uint8_t g_cert[] = {
   "0123456789ABCDEFGHIK0123456789ABCDEFGHIK0123456789ABCDEFGHIK0123456789ABCDEFGHIK"
@@ -49,22 +51,18 @@ const uint8_t g_cert[] = {
 
 void setup(void) {
   ykpiv_rc res;
-  const char *mgm_key = "010203040506070801020304050607080102030405060708";
-  unsigned char key[24];
-  size_t key_len = sizeof(key);
+
+  // Require user confirmation to continue, since this test suite will clear
+  // any data stored on connected keys.
+  ck_assert(confirm_destruction());
 
   res = ykpiv_init(&g_state, true);
   ck_assert_int_eq(res, YKPIV_OK);
 
   res = ykpiv_connect(g_state, NULL);
   ck_assert_int_eq(res, YKPIV_OK);
-
-  res = ykpiv_hex_decode(mgm_key, strlen(mgm_key), key, &key_len);
-  ck_assert_int_eq(res, YKPIV_OK);
-
-  res = ykpiv_authenticate(g_state, key);
-  ck_assert_int_eq(res, YKPIV_OK);
 }
+
 void teardown(void) {
   ykpiv_done(g_state);
 }
@@ -173,9 +171,67 @@ START_TEST(test_read_write_msroots) {
 }
 END_TEST
 
-START_TEST(test_reset) {
+START_TEST(test_authenticate) {
+  ykpiv_rc res;
+  const char *mgm_key = "010203040506070801020304050607080102030405060708";
+  unsigned char key[24];
+  size_t key_len = sizeof(key);
+
+  res = ykpiv_hex_decode(mgm_key, strlen(mgm_key), key, &key_len);
+  ck_assert_int_eq(res, YKPIV_OK);
+
+  res = ykpiv_authenticate(g_state, key);
+  ck_assert_int_eq(res, YKPIV_OK);
 }
 END_TEST
+
+START_TEST(test_reset) {
+  ykpiv_rc res;
+  int tries = 100;
+  int i;
+
+  while (tries) {
+    res = ykpiv_verify(g_state, "AAAAAA", &tries);
+    if (res == YKPIV_PIN_LOCKED)
+      break;
+    ck_assert_int_eq(res, YKPIV_WRONG_PIN);
+  }
+  tries = 100;
+  while (tries) {
+    res = ykpiv_change_puk(g_state, "AAAAAAAA", 8, "AAAAAAAA", 8, &tries);
+    if (res == YKPIV_PIN_LOCKED)
+      break;
+    ck_assert_int_eq(res, YKPIV_WRONG_PIN);
+  }
+  res = ykpiv_util_reset(g_state);
+  ck_assert_int_eq(res, YKPIV_OK);
+}
+END_TEST
+
+int confirm_destruction(void) {
+  char verify[16];
+
+  // Use dprintf() to write directly to stdout, since automake eats the standard stdout/stderr pointers.
+  dprintf(0, "******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* *******\n");
+  dprintf(0, "WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING\n");
+  dprintf(0, "WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING\n");
+  dprintf(0, "\n");
+
+  dprintf(0, "******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* *******\n");
+  dprintf(0, "\n");
+  dprintf(0, "                            ALL DATA WILL BE ERASED ON CONNECTED YUBIKEYS                                              \n");
+  dprintf(0, "\n");
+  dprintf(0, "******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* *******\n");
+  dprintf(0, "\n");
+
+  dprintf(0, "WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING\n");
+  dprintf(0, "WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING\n");
+  dprintf(0, "******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* *******\n");
+  dprintf(0, "\n");
+  dprintf(0, "Are you SURE you wish to proceed?  If so, type 'CONFIRM': ");
+  fgets(verify, 32, stdin);
+  return strncmp(verify, "CONFIRM", 7) == 0;
+}
 
 Suite *test_suite(void) {
   Suite *s;
@@ -185,6 +241,13 @@ Suite *test_suite(void) {
   tc = tcase_create("util");
 #ifdef HW_TESTS
   tcase_add_unchecked_fixture(tc, setup, teardown);
+
+  // Reset first.  Tests run serially, and depend on a clean slate.
+  tcase_add_test(tc, test_reset);
+
+  // Authenticate after reset.
+  tcase_add_test(tc, test_authenticate);
+
   tcase_add_test(tc, test_devicemodel);
   tcase_add_test(tc, test_get_set_cardid);
   tcase_add_test(tc, test_read_write_list_delete_cert);
@@ -207,5 +270,6 @@ int main(void)
   srunner_run_all(sr, CK_NORMAL);
   number_failed = srunner_ntests_failed(sr);
   srunner_free(sr);
+
   return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
