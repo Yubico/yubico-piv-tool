@@ -31,6 +31,8 @@
 #ifndef YKPIV_INTERNAL_H
 #define YKPIV_INTERNAL_H
 
+#include "ykpiv.h"
+
 #include <stdbool.h>
 
 #if BACKEND_PCSC
@@ -47,18 +49,6 @@
 
 #define DES_LEN_3DES  8*3
 #define CB_MGM_KEY DES_LEN_3DES
-
-  typedef void* (*ykpiv_pfn_alloc)(void* alloc_data, size_t size);
-  typedef void* (*ykpiv_pfn_realloc)(void* alloc_data, void* address, size_t size);
-  typedef void  (*ykpiv_pfn_free)(void* alloc_data, void* address);
-  typedef struct {
-    ykpiv_pfn_alloc   pfn_alloc;
-    ykpiv_pfn_realloc pfn_realloc;
-    ykpiv_pfn_free    pfn_free;
-    void *         alloc_data;
-  } ykpiv_allocator;
-
-extern ykpiv_allocator _mem_default_allocator;
 
 struct ykpiv_state {
   SCARDCONTEXT context;

@@ -63,10 +63,21 @@ extern "C"
     YKPIV_RANGE_ERROR = -15 //i.e. value range error
   } ykpiv_rc;
 
+  typedef void* (*ykpiv_pfn_alloc)(void* alloc_data, size_t size);
+  typedef void* (*ykpiv_pfn_realloc)(void* alloc_data, void* address, size_t size);
+  typedef void  (*ykpiv_pfn_free)(void* alloc_data, void* address);
+  typedef struct ykpiv_allocator {
+    ykpiv_pfn_alloc   pfn_alloc;
+    ykpiv_pfn_realloc pfn_realloc;
+    ykpiv_pfn_free    pfn_free;
+    void *         alloc_data;
+  } ykpiv_allocator;
+
   const char *ykpiv_strerror(ykpiv_rc err);
   const char *ykpiv_strerror_name(ykpiv_rc err);
 
   ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose);
+  ykpiv_rc ykpiv_init_with_allocator(ykpiv_state **state, int verbose, const ykpiv_allocator *allocator);
   ykpiv_rc ykpiv_done(ykpiv_state *state);
   ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted);
   ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len);

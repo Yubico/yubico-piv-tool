@@ -71,6 +71,23 @@ ykpiv_allocator _default_allocator = {
   .alloc_data = 0
 };
 
+/* Memory helper functions */
+
+void* _ykpiv_alloc(ykpiv_state *state, size_t size) {
+  if (!state || !(state->allocator.pfn_alloc)) return NULL;
+  return state->allocator.pfn_alloc(state->allocator.alloc_data, size);
+}
+
+void* _ykpiv_realloc(ykpiv_state *state, void *address, size_t size) {
+  if (!state || !(state->allocator.pfn_realloc)) return NULL;
+  return state->allocator.pfn_realloc(state->allocator.alloc_data, address, size);
+}
+
+void _ykpiv_free(ykpiv_state *state, void *data) {
+  if (!data || !state || (!(state->allocator.pfn_free))) return;
+  state->allocator.pfn_free(state->allocator.alloc_data, data);
+}
+
 static void dump_hex(const unsigned char *buf, unsigned int len) {
   unsigned int i;
   for (i = 0; i < len; i++) {
@@ -152,8 +169,9 @@ ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose) {
 
 ykpiv_rc ykpiv_done(ykpiv_state *state) {
   ykpiv_disconnect(state);
-  free(state->pin);
-  free(state);
+  if (state->pin)
+    _ykpiv_free(state, state->pin);
+  _ykpiv_free(state, state);
   return YKPIV_OK;
 }
 
@@ -839,8 +857,8 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
     return res;
   } else if(sw == SW_SUCCESS) {
     if (pin) {
-      free(state->pin);
-      state->pin = malloc(len * sizeof(char) + 1);
+      _ykpiv_free(state, state->pin);
+      state->pin = _ykpiv_alloc(state, len * sizeof(char) + 1);
       if (state->pin == NULL) {
         return YKPIV_MEMORY_ERROR;
       }
@@ -911,8 +929,8 @@ static ykpiv_rc change_pin_internal(ykpiv_state *state, int action, const char *
 ykpiv_rc ykpiv_change_pin(ykpiv_state *state, const char * current_pin, size_t current_pin_len, const char * new_pin, size_t new_pin_len, int *tries) {
   ykpiv_rc res = change_pin_internal(state, CHREF_ACT_CHANGE_PIN, current_pin, current_pin_len, new_pin, new_pin_len, tries);
   if (res == YKPIV_OK && new_pin != NULL) {
-    free(state->pin);
-    state->pin = malloc(new_pin_len * sizeof(char) + 1);
+    _ykpiv_free(state, state->pin);
+    state->pin = _ykpiv_alloc(state, new_pin_len * sizeof(char) + 1);
     if (state->pin == NULL) {
       return YKPIV_MEMORY_ERROR;
     }

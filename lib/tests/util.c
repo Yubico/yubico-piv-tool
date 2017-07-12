@@ -58,13 +58,24 @@ void setup(void) {
 
   res = ykpiv_init(&g_state, true);
   ck_assert_int_eq(res, YKPIV_OK);
+  ck_assert_ptr_nonnull(g_state);
 
   res = ykpiv_connect(g_state, NULL);
   ck_assert_int_eq(res, YKPIV_OK);
 }
 
 void teardown(void) {
-  ykpiv_done(g_state);
+  ykpiv_rc res;
+
+  // This is the expected case, if the allocator test ran, since it de-inits.
+  if (NULL == g_state)
+    return;
+
+  res = ykpiv_disconnect(g_state);
+  ck_assert_int_eq(res, YKPIV_OK);
+
+  res = ykpiv_done(g_state);
+  ck_assert_int_eq(res, YKPIV_OK);
 }
 
 START_TEST(test_devicemodel) {
@@ -208,6 +219,91 @@ START_TEST(test_reset) {
 }
 END_TEST
 
+
+struct t_alloc_data{
+  uint32_t count;
+} g_alloc_data;
+
+static void* _test_alloc(void *data, size_t cb) {
+  ck_assert_ptr_eq(data, &g_alloc_data);
+  ((struct t_alloc_data*)data)->count++;
+  return calloc(cb, 1);
+}
+
+static void * _test_realloc(void *data, void *p, size_t cb) {
+  ck_assert_ptr_eq(data, &g_alloc_data);
+  return realloc(p, cb);
+}
+
+static void _test_free(void *data, void *p) {
+  fflush(stderr);
+  ck_assert_ptr_eq(data, &g_alloc_data);
+  ((struct t_alloc_data*)data)->count--;
+  free(p);
+}
+
+ykpiv_allocator test_allocator_cbs = {
+  .pfn_alloc = _test_alloc,
+  .pfn_realloc = _test_realloc,
+  .pfn_free = _test_free,
+  .alloc_data = &g_alloc_data
+};
+
+uint8_t *alloc_auth_cert() {
+  ykpiv_rc res;
+  uint8_t *read_cert = NULL;
+  size_t read_cert_len = 0;
+
+  res = ykpiv_util_write_cert(g_state, YKPIV_KEY_AUTHENTICATION, (uint8_t*)g_cert, sizeof(g_cert));
+  ck_assert_int_eq(res, YKPIV_OK);
+
+  res = ykpiv_util_read_cert(g_state, YKPIV_KEY_AUTHENTICATION, &read_cert, &read_cert_len);
+  ck_assert_int_eq(res, YKPIV_OK);
+  ck_assert_ptr_nonnull(read_cert);
+  ck_assert_int_eq(read_cert_len, sizeof(g_cert));
+  ck_assert_mem_eq(g_cert, read_cert, sizeof(g_cert));
+  return read_cert;
+}
+
+START_TEST(test_allocator) {
+  ykpiv_rc res;
+  const ykpiv_allocator allocator;
+  uint8_t *cert1, *cert2;
+
+  res = ykpiv_done(g_state);
+  ck_assert_int_eq(res, YKPIV_OK);
+  g_state = NULL;
+
+  res = ykpiv_init_with_allocator(&g_state, false, &test_allocator_cbs);
+  ck_assert_int_eq(res, YKPIV_OK);
+  ck_assert_ptr_nonnull(g_state);
+
+  // Verify we can communicate with device and make some allocations
+  res = ykpiv_connect(g_state, NULL);
+  ck_assert_int_eq(res, YKPIV_OK);
+  test_authenticate(0);
+  cert1 = alloc_auth_cert();
+  cert2 = alloc_auth_cert();
+
+  // Verify allocations went through custom allocator, and still live
+  ck_assert_int_gt(g_alloc_data.count, 1);
+
+  // Free and shutdown everything
+  ykpiv_util_free(g_state, cert2);
+  ykpiv_util_free(g_state, cert1);
+  res = ykpiv_disconnect(g_state);
+  ck_assert_int_eq(res, YKPIV_OK);
+  res = ykpiv_done(g_state);
+  ck_assert_int_eq(res, YKPIV_OK);
+
+  // Verify equal number of frees as allocations
+  ck_assert_int_eq(g_alloc_data.count, 0);
+
+  // Clear g_state so teardown() is skipped
+  g_state = NULL;
+}
+END_TEST
+
 int confirm_destruction(void) {
   char verify[16];
 
@@ -242,16 +338,20 @@ Suite *test_suite(void) {
 #ifdef HW_TESTS
   tcase_add_unchecked_fixture(tc, setup, teardown);
 
-  // Reset first.  Tests run serially, and depend on a clean slate.
+  // Must be first: Reset device.  Tests run serially, and depend on a clean slate.
   tcase_add_test(tc, test_reset);
 
   // Authenticate after reset.
   tcase_add_test(tc, test_authenticate);
 
+  // Test util functionality
   tcase_add_test(tc, test_devicemodel);
   tcase_add_test(tc, test_get_set_cardid);
   tcase_add_test(tc, test_read_write_list_delete_cert);
   tcase_add_test(tc, test_generate_key);
+
+  // Must be last: tear down and re-test with custom memory allocator
+  tcase_add_test(tc, test_allocator);
 #endif
   suite_add_tcase(s, tc);
 
@@ -267,7 +367,7 @@ int main(void)
   s = test_suite();
   sr = srunner_create(s);
   srunner_set_fork_status(sr, CK_NOFORK);
-  srunner_run_all(sr, CK_NORMAL);
+  srunner_run_all(sr, CK_VERBOSE);
   number_failed = srunner_ntests_failed(sr);
   srunner_free(sr);
 

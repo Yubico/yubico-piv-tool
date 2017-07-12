@@ -129,23 +129,6 @@ prng_rc prng_generate(unsigned char *buffer, const size_t cb_req) {
   return rc;
 }
 
-/* Memory helper functions */
-
-static void* _alloc(ykpiv_state *state, size_t size) {
-  if (!state || !(state->allocator.pfn_alloc)) return NULL;
-  return state->allocator.pfn_alloc(state->allocator.alloc_data, size);
-}
-
-static void* _realloc(ykpiv_state *state, void *address, size_t size) {
-  if (!state || !(state->allocator.pfn_realloc)) return NULL;
-  return state->allocator.pfn_realloc(state->allocator.alloc_data, address, size);
-}
-
-static void _free(ykpiv_state *state, void *data) {
-  if (!data || !state || (!(state->allocator.pfn_free))) return;
-  state->allocator.pfn_free(state->allocator.alloc_data, data);
-}
-
 static size_t _obj_size_max(ykpiv_state *state) {
   return (state && state->isNEO) ? CB_OBJ_MAX_NEO : CB_OBJ_MAX;
 }
@@ -153,6 +136,9 @@ static size_t _obj_size_max(ykpiv_state *state) {
 #define MAX(a,b) (a) > (b) ? (a) : (b)
 #define MIN(a,b) (a) < (b) ? (a) : (b)
 
+void* _ykpiv_alloc(ykpiv_state *state, size_t size);
+void* _ykpiv_realloc(ykpiv_state *state, void *address, size_t size);
+void _ykpiv_free(ykpiv_state *state, void *data);
 int _ykpiv_set_length(unsigned char *buffer, size_t length);
 int _ykpiv_get_length(const unsigned char *buffer, size_t *len);
 ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state);
@@ -288,7 +274,7 @@ ykpiv_rc ykpiv_util_list_keys(ykpiv_state *state, uint8_t *key_count, ykpiv_key 
   *data_len = 0;
 
   // allocate initial page of buffer
-  if (NULL == (pData = _alloc(state, CB_PAGE))) {
+  if (NULL == (pData = _ykpiv_alloc(state, CB_PAGE))) {
     res = YKPIV_MEMORY_ERROR;
     goto Cleanup;
   }
@@ -304,7 +290,7 @@ ykpiv_rc ykpiv_util_list_keys(ykpiv_state *state, uint8_t *key_count, ykpiv_key 
       cbRealloc = (sizeof(ykpiv_key) + cbBuf - 1) > (cbData - offset) ? MAX((sizeof(ykpiv_key) + cbBuf - 1) - (cbData - offset), CB_PAGE) : 0;
 
       if (0 != cbRealloc) {
-        if (NULL == (pData = _realloc(state, pData, cbData + cbRealloc))) {
+        if (NULL == (pData = _ykpiv_realloc(state, pData, cbData + cbRealloc))) {
           res = YKPIV_MEMORY_ERROR;
           goto Cleanup;
         }
@@ -338,7 +324,7 @@ ykpiv_rc ykpiv_util_list_keys(ykpiv_state *state, uint8_t *key_count, ykpiv_key 
 
 Cleanup:
 
-  if (pData) { _free(state, pData); }
+  if (pData) { _ykpiv_free(state, pData); }
 
   _ykpiv_end_transaction(state);
   return res;
@@ -348,7 +334,7 @@ ykpiv_rc ykpiv_util_free(ykpiv_state *state, void *data) {
   if (!data) return YKPIV_OK;
   if (!state || (!(state->allocator.pfn_free))) return YKPIV_GENERIC_ERROR;
 
-  _free(state, data);
+  _ykpiv_free(state, data);
 
   return YKPIV_OK;
 }
@@ -367,7 +353,7 @@ ykpiv_rc ykpiv_util_read_cert(ykpiv_state *state, uint8_t slot, uint8_t **data, 
   *data_len = 0;
 
   if (YKPIV_OK == (res = _read_certificate(state, slot, buf, &cbBuf))) {
-    if (NULL == (*data = _alloc(state, cbBuf))) {
+    if (NULL == (*data = _ykpiv_alloc(state, cbBuf))) {
       res = YKPIV_MEMORY_ERROR;
       goto Cleanup;
     }
@@ -433,7 +419,7 @@ ykpiv_rc ykpiv_util_read_mscmap(ykpiv_state *state, ykpiv_container **containers
         goto Cleanup;
       }
 
-      if (NULL == (*containers = _alloc(state, len))) {
+      if (NULL == (*containers = _ykpiv_alloc(state, len))) {
         res = YKPIV_MEMORY_ERROR;
         goto Cleanup;
       }
@@ -522,7 +508,7 @@ ykpiv_rc ykpiv_util_read_msroots(ykpiv_state *state, uint8_t **data, size_t *dat
 
   // allocate first page
   cbData = _obj_size_max(state);
-  if (NULL == (pData = _alloc(state, cbData))) { res = YKPIV_MEMORY_ERROR; goto Cleanup; }
+  if (NULL == (pData = _ykpiv_alloc(state, cbData))) { res = YKPIV_MEMORY_ERROR; goto Cleanup; }
 
   for (object_id = YKPIV_OBJ_MSROOTS1; object_id <= YKPIV_OBJ_MSROOTS5; object_id++) {
     cbBuf = sizeof(buf);
@@ -558,7 +544,7 @@ ykpiv_rc ykpiv_util_read_msroots(ykpiv_state *state, uint8_t **data, size_t *dat
     cbRealloc = len > (cbData - offset) ? len - (cbData - offset) : 0;
 
     if (0 != cbRealloc) {
-      if (NULL == (pData = _realloc(state, pData, cbData + cbRealloc))) {
+      if (NULL == (pData = _ykpiv_realloc(state, pData, cbData + cbRealloc))) {
         res = YKPIV_MEMORY_ERROR;
         goto Cleanup;
       }
@@ -583,7 +569,7 @@ ykpiv_rc ykpiv_util_read_msroots(ykpiv_state *state, uint8_t **data, size_t *dat
 
 Cleanup:
 
-  if (pData) { _free(state, pData); }
+  if (pData) { _ykpiv_free(state, pData); }
 
   _ykpiv_end_transaction(state);
   return res;
@@ -777,7 +763,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     data_ptr += _ykpiv_get_length(data_ptr, &len);
 
     cb_modulus = len;
-    if (NULL == (ptr_modulus = _alloc(state, cb_modulus))) {
+    if (NULL == (ptr_modulus = _ykpiv_alloc(state, cb_modulus))) {
       if (state->verbose) { fprintf(stderr, "Failed to allocate memory for modulus.\n"); }
       res = YKPIV_MEMORY_ERROR;
       goto Cleanup;
@@ -797,7 +783,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     data_ptr += _ykpiv_get_length(data_ptr, &len);
 
     cb_exp = len;
-    if (NULL == (ptr_exp = _alloc(state, cb_exp))) {
+    if (NULL == (ptr_exp = _ykpiv_alloc(state, cb_exp))) {
       if (state->verbose) { fprintf(stderr, "Failed to allocate memory for public exponent.\n"); }
       res = YKPIV_MEMORY_ERROR;
       goto Cleanup;
@@ -838,7 +824,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     }
 
     cb_point = len;
-    if (NULL == (ptr_point = _alloc(state, cb_point))) {
+    if (NULL == (ptr_point = _ykpiv_alloc(state, cb_point))) {
       if (state->verbose) { fprintf(stderr, "Failed to allocate memory for public point.\n"); }
       res = YKPIV_MEMORY_ERROR;
       goto Cleanup;
@@ -860,9 +846,9 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
 
 Cleanup:
 
-  if (ptr_modulus) { _free(state, modulus); }
-  if (ptr_exp) { _free(state, ptr_exp); }
-  if (ptr_point) { _free(state, ptr_exp); }
+  if (ptr_modulus) { _ykpiv_free(state, modulus); }
+  if (ptr_exp) { _ykpiv_free(state, ptr_exp); }
+  if (ptr_point) { _ykpiv_free(state, ptr_exp); }
 
   _ykpiv_end_transaction(state);
   return res;
