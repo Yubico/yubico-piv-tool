@@ -81,7 +81,7 @@ void teardown(void) {
 START_TEST(test_devicemodel) {
   ykpiv_devmodel model;
   model = ykpiv_util_devicemodel(g_state);
-  fprintf(stderr, "Model: %u\n", model);
+  fprintf(stdout, "Model: %u\n", model);
   ck_assert(model == DEVTYPE_YK4);
 }
 END_TEST
@@ -100,6 +100,20 @@ START_TEST(test_get_set_cardid) {
   res = ykpiv_util_get_cardid(g_state, &get_id);
   ck_assert_int_eq(res, YKPIV_OK);
   ck_assert_mem_eq(&set_id.data, &get_id.data, sizeof(set_id.data));
+}
+END_TEST
+
+START_TEST(test_list_readers) {
+  ykpiv_rc res;
+  char reader_buf[2048];
+  size_t num_readers = sizeof(reader_buf);
+  char *reader_ptr;
+  res = ykpiv_list_readers(g_state, reader_buf, &num_readers);
+  ck_assert_int_eq(res, YKPIV_OK);
+  ck_assert_int_gt(num_readers, 0);
+  for(reader_ptr = reader_buf; *reader_ptr != '\0'; reader_ptr += strlen(reader_ptr) + 1) {
+    fprintf(stdout, "Found device: %s\n", reader_ptr);
+  }
 }
 END_TEST
 
@@ -184,13 +198,44 @@ END_TEST
 
 START_TEST(test_authenticate) {
   ykpiv_rc res;
-  const char *mgm_key = "010203040506070801020304050607080102030405060708";
+  const char *default_mgm_key = "010203040506070801020304050607080102030405060708";
+  const char *mgm_key = "112233445566778811223344556677881122334455667788";
   unsigned char key[24];
   size_t key_len = sizeof(key);
 
+  // Try new key, fail.
   res = ykpiv_hex_decode(mgm_key, strlen(mgm_key), key, &key_len);
   ck_assert_int_eq(res, YKPIV_OK);
+  res = ykpiv_authenticate(g_state, key);
+  ck_assert_int_eq(res, YKPIV_AUTHENTICATION_ERROR);
 
+  // Try default key, succeed
+  res = ykpiv_hex_decode(default_mgm_key, strlen(default_mgm_key), key, &key_len);
+  ck_assert_int_eq(res, YKPIV_OK);
+  res = ykpiv_authenticate(g_state, key);
+  ck_assert_int_eq(res, YKPIV_OK);
+
+  // Change to new key
+  res = ykpiv_hex_decode(mgm_key, strlen(mgm_key), key, &key_len);
+  ck_assert_int_eq(res, YKPIV_OK);
+  res = ykpiv_set_mgmkey(g_state, key);
+  ck_assert_int_eq(res, YKPIV_OK);
+
+  // Try new key, succeed.
+  res = ykpiv_hex_decode(mgm_key, strlen(mgm_key), key, &key_len);
+  ck_assert_int_eq(res, YKPIV_OK);
+  res = ykpiv_authenticate(g_state, key);
+  ck_assert_int_eq(res, YKPIV_OK);
+
+  // Change back to default key
+  res = ykpiv_hex_decode(default_mgm_key, strlen(default_mgm_key), key, &key_len);
+  ck_assert_int_eq(res, YKPIV_OK);
+  res = ykpiv_set_mgmkey(g_state, key);
+  ck_assert_int_eq(res, YKPIV_OK);
+
+  // Try default key, succeed
+  res = ykpiv_hex_decode(default_mgm_key, strlen(default_mgm_key), key, &key_len);
+  ck_assert_int_eq(res, YKPIV_OK);
   res = ykpiv_authenticate(g_state, key);
   ck_assert_int_eq(res, YKPIV_OK);
 }
@@ -347,6 +392,7 @@ Suite *test_suite(void) {
   // Test util functionality
   tcase_add_test(tc, test_devicemodel);
   tcase_add_test(tc, test_get_set_cardid);
+  tcase_add_test(tc, test_list_readers);
   tcase_add_test(tc, test_read_write_list_delete_cert);
   tcase_add_test(tc, test_generate_key);
 
