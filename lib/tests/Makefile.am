@@ -25,11 +25,11 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-AM_CFLAGS = $(WARN_CFLAGS) @CHECK_CFLAGS@
-AM_CPPFLAGS = -I$(top_srcdir)/lib -I$(top_builddir)/lib
+AM_CFLAGS = $(WARN_CFLAGS) @CHECK_CFLAGS@ $(OPENSSL_CFLAGS)
+AM_CPPFLAGS = -I$(top_srcdir)/lib -I$(top_builddir)/lib $(OPENSSL_CFLAGS)
 
 AM_LDFLAGS = -no-install @CHECK_LIBS@
-LDADD = ../libykpiv.la
+LDADD = ../libykpiv.la $(OPENSSL_LIBS)
 
 check_PROGRAMS = basic parse_key util
 TESTS = $(check_PROGRAMS)

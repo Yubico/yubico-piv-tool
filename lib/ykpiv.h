@@ -92,9 +92,7 @@ extern "C"
   ykpiv_rc ykpiv_sign_data(ykpiv_state *state, const unsigned char *sign_in,
                            size_t in_len, unsigned char *sign_out, size_t *out_len,
                            unsigned char algorithm, unsigned char key);
-  ykpiv_rc ykpiv_sign_data2(ykpiv_state *state, const unsigned char *sign_in,
-                            size_t in_len, unsigned char *sign_out, size_t *out_len,
-                            unsigned char algorithm, unsigned char key, int padding); // Allow not to add padding
+  // TODO (TREV): minidriver has ykpiv_sign_data2
   ykpiv_rc ykpiv_decipher_data(ykpiv_state *state, const unsigned char *enc_in,
                                size_t in_len, unsigned char *enc_out, size_t *out_len,
                                unsigned char algorithm, unsigned char key);
@@ -123,6 +121,8 @@ extern "C"
                                     const unsigned char *qinv, size_t qinv_len,
                                     const unsigned char *ec_data, unsigned char ec_data_len,
                                     const unsigned char pin_policy, const unsigned char touch_policy);
+  ykpiv_rc ykpiv_get_pin_retries(ykpiv_state *state, int* tries);
+  ykpiv_rc ykpiv_set_pin_retries(ykpiv_state *state, const int tries);
 
 #define YKPIV_ALGO_TAG 0x80
 #define YKPIV_ALGO_3DES 0x03
@@ -234,7 +234,8 @@ extern "C"
 #define YKPIV_IS_EC(a) ((a == YKPIV_ALGO_ECCP256 || a == YKPIV_ALGO_ECCP384))
 #define YKPIV_IS_RSA(a) ((a == YKPIV_ALGO_RSA1024 || a == YKPIV_ALGO_RSA2048))
 
-
+#define YKPIV_RETRIES_DEFAULT 3
+#define YKPIV_RETRIES_MAX 0xff
 
 
 //
@@ -310,7 +311,7 @@ extern "C"
   ykpiv_rc ykpiv_util_reset(ykpiv_state *state);
 
   /**
-   * Card identifier 
+   * Card identifier
    */
   typedef struct {
     uint8_t data[16];
@@ -318,7 +319,7 @@ extern "C"
 
   /**
    * Get card identifier
-   * 
+   *
    * @param state state
    * @param cardid ykpiv_cardid return value
    *
@@ -328,7 +329,7 @@ extern "C"
 
   /**
    * Set card identifier
-   * 
+   *
    * The card must be authenticated to call this function.
    *
    * @param state state

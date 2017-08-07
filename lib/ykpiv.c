@@ -864,6 +864,7 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
       }
       strcpy(state->pin, pin);
     }
+    if (tries) *tries = (sw & 0xf);
     return YKPIV_OK;
   } else if((sw >> 8) == 0x63) {
     if (tries) *tries = (sw & 0xf);
@@ -874,6 +875,48 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
   } else {
     return YKPIV_GENERIC_ERROR;
   }
+}
+
+ykpiv_rc ykpiv_get_pin_retries(ykpiv_state *state, int* tries) {
+  ykpiv_rc res;
+  ykpiv_rc ykrc;
+  if (NULL == state || NULL == tries) {
+    return YKPIV_ARGUMENT_ERROR;
+  }
+  res = _ykpiv_select_application(state);
+  ykrc = ykpiv_verify(state, NULL, tries);
+  // WRONG_PIN is expected on successful query.
+  return ykrc == YKPIV_WRONG_PIN ? YKPIV_OK : ykrc;
+}
+
+
+ykpiv_rc ykpiv_set_pin_retries(ykpiv_state *state, const int tries) {
+  ykpiv_rc res = YKPIV_OK;
+  unsigned char templ[] = {0, YKPIV_INS_SET_PIN_RETRIES, (unsigned char)tries, YKPIV_RETRIES_DEFAULT};
+  unsigned char data[0xff];
+  unsigned long recv_len = sizeof(data);
+  int sw;
+
+  if (0 == tries) {
+    //zero value means no change in retry count according to minidriver spec
+    return YKPIV_OK;
+  }
+  if (tries > YKPIV_RETRIES_MAX || tries < 1) {
+    return YKPIV_RANGE_ERROR;
+  }
+
+  res = ykpiv_transfer_data(state, templ, NULL, 0, data, &recv_len, &sw);
+  if (YKPIV_OK == res) {
+    if (SW_SUCCESS == sw) {
+      return YKPIV_OK;
+    } else if (sw == SW_ERR_AUTH_BLOCKED) {
+      return YKPIV_AUTHENTICATION_ERROR;
+    } else if (sw == SW_ERR_SECURITY_STATUS) {
+      return YKPIV_AUTHENTICATION_ERROR;
+    }
+    return YKPIV_GENERIC_ERROR;
+  }
+  return res;
 }
 
 #define CHREF_ACT_CHANGE_PIN 0
@@ -912,7 +955,7 @@ static ykpiv_rc change_pin_internal(ykpiv_state *state, int action, const char *
     return res;
   } else if(sw != SW_SUCCESS) {
     if((sw >> 8) == 0x63) {
-      *tries = sw & 0xf;
+      if (tries) *tries = sw & 0xf;
       return YKPIV_WRONG_PIN;
     } else if(sw == SW_ERR_AUTH_BLOCKED) {
       return YKPIV_PIN_LOCKED;
@@ -1110,9 +1153,14 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
     return YKPIV_ALGORITHM_ERROR;
 
   for (i = 0; i < n_params; i++) {
+    size_t remaining;
     *in_ptr++ = param_tag + i;
     in_ptr += _ykpiv_set_length(in_ptr, elem_len);
     padding = elem_len - lens[i];
+    remaining = (uintptr_t)key_data + sizeof(key_data) - (uintptr_t)in_ptr;
+    if (padding > remaining) {
+      return YKPIV_ALGORITHM_ERROR;
+    }
     memset(in_ptr, 0, padding);
     in_ptr += padding;
     memcpy(in_ptr, params[i], lens[i]);
