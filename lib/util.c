@@ -239,7 +239,7 @@ ykpiv_rc ykpiv_util_list_keys(ykpiv_state *state, uint8_t *key_count, ykpiv_key 
   const uint8_t SLOTS[] = {
     YKPIV_KEY_AUTHENTICATION,
     YKPIV_KEY_SIGNATURE,
-    YKPIV_KEY_KEYMGM,   
+    YKPIV_KEY_KEYMGM,
     YKPIV_KEY_RETIRED1,
     YKPIV_KEY_RETIRED2,
     YKPIV_KEY_RETIRED3,
@@ -298,8 +298,8 @@ ykpiv_rc ykpiv_util_list_keys(ykpiv_state *state, uint8_t *key_count, ykpiv_key 
 
       cbData += cbRealloc;
 
-      // If ykpiv_key is misaligned or results in padding, this causes problems 
-      // in the array we return.  If this becomes a problem, we'll probably want 
+      // If ykpiv_key is misaligned or results in padding, this causes problems
+      // in the array we return.  If this becomes a problem, we'll probably want
       // to go with a flat byte array.
 
       pKey = (ykpiv_key*)(pData + offset);
@@ -452,7 +452,7 @@ ykpiv_rc ykpiv_util_write_mscmap(ykpiv_state *state, ykpiv_container *containers
   // we intend to delete the object
   if ((NULL == containers) || (0 == n_containers)) {
 
-    // if either containers or n_containers are non-zero, return an error, 
+    // if either containers or n_containers are non-zero, return an error,
     // that we only delete strictly when both are set properly
     if ((NULL != containers) || (0 != n_containers)) {
       res = YKPIV_GENERIC_ERROR;
@@ -469,7 +469,10 @@ ykpiv_rc ykpiv_util_write_mscmap(ykpiv_state *state, ykpiv_container *containers
   // calculate the required length of the encoded object
   req_len = 1 /* data tag */ + _ykpiv_set_length(buf, data_len) + data_len;
 
-  if (req_len > _obj_size_max(state)) return YKPIV_SIZE_ERROR;
+  if (req_len > _obj_size_max(state)) {
+    res = YKPIV_SIZE_ERROR;
+    goto Cleanup;
+  }
 
   buf[offset++] = TAG_MSCMAP;
   offset += _ykpiv_set_length(buf + offset, data_len);
@@ -592,7 +595,7 @@ ykpiv_rc ykpiv_util_write_msroots(ykpiv_state *state, uint8_t *data, size_t data
   // we intend to delete the object
   if ((NULL == data) || (0 == data_len)) {
 
-    // if either data or data_len are non-zero, return an error, 
+    // if either data or data_len are non-zero, return an error,
     // that we only delete strictly when both are set properly
     if ((NULL != data) || (0 != data_len)) {
       res = YKPIV_GENERIC_ERROR;
@@ -955,7 +958,7 @@ static ykpiv_rc _write_certificate(ykpiv_state *state, uint8_t slot, uint8_t *da
   // check if data or data_len are zero, this means that we intend to delete the object
   if ((NULL == data) || (0 == data_len)) {
 
-    // if either data or data_len are non-zero, return an error, 
+    // if either data or data_len are non-zero, return an error,
     // that we only delete strictly when both are set properly
     if ((NULL != data) || (0 != data_len)) {
       return YKPIV_GENERIC_ERROR;
