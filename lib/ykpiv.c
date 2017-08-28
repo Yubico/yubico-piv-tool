@@ -34,14 +34,14 @@
 #include <stdint.h>
 #include <ctype.h>
 
-#include <openssl/des.h>
-#include <openssl/rand.h>
-#include <openssl/rsa.h>
+#include "des.h"
 
 #include "internal.h"
 #include "ykpiv.h"
 
-static ykpiv_rc send_data(ykpiv_state *state, APDU *apdu,
+#define YKPIV_MGM_DEFAULT "\x01\x02\x03\x04\x05\x06\x07\x08\x01\x02\x03\x04\x05\x06\x07\x08\x01\x02\x03\x04\x05\x06\x07\x08"
+
+static ykpiv_rc _send_data(ykpiv_state *state, APDU *apdu,
     unsigned char *data, unsigned long *recv_len, int *sw);
 
 unsigned const char aid[] = {
@@ -158,7 +158,7 @@ ykpiv_rc ykpiv_init_with_allocator(ykpiv_state **state, int verbose, const ykpiv
   s->pin = NULL;
   s->allocator = *allocator;
   s->verbose = verbose;
-  s->context = SCARD_E_INVALID_HANDLE; // TREV TODO -1 on Windows  
+  s->context = SCARD_E_INVALID_HANDLE; // TREV TODO -1 on Windows
   *state = s;
   return YKPIV_OK;
 }
@@ -202,7 +202,7 @@ ykpiv_rc _ykpiv_select_application(ykpiv_state *state) {
   apdu.st.lc = sizeof(aid);
   memcpy(apdu.st.data, aid, sizeof(aid));
 
-  if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
+  if((res = _send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
     if(state->verbose) {
       fprintf(stderr, "Failed communicating with card: '%s'\n", ykpiv_strerror(res));
     }
@@ -283,7 +283,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
         return YKPIV_PCSC_ERROR;
       }
 
-      state->isNEO = (((sizeof(ATR_NEO_R3) - 1) == atr_len) && (0 == memcmp(ATR_NEO_R3, atr, atr_len)));
+      state->isNEO = (((sizeof(YKPIV_ATR_NEO_R3) - 1) == atr_len) && (0 == memcmp(YKPIV_ATR_NEO_R3, atr, atr_len)));
     }
     state->card = card;
 
@@ -434,7 +434,7 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
     }
     apdu.st.lc = this_size;
     memcpy(apdu.st.data, in_ptr, this_size);
-    res = send_data(state, &apdu, data, &recv_len, sw);
+    res = _send_data(state, &apdu, data, &recv_len, sw);
     if(res != YKPIV_OK) {
       _ykpiv_end_transaction(state);
       return res;
@@ -466,7 +466,7 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
 
     memset(apdu.raw, 0, sizeof(apdu.raw));
     apdu.st.ins = 0xc0;
-    res = send_data(state, &apdu, data, &recv_len, sw);
+    res = _send_data(state, &apdu, data, &recv_len, sw);
     if(res != YKPIV_OK) {
       _ykpiv_end_transaction(state);
       return res;
@@ -485,7 +485,7 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
   return _ykpiv_end_transaction(state);
 }
 
-static ykpiv_rc send_data(ykpiv_state *state, APDU *apdu,
+static ykpiv_rc _send_data(ykpiv_state *state, APDU *apdu,
     unsigned char *data, unsigned long *recv_len, int *sw) {
   long rc;
   unsigned int send_len = (unsigned int)apdu->st.lc + 5;
@@ -519,24 +519,24 @@ static ykpiv_rc send_data(ykpiv_state *state, APDU *apdu,
 ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
   APDU apdu;
   unsigned char data[261];
-  DES_cblock challenge;
+  unsigned char challenge[8];
   unsigned long recv_len = sizeof(data);
   int sw;
   ykpiv_rc res;
+  des_key* mgm_key = NULL;
+  size_t out_len = 0;
 
-  DES_key_schedule ks1, ks2, ks3;
+  if (NULL == state) return YKPIV_GENERIC_ERROR;
 
-  // TREV TODO: default/derived key 
+  if (NULL == key) {
+    /* use the derived mgm key to authenticate, if it hasn't been derived, use default */
+    key = YKPIV_MGM_DEFAULT;
+  }
 
   /* set up our key */
-  {
-    const_DES_cblock key_tmp;
-    memcpy(key_tmp, key, 8);
-    DES_set_key_unchecked(&key_tmp, &ks1);
-    memcpy(key_tmp, key + 8, 8);
-    DES_set_key_unchecked(&key_tmp, &ks2);
-    memcpy(key_tmp, key + 16, 8);
-    DES_set_key_unchecked(&key_tmp, &ks3);
+  if (DES_OK != des_import_key(DES_TYPE_3DES, key, CB_MGM_KEY, &mgm_key)) {
+    res = YKPIV_ALGORITHM_ERROR;
+    goto Cleanup;
   }
 
   /* get a challenge from the card */
@@ -549,10 +549,12 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
     apdu.st.data[0] = 0x7c;
     apdu.st.data[1] = 0x02;
     apdu.st.data[2] = 0x80;
-    if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
-      return res;
-    } else if(sw != SW_SUCCESS) {
-      return YKPIV_AUTHENTICATION_ERROR;
+    if ((res = _send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
+      goto Cleanup;
+    }
+    else if (sw != SW_SUCCESS) {
+      res = YKPIV_AUTHENTICATION_ERROR;
+      goto Cleanup;
     }
     memcpy(challenge, data + 4, 8);
   }
@@ -560,8 +562,9 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
   /* send a response to the cards challenge and a challenge of our own. */
   {
     unsigned char *dataptr = apdu.st.data;
-    DES_cblock response;
-    DES_ecb3_encrypt(&challenge, &response, &ks1, &ks2, &ks3, 0);
+    unsigned char response[8];
+    out_len = sizeof(response);
+    des_decrypt(mgm_key, challenge, sizeof(challenge), response, &out_len);
 
     recv_len = sizeof(data);
     memset(apdu.raw, 0, sizeof(apdu));
@@ -576,32 +579,45 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
     dataptr += 8;
     *dataptr++ = 0x81;
     *dataptr++ = 8;
-    if(RAND_pseudo_bytes(dataptr, 8) == -1) {
-      if(state->verbose) {
-  fprintf(stderr, "Failed getting randomness for authentication.\n");
+    if (PRNG_GENERAL_ERROR == prng_generate(dataptr, 8)) {
+      if (state->verbose) {
+        fprintf(stderr, "Failed getting randomness for authentication.\n");
       }
-      return YKPIV_RANDOMNESS_ERROR;
+      res = YKPIV_RANDOMNESS_ERROR;
+      goto Cleanup;
     }
     memcpy(challenge, dataptr, 8);
     dataptr += 8;
-    apdu.st.lc = dataptr - apdu.st.data;
-    if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
-      return res;
-    } else if(sw != SW_SUCCESS) {
-      return YKPIV_AUTHENTICATION_ERROR;
+    apdu.st.lc = (unsigned char)(dataptr - apdu.st.data);
+    if ((res = _send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
+      goto Cleanup;
+    }
+    else if (sw != SW_SUCCESS) {
+      res = YKPIV_AUTHENTICATION_ERROR;
+      goto Cleanup;
     }
   }
 
   /* compare the response from the card with our challenge */
   {
-    DES_cblock response;
-    DES_ecb3_encrypt(&challenge, &response, &ks1, &ks2, &ks3, 1);
-    if(memcmp(response, data + 4, 8) == 0) {
-      return YKPIV_OK;
-    } else {
-      return YKPIV_AUTHENTICATION_ERROR;
+    unsigned char response[8];
+    out_len = sizeof(response);
+    des_encrypt(mgm_key, challenge, sizeof(challenge), response, &out_len);
+    if (memcmp(response, data + 4, 8) == 0) {
+      res = YKPIV_OK;
+    }
+    else {
+      res = YKPIV_AUTHENTICATION_ERROR;
     }
   }
+
+Cleanup:
+
+  if (mgm_key) {
+    des_destroy_key(mgm_key);
+  }
+
+  return res;
 }
 
 ykpiv_rc ykpiv_set_mgmkey(ykpiv_state *state, const unsigned char *new_key) {
@@ -613,45 +629,43 @@ ykpiv_rc ykpiv_set_mgmkey2(ykpiv_state *state, const unsigned char *new_key, con
   unsigned char data[261];
   unsigned long recv_len = sizeof(data);
   int sw;
-  size_t i;
-  ykpiv_rc res;
+  ykpiv_rc res = YKPIV_OK;
 
-  for(i = 0; i < 3; i++) {
-    const_DES_cblock key_tmp;
-    memcpy(key_tmp, new_key + i * 8, 8);
-    DES_set_odd_parity(&key_tmp);
-    if(DES_is_weak_key(&key_tmp) != 0) {
-      if(state->verbose) {
-  fprintf(stderr, "Won't set new key '");
-  dump_hex(new_key + i * 8, 8);
-  fprintf(stderr, "' since it's weak (with parity the key is: ");
-  dump_hex(key_tmp, 8);
-  fprintf(stderr, ").\n");
-      }
-      return YKPIV_GENERIC_ERROR;
+  if (yk_des_is_weak_key(new_key, DES_LEN_3DES)) {
+    if (state->verbose) {
+      fprintf(stderr, "Won't set new key '");
+      dump_hex(new_key, DES_LEN_3DES);
+      fprintf(stderr, "' since it's weak (with odd parity).\n");
     }
+    return YKPIV_KEY_ERROR;
   }
 
   memset(apdu.raw, 0, sizeof(apdu));
   apdu.st.ins = YKPIV_INS_SET_MGMKEY;
   apdu.st.p1 = 0xff;
-  if(touch == 0) {
+  if (touch == 0) {
     apdu.st.p2 = 0xff;
-  } else if(touch == 1) {
+  }
+  else if (touch == 1) {
     apdu.st.p2 = 0xfe;
-  } else {
+  }
+  else {
     return YKPIV_GENERIC_ERROR;
   }
-  apdu.st.lc = DES_KEY_SZ * 3 + 3;
+
+  apdu.st.lc = DES_LEN_3DES + 3;
   apdu.st.data[0] = YKPIV_ALGO_3DES;
   apdu.st.data[1] = YKPIV_KEY_CARDMGM;
-  apdu.st.data[2] = DES_KEY_SZ * 3;
-  memcpy(apdu.st.data + 3, new_key, DES_KEY_SZ * 3);
-  if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
+  apdu.st.data[2] = DES_LEN_3DES;
+  memcpy(apdu.st.data + 3, new_key, DES_LEN_3DES);
+
+  if ((res = _send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
     return res;
-  } else if(sw == SW_SUCCESS) {
+  }
+  else if (sw == SW_SUCCESS) {
     return YKPIV_OK;
   }
+
   return YKPIV_GENERIC_ERROR;
 }
 
@@ -793,16 +807,39 @@ ykpiv_rc ykpiv_sign_data(ykpiv_state *state,
     const unsigned char *raw_in, size_t in_len,
     unsigned char *sign_out, size_t *out_len,
     unsigned char algorithm, unsigned char key) {
+  ykpiv_rc res = YKPIV_OK;
 
-  return _general_authenticate(state, raw_in, in_len, sign_out, out_len,
-                               algorithm, key, false);
+  if (NULL == state) return YKPIV_GENERIC_ERROR;
+
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  // TREV TODO: clean up selections
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+
+  res = _general_authenticate(state, raw_in, in_len, sign_out, out_len,
+                              algorithm, key, false);
+Cleanup:
+  _ykpiv_end_transaction(state);
+  return res;
 }
 
 ykpiv_rc ykpiv_decipher_data(ykpiv_state *state, const unsigned char *in,
     size_t in_len, unsigned char *out, size_t *out_len,
     unsigned char algorithm, unsigned char key) {
-  return _general_authenticate(state, in, in_len, out, out_len,
-                               algorithm, key, true);
+  ykpiv_rc res = YKPIV_OK;
+
+  if (NULL == state) return YKPIV_GENERIC_ERROR;
+
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+
+
+  res = _general_authenticate(state, in, in_len, out, out_len,
+     algorithm, key, true);
+
+Cleanup:
+
+  _ykpiv_end_transaction(state);
+  return res;
 }
 
 ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len) {
@@ -814,7 +851,7 @@ ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len) {
 
   memset(apdu.raw, 0, sizeof(apdu));
   apdu.st.ins = YKPIV_INS_GET_VERSION;
-  if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
+  if((res = _send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
     return res;
   } else if(sw == SW_SUCCESS) {
     int result = snprintf(version, len, "%d.%d.%d", data[0], data[1], data[2]);
@@ -828,6 +865,7 @@ ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len) {
 }
 
 ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
+  // TREV TODO: pin len?
   APDU apdu;
   unsigned char data[261];
   unsigned long recv_len = sizeof(data);
@@ -853,7 +891,7 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
       memset(apdu.st.data + len, 0xff, 8 - len);
     }
   }
-  if((res = send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
+  if((res = _send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
     return res;
   } else if(sw == SW_SUCCESS) {
     if (pin) {
@@ -895,7 +933,7 @@ ykpiv_rc ykpiv_set_pin_retries(ykpiv_state *state, const int tries) {
   unsigned char templ[] = {0, YKPIV_INS_SET_PIN_RETRIES, (unsigned char)tries, YKPIV_RETRIES_DEFAULT};
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
-  int sw;
+  int sw = 0;
 
   if (0 == tries) {
     //zero value means no change in retry count according to minidriver spec
@@ -918,10 +956,6 @@ ykpiv_rc ykpiv_set_pin_retries(ykpiv_state *state, const int tries) {
   }
   return res;
 }
-
-#define CHREF_ACT_CHANGE_PIN 0
-#define CHREF_ACT_UNBLOCK_PIN 1
-#define CHREF_ACT_CHANGE_PUK 2
 
 static ykpiv_rc change_pin_internal(ykpiv_state *state, int action, const char * current_pin, size_t current_pin_len, const char * new_pin, size_t new_pin_len, int *tries) {
   int sw;

@@ -70,7 +70,7 @@ extern "C"
     ykpiv_pfn_alloc   pfn_alloc;
     ykpiv_pfn_realloc pfn_realloc;
     ykpiv_pfn_free    pfn_free;
-    void *         alloc_data;
+    void *            alloc_data;
   } ykpiv_allocator;
 
   const char *ykpiv_strerror(ykpiv_rc err);
@@ -308,6 +308,92 @@ extern "C"
   ykpiv_rc ykpiv_util_read_msroots(ykpiv_state  *state, uint8_t **data, size_t *data_len);
   ykpiv_rc ykpiv_util_write_msroots(ykpiv_state *state, uint8_t *data, size_t data_len);
 
+  typedef enum {
+    YKPIV_CONFIG_MGM_MANUAL = 0,
+    YKPIV_CONFIG_MGM_DERIVED = 1,
+    YKPIV_CONFIG_MGM_PROTECTED = 2
+  } ykpiv_config_mgm_type;
+
+#pragma pack(push, 1)
+  typedef struct _ykpiv_config {
+    uint8_t               protected_data_available;
+    uint8_t               puk_blocked;
+    uint8_t               puk_noblock_on_upgrade;
+    uint32_t              pin_last_changed;
+    ykpiv_config_mgm_type mgm_type;
+  } ykpiv_config;
+
+  typedef struct _ykpiv_mgm {
+    uint8_t data[24];
+  } ykpiv_mgm;
+#pragma pack(pop)
+
+    /**
+  * Get current PIV applet administration configuration state
+  *
+  * @param state  [in] state
+  * @param config [out] output ykpiv_config struct with current applet data
+  *
+  * @return ykpiv_rc error code
+  */
+  ykpiv_rc ykpiv_util_get_config(ykpiv_state *state, ykpiv_config *config);
+
+  /**
+   * Set last pin changed time to current time
+   *
+   * The applet must be authenticated to call this function
+   *
+   * @param state state
+   *
+   * @return ykpiv_rc error code
+   */
+  ykpiv_rc ykpiv_util_set_pin_last_changed(ykpiv_state *state);
+
+  /**
+   * Get Derived MGM key
+   *
+   * @param state   [in] state
+   * @param pin     [in] pin used to derive mgm key
+   * @param pin_len [in] length of pin
+   * @param mgm     [out] protected mgm key
+   *
+   * @return ykpiv_rc error code
+   */
+  ykpiv_rc ykpiv_util_get_derived_mgm(ykpiv_state *state, const uint8_t *pin, const size_t pin_len, ykpiv_mgm *mgm);
+
+  /**
+   * Get Protected MGM key
+   *
+   * The user pin must be verified to call this function
+   *
+   * @param state [in] state
+   * @param mgm   [out] returns protected mgm key
+   *
+   * @return ykpiv_rc error code
+   */
+  ykpiv_rc ykpiv_util_get_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm);
+
+  /**
+   * Set Protected MGM key
+   *
+   * The applet must be authenticated and the user pin verified to call this function
+   *
+   * @param state state
+   * @param mgm   [in] if mgm is NULL or mgm.data is all zeroes, generate mgm, otherwise set specified key; [out] returns generated mgm key
+   *
+   * @return ykpiv_rc error code
+   */
+  ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm);
+
+  /**
+  * Reset PIV applet
+  *
+  * The user pin and puk must be blocked to call this function.
+  *
+  * @param state state
+  *
+  * @return ykpiv_rc error code
+  */
   ykpiv_rc ykpiv_util_reset(ykpiv_state *state);
 
   /**
@@ -351,6 +437,15 @@ extern "C"
    *
    */
   ykpiv_devmodel ykpiv_util_devicemodel(ykpiv_state *state);
+
+  /**
+   * Block PUK
+   *
+   * Utility function to block the PUK.
+   *
+   * To set the PUK blocked flag in the admin data, the applet must be authenticated.
+   */
+  ykpiv_rc ykpiv_util_block_puk(ykpiv_state *state);
 
 
 #ifdef __cplusplus

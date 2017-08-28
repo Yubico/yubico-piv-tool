@@ -55,12 +55,8 @@ struct ykpiv_state {
   SCARDHANDLE card;
   int  verbose;
   char *pin;
-
   ykpiv_allocator allocator;
   bool isNEO;
-  uint8_t mgmKey[CB_MGM_KEY];
-  bool fMgmKeySet;
-
 };
 
 union u_APDU {
@@ -93,7 +89,11 @@ extern unsigned const char aid[];
 
 #define CB_ATR_MAX          33
 
-#define ATR_NEO_R3 "\x3b\xfc\x13\x00\x00\x81\x31\xfe\x15\x59\x75\x62\x69\x6b\x65\x79\x4e\x45\x4f\x72\x33\xe1"
-#define ATR_YK4    "\x3b\xf8\x13\x00\x00\x81\x31\xfe\x15\x59\x75\x62\x69\x6b\x65\x79\x34\xd4"
+#define YKPIV_ATR_NEO_R3 "\x3b\xfc\x13\x00\x00\x81\x31\xfe\x15\x59\x75\x62\x69\x6b\x65\x79\x4e\x45\x4f\x72\x33\xe1"
+#define YKPIV_ATR_YK4    "\x3b\xf8\x13\x00\x00\x81\x31\xfe\x15\x59\x75\x62\x69\x6b\x65\x79\x34\xd4"
+
+#define CHREF_ACT_CHANGE_PIN 0
+#define CHREF_ACT_UNBLOCK_PIN 1
+#define CHREF_ACT_CHANGE_PUK 2
 
 #endif

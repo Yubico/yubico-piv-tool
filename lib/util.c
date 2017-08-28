@@ -34,6 +34,7 @@
 #include <stdint.h>
 #include <ctype.h>
 
+#include "des.h"
 #include <openssl/des.h>
 #include <openssl/rand.h>
 #include <openssl/rsa.h>
@@ -62,26 +63,29 @@ const uint8_t CCC_TMPL[] = {
 #define CCC_ID_OFFS 9
 #define CB_CCC_ID 14
 
-#define TAG_CERT            0x70
-#define TAG_CERT_COMPRESS   0x71
-#define TAG_CERT_LRC        0xFE
-#define TAG_PIVMAN_DATA     0x80
-#define TAG_FLAGS_1         0x81
-#define TAG_SALT            0x82
-#define TAG_PIN_TIMESTAMP   0x83
-#define TAG_MSCMAP          0x81
-#define TAG_MSROOTS_END     0x82
-#define TAG_MSROOTS_MID     0x83
+#define TAG_CERT              0x70
+#define TAG_CERT_COMPRESS     0x71
+#define TAG_CERT_LRC          0xFE
+#define TAG_ADMIN             0x80
+#define TAG_ADMIN_FLAGS_1     0x81
+#define TAG_ADMIN_SALT        0x82
+#define TAG_ADMIN_TIMESTAMP   0x83
+#define TAG_PROTECTED         0x88
+#define TAG_PROTECTED_FLAGS_1 0x81
+#define TAG_PROTECTED_MGM     0x89
+#define TAG_MSCMAP            0x81
+#define TAG_MSROOTS_END       0x82
+#define TAG_MSROOTS_MID       0x83
 
-#define TAG_RSA_MODULUS     0x81
-#define TAG_RSA_EXP         0x82
-#define TAG_ECC_POINT       0x86
+#define TAG_RSA_MODULUS       0x81
+#define TAG_RSA_EXP           0x82
+#define TAG_ECC_POINT         0x86
 
 #define CB_ECC_POINTP256    65
 #define CB_ECC_POINTP384    97
 
 
-#define YKPIV_OBJ_PIVMAN_DATA 0x5fff00
+#define YKPIV_OBJ_ADMIN_DATA 0x5fff00
 #define YKPIV_OBJ_ATTESTATION 0x5fff01
 #define	YKPIV_OBJ_MSCMAP      0x5fff10
 #define	YKPIV_OBJ_MSROOTS1    0x5fff11
@@ -90,44 +94,23 @@ const uint8_t CCC_TMPL[] = {
 #define YKPIV_OBJ_MSROOTS4    0x5fff14
 #define YKPIV_OBJ_MSROOTS5    0x5fff15
 
+#define ADMIN_FLAGS_1_PUK_BLOCKED    0x01
+#define ADMIN_FLAGS_1_PROTECTED_MGM  0x02
+
+#define CB_ADMIN_SALT         16
+#define CB_ADMIN_TIMESTAMP    4
+
+#define ITER_MGM_PBKDF2       10000
+
+#define PROTECTED_FLAGS_1_PUK_NOBLOCK 0x01
+
 #define CB_OBJ_TAG_MIN      2                       // 1 byte tag + 1 byte len
 #define CB_OBJ_TAG_MAX      (CB_OBJ_TAG_MIN + 2)      // 1 byte tag + 3 bytes len
 
-typedef enum {
-  PRNG_OK = 0,
-  PRNG_GENERAL_ERROR = -1
-} prng_rc;
+#define member_size(type, member) sizeof(((type*)0)->member)
 
 static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf, size_t *buf_len);
 static ykpiv_rc _write_certificate(ykpiv_state *state, uint8_t slot, uint8_t *data, size_t data_len);
-
-prng_rc prng_generate(unsigned char *buffer, const size_t cb_req) {
-  // TREV TODO: ykpiv.c needs to use this
-  prng_rc rc = PRNG_OK;
-
-#ifdef _WINDOWS
-  HCRYPTPROV hProv = 0;
-
-  if (CryptAcquireContext(&hProv, NULL, MS_ENHANCED_PROV, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
-    if (!CryptGenRandom(hProv, (DWORD)cb_req, buffer)) {
-      rc = PRNG_GENERAL_ERROR;
-    }
-
-    CryptReleaseContext(hProv, 0);
-  }
-  else {
-    rc = PRNG_GENERAL_ERROR;
-  }
-
-#else
-  if (-1 == RAND_pseudo_bytes(buffer, cb_req)) {
-    rc = PRNG_GENERAL_ERROR;
-  }
-
-#endif
-
-  return rc;
-}
 
 static size_t _obj_size_max(ykpiv_state *state) {
   return (state && state->isNEO) ? CB_OBJ_MAX_NEO : CB_OBJ_MAX;
@@ -144,6 +127,11 @@ int _ykpiv_get_length(const unsigned char *buffer, size_t *len);
 ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state);
 ykpiv_rc _ykpiv_end_transaction(ykpiv_state *state);
 ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state);
+
+static ykpiv_rc _read_metadata(ykpiv_state *state, uint8_t tag, uint8_t* data, size_t* pcb_data);
+static ykpiv_rc _write_metadata(ykpiv_state *state, uint8_t tag, uint8_t *data, size_t cb_data);
+static ykpiv_rc _get_metadata_item(uint8_t *data, size_t cb_data, uint8_t tag, uint8_t **pp_item, size_t *pcb_item);
+static ykpiv_rc _set_metadata_item(uint8_t *data, size_t *pcb_data, size_t cb_data_max, uint8_t tag, uint8_t *p_item, size_t cb_item);
 
 /*
 ** YKPIV Utility API - aggregate functions and slightly nicer interface
@@ -385,6 +373,66 @@ Cleanup:
 
 ykpiv_rc ykpiv_util_delete_cert(ykpiv_state *state, uint8_t slot) {
   return ykpiv_util_write_cert(state, slot, NULL, 0);
+}
+
+ykpiv_rc ykpiv_util_block_puk(ykpiv_state *state) {
+  ykpiv_rc res = YKPIV_OK;
+  uint8_t puk[] = { 0x30, 0x42, 0x41, 0x44, 0x46, 0x30, 0x30, 0x44 };
+  int tries = -1;
+  uint8_t data[CB_BUF_MAX];
+  size_t  cb_data = sizeof(data);
+  uint8_t *p_item = NULL;
+  size_t  cb_item = 0;
+  uint8_t flags = 0;
+
+  if (NULL == state) return YKPIV_GENERIC_ERROR;
+
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+
+  while (tries != 0) {
+    if (YKPIV_OK == (res = ykpiv_change_puk(state, puk, sizeof(puk), puk, sizeof(puk), &tries))) {
+      /* did we accidentally choose the correct PUK?, change our puk and try again */
+      puk[0]++;
+    }
+    else {
+      /* depending on the firmware, tries may not be set to zero when the PUK is blocked, */
+      /* instead, the return code will be PIN_LOCKED and tries will be unset */
+      if (YKPIV_PIN_LOCKED == res) {
+        tries = 0;
+        res = YKPIV_OK;
+      }
+    }
+  }
+
+  /* attempt to set the puk blocked flag in admin data */
+
+  if (YKPIV_OK == _read_metadata(state, TAG_ADMIN, data, &cb_data)) {
+    if (YKPIV_OK == _get_metadata_item(data, cb_data, TAG_ADMIN_FLAGS_1, &p_item, &cb_item)) {
+      if (sizeof(flags) == cb_item) {
+        memcpy(&flags, p_item, cb_item);
+      }
+      else {
+        if (state->verbose) { fprintf(stderr, "admin flags exist, but are incorrect size = %zu", cb_item); }
+      }
+    }
+  }
+
+  flags |= ADMIN_FLAGS_1_PUK_BLOCKED;
+
+  if (YKPIV_OK != _set_metadata_item(data, &cb_data, CB_OBJ_MAX, TAG_ADMIN_FLAGS_1, (uint8_t*)&flags, sizeof(flags))) {
+    if (state->verbose) { fprintf(stderr, "could not set admin flags"); }
+  }
+  else {
+    if (YKPIV_OK != _write_metadata(state, TAG_ADMIN, data, cb_data)) {
+      if (state->verbose) { fprintf(stderr, "could not write admin metadata"); }
+    }
+  }
+
+Cleanup:
+
+  _ykpiv_end_transaction(state);
+  return res;
 }
 
 ykpiv_rc ykpiv_util_read_mscmap(ykpiv_state *state, ykpiv_container **containers, size_t *n_containers) {
@@ -857,6 +905,327 @@ Cleanup:
   return res;
 }
 
+ykpiv_rc ykpiv_util_get_config(ykpiv_state *state, ykpiv_config *config) {
+  ykpiv_rc res = YKPIV_OK;
+  uint8_t data[CB_BUF_MAX] = { 0 };
+  size_t cb_data = sizeof(data);
+  uint8_t *p_item = NULL;
+  size_t cb_item = 0;
+
+  if (NULL == state) return YKPIV_GENERIC_ERROR;
+  if (NULL == config) return YKPIV_GENERIC_ERROR;
+
+  // initialize default values
+
+  config->protected_data_available = false;
+  config->puk_blocked = false;
+  config->puk_noblock_on_upgrade = false;
+  config->pin_last_changed = 0;
+  config->mgm_type = YKPIV_CONFIG_MGM_MANUAL;
+
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+
+  /* recover admin data */
+  if (YKPIV_OK == _read_metadata(state, TAG_ADMIN, data, &cb_data)) {
+    if (YKPIV_OK == _get_metadata_item(data, cb_data, TAG_ADMIN_FLAGS_1, &p_item, &cb_item)) {
+      if (*p_item & ADMIN_FLAGS_1_PUK_BLOCKED) config->puk_blocked = true;
+      if (*p_item & ADMIN_FLAGS_1_PROTECTED_MGM) config->mgm_type = YKPIV_CONFIG_MGM_PROTECTED;
+    }
+
+    if (YKPIV_OK == _get_metadata_item(data, cb_data, TAG_ADMIN_SALT, &p_item, &cb_item)) {
+      if (config->mgm_type != YKPIV_CONFIG_MGM_MANUAL) {
+        if (state->verbose) {
+          fprintf(stderr, "conflicting types of mgm key administration configured\n");
+        }
+      }
+      else {
+        config->mgm_type = YKPIV_CONFIG_MGM_DERIVED;
+      }
+    }
+
+    if (YKPIV_OK == _get_metadata_item(data, cb_data, TAG_ADMIN_TIMESTAMP, &p_item, &cb_item)) {
+      if (CB_ADMIN_TIMESTAMP != cb_item)  {
+        if (state->verbose) {
+          fprintf(stderr, "pin timestamp in admin metadata is an invalid size");
+        }
+      }
+      else {
+        memcpy(&(config->pin_last_changed), p_item, cb_item);
+      }
+    }
+  }
+
+  /* recover protected data */
+  cb_data = sizeof(data);
+
+  if (YKPIV_OK == _read_metadata(state, TAG_PROTECTED, data, &cb_data)) {
+    config->protected_data_available = true;
+
+    if (YKPIV_OK == _get_metadata_item(data, cb_data, TAG_PROTECTED_FLAGS_1, &p_item, &cb_item)) {
+      if (*p_item & PROTECTED_FLAGS_1_PUK_NOBLOCK) config->puk_noblock_on_upgrade = true;
+    }
+
+    if (YKPIV_OK == _get_metadata_item(data, cb_data, TAG_PROTECTED_MGM, &p_item, &cb_item)) {
+      if (config->mgm_type != YKPIV_CONFIG_MGM_PROTECTED) {
+        if (state->verbose) {
+          fprintf(stderr, "conflicting types of mgm key administration configured - protected mgm exists\n");
+        }
+      }
+      config->mgm_type = YKPIV_CONFIG_MGM_PROTECTED; /* always favor protected mgm */
+    }
+  }
+
+Cleanup:
+
+  _ykpiv_end_transaction(state);
+  return res;
+}
+
+ykpiv_rc ykpiv_util_set_pin_last_changed(ykpiv_state *state) {
+  ykpiv_rc res = YKPIV_OK;
+  ykpiv_rc ykrc = YKPIV_OK;
+  uint8_t  data[CB_BUF_MAX] = { 0 };
+  size_t   cb_data = sizeof(data);
+  time_t   tnow = 0;
+
+  if (NULL == state) return YKPIV_GENERIC_ERROR;
+
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+
+  /* recover admin data */
+  if (YKPIV_OK != (ykrc = _read_metadata(state, TAG_ADMIN, data, &cb_data))) {
+    cb_data = 0; /* set current metadata blob size to zero, we'll add the timestamp to the blank blob */
+  }
+
+  tnow = time(NULL);
+
+  if (YKPIV_OK != (res = _set_metadata_item(data, &cb_data, CB_OBJ_MAX, TAG_ADMIN_TIMESTAMP, (uint8_t*)&tnow, CB_ADMIN_TIMESTAMP))) {
+    if (state->verbose) fprintf(stderr, "could not set pin timestamp, err = %d\n", res);
+  }
+  else {
+    if (YKPIV_OK != (res = _write_metadata(state, TAG_ADMIN, data, cb_data))) {
+      /* Note: this can fail if authenticate() wasn't called previously - expected behavior */
+      if (state->verbose) fprintf(stderr, "could not write admin data, err = %d\n", res);
+    }
+  }
+
+Cleanup:
+
+  _ykpiv_end_transaction(state);
+  return res;
+}
+
+ykpiv_rc ykpiv_util_get_derived_mgm(ykpiv_state *state, const uint8_t *pin, const size_t pin_len, ykpiv_mgm *mgm) {
+  ykpiv_rc res = YKPIV_OK;
+  pkcs5_rc p5rc = PKCS5_OK;
+  uint8_t  data[CB_BUF_MAX] = { 0 };
+  size_t   cb_data = sizeof(data);
+  uint8_t  *p_item = NULL;
+  size_t   cb_item = 0;
+
+  if (NULL == state) return YKPIV_GENERIC_ERROR;
+  if ((NULL == pin) || (0 == pin_len) || (NULL == mgm)) return YKPIV_GENERIC_ERROR;
+
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+
+  /* recover management key */
+  if (YKPIV_OK == (res = _read_metadata(state, TAG_ADMIN, data, &cb_data))) {
+    if (YKPIV_OK == (res = _get_metadata_item(data, cb_data, TAG_ADMIN_SALT, &p_item, &cb_item))) {
+      if (cb_item != CB_ADMIN_SALT) {
+        if (state->verbose) fprintf(stderr, "derived mgm salt exists, but is incorrect size = %zu\n", cb_item);
+        res = YKPIV_GENERIC_ERROR;
+        goto Cleanup;
+      }
+
+      if (PKCS5_OK != (p5rc = pkcs5_pbkdf2_sha1(pin, pin_len, p_item, cb_item, ITER_MGM_PBKDF2, mgm->data, member_size(ykpiv_mgm, data)))) {
+        if (state->verbose) fprintf(stderr, "pbkdf2 failure, err = %d\n", p5rc);
+        res = YKPIV_GENERIC_ERROR;
+        goto Cleanup;
+      }
+    }
+  }
+
+Cleanup:
+
+  _ykpiv_end_transaction(state);
+  return res;
+}
+
+ykpiv_rc ykpiv_util_get_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
+  ykpiv_rc res = YKPIV_OK;
+  uint8_t  data[CB_BUF_MAX] = { 0 };
+  size_t   cb_data = sizeof(data);
+  uint8_t  *p_item = NULL;
+  size_t   cb_item = 0;
+
+  if (NULL == state) return YKPIV_GENERIC_ERROR;
+  if (NULL == mgm) return YKPIV_GENERIC_ERROR;
+
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+
+  if (YKPIV_OK != (res = _read_metadata(state, TAG_PROTECTED, data, &cb_data))) {
+    if (state->verbose) fprintf(stderr, "could not read protected data, err = %d\n", res);
+    goto Cleanup;
+  }
+
+  if (YKPIV_OK != (res = _get_metadata_item(data, cb_data, TAG_PROTECTED_MGM, &p_item, &cb_item))) {
+    if (state->verbose) fprintf(stderr, "could not read protected mgm from metadata, err = %d\n", res);
+    goto Cleanup;
+  }
+
+  if (cb_item != member_size(ykpiv_mgm, data)) {
+    if (state->verbose) fprintf(stderr, "protected data contains mgm, but is the wrong size = %zu\n", cb_item);
+    res = YKPIV_AUTHENTICATION_ERROR;
+    goto Cleanup;
+  }
+
+  memcpy(mgm->data, p_item, cb_item);
+
+Cleanup:
+
+  memset(data, 0, sizeof(data));
+
+  _ykpiv_end_transaction(state);
+  return res;
+
+}
+
+/* to set a generated mgm, pass NULL for mgm, or set mgm.data to all zeroes */
+ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
+  ykpiv_rc res = YKPIV_OK;
+  ykpiv_rc ykrc = YKPIV_OK;
+  prng_rc  prngrc = PRNG_OK;
+  bool     fGenerate = false;
+  uint8_t  mgm_key[member_size(ykpiv_mgm, data)] = { 0 };
+  size_t   i = 0;
+  uint8_t  data[CB_BUF_MAX] = { 0 };
+  size_t   cb_data = sizeof(data);
+  uint8_t  *p_item = NULL;
+  size_t   cb_item = 0;
+  uint8_t  flags_1 = 0;
+
+  if (NULL == state) return YKPIV_GENERIC_ERROR;
+
+  if (!mgm) {
+    fGenerate = true;
+  }
+  else {
+    fGenerate = true;
+    memcpy(mgm_key, mgm->data, sizeof(mgm_key));
+
+    for (i = 0; i < sizeof(mgm_key); i++) {
+      if (mgm_key[i] != 0) {
+        fGenerate = false;
+        break;
+      }
+    }
+  }
+
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+
+  /* try to set the mgm key as long as we don't encounter a fatal error */
+  do {
+    if (fGenerate) {
+      /* generate a new mgm key */
+      if (PRNG_OK != (prngrc = prng_generate(mgm_key, sizeof(mgm_key)))) {
+        if (state->verbose) fprintf(stderr, "could not set generate new mgm, err = %d\n", prngrc);
+        res = YKPIV_RANDOMNESS_ERROR;
+        goto Cleanup;
+      }
+    }
+
+    if (YKPIV_OK != (ykrc = ykpiv_set_mgmkey(state, mgm_key))) {
+      /*
+      ** if _set_mgmkey fails with YKPIV_KEY_ERROR, it means the generated key is weak
+      ** otherwise, log a warning, since the device mgm key is corrupt or we're in
+      ** a state where we can't set the mgm key
+      */
+      if (YKPIV_KEY_ERROR != ykrc) {
+        if (state->verbose) fprintf(stderr, "could not set new derived mgm key, err = %d\n", ykrc);
+        res = ykrc;
+        goto Cleanup;
+      }
+    }
+    else {
+      /* _set_mgmkey succeeded, stop generating */
+      fGenerate = false;
+    }
+  } while (fGenerate);
+
+  /* set output mgm */
+  if (mgm) {
+    memcpy(mgm->data, mgm_key, sizeof(mgm_key));
+  }
+
+  /* after this point, we've set the mgm key, so the function should succeed, regardless of being able to set the metadata */
+
+  /* set the new mgm key in protected data */
+  if (YKPIV_OK != (ykrc = _read_metadata(state, TAG_PROTECTED, data, &cb_data))) {
+    cb_data = 0; /* set current metadata blob size to zero, we'll add to the blank blob */
+  }
+
+  if (YKPIV_OK != (ykrc = _set_metadata_item(data, &cb_data, CB_OBJ_MAX, TAG_PROTECTED_MGM, mgm_key, sizeof(mgm_key)))) {
+    if (state->verbose) fprintf(stderr, "could not set protected mgm item, err = %d\n", ykrc);
+  }
+  else {
+    if (YKPIV_OK != (ykrc = _write_metadata(state, TAG_PROTECTED, data, cb_data))) {
+      if (state->verbose) fprintf(stderr, "could not write protected data, err = %d\n", ykrc);
+      goto Cleanup;
+    }
+  }
+
+  /* set the protected mgm flag in admin data */
+  cb_data = sizeof(data);
+
+  if (YKPIV_OK != (ykrc = _read_metadata(state, TAG_ADMIN, data, &cb_data))) {
+    cb_data = 0;
+  }
+  else {
+
+    if (YKPIV_OK != (ykrc = _get_metadata_item(data, cb_data, TAG_ADMIN_FLAGS_1, &p_item, &cb_item))) {
+      /* flags are not set */
+      if (state->verbose) fprintf(stderr, "admin data exists, but flags are not present\n");
+    }
+
+    if (cb_item == sizeof(flags_1)) {
+      memcpy(&flags_1, p_item, cb_item);
+    }
+    else {
+      if (state->verbose) fprintf(stderr, "admin data flags are an incorrect size = %zu\n", cb_item);
+    }
+
+    /* remove any existing salt */
+    if (YKPIV_OK != (ykrc = _set_metadata_item(data, &cb_data, CB_OBJ_MAX, TAG_ADMIN_SALT, NULL, 0))) {
+      if (state->verbose) fprintf(stderr, "could not unset derived mgm salt, err = %d\n", ykrc);
+    }
+  }
+
+  flags_1 |= ADMIN_FLAGS_1_PROTECTED_MGM;
+
+  if (YKPIV_OK != (ykrc = _set_metadata_item(data, &cb_data, CB_OBJ_MAX, TAG_ADMIN_FLAGS_1, &flags_1, sizeof(flags_1)))) {
+    if (state->verbose) fprintf(stderr, "could not set admin flags item, err = %d\n", ykrc);
+  }
+  else {
+    if (YKPIV_OK != (ykrc = _write_metadata(state, TAG_ADMIN, data, cb_data))) {
+      if (state->verbose) fprintf(stderr, "could not write admin data, err = %d\n", ykrc);
+      goto Cleanup;
+    }
+  }
+
+
+Cleanup:
+
+  memset(data, 0, sizeof(data));
+  memset(mgm_key, 0, sizeof(mgm_key));
+
+  _ykpiv_end_transaction(state);
+  return res;
+}
 
 ykpiv_rc ykpiv_util_reset(ykpiv_state *state) {
   unsigned char templ[] = {0, YKPIV_INS_RESET, 0, 0};
@@ -908,6 +1277,7 @@ static int _slot2object(uint8_t slot) {
 }
 
 static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf, size_t *buf_len) {
+  // TREV TODO: should this select application?
   ykpiv_rc res = YKPIV_OK;
   uint8_t *ptr = NULL;
   int object_id = _slot2object(slot);
@@ -947,6 +1317,7 @@ static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf
 }
 
 static ykpiv_rc _write_certificate(ykpiv_state *state, uint8_t slot, uint8_t *data, size_t data_len) {
+  // TREV TODO: should this select application?
   uint8_t buf[CB_OBJ_MAX];
   size_t cbBuf = sizeof(buf);
   int object_id = _slot2object(slot);
@@ -989,4 +1360,241 @@ static ykpiv_rc _write_certificate(ykpiv_state *state, uint8_t slot, uint8_t *da
 
   // write onto device
   return ykpiv_save_object(state, object_id, buf, offset);
+}
+
+/*
+** PIV Manager data helper functions
+**
+** These functions allow the PIV Manager to extend the YKPIV_OBJ_ADMIN_DATA object without having to change
+** this implementation.  New items may be added without modifying these functions.  Data items are picked
+** from the pivman_data buffer by tag, and replaced either in place if length allows or the data object is
+** expanded to fit a new/updated data item.
+*/
+
+/*
+** _get_metadata_item
+**
+** Parses the metadata blob, specified by data, looking for the specified tag.  If found, the item is
+** returned in pp_item and its size in pcb_item.
+**
+** If the item is not found, this function returns YKPIV_GENERIC_ERROR.
+*/
+static ykpiv_rc _get_metadata_item(uint8_t *data, size_t cb_data, uint8_t tag, uint8_t **pp_item, size_t *pcb_item) {
+  uint8_t *p_temp = data;
+  size_t  cb_temp = 0;
+  uint8_t tag_temp = 0;
+
+  if (!data || !pp_item || !pcb_item) return YKPIV_GENERIC_ERROR;
+
+  *pp_item = NULL;
+  *pcb_item = 0;
+
+  while (p_temp < (data + cb_data)) {
+    tag_temp = *p_temp++;
+    p_temp += _ykpiv_get_length(p_temp, &cb_temp);
+
+    if (tag_temp == tag) {
+      // found tag
+      break;
+    }
+
+    p_temp += cb_temp;
+  }
+
+  if (p_temp < (data + cb_data)) {
+    *pp_item = p_temp;
+    *pcb_item = cb_temp;
+    return YKPIV_OK;
+  }
+
+  return YKPIV_GENERIC_ERROR;
+}
+
+static int _get_length_size(size_t length) {
+  if (length < 0x80) {
+    return 1;
+  }
+  else if (length < 0xff) {
+    return 2;
+  }
+  else {
+    return 3;
+  }
+}
+
+/*
+** _set_metadata_item
+**
+** Adds or replaces a data item encoded in a metadata blob, specified by tag to the existing
+** metadata blob (data) until it reaches the a maximum buffer size (cb_data_max).
+**
+** If adding/replacing the item would exceed cb_data_max, this function returns YKPIV_GENERIC_ERROR.
+**
+** The new size of the blob is returned in pcb_data.
+*/
+static ykpiv_rc _set_metadata_item(uint8_t *data, size_t *pcb_data, size_t cb_data_max, uint8_t tag, uint8_t *p_item, size_t cb_item) {
+  uint8_t *p_temp = data;
+  size_t  cb_temp = 0;
+  uint8_t tag_temp = 0;
+  size_t  cb_len = 0;
+  uint8_t *p_next = NULL;
+  long    cb_moved = 0; /* must be signed to have negative offsets */
+
+  if (!data || !pcb_data) return YKPIV_GENERIC_ERROR;
+
+  while (p_temp < (data + *pcb_data)) {
+    tag_temp = *p_temp++;
+    cb_len = _ykpiv_get_length(p_temp, &cb_temp);
+    p_temp += cb_len;
+
+    if (tag_temp == tag) {
+      /* found tag */
+
+      /* check length, if it matches, overwrite */
+      if (cb_temp == cb_item) {
+        memcpy(p_temp, p_item, cb_item);
+        return YKPIV_OK;
+      }
+
+      /* length doesn't match, expand/shrink to fit */
+      p_next = p_temp + cb_temp;
+      cb_moved = (long)cb_item - (long)cb_temp + ((long)(cb_item != 0 ? _get_length_size(cb_item) : -1 /* for tag, if deleting */) - (long)cb_len); /* accounts for different length encoding */
+
+      /* length would cause buffer overflow, return error */
+      if (*pcb_data + cb_moved > cb_data_max) {
+        return YKPIV_GENERIC_ERROR;
+      }
+
+      /* move remaining data */
+      memmove(p_next + cb_moved, p_next, *pcb_data - (p_next - data));
+      *pcb_data += cb_moved;
+
+      /* re-encode item and insert */
+      if (cb_item != 0) {
+        p_temp -= cb_len;
+        p_temp += _ykpiv_set_length(p_temp, cb_item);
+        memcpy(p_temp, p_item, cb_item);
+      }
+
+      return YKPIV_OK;
+    } //if tag found
+
+    p_temp += cb_temp;
+  }
+
+  if (cb_item == 0) {
+    /* we've been asked to delete an existing item that isn't in the blob */
+    return YKPIV_OK;
+  }
+
+  // we did not find an existing tag, append
+  p_temp = data + *pcb_data;
+  cb_len = _get_length_size(cb_item);
+
+  // length would cause buffer overflow, return error
+  if (*pcb_data + cb_len + cb_item > cb_data_max) {
+    return YKPIV_GENERIC_ERROR;
+  }
+
+  *p_temp++ = tag;
+  p_temp += _ykpiv_set_length(p_temp, cb_item);
+  memcpy(p_temp, p_item, cb_item);
+  *pcb_data += 1 + cb_len + cb_item;
+
+  return YKPIV_OK;
+}
+
+/*
+** _read_metadata
+**
+** Reads admin or protected data (specified by tag) from its associated object.
+**
+** The data stored in the object is parsed to ensure it has the correct tag and valid length.
+**
+** data must point to a buffer of at least CB_BUF_MAX bytes, and pcb_data should point to
+** the size of data.
+**
+** To read from protected data, the pin must be verified prior to calling this function.
+*/
+static ykpiv_rc _read_metadata(ykpiv_state *state, uint8_t tag, uint8_t* data, size_t* pcb_data) {
+  // TREV TODO: should this select application?
+  ykpiv_rc res = YKPIV_OK;
+  uint8_t *p_temp = NULL;
+  size_t cb_temp = 0;
+  int obj_id = 0;
+
+  if (!data || !data || !pcb_data || (CB_BUF_MAX > *pcb_data)) return YKPIV_GENERIC_ERROR;
+
+  switch (tag) {
+  case TAG_ADMIN: obj_id = YKPIV_OBJ_ADMIN_DATA; break;
+  case TAG_PROTECTED: obj_id = YKPIV_OBJ_PRINTED; break;
+  default: return YKPIV_INVALID_OBJECT;
+  }
+
+  cb_temp = *pcb_data;
+  *pcb_data = 0;
+
+  if (YKPIV_OK != (res = ykpiv_fetch_object(state, obj_id, data, (unsigned long*)&cb_temp))) {
+    return res;
+  }
+
+  if (cb_temp < CB_OBJ_TAG_MIN) return YKPIV_GENERIC_ERROR;
+
+  p_temp = data;
+
+  if (tag != *p_temp++) return YKPIV_GENERIC_ERROR;
+
+  p_temp += _ykpiv_get_length(p_temp, pcb_data);
+
+  if (*pcb_data > ((size_t)cb_temp - (p_temp - data))) {
+    *pcb_data = 0;
+    return YKPIV_GENERIC_ERROR;
+  }
+
+  memmove(data, p_temp, *pcb_data);
+
+  return YKPIV_OK;
+}
+
+/*
+** _write_metadata
+**
+** Writes admin/protected data, specified by tag to its associated object.
+**
+** To delete the metadata, set data to NULL and cb_data to 0.
+**
+** To write protected data, the pin must be verified prior to calling this function.
+*/
+static ykpiv_rc _write_metadata(ykpiv_state *state, uint8_t tag, uint8_t *data, size_t cb_data) {
+  // TREV TODO: should this select application?
+  ykpiv_rc res = YKPIV_OK;
+  uint8_t buf[CB_OBJ_MAX] = { 0 };
+  uint8_t *pTemp = buf;
+  int obj_id = 0;
+
+  if (cb_data > (_obj_size_max(state) - CB_OBJ_TAG_MAX)) {
+    return YKPIV_GENERIC_ERROR;
+  }
+
+  switch (tag) {
+  case TAG_ADMIN: obj_id = YKPIV_OBJ_ADMIN_DATA; break;
+  case TAG_PROTECTED: obj_id = YKPIV_OBJ_PRINTED; break;
+  default: return YKPIV_INVALID_OBJECT;
+  }
+
+  if (!data || (0 == cb_data)) {
+    // deleting metadata
+    res = ykpiv_save_object(state, obj_id, NULL, 0);
+  }
+  else {
+    *pTemp++ = tag;
+    pTemp += _ykpiv_set_length(pTemp, cb_data);
+
+    memcpy(pTemp, data, cb_data);
+    pTemp += cb_data;
+
+    res = ykpiv_save_object(state, obj_id, buf, pTemp - buf);
+  }
+
+  return res;
 }

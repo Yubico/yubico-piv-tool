@@ -460,6 +460,12 @@ START_TEST(test_authenticate) {
   res = ykpiv_authenticate(g_state, key);
   ck_assert_int_eq(res, YKPIV_OK);
 
+  // Verify same key works twice
+  res = ykpiv_hex_decode(default_mgm_key, strlen(default_mgm_key), key, &key_len);
+  ck_assert_int_eq(res, YKPIV_OK);
+  res = ykpiv_authenticate(g_state, key);
+  ck_assert_int_eq(res, YKPIV_OK);
+
   // Change to new key
   res = ykpiv_hex_decode(mgm_key, strlen(mgm_key), key, &key_len);
   ck_assert_int_eq(res, YKPIV_OK);
