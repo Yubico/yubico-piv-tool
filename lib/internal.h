@@ -44,11 +44,61 @@
 #endif
 #endif
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+#define DES_TYPE_3DES 1
+
+#define DES_LEN_DES   8
+#define DES_LEN_3DES  DES_LEN_DES*3
+
 #define READER_LEN  32
 #define MAX_READERS 16
 
-#define DES_LEN_3DES  8*3
 #define CB_MGM_KEY DES_LEN_3DES
+
+// the object size is restricted to the firmware's message buffer size, which
+// always contains 0x5C + 1 byte len + 3 byte id + 0x53 + 3 byte len = 9 bytes,
+// so while the message buffer == CB_BUF_MAX, the maximum object we can store
+// is CB_BUF_MAX - 9
+#define CB_OBJ_MAX_NEO      (CB_BUF_MAX_NEO - 9)
+#define CB_OBJ_MAX_YK4      (CB_BUF_MAX_YK4 - 9)
+#define CB_OBJ_MAX          CB_OBJ_MAX_YK4
+
+#define CB_BUF_MAX_NEO      2048
+#define CB_BUF_MAX_YK4      3072
+#define CB_BUF_MAX          CB_BUF_MAX_YK4
+
+#define CB_ATR_MAX          33
+
+#define CHREF_ACT_CHANGE_PIN 0
+#define CHREF_ACT_UNBLOCK_PIN 1
+#define CHREF_ACT_CHANGE_PUK 2
+
+#define TAG_CERT              0x70
+#define TAG_CERT_COMPRESS     0x71
+#define TAG_CERT_LRC          0xFE
+// TREV TODO: other tags here?
+
+typedef enum {
+  DES_OK = 0,
+  DES_INVALID_PARAMETER = -1,
+  DES_BUFFER_TOO_SMALL = -2,
+  DES_MEMORY_ERROR = -3,
+  DES_GENERAL_ERROR = -4
+} des_rc;
+
+typedef enum {
+    PKCS5_OK = 0,
+    PKCS5_GENERAL_ERROR = -1
+} pkcs5_rc;
+
+typedef enum {
+  PRNG_OK = 0,
+  PRNG_GENERAL_ERROR = -1
+} prng_rc;
 
 struct ykpiv_state {
   SCARDCONTEXT context;
@@ -72,28 +122,19 @@ union u_APDU {
 };
 
 typedef union u_APDU APDU;
+typedef struct des_key des_key;
 
 extern unsigned const char aid[];
 
-// the object size is restricted to the firmware's message buffer size, which
-// always contains 0x5C + 1 byte len + 3 byte id + 0x53 + 3 byte len = 9 bytes,
-// so while the message buffer == CB_BUF_MAX, the maximum object we can store
-// is CB_BUF_MAX - 9
-#define CB_OBJ_MAX_NEO      (CB_BUF_MAX_NEO - 9)
-#define CB_OBJ_MAX_YK4      (CB_BUF_MAX_YK4 - 9)
-#define CB_OBJ_MAX          CB_OBJ_MAX_YK4
+des_rc des_import_key(const int type, const unsigned char* keyraw, const size_t keyrawlen, des_key** key);
+des_rc des_destroy_key(des_key* key);
+des_rc des_encrypt(des_key* key, const unsigned char* in, const size_t inlen, unsigned char* out, size_t* outlen);
+des_rc des_decrypt(des_key* key, const unsigned char* in, const size_t inlen, unsigned char* out, size_t* outlen);
+bool   yk_des_is_weak_key(const unsigned char *key, const size_t cb_key);
+pkcs5_rc pkcs5_pbkdf2_sha1(const unsigned char* password, const size_t cb_password, const unsigned char* salt, const size_t cb_salt, unsigned long long iterations, unsigned char* key, const size_t cb_key);
 
-#define CB_BUF_MAX_NEO      2048
-#define CB_BUF_MAX_YK4      3072
-#define CB_BUF_MAX          CB_BUF_MAX_YK4
-
-#define CB_ATR_MAX          33
-
-#define YKPIV_ATR_NEO_R3 "\x3b\xfc\x13\x00\x00\x81\x31\xfe\x15\x59\x75\x62\x69\x6b\x65\x79\x4e\x45\x4f\x72\x33\xe1"
-#define YKPIV_ATR_YK4    "\x3b\xf8\x13\x00\x00\x81\x31\xfe\x15\x59\x75\x62\x69\x6b\x65\x79\x34\xd4"
-
-#define CHREF_ACT_CHANGE_PIN 0
-#define CHREF_ACT_UNBLOCK_PIN 1
-#define CHREF_ACT_CHANGE_PUK 2
+#ifdef __cplusplus
+}
+#endif
 
 #endif

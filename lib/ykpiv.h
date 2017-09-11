@@ -33,6 +33,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 #include <ykpiv-version.h>
 
@@ -242,6 +243,9 @@ extern "C"
 // UTIL
 //
 
+#define YKPIV_ATR_NEO_R3 "\x3b\xfc\x13\x00\x00\x81\x31\xfe\x15\x59\x75\x62\x69\x6b\x65\x79\x4e\x45\x4f\x72\x33\xe1"
+#define YKPIV_ATR_YK4    "\x3b\xf8\x13\x00\x00\x81\x31\xfe\x15\x59\x75\x62\x69\x6b\x65\x79\x34\xd4"
+
 #define DEVTYPE_UNKNOWN  0x00000000
 #define DEVTYPE_NEO      0x4E450000 //"NE"
 #define DEVTYPE_YK       0x594B0000 //"YK"
@@ -447,6 +451,12 @@ extern "C"
    */
   ykpiv_rc ykpiv_util_block_puk(ykpiv_state *state);
 
+
+  // TREV TODO: remove
+  ykpiv_rc ykpiv_done2(ykpiv_state *state, bool disconnect);
+  ykpiv_rc ykpiv_init2(ykpiv_state **state, int verbose, const ykpiv_allocator *allocator);
+  ykpiv_rc ykpiv_verify_select(ykpiv_state *state, const uint8_t *pin, const size_t pin_len, int *tries, bool force_select);
+  ykpiv_rc ykpiv_connect2(ykpiv_state *state, uintptr_t context, uintptr_t card);
 
 #ifdef __cplusplus
 }

@@ -33,11 +33,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <ctype.h>
-
-#include "des.h"
-#include <openssl/des.h>
-#include <openssl/rand.h>
-#include <openssl/rsa.h>
+#include <time.h>
 
 #include "internal.h"
 #include "ykpiv.h"
@@ -63,9 +59,6 @@ const uint8_t CCC_TMPL[] = {
 #define CCC_ID_OFFS 9
 #define CB_CCC_ID 14
 
-#define TAG_CERT              0x70
-#define TAG_CERT_COMPRESS     0x71
-#define TAG_CERT_LRC          0xFE
 #define TAG_ADMIN             0x80
 #define TAG_ADMIN_FLAGS_1     0x81
 #define TAG_ADMIN_SALT        0x82

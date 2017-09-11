@@ -34,8 +34,6 @@
 #include <stdint.h>
 #include <ctype.h>
 
-#include "des.h"
-
 #include "internal.h"
 #include "ykpiv.h"
 
@@ -236,6 +234,44 @@ ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state) {
   return res;
 }
 
+static ykpiv_rc _connect_internal(ykpiv_state *state, uintptr_t context, uintptr_t card) {
+  ykpiv_rc res = YKPIV_OK;
+
+  if (NULL == state) {
+    return YKPIV_GENERIC_ERROR;
+  }
+
+  // if the context has changed, and the new context is not valid, return an error
+  if ((context != state->context) && (SCARD_S_SUCCESS != SCardIsValidContext(context))) {
+    return YKPIV_PCSC_ERROR;
+  }
+
+  // if card handle has changed, determine if handle is valid (less efficient, but complete)
+  if ((card != state->card)) {
+    char reader[CB_BUF_MAX];
+    uint32_t reader_len = (uint32_t)sizeof(reader);
+    uint8_t atr[CB_ATR_MAX];
+    uint32_t atr_len = (uint32_t)sizeof(atr);
+
+    // Cannot set the reader len to NULL.  Confirmed in OSX 10.10, so we have to retrieve it even though we don't need it.
+    if (SCARD_S_SUCCESS != SCardStatus(card, reader, &reader_len, NULL, NULL, atr, &atr_len)) {
+      return YKPIV_PCSC_ERROR;
+    }
+
+    state->isNEO = (((sizeof(YKPIV_ATR_NEO_R3) - 1) == atr_len) && (0 == memcmp(YKPIV_ATR_NEO_R3, atr, atr_len)));
+  }
+
+  state->context = context;
+  state->card = card;
+
+  // transact the connect operation
+
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  res = _ykpiv_ensure_application_selected(state);
+  _ykpiv_end_transaction(state);
+  return res;
+}
+
 ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
   unsigned long active_protocol;
   char reader_buf[2048];
@@ -271,26 +307,10 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
       continue;
     }
 
-    // if card handle has changed, determine if handle is valid (less efficient, but complete)
-    if ((card != state->card)) {
-      char reader[CB_BUF_MAX];
-      uint32_t reader_len = (uint32_t)sizeof(reader);
-      uint8_t atr[CB_ATR_MAX];
-      uint32_t atr_len = (uint32_t)sizeof(atr);
-
-      // Cannot set the reader len to NULL.  Confirmed in OSX 10.10, so we have to retrieve it even though we don't need it.
-      if (SCARD_S_SUCCESS != SCardStatus(card, reader, &reader_len, NULL, NULL, atr, &atr_len)) {
-        return YKPIV_PCSC_ERROR;
-      }
-
-      state->isNEO = (((sizeof(YKPIV_ATR_NEO_R3) - 1) == atr_len) && (0 == memcmp(YKPIV_ATR_NEO_R3, atr, atr_len)));
+    // at this point, card should not equal state->card, to allow _connect_internal() to determine device type
+    if (!_connect_internal(state, state->context, card)) {
+      return YKPIV_OK;
     }
-    state->card = card;
-
-    if (_ykpiv_select_application(state) != YKPIV_OK) {
-      continue;
-    }
-    return YKPIV_OK;
   }
 
   if(*reader_ptr == '\0') {
@@ -298,7 +318,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
       fprintf(stderr, "error: no usable reader found.\n");
     }
     SCardReleaseContext(state->context);
-    state->context = SCARD_E_INVALID_HANDLE;
+    state->context = (SCARDCONTEXT)-1;
     return YKPIV_PCSC_ERROR;
   }
 
@@ -900,7 +920,7 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
       if (state->pin == NULL) {
         return YKPIV_MEMORY_ERROR;
       }
-      strcpy(state->pin, pin);
+      memcpy(state->pin, pin, len + 1);
     }
     if (tries) *tries = (sw & 0xf);
     return YKPIV_OK;
@@ -1011,7 +1031,7 @@ ykpiv_rc ykpiv_change_pin(ykpiv_state *state, const char * current_pin, size_t c
     if (state->pin == NULL) {
       return YKPIV_MEMORY_ERROR;
     }
-    strcpy(state->pin, new_pin);
+    memcpy(state->pin, new_pin, new_pin_len + 1);
   }
   return res;
 }
@@ -1224,4 +1244,40 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
 
   return YKPIV_OK;
 
+}
+
+// TREV TODO: remove these, fix minidriver
+
+ykpiv_rc ykpiv_done2(ykpiv_state *state, bool disconnect) {
+  // TODO: why is this needed?  windows unit tests pass without it
+  if (disconnect)
+    ykpiv_disconnect(state);
+  if (state->pin)
+    _ykpiv_free(state, state->pin);
+  _ykpiv_free(state, state);
+  return YKPIV_OK;
+}
+
+ykpiv_rc ykpiv_init2(ykpiv_state **state, int verbose, const ykpiv_allocator *allocator) {
+  return ykpiv_init_with_allocator(state, verbose, allocator);
+}
+
+ykpiv_rc ykpiv_verify_select(ykpiv_state *state, const uint8_t *pin, const size_t pin_len, int *tries, bool force_select) {
+  ykpiv_rc res = YKPIV_OK;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) goto Cleanup;
+#if 0
+  // TODO when is this needed?  windows unit tests pass without it
+  if (force_select) {
+    if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+  }
+#endif
+  res = ykpiv_verify(state, pin, tries);
+Cleanup:
+
+  _ykpiv_end_transaction(state);
+  return res;
+}
+
+ykpiv_rc ykpiv_connect2(ykpiv_state *state, uintptr_t context, uintptr_t card) {
+  return _connect_internal(state, context, card);
 }
