@@ -73,6 +73,8 @@ extern "C"
 
 #define CB_ATR_MAX          33
 
+#define CB_CARDID 16
+
 #define CHREF_ACT_CHANGE_PIN 0
 #define CHREF_ACT_UNBLOCK_PIN 1
 #define CHREF_ACT_CHANGE_PUK 2
@@ -80,7 +82,51 @@ extern "C"
 #define TAG_CERT              0x70
 #define TAG_CERT_COMPRESS     0x71
 #define TAG_CERT_LRC          0xFE
-// TREV TODO: other tags here?
+#define TAG_ADMIN             0x80
+#define TAG_ADMIN_FLAGS_1     0x81
+#define TAG_ADMIN_SALT        0x82
+#define TAG_ADMIN_TIMESTAMP   0x83
+#define TAG_PROTECTED         0x88
+#define TAG_PROTECTED_FLAGS_1 0x81
+#define TAG_PROTECTED_MGM     0x89
+#define TAG_MSCMAP            0x81
+#define TAG_MSROOTS_END       0x82
+#define TAG_MSROOTS_MID       0x83
+
+#define TAG_RSA_MODULUS       0x81
+#define TAG_RSA_EXP           0x82
+#define TAG_ECC_POINT         0x86
+
+
+#define CCC_ID_OFFS 9
+#define CB_CCC_ID 14
+
+#define CB_ECC_POINTP256    65
+#define CB_ECC_POINTP384    97
+
+#define YKPIV_OBJ_ADMIN_DATA 0x5fff00
+#define YKPIV_OBJ_ATTESTATION 0x5fff01
+#define	YKPIV_OBJ_MSCMAP      0x5fff10
+#define	YKPIV_OBJ_MSROOTS1    0x5fff11
+#define YKPIV_OBJ_MSROOTS2    0x5fff12
+#define YKPIV_OBJ_MSROOTS3    0x5fff13
+#define YKPIV_OBJ_MSROOTS4    0x5fff14
+#define YKPIV_OBJ_MSROOTS5    0x5fff15
+
+#define ADMIN_FLAGS_1_PUK_BLOCKED    0x01
+#define ADMIN_FLAGS_1_PROTECTED_MGM  0x02
+
+#define CB_ADMIN_SALT         16
+#define CB_ADMIN_TIMESTAMP    4
+
+#define ITER_MGM_PBKDF2       10000
+
+#define PROTECTED_FLAGS_1_PUK_NOBLOCK 0x01
+
+#define CB_OBJ_TAG_MIN      2                       // 1 byte tag + 1 byte len
+#define CB_OBJ_TAG_MAX      (CB_OBJ_TAG_MIN + 2)      // 1 byte tag + 3 bytes len
+
+#define member_size(type, member) sizeof(((type*)0)->member)
 
 typedef enum {
   DES_OK = 0,
@@ -137,6 +183,12 @@ prng_rc _ykpiv_prng_generate(unsigned char *buffer, const size_t cb_req);
 ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state);
 ykpiv_rc _ykpiv_end_transaction(ykpiv_state *state);
 ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state);
+int _ykpiv_set_length(unsigned char *buffer, size_t length);
+int _ykpiv_get_length(const unsigned char *buffer, size_t *len);
+
+void* _ykpiv_alloc(ykpiv_state *state, size_t size);
+void* _ykpiv_realloc(ykpiv_state *state, void *address, size_t size);
+void _ykpiv_free(ykpiv_state *state, void *data);
 
 #ifdef __cplusplus
 }

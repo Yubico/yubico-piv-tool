@@ -278,7 +278,6 @@ ykpiv_rc ykpiv_connect_with_card(ykpiv_state *state, uint64_t context, uint64_t 
 }
 
 ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
-  // TREV TODO: use _connect_internal
   uint32_t active_protocol;
   char reader_buf[2048];
   size_t num_readers = sizeof(reader_buf);

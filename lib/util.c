@@ -38,6 +38,8 @@
 #include "internal.h"
 #include "ykpiv.h"
 
+#define MAX(a,b) (a) > (b) ? (a) : (b)
+#define MIN(a,b) (a) < (b) ? (a) : (b)
 
 const uint8_t CHUID_TMPL[] = {
   0x30, 0x19, 0xd4, 0xe7, 0x39, 0xda, 0x73, 0x9c, 0xed, 0x39, 0xce, 0x73, 0x9d,
@@ -47,7 +49,6 @@ const uint8_t CHUID_TMPL[] = {
   0x31, 0x30, 0x31, 0x3e, 0x00, 0xfe, 0x00,
 };
 #define CHUID_GUID_OFFS 29
-#define CB_CARDID 16
 
 const uint8_t CCC_TMPL[] = {
   0xf0, 0x15, 0xa0, 0x00, 0x00, 0x01, 0x16, 0xff, 0x02, 0x00, 0x00, 0x00, 0x00,
@@ -56,72 +57,17 @@ const uint8_t CCC_TMPL[] = {
   0xf7, 0x00, 0xfa, 0x00, 0xfb, 0x00, 0xfc, 0x00, 0xfd, 0x00, 0xfe, 0x00
 };
 
-#define CCC_ID_OFFS 9
-#define CB_CCC_ID 14
-
-#define TAG_ADMIN             0x80
-#define TAG_ADMIN_FLAGS_1     0x81
-#define TAG_ADMIN_SALT        0x82
-#define TAG_ADMIN_TIMESTAMP   0x83
-#define TAG_PROTECTED         0x88
-#define TAG_PROTECTED_FLAGS_1 0x81
-#define TAG_PROTECTED_MGM     0x89
-#define TAG_MSCMAP            0x81
-#define TAG_MSROOTS_END       0x82
-#define TAG_MSROOTS_MID       0x83
-
-#define TAG_RSA_MODULUS       0x81
-#define TAG_RSA_EXP           0x82
-#define TAG_ECC_POINT         0x86
-
-#define CB_ECC_POINTP256    65
-#define CB_ECC_POINTP384    97
-
-
-#define YKPIV_OBJ_ADMIN_DATA 0x5fff00
-#define YKPIV_OBJ_ATTESTATION 0x5fff01
-#define	YKPIV_OBJ_MSCMAP      0x5fff10
-#define	YKPIV_OBJ_MSROOTS1    0x5fff11
-#define YKPIV_OBJ_MSROOTS2    0x5fff12
-#define YKPIV_OBJ_MSROOTS3    0x5fff13
-#define YKPIV_OBJ_MSROOTS4    0x5fff14
-#define YKPIV_OBJ_MSROOTS5    0x5fff15
-
-#define ADMIN_FLAGS_1_PUK_BLOCKED    0x01
-#define ADMIN_FLAGS_1_PROTECTED_MGM  0x02
-
-#define CB_ADMIN_SALT         16
-#define CB_ADMIN_TIMESTAMP    4
-
-#define ITER_MGM_PBKDF2       10000
-
-#define PROTECTED_FLAGS_1_PUK_NOBLOCK 0x01
-
-#define CB_OBJ_TAG_MIN      2                       // 1 byte tag + 1 byte len
-#define CB_OBJ_TAG_MAX      (CB_OBJ_TAG_MIN + 2)      // 1 byte tag + 3 bytes len
-
-#define member_size(type, member) sizeof(((type*)0)->member)
-
 static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf, size_t *buf_len);
 static ykpiv_rc _write_certificate(ykpiv_state *state, uint8_t slot, uint8_t *data, size_t data_len);
-
-static size_t _obj_size_max(ykpiv_state *state) {
-  return (state && state->isNEO) ? CB_OBJ_MAX_NEO : CB_OBJ_MAX;
-}
-
-#define MAX(a,b) (a) > (b) ? (a) : (b)
-#define MIN(a,b) (a) < (b) ? (a) : (b)
-
-void* _ykpiv_alloc(ykpiv_state *state, size_t size);
-void* _ykpiv_realloc(ykpiv_state *state, void *address, size_t size);
-void _ykpiv_free(ykpiv_state *state, void *data);
-int _ykpiv_set_length(unsigned char *buffer, size_t length);
-int _ykpiv_get_length(const unsigned char *buffer, size_t *len);
 
 static ykpiv_rc _read_metadata(ykpiv_state *state, uint8_t tag, uint8_t* data, size_t* pcb_data);
 static ykpiv_rc _write_metadata(ykpiv_state *state, uint8_t tag, uint8_t *data, size_t cb_data);
 static ykpiv_rc _get_metadata_item(uint8_t *data, size_t cb_data, uint8_t tag, uint8_t **pp_item, size_t *pcb_item);
 static ykpiv_rc _set_metadata_item(uint8_t *data, size_t *pcb_data, size_t cb_data_max, uint8_t tag, uint8_t *p_item, size_t cb_item);
+
+static size_t _obj_size_max(ykpiv_state *state) {
+  return (state && state->isNEO) ? CB_OBJ_MAX_NEO : CB_OBJ_MAX;
+}
 
 /*
 ** YKPIV Utility API - aggregate functions and slightly nicer interface
