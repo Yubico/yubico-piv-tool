@@ -253,18 +253,7 @@ generate_out:
 }
 
 static bool reset(ykpiv_state *state) {
-  unsigned char templ[] = {0, YKPIV_INS_RESET, 0, 0};
-  unsigned char data[0xff];
-  unsigned long recv_len = sizeof(data);
-  int sw;
-
-  /* note: the reset function is only available when both pins are blocked. */
-  if(ykpiv_transfer_data(state, templ, NULL, 0, data, &recv_len, &sw) != YKPIV_OK) {
-    return false;
-  } else if(sw == SW_SUCCESS) {
-    return true;
-  }
-  return false;
+  return ykpiv_util_reset(state) == YKPIV_OK;
 }
 
 static bool set_pin_retries(ykpiv_state *state, int pin_retries, int puk_retries, int verbose) {
@@ -2000,7 +1989,7 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_reset:
         if(reset(state) == false) {
-      fprintf(stderr, "Reset failed, are pincodes blocked?\n");
+          fprintf(stderr, "Reset failed, are pincodes blocked?\n");
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully reset the application.\n");
