@@ -117,9 +117,6 @@ void* _ykpiv_realloc(ykpiv_state *state, void *address, size_t size);
 void _ykpiv_free(ykpiv_state *state, void *data);
 int _ykpiv_set_length(unsigned char *buffer, size_t length);
 int _ykpiv_get_length(const unsigned char *buffer, size_t *len);
-ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state);
-ykpiv_rc _ykpiv_end_transaction(ykpiv_state *state);
-ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state);
 
 static ykpiv_rc _read_metadata(ykpiv_state *state, uint8_t tag, uint8_t* data, size_t* pcb_data);
 static ykpiv_rc _write_metadata(ykpiv_state *state, uint8_t tag, uint8_t *data, size_t cb_data);
@@ -165,7 +162,7 @@ ykpiv_rc ykpiv_util_set_cardid(ykpiv_state *state, const ykpiv_cardid *cardid) {
   if (!state) return YKPIV_GENERIC_ERROR;
 
   if (!cardid) {
-    if (PRNG_OK != prng_generate(id, sizeof(id))) {
+    if (PRNG_OK != _ykpiv_prng_generate(id, sizeof(id))) {
       return YKPIV_RANDOMNESS_ERROR;
     }
   }
@@ -384,7 +381,7 @@ ykpiv_rc ykpiv_util_block_puk(ykpiv_state *state) {
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   while (tries != 0) {
-    if (YKPIV_OK == (res = ykpiv_change_puk(state, puk, sizeof(puk), puk, sizeof(puk), &tries))) {
+    if (YKPIV_OK == (res = ykpiv_change_puk(state, (const char*)puk, sizeof(puk), (const char*)puk, sizeof(puk), &tries))) {
       /* did we accidentally choose the correct PUK?, change our puk and try again */
       puk[0]++;
     }
@@ -1125,7 +1122,7 @@ ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
   do {
     if (fGenerate) {
       /* generate a new mgm key */
-      if (PRNG_OK != (prngrc = prng_generate(mgm_key, sizeof(mgm_key)))) {
+      if (PRNG_OK != (prngrc = _ykpiv_prng_generate(mgm_key, sizeof(mgm_key)))) {
         if (state->verbose) fprintf(stderr, "could not set generate new mgm, err = %d\n", prngrc);
         res = YKPIV_RANDOMNESS_ERROR;
         goto Cleanup;

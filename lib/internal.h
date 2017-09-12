@@ -130,9 +130,13 @@ des_rc des_import_key(const int type, const unsigned char* keyraw, const size_t 
 des_rc des_destroy_key(des_key* key);
 des_rc des_encrypt(des_key* key, const unsigned char* in, const size_t inlen, unsigned char* out, size_t* outlen);
 des_rc des_decrypt(des_key* key, const unsigned char* in, const size_t inlen, unsigned char* out, size_t* outlen);
-bool   yk_des_is_weak_key(const unsigned char *key, const size_t cb_key);
 pkcs5_rc pkcs5_pbkdf2_sha1(const unsigned char* password, const size_t cb_password, const unsigned char* salt, const size_t cb_salt, unsigned long long iterations, unsigned char* key, const size_t cb_key);
-prng_rc prng_generate(unsigned char *buffer, const size_t cb_req);
+bool   yk_des_is_weak_key(const unsigned char *key, const size_t cb_key);
+
+prng_rc _ykpiv_prng_generate(unsigned char *buffer, const size_t cb_req);
+ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state);
+ykpiv_rc _ykpiv_end_transaction(ykpiv_state *state);
+ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state);
 
 #ifdef __cplusplus
 }

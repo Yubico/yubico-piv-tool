@@ -39,8 +39,10 @@
 
 #define YKPIV_MGM_DEFAULT "\x01\x02\x03\x04\x05\x06\x07\x08\x01\x02\x03\x04\x05\x06\x07\x08\x01\x02\x03\x04\x05\x06\x07\x08"
 
+static ykpiv_rc _cache_pin(ykpiv_state *state, const char *pin, size_t len);
+
 static ykpiv_rc _send_data(ykpiv_state *state, APDU *apdu,
-    unsigned char *data, unsigned long *recv_len, int *sw);
+    unsigned char *data, uint32_t *recv_len, int *sw);
 
 unsigned const char aid[] = {
 	0xa0, 0x00, 0x00, 0x03, 0x08
@@ -189,7 +191,7 @@ ykpiv_rc ykpiv_disconnect(ykpiv_state *state) {
 ykpiv_rc _ykpiv_select_application(ykpiv_state *state) {
   APDU apdu;
   unsigned char data[0xff];
-  unsigned long recv_len = sizeof(data);
+  uint32_t recv_len = sizeof(data);
   int sw;
   ykpiv_rc res;
 
@@ -277,7 +279,7 @@ ykpiv_rc ykpiv_connect_with_card(ykpiv_state *state, uint64_t context, uint64_t 
 
 ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
   // TREV TODO: use _connect_internal
-  unsigned long active_protocol;
+  uint32_t active_protocol;
   char reader_buf[2048];
   size_t num_readers = sizeof(reader_buf);
   long rc;
@@ -330,7 +332,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
 }
 
 static ykpiv_rc reconnect(ykpiv_state *state) {
-  unsigned long active_protocol;
+  uint32_t active_protocol;
   long rc;
   ykpiv_rc res;
   int tries;
@@ -355,7 +357,7 @@ static ykpiv_rc reconnect(ykpiv_state *state) {
 }
 
 ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
-  unsigned long num_readers = 0;
+  uint32_t num_readers = 0;
   long rc;
 
   if(SCardIsValidContext(state->context) != SCARD_S_SUCCESS) {
@@ -442,7 +444,7 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
   do {
     size_t this_size = 0xff;
     unsigned char data[261];
-    unsigned long recv_len = sizeof(data);
+    uint32_t recv_len = sizeof(data);
     APDU apdu;
 
     memset(apdu.raw, 0, sizeof(apdu.raw));
@@ -481,7 +483,7 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
   while(*sw >> 8 == 0x61) {
     APDU apdu;
     unsigned char data[261];
-    unsigned long recv_len = sizeof(data);
+    uint32_t recv_len = sizeof(data);
 
     if(state->verbose > 2) {
       fprintf(stderr, "The card indicates there is %d bytes more data for us.\n", *sw & 0xff);
@@ -509,7 +511,7 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
 }
 
 static ykpiv_rc _send_data(ykpiv_state *state, APDU *apdu,
-    unsigned char *data, unsigned long *recv_len, int *sw) {
+    unsigned char *data, uint32_t *recv_len, int *sw) {
   long rc;
   unsigned int send_len = (unsigned int)apdu->st.lc + 5;
 
@@ -543,7 +545,7 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
   APDU apdu;
   unsigned char data[261];
   unsigned char challenge[8];
-  unsigned long recv_len = sizeof(data);
+  uint32_t recv_len = sizeof(data);
   int sw;
   ykpiv_rc res;
   des_key* mgm_key = NULL;
@@ -553,7 +555,7 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
 
   if (NULL == key) {
     /* use the derived mgm key to authenticate, if it hasn't been derived, use default */
-    key = YKPIV_MGM_DEFAULT;
+    key = (unsigned const char*)YKPIV_MGM_DEFAULT;
   }
 
   /* set up our key */
@@ -602,7 +604,7 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
     dataptr += 8;
     *dataptr++ = 0x81;
     *dataptr++ = 8;
-    if (PRNG_GENERAL_ERROR == prng_generate(dataptr, 8)) {
+    if (PRNG_GENERAL_ERROR == _ykpiv_prng_generate(dataptr, 8)) {
       if (state->verbose) {
         fprintf(stderr, "Failed getting randomness for authentication.\n");
       }
@@ -650,7 +652,7 @@ ykpiv_rc ykpiv_set_mgmkey(ykpiv_state *state, const unsigned char *new_key) {
 ykpiv_rc ykpiv_set_mgmkey2(ykpiv_state *state, const unsigned char *new_key, const unsigned char touch) {
   APDU apdu;
   unsigned char data[261];
-  unsigned long recv_len = sizeof(data);
+  uint32_t recv_len = sizeof(data);
   int sw;
   ykpiv_rc res = YKPIV_OK;
 
@@ -868,7 +870,7 @@ Cleanup:
 ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len) {
   APDU apdu;
   unsigned char data[261];
-  unsigned long recv_len = sizeof(data);
+  uint32_t recv_len = sizeof(data);
   int sw;
   ykpiv_rc res;
 
@@ -887,7 +889,7 @@ ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len) {
   }
 }
 
-ykpiv_rc _cache_pin(ykpiv_state *state, const char *pin, size_t len) {
+static ykpiv_rc _cache_pin(ykpiv_state *state, const char *pin, size_t len) {
 #ifdef DISABLE_PIN_CACHE
   // Some embedded applications of this library may not want to keep the PIN
   // data in RAM for security reasons.
@@ -914,7 +916,7 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
   // TREV TODO: pin len?
   APDU apdu;
   unsigned char data[261];
-  unsigned long recv_len = sizeof(data);
+  uint32_t recv_len = sizeof(data);
   int sw;
   size_t len = 0;
   ykpiv_rc res;
@@ -1275,7 +1277,7 @@ ykpiv_rc ykpiv_done2(ykpiv_state *state, bool disconnect) {
   return YKPIV_OK;
 }
 
-ykpiv_rc ykpiv_verify_select(ykpiv_state *state, const uint8_t *pin, const size_t pin_len, int *tries, bool force_select) {
+ykpiv_rc ykpiv_verify_select(ykpiv_state *state, const char *pin, const size_t pin_len, int *tries, bool force_select) {
   ykpiv_rc res = YKPIV_OK;
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) goto Cleanup;
 #if 0

@@ -377,7 +377,7 @@ bool yk_des_is_weak_key(const unsigned char *key, const size_t cb_key) {
   return false;
 }
 
-prng_rc prng_generate(unsigned char *buffer, const size_t cb_req) {
+prng_rc _ykpiv_prng_generate(unsigned char *buffer, const size_t cb_req) {
   prng_rc rc = PRNG_OK;
 
 #ifdef _WINDOWS

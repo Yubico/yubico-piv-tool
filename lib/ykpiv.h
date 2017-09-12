@@ -456,7 +456,7 @@ extern "C"
 
   // TREV TODO: remove
   ykpiv_rc ykpiv_done2(ykpiv_state *state, bool disconnect);
-  ykpiv_rc ykpiv_verify_select(ykpiv_state *state, const uint8_t *pin, const size_t pin_len, int *tries, bool force_select);
+  ykpiv_rc ykpiv_verify_select(ykpiv_state *state, const char *pin, const size_t pin_len, int *tries, bool force_select);
 
 #ifdef __cplusplus
 }
