@@ -452,11 +452,11 @@ extern "C"
   ykpiv_rc ykpiv_util_block_puk(ykpiv_state *state);
 
 
+  ykpiv_rc ykpiv_connect_with_card(ykpiv_state *state, uint64_t context, uint64_t card);
+
   // TREV TODO: remove
   ykpiv_rc ykpiv_done2(ykpiv_state *state, bool disconnect);
-  ykpiv_rc ykpiv_init2(ykpiv_state **state, int verbose, const ykpiv_allocator *allocator);
   ykpiv_rc ykpiv_verify_select(ykpiv_state *state, const uint8_t *pin, const size_t pin_len, int *tries, bool force_select);
-  ykpiv_rc ykpiv_connect2(ykpiv_state *state, uintptr_t context, uintptr_t card);
 
 #ifdef __cplusplus
 }

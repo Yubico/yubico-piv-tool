@@ -156,7 +156,7 @@ ykpiv_rc ykpiv_init_with_allocator(ykpiv_state **state, int verbose, const ykpiv
   s->pin = NULL;
   s->allocator = *allocator;
   s->verbose = verbose;
-  s->context = SCARD_E_INVALID_HANDLE; // TREV TODO -1 on Windows
+  s->context = SCARD_E_INVALID_HANDLE;
   *state = s;
   return YKPIV_OK;
 }
@@ -167,8 +167,7 @@ ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose) {
 
 ykpiv_rc ykpiv_done(ykpiv_state *state) {
   ykpiv_disconnect(state);
-  if (state->pin)
-    _ykpiv_free(state, state->pin);
+  _cache_pin(state, NULL, 0);
   _ykpiv_free(state, state);
   return YKPIV_OK;
 }
@@ -234,7 +233,7 @@ ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state) {
   return res;
 }
 
-static ykpiv_rc _connect_internal(ykpiv_state *state, uintptr_t context, uintptr_t card) {
+static ykpiv_rc _connect_internal(ykpiv_state *state, uint64_t context, uint64_t card) {
   ykpiv_rc res = YKPIV_OK;
 
   if (NULL == state) {
@@ -272,7 +271,12 @@ static ykpiv_rc _connect_internal(ykpiv_state *state, uintptr_t context, uintptr
   return res;
 }
 
+ykpiv_rc ykpiv_connect_with_card(ykpiv_state *state, uint64_t context, uint64_t card) {
+  return _connect_internal(state, context, card);
+}
+
 ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
+  // TREV TODO: use _connect_internal
   unsigned long active_protocol;
   char reader_buf[2048];
   size_t num_readers = sizeof(reader_buf);
@@ -330,7 +334,6 @@ static ykpiv_rc reconnect(ykpiv_state *state) {
   long rc;
   ykpiv_rc res;
   int tries;
-
   if(state->verbose) {
     fprintf(stderr, "trying to reconnect to current reader.\n");
   }
@@ -884,6 +887,29 @@ ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len) {
   }
 }
 
+ykpiv_rc _cache_pin(ykpiv_state *state, const char *pin, size_t len) {
+#ifdef DISABLE_PIN_CACHE
+  // Some embedded applications of this library may not want to keep the PIN
+  // data in RAM for security reasons.
+  return YKPIV_OK;
+#else
+  if (!state)
+    return YKPIV_ARGUMENT_ERROR;
+  if (state->pin) {
+    _ykpiv_free(state, state->pin);
+    state->pin = NULL;
+  }
+  if (pin && len > 0) {
+    state->pin = _ykpiv_alloc(state, len * sizeof(char) + 1);
+    if (state->pin == NULL) {
+      return YKPIV_MEMORY_ERROR;
+    }
+    memcpy(state->pin, pin, len + 1);
+  }
+  return YKPIV_OK;
+#endif
+}
+
 ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
   // TREV TODO: pin len?
   APDU apdu;
@@ -914,14 +940,9 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
   if((res = _send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
     return res;
   } else if(sw == SW_SUCCESS) {
-    if (pin) {
-      _ykpiv_free(state, state->pin);
-      state->pin = _ykpiv_alloc(state, len * sizeof(char) + 1);
-      if (state->pin == NULL) {
-        return YKPIV_MEMORY_ERROR;
-      }
-      memcpy(state->pin, pin, len + 1);
-    }
+    // Intentionally ignore errors.  If the PIN fails to save, it will only
+    // be a problem if a reconnect is attempted.  Failure deferred until then.
+    _cache_pin(state, pin, len + 1);
     if (tries) *tries = (sw & 0xf);
     return YKPIV_OK;
   } else if((sw >> 8) == 0x63) {
@@ -1026,12 +1047,9 @@ static ykpiv_rc change_pin_internal(ykpiv_state *state, int action, const char *
 ykpiv_rc ykpiv_change_pin(ykpiv_state *state, const char * current_pin, size_t current_pin_len, const char * new_pin, size_t new_pin_len, int *tries) {
   ykpiv_rc res = change_pin_internal(state, CHREF_ACT_CHANGE_PIN, current_pin, current_pin_len, new_pin, new_pin_len, tries);
   if (res == YKPIV_OK && new_pin != NULL) {
-    _ykpiv_free(state, state->pin);
-    state->pin = _ykpiv_alloc(state, new_pin_len * sizeof(char) + 1);
-    if (state->pin == NULL) {
-      return YKPIV_MEMORY_ERROR;
-    }
-    memcpy(state->pin, new_pin, new_pin_len + 1);
+    // Intentionally ignore errors.  If the PIN fails to save, it will only
+    // be a problem if a reconnect is attempted.  Failure deferred until then.
+    _cache_pin(state, new_pin, new_pin_len + 1);
   }
   return res;
 }
@@ -1252,14 +1270,9 @@ ykpiv_rc ykpiv_done2(ykpiv_state *state, bool disconnect) {
   // TODO: why is this needed?  windows unit tests pass without it
   if (disconnect)
     ykpiv_disconnect(state);
-  if (state->pin)
-    _ykpiv_free(state, state->pin);
+  _cache_pin(state, NULL, 0);
   _ykpiv_free(state, state);
   return YKPIV_OK;
-}
-
-ykpiv_rc ykpiv_init2(ykpiv_state **state, int verbose, const ykpiv_allocator *allocator) {
-  return ykpiv_init_with_allocator(state, verbose, allocator);
 }
 
 ykpiv_rc ykpiv_verify_select(ykpiv_state *state, const uint8_t *pin, const size_t pin_len, int *tries, bool force_select) {
@@ -1276,8 +1289,4 @@ Cleanup:
 
   _ykpiv_end_transaction(state);
   return res;
-}
-
-ykpiv_rc ykpiv_connect2(ykpiv_state *state, uintptr_t context, uintptr_t card) {
-  return _connect_internal(state, context, card);
 }

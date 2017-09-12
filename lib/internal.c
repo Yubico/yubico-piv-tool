@@ -2,8 +2,14 @@
 #ifdef _WINDOWS
 #include <windows.h>
 #include <wincrypt.h>
+#include <ntstatus.h>
+#define WIN32_NO_STATUS
+#include <bcrypt.h>
 #else
 #include <openssl/des.h>
+#include <openssl/evp.h>
+#include <openssl/rand.h>
+#include <string.h>
 #endif
 
 #include <stdio.h>
@@ -274,7 +280,7 @@ des_rc des_encrypt(des_key* key, const unsigned char* in, const size_t inlen, un
 #else
 
   /* openssl returns void */
-  DES_ecb3_encrypt(in, out, &(key->ks1), &(key->ks2), &(key->ks3), 1);
+  DES_ecb3_encrypt((const_DES_cblock *)in, (DES_cblock*)out, &(key->ks1), &(key->ks2), &(key->ks3), 1);
 
 #endif
 
@@ -306,7 +312,7 @@ des_rc des_decrypt(des_key* key, const unsigned char* in, const size_t inlen, un
 #else
 
   /* openssl returns void */
-  DES_ecb3_encrypt(in, out, &(key->ks1), &(key->ks2), &(key->ks3), 0);
+  DES_ecb3_encrypt((const_DES_cblock*)in, (DES_cblock*)out, &(key->ks1), &(key->ks2), &(key->ks3), 0);
 
 #endif
 
@@ -372,7 +378,6 @@ bool yk_des_is_weak_key(const unsigned char *key, const size_t cb_key) {
 }
 
 prng_rc prng_generate(unsigned char *buffer, const size_t cb_req) {
-  // TREV TODO: ykpiv.c needs to use this
   prng_rc rc = PRNG_OK;
 
 #ifdef _WINDOWS
@@ -398,17 +403,6 @@ prng_rc prng_generate(unsigned char *buffer, const size_t cb_req) {
 
   return rc;
 }
-
-// TREV TODO: what to do with this?
-
-#ifdef _WINDOWS
-#include <ntstatus.h>
-#define WIN32_NO_STATUS
-#include <windows.h>
-#include <bcrypt.h>
-#else
-#include <openssl/evp.h>
-#endif
 
 pkcs5_rc pkcs5_pbkdf2_sha1(const unsigned char* password, const size_t cb_password, const unsigned char* salt, const size_t cb_salt, unsigned long long iterations, unsigned char* key, const size_t cb_key) {
   pkcs5_rc rc = PKCS5_OK;

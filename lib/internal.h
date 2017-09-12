@@ -132,6 +132,7 @@ des_rc des_encrypt(des_key* key, const unsigned char* in, const size_t inlen, un
 des_rc des_decrypt(des_key* key, const unsigned char* in, const size_t inlen, unsigned char* out, size_t* outlen);
 bool   yk_des_is_weak_key(const unsigned char *key, const size_t cb_key);
 pkcs5_rc pkcs5_pbkdf2_sha1(const unsigned char* password, const size_t cb_password, const unsigned char* salt, const size_t cb_salt, unsigned long long iterations, unsigned char* key, const size_t cb_key);
+prng_rc prng_generate(unsigned char *buffer, const size_t cb_req);
 
 #ifdef __cplusplus
 }
