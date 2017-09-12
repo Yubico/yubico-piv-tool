@@ -119,20 +119,20 @@ static bool generate_key(ykpiv_state *state, const char *slot,
     enum enum_algorithm algorithm, const char *output_file_name,
     enum enum_key_format key_format, enum enum_pin_policy pin_policy,
     enum enum_touch_policy touch_policy) {
-  unsigned char in_data[11];
-  unsigned char *in_ptr = in_data;
-  unsigned char data[1024];
-  unsigned char templ[] = {0, YKPIV_INS_GENERATE_ASYMMETRIC, 0, 0};
-  unsigned long recv_len = sizeof(data);
-  int sw;
   int key = 0;
-  FILE *output_file = NULL;
   bool ret = false;
+  ykpiv_rc res;
+  FILE *output_file = NULL;
   EVP_PKEY *public_key = NULL;
   RSA *rsa = NULL;
-  BIGNUM *bignum_n = NULL;
-  BIGNUM *bignum_e = NULL;
   EC_KEY *eckey = NULL;
+  EC_POINT *ecpoint = NULL;
+  uint8_t *mod = NULL;
+  uint8_t *exp = NULL;
+  uint8_t *point = NULL;
+  size_t mod_len = 0;
+  size_t exp_len = 0;
+  size_t point_len = 0;
   EC_POINT *point = NULL;
   char version[7];
 
@@ -152,130 +152,69 @@ static bool generate_key(ykpiv_state *state, const char *slot,
   }
 
   sscanf(slot, "%2x", &key);
-  templ[3] = key;
 
   output_file = open_file(output_file_name, OUTPUT);
   if(!output_file) {
     return false;
   }
 
-  *in_ptr++ = 0xac;
-  *in_ptr++ = 3;
-  *in_ptr++ = YKPIV_ALGO_TAG;
-  *in_ptr++ = 1;
-  *in_ptr++ = get_piv_algorithm(algorithm);
-  if(in_data[4] == 0) {
-    fprintf(stderr, "Unexpected algorithm.\n");
-    goto generate_out;
-  }
-  if(pin_policy != pin_policy__NULL) {
-    in_data[1] += 3;
-    *in_ptr++ = YKPIV_PINPOLICY_TAG;
-    *in_ptr++ = 1;
-    *in_ptr++ = get_pin_policy(pin_policy);
-  }
-  if(touch_policy != touch_policy__NULL) {
-    in_data[1] += 3;
-    *in_ptr++ = YKPIV_TOUCHPOLICY_TAG;
-    *in_ptr++ = 1;
-    *in_ptr++ = get_touch_policy(touch_policy);
-  }
-  if(ykpiv_transfer_data(state, templ, in_data, in_ptr - in_data, data,
-        &recv_len, &sw) != YKPIV_OK) {
-    fprintf(stderr, "Failed to communicate.\n");
-    goto generate_out;
-  } else if(sw != SW_SUCCESS) {
-    fprintf(stderr, "Failed to generate new key (");
-    if(sw == SW_ERR_INCORRECT_SLOT) {
-      fprintf(stderr, "slot not supported?)\n");
-    } else if(sw == SW_ERR_INCORRECT_PARAM) {
-      if(pin_policy != pin_policy__NULL) {
-        fprintf(stderr, "pin policy not supported?)\n");
-      } else if(touch_policy != touch_policy__NULL) {
-        fprintf(stderr, "touch policy not supported?)\n");
-      } else {
-        fprintf(stderr, "algorithm not supported?)\n");
-      }
-    } else {
-      fprintf(stderr, "error %x)\n", sw);
-    }
+  res = ykpiv_util_generate_key(state,
+                                (uint8_t)(key & 0xFF),
+                                get_piv_algorithm(algorithm),
+                                get_pin_policy(pin_policy),
+                                get_touch_policy(touch_policy),
+                                &mod,
+                                &mod_len,
+                                &exp,
+                                &exp_len,
+                                &point,
+                                &point_len);
+  if (res != YKPIV_OK) {
+    fprintf(stderr, "Key generation failed.\n");
     goto generate_out;
   }
 
   if(key_format == key_format_arg_PEM) {
     public_key = EVP_PKEY_new();
     if(algorithm == algorithm_arg_RSA1024 || algorithm == algorithm_arg_RSA2048) {
-      unsigned char *data_ptr = data + 5;
-      int len = 0;
       rsa = RSA_new();
-
-      if(*data_ptr != 0x81) {
-        fprintf(stderr, "Failed to parse public key structure.\n");
-        goto generate_out;
-      }
-      data_ptr++;
-      data_ptr += get_length(data_ptr, &len);
-      bignum_n = BN_bin2bn(data_ptr, len, NULL);
-      if(bignum_n == NULL) {
+      rsa->n = BN_bin2bn(mod, mod_len, NULL);
+      if (rsa->n == NULL) {
         fprintf(stderr, "Failed to parse public key modulus.\n");
         goto generate_out;
       }
-      data_ptr += len;
-
-      if(*data_ptr != 0x82) {
-        fprintf(stderr, "Failed to parse public key structure (2).\n");
-        goto generate_out;
-      }
-      data_ptr++;
-      data_ptr += get_length(data_ptr, &len);
-      bignum_e = BN_bin2bn(data_ptr, len, NULL);
-      if(bignum_e == NULL) {
+      rsa->e = BN_bin2bn(exp, exp_len, NULL);
+      if(rsa->e == NULL) {
         fprintf(stderr, "Failed to parse public key exponent.\n");
         goto generate_out;
       }
-
-      rsa->n = bignum_n;
-      rsa->e = bignum_e;
       EVP_PKEY_set1_RSA(public_key, rsa);
     } else if(algorithm == algorithm_arg_ECCP256 || algorithm == algorithm_arg_ECCP384) {
       EC_GROUP *group;
-      unsigned char *data_ptr = data + 3;
       int nid;
-      size_t len;
 
       if(algorithm == algorithm_arg_ECCP256) {
         nid = NID_X9_62_prime256v1;
-        len = 65;
       } else {
         nid = NID_secp384r1;
-        len = 97;
       }
-
       eckey = EC_KEY_new();
       group = EC_GROUP_new_by_curve_name(nid);
       EC_GROUP_set_asn1_flag(group, nid);
       EC_KEY_set_group(eckey, group);
-      point = EC_POINT_new(group);
-      if(*data_ptr++ != 0x86) {
-        fprintf(stderr, "Failed to parse public key structure.\n");
-        goto generate_out;
-      }
-      if(*data_ptr++ != len) { /* the curve point should always be 65 bytes */
-        fprintf(stderr, "Unexpected length.\n");
-        goto generate_out;
-      }
-      if(!EC_POINT_oct2point(group, point, data_ptr, len, NULL)) {
+      ecpoint = EC_POINT_new(group);
+
+      if(!EC_POINT_oct2point(group, ecpoint, point, point_len, NULL)) {
         fprintf(stderr, "Failed to load public point.\n");
         goto generate_out;
       }
-      if(!EC_KEY_set_public_key(eckey, point)) {
+      if(!EC_KEY_set_public_key(eckey, ecpoint)) {
         fprintf(stderr, "Failed to set the public key.\n");
         goto generate_out;
       }
       EVP_PKEY_set1_EC_KEY(public_key, eckey);
     } else {
       fprintf(stderr, "Wrong algorithm.\n");
-      goto generate_out;
     }
     PEM_write_PUBKEY(output_file, public_key);
     ret = true;
@@ -285,20 +224,29 @@ static bool generate_key(ykpiv_state *state, const char *slot,
   }
 
 generate_out:
-  if(output_file != stdout) {
+  if (output_file != stdout) {
     fclose(output_file);
   }
-  if(point) {
-    EC_POINT_free(point);
+  if (ecpoint) {
+    EC_POINT_free(ecpoint);
   }
-  if(eckey) {
+  if (eckey) {
     EC_KEY_free(eckey);
   }
-  if(rsa) {
+  if (rsa) {
     RSA_free(rsa);
   }
-  if(public_key) {
+  if (public_key) {
     EVP_PKEY_free(public_key);
+  }
+  if (point) {
+    ykpiv_util_free(state, point);
+  }
+  if (mod) {
+    ykpiv_util_free(state, mod);
+  }
+  if (exp) {
+    ykpiv_util_free(state, exp);
   }
 
   return ret;
