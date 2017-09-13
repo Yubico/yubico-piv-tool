@@ -122,8 +122,10 @@ extern "C"
                                     const unsigned char *qinv, size_t qinv_len,
                                     const unsigned char *ec_data, unsigned char ec_data_len,
                                     const unsigned char pin_policy, const unsigned char touch_policy);
+  // TREV TODO: document that this only works when NOT verified, as per spec (NIST SP 800-73-3 part 2 page 11)
   ykpiv_rc ykpiv_get_pin_retries(ykpiv_state *state, int* tries);
-  ykpiv_rc ykpiv_set_pin_retries(ykpiv_state *state, const int tries);
+  // TREV TODO: document that 0 == successful no-op.
+  ykpiv_rc ykpiv_set_pin_retries(ykpiv_state *state, int pin_tries, int puk_tries);
 
 #define YKPIV_ALGO_TAG 0x80
 #define YKPIV_ALGO_3DES 0x03
@@ -203,6 +205,7 @@ extern "C"
 #define YKPIV_INS_AUTHENTICATE 0x87
 #define YKPIV_INS_GET_DATA 0xcb
 #define YKPIV_INS_PUT_DATA 0xdb
+  // TREV TODO: why aren't all of them here?  ex: select app (0xa4)
 
 /* sw is status words, see NIST special publication 800-73-4, section 5.6 */
 #define SW_SUCCESS 0x9000

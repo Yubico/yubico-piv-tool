@@ -257,26 +257,16 @@ static bool reset(ykpiv_state *state) {
 }
 
 static bool set_pin_retries(ykpiv_state *state, int pin_retries, int puk_retries, int verbose) {
-  unsigned char templ[] = {0, YKPIV_INS_SET_PIN_RETRIES, pin_retries, puk_retries};
-  unsigned char data[0xff];
-  unsigned long recv_len = sizeof(data);
-  int sw;
-
-  if(pin_retries > 0xff || puk_retries > 0xff || pin_retries < 1 || puk_retries < 1) {
-    fprintf(stderr, "pin and puk retries must be between 1 and 255.\n");
-    return false;
-  }
+  ykpiv_rc res;
 
   if(verbose) {
     fprintf(stderr, "Setting pin retries to %d and puk retries to %d.\n", pin_retries, puk_retries);
   }
-
-  if(ykpiv_transfer_data(state, templ, NULL, 0, data, &recv_len, &sw) != YKPIV_OK) {
-    return false;
-  } else if(sw == SW_SUCCESS) {
-    return true;
+  res = ykpiv_set_pin_retries(state, pin_retries, puk_retries);
+  if (res == YKPIV_RANGE_ERROR) {
+    fprintf(stderr, "pin and puk retries must be between 1 and 255.\n");
   }
-  return false;
+  return res == YKPIV_OK;
 }
 
 static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
@@ -1812,7 +1802,7 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_pinMINUS_retries:
-        if(!args_info.pin_retries_arg || !args_info.puk_retries_arg) {
+        if(!args_info.pin_retries_given || !args_info.puk_retries_given) {
           fprintf(stderr, "The '%s' action needs both --pin-retries and --puk-retries arguments.\n",
               cmdline_parser_action_values[action]);
           return EXIT_FAILURE;

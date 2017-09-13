@@ -589,7 +589,7 @@ START_TEST(test_reset) {
   test_authenticate(0);
   res = ykpiv_verify(g_state, "123456", NULL);
   ck_assert_int_eq(res, YKPIV_OK);
-  res = ykpiv_set_pin_retries(g_state, 8);
+  res = ykpiv_set_pin_retries(g_state, 8, 3);
   ck_assert_int_eq(res, YKPIV_OK);
 
   // Block and reset again, verifying increased PIN retries

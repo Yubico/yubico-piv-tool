@@ -963,27 +963,35 @@ ykpiv_rc ykpiv_get_pin_retries(ykpiv_state *state, int* tries) {
   if (NULL == state || NULL == tries) {
     return YKPIV_ARGUMENT_ERROR;
   }
+  // Force a re-select to unverify, because once verified the spec dictates that
+  // subsequent verify calls will return a "verification not needed" instead of
+  // the number of tries left...
   res = _ykpiv_select_application(state);
+  if (res != YKPIV_OK) return res;
   ykrc = ykpiv_verify(state, NULL, tries);
   // WRONG_PIN is expected on successful query.
   return ykrc == YKPIV_WRONG_PIN ? YKPIV_OK : ykrc;
 }
 
 
-ykpiv_rc ykpiv_set_pin_retries(ykpiv_state *state, const int tries) {
+ykpiv_rc ykpiv_set_pin_retries(ykpiv_state *state, int pin_tries, int puk_tries) {
   ykpiv_rc res = YKPIV_OK;
-  unsigned char templ[] = {0, YKPIV_INS_SET_PIN_RETRIES, (unsigned char)tries, YKPIV_RETRIES_DEFAULT};
+  unsigned char templ[] = {0, YKPIV_INS_SET_PIN_RETRIES, 0, 0};
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
   int sw = 0;
 
-  if (0 == tries) {
-    //zero value means no change in retry count according to minidriver spec
+  // Special case: if either retry count is 0, it's a successful no-op
+  if (pin_tries == 0 || puk_tries == 0) {
     return YKPIV_OK;
   }
-  if (tries > YKPIV_RETRIES_MAX || tries < 1) {
+
+  if (pin_tries > 0xff || puk_tries > 0xff || pin_tries < 1 || puk_tries < 1) {
     return YKPIV_RANGE_ERROR;
   }
+
+  templ[2] = (unsigned char)pin_tries;
+  templ[3] = (unsigned char)puk_tries;
 
   res = ykpiv_transfer_data(state, templ, NULL, 0, data, &recv_len, &sw);
   if (YKPIV_OK == res) {
