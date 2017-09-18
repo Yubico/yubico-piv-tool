@@ -255,6 +255,51 @@ int set_length(unsigned char *buffer, int length) {
   }
 }
 
+int get_slot_hex(enum enum_slot slot_enum) {
+  int slot = -1;
+
+  switch (slot_enum) {
+    case slot_arg_9a:
+      slot = 0x9a;
+      break;
+    case slot_arg_9c:
+    case slot_arg_9d:
+    case slot_arg_9e:
+      slot = 0x9c + ((int)slot_enum - (int)slot_arg_9c);
+      break;
+    case slot_arg_82:
+    case slot_arg_83:
+    case slot_arg_84:
+    case slot_arg_85:
+    case slot_arg_86:
+    case slot_arg_87:
+    case slot_arg_88:
+    case slot_arg_89:
+    case slot_arg_8a:
+    case slot_arg_8b:
+    case slot_arg_8c:
+    case slot_arg_8d:
+    case slot_arg_8e:
+    case slot_arg_8f:
+    case slot_arg_90:
+    case slot_arg_91:
+    case slot_arg_92:
+    case slot_arg_93:
+    case slot_arg_94:
+    case slot_arg_95:
+      slot = 0x82 + ((int)slot_enum - (int)slot_arg_82);
+      break;
+    case slot_arg_f9:
+      slot = 0xf9;
+      break;
+    case slot__NULL:
+    default:
+      slot = -1;
+  }
+
+  return slot;
+}
+
 int get_object_id(enum enum_slot slot) {
   int object;
 

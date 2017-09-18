@@ -145,7 +145,7 @@ START_TEST(test_read_write_list_delete_cert) {
   size_t read_cert_len = 0;
 
   {
-    res = ykpiv_util_write_cert(g_state, YKPIV_KEY_AUTHENTICATION, (uint8_t*)g_cert, sizeof(g_cert));
+    res = ykpiv_util_write_cert(g_state, YKPIV_KEY_AUTHENTICATION, (uint8_t*)g_cert, sizeof(g_cert), YKPIV_CERTINFO_UNCOMPRESSED);
     ck_assert_int_eq(res, YKPIV_OK);
 
     res = ykpiv_util_read_cert(g_state, YKPIV_KEY_AUTHENTICATION, &read_cert, &read_cert_len);
@@ -411,7 +411,7 @@ START_TEST(test_generate_key) {
   ykpiv_rc res;
   uint8_t *mod, *exp;
   size_t mod_len, exp_len;
-  res = ykpiv_util_write_cert(g_state, YKPIV_KEY_AUTHENTICATION, (uint8_t*)g_cert, sizeof(g_cert));
+  res = ykpiv_util_write_cert(g_state, YKPIV_KEY_AUTHENTICATION, (uint8_t*)g_cert, sizeof(g_cert), YKPIV_CERTINFO_UNCOMPRESSED);
   ck_assert_int_eq(res, YKPIV_OK);
   res = ykpiv_util_generate_key(g_state,
                                 YKPIV_KEY_AUTHENTICATION,
@@ -666,7 +666,7 @@ uint8_t *alloc_auth_cert() {
   uint8_t *read_cert = NULL;
   size_t read_cert_len = 0;
 
-  res = ykpiv_util_write_cert(g_state, YKPIV_KEY_AUTHENTICATION, (uint8_t*)g_cert, sizeof(g_cert));
+  res = ykpiv_util_write_cert(g_state, YKPIV_KEY_AUTHENTICATION, (uint8_t*)g_cert, sizeof(g_cert), YKPIV_CERTINFO_UNCOMPRESSED);
   ck_assert_int_eq(res, YKPIV_OK);
 
   res = ykpiv_util_read_cert(g_state, YKPIV_KEY_AUTHENTICATION, &read_cert, &read_cert_len);

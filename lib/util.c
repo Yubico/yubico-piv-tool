@@ -58,7 +58,7 @@ const uint8_t CCC_TMPL[] = {
 };
 
 static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf, size_t *buf_len);
-static ykpiv_rc _write_certificate(ykpiv_state *state, uint8_t slot, uint8_t *data, size_t data_len);
+static ykpiv_rc _write_certificate(ykpiv_state *state, uint8_t slot, uint8_t *data, size_t data_len, uint8_t certinfo);
 
 static ykpiv_rc _read_metadata(ykpiv_state *state, uint8_t tag, uint8_t* data, size_t* pcb_data);
 static ykpiv_rc _write_metadata(ykpiv_state *state, uint8_t tag, uint8_t *data, size_t cb_data);
@@ -293,13 +293,13 @@ Cleanup:
   return res;
 }
 
-ykpiv_rc ykpiv_util_write_cert(ykpiv_state *state, uint8_t slot, uint8_t *data, size_t data_len) {
+ykpiv_rc ykpiv_util_write_cert(ykpiv_state *state, uint8_t slot, uint8_t *data, size_t data_len, uint8_t certinfo) {
   ykpiv_rc res = YKPIV_OK;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
-  res = _write_certificate(state, slot, data, data_len);
+  res = _write_certificate(state, slot, data, data_len, certinfo);
 
 Cleanup:
 
@@ -308,7 +308,7 @@ Cleanup:
 }
 
 ykpiv_rc ykpiv_util_delete_cert(ykpiv_state *state, uint8_t slot) {
-  return ykpiv_util_write_cert(state, slot, NULL, 0);
+  return ykpiv_util_write_cert(state, slot, NULL, 0, 0);
 }
 
 ykpiv_rc ykpiv_util_block_puk(ykpiv_state *state) {
@@ -1252,7 +1252,7 @@ static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf
   return res;
 }
 
-static ykpiv_rc _write_certificate(ykpiv_state *state, uint8_t slot, uint8_t *data, size_t data_len) {
+static ykpiv_rc _write_certificate(ykpiv_state *state, uint8_t slot, uint8_t *data, size_t data_len, uint8_t certinfo) {
   // TREV TODO: should this select application?
   uint8_t buf[CB_OBJ_MAX];
   size_t cbBuf = sizeof(buf);
@@ -1290,8 +1290,8 @@ static ykpiv_rc _write_certificate(ykpiv_state *state, uint8_t slot, uint8_t *da
   // write compression info and LRC trailer
   buf[offset++] = TAG_CERT_COMPRESS;
   buf[offset++] = 0x01;
-  buf[offset++] = 0x00; // TODO: Handle compression when certificate exceeds buffer size
-  buf[offset++] = TAG_CERT_LRC; // LRC
+  buf[offset++] = certinfo == YKPIV_CERTINFO_GZIP ? 0x01 : 0x00;
+  buf[offset++] = TAG_CERT_LRC;
   buf[offset++] = 00;
 
   // write onto device

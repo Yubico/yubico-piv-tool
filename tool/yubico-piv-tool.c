@@ -495,35 +495,18 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
   }
 
   {
-    unsigned char certdata[3072];
+    unsigned char certdata[YKPIV_OBJ_MAX_SIZE];
     unsigned char *certptr = certdata;
-    int object = get_object_id(slot);
     ykpiv_rc res;
-
-    if(4 + cert_len + 5 > sizeof(certdata)) { /* 4 is prefix size, 5 is postfix size */
-      fprintf(stderr, "Certificate is too large to fit in buffer.\n");
-      goto import_cert_out;
-    }
-
-    *certptr++ = 0x70;
-    certptr += set_length(certptr, cert_len);
     if (compress) {
-      if (fread(certptr, 1, (size_t)cert_len, input_file) != (size_t)cert_len) {
+      if (fread(certdata, 1, (size_t)cert_len, input_file) != (size_t)cert_len) {
         fprintf(stderr, "Failed to read compressed certificate\n");
         goto import_cert_out;
       }
-      certptr += cert_len;
     } else {
-      /* i2d_X509 increments certptr here.. */
       i2d_X509(cert, &certptr);
     }
-    *certptr++ = 0x71;
-    *certptr++ = 1;
-    *certptr++ = compress; /* certinfo (gzip etc) */
-    *certptr++ = 0xfe; /* LRC */
-    *certptr++ = 0;
-
-    if((res = ykpiv_save_object(state, object, certdata, (size_t)(certptr - certdata))) != YKPIV_OK) {
+    if ((res = ykpiv_util_write_cert(state, get_slot_hex(slot), certdata, cert_len, compress)) != YKPIV_OK) {
       fprintf(stderr, "Failed commands with device: %s\n", ykpiv_strerror(res));
     } else {
       ret = true;

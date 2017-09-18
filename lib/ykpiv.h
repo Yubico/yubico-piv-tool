@@ -198,6 +198,8 @@ extern "C"
 
 #define YKPIV_OBJ_ATTESTATION 0x5fff01
 
+#define YKPIV_OBJ_MAX_SIZE 3072
+
 #define YKPIV_INS_VERIFY 0x20
 #define YKPIV_INS_CHANGE_REFERENCE 0x24
 #define YKPIV_INS_RESET_RETRY 0x2c
@@ -241,6 +243,8 @@ extern "C"
 #define YKPIV_RETRIES_DEFAULT 3
 #define YKPIV_RETRIES_MAX 0xff
 
+#define YKPIV_CERTINFO_UNCOMPRESSED 0
+#define YKPIV_CERTINFO_GZIP 1
 
 //
 // UTIL
@@ -291,7 +295,7 @@ extern "C"
 
   ykpiv_rc ykpiv_util_list_keys(ykpiv_state *state, uint8_t *key_count, ykpiv_key **data, size_t *data_len);
   ykpiv_rc ykpiv_util_read_cert(ykpiv_state *state, uint8_t slot, uint8_t **data, size_t *data_len);
-  ykpiv_rc ykpiv_util_write_cert(ykpiv_state *state, uint8_t slot, uint8_t *data, size_t data_len);
+  ykpiv_rc ykpiv_util_write_cert(ykpiv_state *state, uint8_t slot, uint8_t *data, size_t data_len, uint8_t certinfo);
   ykpiv_rc ykpiv_util_delete_cert(ykpiv_state *state, uint8_t slot);
 
   /**
