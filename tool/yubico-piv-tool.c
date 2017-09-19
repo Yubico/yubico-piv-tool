@@ -985,15 +985,7 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
 }
 
 static bool delete_certificate(ykpiv_state *state, enum enum_slot slot) {
-  int object = get_object_id(slot);
-
-  if(ykpiv_save_object(state, object, NULL, 0) != YKPIV_OK) {
-    fprintf(stderr, "Failed deleting object.\n");
-    return false;
-  } else {
-    fprintf(stderr, "Certificate deleted.\n");
-    return true;
-  }
+  return ykpiv_util_delete_cert(state, get_slot_hex(slot)) == YKPIV_OK;
 }
 
 static bool read_certificate(ykpiv_state *state, enum enum_slot slot,
