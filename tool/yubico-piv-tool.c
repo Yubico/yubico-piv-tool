@@ -991,72 +991,69 @@ static bool delete_certificate(ykpiv_state *state, enum enum_slot slot) {
 static bool read_certificate(ykpiv_state *state, enum enum_slot slot,
     enum enum_key_format key_format, const char *output_file_name) {
   FILE *output_file;
-  int object = get_object_id(slot);
-  unsigned char data[3072];
-  const unsigned char *ptr = data;
-  unsigned long len = sizeof(data);
-  int cert_len;
-  bool ret = false;
+  uint8_t *data = NULL;
+  const unsigned char *ptr = NULL;
   X509 *x509 = NULL;
+  bool ret = false;
+  size_t cert_len = 0;
 
-  if(key_format != key_format_arg_PEM &&
-     key_format != key_format_arg_DER &&
-     key_format != key_format_arg_SSH) {
+  if (key_format != key_format_arg_PEM &&
+      key_format != key_format_arg_DER &&
+      key_format != key_format_arg_SSH) {
     fprintf(stderr, "Only PEM, DER and SSH format are supported for read-certificate.\n");
     return false;
   }
 
   output_file = open_file(output_file_name, OUTPUT);
-  if(!output_file) {
+  if (!output_file) {
     return false;
   }
 
-  if(ykpiv_fetch_object(state, object, data, &len) != YKPIV_OK) {
+  if (ykpiv_util_read_cert(state, get_slot_hex(slot), &data, &cert_len) != YKPIV_OK) {
     fprintf(stderr, "Failed fetching certificate.\n");
     goto read_cert_out;
   }
+  ptr = data;
 
-  if(*ptr++ == 0x70) {
-    ptr += get_length(ptr, &cert_len);
-    if(key_format == key_format_arg_PEM ||
-       key_format == key_format_arg_SSH) {
-      x509 = X509_new();
-      if(!x509) {
-        fprintf(stderr, "Failed allocating x509 structure.\n");
-        goto read_cert_out;
-      }
-      x509 = d2i_X509(NULL, &ptr, cert_len);
-      if(!x509) {
-        fprintf(stderr, "Failed parsing x509 information.\n");
-        goto read_cert_out;
-      }
+  if (key_format == key_format_arg_PEM ||
+      key_format == key_format_arg_SSH) {
+    x509 = X509_new();
+    if (!x509) {
+      fprintf(stderr, "Failed allocating x509 structure.\n");
+      goto read_cert_out;
+    }
+    x509 = d2i_X509(NULL, (const unsigned char**)&ptr, cert_len);
+    if (!x509) {
+      fprintf(stderr, "Failed parsing x509 information.\n");
+      goto read_cert_out;
+    }
 
-      if (key_format == key_format_arg_PEM) {
-        PEM_write_X509(output_file, x509);
-        ret = true;
-      }
-      else {
-        if (!SSH_write_X509(output_file, x509)) {
-          fprintf(stderr, "Unable to extract public key or not an RSA key.\n");
-          goto read_cert_out;
-        }
-        ret = true;
-      }
-    } else { /* key_format_arg_DER */
-      /* XXX: This will just dump the raw data in tag 0x70.. */
-      fwrite(ptr, (size_t)cert_len, 1, output_file);
+    if (key_format == key_format_arg_PEM) {
+      PEM_write_X509(output_file, x509);
       ret = true;
     }
-  } else {
-    fprintf(stderr, "Failed parsing data.\n");
+    else {
+      if (!SSH_write_X509(output_file, x509)) {
+        fprintf(stderr, "Unable to extract public key or not an RSA key.\n");
+        goto read_cert_out;
+      }
+      ret = true;
+    }
+  } else { /* key_format_arg_DER */
+    /* XXX: This will just dump the raw data in tag 0x70.. */
+    fwrite(ptr, (size_t)cert_len, 1, output_file);
+    ret = true;
   }
 
 read_cert_out:
-  if(output_file != stdout) {
+  if (output_file != stdout) {
     fclose(output_file);
   }
-  if(x509) {
+  if (x509) {
     X509_free(x509);
+  }
+  if (data) {
+    ykpiv_util_free(state, data);
   }
   return ret;
 }
