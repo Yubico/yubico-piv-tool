@@ -126,6 +126,7 @@ extern "C"
   ykpiv_rc ykpiv_get_pin_retries(ykpiv_state *state, int* tries);
   // TREV TODO: document that 0 == successful no-op.
   ykpiv_rc ykpiv_set_pin_retries(ykpiv_state *state, int pin_tries, int puk_tries);
+  ykpiv_rc ykpiv_attest(ykpiv_state *state, int object_id, unsigned char *data, size_t *data_len);
 
 #define YKPIV_ALGO_TAG 0x80
 #define YKPIV_ALGO_3DES 0x03

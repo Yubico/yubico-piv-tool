@@ -1273,6 +1273,28 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
 
 }
 
+ykpiv_rc ykpiv_attest(ykpiv_state *state, int object_id, unsigned char *data, size_t *data_len) {
+  ykpiv_rc res;
+  bool ret = false;
+  unsigned char templ[] = {0, YKPIV_INS_ATTEST, object_id, 0};
+  int sw;
+
+  if (state == NULL || data == NULL || data_len == NULL) {
+    return YKPIV_ARGUMENT_ERROR;
+  }
+  if ((res = ykpiv_transfer_data(state, templ, NULL, 0, data, data_len, &sw)) != YKPIV_OK) {
+    return res;
+  }
+  else if(SW_SUCCESS != sw) {
+    return YKPIV_GENERIC_ERROR;
+  }
+  if (data[0] != 0x30) {
+    return YKPIV_GENERIC_ERROR;
+  }
+  return YKPIV_OK;
+}
+
+
 // TREV TODO: remove these, fix minidriver
 
 ykpiv_rc ykpiv_done2(ykpiv_state *state, bool disconnect) {

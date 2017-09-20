@@ -1604,55 +1604,45 @@ static bool list_readers(ykpiv_state *state) {
 
 static bool attest(ykpiv_state *state, const char *slot,
     enum enum_key_format key_format, const char *output_file_name) {
-  unsigned char data[2048];
+  unsigned char data[YKPIV_OBJ_MAX_SIZE];
   unsigned long len = sizeof(data);
   bool ret = false;
   X509 *x509 = NULL;
-  unsigned char templ[] = {0, YKPIV_INS_ATTEST, 0, 0};
   int key;
-  int sw;
   FILE *output_file = open_file(output_file_name, OUTPUT);
   if(!output_file) {
     return false;
   }
-
-  sscanf(slot, "%2x", &key);
-  templ[2] = key;
 
   if(key_format != key_format_arg_PEM && key_format != key_format_arg_DER) {
     fprintf(stderr, "Only PEM and DER format are supported for attest..\n");
     return false;
   }
 
-  if(ykpiv_transfer_data(state, templ, NULL, 0, data, &len, &sw) != YKPIV_OK) {
-    fprintf(stderr, "Failed to communicate.\n");
-    goto attest_out;
-  } else if(sw != SW_SUCCESS) {
-    fprintf(stderr, "Failed to attest key.\n");
+  sscanf(slot, "%2x", &key);
+  if (ykpiv_attest(state, key, data, &len) != YKPIV_OK) {
+    fprintf(stderr, "Failed to attest data.\n");
     goto attest_out;
   }
 
-  if(data[0] == 0x30) {
-    if(key_format == key_format_arg_PEM) {
-      const unsigned char *ptr = data;
-      int len2 = len;
-      x509 = X509_new();
-      if(!x509) {
-        fprintf(stderr, "Failed allocating x509 structure.\n");
-        goto attest_out;
-      }
-      x509 = d2i_X509(NULL, &ptr, len2);
-      if(!x509) {
-        fprintf(stderr, "Failed parsing x509 information.\n");
-        goto attest_out;
-      }
-      PEM_write_X509(output_file, x509);
-      ret = true;
-    } else {
-      fwrite(data, len, 1, output_file);
+  if(key_format == key_format_arg_PEM) {
+    const unsigned char *ptr = data;
+    int len2 = len;
+    x509 = X509_new();
+    if(!x509) {
+      fprintf(stderr, "Failed allocating x509 structure.\n");
+      goto attest_out;
     }
-    ret = true;
+    x509 = d2i_X509(NULL, &ptr, len2);
+    if(!x509) {
+      fprintf(stderr, "Failed parsing x509 information.\n");
+      goto attest_out;
+    }
+    PEM_write_X509(output_file, x509);
+  } else {
+    fwrite(data, len, 1, output_file);
   }
+  ret = true;
 
 attest_out:
   if(output_file != stdout) {
