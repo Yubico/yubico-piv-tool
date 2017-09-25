@@ -73,8 +73,6 @@ extern "C"
 
 #define CB_ATR_MAX          33
 
-#define CB_CARDID 16
-
 #define CHREF_ACT_CHANGE_PIN 0
 #define CHREF_ACT_UNBLOCK_PIN 1
 #define CHREF_ACT_CHANGE_PUK 2
@@ -96,10 +94,6 @@ extern "C"
 #define TAG_RSA_MODULUS       0x81
 #define TAG_RSA_EXP           0x82
 #define TAG_ECC_POINT         0x86
-
-
-#define CCC_ID_OFFS 9
-#define CB_CCC_ID 14
 
 #define CB_ECC_POINTP256    65
 #define CB_ECC_POINTP384    97

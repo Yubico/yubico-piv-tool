@@ -50,26 +50,8 @@
 #include "cmdline.h"
 #include "util.h"
 
-/* FASC-N containing S9999F9999F999999F0F1F0000000000300001E encoded in
- * 4-bit BCD with 1 bit parity. run through the tools/fasc.pl script to get
- * bytes. */
-/* this CHUID has an expiry of 2030-01-01, maybe that should be variable.. */
-unsigned const char chuid_tmpl[] = {
-  0x30, 0x19, 0xd4, 0xe7, 0x39, 0xda, 0x73, 0x9c, 0xed, 0x39, 0xce, 0x73, 0x9d,
-  0x83, 0x68, 0x58, 0x21, 0x08, 0x42, 0x10, 0x84, 0x21, 0x38, 0x42, 0x10, 0xc3,
-  0xf5, 0x34, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x35, 0x08, 0x32, 0x30, 0x33, 0x30, 0x30,
-  0x31, 0x30, 0x31, 0x3e, 0x00, 0xfe, 0x00,
-};
-#define CHUID_GUID_OFFS 29
-
-unsigned const char ccc_tmpl[] = {
-  0xf0, 0x15, 0xa0, 0x00, 0x00, 0x01, 0x16, 0xff, 0x02, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf1, 0x01, 0x21,
-  0xf2, 0x01, 0x21, 0xf3, 0x00, 0xf4, 0x01, 0x00, 0xf5, 0x01, 0x10, 0xf6, 0x00,
-  0xf7, 0x00, 0xfa, 0x00, 0xfb, 0x00, 0xfc, 0x00, 0xfd, 0x00, 0xfe, 0x00
-};
-#define CCC_ID_OFFS 9
+#define MAX(a,b) (a) > (b) ? (a) : (b)
+#define MIN(a,b) (a) < (b) ? (a) : (b)
 
 #define CHUID 0
 #define CCC 1
@@ -530,41 +512,28 @@ import_cert_out:
   return ret;
 }
 
-static bool set_dataobject(ykpiv_state *state, int verbose, int type) {
-  unsigned char obj[1024];
+static bool set_cardid(ykpiv_state *state, int verbose, int type) {
   ykpiv_rc res;
-  size_t offs, rand_len, len;
-  const unsigned char *tmpl;
-  int id;
+  unsigned char id[MAX(sizeof(ykpiv_cardid), sizeof(ykpiv_cccid))];
 
   if(type == CHUID) {
-    offs = CHUID_GUID_OFFS;
-    len = sizeof(chuid_tmpl);
-    rand_len = 0x10;
-    tmpl = chuid_tmpl;
-    id = YKPIV_OBJ_CHUID;
+    res = ykpiv_util_set_cardid(state, NULL);
   } else {
-    offs = CCC_ID_OFFS;
-    rand_len = 0xe;
-    len = sizeof(ccc_tmpl);
-    tmpl = ccc_tmpl;
-    id = YKPIV_OBJ_CAPABILITY;
-  }
-  memcpy(obj, tmpl, len);
-  if(RAND_pseudo_bytes(obj + offs, rand_len) == -1) {
-    fprintf(stderr, "error: no randomness.\n");
-    return false;
-  }
-  if(verbose) {
-    fprintf(stderr, "Setting the %s to: ", type == CHUID ? "CHUID" : "CCC");
-    dump_data(obj, len, stderr, true, format_arg_hex);
-  }
-  if((res = ykpiv_save_object(state, id, obj, len)) != YKPIV_OK) {
-    fprintf(stderr, "Failed communicating with device: %s\n", ykpiv_strerror(res));
-    return false;
+    res = ykpiv_util_set_cccid(state, NULL);
   }
 
-  return true;
+  if(res == YKPIV_OK && verbose) {
+    if (type == CHUID) {
+      res = ykpiv_util_get_cardid(state, (ykpiv_cardid*)id);
+    } else {
+      res = ykpiv_util_get_cccid(state, (ykpiv_cccid*)id);
+    }
+    if (res == YKPIV_OK) {
+      fprintf(stderr, "Set the %s ID to: ", type == CHUID ? "CHUID" : "CCC");
+      dump_data(id, type == CHUID ? YKPIV_CARDID_SIZE : YKPIV_CCCID_SIZE, stderr, true, format_arg_hex);
+    }
+  }
+  return res == YKPIV_OK;
 }
 
 static bool request_certificate(ykpiv_state *state, enum enum_key_format key_format,
@@ -1166,12 +1135,7 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     return;
   }
 
-  if (slot == slot_arg_9a)
-    slot_name = 0x9a;
-  else if (slot >= slot_arg_9c && slot <= slot_arg_9e)
-    slot_name = 0x9b + slot;
-  else
-    slot_name = 0x82 + (slot - slot_arg_82);
+  slot_name = get_slot_hex(slot);
 
   fprintf(output, "Slot %x:\t", slot_name);
 
@@ -1974,7 +1938,7 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_setMINUS_ccc:
       case action_arg_setMINUS_chuid:
-        if(set_dataobject(state, verbosity, action == action_arg_setMINUS_chuid ? CHUID : CCC) == false) {
+        if(set_cardid(state, verbosity, action == action_arg_setMINUS_chuid ? CHUID : CCC) == false) {
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully set new %s.\n", action == action_arg_setMINUS_chuid ? "CHUID" : "CCC");

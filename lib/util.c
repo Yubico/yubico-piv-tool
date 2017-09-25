@@ -41,6 +41,20 @@
 #define MAX(a,b) (a) > (b) ? (a) : (b)
 #define MIN(a,b) (a) < (b) ? (a) : (b)
 
+/*
+ * Format defined in SP-800-73-4, Appendix A, Table 9
+ *
+ * FASC-N containing S9999F9999F999999F0F1F0000000000300001E encoded in
+ * 4-bit BCD with 1 bit parity. run through the tools/fasc.pl script to get
+ * bytes. This CHUID has an expiry of 2030-01-01.
+ *
+ * Defined fields:
+ *  - 0x30: FASC-N (hard-coded)
+ *  - 0x34: Card UUID / GUID (settable)
+ *  - 0x35: Exp. Date (hard-coded)
+ *  - 0x3e: Signature (hard-coded, empty)
+ *  - 0xfe: Error Detection Code (hard-coded)
+ */
 const uint8_t CHUID_TMPL[] = {
   0x30, 0x19, 0xd4, 0xe7, 0x39, 0xda, 0x73, 0x9c, 0xed, 0x39, 0xce, 0x73, 0x9d,
   0x83, 0x68, 0x58, 0x21, 0x08, 0x42, 0x10, 0x84, 0x21, 0x38, 0x42, 0x10, 0xc3,
@@ -50,12 +64,18 @@ const uint8_t CHUID_TMPL[] = {
 };
 #define CHUID_GUID_OFFS 29
 
+// f0: Card Identifier
+//  - 0xa000000116 == GSC-IS RID
+//  - 0xff == Manufacturer ID (dummy)
+//  - 0x02 == Card type (javaCard)
+//  - next 14 bytes: card ID
 const uint8_t CCC_TMPL[] = {
   0xf0, 0x15, 0xa0, 0x00, 0x00, 0x01, 0x16, 0xff, 0x02, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf1, 0x01, 0x21,
   0xf2, 0x01, 0x21, 0xf3, 0x00, 0xf4, 0x01, 0x00, 0xf5, 0x01, 0x10, 0xf6, 0x00,
   0xf7, 0x00, 0xfa, 0x00, 0xfb, 0x00, 0xfc, 0x00, 0xfd, 0x00, 0xfe, 0x00
 };
+#define CCC_ID_OFFS 9
 
 static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf, size_t *buf_len);
 static ykpiv_rc _write_certificate(ykpiv_state *state, uint8_t slot, uint8_t *data, size_t data_len, uint8_t certinfo);
@@ -89,7 +109,7 @@ ykpiv_rc ykpiv_util_get_cardid(ykpiv_state *state, ykpiv_cardid *cardid) {
       res = YKPIV_GENERIC_ERROR;
     }
     else {
-      memcpy(cardid->data, buf + CHUID_GUID_OFFS, CB_CARDID);
+      memcpy(cardid->data, buf + CHUID_GUID_OFFS, YKPIV_CARDID_SIZE);
     }
   }
 
@@ -101,7 +121,7 @@ Cleanup:
 
 ykpiv_rc ykpiv_util_set_cardid(ykpiv_state *state, const ykpiv_cardid *cardid) {
   ykpiv_rc res = YKPIV_OK;
-  uint8_t id[CB_CARDID];
+  uint8_t id[YKPIV_CARDID_SIZE];
   uint8_t buf[sizeof(CHUID_TMPL)];
   size_t len = 0;
 
@@ -125,17 +145,64 @@ ykpiv_rc ykpiv_util_set_cardid(ykpiv_state *state, const ykpiv_cardid *cardid) {
 
   res = ykpiv_save_object(state, YKPIV_OBJ_CHUID, buf, len);
 
-  if (YKPIV_OK == res) {
-    // also set the CCC for use with systems that require it
-    len = sizeof(CCC_TMPL);
-    memcpy(buf, CCC_TMPL, len);
-    memcpy(buf + CCC_ID_OFFS, id, CB_CCC_ID);
+Cleanup:
 
-    res = ykpiv_save_object(state, YKPIV_OBJ_CAPABILITY, buf, len);
+  _ykpiv_end_transaction(state);
+  return res;
+}
+
+ykpiv_rc ykpiv_util_get_cccid(ykpiv_state *state, ykpiv_cccid *ccc) {
+  ykpiv_rc res = YKPIV_OK;
+  uint8_t buf[CB_OBJ_MAX];
+  size_t len = sizeof(buf);
+
+  if (!ccc) return YKPIV_GENERIC_ERROR;
+
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+
+  res = ykpiv_fetch_object(state, YKPIV_OBJ_CAPABILITY, buf, (unsigned long *)&len);
+  if (YKPIV_OK == res) {
+    if (len != sizeof(CCC_TMPL)) {
+      res = YKPIV_GENERIC_ERROR;
+    }
+    else {
+      memcpy(ccc->data, buf + CCC_ID_OFFS, YKPIV_CCCID_SIZE);
+    }
   }
 
 Cleanup:
 
+  _ykpiv_end_transaction(state);
+  return res;
+}
+
+ykpiv_rc ykpiv_util_set_cccid(ykpiv_state *state, const ykpiv_cccid *ccc) {
+  ykpiv_rc res = YKPIV_OK;
+  uint8_t id[YKPIV_CCCID_SIZE];
+  uint8_t buf[sizeof(CCC_TMPL)];
+  size_t len = 0;
+
+  if (!state) return YKPIV_GENERIC_ERROR;
+
+  if (!ccc) {
+    if (PRNG_OK != _ykpiv_prng_generate(id, sizeof(id))) {
+      return YKPIV_RANDOMNESS_ERROR;
+    }
+  }
+  else {
+    memcpy(id, ccc->data, sizeof(id));
+  }
+
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+
+  len = sizeof(CCC_TMPL);
+  memcpy(buf, CCC_TMPL, len);
+  memcpy(buf + CCC_ID_OFFS, id, YKPIV_CCCID_SIZE);
+  res = ykpiv_save_object(state, YKPIV_OBJ_CAPABILITY, buf, len);
+
+Cleanup:
   _ykpiv_end_transaction(state);
   return res;
 }

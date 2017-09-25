@@ -259,7 +259,24 @@ extern "C"
 #define DEVTYPE_YK       0x594B0000 //"YK"
 #define DEVTYPE_NEOr3    (DEVTYPE_NEO | 0x00007233) //"r3"
 #define DEVTYPE_YK4      (DEVTYPE_YK  | 0x00000034) // "4"
+
   typedef uint32_t ykpiv_devmodel;
+
+  /**
+   * Card identifier
+   */
+  #define YKPIV_CARDID_SIZE 16
+  typedef struct {
+    uint8_t data[YKPIV_CARDID_SIZE];
+  } ykpiv_cardid;
+
+  /**
+   * Card Capability
+   */
+  #define YKPIV_CCCID_SIZE 14
+  typedef struct {
+    uint8_t data[YKPIV_CCCID_SIZE];
+  } ykpiv_cccid;
 
 #pragma pack(push, 1)
 
@@ -409,13 +426,6 @@ extern "C"
   ykpiv_rc ykpiv_util_reset(ykpiv_state *state);
 
   /**
-   * Card identifier
-   */
-  typedef struct {
-    uint8_t data[16];
-  } ykpiv_cardid;
-
-  /**
    * Get card identifier
    *
    * @param state state
@@ -437,6 +447,29 @@ extern "C"
    *
    */
   ykpiv_rc ykpiv_util_set_cardid(ykpiv_state *state, const ykpiv_cardid *cardid);
+
+  /**
+   * Get card capabilities identifier
+   *
+   * @param state state
+   * @param cardid ykpiv_cardid return value
+   *
+   * @return ykpiv_rc error code
+   */
+  ykpiv_rc ykpiv_util_get_cccid(ykpiv_state *state, ykpiv_cccid *ccc);
+
+  /**
+   * Set card capabilities identifier
+   *
+   * The card must be authenticated to call this function.
+   *
+   * @param state state
+   * @param ccc card ID to set. if NULL, randomly generate
+   *
+   * @return ypiv_rc error code
+   *
+   */
+  ykpiv_rc ykpiv_util_set_cccid(ykpiv_state *state, const ykpiv_cccid *ccc);
 
   /**
    * Get device model
