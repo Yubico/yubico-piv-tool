@@ -60,9 +60,35 @@
 
 #define KEY_LEN 24
 
+static enum file_mode key_file_mode(enum enum_key_format fmt, bool output) {
+  if (fmt == key_format_arg_PEM) {
+    if (output) {
+      return OUTPUT_TEXT;
+    }
+    return INPUT_TEXT;
+  }
+  if (output) {
+    return OUTPUT_BIN;
+  }
+  return INPUT_BIN;
+}
+
+static enum file_mode data_file_mode(enum enum_format fmt, bool output) {
+  if (fmt == format_arg_binary) {
+    if (output) {
+      return OUTPUT_BIN;
+    }
+    return INPUT_BIN;
+  }
+  if (output) {
+    return OUTPUT_TEXT;
+  }
+  return INPUT_TEXT;
+}
+
 static void print_version(ykpiv_state *state, const char *output_file_name) {
   char version[7];
-  FILE *output_file = open_file(output_file_name, OUTPUT);
+  FILE *output_file = open_file(output_file_name, OUTPUT_TEXT);
   if(!output_file) {
     return;
   }
@@ -135,7 +161,7 @@ static bool generate_key(ykpiv_state *state, enum enum_slot slot,
 
   key = get_slot_hex(slot);
 
-  output_file = open_file(output_file_name, OUTPUT);
+  output_file = open_file(output_file_name, key_file_mode(key_format, true));
   if(!output_file) {
     return false;
   }
@@ -264,7 +290,7 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
 
   key = get_slot_hex(slot);
 
-  input_file = open_file(input_file_name, INPUT);
+  input_file = open_file(input_file_name, key_file_mode(key_format, false));
   if(!input_file) {
     return false;
   }
@@ -427,7 +453,7 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
   int compress = 0;
   int cert_len = -1;
 
-  input_file = open_file(input_file_name, INPUT);
+  input_file = open_file(input_file_name, key_file_mode(cert_format, false));
   if(!input_file) {
     return false;
   }
@@ -563,8 +589,8 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
 
   key = get_slot_hex(slot);
 
-  input_file = open_file(input_file_name, INPUT);
-  output_file = open_file(output_file_name, OUTPUT);
+  input_file = open_file(input_file_name, key_file_mode(key_format, false));
+  output_file = open_file(output_file_name, key_file_mode(key_format, true));
   if(!input_file || !output_file) {
     goto request_out;
   }
@@ -712,8 +738,8 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
 
   key = get_slot_hex(slot);
 
-  input_file = open_file(input_file_name, INPUT);
-  output_file = open_file(output_file_name, OUTPUT);
+  input_file = open_file(input_file_name, key_file_mode(key_format, false));
+  output_file = open_file(output_file_name, key_file_mode(key_format, true));
   if(!input_file || !output_file) {
     goto selfsign_out;
   }
@@ -973,7 +999,7 @@ static bool read_certificate(ykpiv_state *state, enum enum_slot slot,
     return false;
   }
 
-  output_file = open_file(output_file_name, OUTPUT);
+  output_file = open_file(output_file_name, key_file_mode(key_format, true));
   if (!output_file) {
     return false;
   }
@@ -1041,7 +1067,7 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
 
   key = get_slot_hex(slot);
 
-  input_file = open_file(input, INPUT);
+  input_file = open_file(input, INPUT_BIN);
   if(!input_file) {
     return false;
   }
@@ -1050,7 +1076,7 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
     fprintf(stderr, "Please paste the input...\n");
   }
 
-  output_file = open_file(output, OUTPUT);
+  output_file = open_file(output, OUTPUT_BIN);
   if(!output_file) {
     if(input_file && input_file != stdin) {
       fclose(input_file);
@@ -1231,7 +1257,7 @@ static bool status(ykpiv_state *state, enum enum_hash hash,
   unsigned char buf[3072];
   long unsigned len = sizeof(buf);
   int i;
-  FILE *output_file = open_file(output_file_name, OUTPUT);
+  FILE *output_file = open_file(output_file_name, OUTPUT_TEXT);
   if(!output_file) {
     return false;
   }
@@ -1284,7 +1310,7 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
   unsigned int data_len;
   X509 *x509 = NULL;
   EVP_PKEY *pubkey;
-  FILE *input_file = open_file(input_file_name, INPUT);
+  FILE *input_file = open_file(input_file_name, key_file_mode(cert_format, false));
 
   if(!input_file) {
     fprintf(stderr, "Failed opening input file %s.\n", input_file_name);
@@ -1417,7 +1443,7 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
   X509 *x509 = NULL;
   EVP_PKEY *pubkey;
   EC_KEY *tmpkey = NULL;
-  FILE *input_file = open_file(input_file_name, INPUT);
+  FILE *input_file = open_file(input_file_name, key_file_mode(cert_format, false));
 
   if(!input_file) {
     fprintf(stderr, "Failed opening input file %s.\n", input_file_name);
@@ -1573,7 +1599,7 @@ static bool attest(ykpiv_state *state, enum enum_slot slot,
   bool ret = false;
   X509 *x509 = NULL;
   int key;
-  FILE *output_file = open_file(output_file_name, OUTPUT);
+  FILE *output_file = open_file(output_file_name, key_file_mode(key_format, true));
   if(!output_file) {
     return false;
   }
@@ -1626,7 +1652,7 @@ static bool write_object(ykpiv_state *state, int id,
   size_t len = sizeof(data);
   ykpiv_rc res;
 
-  input_file = open_file(input_file_name, INPUT);
+  input_file = open_file(input_file_name, data_file_mode(format, false));
   if(!input_file) {
     return false;
   }
@@ -1665,7 +1691,7 @@ static bool read_object(ykpiv_state *state, int id, const char *output_file_name
   unsigned long len = sizeof(data);
   bool ret = false;
 
-  output_file = open_file(output_file_name, OUTPUT);
+  output_file = open_file(output_file_name, data_file_mode(format, true));
   if(!output_file) {
     return false;
   }

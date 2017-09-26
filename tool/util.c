@@ -46,12 +46,31 @@
 #include "cmdline.h"
 #include "util.h"
 
-FILE *open_file(const char *file_name, int mode) {
+FILE *open_file(const char *file_name, enum file_mode mode) {
   FILE *file;
+  const char *mod;
   if(!strcmp(file_name, "-")) {
-    file = mode == INPUT ? stdin : stdout;
+    file = (mode == INPUT_TEXT || mode == INPUT_BIN) ? stdin : stdout;
   } else {
-    file = fopen(file_name, mode == INPUT ? "r" : "w");
+    switch (mode) {
+    case INPUT_TEXT:
+      mod = "r";
+      break;
+    case INPUT_BIN:
+      mod = "rb";
+      break;
+    case OUTPUT_TEXT:
+      mod = "w";
+      break;
+    case OUTPUT_BIN:
+      mod = "wb";
+      break;
+    default:
+      fprintf(stderr, "Invalid file mode.\n");
+      return NULL;
+      break;
+    }
+    file = fopen(file_name, mod);
     if(!file) {
       fprintf(stderr, "Failed opening '%s'!\n", file_name);
       return NULL;
