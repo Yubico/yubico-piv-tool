@@ -404,6 +404,14 @@ START_TEST(test_import_key) {
     ck_assert_int_eq(memcmp(secret, secret2, sizeof(secret)), 0);
     X509_free(cert);
   }
+
+  // Verify that imported key can not be attested
+  {
+    unsigned char attest[2048];
+    size_t attest_len = sizeof(attest);
+    res = ykpiv_attest(g_state, 0x9e, attest, &attest_len);
+    ck_assert_int_eq(res, YKPIV_GENERIC_ERROR);
+  }
 }
 END_TEST
 
@@ -429,7 +437,15 @@ START_TEST(test_generate_key) {
   ck_assert_int_eq(res, YKPIV_OK);
   res = ykpiv_util_free(g_state, exp);
   ck_assert_int_eq(res, YKPIV_OK);
-  // TODO: and??
+
+  // Verify that imported key can be attested
+  {
+    unsigned char attest[2048];
+    size_t attest_len = sizeof(attest);
+    res = ykpiv_attest(g_state, YKPIV_KEY_AUTHENTICATION, attest, &attest_len);
+    ck_assert_int_eq(res, YKPIV_OK);
+    ck_assert_int_gt(attest_len, 0);
+  }
 }
 END_TEST
 
