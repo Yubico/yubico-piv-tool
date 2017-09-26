@@ -492,6 +492,12 @@ extern "C"
    */
   ykpiv_rc ykpiv_util_block_puk(ykpiv_state *state);
 
+  /**
+   * Object ID of given slot.
+   *
+   * @param slot key slot
+   */
+  uint32_t ykpiv_util_slot_object(uint8_t slot);
 
   ykpiv_rc ykpiv_connect_with_card(ykpiv_state *state, uint64_t context, uint64_t card);
 

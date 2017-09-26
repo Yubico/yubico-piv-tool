@@ -97,7 +97,7 @@ static bool sign_data(ykpiv_state *state, const unsigned char *in, size_t len, u
   return false;
 }
 
-static bool generate_key(ykpiv_state *state, const char *slot,
+static bool generate_key(ykpiv_state *state, enum enum_slot slot,
     enum enum_algorithm algorithm, const char *output_file_name,
     enum enum_key_format key_format, enum enum_pin_policy pin_policy,
     enum enum_touch_policy touch_policy) {
@@ -133,7 +133,7 @@ static bool generate_key(ykpiv_state *state, const char *slot,
     }
   }
 
-  sscanf(slot, "%2x", &key);
+  key = get_slot_hex(slot);
 
   output_file = open_file(output_file_name, OUTPUT);
   if(!output_file) {
@@ -252,7 +252,7 @@ static bool set_pin_retries(ykpiv_state *state, int pin_retries, int puk_retries
 }
 
 static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
-                       const char *input_file_name, const char *slot, char *password,
+                       const char *input_file_name, enum enum_slot slot, char *password,
                        enum enum_pin_policy pin_policy, enum enum_touch_policy touch_policy) {
   int key = 0;
   FILE *input_file = NULL;
@@ -262,7 +262,7 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
   bool ret = false;
   ykpiv_rc rc = YKPIV_GENERIC_ERROR;
 
-  sscanf(slot, "%2x", &key);
+  key = get_slot_hex(slot);
 
   input_file = open_file(input_file_name, INPUT);
   if(!input_file) {
@@ -537,7 +537,7 @@ static bool set_cardid(ykpiv_state *state, int verbose, int type) {
 }
 
 static bool request_certificate(ykpiv_state *state, enum enum_key_format key_format,
-    const char *input_file_name, const char *slot, char *subject, enum enum_hash hash,
+    const char *input_file_name, enum enum_slot slot, char *subject, enum enum_hash hash,
     const char *output_file_name) {
   X509_REQ *req = NULL;
   X509_NAME *name = NULL;
@@ -561,7 +561,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
   null_parameter.type = V_ASN1_NULL;
   null_parameter.value.ptr = NULL;
 
-  sscanf(slot, "%2x", &key);
+  key = get_slot_hex(slot);
 
   input_file = open_file(input_file_name, INPUT);
   output_file = open_file(output_file_name, OUTPUT);
@@ -684,7 +684,7 @@ request_out:
 }
 
 static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_format,
-    const char *input_file_name, const char *slot, char *subject, enum enum_hash hash,
+    const char *input_file_name, enum enum_slot slot, char *subject, enum enum_hash hash,
     const int *serial, int validDays, const char *output_file_name) {
   FILE *input_file = NULL;
   FILE *output_file = NULL;
@@ -710,7 +710,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   null_parameter.type = V_ASN1_NULL;
   null_parameter.value.ptr = NULL;
 
-  sscanf(slot, "%2x", &key);
+  key = get_slot_hex(slot);
 
   input_file = open_file(input_file_name, INPUT);
   output_file = open_file(output_file_name, OUTPUT);
@@ -1028,7 +1028,7 @@ read_cert_out:
 }
 
 static bool sign_file(ykpiv_state *state, const char *input, const char *output,
-    const char *slot, enum enum_algorithm algorithm, enum enum_hash hash,
+    enum enum_slot slot, enum enum_algorithm algorithm, enum enum_hash hash,
     int verbosity) {
   FILE *input_file = NULL;
   FILE *output_file = NULL;
@@ -1039,7 +1039,7 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
   int algo;
   const EVP_MD *md;
 
-  sscanf(slot, "%2x", &key);
+  key = get_slot_hex(slot);
 
   input_file = open_file(input, INPUT);
   if(!input_file) {
@@ -1121,7 +1121,7 @@ out:
 
 static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_MD *md,
     FILE *output) {
-  int object = get_object_id(slot);
+  int object = ykpiv_util_slot_object(get_slot_hex(slot));
   int slot_name;
   unsigned char data[3072];
   const unsigned char *ptr = data;
@@ -1349,7 +1349,7 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
     if(algorithm == 0) {
       goto test_out;
     }
-    sscanf(cmdline_parser_slot_values[slot], "%2x", &key);
+    key = get_slot_hex(slot);
     if(YKPIV_IS_RSA(algorithm)) {
       prepare_rsa_signature(data, data_len, encoded, &enc_len, EVP_MD_type(md));
       ptr = encoded;
@@ -1454,7 +1454,7 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
     if(algorithm == 0) {
       goto decipher_out;
     }
-    sscanf(cmdline_parser_slot_values[slot], "%2x", &key);
+    key = get_slot_hex(slot);
     if(YKPIV_IS_RSA(algorithm)) {
       unsigned char secret[32];
       unsigned char secret2[32];
@@ -1566,7 +1566,7 @@ static bool list_readers(ykpiv_state *state) {
   return true;
 }
 
-static bool attest(ykpiv_state *state, const char *slot,
+static bool attest(ykpiv_state *state, enum enum_slot slot,
     enum enum_key_format key_format, const char *output_file_name) {
   unsigned char data[YKPIV_OBJ_MAX_SIZE];
   unsigned long len = sizeof(data);
@@ -1583,7 +1583,7 @@ static bool attest(ykpiv_state *state, const char *slot,
     return false;
   }
 
-  sscanf(slot, "%2x", &key);
+  key = get_slot_hex(slot);
   if (ykpiv_attest(state, key, data, &len) != YKPIV_OK) {
     fprintf(stderr, "Failed to attest data.\n");
     goto attest_out;
@@ -1866,7 +1866,7 @@ int main(int argc, char *argv[]) {
         print_version(state, args_info.output_arg);
         break;
       case action_arg_generate:
-        if(generate_key(state, args_info.slot_orig, args_info.algorithm_arg, args_info.output_arg, args_info.key_format_arg,
+        if(generate_key(state, args_info.slot_arg, args_info.algorithm_arg, args_info.output_arg, args_info.key_format_arg,
               args_info.pin_policy_arg, args_info.touch_policy_arg) == false) {
           ret = EXIT_FAILURE;
         } else {
@@ -1921,7 +1921,7 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_importMINUS_key:
-        if(import_key(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_orig, password,
+        if(import_key(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_arg, password,
               args_info.pin_policy_arg, args_info.touch_policy_arg) == false) {
           fprintf(stderr, "Unable to import private key\n");
           ret = EXIT_FAILURE;
@@ -1946,7 +1946,7 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_requestMINUS_certificate:
         if(request_certificate(state, args_info.key_format_arg, args_info.input_arg,
-              args_info.slot_orig, args_info.subject_arg, args_info.hash_arg,
+              args_info.slot_arg, args_info.subject_arg, args_info.hash_arg,
               args_info.output_arg) == false) {
           ret = EXIT_FAILURE;
         } else {
@@ -2006,7 +2006,7 @@ int main(int argc, char *argv[]) {
       }
       case action_arg_selfsignMINUS_certificate:
         if(selfsign_certificate(state, args_info.key_format_arg, args_info.input_arg,
-              args_info.slot_orig, args_info.subject_arg, args_info.hash_arg,
+              args_info.slot_arg, args_info.subject_arg, args_info.hash_arg,
               args_info.serial_given ? &args_info.serial_arg : NULL, args_info.valid_days_arg,
               args_info.output_arg) == false) {
           ret = EXIT_FAILURE;
@@ -2060,7 +2060,7 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_attest:
-        if(attest(state, args_info.slot_orig, args_info.key_format_arg,
+        if(attest(state, args_info.slot_arg, args_info.key_format_arg,
               args_info.output_arg) == false) {
           ret = EXIT_FAILURE;
         }
@@ -2081,7 +2081,7 @@ int main(int argc, char *argv[]) {
       ret = EXIT_FAILURE;
     }
     else if(sign_file(state, args_info.input_arg, args_info.output_arg,
-        args_info.slot_orig, args_info.algorithm_arg, args_info.hash_arg,
+        args_info.slot_arg, args_info.algorithm_arg, args_info.hash_arg,
         verbosity)) {
       fprintf(stderr, "Signature successful!\n");
     } else {

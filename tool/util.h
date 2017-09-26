@@ -48,8 +48,6 @@ X509_NAME *parse_name(const char*);
 unsigned char get_algorithm(EVP_PKEY*);
 FILE *open_file(const char*, int);
 int get_slot_hex(enum enum_slot slot_enum);
-int get_object_id(enum enum_slot slot);
-int key_to_object_id(int key);
 bool set_component(unsigned char *in_ptr, const BIGNUM *bn, int element_len);
 bool prepare_rsa_signature(const unsigned char*, unsigned int, unsigned char*,
     unsigned int*, int);

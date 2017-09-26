@@ -1245,7 +1245,7 @@ ykpiv_rc ykpiv_util_reset(ykpiv_state *state) {
   return YKPIV_GENERIC_ERROR;
 }
 
-static int _slot2object(uint8_t slot) {
+uint32_t ykpiv_util_slot_object(uint8_t slot) {
   int object_id = -1;
 
   switch (slot) {
@@ -1283,7 +1283,7 @@ static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf
   // TREV TODO: should this select application?
   ykpiv_rc res = YKPIV_OK;
   uint8_t *ptr = NULL;
-  int object_id = _slot2object(slot);
+  int object_id = ykpiv_util_slot_object(slot);
   size_t len = 0;
 
   if (-1 == object_id) return YKPIV_INVALID_OBJECT;
@@ -1323,7 +1323,7 @@ static ykpiv_rc _write_certificate(ykpiv_state *state, uint8_t slot, uint8_t *da
   // TREV TODO: should this select application?
   uint8_t buf[CB_OBJ_MAX];
   size_t cbBuf = sizeof(buf);
-  int object_id = _slot2object(slot);
+  int object_id = ykpiv_util_slot_object(slot);
   size_t offset = 0;
   size_t req_len = 0;
 
