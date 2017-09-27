@@ -258,8 +258,6 @@ void strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
   data_ptr++;
   memcpy(buf_ptr, data_ptr, elem_len);
-  data_ptr += elem_len;
-  buf_ptr += elem_len;
 
   *len = sig_halflen * 2;
   memcpy(data, buf, *len);

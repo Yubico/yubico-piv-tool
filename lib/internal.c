@@ -222,8 +222,10 @@ EXIT:
   return rc;
 
 ERROR_EXIT:
-  des_destroy_key(*key);
-  *key = NULL;
+  if (key) {
+    des_destroy_key(*key);
+    *key = NULL;
+  }
   goto EXIT;
 
 

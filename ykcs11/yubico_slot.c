@@ -32,16 +32,16 @@
 #include "pkcs11.h"
 #include <string.h>
 
-static const CK_UTF8CHAR_PTR slot_manufacturer = "Yubico";
+static const CK_UTF8CHAR_PTR slot_manufacturer = (const CK_UTF8CHAR_PTR)"Yubico";
 static const CK_FLAGS slot_flags = CKF_TOKEN_PRESENT | CKF_HW_SLOT;
 static const CK_VERSION slot_version = {1, 0};
 
 CK_RV YUBICO_get_slot_manufacturer(CK_UTF8CHAR_PTR str, CK_ULONG len) {
 
-  if (strlen(slot_manufacturer) > len)
+  if (strlen((const char*)slot_manufacturer) > len)
     return CKR_BUFFER_TOO_SMALL;
 
-  memcpy(str, slot_manufacturer, strlen(slot_manufacturer));
+  memcpy(str, slot_manufacturer, strlen((const char*)slot_manufacturer));
   return CKR_OK;
 
 }

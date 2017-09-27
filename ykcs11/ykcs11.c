@@ -215,6 +215,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
     return CKR_OK;
   }
 
+  if (!pulCount) {
+    DOUT;
+    return CKR_ARGUMENTS_BAD;
+  }
+
   if ((tokenPresent && *pulCount < n_slots_with_token) || (!tokenPresent && *pulCount < n_slots)) {
     DBG("Buffer too small: needed %lu, provided %lu", n_slots, *pulCount);
     return CKR_BUFFER_TOO_SMALL;
@@ -1214,6 +1219,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
 
   rv = delete_cert(cert_id);
   if (rv != CKR_OK) {
+    free(obj_ptr);
     DBG("Unable to delete certificate data");
     return CKR_FUNCTION_FAILED;
   }

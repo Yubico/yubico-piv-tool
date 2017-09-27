@@ -543,7 +543,9 @@ int SSH_write_X509(FILE *fp, X509 *x) {
 
     rsa = EVP_PKEY_get1_RSA(pkey);
 
-    set_component(n, rsa->n, RSA_size(rsa));
+    if (!set_component(n, rsa->n, RSA_size(rsa))) {
+      break;
+    }
 
     uint32_t bytes = BN_num_bytes(rsa->n);
     char len_buf[5];
