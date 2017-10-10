@@ -31,7 +31,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/lib -I$(top_builddir)/lib $(OPENSSL_CFLAGS)
 AM_LDFLAGS = -no-install @CHECK_LIBS@
 LDADD = ../libykpiv.la $(OPENSSL_LIBS)
 
-check_PROGRAMS = basic parse_key util
+check_PROGRAMS = basic parse_key api
 TESTS = $(check_PROGRAMS)
 
 LOG_COMPILER = $(VALGRIND)
