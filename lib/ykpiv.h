@@ -499,10 +499,8 @@ extern "C"
    */
   uint32_t ykpiv_util_slot_object(uint8_t slot);
 
-  ykpiv_rc ykpiv_connect_with_card(ykpiv_state *state, uint64_t context, uint64_t card);
-
-  // TREV TODO: remove
-  ykpiv_rc ykpiv_done2(ykpiv_state *state, bool disconnect);
+  ykpiv_rc ykpiv_connect_with_exteral_card(ykpiv_state *state, uint64_t context, uint64_t card, bool select);
+  ykpiv_rc ykpiv_done_with_external_card(ykpiv_state *state);
   ykpiv_rc ykpiv_verify_select(ykpiv_state *state, const char *pin, const size_t pin_len, int *tries, bool force_select);
 
 #ifdef __cplusplus

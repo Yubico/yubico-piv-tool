@@ -795,6 +795,10 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
         }
       }
     }
+    else if (sw == SW_ERR_SECURITY_STATUS) {
+      res = YKPIV_AUTHENTICATION_ERROR;
+      if (state->verbose) { fprintf(stderr, "not authenticated)\n"); }
+    }
     else {
       res = YKPIV_GENERIC_ERROR;
       if (state->verbose) { fprintf(stderr, "error %x)\n", sw); }
