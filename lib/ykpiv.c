@@ -926,55 +926,56 @@ static ykpiv_rc _cache_pin(ykpiv_state *state, const char *pin, size_t len) {
     if (state->pin == NULL) {
       return YKPIV_MEMORY_ERROR;
     }
-    memcpy(state->pin, pin, len + 1);
+    memcpy(state->pin, pin, len);
+    state->pin[len] = 0;
   }
   return YKPIV_OK;
 #endif
 }
 
-ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
-  // TREV TODO: pin len?
+static ykpiv_rc _verify(ykpiv_state *state, const char *pin, const size_t pin_len, int *tries) {
   APDU apdu;
   unsigned char data[261];
   uint32_t recv_len = sizeof(data);
   int sw;
-  size_t len = 0;
   ykpiv_rc res;
-  if(pin) {
-    len = strlen(pin);
-  }
 
-  if(len > 8) {
+  if (pin_len > 8) {
     return YKPIV_SIZE_ERROR;
   }
+
   memset(apdu.raw, 0, sizeof(apdu.raw));
   apdu.st.ins = YKPIV_INS_VERIFY;
   apdu.st.p1 = 0x00;
   apdu.st.p2 = 0x80;
   apdu.st.lc = pin ? 0x08 : 0;
-  if(pin) {
-    memcpy(apdu.st.data, pin, len);
-    if(len < 8) {
-      memset(apdu.st.data + len, 0xff, 8 - len);
+  if (pin) {
+    memcpy(apdu.st.data, pin, pin_len);
+    if (pin_len < 8) {
+      memset(apdu.st.data + pin_len, 0xff, 8 - pin_len);
     }
   }
-  if((res = _send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
+  if ((res = _send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
     return res;
-  } else if(sw == SW_SUCCESS) {
+  } else if (sw == SW_SUCCESS) {
     // Intentionally ignore errors.  If the PIN fails to save, it will only
     // be a problem if a reconnect is attempted.  Failure deferred until then.
-    _cache_pin(state, pin, len + 1);
+    _cache_pin(state, pin, pin_len);
     if (tries) *tries = (sw & 0xf);
     return YKPIV_OK;
-  } else if((sw >> 8) == 0x63) {
+  } else if ((sw >> 8) == 0x63) {
     if (tries) *tries = (sw & 0xf);
     return YKPIV_WRONG_PIN;
-  } else if(sw == SW_ERR_AUTH_BLOCKED) {
+  } else if (sw == SW_ERR_AUTH_BLOCKED) {
     if (tries) *tries = 0;
     return YKPIV_WRONG_PIN;
   } else {
     return YKPIV_GENERIC_ERROR;
   }
+}
+
+ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
+  return ykpiv_verify_select(state, pin, pin ? strlen(pin) : 0, tries, false);
 }
 
 ykpiv_rc ykpiv_verify_select(ykpiv_state *state, const char *pin, const size_t pin_len, int *tries, bool force_select) {
@@ -983,7 +984,7 @@ ykpiv_rc ykpiv_verify_select(ykpiv_state *state, const char *pin, const size_t p
   if (force_select) {
     if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
   }
-  res = ykpiv_verify(state, pin, tries);
+  res = _verify(state, pin, pin_len, tries);
 Cleanup:
 
   _ykpiv_end_transaction(state);
@@ -1096,7 +1097,7 @@ ykpiv_rc ykpiv_change_pin(ykpiv_state *state, const char * current_pin, size_t c
   if (res == YKPIV_OK && new_pin != NULL) {
     // Intentionally ignore errors.  If the PIN fails to save, it will only
     // be a problem if a reconnect is attempted.  Failure deferred until then.
-    _cache_pin(state, new_pin, new_pin_len + 1);
+    _cache_pin(state, new_pin, new_pin_len);
   }
 
 Cleanup:
@@ -1358,7 +1359,7 @@ ykpiv_rc ykpiv_auth_getchallenge(ykpiv_state *state, uint8_t *challenge, const s
   ykpiv_rc res = YKPIV_OK;
   APDU apdu = { 0 };
   unsigned char data[261] = { 0 };
-  unsigned long recv_len = sizeof(data);
+  uint32_t recv_len = sizeof(data);
   int sw = 0;
 
   if (NULL == state) return YKPIV_GENERIC_ERROR;
@@ -1396,7 +1397,7 @@ ykpiv_rc ykpiv_auth_verifyresponse(ykpiv_state *state, uint8_t *response, const 
   ykpiv_rc res = YKPIV_OK;
   APDU apdu = { 0 };
   unsigned char data[261] = { 0 };
-  unsigned long recv_len = sizeof(data);
+  uint32_t recv_len = sizeof(data);
   int sw = 0;
   unsigned char *dataptr = apdu.st.data;
 
