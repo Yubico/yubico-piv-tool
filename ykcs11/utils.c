@@ -54,7 +54,7 @@ CK_RV parse_readers(ykpiv_state *state, const CK_BYTE_PTR readers, const CK_ULON
   /*
    * According to pcsc-lite, the format of a reader name is:
    * name [interface] (serial) index slot
-   * http://ludovicrousseau.blogspot.se/2010/05/what-is-in-pcsc-reader-name.html
+   * https://ludovicrousseau.blogspot.se/2010/05/what-is-in-pcsc-reader-name.html
    */
 
   for (i = 0; i < len; i++)

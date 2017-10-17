@@ -34,7 +34,7 @@
 
 #include <string.h>
 
-/* From http://article.gmane.org/gmane.os.freebsd.devel.hackers/23606 */
+/* From https://article.gmane.org/gmane.os.freebsd.devel.hackers/23606 */
 static int my_strverscmp (const char *s1, const char *s2)
 {
   static const char *digits = "0123456789";
@@ -66,8 +66,8 @@ static int my_strverscmp (const char *s1, const char *s2)
        * If the common prefix for s1 and s2 consists only of zeros, then the
        * "longer" number has to compare less. Otherwise the comparison needs
        * to be numerical (just fallthrough). See
-       * http://refspecs.freestandards.org/LSB_2.0.1/LSB-generic/
-       *                                 LSB-generic/baselib-strverscmp.html
+       * https://refspecs.linuxfoundation.org/LSB_2.0.1/LSB-generic/
+       * https://refspecs.linuxfoundation.org/LSB_2.0.1/LSB-generic/LSB-generic/baselib-strverscmp.html
        */
       while (*s1 == '0' && *s2 == '0') {
 	++s1;
