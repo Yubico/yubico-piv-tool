@@ -1,4 +1,5 @@
-==Vagrant VM for development
+Vagrant VM for development
+===
 
 Usage:
 
