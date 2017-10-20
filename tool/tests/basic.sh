@@ -101,6 +101,10 @@ fi
 $BIN -averify-pin -P000000 || true
 $BIN -averify-pin -P000000 || true
 $BIN -averify-pin -P000000 || true
+$BIN -averify-pin -P000000 || true
+$BIN -averify-pin -P000000 || true
+$BIN -achange-puk -P000000 -N00000000 || true
+$BIN -achange-puk -P000000 -N00000000 || true
 $BIN -achange-puk -P000000 -N00000000 || true
 $BIN -achange-puk -P000000 -N00000000 || true
 $BIN -achange-puk -P000000 -N00000000 || true
