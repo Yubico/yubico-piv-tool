@@ -111,7 +111,7 @@ $BIN -achange-puk -P000000 -N00000000 || true
 $BIN -areset
 
 # Generate key on-board, issue certificate, and verify it
-$BIN -agenerate -s9a -AECCP384 -o key_9a.pub
+$BIN -agenerate -s9a -AECCP256 -o key_9a.pub
 $BIN -averify -P123456 -s9a -S'/CN=YubicoTest/OU=YubicoGenerated/O=yubico.com/' -aselfsign -i key_9a.pub -o cert_9a.pem
 $BIN -averify -P123456 -s9a -atest-signature -i cert_9a.pem
 $BIN -aimport-certificate -P123456 -s9a -i cert_9a.pem
@@ -128,7 +128,7 @@ $BIN -aimport-certificate -P123456 -s9e -i cert.pem
 STATUS=$($BIN -astatus)
 echo "$STATUS"
 ALGO_9A=$(echo "$STATUS" |grep "Slot 9a" -A 6 |grep "Algorithm" |tr -d "[:blank:]")
-if [[ "x$ALGO_9A" != "xAlgorithm:ECCP384" ]]; then
+if [[ "x$ALGO_9A" != "xAlgorithm:ECCP256" ]]; then
     echo "$ALGO_9A"
     echo "Generated algorithm incorrect." >/dev/stderr
     exit 1

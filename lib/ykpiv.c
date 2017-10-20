@@ -1346,6 +1346,9 @@ ykpiv_rc ykpiv_attest(ykpiv_state *state, const unsigned char key, unsigned char
     return res;
   }
   else if(SW_SUCCESS != sw) {
+    if (sw == SW_ERR_NOT_SUPPORTED) {
+      return YKPIV_NOT_SUPPORTED;
+    }
     return YKPIV_GENERIC_ERROR;
   }
   if (data[0] != 0x30) {

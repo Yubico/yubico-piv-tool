@@ -409,8 +409,15 @@ START_TEST(test_import_key) {
   {
     unsigned char attest[2048];
     size_t attest_len = sizeof(attest);
+    ykpiv_devmodel model;
+    model = ykpiv_util_devicemodel(g_state);
     res = ykpiv_attest(g_state, 0x9e, attest, &attest_len);
-    ck_assert_int_eq(res, YKPIV_GENERIC_ERROR);
+    if (model == DEVTYPE_YK4) {
+      ck_assert_int_eq(res, YKPIV_GENERIC_ERROR);
+    }
+    else {
+      ck_assert_int_eq(res, YKPIV_NOT_SUPPORTED);
+    }
   }
 }
 END_TEST
@@ -440,11 +447,19 @@ START_TEST(test_generate_key) {
 
   // Verify that imported key can be attested
   {
+    ykpiv_devmodel model;
     unsigned char attest[2048];
     size_t attest_len = sizeof(attest);
+    model = ykpiv_util_devicemodel(g_state);
     res = ykpiv_attest(g_state, YKPIV_KEY_AUTHENTICATION, attest, &attest_len);
-    ck_assert_int_eq(res, YKPIV_OK);
-    ck_assert_int_gt(attest_len, 0);
+    // Only works with YK4.  NEO should error.
+    if (model == DEVTYPE_YK4) {
+      ck_assert_int_eq(res, YKPIV_OK);
+      ck_assert_int_gt(attest_len, 0);
+    }
+    else {
+      ck_assert_int_eq(res, YKPIV_NOT_SUPPORTED);
+    }
   }
 }
 END_TEST

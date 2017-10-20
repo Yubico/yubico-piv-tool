@@ -61,7 +61,8 @@ extern "C"
     YKPIV_PIN_LOCKED = -13,
 
     YKPIV_ARGUMENT_ERROR = -14, //i.e. invalid input argument
-    YKPIV_RANGE_ERROR = -15 //i.e. value range error
+    YKPIV_RANGE_ERROR = -15, //i.e. value range error
+    YKPIV_NOT_SUPPORTED = -16
   } ykpiv_rc;
 
   typedef void* (*ykpiv_pfn_alloc)(void* alloc_data, size_t size);
@@ -217,6 +218,7 @@ extern "C"
 #define SW_ERR_INCORRECT_PARAM 0x6a80
 /* this is a custom sw for yubikey */
 #define SW_ERR_INCORRECT_SLOT 0x6b00
+#define SW_ERR_NOT_SUPPORTED 0x6d00
 
   /* Yubico vendor specific instructions */
 #define YKPIV_INS_SET_MGMKEY 0xff
