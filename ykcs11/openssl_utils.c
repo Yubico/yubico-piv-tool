@@ -165,6 +165,7 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa,
   X509_set_notBefore(cert, tm);
   X509_set_notAfter(cert, tm);
 
+#if OPENSSL_VERSION_NUMBER < 10100000L
   // Manually set the signature algorithms.
   // OpenSSL 1.0.1i complains about empty DER fields
   // 8 => md5WithRsaEncryption
@@ -174,6 +175,7 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa,
   // Manually set a signature (same reason as before)
   ASN1_BIT_STRING_set_bit(cert->signature, 8, 1);
   ASN1_BIT_STRING_set(cert->signature, "\x00", 1);
+#endif
 
   len = i2d_X509(cert, NULL);
   if (len < 0)
