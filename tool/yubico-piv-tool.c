@@ -645,7 +645,7 @@ static bool set_dataobject(ykpiv_state *state, int verbose, int type) {
     id = YKPIV_OBJ_CAPABILITY;
   }
   memcpy(obj, tmpl, len);
-  if(RAND_pseudo_bytes(obj + offs, rand_len) == -1) {
+  if(RAND_bytes(obj + offs, rand_len) == -1) {
     fprintf(stderr, "error: no randomness.\n");
     return false;
   }
@@ -1457,7 +1457,7 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
   {
     unsigned char rand[128];
     EVP_MD_CTX *mdctx;
-    if(RAND_pseudo_bytes(rand, 128) == -1) {
+    if(RAND_bytes(rand, 128) == -1) {
       fprintf(stderr, "error: no randomness.\n");
       return false;
     }
@@ -1604,7 +1604,7 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
       size_t len2 = sizeof(data);
       RSA *rsa = EVP_PKEY_get1_RSA(pubkey);
 
-      if(RAND_pseudo_bytes(secret, sizeof(secret)) == -1) {
+      if(RAND_bytes(secret, sizeof(secret)) == -1) {
         fprintf(stderr, "error: no randomness.\n");
         ret = false;
         goto decipher_out;

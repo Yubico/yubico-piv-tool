@@ -371,7 +371,7 @@ static void test_import_and_sign_all_10() {
   for (i = 0; i < 24; i++) {
     for (j = 0; j < 10; j++) {
 
-      if(RAND_pseudo_bytes(some_data, sizeof(some_data)) == -1)
+      if(RAND_bytes(some_data, sizeof(some_data)) == -1)
         exit(EXIT_FAILURE);
 
       asrt(funcs->C_Login(session, CKU_USER, "123456", 6), CKR_OK, "Login USER");
@@ -562,7 +562,7 @@ static void test_import_and_sign_all_10_RSA() {
   for (i = 0; i < 24; i++) {
     for (j = 0; j < 10; j++) {
 
-      if(RAND_pseudo_bytes(some_data, sizeof(some_data)) == -1)
+      if(RAND_bytes(some_data, sizeof(some_data)) == -1)
         exit(EXIT_FAILURE);
 
       asrt(funcs->C_Login(session, CKU_USER, "123456", 6), CKR_OK, "Login USER");

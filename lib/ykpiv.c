@@ -478,7 +478,7 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
     dataptr += 8;
     *dataptr++ = 0x81;
     *dataptr++ = 8;
-    if(RAND_pseudo_bytes(dataptr, 8) == -1) {
+    if(RAND_bytes(dataptr, 8) == -1) {
       if(state->verbose) {
   fprintf(stderr, "Failed getting randomness for authentication.\n");
       }
