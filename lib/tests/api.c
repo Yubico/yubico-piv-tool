@@ -476,6 +476,7 @@ START_TEST(test_authenticate) {
   ykpiv_rc res;
   const char *default_mgm_key = "010203040506070801020304050607080102030405060708";
   const char *mgm_key = "112233445566778811223344556677881122334455667788";
+  const char *weak_mgm_key = "FEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFE";
   unsigned char key[24];
   size_t key_len = sizeof(key);
 
@@ -514,6 +515,18 @@ START_TEST(test_authenticate) {
   ck_assert_int_eq(res, YKPIV_OK);
   res = ykpiv_set_mgmkey(g_state, key);
   ck_assert_int_eq(res, YKPIV_OK);
+
+  // Try default key, succeed
+  res = ykpiv_hex_decode(default_mgm_key, strlen(default_mgm_key), key, &key_len);
+  ck_assert_int_eq(res, YKPIV_OK);
+  res = ykpiv_authenticate(g_state, key);
+  ck_assert_int_eq(res, YKPIV_OK);
+
+  // Try to set a weak key, fail
+  res = ykpiv_hex_decode(weak_mgm_key, strlen(weak_mgm_key), key, &key_len);
+  ck_assert_int_eq(res, YKPIV_OK);
+  res = ykpiv_set_mgmkey(g_state, key);
+  ck_assert_int_eq(res, YKPIV_KEY_ERROR);
 
   // Try default key, succeed
   res = ykpiv_hex_decode(default_mgm_key, strlen(default_mgm_key), key, &key_len);

@@ -322,9 +322,8 @@ EXIT:
   return rc;
 }
 
-// TREV TODO: use openssl's implementation when available
 bool yk_des_is_weak_key(const unsigned char *key, const size_t cb_key) {
-
+#ifdef _WINDOWS
   /* defined weak keys, borrowed from openssl to be consistent across platforms */
   static const unsigned char weak_keys[][DES_LEN_DES] = {
     /* weak keys */
@@ -377,6 +376,9 @@ bool yk_des_is_weak_key(const unsigned char *key, const size_t cb_key) {
   }
 
   return false;
+#else
+  return DES_is_weak_key((const_DES_cblock *)key);
+#endif
 }
 
 prng_rc _ykpiv_prng_generate(unsigned char *buffer, const size_t cb_req) {
