@@ -141,7 +141,6 @@ static bool generate_key(ykpiv_state *state, enum enum_slot slot,
   size_t mod_len = 0;
   size_t exp_len = 0;
   size_t point_len = 0;
-  EC_POINT *point = NULL;
   char version[7];
 
   if(algorithm == algorithm_arg_RSA1024 || algorithm == algorithm_arg_RSA2048) {
