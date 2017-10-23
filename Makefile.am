@@ -63,6 +63,11 @@ endif
 
 # Maintainer rules.
 
+if DX_COND_html
+doxygen:
+	doxygen lib/Doxyfile
+endif
+
 check-doc-dist:
 	perl -pe "s,^EXTRA_DIST \+= .*,EXTRA_DIST += `cd $(srcdir) && ls doc/*.adoc | xargs echo`," < $(srcdir)/Makefile.am > check-doc-dist.tmp
 	diff -ur $(srcdir)/Makefile.am check-doc-dist.tmp || \

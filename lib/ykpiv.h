@@ -28,6 +28,14 @@
  *
  */
 
+/**
+ * @mainpage
+ *
+ * See ykpiv.h
+ *
+ * @file ykpiv.h
+ * libykpiv API
+ */
 #ifndef YKPIV_H
 #define YKPIV_H
 
