@@ -205,7 +205,7 @@ ykpiv_rc _ykpiv_select_application(ykpiv_state *state) {
   ykpiv_rc res;
 
   memset(apdu.raw, 0, sizeof(apdu));
-  apdu.st.ins = 0xa4;
+  apdu.st.ins = YKPIV_INS_SELECT_APPLICATION;
   apdu.st.p1 = 0x04;
   apdu.st.lc = sizeof(aid);
   memcpy(apdu.st.data, aid, sizeof(aid));
@@ -286,7 +286,7 @@ static ykpiv_rc _ykpiv_connect(ykpiv_state *state, uint64_t context, uint64_t ca
   return res;
 }
 
-ykpiv_rc ykpiv_connect_with_external_card(ykpiv_state *state, uint64_t context, uint64_t card, bool select) {
+ykpiv_rc ykpiv_connect_with_external_card(ykpiv_state *state, uint64_t context, uint64_t card) {
   return _ykpiv_connect(state, context, card);
 }
 
@@ -506,7 +506,7 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
     }
 
     memset(apdu.raw, 0, sizeof(apdu.raw));
-    apdu.st.ins = 0xc0;
+    apdu.st.ins = YKPIV_INS_GET_RESPONSE_APDU;
     res = _send_data(state, &apdu, data, &recv_len, sw);
     if(res != YKPIV_OK) {
       goto Cleanup;
