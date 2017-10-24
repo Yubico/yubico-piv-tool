@@ -627,6 +627,15 @@ static void test_import_and_sign_all_10_RSA() {
 }
 #endif
 
+int destruction_confirmed(void) {
+  char *confirmed = getenv("YKPIV_ENV_HWTESTS_CONFIRMED");
+  if (confirmed && confirmed[0] == '1')
+    return 1;
+  // Use dprintf() to write directly to stdout, since automake eats the standard stdout/stderr pointers.
+  dprintf(0, "\n***\n*** Hardware tests skipped.  Run \"make hwcheck\".\n***\n\n");
+  return 0;
+}
+
 int main(void) {
 
   get_functions(&funcs);
@@ -634,6 +643,11 @@ int main(void) {
   test_lib_info();
 
 #ifdef HW_TESTS
+  // Require user confirmation to continue, since this test suite will clear
+  // any data stored on connected keys.
+  if (!destruction_confirmed())
+    exit(77); // exit code 77 == skipped tests
+
   test_initalize();
   test_token_info();
   test_mechanism_list_and_info();

@@ -64,6 +64,11 @@ if [[ $HW_TESTS -eq 0 ]]; then
     exit 0
 fi
 
+# Verify that user has confirmed destructive hw-tests
+if [ "x$YKPIV_ENV_HWTESTS_CONFIRMED" != "x1" ]; then
+    printf "\n***\n*** Hardware tests skipped.  Run \"make hwcheck\".\n***\n\n" >&0
+    exit 77 # exit code 77 == skipped tests
+fi
 
 #
 # Run basic import/validation tests on included keys/certs.  Test keys generated
@@ -73,29 +78,6 @@ fi
 # $ openssl rsa -in private.pem -outform PEM -pubout -out public.pem
 # $ openssl req -x509 -key private.pem -out cert.pem -subj "/CN=YubicoTest/OU=YubicoTestUnit/O=yubico.com/" -new
 #
-echo >&0
-echo "Hardware tests enabled!" >&0
-echo >&0
-echo "******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* *******" >&0
-echo "WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING" >&0
-echo "WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING" >&0
-echo >&0
-echo "******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* *******" >&0
-echo >&0
-echo "                            ALL DATA WILL BE ERASED ON CONNECTED YUBIKEYS                                              " >&0
-echo >&0
-echo "******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* *******" >&0
-echo >&0
-echo "WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING" >&0
-echo "WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING" >&0
-echo "******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* *******" >&0
-echo >&0
-echo -n "Are you SURE you wish to proceed?  If so, type 'CONFIRM': " >&0
-
-read CONFIRM
-if [[ "x$CONFIRM" != "xCONFIRM" ]]; then
-    exit 1
-fi
 
 # Reset
 $BIN -averify-pin -P000000 || true

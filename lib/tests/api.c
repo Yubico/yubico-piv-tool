@@ -38,7 +38,7 @@
 
 #include <check.h>
 
-int confirm_destruction(void);
+int destruction_confirmed(void);
 
 ykpiv_state *g_state;
 const uint8_t g_cert[] = {
@@ -54,7 +54,8 @@ void setup(void) {
 
   // Require user confirmation to continue, since this test suite will clear
   // any data stored on connected keys.
-  ck_assert(confirm_destruction());
+  if (!destruction_confirmed())
+    exit(77); // exit code 77 == skipped tests
 
   res = ykpiv_init(&g_state, true);
   ck_assert_int_eq(res, YKPIV_OK);
@@ -655,6 +656,7 @@ START_TEST(test_reset) {
 
   // Try wrong PIN
   res = ykpiv_verify(g_state, "AAAAAA", &tries);
+  ck_assert_int_eq(res, YKPIV_WRONG_PIN);
 
   // Verify 2 PIN retries remaining
   tries = 0;
@@ -760,37 +762,21 @@ START_TEST(test_allocator) {
 }
 END_TEST
 
-int confirm_destruction(void) {
-  char verify[16];
-
+int destruction_confirmed(void) {
+  char *confirmed = getenv("YKPIV_ENV_HWTESTS_CONFIRMED");
+  if (confirmed && confirmed[0] == '1')
+    return 1;
   // Use dprintf() to write directly to stdout, since automake eats the standard stdout/stderr pointers.
-  dprintf(0, "******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* *******\n");
-  dprintf(0, "WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING\n");
-  dprintf(0, "WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING\n");
-  dprintf(0, "\n");
-
-  dprintf(0, "******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* *******\n");
-  dprintf(0, "\n");
-  dprintf(0, "                            ALL DATA WILL BE ERASED ON CONNECTED YUBIKEYS                                              \n");
-  dprintf(0, "\n");
-  dprintf(0, "******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* *******\n");
-  dprintf(0, "\n");
-
-  dprintf(0, "WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING\n");
-  dprintf(0, "WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING\n");
-  dprintf(0, "******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* ******* *******\n");
-  dprintf(0, "\n");
-  dprintf(0, "Are you SURE you wish to proceed?  If so, type 'CONFIRM': ");
-  fgets(verify, 32, stdin);
-  return strncmp(verify, "CONFIRM", 7) == 0;
+  dprintf(0, "\n***\n*** Hardware tests skipped.  Run \"make hwcheck\".\n***\n\n");
+  return 0;
 }
 
 Suite *test_suite(void) {
   Suite *s;
   TCase *tc;
 
-  s = suite_create("libykpiv util");
-  tc = tcase_create("util");
+  s = suite_create("libykpiv api");
+  tc = tcase_create("api");
 #ifdef HW_TESTS
   tcase_add_unchecked_fixture(tc, setup, teardown);
 
@@ -800,7 +786,7 @@ Suite *test_suite(void) {
   // Authenticate after reset.
   tcase_add_test(tc, test_authenticate);
 
-  // Test util functionality
+  // Test API functionality
   tcase_add_test(tc, test_change_pin);
   tcase_add_test(tc, test_change_puk);
   tcase_add_test(tc, test_devicemodel);
