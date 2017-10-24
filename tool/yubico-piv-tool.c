@@ -141,22 +141,6 @@ static bool generate_key(ykpiv_state *state, enum enum_slot slot,
   size_t mod_len = 0;
   size_t exp_len = 0;
   size_t point_len = 0;
-  char version[7];
-
-  if(algorithm == algorithm_arg_RSA1024 || algorithm == algorithm_arg_RSA2048) {
-    if(ykpiv_get_version(state, version, sizeof(version)) == YKPIV_OK) {
-      int major, minor, build;
-      int match = sscanf(version, "%d.%d.%d", &major, &minor, &build);
-      if(match == 3 && major == 4 && (minor < 3 || (minor == 3 && build < 5))) {
-        fprintf(stderr, "On-chip RSA key generation on this YubiKey has been blocked.\n");
-        fprintf(stderr, "Please see https://yubi.co/ysa201701/ for details.\n");
-        return false;
-      }
-    } else {
-      fprintf(stderr, "Failed to communicate.\n");
-      return false;
-    }
-  }
 
   key = get_slot_hex(slot);
 

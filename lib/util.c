@@ -699,6 +699,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
   ykpiv_rc res = YKPIV_OK;
   unsigned char in_data[11];
   unsigned char *in_ptr = in_data;
+  char version[7];
   unsigned char data[1024];
   unsigned char templ[] = { 0, YKPIV_INS_GENERATE_ASYMMETRIC, 0, 0 };
   unsigned long recv_len = sizeof(data);
@@ -709,6 +710,23 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
   size_t  cb_exp = 0;
   uint8_t *ptr_point = NULL;
   size_t  cb_point = 0;
+
+  if (ykpiv_util_devicemodel(state) == DEVTYPE_YK4 && (algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048)) {
+    if ((res = ykpiv_get_version(state, version, sizeof(version))) == YKPIV_OK) {
+      int major, minor, build;
+      fprintf(stderr, "version: %s\n", version);
+      int match = sscanf(version, "%d.%d.%d", &major, &minor, &build);
+      if (match == 3 && major == 4 && (minor < 3 || (minor == 3 && build < 5))) {
+        fprintf(stderr, "On-chip RSA key generation on this YubiKey has been blocked.\n");
+        fprintf(stderr, "Please see https://yubi.co/ysa201701/ for details.\n");
+        res = YKPIV_NOT_SUPPORTED;
+        goto Cleanup;
+      }
+    } else {
+      fprintf(stderr, "Failed to get device version.\n");
+      goto Cleanup;
+    }
+  }
 
   switch (algorithm) {
   case YKPIV_ALGO_RSA1024:
