@@ -714,7 +714,6 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
   if (ykpiv_util_devicemodel(state) == DEVTYPE_YK4 && (algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048)) {
     if ((res = ykpiv_get_version(state, version, sizeof(version))) == YKPIV_OK) {
       int major, minor, build;
-      fprintf(stderr, "version: %s\n", version);
       int match = sscanf(version, "%d.%d.%d", &major, &minor, &build);
       if (match == 3 && major == 4 && (minor < 3 || (minor == 3 && build < 5))) {
         fprintf(stderr, "On-chip RSA key generation on this YubiKey has been blocked.\n");
