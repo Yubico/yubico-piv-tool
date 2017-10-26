@@ -39,6 +39,9 @@
 #include <openssl/x509.h>
 #include <openssl/rand.h>
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wpointer-sign"
+
 void dump_hex(const unsigned char *buf, unsigned int len, FILE *output, int space) {
   unsigned int i;
   for (i = 0; i < len; i++) {
@@ -662,3 +665,5 @@ int main(void) {
   return EXIT_SUCCESS;
 
 }
+
+#pragma clang diagnostic pop

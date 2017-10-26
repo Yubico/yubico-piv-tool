@@ -58,6 +58,22 @@ DX_INIT_DOXYGEN(libykpiv,lib/Doxyfile)
 gl_LD_VERSION_SCRIPT
 gl_VALGRIND_TESTS
 
+# Check for clang
+AC_CACHE_CHECK([for clang],
+	cv_clang,[
+	AC_TRY_COMPILE([], [
+		#ifdef __clang__
+		#else
+		#error "NOT CLANG"
+		#endif
+		return 0;
+	],
+	[cv_clang=yes],
+	[cv_clang=no],
+	[])
+])
+AM_CONDITIONAL([COMPILER_CLANG], [test "$cv_clang" = yes])
+
 AC_ARG_WITH([backend],
   [AS_HELP_STRING([--with-backend=ARG],
     [use specific backend/linkage; 'pcsc', 'macscard' or 'winscard'])],

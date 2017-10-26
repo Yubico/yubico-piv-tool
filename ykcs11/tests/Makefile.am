@@ -1,6 +1,6 @@
 # Copyright (c) 2015-2016 Yubico AB
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -34,7 +34,13 @@ AM_CPPFLAGS = -I$(top_srcdir)/lib -I$(top_builddir)/lib
 AM_CPPFLAGS += -I$(top_srcdir)/ykcs11 -I$(top_builddir)/ykcs11
 AM_CPPFLAGS += $(OPENSSL_CFLAGS)
 
-AM_LDFLAGS = -no-install @CHECK_LIBS@
+AM_LDFLAGS = @CHECK_LIBS@
+
+if COMPILER_CLANG
+AM_LDFLAGS += -no-fast-install
+else
+AM_LDFLAGS += -no-install
+endif
 
 ykcs11_tests_LDADD = ../libykcs11.la $(OPENSSL_LIBS)
 
