@@ -259,9 +259,9 @@ static ykpiv_rc _ykpiv_connect(ykpiv_state *state, uintptr_t context, uintptr_t 
   // if card handle has changed, determine if handle is valid (less efficient, but complete)
   if ((card != state->card)) {
     char reader[CB_BUF_MAX];
-    uint32_t reader_len = (uint32_t)sizeof(reader);
+    pcsc_word reader_len = sizeof(reader);
     uint8_t atr[CB_ATR_MAX];
-    uint32_t atr_len = (uint32_t)sizeof(atr);
+    pcsc_word atr_len = sizeof(atr);
 
     // Cannot set the reader len to NULL.  Confirmed in OSX 10.10, so we have to retrieve it even though we don't need it.
     if (SCARD_S_SUCCESS != SCardStatus(card, reader, &reader_len, NULL, NULL, atr, &atr_len)) {
@@ -291,7 +291,7 @@ ykpiv_rc ykpiv_connect_with_external_card(ykpiv_state *state, uintptr_t context,
 }
 
 ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
-  uint32_t active_protocol;
+  pcsc_word active_protocol;
   char reader_buf[2048];
   size_t num_readers = sizeof(reader_buf);
   long rc;
@@ -316,7 +316,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
       fprintf(stderr, "trying to connect to reader '%s'.\n", reader_ptr);
     }
     rc = SCardConnect(state->context, reader_ptr, SCARD_SHARE_SHARED,
-        SCARD_PROTOCOL_T1, &card, &active_protocol);
+		      SCARD_PROTOCOL_T1, &card, &active_protocol);
     if(rc != SCARD_S_SUCCESS)
     {
       if(state->verbose) {
@@ -352,7 +352,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
 }
 
 static ykpiv_rc reconnect(ykpiv_state *state) {
-  uint32_t active_protocol;
+  pcsc_word active_protocol;
   long rc;
   ykpiv_rc res;
   int tries;
@@ -360,7 +360,7 @@ static ykpiv_rc reconnect(ykpiv_state *state) {
     fprintf(stderr, "trying to reconnect to current reader.\n");
   }
   rc = SCardReconnect(state->card, SCARD_SHARE_SHARED,
-    SCARD_PROTOCOL_T1, SCARD_RESET_CARD, &active_protocol);
+		      SCARD_PROTOCOL_T1, SCARD_RESET_CARD, &active_protocol);
   if(rc != SCARD_S_SUCCESS) {
     if(state->verbose) {
       fprintf(stderr, "SCardReconnect failed, rc=%08lx\n", rc);
@@ -377,7 +377,7 @@ static ykpiv_rc reconnect(ykpiv_state *state) {
 }
 
 ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
-  uint32_t num_readers = 0;
+  pcsc_word num_readers = 0;
   long rc;
 
   if(SCardIsValidContext(state->context) != SCARD_S_SUCCESS) {
@@ -531,19 +531,21 @@ static ykpiv_rc _send_data(ykpiv_state *state, APDU *apdu,
     unsigned char *data, uint32_t *recv_len, int *sw) {
   long rc;
   unsigned int send_len = (unsigned int)apdu->st.lc + 5;
+  pcsc_word tmp_len = *recv_len;
 
   if(state->verbose > 1) {
     fprintf(stderr, "> ");
     dump_hex(apdu->raw, send_len);
     fprintf(stderr, "\n");
   }
-  rc = SCardTransmit(state->card, SCARD_PCI_T1, apdu->raw, send_len, NULL, data, recv_len);
+  rc = SCardTransmit(state->card, SCARD_PCI_T1, apdu->raw, send_len, NULL, data, &tmp_len);
   if(rc != SCARD_S_SUCCESS) {
     if(state->verbose) {
       fprintf (stderr, "error: SCardTransmit failed, rc=%08lx\n", rc);
     }
     return YKPIV_PCSC_ERROR;
   }
+  *recv_len = (uint32_t)tmp_len;
 
   if(state->verbose > 1) {
     fprintf(stderr, "< ");

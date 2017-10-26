@@ -44,6 +44,12 @@
 #endif
 #endif
 
+// Typedef DWORD (defined by pcsc lib) to pcsc_word to make it clear that this
+// is not the Windows meaning of DWORD, but the PCSC library's meaning.  This
+// differs: Windows defines a DWORD as 32-bits, but pcsclite defines it as
+// 'unsigned long' on x86_64 Linux, which is often 64-bits.
+typedef DWORD pcsc_word;
+
 #ifdef __cplusplus
 extern "C"
 {

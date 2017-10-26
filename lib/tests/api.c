@@ -40,6 +40,14 @@
 
 int destruction_confirmed(void);
 
+// only defined in libcheck 0.11+ (linux distros still shipping 0.10)
+#ifndef ck_assert_ptr_nonnull
+#define ck_assert_ptr_nonnull(a) ck_assert((a) != NULL)
+#endif
+#ifndef ck_assert_mem_eq
+#define ck_assert_mem_eq(a,b,n) ck_assert(memcmp((a), (b), (n)) == 0)
+#endif
+
 ykpiv_state *g_state;
 const uint8_t g_cert[] = {
   "0123456789ABCDEFGHIK0123456789ABCDEFGHIK0123456789ABCDEFGHIK0123456789ABCDEFGHIK"
@@ -97,12 +105,12 @@ START_TEST(test_devicemodel) {
   ck_assert_int_eq(res, YKPIV_OK);
   ck_assert_int_gt(num_readers, 0);
   if (model == DEVTYPE_YK4) {
-    ck_assert_ptr_nonnull(strnstr(reader_buf, "Yubikey 4", strlen(reader_buf)));
+    ck_assert_ptr_nonnull(strstr(reader_buf, "Yubikey 4"));
     ck_assert(version[0] == '4'); // Verify app version 4.x
     ck_assert(version[1] == '.');
   }
   else {
-    ck_assert_ptr_nonnull(strnstr(reader_buf, "Yubikey NEO", strlen(reader_buf)));
+    ck_assert_ptr_nonnull(strstr(reader_buf, "Yubikey NEO"));
     ck_assert(version[0] == '1'); // Verify app version 1.x
     ck_assert(version[1] == '.');
   }
