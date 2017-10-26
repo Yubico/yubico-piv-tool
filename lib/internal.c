@@ -2,8 +2,6 @@
 #ifdef _WINDOWS
 #include <windows.h>
 #include <wincrypt.h>
-#include <ntstatus.h>
-#define WIN32_NO_STATUS
 #include <bcrypt.h>
 #else
 #include <openssl/des.h>
@@ -22,6 +20,8 @@
 */
 
 #ifdef _WINDOWS
+
+#define STATUS_SUCCESS                   ((NTSTATUS)0x00000000L) 
 
 struct des_key {
   HCRYPTPROV hProv;

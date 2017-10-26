@@ -97,16 +97,16 @@ static void dump_hex(const unsigned char *buf, unsigned int len) {
 
 int _ykpiv_set_length(unsigned char *buffer, size_t length) {
   if(length < 0x80) {
-    *buffer++ = length;
+    *buffer++ = (unsigned char)length;
     return 1;
   } else if(length < 0xff) {
     *buffer++ = 0x81;
-    *buffer++ = length;
+    *buffer++ = (unsigned char)length;
     return 2;
   } else {
     *buffer++ = 0x82;
     *buffer++ = (length >> 8) & 0xff;
-    *buffer++ = length & 0xff;
+    *buffer++ = (unsigned char)length & 0xff;
     return 3;
   }
 }
@@ -244,7 +244,7 @@ ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state) {
   return res;
 }
 
-static ykpiv_rc _ykpiv_connect(ykpiv_state *state, uint64_t context, uint64_t card) {
+static ykpiv_rc _ykpiv_connect(ykpiv_state *state, uintptr_t context, uintptr_t card) {
   ykpiv_rc res = YKPIV_OK;
 
   if (NULL == state) {
@@ -286,7 +286,7 @@ static ykpiv_rc _ykpiv_connect(ykpiv_state *state, uint64_t context, uint64_t ca
   return res;
 }
 
-ykpiv_rc ykpiv_connect_with_external_card(ykpiv_state *state, uint64_t context, uint64_t card) {
+ykpiv_rc ykpiv_connect_with_external_card(ykpiv_state *state, uintptr_t context, uintptr_t card) {
   return _ykpiv_connect(state, context, card);
 }
 

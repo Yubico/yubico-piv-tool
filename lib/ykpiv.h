@@ -413,7 +413,7 @@ extern "C"
    *
    * @return Error code
    */
-  ykpiv_rc ykpiv_connect_with_external_card(ykpiv_state *state, uint64_t context, uint64_t card);
+  ykpiv_rc ykpiv_connect_with_external_card(ykpiv_state *state, uintptr_t context, uintptr_t card);
 
   /**
    * Variant of ykpiv_done() for external cards connected with ykpiv_connect_with_external_card()
