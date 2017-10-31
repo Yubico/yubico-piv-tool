@@ -53,7 +53,9 @@
  * to store the PIN in RAM.
  *
  */
+#ifndef DISABLE_PIN_CACHE
 #define DISABLE_PIN_CACHE 0
+#endif
 
 /**
  * ENABLE_APPLICATION_RESELECT - re-select application for all public API calls
@@ -70,7 +72,9 @@
  * \p YKPIV_PINPOLICY_ALWAYS will not be accessible.
  *
  */
+#ifndef ENABLE_APPLICATION_RESELECTION
 #define ENABLE_APPLICATION_RESELECTION 0
+#endif
 
 #define YKPIV_MGM_DEFAULT "\x01\x02\x03\x04\x05\x06\x07\x08\x01\x02\x03\x04\x05\x06\x07\x08\x01\x02\x03\x04\x05\x06\x07\x08"
 
