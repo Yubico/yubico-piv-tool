@@ -436,6 +436,16 @@ START_TEST(test_pin_policy_always) {
   ykpiv_rc res;
 
   {
+    ykpiv_devmodel model;
+    model = ykpiv_util_devicemodel(g_state);
+    // Only works with YK4.  NEO should skip.
+    if (model != DEVTYPE_YK4) {
+      fprintf(stderr, "WARNING: Not supported with Yubikey NEO.  Test skipped.\n");
+      return;
+    }
+  }
+
+  {
     unsigned char pp = YKPIV_PINPOLICY_ALWAYS;
     unsigned char tp = YKPIV_TOUCHPOLICY_DEFAULT;
     EVP_PKEY *private_key = NULL;
@@ -594,14 +604,6 @@ START_TEST(test_generate_key) {
       ck_assert_int_eq(res, YKPIV_NOT_SUPPORTED);
     }
   }
-}
-END_TEST
-
-START_TEST(test_read_write_mscmap) {
-}
-END_TEST
-
-START_TEST(test_read_write_msroots) {
 }
 END_TEST
 

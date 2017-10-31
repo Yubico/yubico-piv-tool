@@ -107,10 +107,11 @@ static void test_initalize() {
 
 }
 
-static void test_token_info() {
+static int test_token_info() {
 
   const CK_CHAR_PTR TOKEN_LABEL  = "YubiKey PIV";
   const CK_CHAR_PTR TOKEN_MODEL  = "YubiKey ";  // Skip last 3 characters (version dependent)
+  const CK_CHAR_PTR TOKEN_MODEL_YK4  = "YubiKey YK4";
   const CK_CHAR_PTR TOKEN_SERIAL = "1234";
   const CK_FLAGS TOKEN_FLAGS = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
   const CK_VERSION HW = {0, 0};
@@ -135,6 +136,12 @@ static void test_token_info() {
   asrt(info.ulFreePublicMemory, CK_UNAVAILABLE_INFORMATION, "FREE_PUB_MEM");
   asrt(info.ulTotalPrivateMemory, CK_UNAVAILABLE_INFORMATION, "TOTAL_PVT_MEM");
   asrt(info.ulFreePrivateMemory, CK_UNAVAILABLE_INFORMATION, "FREE_PVT_MEM");
+
+  if (strncmp(info.model, TOKEN_MODEL_YK4, strlen(TOKEN_MODEL_YK4)) != 0) {
+    dprintf(0, "\n\n** WARNING: Only YK4 supported.  Skipping remaining tests.\n\n");
+    return -1;
+  }
+
   asrt(info.hardwareVersion.major, HW.major, "HW_MAJ");
   asrt(info.hardwareVersion.minor, HW.minor, "HW_MIN");
 
@@ -144,7 +151,7 @@ static void test_token_info() {
   asrt(strncmp(info.utcTime, TOKEN_TIME, sizeof(info.utcTime)), 0, "TOKEN_TIME");
 
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
-
+  return 0;
 }
 
 static void test_mechanism_list_and_info() {
@@ -652,7 +659,9 @@ int main(void) {
     exit(77); // exit code 77 == skipped tests
 
   test_initalize();
-  test_token_info();
+  // Require YK4 to continue.  Skip if different model found.
+  if (test_token_info() != 0)
+    exit(77);
   test_mechanism_list_and_info();
   test_session();
   test_login();
