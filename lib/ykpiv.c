@@ -27,6 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
+/** @file */
 
 #include <stdlib.h>
 #include <string.h>
@@ -36,6 +37,40 @@
 
 #include "internal.h"
 #include "ykpiv.h"
+
+/**
+ * DISABLE_PIN_CACHE - disable in-RAM cache of PIN
+ *
+ * By default, the PIN is cached in RAM when provided to \p ykpiv_verify() or
+ * changed with \p ykpiv_change_pin().  If the USB connection is lost between
+ * calls, the device will be re-authenticated on the next call using the cached
+ * PIN.  The PIN is cleared with a call to \p ykpiv_done().
+ *
+ * The PIN cache prevents problems with long-running applications losing their
+ * authentication in some cases, such as when a laptop sleeps.
+ *
+ * The cache can be disabled by setting this define to 1 if it is not desired
+ * to store the PIN in RAM.
+ *
+ */
+#define DISABLE_PIN_CACHE 0
+
+/**
+ * ENABLE_APPLICATION_RESELECT - re-select application for all public API calls
+ *
+ * If this is enabled, every public call (prefixed with \r ykpiv_) will check
+ * that the PIV application is currently selected, or re-select it if it is
+ * not.
+ *
+ * Auto re-selection allows a long-running PIV application to cooperate on
+ * a system that may simultaneously use the non-PIV applications of connected
+ * devices.
+ *
+ * This is \b DANGEROUS - with this enabled, slots with the policy
+ * \p YKPIV_PINPOLICY_ALWAYS will not be accessible.
+ *
+ */
+#define ENABLE_APPLICATION_RESELECTION 0
 
 #define YKPIV_MGM_DEFAULT "\x01\x02\x03\x04\x05\x06\x07\x08\x01\x02\x03\x04\x05\x06\x07\x08\x01\x02\x03\x04\x05\x06\x07\x08"
 
@@ -228,6 +263,7 @@ ykpiv_rc _ykpiv_select_application(ykpiv_state *state) {
 ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state) {
   ykpiv_rc res = YKPIV_OK;
 
+#if ENABLE_APPLICATION_RESELECTION
   if (NULL == state) {
     return YKPIV_GENERIC_ERROR;
   }
@@ -242,6 +278,9 @@ ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state) {
   }
 
   return res;
+#else
+  return res;
+#endif
 }
 
 static ykpiv_rc _ykpiv_connect(ykpiv_state *state, uintptr_t context, uintptr_t card) {
@@ -333,7 +372,11 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
        * was supplied by an external library.
        */
       if (YKPIV_OK != (ret = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+#if ENABLE_APPLICATION_RESELECTION
       ret = _ykpiv_ensure_application_selected(state);
+#else
+      ret = _ykpiv_select_application(state);
+#endif
       _ykpiv_end_transaction(state);
       return ret;
     }
@@ -928,7 +971,7 @@ Cleanup:
 }
 
 static ykpiv_rc _cache_pin(ykpiv_state *state, const char *pin, size_t len) {
-#ifdef DISABLE_PIN_CACHE
+#if DISABLE_PIN_CACHE
   // Some embedded applications of this library may not want to keep the PIN
   // data in RAM for security reasons.
   return YKPIV_OK;
@@ -976,9 +1019,11 @@ static ykpiv_rc _verify(ykpiv_state *state, const char *pin, const size_t pin_le
   if ((res = _send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
     return res;
   } else if (sw == SW_SUCCESS) {
-    // Intentionally ignore errors.  If the PIN fails to save, it will only
-    // be a problem if a reconnect is attempted.  Failure deferred until then.
-    _cache_pin(state, pin, pin_len);
+    if (pin && pin_len) {
+      // Intentionally ignore errors.  If the PIN fails to save, it will only
+      // be a problem if a reconnect is attempted.  Failure deferred until then.
+      _cache_pin(state, pin, pin_len);
+    }
     if (tries) *tries = (sw & 0xf);
     return YKPIV_OK;
   } else if ((sw >> 8) == 0x63) {

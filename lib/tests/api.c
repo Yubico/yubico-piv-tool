@@ -281,6 +281,7 @@ bool prepare_rsa_signature(const unsigned char *in, unsigned int in_len, unsigne
   *out_len = (unsigned int)i2d_X509_SIG(&digestInfo, &out);
   return true;
 }
+
 START_TEST(test_import_key) {
   ykpiv_rc res;
 
@@ -431,6 +432,129 @@ START_TEST(test_import_key) {
 }
 END_TEST
 
+START_TEST(test_pin_policy_always) {
+  ykpiv_rc res;
+
+  {
+    unsigned char pp = YKPIV_PINPOLICY_ALWAYS;
+    unsigned char tp = YKPIV_TOUCHPOLICY_DEFAULT;
+    EVP_PKEY *private_key = NULL;
+    BIO *bio = NULL;
+    RSA *rsa_private_key = NULL;
+    unsigned char e[4];
+    unsigned char p[128];
+    unsigned char q[128];
+    unsigned char dmp1[128];
+    unsigned char dmq1[128];
+    unsigned char iqmp[128];
+    int element_len = 128;
+
+    bio = BIO_new_mem_buf(private_key_pem, strlen(private_key_pem));
+    private_key = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
+    ck_assert_ptr_nonnull(private_key);
+    BIO_free(bio);
+    rsa_private_key = EVP_PKEY_get1_RSA(private_key);
+    ck_assert_ptr_nonnull(rsa_private_key);
+    ck_assert(set_component(e, rsa_private_key->e, 3));
+    ck_assert(set_component(p, rsa_private_key->p, element_len));
+    ck_assert(set_component(q, rsa_private_key->q, element_len));
+    ck_assert(set_component(dmp1, rsa_private_key->dmp1, element_len));
+    ck_assert(set_component(dmq1, rsa_private_key->dmq1, element_len));
+    ck_assert(set_component(iqmp, rsa_private_key->iqmp, element_len));
+
+    // Try wrong algorithm, fail.
+    res = ykpiv_import_private_key(g_state,
+                                   0x9e,
+                                   YKPIV_ALGO_RSA1024,
+                                   p, element_len,
+                                   q, element_len,
+                                   dmp1, element_len,
+                                   dmq1, element_len,
+                                   iqmp, element_len,
+                                   NULL, 0,
+                                   pp, tp);
+    ck_assert_int_eq(res, YKPIV_ALGORITHM_ERROR);
+
+    // Try right algorithm
+    res = ykpiv_import_private_key(g_state,
+                                   0x9e,
+                                   YKPIV_ALGO_RSA2048,
+                                   p, element_len,
+                                   q, element_len,
+                                   dmp1, element_len,
+                                   dmq1, element_len,
+                                   iqmp, element_len,
+                                   NULL, 0,
+                                   pp, tp);
+    ck_assert_int_eq(res, YKPIV_OK);
+    EVP_PKEY_free(private_key);
+  }
+
+  // Verify certificate
+  {
+    BIO *bio = NULL;
+    X509 *cert = NULL;
+    RSA *rsa = NULL;
+    EVP_PKEY *pub_key = NULL;
+    const EVP_MD *md = EVP_sha256();
+    EVP_MD_CTX *mdctx;
+
+    unsigned char signature[1024];
+    unsigned char encoded[1024];
+    unsigned char data[1024];
+    unsigned char signinput[1024];
+    unsigned char rand[128];
+
+    size_t sig_len = sizeof(signature);
+    size_t padlen = 256;
+    unsigned int enc_len;
+    unsigned int data_len;
+
+    bio = BIO_new_mem_buf(certificate_pem, strlen(certificate_pem));
+    cert = PEM_read_bio_X509(bio, NULL, NULL, NULL);
+    ck_assert_ptr_nonnull(cert);
+    BIO_free(bio);
+    pub_key = X509_get_pubkey(cert);
+    ck_assert_ptr_nonnull(pub_key);
+    rsa = EVP_PKEY_get1_RSA(pub_key);
+    ck_assert_ptr_nonnull(rsa);
+
+    ck_assert_int_gt(RAND_pseudo_bytes(rand, 128), 0);
+    mdctx = EVP_MD_CTX_create();
+    EVP_DigestInit_ex(mdctx, md, NULL);
+    EVP_DigestUpdate(mdctx, rand, 128);
+    EVP_DigestFinal_ex(mdctx, data, &data_len);
+
+    prepare_rsa_signature(data, data_len, encoded, &enc_len, EVP_MD_type(md));
+    ck_assert_int_ne(RSA_padding_add_PKCS1_type_1(signinput, padlen, encoded, enc_len), 0);
+
+    // Sign without verify: fail
+    res = ykpiv_sign_data(g_state, signinput, padlen, signature, &sig_len, YKPIV_ALGO_RSA2048, 0x9e);
+    ck_assert_int_eq(res, YKPIV_AUTHENTICATION_ERROR);
+
+    // Sign with verify: pass
+    res = ykpiv_verify(g_state, "123456", NULL);
+    ck_assert_int_eq(res, YKPIV_OK);
+    res = ykpiv_sign_data(g_state, signinput, padlen, signature, &sig_len, YKPIV_ALGO_RSA2048, 0x9e);
+    ck_assert_int_eq(res, YKPIV_OK);
+
+    // Sign again without verify: fail
+    res = ykpiv_sign_data(g_state, signinput, padlen, signature, &sig_len, YKPIV_ALGO_RSA2048, 0x9e);
+    ck_assert_int_eq(res, YKPIV_AUTHENTICATION_ERROR);
+
+    // Sign again with verify: pass
+    res = ykpiv_verify(g_state, "123456", NULL);
+    ck_assert_int_eq(res, YKPIV_OK);
+    res = ykpiv_sign_data(g_state, signinput, padlen, signature, &sig_len, YKPIV_ALGO_RSA2048, 0x9e);
+    ck_assert_int_eq(res, YKPIV_OK);
+
+    ck_assert_int_eq(RSA_verify(EVP_MD_type(md), data, data_len, signature, sig_len, rsa), 1);
+
+    X509_free(cert);
+  }
+}
+END_TEST
+
 START_TEST(test_generate_key) {
   ykpiv_rc res;
   uint8_t *mod, *exp;
@@ -440,7 +564,7 @@ START_TEST(test_generate_key) {
   res = ykpiv_util_generate_key(g_state,
                                 YKPIV_KEY_AUTHENTICATION,
                                 YKPIV_ALGO_RSA2048,
-                                YKPIV_PINPOLICY_ONCE,
+                                YKPIV_PINPOLICY_DEFAULT,
                                 YKPIV_TOUCHPOLICY_DEFAULT,
                                 &mod,
                                 &mod_len,
@@ -802,6 +926,7 @@ Suite *test_suite(void) {
   tcase_add_test(tc, test_list_readers);
   tcase_add_test(tc, test_read_write_list_delete_cert);
   tcase_add_test(tc, test_import_key);
+  tcase_add_test(tc, test_pin_policy_always);
   tcase_add_test(tc, test_generate_key);
 
   // Must be last: tear down and re-test with custom memory allocator

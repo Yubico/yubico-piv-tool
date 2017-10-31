@@ -721,12 +721,11 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
       if (match == 3 && major == 4 && (minor < 3 || (minor == 3 && build < 5))) {
         fprintf(stderr, "On-chip RSA key generation on this YubiKey has been blocked.\n");
         fprintf(stderr, "Please see https://yubi.co/ysa201701/ for details.\n");
-        res = YKPIV_NOT_SUPPORTED;
-        goto Cleanup;
+        return YKPIV_NOT_SUPPORTED;
       }
     } else {
       fprintf(stderr, "Failed to get device version.\n");
-      goto Cleanup;
+      return YKPIV_GENERIC_ERROR;
     }
   }
 

@@ -45,7 +45,7 @@ endif
 ykcs11_tests_LDADD = ../libykcs11.la $(OPENSSL_LIBS)
 
 check_PROGRAMS = ykcs11_tests
-TESTS = $(check_PROGRAMS)
+TESTS = reset.sh $(check_PROGRAMS)
 
 if ENABLE_COV
 AM_LDFLAGS += --coverage
