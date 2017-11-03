@@ -249,7 +249,8 @@ static const char *certificate_pem =
   "W4YXbzGZb8qdT27qIZaHD638tL6liLkI6UE4KCXH8X8e3fqdbmqvwrq403nOGmsP\n"
   "cbJb2PEXibNEQG234riKxm7x7vNDLL79Jwtc\n"
   "-----END CERTIFICATE-----\n";
-bool set_component(unsigned char *in_ptr, const BIGNUM *bn, int element_len) {
+
+static bool set_component(unsigned char *in_ptr, const BIGNUM *bn, int element_len) {
   int real_len = BN_num_bytes(bn);
 
   if(real_len > element_len) {
@@ -261,7 +262,8 @@ bool set_component(unsigned char *in_ptr, const BIGNUM *bn, int element_len) {
 
   return true;
 }
-bool prepare_rsa_signature(const unsigned char *in, unsigned int in_len, unsigned char *out, unsigned int *out_len, int nid) {
+
+static bool prepare_rsa_signature(const unsigned char *in, unsigned int in_len, unsigned char *out, unsigned int *out_len, int nid) {
   X509_SIG digestInfo;
   X509_ALGOR algor;
   ASN1_TYPE parameter;
@@ -282,11 +284,10 @@ bool prepare_rsa_signature(const unsigned char *in, unsigned int in_len, unsigne
   return true;
 }
 
-START_TEST(test_import_key) {
+static void import_key(unsigned char slot, unsigned char pin_policy) {
   ykpiv_rc res;
-
   {
-    unsigned char pp = YKPIV_PINPOLICY_DEFAULT;
+    unsigned char pp = pin_policy;
     unsigned char tp = YKPIV_TOUCHPOLICY_DEFAULT;
     EVP_PKEY *private_key = NULL;
     BIO *bio = NULL;
@@ -314,7 +315,7 @@ START_TEST(test_import_key) {
 
     // Try wrong algorithm, fail.
     res = ykpiv_import_private_key(g_state,
-                                   0x9e,
+                                   slot,
                                    YKPIV_ALGO_RSA1024,
                                    p, element_len,
                                    q, element_len,
@@ -327,7 +328,7 @@ START_TEST(test_import_key) {
 
     // Try right algorithm
     res = ykpiv_import_private_key(g_state,
-                                   0x9e,
+                                   slot,
                                    YKPIV_ALGO_RSA2048,
                                    p, element_len,
                                    q, element_len,
@@ -339,6 +340,44 @@ START_TEST(test_import_key) {
     ck_assert_int_eq(res, YKPIV_OK);
     EVP_PKEY_free(private_key);
   }
+
+  // Use imported key to decrypt a thing.  See that it works.
+  {
+    BIO *bio = NULL;
+    X509 *cert = NULL;
+    EVP_PKEY *pub_key = NULL;
+    unsigned char secret[32];
+    unsigned char secret2[32];
+    unsigned char data[256];
+    int len;
+    size_t len2 = sizeof(data);
+    RSA *rsa = NULL;
+    bio = BIO_new_mem_buf(certificate_pem, strlen(certificate_pem));
+    cert = PEM_read_bio_X509(bio, NULL, NULL, NULL);
+    ck_assert_ptr_nonnull(cert);
+    BIO_free(bio);
+    pub_key = X509_get_pubkey(cert);
+    ck_assert_ptr_nonnull(pub_key);
+    rsa = EVP_PKEY_get1_RSA(pub_key);
+    ck_assert_ptr_nonnull(rsa);
+    ck_assert_int_gt(RAND_pseudo_bytes(secret, sizeof(secret)), 0);
+    len = RSA_public_encrypt(sizeof(secret), secret, data, rsa, RSA_PKCS1_PADDING);
+    ck_assert_int_ge(len, 0);
+    res = ykpiv_verify(g_state, "123456", NULL);
+    ck_assert_int_eq(res, YKPIV_OK);
+    res = ykpiv_decipher_data(g_state, data, (size_t)len, data, &len2, YKPIV_ALGO_RSA2048, slot);
+    ck_assert_int_eq(res, YKPIV_OK);
+    len = RSA_padding_check_PKCS1_type_2(secret2, sizeof(secret2), data + 1, len2 - 1, RSA_size(rsa));
+    ck_assert_int_eq(len, sizeof(secret));
+    ck_assert_int_eq(memcmp(secret, secret2, sizeof(secret)), 0);
+    X509_free(cert);
+  }
+}
+
+START_TEST(test_import_key) {
+  ykpiv_rc res;
+
+  import_key(0x9a, YKPIV_PINPOLICY_DEFAULT);
 
   // Verify certificate
   {
@@ -377,41 +416,11 @@ START_TEST(test_import_key) {
 
     prepare_rsa_signature(data, data_len, encoded, &enc_len, EVP_MD_type(md));
     ck_assert_int_ne(RSA_padding_add_PKCS1_type_1(signinput, padlen, encoded, enc_len), 0);
-    res = ykpiv_sign_data(g_state, signinput, padlen, signature, &sig_len, YKPIV_ALGO_RSA2048, 0x9e);
+    res = ykpiv_sign_data(g_state, signinput, padlen, signature, &sig_len, YKPIV_ALGO_RSA2048, 0x9a);
     ck_assert_int_eq(res, YKPIV_OK);
 
     ck_assert_int_eq(RSA_verify(EVP_MD_type(md), data, data_len, signature, sig_len, rsa), 1);
 
-    X509_free(cert);
-  }
-
-  // Use imported key to decrypt a thing.  See that it works.
-  {
-    BIO *bio = NULL;
-    X509 *cert = NULL;
-    EVP_PKEY *pub_key = NULL;
-    unsigned char secret[32];
-    unsigned char secret2[32];
-    unsigned char data[256];
-    int len;
-    size_t len2 = sizeof(data);
-    RSA *rsa = NULL;
-    bio = BIO_new_mem_buf(certificate_pem, strlen(certificate_pem));
-    cert = PEM_read_bio_X509(bio, NULL, NULL, NULL);
-    ck_assert_ptr_nonnull(cert);
-    BIO_free(bio);
-    pub_key = X509_get_pubkey(cert);
-    ck_assert_ptr_nonnull(pub_key);
-    rsa = EVP_PKEY_get1_RSA(pub_key);
-    ck_assert_ptr_nonnull(rsa);
-    ck_assert_int_gt(RAND_pseudo_bytes(secret, sizeof(secret)), 0);
-    len = RSA_public_encrypt(sizeof(secret), secret, data, rsa, RSA_PKCS1_PADDING);
-    ck_assert_int_ge(len, 0);
-    res = ykpiv_decipher_data(g_state, data, (size_t)len, data, &len2, YKPIV_ALGO_RSA2048, 0x9e);
-    ck_assert_int_eq(res, YKPIV_OK);
-    len = RSA_padding_check_PKCS1_type_2(secret2, sizeof(secret2), data + 1, len2 - 1, RSA_size(rsa));
-    ck_assert_int_eq(len, sizeof(secret));
-    ck_assert_int_eq(memcmp(secret, secret2, sizeof(secret)), 0);
     X509_free(cert);
   }
 
@@ -421,7 +430,7 @@ START_TEST(test_import_key) {
     size_t attest_len = sizeof(attest);
     ykpiv_devmodel model;
     model = ykpiv_util_devicemodel(g_state);
-    res = ykpiv_attest(g_state, 0x9e, attest, &attest_len);
+    res = ykpiv_attest(g_state, 0x9a, attest, &attest_len);
     if (model == DEVTYPE_YK4) {
       ck_assert_int_eq(res, YKPIV_GENERIC_ERROR);
     }
@@ -445,60 +454,7 @@ START_TEST(test_pin_policy_always) {
     }
   }
 
-  {
-    unsigned char pp = YKPIV_PINPOLICY_ALWAYS;
-    unsigned char tp = YKPIV_TOUCHPOLICY_DEFAULT;
-    EVP_PKEY *private_key = NULL;
-    BIO *bio = NULL;
-    RSA *rsa_private_key = NULL;
-    unsigned char e[4];
-    unsigned char p[128];
-    unsigned char q[128];
-    unsigned char dmp1[128];
-    unsigned char dmq1[128];
-    unsigned char iqmp[128];
-    int element_len = 128;
-
-    bio = BIO_new_mem_buf(private_key_pem, strlen(private_key_pem));
-    private_key = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
-    ck_assert_ptr_nonnull(private_key);
-    BIO_free(bio);
-    rsa_private_key = EVP_PKEY_get1_RSA(private_key);
-    ck_assert_ptr_nonnull(rsa_private_key);
-    ck_assert(set_component(e, rsa_private_key->e, 3));
-    ck_assert(set_component(p, rsa_private_key->p, element_len));
-    ck_assert(set_component(q, rsa_private_key->q, element_len));
-    ck_assert(set_component(dmp1, rsa_private_key->dmp1, element_len));
-    ck_assert(set_component(dmq1, rsa_private_key->dmq1, element_len));
-    ck_assert(set_component(iqmp, rsa_private_key->iqmp, element_len));
-
-    // Try wrong algorithm, fail.
-    res = ykpiv_import_private_key(g_state,
-                                   0x9e,
-                                   YKPIV_ALGO_RSA1024,
-                                   p, element_len,
-                                   q, element_len,
-                                   dmp1, element_len,
-                                   dmq1, element_len,
-                                   iqmp, element_len,
-                                   NULL, 0,
-                                   pp, tp);
-    ck_assert_int_eq(res, YKPIV_ALGORITHM_ERROR);
-
-    // Try right algorithm
-    res = ykpiv_import_private_key(g_state,
-                                   0x9e,
-                                   YKPIV_ALGO_RSA2048,
-                                   p, element_len,
-                                   q, element_len,
-                                   dmp1, element_len,
-                                   dmq1, element_len,
-                                   iqmp, element_len,
-                                   NULL, 0,
-                                   pp, tp);
-    ck_assert_int_eq(res, YKPIV_OK);
-    EVP_PKEY_free(private_key);
-  }
+  import_key(0x9e, YKPIV_PINPOLICY_ALWAYS);
 
   // Verify certificate
   {
@@ -896,6 +852,63 @@ START_TEST(test_allocator) {
 }
 END_TEST
 
+START_TEST(test_pin_cache) {
+  ykpiv_rc res;
+  ykpiv_state *local_state;
+  unsigned char data[256];
+  int len = sizeof(data);
+  size_t len2 = sizeof(data);
+
+  import_key(0x9a, YKPIV_PINPOLICY_DEFAULT);
+
+  // Disconnect and reconnect to device to guarantee it is not authed
+  res = ykpiv_disconnect(g_state);
+  ck_assert_int_eq(res, YKPIV_OK);
+  res = ykpiv_done(g_state);
+  ck_assert_int_eq(res, YKPIV_OK);
+  res = ykpiv_init(&g_state, true);
+  ck_assert_int_eq(res, YKPIV_OK);
+  ck_assert_ptr_nonnull(g_state);
+  res = ykpiv_connect(g_state, NULL);
+  ck_assert_int_eq(res, YKPIV_OK);
+
+  // Verify decryption does not work without auth
+  res = ykpiv_decipher_data(g_state, data, (size_t)len, data, &len2, YKPIV_ALGO_RSA2048, 0x9a);
+  ck_assert_int_eq(res, YKPIV_AUTHENTICATION_ERROR);
+
+  // Verify decryption does work when authed
+  res = ykpiv_verify_select(g_state, "123456", 6, NULL, true);
+  ck_assert_int_eq(res, YKPIV_OK);
+  res = ykpiv_decipher_data(g_state, data, (size_t)len, data, &len2, YKPIV_ALGO_RSA2048, 0x9a);
+  ck_assert_int_eq(res, YKPIV_OK);
+
+  // Verify PIN policy allows continuing to decrypt without re-verifying
+  res = ykpiv_decipher_data(g_state, data, (size_t)len, data, &len2, YKPIV_ALGO_RSA2048, 0x9a);
+  ck_assert_int_eq(res, YKPIV_OK);
+
+  // Create a new ykpiv state, connect, and close it.
+  // This forces a card reset from another context, so the original global
+  // context will require a reconnect for its next transaction.
+  res = ykpiv_init(&local_state, true);
+  ck_assert_int_eq(res, YKPIV_OK);
+  ck_assert_ptr_nonnull(local_state);
+  res = ykpiv_connect(local_state, NULL);
+  ck_assert_int_eq(res, YKPIV_OK);
+  res = ykpiv_disconnect(local_state);
+  ck_assert_int_eq(res, YKPIV_OK);
+  res = ykpiv_done(local_state);
+  ck_assert_int_eq(res, YKPIV_OK);
+
+  // Verify we are still authenticated on the global context.  This will
+  // require an automatic  reconnect and re-verify with the cached PIN.
+  //
+  // Note that you can verify that this fails by rebuilding with
+  // DISABLE_PIN_CACHE set to 1.
+  res = ykpiv_decipher_data(g_state, data, (size_t)len, data, &len2, YKPIV_ALGO_RSA2048, 0x9a);
+  ck_assert_int_eq(res, YKPIV_OK);
+}
+END_TEST
+
 int destruction_confirmed(void) {
   char *confirmed = getenv("YKPIV_ENV_HWTESTS_CONFIRMED");
   if (confirmed && confirmed[0] == '1')
@@ -930,6 +943,7 @@ Suite *test_suite(void) {
   tcase_add_test(tc, test_import_key);
   tcase_add_test(tc, test_pin_policy_always);
   tcase_add_test(tc, test_generate_key);
+  tcase_add_test(tc, test_pin_cache);
 
   // Must be last: tear down and re-test with custom memory allocator
   tcase_add_test(tc, test_allocator);
