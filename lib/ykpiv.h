@@ -130,6 +130,7 @@ extern "C"
                                     const unsigned char *qinv, size_t qinv_len,
                                     const unsigned char *ec_data, unsigned char ec_data_len,
                                     const unsigned char pin_policy, const unsigned char touch_policy);
+  ykpiv_rc ykpiv_attest(ykpiv_state *state, const unsigned char key, unsigned char *data, size_t *data_len);
 
   /**
    * Return the number of PIN attempts remaining before PIN is locked.
@@ -156,12 +157,59 @@ extern "C"
    */
   ykpiv_rc ykpiv_set_pin_retries(ykpiv_state *state, int pin_tries, int puk_tries);
 
-  ykpiv_rc ykpiv_attest(ykpiv_state *state, const unsigned char key, unsigned char *data, size_t *data_len);
+  /**
+   * Variant of ykpiv_connect() that accepts a card context obtained externally.
+   *
+   * Not for generic use.  Use ykpiv_connect() instead.
+   *
+   * @param state State handle
+   * @param context Card context returned from SCardConnect() or equivalent.
+   * @param card Card ID returned from SCardConnect() or equivalent.
+   *
+   * @return Error code
+   */
+  ykpiv_rc ykpiv_connect_with_external_card(ykpiv_state *state, uintptr_t context, uintptr_t card);
+
+  /**
+   * Variant of ykpiv_done() for external cards connected with ykpiv_connect_with_external_card()
+   *
+   * Card is not disconnected, unlike with normal calls to ykpiv_done().
+   *
+   * @param state State handle
+   *
+   * @return Error code
+   */
+  ykpiv_rc ykpiv_done_with_external_card(ykpiv_state *state);
+
+  /**
+   * Variant of ykpiv_verify() that optionally selects the PIV applet first.
+   *
+   * @param state State handle
+   * @param pin PIN code to verify with
+   * @param pin_len Length of \p pin
+   * @param tries Set to number of attempts remaining (if non-NULL)
+   * @param force_select Whether to select the PIV applet before verifying.
+   *
+   * @return Error code
+   */
+  ykpiv_rc ykpiv_verify_select(ykpiv_state *state, const char *pin, const size_t pin_len, int *tries, bool force_select);
 
 
-//
-// HIGH-LEVEL UTIL API
-//
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////
+////
+//// High-level Util API
+////
+////
+//// Util api always allocates data on your behalf, if data = 0, *data != 0,
+//// or data_len = 0 an invalid parameter will be returned; to free data, call
+//// ykpiv_util_free().
+////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
   typedef uint32_t ykpiv_devmodel;
 
@@ -202,7 +250,25 @@ extern "C"
 
 #pragma pack(pop)
 
-  /* Util api always allocates data on your behalf, if data = 0, *data != 0, or data_len = 0 an invalid parameter will be returned; to free data, call ykpiv_util_free(). */
+  typedef enum {
+    YKPIV_CONFIG_MGM_MANUAL = 0,
+    YKPIV_CONFIG_MGM_DERIVED = 1,
+    YKPIV_CONFIG_MGM_PROTECTED = 2
+  } ykpiv_config_mgm_type;
+
+#pragma pack(push, 1)
+  typedef struct _ykpiv_config {
+    uint8_t               protected_data_available;
+    uint8_t               puk_blocked;
+    uint8_t               puk_noblock_on_upgrade;
+    uint32_t              pin_last_changed;
+    ykpiv_config_mgm_type mgm_type;
+  } ykpiv_config;
+
+  typedef struct _ykpiv_mgm {
+    uint8_t data[24];
+  } ykpiv_mgm;
+#pragma pack(pop)
 
   /**
    * Free allocated data
@@ -239,26 +305,6 @@ extern "C"
   ykpiv_rc ykpiv_util_write_mscmap(ykpiv_state *state, ykpiv_container *containers, size_t n_containers);
   ykpiv_rc ykpiv_util_read_msroots(ykpiv_state  *state, uint8_t **data, size_t *data_len);
   ykpiv_rc ykpiv_util_write_msroots(ykpiv_state *state, uint8_t *data, size_t data_len);
-
-  typedef enum {
-    YKPIV_CONFIG_MGM_MANUAL = 0,
-    YKPIV_CONFIG_MGM_DERIVED = 1,
-    YKPIV_CONFIG_MGM_PROTECTED = 2
-  } ykpiv_config_mgm_type;
-
-#pragma pack(push, 1)
-  typedef struct _ykpiv_config {
-    uint8_t               protected_data_available;
-    uint8_t               puk_blocked;
-    uint8_t               puk_noblock_on_upgrade;
-    uint32_t              pin_last_changed;
-    ykpiv_config_mgm_type mgm_type;
-  } ykpiv_config;
-
-  typedef struct _ykpiv_mgm {
-    uint8_t data[24];
-  } ykpiv_mgm;
-#pragma pack(pop)
 
   /**
    * Get current PIV applet administration configuration state
@@ -402,42 +448,19 @@ extern "C"
    */
   uint32_t ykpiv_util_slot_object(uint8_t slot);
 
-  /**
-   * Variant of ykpiv_connect() that accepts a card context obtained externally.
-   *
-   * Not for generic use.  Use ykpiv_connect() instead.
-   *
-   * @param state State handle
-   * @param context Card context returned from SCardConnect() or equivalent.
-   * @param card Card ID returned from SCardConnect() or equivalent.
-   *
-   * @return Error code
-   */
-  ykpiv_rc ykpiv_connect_with_external_card(ykpiv_state *state, uintptr_t context, uintptr_t card);
 
-  /**
-   * Variant of ykpiv_done() for external cards connected with ykpiv_connect_with_external_card()
-   *
-   * Card is not disconnected, unlike with normal calls to ykpiv_done().
-   *
-   * @param state State handle
-   *
-   * @return Error code
-   */
-  ykpiv_rc ykpiv_done_with_external_card(ykpiv_state *state);
 
-  /**
-   * Variant of ykpiv_verify() that optionally selects the PIV applet first.
-   *
-   * @param state State handle
-   * @param pin PIN code to verify with
-   * @param pin_len Length of \p pin
-   * @param tries Set to number of attempts remaining (if non-NULL)
-   * @param force_select Whether to select the PIV applet before verifying.
-   *
-   * @return Error code
-   */
-  ykpiv_rc ykpiv_verify_select(ykpiv_state *state, const char *pin, const size_t pin_len, int *tries, bool force_select);
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////
+////
+//// Defines
+////
+////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 #define YKPIV_ALGO_TAG 0x80
 #define YKPIV_ALGO_3DES 0x03
