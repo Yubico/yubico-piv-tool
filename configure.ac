@@ -35,7 +35,7 @@ AC_CONFIG_MACRO_DIR([m4])
 # Interfaces removed:                           AGE=0
 AC_SUBST([LT_CURRENT], 5)
 AC_SUBST([LT_REVISION], 0)
-AC_SUBST([LT_AGE], 0)
+AC_SUBST([LT_AGE], 4)
 
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AM_SILENT_RULES([yes])
@@ -60,7 +60,7 @@ gl_VALGRIND_TESTS
 
 # Check for clang
 AC_CACHE_CHECK([for clang],
-	cv_clang,[
+	_cv_clang,[
 	AC_TRY_COMPILE([], [
 		#ifdef __clang__
 		#else
@@ -68,11 +68,11 @@ AC_CACHE_CHECK([for clang],
 		#endif
 		return 0;
 	],
-	[cv_clang=yes],
-	[cv_clang=no],
+	[_cv_clang=yes],
+	[_cv_clang=no],
 	[])
 ])
-AM_CONDITIONAL([COMPILER_CLANG], [test "$cv_clang" = yes])
+AM_CONDITIONAL([COMPILER_CLANG], [test "$_cv_clang" = yes])
 
 AC_ARG_WITH([backend],
   [AS_HELP_STRING([--with-backend=ARG],

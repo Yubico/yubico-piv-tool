@@ -1159,7 +1159,7 @@ ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
     if (fGenerate) {
       /* generate a new mgm key */
       if (PRNG_OK != (prngrc = _ykpiv_prng_generate(mgm_key, sizeof(mgm_key)))) {
-        if (state->verbose) fprintf(stderr, "could not set generate new mgm, err = %d\n", prngrc);
+        if (state->verbose) fprintf(stderr, "could not generate new mgm, err = %d\n", prngrc);
         res = YKPIV_RANDOMNESS_ERROR;
         goto Cleanup;
       }
@@ -1546,7 +1546,7 @@ static ykpiv_rc _read_metadata(ykpiv_state *state, uint8_t tag, uint8_t* data, s
   size_t cb_temp = 0;
   int obj_id = 0;
 
-  if (!data || !data || !pcb_data || (CB_BUF_MAX > *pcb_data)) return YKPIV_GENERIC_ERROR;
+  if (!data || !pcb_data || (CB_BUF_MAX > *pcb_data)) return YKPIV_GENERIC_ERROR;
 
   switch (tag) {
   case TAG_ADMIN: obj_id = YKPIV_OBJ_ADMIN_DATA; break;

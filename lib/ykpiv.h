@@ -142,7 +142,7 @@ extern "C"
    *
    * @return Error code
    */
-  ykpiv_rc ykpiv_get_pin_retries(ykpiv_state *state, int* tries);
+  ykpiv_rc ykpiv_get_pin_retries(ykpiv_state *state, int *tries);
 
   /**
    * Set number of attempts before locking for PIN and PUK codes.
