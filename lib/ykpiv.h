@@ -138,7 +138,7 @@ extern "C"
    * **NOTE:** If PIN is already verified, calling ykpiv_get_pin_retries() will unverify the PIN.
    *
    * @param state State handle from ykpiv_init()
-   * @param tries Set to number of attempts remaining
+   * @param tries [out] Number of attempts remaining
    *
    * @return Error code
    */
@@ -187,7 +187,7 @@ extern "C"
    * @param state State handle
    * @param pin PIN code to verify with
    * @param pin_len Length of \p pin
-   * @param tries Set to number of attempts remaining (if non-NULL)
+   * @param tries [out] Number of attempts remaining (if non-NULL)
    * @param force_select Whether to select the PIV applet before verifying.
    *
    * @return Error code
@@ -273,44 +273,103 @@ extern "C"
   /**
    * Free allocated data
    *
-   * @param state state
-   * @param data pointer to buffer allocated by ykpiv
+   * Frees a buffer previously allocated by one of the other \p ykpiv_util functions.
+   *
+   * @param state State handle
+   * @param data Buffer previously allocated by a \p ykpiv_util function
    *
    * @return ypiv_rc error code
    */
   ykpiv_rc ykpiv_util_free(ykpiv_state *state, void *data);
 
+  /**
+   * Returns a list of all saved certificates.
+   *
+   * \p data should be freed with \p ykpiv_util_free() after use.
+   *
+   * @param state State handle
+   * @param key_count [out] Number of certificates returned
+   * @param data      [out] Set to a dynamically allocated list of certificates.
+   * @param data_len  [out] Set to size of \p data in bytes
+   *
+   * @return Error code
+   */
   ykpiv_rc ykpiv_util_list_keys(ykpiv_state *state, uint8_t *key_count, ykpiv_key **data, size_t *data_len);
+
+  /**
+   * Read a certificate stored in the given slot
+   *
+   * \p data should be freed with \p ykpiv_util_free() after use.
+   *
+   * @param state State handle
+   * @param slot Slot to read from
+   * @param data Pointer to buffer to store the read data
+   * @param data_len Pointer to size of input buffer, in bytes.  Update to length of read data after call.
+   *
+   * @return Error code
+   */
   ykpiv_rc ykpiv_util_read_cert(ykpiv_state *state, uint8_t slot, uint8_t **data, size_t *data_len);
+
+  /**
+   * Write a certificate to a given slot
+   *
+   * \p certinfo should be \p YKPIV_CERTINFO_UNCOMPRESSED for uncompressed certificates, which is the most
+   * common case, or \p YKPIV_CERTINFO_GZIP if the certificate in \p data is already compressed with gzip.
+   *
+   * @param state State handle
+   * @param slot Slot to write to
+   * @param data Buffer of data to write
+   * @param data_len Number of bytes to write
+   * @param certinfo Hint about type of certificate.  Use the \p YKPIV_CERTINFO* defines.
+   *
+   * @return Error code
+   */
   ykpiv_rc ykpiv_util_write_cert(ykpiv_state *state, uint8_t slot, uint8_t *data, size_t data_len, uint8_t certinfo);
+
+  /**
+   * Delete the certificate stored in the given slot
+   *
+   * @param state State handle
+   * @param slot Slot to delete certificate from
+   *
+   * @return Error code
+   */
   ykpiv_rc ykpiv_util_delete_cert(ykpiv_state *state, uint8_t slot);
 
   /**
-   * Generate Key
+   * Generate key in given slot with specified parameters
    *
-   * @param state state
-   * @param slot key slot
-   * @param algorithm algorithm
-   *
-   * @return ykpiv_rc error code
+   * \p modulus, \p exp, and \p point should be freed with \p ykpiv_util_free() after use.
    *
    * If algorithm is RSA1024 or RSA2048, the modulus, modulus_len, exp, and exp_len output parameters must be supplied.  They are filled with with public modulus (big-endian), its size, the public exponent (big-endian), and its size respectively.
+   *
    * If algorithm is ECCP256 or ECCP384, the point and point_len output parameters must be supplied.  They are filled with the public point (uncompressed octet-string encoded per SEC1 section 2.3.4)
+   *
    * If algorithm is ECCP256, the curve is always ANSI X9.62 Prime 256v1
+   *
    * If algorithm is ECCP384, the curve is always secp384r1
+   *
+   * @param state        State handle
+   * @param slot         Slot to generate key in
+   * @param algorithm    Key algorithm, specified as one of the \p YKPIV_ALGO_* options
+   * @param pin_policy   Per-slot PIN policy, specified as one of the \p YKPIV_PINPOLICY_* options
+   * @param touch_policy Per-slot touch policy, specified as one of the \p YKPIV_TOUCHPOLICY_* options.
+   * @param modulus      [out] RSA public modulus (RSA-only)
+   * @param modulus_len  [out] Size of \p modulus (RSA-only)
+   * @param exp          [out] RSA public exponent (RSA-only)
+   * @param exp_len      [out] Size of \p exp (RSA-only)
+   * @param point        [out] Public curve point (ECC-only)
+   * @param point_len    [out] Size of \p point (ECC-only)
+   *
+   * @return ykpiv_rc error code
    */
   ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algorithm, uint8_t pin_policy, uint8_t touch_policy, uint8_t **modulus, size_t *modulus_len, uint8_t **exp, size_t *exp_len, uint8_t **point, size_t *point_len);
-
-  ykpiv_rc ykpiv_util_read_mscmap(ykpiv_state *state, ykpiv_container **containers, size_t *n_containers);
-  ykpiv_rc ykpiv_util_write_mscmap(ykpiv_state *state, ykpiv_container *containers, size_t n_containers);
-  ykpiv_rc ykpiv_util_read_msroots(ykpiv_state  *state, uint8_t **data, size_t *data_len);
-  ykpiv_rc ykpiv_util_write_msroots(ykpiv_state *state, uint8_t *data, size_t data_len);
 
   /**
    * Get current PIV applet administration configuration state
    *
-   * @param state  [in] state
-   * @param config [out] output ykpiv_config struct with current applet data
+   * @param state  State handle
+   * @param config [out] ykpiv_config struct filled with current applet data
    *
    * @return ykpiv_rc error code
    */
@@ -321,7 +380,7 @@ extern "C"
    *
    * The applet must be authenticated to call this function
    *
-   * @param state state
+   * @param state State handle
    *
    * @return ykpiv_rc error code
    */
@@ -330,10 +389,10 @@ extern "C"
   /**
    * Get Derived MGM key
    *
-   * @param state   [in] state
-   * @param pin     [in] pin used to derive mgm key
-   * @param pin_len [in] length of pin
-   * @param mgm     [out] protected mgm key
+   * @param state   State handle
+   * @param pin     PIN used to derive mgm key
+   * @param pin_len Length of pin in bytes
+   * @param mgm     [out] Protected MGM key
    *
    * @return ykpiv_rc error code
    */
@@ -344,8 +403,8 @@ extern "C"
    *
    * The user pin must be verified to call this function
    *
-   * @param state [in] state
-   * @param mgm   [out] returns protected mgm key
+   * @param state State handle
+   * @param mgm   [out] Protected MGM key
    *
    * @return ykpiv_rc error code
    */
@@ -356,8 +415,10 @@ extern "C"
    *
    * The applet must be authenticated and the user pin verified to call this function
    *
-   * @param state state
-   * @param mgm   [in] if mgm is NULL or mgm.data is all zeroes, generate mgm, otherwise set specified key; [out] returns generated mgm key
+   * If \p mgm is NULL or \p mgm.data is all zeroes, generate MGM, otherwise set specified key.
+   *
+   * @param state State handle
+   * @param mgm   [in, out] Input: NULL or new MGM key.  Output: Generated MGM key
    *
    * @return ykpiv_rc error code
    */
@@ -366,9 +427,9 @@ extern "C"
   /**
    * Reset PIV applet
    *
-   * The user pin and puk must be blocked to call this function.
+   * The user PIN and PUK must be blocked to call this function.
    *
-   * @param state state
+   * @param state State handle
    *
    * @return ykpiv_rc error code
    */
@@ -377,8 +438,12 @@ extern "C"
   /**
    * Get card identifier
    *
-   * @param state state
-   * @param cardid ykpiv_cardid return value
+   * Gets the card identifier from the Cardholder Unique Identifier (CHUID).
+   *
+   * ID can be set with \p ykpiv_util_set_cardid().
+   *
+   * @param state State handle
+   * @param cardid [out] Unique Card ID stored in the CHUID
    *
    * @return ykpiv_rc error code
    */
@@ -387,10 +452,14 @@ extern "C"
   /**
    * Set card identifier
    *
+   * Set the card identifier in the Cardholder Unique Identifier (CHUID).
+   *
    * The card must be authenticated to call this function.
    *
-   * @param state state
-   * @param cardid cardid to set, if NULL, randomly generate
+   * See also: \p ykpiv_util_set_cccid()
+   *
+   * @param state State handle
+   * @param cardid Unique Card ID to set. If NULL, randomly generate.
    *
    * @return ypiv_rc error code
    *
@@ -400,8 +469,12 @@ extern "C"
   /**
    * Get card capabilities identifier
    *
-   * @param state state
-   * @param cardid ykpiv_cardid return value
+   * Gets the card identifier from the Card Capability Container (CCC).
+   *
+   * ID can be set with \p ykpiv_util_set_cccid().
+   *
+   * @param state State handle
+   * @param ccc [out] Unique Card ID stored in the CCC
    *
    * @return ykpiv_rc error code
    */
@@ -410,10 +483,14 @@ extern "C"
   /**
    * Set card capabilities identifier
    *
+   * Sets the card identifier in the Card Capability Container (CCC).
+   *
    * The card must be authenticated to call this function.
    *
+   * See also: \p ykpiv_util_set_cardid()
+   *
    * @param state state
-   * @param ccc card ID to set. if NULL, randomly generate
+   * @param ccc Unique Card ID to set. If NULL, randomly generate.
    *
    * @return ypiv_rc error code
    *
@@ -425,9 +502,9 @@ extern "C"
    *
    * The card must be connected to call this function.
    *
-   * @param state state
+   * @param state State handle
    *
-   * @return device model
+   * @return Device model
    *
    */
   ykpiv_devmodel ykpiv_util_devicemodel(ykpiv_state *state);
@@ -438,16 +515,25 @@ extern "C"
    * Utility function to block the PUK.
    *
    * To set the PUK blocked flag in the admin data, the applet must be authenticated.
+   *
+   * @param state State handle
+   *
+   * @return Error code
+   *
    */
   ykpiv_rc ykpiv_util_block_puk(ykpiv_state *state);
 
   /**
    * Object ID of given slot.
    *
-   * @param slot key slot
+   * @param slot Key slot
    */
   uint32_t ykpiv_util_slot_object(uint8_t slot);
 
+  ykpiv_rc ykpiv_util_read_mscmap(ykpiv_state *state, ykpiv_container **containers, size_t *n_containers);
+  ykpiv_rc ykpiv_util_write_mscmap(ykpiv_state *state, ykpiv_container *containers, size_t n_containers);
+  ykpiv_rc ykpiv_util_read_msroots(ykpiv_state  *state, uint8_t **data, size_t *data_len);
+  ykpiv_rc ykpiv_util_write_msroots(ykpiv_state *state, uint8_t *data, size_t data_len);
 
 
 ////////////////////////////////////////////////////////////////////////////////
