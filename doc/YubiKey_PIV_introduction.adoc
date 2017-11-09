@@ -7,7 +7,7 @@ smartcard, through common interfaces like PKCS#11.  This project
 contain the library, tools and PKCS#11 module to interact with the
 hardware functionality.
 
-* PIV Standards http://csrc.nist.gov/groups/SNS/piv/standards.html
+* PIV Standards https://csrc.nist.gov/groups/SNS/piv/standards.html
 
 === General information
 The default PIN code is 123456.  The default PUK code is 12345678.

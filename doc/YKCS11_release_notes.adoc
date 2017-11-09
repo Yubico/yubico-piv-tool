@@ -6,7 +6,7 @@ This module is based on version 2.40 of the PKCS#11 (Cryptoki)
 specifications.
 
 The complete specifications are available at
-http://docs.oasis-open.org/pkcs11/pkcs11-base/v2.40/os/pkcs11-base-v2.40-os.html.
+https://docs.oasis-open.org/pkcs11/pkcs11-base/v2.40/os/pkcs11-base-v2.40-os.html.
 
 === BUILDING
 YKCS11 is automatically built as part of `yubico-piv-tool` and the

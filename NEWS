@@ -1,6 +1,15 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
-* Version 1.4.4 (unreleased)
+* Version 1.4.5 (unreleased)
+
+* Version 1.4.4 (released 2017-10-17)
+
+** Documentation updates.
+
+** Add pin caching to work around disconnect problems.
+
+** Disable RSA key generation on YubiKey 4 before 4.3.5.
+See https://yubi.co/ysa201701/ for details.
 
 * Version 1.4.3 (released 2017-04-18)
 

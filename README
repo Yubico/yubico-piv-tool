@@ -70,6 +70,9 @@ backend to use.
 Recent versions of autoconf, automake, pkg-config and libtool must
 be installed.  Help2man is used to generate the manpages.  Gengetopt
 version 2.22.6 or later is needed for command line parameter handling.
+The
+link:https://github.com/Yubico/yubico-piv-tool/tree/master/vagrant/development[Vagrant
+VM] has all these dependencies preinstalled.
 
 Generate the build system using:
 
