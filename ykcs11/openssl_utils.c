@@ -476,16 +476,20 @@ CK_RV do_get_public_key(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
 CK_RV do_encode_rsa_public_key(ykcs11_rsa_key_t **key, CK_BYTE_PTR modulus,
           CK_ULONG mlen, CK_BYTE_PTR exponent, CK_ULONG elen) {
   ykcs11_rsa_key_t *k;
+  BIGNUM *k_n = NULL, *k_e = NULL;
   if (modulus == NULL || exponent == NULL)
     return CKR_ARGUMENTS_BAD;
 
   if ((k = RSA_new()) == NULL)
     return CKR_HOST_MEMORY;
 
-  if ((k->n = BN_bin2bn(modulus, mlen, NULL)) == NULL)
+  if ((k_n = BN_bin2bn(modulus, mlen, NULL)) == NULL)
     return CKR_FUNCTION_FAILED;
 
-  if ((k->e = BN_bin2bn(exponent, elen, NULL)) == NULL)
+  if ((k_e = BN_bin2bn(exponent, elen, NULL)) == NULL)
+    return CKR_FUNCTION_FAILED;
+
+  if (RSA_set0_key(k, k_n, k_e, NULL) == 0)
     return CKR_FUNCTION_FAILED;
 
   *key = k;
