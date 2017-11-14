@@ -259,6 +259,32 @@ static void test_login() {
 
 }
 
+#if OPENSSL_VERSION_NUMBER >= 10100000L
+static int bogus_sign(int dtype, const unsigned char *m, unsigned int m_length,
+               unsigned char *sigret, unsigned int *siglen, const RSA *rsa) {
+  sigret = malloc(1);
+  sigret = "";
+  *siglen = 1;
+  return 0;
+}
+
+static void bogus_sign_cert(X509 *cert) {
+  EVP_PKEY *pkey = EVP_PKEY_new();
+  RSA *rsa = RSA_new();
+  RSA_METHOD *meth = RSA_meth_dup(RSA_get_default_method());
+  BIGNUM *e = BN_new();
+
+  BN_set_word(e, 65537);
+  RSA_generate_key_ex(rsa, 1024, e, NULL);
+  RSA_meth_set_sign(meth, bogus_sign);
+  RSA_set_method(rsa, meth);
+  EVP_PKEY_set1_RSA(pkey, rsa);
+  X509_sign(cert, pkey, EVP_md5());
+  EVP_PKEY_free(pkey);
+}
+#endif
+
+
 // Import a newly generated P256 pvt key and a certificate
 // to every slot and use the key to sign some data
 static void test_import_and_sign_all_10() {
@@ -344,11 +370,15 @@ static void test_import_and_sign_all_10() {
   X509_set_notBefore(cert, tm);
   X509_set_notAfter(cert, tm);
 
+#if OPENSSL_VERSION_NUMBER < 10100000L
   cert->sig_alg->algorithm = OBJ_nid2obj(8);
   cert->cert_info->signature->algorithm = OBJ_nid2obj(8);
 
   ASN1_BIT_STRING_set_bit(cert->signature, 8, 1);
   ASN1_BIT_STRING_set(cert->signature, "\x00", 1);
+#else
+  bogus_sign_cert(cert);
+#endif
 
   p = value_c;
   if ((cert_len = (CK_ULONG) i2d_X509(cert, &p)) == 0 || cert_len > sizeof(value_c))
@@ -538,11 +568,16 @@ static void test_import_and_sign_all_10_RSA() {
   X509_set_notBefore(cert, tm);
   X509_set_notAfter(cert, tm);
 
+#if OPENSSL_VERSION_NUMBER < 10100000L
+  /* putting bogus data to signature to make some checks happy */
   cert->sig_alg->algorithm = OBJ_nid2obj(8);
   cert->cert_info->signature->algorithm = OBJ_nid2obj(8);
 
   ASN1_BIT_STRING_set_bit(cert->signature, 8, 1);
   ASN1_BIT_STRING_set(cert->signature, "\x00", 1);
+#else
+  bogus_sign_cert(cert);
+#endif
 
   px = value_c;
   if ((cert_len = (CK_ULONG) i2d_X509(cert, &px)) == 0 || cert_len > sizeof(value_c))
