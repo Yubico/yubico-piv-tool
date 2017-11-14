@@ -7,7 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include <openssl/opensslv.h>
+#include "openssl-compat.h"
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 
 #include <string.h>

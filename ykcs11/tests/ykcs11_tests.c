@@ -259,7 +259,7 @@ static void test_login() {
 
 }
 
-#if OPENSSL_VERSION_NUMBER >= 10100000L
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
 static int bogus_sign(int dtype, const unsigned char *m, unsigned int m_length,
                unsigned char *sigret, unsigned int *siglen, const RSA *rsa) {
   sigret = malloc(1);
@@ -370,7 +370,7 @@ static void test_import_and_sign_all_10() {
   X509_set_notBefore(cert, tm);
   X509_set_notAfter(cert, tm);
 
-#if OPENSSL_VERSION_NUMBER < 10100000L
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   cert->sig_alg->algorithm = OBJ_nid2obj(8);
   cert->cert_info->signature->algorithm = OBJ_nid2obj(8);
 
@@ -568,7 +568,7 @@ static void test_import_and_sign_all_10_RSA() {
   X509_set_notBefore(cert, tm);
   X509_set_notAfter(cert, tm);
 
-#if OPENSSL_VERSION_NUMBER < 10100000L
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   /* putting bogus data to signature to make some checks happy */
   cert->sig_alg->algorithm = OBJ_nid2obj(8);
   cert->cert_info->signature->algorithm = OBJ_nid2obj(8);
