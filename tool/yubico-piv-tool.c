@@ -148,6 +148,7 @@ yk_ec_meth_sign(int type, const unsigned char *dgst, int dlen,
   return 1;
 }
 
+#if OPENSSL_VERSION_NUMBER >= 10100000L
 static int
 wrap_public_key(ykpiv_state *state, int algorithm, EVP_PKEY *public_key,
     int key)
@@ -171,6 +172,7 @@ wrap_public_key(ykpiv_state *state, int algorithm, EVP_PKEY *public_key,
   }
   return 0;
 }
+#endif
 
 static bool generate_key(ykpiv_state *state, const char *slot,
     enum enum_algorithm algorithm, const char *output_file_name,
