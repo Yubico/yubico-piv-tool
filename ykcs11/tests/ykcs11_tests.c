@@ -466,6 +466,7 @@ static void test_import_and_sign_all_10_RSA() {
   CK_BYTE_PTR s_ptr;
   CK_ULONG    r_len;
   CK_ULONG    s_len;
+  const BIGNUM *bp, *bq, *biqmp, *bdmp1, *bdmq1;
 
   unsigned char  *px;
 
@@ -508,11 +509,13 @@ static void test_import_and_sign_all_10_RSA() {
 
   asrt(RSA_generate_key_ex(rsak, 1024, e_bn, NULL), 1, "GENERATE RSAK");
 
-  asrt(BN_bn2bin(rsak->p, p), 64, "GET P");
-  asrt(BN_bn2bin(rsak->q, q), 64, "GET Q");
-  asrt(BN_bn2bin(rsak->dmp1, dp), 64, "GET DP");
-  asrt(BN_bn2bin(rsak->dmq1, dp), 64, "GET DQ");
-  asrt(BN_bn2bin(rsak->iqmp, qinv), 64, "GET QINV");
+  RSA_get0_factors(rsak, &bp, &bq);
+  RSA_get0_crt_params(rsak, &bdmp1, &bdmq1, &biqmp);
+  asrt(BN_bn2bin(bp, p), 64, "GET P");
+  asrt(BN_bn2bin(bq, q), 64, "GET Q");
+  asrt(BN_bn2bin(bdmp1, dp), 64, "GET DP");
+  asrt(BN_bn2bin(bdmq1, dp), 64, "GET DQ");
+  asrt(BN_bn2bin(biqmp, qinv), 64, "GET QINV");
 
 
 
