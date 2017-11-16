@@ -42,6 +42,10 @@
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wpointer-sign"
 
+#ifdef __MINGW32__
+#define dprintf(fd, ...) fprintf(stdout, __VA_ARGS__)
+#endif
+
 void dump_hex(const unsigned char *buf, unsigned int len, FILE *output, int space) {
   unsigned int i;
   for (i = 0; i < len; i++) {

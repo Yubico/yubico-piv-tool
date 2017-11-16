@@ -38,6 +38,10 @@
 
 #include <check.h>
 
+#ifdef __MINGW32__
+#define dprintf(fd, ...) fprintf(stdout, __VA_ARGS__)
+#endif
+
 int destruction_confirmed(void);
 
 // only defined in libcheck 0.11+ (linux distros still shipping 0.10)

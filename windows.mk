@@ -27,6 +27,7 @@
 
 PACKAGE=yubico-piv-tool
 OPENSSLVERSION=1.0.2l
+CHECKVERSION=0.12.0
 
 all: usage 32bit 64bit
 
@@ -55,11 +56,18 @@ doit:
 	rm $(PWD)/tmp$(ARCH)/root/bin/c_rehash && \
 	rm -rf $(PWD)/tmp$(ARCH)/root/lib/engines/ && \
 	cd .. && \
+	cp ../check-$(CHECKVERSION).tar.gz . || \
+		curl -L -O "https://github.com/libcheck/check/releases/download/$(CHECKVERSION)/check-$(CHECKVERSION).tar.gz" && \
+	tar xfa check-$(CHECKVERSION).tar.gz && \
+	cd check-$(CHECKVERSION) && \
+	CC=$(HOST)-gcc PKG_CONFIG_PATH=$(PWD)/tmp$(ARCH)/root/lib/pkgconfig ./configure --host=$(HOST) --build=x86_64-unknown-linux-gnu --prefix=$(PWD)/tmp$(ARCH)/root --disable-subunit --enable-static --disable-shared && \
+	make all install && \
+	cd .. && \
 	cp ../$(PACKAGE)-$(VERSION).tar.gz . && \
 	tar xfa $(PACKAGE)-$(VERSION).tar.gz && \
 	cd $(PACKAGE)-$(VERSION)/ && \
 	CC=$(HOST)-gcc PKG_CONFIG_PATH=$(PWD)/tmp$(ARCH)/root/lib/pkgconfig lt_cv_deplibs_check_method=pass_all ./configure --host=$(HOST) --build=x86_64-unknown-linux-gnu --prefix=$(PWD)/tmp$(ARCH)/root LDFLAGS=-L$(PWD)/tmp$(ARCH)/root/lib CPPFLAGS=-I$(PWD)/tmp$(ARCH)/root/include && \
-	make install $(CHECK) && \
+	WINEPATH="/usr/$(HOST)/lib/" make install $(CHECK) && \
 	rm $(PWD)/tmp$(ARCH)/root/lib/*.la && \
 	rm -rf $(PWD)/tmp$(ARCH)/root/lib/pkgconfig/ && \
 	cp COPYING $(PWD)/tmp$(ARCH)/root/licenses/$(PACKAGE).txt && \
