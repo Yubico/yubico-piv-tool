@@ -196,7 +196,7 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa,
   *certptr++ = 0;
 
   // Store the certificate into the token
-  if (ykpiv_save_object(state, key_to_object_id(key), data, (size_t)(certptr - data)) != YKPIV_OK)
+  if (ykpiv_save_object(state, ykpiv_util_slot_object(key), data, (size_t)(certptr - data)) != YKPIV_OK)
     return CKR_DEVICE_ERROR;
 
   return CKR_OK;

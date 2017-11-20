@@ -37,8 +37,12 @@
 
 #include "cmdline.h"
 
-#define INPUT 1
-#define OUTPUT 2
+enum file_mode {
+  INPUT_TEXT,
+  OUTPUT_TEXT,
+  INPUT_BIN,
+  OUTPUT_BIN,
+};
 
 size_t read_data(unsigned char*, size_t, FILE*, enum enum_format);
 void dump_data(unsigned const char*, unsigned int, FILE*, bool, enum enum_format);
@@ -46,9 +50,8 @@ int set_length(unsigned char*, int);
 int get_length(const unsigned char*, int*);
 X509_NAME *parse_name(const char*);
 unsigned char get_algorithm(EVP_PKEY*);
-FILE *open_file(const char*, int);
-int get_object_id(enum enum_slot slot);
-int key_to_object_id(int key);
+FILE *open_file(const char *file_name, enum file_mode mode);
+int get_slot_hex(enum enum_slot slot_enum);
 bool set_component(unsigned char *in_ptr, const BIGNUM *bn, int element_len);
 bool prepare_rsa_signature(const unsigned char*, unsigned int, unsigned char*,
     unsigned int*, int);

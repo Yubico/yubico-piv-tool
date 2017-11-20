@@ -1,18 +1,18 @@
 # Copyright (c) 2014-2016 Yubico AB
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
-# 
+#
 #   * Redistributions of source code must retain the above copyright
 #     notice, this list of conditions and the following disclaimer.
-# 
+#
 #   * Redistributions in binary form must reproduce the above
 #     copyright notice, this list of conditions and the following
 #     disclaimer in the documentation and/or other materials provided
 #     with the distribution.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -29,12 +29,18 @@ TESTS_ENVIRONMENT = export VERSION=$(PACKAGE_VERSION); export EXEEXT=$(EXEEXT);
 
 LOG_COMPILER = $(VALGRIND)
 
-AM_CFLAGS = $(WARN_CFLAGS)
+AM_CFLAGS = $(WARN_CFLAGS) @CHECK_CFLAGS@
 AM_CPPFLAGS = -I$(top_srcdir)/lib -I$(top_builddir)/lib
 AM_CPPFLAGS += -I$(top_srcdir)/tool -I$(top_builddir)/tool
 AM_CPPFLAGS += $(OPENSSL_CFLAGS)
 
-AM_LDFLAGS = -no-install
+AM_LDFLAGS = @CHECK_LIBS@
+
+if COMPILER_CLANG
+AM_LDFLAGS += -no-fast-install
+else
+AM_LDFLAGS += -no-install
+endif
 
 parse_name_LDADD = ../libpiv_util.la $(OPENSSL_LIBS)
 test_inout_LDADD = ../libpiv_util.la

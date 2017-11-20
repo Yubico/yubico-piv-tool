@@ -32,7 +32,7 @@ AM_CPPFLAGS = $(OPENSSL_CFLAGS) $(PCSC_CFLAGS)
 
 lib_LTLIBRARIES = libykpiv.la
 
-libykpiv_la_SOURCES = ykpiv.c version.c ykpiv.pc.in ykpiv.map internal.h
+libykpiv_la_SOURCES = ykpiv.c util.c internal.c internal.h version.c ykpiv.pc.in ykpiv.map
 libykpiv_la_SOURCES += error.c
 libykpiv_la_includedir = $(includedir)/ykpiv
 libykpiv_la_include_HEADERS = ykpiv.h ykpiv-version.h

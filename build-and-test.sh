@@ -32,7 +32,7 @@ if [ "x$TRAVIS_OS_NAME" != "xosx" ]; then
     sudo apt-get update -qq
     sudo apt-get remove -qq -y $REMOVE
     sudo apt-get autoremove -qq
-    sudo apt-get install -qq -y gengetopt help2man $EXTRA
+    sudo apt-get install -qq -y gengetopt help2man check $EXTRA
     TAR=tar
 else
     ARCH=osx
@@ -40,6 +40,7 @@ else
     brew uninstall libtool
     brew install libtool
     brew install help2man
+    brew install check
     brew install pkg-config
     brew install gengetopt
     brew install gnu-tar

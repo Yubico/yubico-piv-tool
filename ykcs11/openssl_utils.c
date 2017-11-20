@@ -173,7 +173,7 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa,
 
   // Manually set a signature (same reason as before)
   ASN1_BIT_STRING_set_bit(cert->signature, 8, 1);
-  ASN1_BIT_STRING_set(cert->signature, "\x00", 1);
+  ASN1_BIT_STRING_set(cert->signature, (unsigned char*)"\x00", 1);
 
   len = i2d_X509(cert, NULL);
   if (len < 0)

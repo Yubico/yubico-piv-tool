@@ -182,6 +182,7 @@ CK_RV create_token(ykpiv_state *state, CK_BYTE_PTR p, ykcs11_slot_t *slot) {
 
   t_info->ulFreePrivateMemory = CK_UNAVAILABLE_INFORMATION;
 
+  memset(&t_info->hardwareVersion, 0, sizeof(t_info->hardwareVersion));
   // Ignore hardware version, report firmware version
   if (token.get_token_version(state, &t_info->firmwareVersion) != CKR_OK) {
     ykpiv_disconnect(state);
@@ -257,8 +258,6 @@ void strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
   data_ptr++;
   memcpy(buf_ptr, data_ptr, elem_len);
-  data_ptr += elem_len;
-  buf_ptr += elem_len;
 
   *len = sig_halflen * 2;
   memcpy(data, buf, *len);

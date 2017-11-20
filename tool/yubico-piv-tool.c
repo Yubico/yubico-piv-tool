@@ -50,26 +50,8 @@
 #include "cmdline.h"
 #include "util.h"
 
-/* FASC-N containing S9999F9999F999999F0F1F0000000000300001E encoded in
- * 4-bit BCD with 1 bit parity. run through the tools/fasc.pl script to get
- * bytes. */
-/* this CHUID has an expiry of 2030-01-01, maybe that should be variable.. */
-unsigned const char chuid_tmpl[] = {
-  0x30, 0x19, 0xd4, 0xe7, 0x39, 0xda, 0x73, 0x9c, 0xed, 0x39, 0xce, 0x73, 0x9d,
-  0x83, 0x68, 0x58, 0x21, 0x08, 0x42, 0x10, 0x84, 0x21, 0x38, 0x42, 0x10, 0xc3,
-  0xf5, 0x34, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x35, 0x08, 0x32, 0x30, 0x33, 0x30, 0x30,
-  0x31, 0x30, 0x31, 0x3e, 0x00, 0xfe, 0x00,
-};
-#define CHUID_GUID_OFFS 29
-
-unsigned const char ccc_tmpl[] = {
-  0xf0, 0x15, 0xa0, 0x00, 0x00, 0x01, 0x16, 0xff, 0x02, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf1, 0x01, 0x21,
-  0xf2, 0x01, 0x21, 0xf3, 0x00, 0xf4, 0x01, 0x00, 0xf5, 0x01, 0x10, 0xf6, 0x00,
-  0xf7, 0x00, 0xfa, 0x00, 0xfb, 0x00, 0xfc, 0x00, 0xfd, 0x00, 0xfe, 0x00
-};
-#define CCC_ID_OFFS 9
+#define MAX(a,b) (a) > (b) ? (a) : (b)
+#define MIN(a,b) (a) < (b) ? (a) : (b)
 
 #define CHUID 0
 #define CCC 1
@@ -78,9 +60,35 @@ unsigned const char ccc_tmpl[] = {
 
 #define KEY_LEN 24
 
+static enum file_mode key_file_mode(enum enum_key_format fmt, bool output) {
+  if (fmt == key_format_arg_PEM) {
+    if (output) {
+      return OUTPUT_TEXT;
+    }
+    return INPUT_TEXT;
+  }
+  if (output) {
+    return OUTPUT_BIN;
+  }
+  return INPUT_BIN;
+}
+
+static enum file_mode data_file_mode(enum enum_format fmt, bool output) {
+  if (fmt == format_arg_binary) {
+    if (output) {
+      return OUTPUT_BIN;
+    }
+    return INPUT_BIN;
+  }
+  if (output) {
+    return OUTPUT_TEXT;
+  }
+  return INPUT_TEXT;
+}
+
 static void print_version(ykpiv_state *state, const char *output_file_name) {
   char version[7];
-  FILE *output_file = open_file(output_file_name, OUTPUT);
+  FILE *output_file = open_file(output_file_name, OUTPUT_TEXT);
   if(!output_file) {
     return;
   }
@@ -115,167 +123,89 @@ static bool sign_data(ykpiv_state *state, const unsigned char *in, size_t len, u
   return false;
 }
 
-static bool generate_key(ykpiv_state *state, const char *slot,
+static bool generate_key(ykpiv_state *state, enum enum_slot slot,
     enum enum_algorithm algorithm, const char *output_file_name,
     enum enum_key_format key_format, enum enum_pin_policy pin_policy,
     enum enum_touch_policy touch_policy) {
-  unsigned char in_data[11];
-  unsigned char *in_ptr = in_data;
-  unsigned char data[1024];
-  unsigned char templ[] = {0, YKPIV_INS_GENERATE_ASYMMETRIC, 0, 0};
-  unsigned long recv_len = sizeof(data);
-  int sw;
   int key = 0;
-  FILE *output_file = NULL;
   bool ret = false;
+  ykpiv_rc res;
+  FILE *output_file = NULL;
   EVP_PKEY *public_key = NULL;
   RSA *rsa = NULL;
-  BIGNUM *bignum_n = NULL;
-  BIGNUM *bignum_e = NULL;
   EC_KEY *eckey = NULL;
-  EC_POINT *point = NULL;
-  char version[7];
+  EC_POINT *ecpoint = NULL;
+  uint8_t *mod = NULL;
+  uint8_t *exp = NULL;
+  uint8_t *point = NULL;
+  size_t mod_len = 0;
+  size_t exp_len = 0;
+  size_t point_len = 0;
 
-  if(algorithm == algorithm_arg_RSA1024 || algorithm == algorithm_arg_RSA2048) {
-    if(ykpiv_get_version(state, version, sizeof(version)) == YKPIV_OK) {
-      int major, minor, build;
-      int match = sscanf(version, "%d.%d.%d", &major, &minor, &build);
-      if(match == 3 && major == 4 && (minor < 3 || (minor == 3 && build < 5))) {
-        fprintf(stderr, "On-chip RSA key generation on this YubiKey has been blocked.\n");
-        fprintf(stderr, "Please see https://yubi.co/ysa201701/ for details.\n");
-        return false;
-      }
-    } else {
-      fprintf(stderr, "Failed to communicate.\n");
-      return false;
-    }
-  }
+  key = get_slot_hex(slot);
 
-  sscanf(slot, "%2x", &key);
-  templ[3] = key;
-
-  output_file = open_file(output_file_name, OUTPUT);
+  output_file = open_file(output_file_name, key_file_mode(key_format, true));
   if(!output_file) {
     return false;
   }
 
-  *in_ptr++ = 0xac;
-  *in_ptr++ = 3;
-  *in_ptr++ = YKPIV_ALGO_TAG;
-  *in_ptr++ = 1;
-  *in_ptr++ = get_piv_algorithm(algorithm);
-  if(in_data[4] == 0) {
-    fprintf(stderr, "Unexpected algorithm.\n");
-    goto generate_out;
-  }
-  if(pin_policy != pin_policy__NULL) {
-    in_data[1] += 3;
-    *in_ptr++ = YKPIV_PINPOLICY_TAG;
-    *in_ptr++ = 1;
-    *in_ptr++ = get_pin_policy(pin_policy);
-  }
-  if(touch_policy != touch_policy__NULL) {
-    in_data[1] += 3;
-    *in_ptr++ = YKPIV_TOUCHPOLICY_TAG;
-    *in_ptr++ = 1;
-    *in_ptr++ = get_touch_policy(touch_policy);
-  }
-  if(ykpiv_transfer_data(state, templ, in_data, in_ptr - in_data, data,
-        &recv_len, &sw) != YKPIV_OK) {
-    fprintf(stderr, "Failed to communicate.\n");
-    goto generate_out;
-  } else if(sw != SW_SUCCESS) {
-    fprintf(stderr, "Failed to generate new key (");
-    if(sw == SW_ERR_INCORRECT_SLOT) {
-      fprintf(stderr, "slot not supported?)\n");
-    } else if(sw == SW_ERR_INCORRECT_PARAM) {
-      if(pin_policy != pin_policy__NULL) {
-        fprintf(stderr, "pin policy not supported?)\n");
-      } else if(touch_policy != touch_policy__NULL) {
-        fprintf(stderr, "touch policy not supported?)\n");
-      } else {
-        fprintf(stderr, "algorithm not supported?)\n");
-      }
-    } else {
-      fprintf(stderr, "error %x)\n", sw);
-    }
+  res = ykpiv_util_generate_key(state,
+                                (uint8_t)(key & 0xFF),
+                                get_piv_algorithm(algorithm),
+                                get_pin_policy(pin_policy),
+                                get_touch_policy(touch_policy),
+                                &mod,
+                                &mod_len,
+                                &exp,
+                                &exp_len,
+                                &point,
+                                &point_len);
+  if (res != YKPIV_OK) {
+    fprintf(stderr, "Key generation failed.\n");
     goto generate_out;
   }
 
   if(key_format == key_format_arg_PEM) {
     public_key = EVP_PKEY_new();
     if(algorithm == algorithm_arg_RSA1024 || algorithm == algorithm_arg_RSA2048) {
-      unsigned char *data_ptr = data + 5;
-      int len = 0;
       rsa = RSA_new();
-
-      if(*data_ptr != 0x81) {
-        fprintf(stderr, "Failed to parse public key structure.\n");
-        goto generate_out;
-      }
-      data_ptr++;
-      data_ptr += get_length(data_ptr, &len);
-      bignum_n = BN_bin2bn(data_ptr, len, NULL);
-      if(bignum_n == NULL) {
+      rsa->n = BN_bin2bn(mod, mod_len, NULL);
+      if (rsa->n == NULL) {
         fprintf(stderr, "Failed to parse public key modulus.\n");
         goto generate_out;
       }
-      data_ptr += len;
-
-      if(*data_ptr != 0x82) {
-        fprintf(stderr, "Failed to parse public key structure (2).\n");
-        goto generate_out;
-      }
-      data_ptr++;
-      data_ptr += get_length(data_ptr, &len);
-      bignum_e = BN_bin2bn(data_ptr, len, NULL);
-      if(bignum_e == NULL) {
+      rsa->e = BN_bin2bn(exp, exp_len, NULL);
+      if(rsa->e == NULL) {
         fprintf(stderr, "Failed to parse public key exponent.\n");
         goto generate_out;
       }
-
-      rsa->n = bignum_n;
-      rsa->e = bignum_e;
       EVP_PKEY_set1_RSA(public_key, rsa);
     } else if(algorithm == algorithm_arg_ECCP256 || algorithm == algorithm_arg_ECCP384) {
       EC_GROUP *group;
-      unsigned char *data_ptr = data + 3;
       int nid;
-      size_t len;
 
       if(algorithm == algorithm_arg_ECCP256) {
         nid = NID_X9_62_prime256v1;
-        len = 65;
       } else {
         nid = NID_secp384r1;
-        len = 97;
       }
-
       eckey = EC_KEY_new();
       group = EC_GROUP_new_by_curve_name(nid);
       EC_GROUP_set_asn1_flag(group, nid);
       EC_KEY_set_group(eckey, group);
-      point = EC_POINT_new(group);
-      if(*data_ptr++ != 0x86) {
-        fprintf(stderr, "Failed to parse public key structure.\n");
-        goto generate_out;
-      }
-      if(*data_ptr++ != len) { /* the curve point should always be 65 bytes */
-        fprintf(stderr, "Unexpected length.\n");
-        goto generate_out;
-      }
-      if(!EC_POINT_oct2point(group, point, data_ptr, len, NULL)) {
+      ecpoint = EC_POINT_new(group);
+
+      if(!EC_POINT_oct2point(group, ecpoint, point, point_len, NULL)) {
         fprintf(stderr, "Failed to load public point.\n");
         goto generate_out;
       }
-      if(!EC_KEY_set_public_key(eckey, point)) {
+      if(!EC_KEY_set_public_key(eckey, ecpoint)) {
         fprintf(stderr, "Failed to set the public key.\n");
         goto generate_out;
       }
       EVP_PKEY_set1_EC_KEY(public_key, eckey);
     } else {
       fprintf(stderr, "Wrong algorithm.\n");
-      goto generate_out;
     }
     PEM_write_PUBKEY(output_file, public_key);
     ret = true;
@@ -285,65 +215,53 @@ static bool generate_key(ykpiv_state *state, const char *slot,
   }
 
 generate_out:
-  if(output_file != stdout) {
+  if (output_file != stdout) {
     fclose(output_file);
   }
-  if(point) {
-    EC_POINT_free(point);
+  if (ecpoint) {
+    EC_POINT_free(ecpoint);
   }
-  if(eckey) {
+  if (eckey) {
     EC_KEY_free(eckey);
   }
-  if(rsa) {
+  if (rsa) {
     RSA_free(rsa);
   }
-  if(public_key) {
+  if (public_key) {
     EVP_PKEY_free(public_key);
+  }
+  if (point) {
+    ykpiv_util_free(state, point);
+  }
+  if (mod) {
+    ykpiv_util_free(state, mod);
+  }
+  if (exp) {
+    ykpiv_util_free(state, exp);
   }
 
   return ret;
 }
 
 static bool reset(ykpiv_state *state) {
-  unsigned char templ[] = {0, YKPIV_INS_RESET, 0, 0};
-  unsigned char data[0xff];
-  unsigned long recv_len = sizeof(data);
-  int sw;
-
-  /* note: the reset function is only available when both pins are blocked. */
-  if(ykpiv_transfer_data(state, templ, NULL, 0, data, &recv_len, &sw) != YKPIV_OK) {
-    return false;
-  } else if(sw == SW_SUCCESS) {
-    return true;
-  }
-  return false;
+  return ykpiv_util_reset(state) == YKPIV_OK;
 }
 
 static bool set_pin_retries(ykpiv_state *state, int pin_retries, int puk_retries, int verbose) {
-  unsigned char templ[] = {0, YKPIV_INS_SET_PIN_RETRIES, pin_retries, puk_retries};
-  unsigned char data[0xff];
-  unsigned long recv_len = sizeof(data);
-  int sw;
-
-  if(pin_retries > 0xff || puk_retries > 0xff || pin_retries < 1 || puk_retries < 1) {
-    fprintf(stderr, "pin and puk retries must be between 1 and 255.\n");
-    return false;
-  }
+  ykpiv_rc res;
 
   if(verbose) {
     fprintf(stderr, "Setting pin retries to %d and puk retries to %d.\n", pin_retries, puk_retries);
   }
-
-  if(ykpiv_transfer_data(state, templ, NULL, 0, data, &recv_len, &sw) != YKPIV_OK) {
-    return false;
-  } else if(sw == SW_SUCCESS) {
-    return true;
+  res = ykpiv_set_pin_retries(state, pin_retries, puk_retries);
+  if (res == YKPIV_RANGE_ERROR) {
+    fprintf(stderr, "pin and puk retries must be between 1 and 255.\n");
   }
-  return false;
+  return res == YKPIV_OK;
 }
 
 static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
-                       const char *input_file_name, const char *slot, char *password,
+                       const char *input_file_name, enum enum_slot slot, char *password,
                        enum enum_pin_policy pin_policy, enum enum_touch_policy touch_policy) {
   int key = 0;
   FILE *input_file = NULL;
@@ -353,9 +271,9 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
   bool ret = false;
   ykpiv_rc rc = YKPIV_GENERIC_ERROR;
 
-  sscanf(slot, "%2x", &key);
+  key = get_slot_hex(slot);
 
-  input_file = open_file(input_file_name, INPUT);
+  input_file = open_file(input_file_name, key_file_mode(key_format, false));
   if(!input_file) {
     return false;
   }
@@ -518,7 +436,7 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
   int compress = 0;
   int cert_len = -1;
 
-  input_file = open_file(input_file_name, INPUT);
+  input_file = open_file(input_file_name, key_file_mode(cert_format, false));
   if(!input_file) {
     return false;
   }
@@ -568,35 +486,18 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
   }
 
   {
-    unsigned char certdata[3072];
+    unsigned char certdata[YKPIV_OBJ_MAX_SIZE];
     unsigned char *certptr = certdata;
-    int object = get_object_id(slot);
     ykpiv_rc res;
-
-    if(4 + cert_len + 5 > sizeof(certdata)) { /* 4 is prefix size, 5 is postfix size */
-      fprintf(stderr, "Certificate is too large to fit in buffer.\n");
-      goto import_cert_out;
-    }
-
-    *certptr++ = 0x70;
-    certptr += set_length(certptr, cert_len);
     if (compress) {
-      if (fread(certptr, 1, (size_t)cert_len, input_file) != (size_t)cert_len) {
+      if (fread(certdata, 1, (size_t)cert_len, input_file) != (size_t)cert_len) {
         fprintf(stderr, "Failed to read compressed certificate\n");
         goto import_cert_out;
       }
-      certptr += cert_len;
     } else {
-      /* i2d_X509 increments certptr here.. */
       i2d_X509(cert, &certptr);
     }
-    *certptr++ = 0x71;
-    *certptr++ = 1;
-    *certptr++ = compress; /* certinfo (gzip etc) */
-    *certptr++ = 0xfe; /* LRC */
-    *certptr++ = 0;
-
-    if((res = ykpiv_save_object(state, object, certdata, (size_t)(certptr - certdata))) != YKPIV_OK) {
+    if ((res = ykpiv_util_write_cert(state, get_slot_hex(slot), certdata, cert_len, compress)) != YKPIV_OK) {
       fprintf(stderr, "Failed commands with device: %s\n", ykpiv_strerror(res));
     } else {
       ret = true;
@@ -620,45 +521,32 @@ import_cert_out:
   return ret;
 }
 
-static bool set_dataobject(ykpiv_state *state, int verbose, int type) {
-  unsigned char obj[1024];
+static bool set_cardid(ykpiv_state *state, int verbose, int type) {
   ykpiv_rc res;
-  size_t offs, rand_len, len;
-  const unsigned char *tmpl;
-  int id;
+  unsigned char id[MAX(sizeof(ykpiv_cardid), sizeof(ykpiv_cccid))];
 
   if(type == CHUID) {
-    offs = CHUID_GUID_OFFS;
-    len = sizeof(chuid_tmpl);
-    rand_len = 0x10;
-    tmpl = chuid_tmpl;
-    id = YKPIV_OBJ_CHUID;
+    res = ykpiv_util_set_cardid(state, NULL);
   } else {
-    offs = CCC_ID_OFFS;
-    rand_len = 0xe;
-    len = sizeof(ccc_tmpl);
-    tmpl = ccc_tmpl;
-    id = YKPIV_OBJ_CAPABILITY;
-  }
-  memcpy(obj, tmpl, len);
-  if(RAND_pseudo_bytes(obj + offs, rand_len) == -1) {
-    fprintf(stderr, "error: no randomness.\n");
-    return false;
-  }
-  if(verbose) {
-    fprintf(stderr, "Setting the %s to: ", type == CHUID ? "CHUID" : "CCC");
-    dump_data(obj, len, stderr, true, format_arg_hex);
-  }
-  if((res = ykpiv_save_object(state, id, obj, len)) != YKPIV_OK) {
-    fprintf(stderr, "Failed communicating with device: %s\n", ykpiv_strerror(res));
-    return false;
+    res = ykpiv_util_set_cccid(state, NULL);
   }
 
-  return true;
+  if(res == YKPIV_OK && verbose) {
+    if (type == CHUID) {
+      res = ykpiv_util_get_cardid(state, (ykpiv_cardid*)id);
+    } else {
+      res = ykpiv_util_get_cccid(state, (ykpiv_cccid*)id);
+    }
+    if (res == YKPIV_OK) {
+      fprintf(stderr, "Set the %s ID to: ", type == CHUID ? "CHUID" : "CCC");
+      dump_data(id, type == CHUID ? YKPIV_CARDID_SIZE : YKPIV_CCCID_SIZE, stderr, true, format_arg_hex);
+    }
+  }
+  return res == YKPIV_OK;
 }
 
 static bool request_certificate(ykpiv_state *state, enum enum_key_format key_format,
-    const char *input_file_name, const char *slot, char *subject, enum enum_hash hash,
+    const char *input_file_name, enum enum_slot slot, char *subject, enum enum_hash hash,
     const char *output_file_name) {
   X509_REQ *req = NULL;
   X509_NAME *name = NULL;
@@ -682,10 +570,10 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
   null_parameter.type = V_ASN1_NULL;
   null_parameter.value.ptr = NULL;
 
-  sscanf(slot, "%2x", &key);
+  key = get_slot_hex(slot);
 
-  input_file = open_file(input_file_name, INPUT);
-  output_file = open_file(output_file_name, OUTPUT);
+  input_file = open_file(input_file_name, key_file_mode(key_format, false));
+  output_file = open_file(output_file_name, key_file_mode(key_format, true));
   if(!input_file || !output_file) {
     goto request_out;
   }
@@ -805,7 +693,7 @@ request_out:
 }
 
 static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_format,
-    const char *input_file_name, const char *slot, char *subject, enum enum_hash hash,
+    const char *input_file_name, enum enum_slot slot, char *subject, enum enum_hash hash,
     const int *serial, int validDays, const char *output_file_name) {
   FILE *input_file = NULL;
   FILE *output_file = NULL;
@@ -831,10 +719,10 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   null_parameter.type = V_ASN1_NULL;
   null_parameter.value.ptr = NULL;
 
-  sscanf(slot, "%2x", &key);
+  key = get_slot_hex(slot);
 
-  input_file = open_file(input_file_name, INPUT);
-  output_file = open_file(output_file_name, OUTPUT);
+  input_file = open_file(input_file_name, key_file_mode(key_format, false));
+  output_file = open_file(output_file_name, key_file_mode(key_format, true));
   if(!input_file || !output_file) {
     goto selfsign_out;
   }
@@ -1075,92 +963,81 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
 }
 
 static bool delete_certificate(ykpiv_state *state, enum enum_slot slot) {
-  int object = get_object_id(slot);
-
-  if(ykpiv_save_object(state, object, NULL, 0) != YKPIV_OK) {
-    fprintf(stderr, "Failed deleting object.\n");
-    return false;
-  } else {
-    fprintf(stderr, "Certificate deleted.\n");
-    return true;
-  }
+  return ykpiv_util_delete_cert(state, get_slot_hex(slot)) == YKPIV_OK;
 }
 
 static bool read_certificate(ykpiv_state *state, enum enum_slot slot,
     enum enum_key_format key_format, const char *output_file_name) {
   FILE *output_file;
-  int object = get_object_id(slot);
-  unsigned char data[3072];
-  const unsigned char *ptr = data;
-  unsigned long len = sizeof(data);
-  int cert_len;
-  bool ret = false;
+  uint8_t *data = NULL;
+  const unsigned char *ptr = NULL;
   X509 *x509 = NULL;
+  bool ret = false;
+  size_t cert_len = 0;
 
-  if(key_format != key_format_arg_PEM &&
-     key_format != key_format_arg_DER &&
-     key_format != key_format_arg_SSH) {
+  if (key_format != key_format_arg_PEM &&
+      key_format != key_format_arg_DER &&
+      key_format != key_format_arg_SSH) {
     fprintf(stderr, "Only PEM, DER and SSH format are supported for read-certificate.\n");
     return false;
   }
 
-  output_file = open_file(output_file_name, OUTPUT);
-  if(!output_file) {
+  output_file = open_file(output_file_name, key_file_mode(key_format, true));
+  if (!output_file) {
     return false;
   }
 
-  if(ykpiv_fetch_object(state, object, data, &len) != YKPIV_OK) {
+  if (ykpiv_util_read_cert(state, get_slot_hex(slot), &data, &cert_len) != YKPIV_OK) {
     fprintf(stderr, "Failed fetching certificate.\n");
     goto read_cert_out;
   }
+  ptr = data;
 
-  if(*ptr++ == 0x70) {
-    ptr += get_length(ptr, &cert_len);
-    if(key_format == key_format_arg_PEM ||
-       key_format == key_format_arg_SSH) {
-      x509 = X509_new();
-      if(!x509) {
-        fprintf(stderr, "Failed allocating x509 structure.\n");
-        goto read_cert_out;
-      }
-      x509 = d2i_X509(NULL, &ptr, cert_len);
-      if(!x509) {
-        fprintf(stderr, "Failed parsing x509 information.\n");
-        goto read_cert_out;
-      }
+  if (key_format == key_format_arg_PEM ||
+      key_format == key_format_arg_SSH) {
+    x509 = X509_new();
+    if (!x509) {
+      fprintf(stderr, "Failed allocating x509 structure.\n");
+      goto read_cert_out;
+    }
+    x509 = d2i_X509(NULL, (const unsigned char**)&ptr, cert_len);
+    if (!x509) {
+      fprintf(stderr, "Failed parsing x509 information.\n");
+      goto read_cert_out;
+    }
 
-      if (key_format == key_format_arg_PEM) {
-        PEM_write_X509(output_file, x509);
-        ret = true;
-      }
-      else {
-        if (!SSH_write_X509(output_file, x509)) {
-          fprintf(stderr, "Unable to extract public key or not an RSA key.\n");
-          goto read_cert_out;
-        }
-        ret = true;
-      }
-    } else { /* key_format_arg_DER */
-      /* XXX: This will just dump the raw data in tag 0x70.. */
-      fwrite(ptr, (size_t)cert_len, 1, output_file);
+    if (key_format == key_format_arg_PEM) {
+      PEM_write_X509(output_file, x509);
       ret = true;
     }
-  } else {
-    fprintf(stderr, "Failed parsing data.\n");
+    else {
+      if (!SSH_write_X509(output_file, x509)) {
+        fprintf(stderr, "Unable to extract public key or not an RSA key.\n");
+        goto read_cert_out;
+      }
+      ret = true;
+    }
+  } else { /* key_format_arg_DER */
+    /* XXX: This will just dump the raw data in tag 0x70.. */
+    fwrite(ptr, (size_t)cert_len, 1, output_file);
+    ret = true;
   }
 
 read_cert_out:
-  if(output_file != stdout) {
+  if (output_file != stdout) {
     fclose(output_file);
   }
-  if(x509) {
+  if (x509) {
     X509_free(x509);
+  }
+  if (data) {
+    ykpiv_util_free(state, data);
   }
   return ret;
 }
 
 static bool sign_file(ykpiv_state *state, const char *input, const char *output,
-    const char *slot, enum enum_algorithm algorithm, enum enum_hash hash,
+    enum enum_slot slot, enum enum_algorithm algorithm, enum enum_hash hash,
     int verbosity) {
   FILE *input_file = NULL;
   FILE *output_file = NULL;
@@ -1171,9 +1048,9 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
   int algo;
   const EVP_MD *md;
 
-  sscanf(slot, "%2x", &key);
+  key = get_slot_hex(slot);
 
-  input_file = open_file(input, INPUT);
+  input_file = open_file(input, INPUT_BIN);
   if(!input_file) {
     return false;
   }
@@ -1182,7 +1059,7 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
     fprintf(stderr, "Please paste the input...\n");
   }
 
-  output_file = open_file(output, OUTPUT);
+  output_file = open_file(output, OUTPUT_BIN);
   if(!output_file) {
     if(input_file && input_file != stdin) {
       fclose(input_file);
@@ -1253,7 +1130,7 @@ out:
 
 static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_MD *md,
     FILE *output) {
-  int object = get_object_id(slot);
+  int object = ykpiv_util_slot_object(get_slot_hex(slot));
   int slot_name;
   unsigned char data[3072];
   const unsigned char *ptr = data;
@@ -1267,12 +1144,7 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     return;
   }
 
-  if (slot == slot_arg_9a)
-    slot_name = 0x9a;
-  else if (slot >= slot_arg_9c && slot <= slot_arg_9e)
-    slot_name = 0x9b + slot;
-  else
-    slot_name = 0x82 + (slot - slot_arg_82);
+  slot_name = get_slot_hex(slot);
 
   fprintf(output, "Slot %x:\t", slot_name);
 
@@ -1368,7 +1240,7 @@ static bool status(ykpiv_state *state, enum enum_hash hash,
   unsigned char buf[3072];
   long unsigned len = sizeof(buf);
   int i;
-  FILE *output_file = open_file(output_file_name, OUTPUT);
+  FILE *output_file = open_file(output_file_name, OUTPUT_TEXT);
   if(!output_file) {
     return false;
   }
@@ -1421,7 +1293,7 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
   unsigned int data_len;
   X509 *x509 = NULL;
   EVP_PKEY *pubkey;
-  FILE *input_file = open_file(input_file_name, INPUT);
+  FILE *input_file = open_file(input_file_name, key_file_mode(cert_format, false));
 
   if(!input_file) {
     fprintf(stderr, "Failed opening input file %s.\n", input_file_name);
@@ -1486,7 +1358,7 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
     if(algorithm == 0) {
       goto test_out;
     }
-    sscanf(cmdline_parser_slot_values[slot], "%2x", &key);
+    key = get_slot_hex(slot);
     if(YKPIV_IS_RSA(algorithm)) {
       prepare_rsa_signature(data, data_len, encoded, &enc_len, EVP_MD_type(md));
       ptr = encoded;
@@ -1554,7 +1426,7 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
   X509 *x509 = NULL;
   EVP_PKEY *pubkey;
   EC_KEY *tmpkey = NULL;
-  FILE *input_file = open_file(input_file_name, INPUT);
+  FILE *input_file = open_file(input_file_name, key_file_mode(cert_format, false));
 
   if(!input_file) {
     fprintf(stderr, "Failed opening input file %s.\n", input_file_name);
@@ -1591,7 +1463,7 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
     if(algorithm == 0) {
       goto decipher_out;
     }
-    sscanf(cmdline_parser_slot_values[slot], "%2x", &key);
+    key = get_slot_hex(slot);
     if(YKPIV_IS_RSA(algorithm)) {
       unsigned char secret[32];
       unsigned char secret2[32];
@@ -1703,57 +1575,47 @@ static bool list_readers(ykpiv_state *state) {
   return true;
 }
 
-static bool attest(ykpiv_state *state, const char *slot,
+static bool attest(ykpiv_state *state, enum enum_slot slot,
     enum enum_key_format key_format, const char *output_file_name) {
   unsigned char data[2048];
   unsigned long len = sizeof(data);
   bool ret = false;
   X509 *x509 = NULL;
-  unsigned char templ[] = {0, YKPIV_INS_ATTEST, 0, 0};
   int key;
-  int sw;
-  FILE *output_file = open_file(output_file_name, OUTPUT);
+  FILE *output_file = open_file(output_file_name, key_file_mode(key_format, true));
   if(!output_file) {
     return false;
   }
-
-  sscanf(slot, "%2x", &key);
-  templ[2] = key;
 
   if(key_format != key_format_arg_PEM && key_format != key_format_arg_DER) {
     fprintf(stderr, "Only PEM and DER format are supported for attest..\n");
     return false;
   }
 
-  if(ykpiv_transfer_data(state, templ, NULL, 0, data, &len, &sw) != YKPIV_OK) {
-    fprintf(stderr, "Failed to communicate.\n");
-    goto attest_out;
-  } else if(sw != SW_SUCCESS) {
-    fprintf(stderr, "Failed to attest key.\n");
+  key = get_slot_hex(slot);
+  if (ykpiv_attest(state, key, data, &len) != YKPIV_OK) {
+    fprintf(stderr, "Failed to attest data.\n");
     goto attest_out;
   }
 
-  if(data[0] == 0x30) {
-    if(key_format == key_format_arg_PEM) {
-      const unsigned char *ptr = data;
-      int len2 = len;
-      x509 = X509_new();
-      if(!x509) {
-        fprintf(stderr, "Failed allocating x509 structure.\n");
-        goto attest_out;
-      }
-      x509 = d2i_X509(NULL, &ptr, len2);
-      if(!x509) {
-        fprintf(stderr, "Failed parsing x509 information.\n");
-        goto attest_out;
-      }
-      PEM_write_X509(output_file, x509);
-      ret = true;
-    } else {
-      fwrite(data, len, 1, output_file);
+  if(key_format == key_format_arg_PEM) {
+    const unsigned char *ptr = data;
+    int len2 = len;
+    x509 = X509_new();
+    if(!x509) {
+      fprintf(stderr, "Failed allocating x509 structure.\n");
+      goto attest_out;
     }
-    ret = true;
+    x509 = d2i_X509(NULL, &ptr, len2);
+    if(!x509) {
+      fprintf(stderr, "Failed parsing x509 information.\n");
+      goto attest_out;
+    }
+    PEM_write_X509(output_file, x509);
+  } else {
+    fwrite(data, len, 1, output_file);
   }
+  ret = true;
 
 attest_out:
   if(output_file != stdout) {
@@ -1773,7 +1635,7 @@ static bool write_object(ykpiv_state *state, int id,
   size_t len = sizeof(data);
   ykpiv_rc res;
 
-  input_file = open_file(input_file_name, INPUT);
+  input_file = open_file(input_file_name, data_file_mode(format, false));
   if(!input_file) {
     return false;
   }
@@ -1812,7 +1674,7 @@ static bool read_object(ykpiv_state *state, int id, const char *output_file_name
   unsigned long len = sizeof(data);
   bool ret = false;
 
-  output_file = open_file(output_file_name, OUTPUT);
+  output_file = open_file(output_file_name, data_file_mode(format, true));
   if(!output_file) {
     return false;
   }
@@ -1875,7 +1737,7 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_pinMINUS_retries:
-        if(!args_info.pin_retries_arg || !args_info.puk_retries_arg) {
+        if(!args_info.pin_retries_given || !args_info.puk_retries_given) {
           fprintf(stderr, "The '%s' action needs both --pin-retries and --puk-retries arguments.\n",
               cmdline_parser_action_values[action]);
           return EXIT_FAILURE;
@@ -2013,7 +1875,7 @@ int main(int argc, char *argv[]) {
         print_version(state, args_info.output_arg);
         break;
       case action_arg_generate:
-        if(generate_key(state, args_info.slot_orig, args_info.algorithm_arg, args_info.output_arg, args_info.key_format_arg,
+        if(generate_key(state, args_info.slot_arg, args_info.algorithm_arg, args_info.output_arg, args_info.key_format_arg,
               args_info.pin_policy_arg, args_info.touch_policy_arg) == false) {
           ret = EXIT_FAILURE;
         } else {
@@ -2052,7 +1914,7 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_reset:
         if(reset(state) == false) {
-      fprintf(stderr, "Reset failed, are pincodes blocked?\n");
+          fprintf(stderr, "Reset failed, are pincodes blocked?\n");
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully reset the application.\n");
@@ -2068,7 +1930,7 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_importMINUS_key:
-        if(import_key(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_orig, password,
+        if(import_key(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_arg, password,
               args_info.pin_policy_arg, args_info.touch_policy_arg) == false) {
           fprintf(stderr, "Unable to import private key\n");
           ret = EXIT_FAILURE;
@@ -2085,7 +1947,7 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_setMINUS_ccc:
       case action_arg_setMINUS_chuid:
-        if(set_dataobject(state, verbosity, action == action_arg_setMINUS_chuid ? CHUID : CCC) == false) {
+        if(set_cardid(state, verbosity, action == action_arg_setMINUS_chuid ? CHUID : CCC) == false) {
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully set new %s.\n", action == action_arg_setMINUS_chuid ? "CHUID" : "CCC");
@@ -2093,7 +1955,7 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_requestMINUS_certificate:
         if(request_certificate(state, args_info.key_format_arg, args_info.input_arg,
-              args_info.slot_orig, args_info.subject_arg, args_info.hash_arg,
+              args_info.slot_arg, args_info.subject_arg, args_info.hash_arg,
               args_info.output_arg) == false) {
           ret = EXIT_FAILURE;
         } else {
@@ -2153,7 +2015,7 @@ int main(int argc, char *argv[]) {
       }
       case action_arg_selfsignMINUS_certificate:
         if(selfsign_certificate(state, args_info.key_format_arg, args_info.input_arg,
-              args_info.slot_orig, args_info.subject_arg, args_info.hash_arg,
+              args_info.slot_arg, args_info.subject_arg, args_info.hash_arg,
               args_info.serial_given ? &args_info.serial_arg : NULL, args_info.valid_days_arg,
               args_info.output_arg) == false) {
           ret = EXIT_FAILURE;
@@ -2207,7 +2069,7 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_attest:
-        if(attest(state, args_info.slot_orig, args_info.key_format_arg,
+        if(attest(state, args_info.slot_arg, args_info.key_format_arg,
               args_info.output_arg) == false) {
           ret = EXIT_FAILURE;
         }
@@ -2228,7 +2090,7 @@ int main(int argc, char *argv[]) {
       ret = EXIT_FAILURE;
     }
     else if(sign_file(state, args_info.input_arg, args_info.output_arg,
-        args_info.slot_orig, args_info.algorithm_arg, args_info.hash_arg,
+        args_info.slot_arg, args_info.algorithm_arg, args_info.hash_arg,
         verbosity)) {
       fprintf(stderr, "Signature successful!\n");
     } else {

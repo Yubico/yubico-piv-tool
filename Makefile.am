@@ -33,7 +33,6 @@ EXTRA_DIST = windows.mk mac.mk tool/tests/basic.sh tools/fasc.pl
 
 EXTRA_DIST += doc/Attestation.adoc doc/YKCS11_release_notes.adoc doc/YubiKey_PIV_introduction.adoc
 
-
 if ENABLE_COV
 cov-reset:
 	rm -fr coverage
@@ -62,6 +61,14 @@ cppcheck:
 endif
 
 # Maintainer rules.
+
+if DX_COND_html
+doxygen:
+	doxygen lib/Doxyfile
+endif
+
+hwcheck:
+	@$(srcdir)/tools/confirm.sh && YKPIV_ENV_HWTESTS_CONFIRMED="1" $(MAKE) check
 
 check-doc-dist:
 	perl -pe "s,^EXTRA_DIST \+= .*,EXTRA_DIST += `cd $(srcdir) && ls doc/*.adoc | xargs echo`," < $(srcdir)/Makefile.am > check-doc-dist.tmp

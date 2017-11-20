@@ -39,6 +39,13 @@
 #include <openssl/x509.h>
 #include <openssl/rand.h>
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wpointer-sign"
+
+#ifdef __MINGW32__
+#define dprintf(fd, ...) fprintf(stdout, __VA_ARGS__)
+#endif
+
 void dump_hex(const unsigned char *buf, unsigned int len, FILE *output, int space) {
   unsigned int i;
   for (i = 0; i < len; i++) {
@@ -104,10 +111,11 @@ static void test_initalize() {
 
 }
 
-static void test_token_info() {
+static int test_token_info() {
 
   const CK_CHAR_PTR TOKEN_LABEL  = "YubiKey PIV";
   const CK_CHAR_PTR TOKEN_MODEL  = "YubiKey ";  // Skip last 3 characters (version dependent)
+  const CK_CHAR_PTR TOKEN_MODEL_YK4  = "YubiKey YK4";
   const CK_CHAR_PTR TOKEN_SERIAL = "1234";
   const CK_FLAGS TOKEN_FLAGS = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
   const CK_VERSION HW = {0, 0};
@@ -132,16 +140,22 @@ static void test_token_info() {
   asrt(info.ulFreePublicMemory, CK_UNAVAILABLE_INFORMATION, "FREE_PUB_MEM");
   asrt(info.ulTotalPrivateMemory, CK_UNAVAILABLE_INFORMATION, "TOTAL_PVT_MEM");
   asrt(info.ulFreePrivateMemory, CK_UNAVAILABLE_INFORMATION, "FREE_PVT_MEM");
+
+  if (strncmp(info.model, TOKEN_MODEL_YK4, strlen(TOKEN_MODEL_YK4)) != 0) {
+    dprintf(0, "\n\n** WARNING: Only YK4 supported.  Skipping remaining tests.\n\n");
+    return -1;
+  }
+
   asrt(info.hardwareVersion.major, HW.major, "HW_MAJ");
   asrt(info.hardwareVersion.minor, HW.minor, "HW_MIN");
 
   if (info.firmwareVersion.major != 4 && info.firmwareVersion.major != 0)
     asrt(info.firmwareVersion.major, 4, "FW_MAJ");
 
-  asrt(strcmp(info.utcTime, TOKEN_TIME), 0, "TOKEN_TIME");
+  asrt(strncmp(info.utcTime, TOKEN_TIME, sizeof(info.utcTime)), 0, "TOKEN_TIME");
 
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
-
+  return 0;
 }
 
 static void test_mechanism_list_and_info() {
@@ -627,6 +641,15 @@ static void test_import_and_sign_all_10_RSA() {
 }
 #endif
 
+int destruction_confirmed(void) {
+  char *confirmed = getenv("YKPIV_ENV_HWTESTS_CONFIRMED");
+  if (confirmed && confirmed[0] == '1')
+    return 1;
+  // Use dprintf() to write directly to stdout, since automake eats the standard stdout/stderr pointers.
+  dprintf(0, "\n***\n*** Hardware tests skipped.  Run \"make hwcheck\".\n***\n\n");
+  return 0;
+}
+
 int main(void) {
 
   get_functions(&funcs);
@@ -634,8 +657,15 @@ int main(void) {
   test_lib_info();
 
 #ifdef HW_TESTS
+  // Require user confirmation to continue, since this test suite will clear
+  // any data stored on connected keys.
+  if (!destruction_confirmed())
+    exit(77); // exit code 77 == skipped tests
+
   test_initalize();
-  test_token_info();
+  // Require YK4 to continue.  Skip if different model found.
+  if (test_token_info() != 0)
+    exit(77);
   test_mechanism_list_and_info();
   test_session();
   test_login();
@@ -648,3 +678,5 @@ int main(void) {
   return EXIT_SUCCESS;
 
 }
+
+#pragma clang diagnostic pop

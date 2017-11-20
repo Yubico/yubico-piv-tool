@@ -46,12 +46,31 @@
 #include "cmdline.h"
 #include "util.h"
 
-FILE *open_file(const char *file_name, int mode) {
+FILE *open_file(const char *file_name, enum file_mode mode) {
   FILE *file;
+  const char *mod;
   if(!strcmp(file_name, "-")) {
-    file = mode == INPUT ? stdin : stdout;
+    file = (mode == INPUT_TEXT || mode == INPUT_BIN) ? stdin : stdout;
   } else {
-    file = fopen(file_name, mode == INPUT ? "r" : "w");
+    switch (mode) {
+    case INPUT_TEXT:
+      mod = "r";
+      break;
+    case INPUT_BIN:
+      mod = "rb";
+      break;
+    case OUTPUT_TEXT:
+      mod = "w";
+      break;
+    case OUTPUT_BIN:
+      mod = "wb";
+      break;
+    default:
+      fprintf(stderr, "Invalid file mode.\n");
+      return NULL;
+      break;
+    }
+    file = fopen(file_name, mod);
     if(!file) {
       fprintf(stderr, "Failed opening '%s'!\n", file_name);
       return NULL;
@@ -255,172 +274,49 @@ int set_length(unsigned char *buffer, int length) {
   }
 }
 
-int get_object_id(enum enum_slot slot) {
-  int object;
+int get_slot_hex(enum enum_slot slot_enum) {
+  int slot = -1;
 
-  switch(slot) {
+  switch (slot_enum) {
     case slot_arg_9a:
-      object = YKPIV_OBJ_AUTHENTICATION;
+      slot = 0x9a;
       break;
     case slot_arg_9c:
-      object = YKPIV_OBJ_SIGNATURE;
-      break;
     case slot_arg_9d:
-      object = YKPIV_OBJ_KEY_MANAGEMENT;
-      break;
     case slot_arg_9e:
-      object = YKPIV_OBJ_CARD_AUTH;
+      slot = 0x9c + ((int)slot_enum - (int)slot_arg_9c);
       break;
     case slot_arg_82:
-      object = YKPIV_OBJ_RETIRED1;
-      break;
     case slot_arg_83:
-      object = YKPIV_OBJ_RETIRED2;
-      break;
     case slot_arg_84:
-      object = YKPIV_OBJ_RETIRED3;
-      break;
     case slot_arg_85:
-      object = YKPIV_OBJ_RETIRED4;
-      break;
     case slot_arg_86:
-      object = YKPIV_OBJ_RETIRED5;
-      break;
     case slot_arg_87:
-      object = YKPIV_OBJ_RETIRED6;
-      break;
     case slot_arg_88:
-      object = YKPIV_OBJ_RETIRED7;
-      break;
     case slot_arg_89:
-      object = YKPIV_OBJ_RETIRED8;
-      break;
     case slot_arg_8a:
-      object = YKPIV_OBJ_RETIRED9;
-      break;
     case slot_arg_8b:
-      object = YKPIV_OBJ_RETIRED10;
-      break;
     case slot_arg_8c:
-      object = YKPIV_OBJ_RETIRED11;
-      break;
     case slot_arg_8d:
-      object = YKPIV_OBJ_RETIRED12;
-      break;
     case slot_arg_8e:
-      object = YKPIV_OBJ_RETIRED13;
-      break;
     case slot_arg_8f:
-      object = YKPIV_OBJ_RETIRED14;
-      break;
     case slot_arg_90:
-      object = YKPIV_OBJ_RETIRED15;
-      break;
     case slot_arg_91:
-      object = YKPIV_OBJ_RETIRED16;
-      break;
     case slot_arg_92:
-      object = YKPIV_OBJ_RETIRED17;
-      break;
     case slot_arg_93:
-      object = YKPIV_OBJ_RETIRED18;
-      break;
     case slot_arg_94:
-      object = YKPIV_OBJ_RETIRED19;
-      break;
     case slot_arg_95:
-      object = YKPIV_OBJ_RETIRED20;
+      slot = 0x82 + ((int)slot_enum - (int)slot_arg_82);
       break;
     case slot_arg_f9:
-      object = YKPIV_OBJ_ATTESTATION;
+      slot = 0xf9;
       break;
     case slot__NULL:
     default:
-      object = 0;
+      slot = -1;
   }
-  return object;
-}
 
-int key_to_object_id(int key) {
-  int object;
-
-  switch(key) {
-  case YKPIV_KEY_AUTHENTICATION:
-    object = YKPIV_OBJ_AUTHENTICATION;
-    break;
-  case YKPIV_KEY_CARDMGM:
-    object = YKPIV_OBJ_SIGNATURE;
-    break;
-  case YKPIV_KEY_KEYMGM:
-    object = YKPIV_OBJ_KEY_MANAGEMENT;
-    break;
-  case YKPIV_KEY_CARDAUTH:
-    object = YKPIV_OBJ_CARD_AUTH;
-    break;
-  case YKPIV_KEY_RETIRED1:
-    object = YKPIV_OBJ_RETIRED1;
-    break;
-  case YKPIV_KEY_RETIRED2:
-    object = YKPIV_OBJ_RETIRED2;
-    break;
-  case YKPIV_KEY_RETIRED3:
-    object = YKPIV_OBJ_RETIRED3;
-    break;
-  case YKPIV_KEY_RETIRED4:
-    object = YKPIV_OBJ_RETIRED4;
-    break;
-  case YKPIV_KEY_RETIRED5:
-    object = YKPIV_OBJ_RETIRED5;
-    break;
-  case YKPIV_KEY_RETIRED6:
-    object = YKPIV_OBJ_RETIRED6;
-    break;
-  case YKPIV_KEY_RETIRED7:
-    object = YKPIV_OBJ_RETIRED7;
-    break;
-  case YKPIV_KEY_RETIRED8:
-    object = YKPIV_OBJ_RETIRED8;
-    break;
-  case YKPIV_KEY_RETIRED9:
-    object = YKPIV_OBJ_RETIRED9;
-    break;
-  case YKPIV_KEY_RETIRED10:
-    object = YKPIV_OBJ_RETIRED10;
-    break;
-  case YKPIV_KEY_RETIRED11:
-    object = YKPIV_OBJ_RETIRED11;
-    break;
-  case YKPIV_KEY_RETIRED12:
-    object = YKPIV_OBJ_RETIRED12;
-    break;
-  case YKPIV_KEY_RETIRED13:
-    object = YKPIV_OBJ_RETIRED13;
-    break;
-  case YKPIV_KEY_RETIRED14:
-    object = YKPIV_OBJ_RETIRED14;
-    break;
-  case YKPIV_KEY_RETIRED15:
-    object = YKPIV_OBJ_RETIRED15;
-    break;
-  case YKPIV_KEY_RETIRED16:
-    object = YKPIV_OBJ_RETIRED16;
-    break;
-  case YKPIV_KEY_RETIRED17:
-    object = YKPIV_OBJ_RETIRED17;
-    break;
-  case YKPIV_KEY_RETIRED18:
-    object = YKPIV_OBJ_RETIRED18;
-    break;
-  case YKPIV_KEY_RETIRED19:
-    object = YKPIV_OBJ_RETIRED19;
-    break;
-  case YKPIV_KEY_RETIRED20:
-    object = YKPIV_OBJ_RETIRED20;
-    break;
-  default:
-    object = 0;
-  }
-  return object;
+  return slot;
 }
 
 bool set_component(unsigned char *in_ptr, const BIGNUM *bn, int element_len) {
@@ -647,7 +543,9 @@ int SSH_write_X509(FILE *fp, X509 *x) {
 
     rsa = EVP_PKEY_get1_RSA(pkey);
 
-    set_component(n, rsa->n, RSA_size(rsa));
+    if (!set_component(n, rsa->n, RSA_size(rsa))) {
+      break;
+    }
 
     uint32_t bytes = BN_num_bytes(rsa->n);
     char len_buf[5];

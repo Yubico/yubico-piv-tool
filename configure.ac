@@ -25,7 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-AC_INIT([yubico-piv-tool], [1.4.5])
+AC_INIT([yubico-piv-tool], [1.5.0])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 
@@ -33,9 +33,9 @@ AC_CONFIG_MACRO_DIR([m4])
 # Interfaces changed/added/removed:   CURRENT++       REVISION=0
 # Interfaces added:                             AGE++
 # Interfaces removed:                           AGE=0
-AC_SUBST([LT_CURRENT], 4)
-AC_SUBST([LT_REVISION], 7)
-AC_SUBST([LT_AGE], 3)
+AC_SUBST([LT_CURRENT], 5)
+AC_SUBST([LT_REVISION], 0)
+AC_SUBST([LT_AGE], 4)
 
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AM_SILENT_RULES([yes])
@@ -50,9 +50,29 @@ AM_MISSING_PROG(GENGETOPT, gengetopt, $missing_dir)
 PKG_PROG_PKG_CONFIG
 
 PKG_CHECK_MODULES(OPENSSL, libcrypto)
+PKG_CHECK_MODULES([CHECK], [check >= 0.9.6])
+
+DX_HTML_FEATURE(ON)
+DX_INIT_DOXYGEN(libykpiv,lib/Doxyfile)
 
 gl_LD_VERSION_SCRIPT
 gl_VALGRIND_TESTS
+
+# Check for clang
+AC_CACHE_CHECK([for clang],
+	_cv_clang,[
+	AC_TRY_COMPILE([], [
+		#ifdef __clang__
+		#else
+		#error "NOT CLANG"
+		#endif
+		return 0;
+	],
+	[_cv_clang=yes],
+	[_cv_clang=no],
+	[])
+])
+AM_CONDITIONAL([COMPILER_CLANG], [test "$_cv_clang" = yes])
 
 AC_ARG_WITH([backend],
   [AS_HELP_STRING([--with-backend=ARG],

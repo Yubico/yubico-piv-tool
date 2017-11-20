@@ -32,6 +32,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <check.h>
+
 #include "ykpiv.h"
 
 struct key {
@@ -57,30 +59,43 @@ static int parse_key(const char *text, const unsigned char *expected, int valid)
 	unsigned char key[24];
 	size_t len = sizeof(key);
 	ykpiv_rc res = ykpiv_hex_decode(text, strlen(text), key, &len);
-	if(res != YKPIV_OK && valid == 1) {
-		printf("key check failed for %s!\n", text);
-		return EXIT_FAILURE;
-	} else if(res != YKPIV_OK && valid == 0) {
-		return EXIT_SUCCESS;
-	}
-
-	if(memcmp(expected, key, 24) != 0) {
-		printf("keys not matching for %s!\n", text);
-		return EXIT_FAILURE;
-	}
-
+  if (valid) {
+    ck_assert(res == YKPIV_OK);
+    ck_assert(memcmp(expected, key, 24) == 0);
+  } else {
+    ck_assert(res != YKPIV_OK);
+  }
 	return EXIT_SUCCESS;
 }
 
-int main(void) {
-	size_t i;
+START_TEST(test_parse_key) {
+  int res = parse_key(keys[_i].text, keys[_i].formatted, keys[_i].valid);
+  ck_assert(res == EXIT_SUCCESS);
+}
+END_TEST
 
-	for(i = 0; i < sizeof(keys) / sizeof(struct key); i++) {
-		int res = parse_key(keys[i].text, keys[i].formatted, keys[i].valid);
-		if(res != EXIT_SUCCESS) {
-			return res;
-		}
-	}
+Suite *parsekey_suite(void) {
+  Suite *s;
+  TCase *tc;
 
-	return EXIT_SUCCESS;
+  s = suite_create("libykpiv parsekey");
+  tc = tcase_create("parsekey");
+  tcase_add_loop_test(tc, test_parse_key, 0, sizeof(keys) / sizeof(struct key));
+  suite_add_tcase(s, tc);
+
+  return s;
+}
+
+int main(void)
+{
+  int number_failed;
+  Suite *s;
+  SRunner *sr;
+
+  s = parsekey_suite();
+  sr = srunner_create(s);
+  srunner_run_all(sr, CK_NORMAL);
+  number_failed = srunner_ntests_failed(sr);
+  srunner_free(sr);
+  return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

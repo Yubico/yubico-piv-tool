@@ -372,7 +372,7 @@ CK_RV YUBICO_token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF
     DBG("TODO implement other users pin change");
     return CKR_FUNCTION_FAILED;
   }
-  res = ykpiv_change_pin(state, pOldPin, ulOldLen, pNewPin, ulNewLen, &tries);
+  res = ykpiv_change_pin(state, (const char*)pOldPin, ulOldLen, (const char*)pNewPin, ulNewLen, &tries);
   switch (res) {
     case YKPIV_OK:
       return CKR_OK;

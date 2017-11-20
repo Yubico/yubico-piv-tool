@@ -75,3 +75,41 @@ global:
     ykpiv_change_puk;
     ykpiv_unblock_pin;
 } YKPIV_1.2.0;
+
+YKPIV_1.5.0
+{
+global:
+    ykpiv_attest;
+    ykpiv_auth_getchallenge;
+    ykpiv_auth_verifyresponse;
+    ykpiv_connect_with_external_card;
+    ykpiv_done_with_external_card;
+    ykpiv_get_pin_retries;
+    ykpiv_init_with_allocator;
+    ykpiv_set_pin_retries;
+    ykpiv_util_block_puk;
+    ykpiv_util_delete_cert;
+    ykpiv_util_devicemodel;
+    ykpiv_util_free;
+    ykpiv_util_generate_key;
+    ykpiv_util_get_cardid;
+    ykpiv_util_get_cccid;
+    ykpiv_util_get_config;
+    ykpiv_util_get_derived_mgm;
+    ykpiv_util_get_protected_mgm;
+    ykpiv_util_list_keys;
+    ykpiv_util_list_keys;
+    ykpiv_util_read_cert;
+    ykpiv_util_read_mscmap;
+    ykpiv_util_read_msroots;
+    ykpiv_util_reset;
+    ykpiv_util_set_cardid;
+    ykpiv_util_set_cccid;
+    ykpiv_util_set_pin_last_changed;
+    ykpiv_util_set_protected_mgm;
+    ykpiv_util_slot_object;
+    ykpiv_util_write_cert;
+    ykpiv_util_write_mscmap;
+    ykpiv_util_write_msroots;
+    ykpiv_verify_select;
+} YKPIV_1.3.0;
