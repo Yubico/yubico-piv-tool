@@ -344,13 +344,11 @@ bool prepare_rsa_signature(const unsigned char *in, unsigned int in_len, unsigne
 
   digestInfo = X509_SIG_new();
   X509_SIG_getm(digestInfo, &algor, &digest);
-  algor = X509_ALGOR_new();
-  X509_ALGOR_set0(algor, OBJ_nid2obj(nid), V_ASN1_NULL, &parameter);
-  parameter.type = V_ASN1_NULL;
-  parameter.value.ptr = NULL;
-  digest->data = data;
-  digest->length = (int)in_len;
+  algor->algorithm = OBJ_nid2obj(nid);
+  X509_ALGOR_set0(algor, OBJ_nid2obj(nid), V_ASN1_NULL, NULL);
+  ASN1_STRING_set(digest, data, in_len);
   *out_len = (unsigned int)i2d_X509_SIG(digestInfo, &out);
+  X509_SIG_free(digestInfo);
   return true;
 }
 

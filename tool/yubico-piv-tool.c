@@ -221,14 +221,16 @@ static bool generate_key(ykpiv_state *state, enum enum_slot slot,
   if(key_format == key_format_arg_PEM) {
     public_key = EVP_PKEY_new();
     if(algorithm == algorithm_arg_RSA1024 || algorithm == algorithm_arg_RSA2048) {
+      BIGNUM *bignum_n = NULL;
+      BIGNUM *bignum_e = NULL;
       rsa = RSA_new();
-      rsa->n = BN_bin2bn(mod, mod_len, NULL);
-      if (rsa->n == NULL) {
+      bignum_n = BN_bin2bn(mod, mod_len, NULL);
+      if (bignum_n == NULL) {
         fprintf(stderr, "Failed to parse public key modulus.\n");
         goto generate_out;
       }
-      rsa->e = BN_bin2bn(exp, exp_len, NULL);
-      if(rsa->e == NULL) {
+      bignum_e = BN_bin2bn(exp, exp_len, NULL);
+      if(bignum_e == NULL) {
         fprintf(stderr, "Failed to parse public key exponent.\n");
         goto generate_out;
       }

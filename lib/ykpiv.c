@@ -399,7 +399,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
 }
 
 static ykpiv_rc reconnect(ykpiv_state *state) {
-  pcsc_word active_protocol;
+  pcsc_word active_protocol = 0;
   long rc;
   ykpiv_rc res;
   int tries;
@@ -813,7 +813,7 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   unsigned char templ[] = {0, YKPIV_INS_AUTHENTICATE, algorithm, key};
   unsigned long recv_len = sizeof(data);
   size_t key_len = 0;
-  int sw;
+  int sw = 0;
   size_t bytes;
   size_t len = 0;
   ykpiv_rc res;
@@ -982,6 +982,9 @@ static ykpiv_rc _cache_pin(ykpiv_state *state, const char *pin, size_t len) {
 #else
   if (!state)
     return YKPIV_ARGUMENT_ERROR;
+  if (pin && state->pin == pin) {
+    return YKPIV_OK;
+  }
   if (state->pin) {
     _ykpiv_free(state, state->pin);
     state->pin = NULL;
