@@ -61,6 +61,12 @@ if [ "x$ARCH" != "x" ]; then
     else
         make -f mac.mk mac VERSION=$version
     fi
+elif [ "x$BUILD_OPENSSL_VERSION" = "x1.1" ]; then
+    version=`cat NEWS  | grep unreleased | cut -d' ' -f3`
+    set +e
+    $TAR --exclude .git --transform="s/^\./yubico-piv-tool-${version}/" -czf yubico-piv-tool-${version}.tar.gz .
+    set -e
+    make -f linux.mk VERSION=$version
 else
     ./configure $COVERAGE
     make check

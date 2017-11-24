@@ -49,7 +49,7 @@ AM_MISSING_PROG(HELP2ADOC, help2adoc, $missing_dir)
 AM_MISSING_PROG(GENGETOPT, gengetopt, $missing_dir)
 PKG_PROG_PKG_CONFIG
 
-PKG_CHECK_MODULES(OPENSSL, libcrypto)
+PKG_CHECK_MODULES([OPENSSL], [libcrypto], [OPENSSL_VERSION=`$PKG_CONFIG --modversion libcrypto`])
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.6])
 
 DX_HTML_FEATURE(ON)
@@ -261,6 +261,7 @@ AC_MSG_NOTICE([summary of build options:
   CPPFLAGS:         ${CPPFLAGS}
   Warnings:         ${WARN_CFLAGS}
   Backend:          ${with_backend}
+  OpenSSL version:  ${OPENSSL_VERSION}
   PCSC
           CFLAGS:   ${PCSC_CFLAGS}
             LIBS:   ${PCSC_LIBS}

@@ -20,3 +20,6 @@ matrix:
     - compiler: gcc
       os: linux
       env: COVERAGE="--enable-coverage" EXTRA="libpcsclite-dev lcov"
+    - compiler: gcc
+      os: linux
+      env: BUILD_OPENSSL_VERSION="1.1" EXTRA="libpcsclite-dev"
