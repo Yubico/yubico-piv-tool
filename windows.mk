@@ -49,7 +49,7 @@ doit:
 	tar xfa openssl-$(OPENSSLVERSION).tar.gz && \
 	cd openssl-$(OPENSSLVERSION) && \
 	CROSS_COMPILE="$(HOST)-" ./Configure mingw$(64) no-ssl2 no-ssl3 no-engines shared --prefix=$(PWD)/tmp$(ARCH)/root -static-libgcc && \
-	make depend all install_sw && \
+	make depend all install_sw VERSION="$(OPENSSLVERSION)" && \
 	cp LICENSE $(PWD)/tmp$(ARCH)/root/licenses/openssl.txt && \
 	rm -rf $(PWD)/tmp$(ARCH)/root/ssl/ && \
 	rm $(PWD)/tmp$(ARCH)/root/bin/openssl.exe && \

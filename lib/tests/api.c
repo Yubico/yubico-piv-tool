@@ -30,6 +30,7 @@
 
 #include "ykpiv.h"
 #include "internal.h"
+#include "../../tool/openssl-compat.h"
 
 #include <stddef.h>
 #include <stdio.h>
@@ -268,23 +269,21 @@ static bool set_component(unsigned char *in_ptr, const BIGNUM *bn, int element_l
 }
 
 static bool prepare_rsa_signature(const unsigned char *in, unsigned int in_len, unsigned char *out, unsigned int *out_len, int nid) {
-  X509_SIG digestInfo;
-  X509_ALGOR algor;
+  X509_SIG *digestInfo;
+  X509_ALGOR *algor;
   ASN1_TYPE parameter;
-  ASN1_OCTET_STRING digest;
+  ASN1_OCTET_STRING *digest;
   unsigned char data[1024];
 
   memcpy(data, in, in_len);
 
-  digestInfo.algor = &algor;
-  digestInfo.algor->algorithm = OBJ_nid2obj(nid);
-  digestInfo.algor->parameter = &parameter;
-  digestInfo.algor->parameter->type = V_ASN1_NULL;
-  digestInfo.algor->parameter->value.ptr = NULL;
-  digestInfo.digest = &digest;
-  digestInfo.digest->data = data;
-  digestInfo.digest->length = (int)in_len;
-  *out_len = (unsigned int)i2d_X509_SIG(&digestInfo, &out);
+  digestInfo = X509_SIG_new();
+  X509_SIG_getm(digestInfo, &algor, &digest);
+  algor->algorithm = OBJ_nid2obj(nid);
+  X509_ALGOR_set0(algor, OBJ_nid2obj(nid), V_ASN1_NULL, NULL);
+  ASN1_STRING_set(digest, data, in_len);
+  *out_len = (unsigned int)i2d_X509_SIG(digestInfo, &out);
+  X509_SIG_free(digestInfo);
   return true;
 }
 
@@ -303,6 +302,7 @@ static void import_key(unsigned char slot, unsigned char pin_policy) {
     unsigned char dmq1[128];
     unsigned char iqmp[128];
     int element_len = 128;
+    const BIGNUM *bn_e, *bn_p, *bn_q, *bn_dmp1, *bn_dmq1, *bn_iqmp;
 
     bio = BIO_new_mem_buf(private_key_pem, strlen(private_key_pem));
     private_key = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
@@ -310,12 +310,15 @@ static void import_key(unsigned char slot, unsigned char pin_policy) {
     BIO_free(bio);
     rsa_private_key = EVP_PKEY_get1_RSA(private_key);
     ck_assert_ptr_nonnull(rsa_private_key);
-    ck_assert(set_component(e, rsa_private_key->e, 3));
-    ck_assert(set_component(p, rsa_private_key->p, element_len));
-    ck_assert(set_component(q, rsa_private_key->q, element_len));
-    ck_assert(set_component(dmp1, rsa_private_key->dmp1, element_len));
-    ck_assert(set_component(dmq1, rsa_private_key->dmq1, element_len));
-    ck_assert(set_component(iqmp, rsa_private_key->iqmp, element_len));
+    RSA_get0_key(rsa_private_key, NULL, &bn_e, NULL);
+    RSA_get0_factors(rsa_private_key, &bn_p, &bn_q);
+    RSA_get0_crt_params(rsa_private_key, &bn_dmp1, &bn_dmq1, &bn_iqmp);
+    ck_assert(set_component(e, bn_e, 3));
+    ck_assert(set_component(p, bn_p, element_len));
+    ck_assert(set_component(q, bn_q, element_len));
+    ck_assert(set_component(dmp1, bn_dmp1, element_len));
+    ck_assert(set_component(dmq1, bn_dmq1, element_len));
+    ck_assert(set_component(iqmp, bn_iqmp, element_len));
 
     // Try wrong algorithm, fail.
     res = ykpiv_import_private_key(g_state,
@@ -342,6 +345,7 @@ static void import_key(unsigned char slot, unsigned char pin_policy) {
                                    NULL, 0,
                                    pp, tp);
     ck_assert_int_eq(res, YKPIV_OK);
+    RSA_free(rsa_private_key);
     EVP_PKEY_free(private_key);
   }
 
@@ -364,7 +368,9 @@ static void import_key(unsigned char slot, unsigned char pin_policy) {
     ck_assert_ptr_nonnull(pub_key);
     rsa = EVP_PKEY_get1_RSA(pub_key);
     ck_assert_ptr_nonnull(rsa);
-    ck_assert_int_gt(RAND_pseudo_bytes(secret, sizeof(secret)), 0);
+    EVP_PKEY_free(pub_key);
+
+    ck_assert_int_gt(RAND_bytes(secret, sizeof(secret)), 0);
     len = RSA_public_encrypt(sizeof(secret), secret, data, rsa, RSA_PKCS1_PADDING);
     ck_assert_int_ge(len, 0);
     res = ykpiv_verify(g_state, "123456", NULL);
@@ -374,6 +380,7 @@ static void import_key(unsigned char slot, unsigned char pin_policy) {
     len = RSA_padding_check_PKCS1_type_2(secret2, sizeof(secret2), data + 1, len2 - 1, RSA_size(rsa));
     ck_assert_int_eq(len, sizeof(secret));
     ck_assert_int_eq(memcmp(secret, secret2, sizeof(secret)), 0);
+    RSA_free(rsa);
     X509_free(cert);
   }
 }
@@ -411,8 +418,9 @@ START_TEST(test_import_key) {
     ck_assert_ptr_nonnull(pub_key);
     rsa = EVP_PKEY_get1_RSA(pub_key);
     ck_assert_ptr_nonnull(rsa);
+    EVP_PKEY_free(pub_key);
 
-    ck_assert_int_gt(RAND_pseudo_bytes(rand, 128), 0);
+    ck_assert_int_gt(RAND_bytes(rand, 128), 0);
     mdctx = EVP_MD_CTX_create();
     EVP_DigestInit_ex(mdctx, md, NULL);
     EVP_DigestUpdate(mdctx, rand, 128);
@@ -425,7 +433,9 @@ START_TEST(test_import_key) {
 
     ck_assert_int_eq(RSA_verify(EVP_MD_type(md), data, data_len, signature, sig_len, rsa), 1);
 
+    RSA_free(rsa);
     X509_free(cert);
+    EVP_MD_CTX_destroy(mdctx);
   }
 
   // Verify that imported key can not be attested
@@ -488,8 +498,9 @@ START_TEST(test_pin_policy_always) {
     ck_assert_ptr_nonnull(pub_key);
     rsa = EVP_PKEY_get1_RSA(pub_key);
     ck_assert_ptr_nonnull(rsa);
+    EVP_PKEY_free(pub_key);
 
-    ck_assert_int_gt(RAND_pseudo_bytes(rand, 128), 0);
+    ck_assert_int_gt(RAND_bytes(rand, 128), 0);
     mdctx = EVP_MD_CTX_create();
     EVP_DigestInit_ex(mdctx, md, NULL);
     EVP_DigestUpdate(mdctx, rand, 128);
@@ -520,7 +531,9 @@ START_TEST(test_pin_policy_always) {
 
     ck_assert_int_eq(RSA_verify(EVP_MD_type(md), data, data_len, signature, sig_len, rsa), 1);
 
+    RSA_free(rsa);
     X509_free(cert);
+    EVP_MD_CTX_destroy(mdctx);
   }
 }
 END_TEST
@@ -860,6 +873,7 @@ START_TEST(test_pin_cache) {
   ykpiv_rc res;
   ykpiv_state *local_state;
   unsigned char data[256];
+  unsigned char data_in[256] = {0};
   int len = sizeof(data);
   size_t len2 = sizeof(data);
 
@@ -877,17 +891,17 @@ START_TEST(test_pin_cache) {
   ck_assert_int_eq(res, YKPIV_OK);
 
   // Verify decryption does not work without auth
-  res = ykpiv_decipher_data(g_state, data, (size_t)len, data, &len2, YKPIV_ALGO_RSA2048, 0x9a);
+  res = ykpiv_decipher_data(g_state, data_in, (size_t)len, data, &len2, YKPIV_ALGO_RSA2048, 0x9a);
   ck_assert_int_eq(res, YKPIV_AUTHENTICATION_ERROR);
 
   // Verify decryption does work when authed
   res = ykpiv_verify_select(g_state, "123456", 6, NULL, true);
   ck_assert_int_eq(res, YKPIV_OK);
-  res = ykpiv_decipher_data(g_state, data, (size_t)len, data, &len2, YKPIV_ALGO_RSA2048, 0x9a);
+  res = ykpiv_decipher_data(g_state, data_in, (size_t)len, data, &len2, YKPIV_ALGO_RSA2048, 0x9a);
   ck_assert_int_eq(res, YKPIV_OK);
 
   // Verify PIN policy allows continuing to decrypt without re-verifying
-  res = ykpiv_decipher_data(g_state, data, (size_t)len, data, &len2, YKPIV_ALGO_RSA2048, 0x9a);
+  res = ykpiv_decipher_data(g_state, data_in, (size_t)len, data, &len2, YKPIV_ALGO_RSA2048, 0x9a);
   ck_assert_int_eq(res, YKPIV_OK);
 
   // Create a new ykpiv state, connect, and close it.
@@ -908,7 +922,7 @@ START_TEST(test_pin_cache) {
   //
   // Note that you can verify that this fails by rebuilding with
   // DISABLE_PIN_CACHE set to 1.
-  res = ykpiv_decipher_data(g_state, data, (size_t)len, data, &len2, YKPIV_ALGO_RSA2048, 0x9a);
+  res = ykpiv_decipher_data(g_state, data_in, (size_t)len, data, &len2, YKPIV_ALGO_RSA2048, 0x9a);
   ck_assert_int_eq(res, YKPIV_OK);
 }
 END_TEST

@@ -42,6 +42,7 @@
 #include <windows.h>
 #endif
 
+#include "openssl-compat.h"
 #include <openssl/des.h>
 #include <openssl/pem.h>
 #include <openssl/pkcs12.h>
@@ -123,6 +124,58 @@ static bool sign_data(ykpiv_state *state, const unsigned char *in, size_t len, u
   return false;
 }
 
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+static int ec_key_ex_data_idx = -1;
+
+struct internal_key {
+  ykpiv_state *state;
+  int algorithm;
+  int key;
+};
+
+int yk_rsa_meth_sign(int dtype, const unsigned char *m, unsigned int m_length,
+    unsigned char *sigret, unsigned int *siglen, const RSA *rsa) {
+  const RSA_METHOD *meth = RSA_get_method(rsa);
+  const struct internal_key *key = RSA_meth_get0_app_data(meth);
+  if (sign_data(key->state, m, m_length, sigret, (size_t *)siglen, key->algorithm, key->key))
+    return 0;
+
+  return 1;
+}
+
+int yk_ec_meth_sign(int type, const unsigned char *dgst, int dlen,
+    unsigned char *sig, unsigned int *siglen, const BIGNUM *kinv,
+    const BIGNUM *r, EC_KEY *ec) {
+  const struct internal_key *key = EC_KEY_get_ex_data(ec, ec_key_ex_data_idx);
+  if (sign_data(key->state, dgst, dlen, sig, (size_t *)siglen, key->algorithm, key->key))
+    return 0;
+
+  return 1;
+}
+
+static int wrap_public_key(ykpiv_state *state, int algorithm, EVP_PKEY *public_key,
+    int key) {
+  if(YKPIV_IS_RSA(algorithm)) {
+    RSA_METHOD *meth = RSA_meth_dup(RSA_get_default_method());
+    RSA *rsa = EVP_PKEY_get0_RSA(public_key);
+    struct internal_key int_key = {state, algorithm, key};
+    RSA_meth_set0_app_data(meth, &int_key);
+    RSA_meth_set_sign(meth, yk_rsa_meth_sign);
+    RSA_set_method(rsa, meth);
+  } else {
+    EC_KEY *ec = EVP_PKEY_get0_EC_KEY(public_key);
+    EC_KEY_METHOD *meth = EC_KEY_METHOD_new(EC_KEY_get_method(ec));
+    struct internal_key int_key = {state, algorithm, key};
+    if (ec_key_ex_data_idx == -1)
+      ec_key_ex_data_idx = EC_KEY_get_ex_new_index(0, NULL, NULL, NULL, 0);
+    EC_KEY_set_ex_data(ec, ec_key_ex_data_idx, &int_key);
+    EC_KEY_METHOD_set_sign(meth, yk_ec_meth_sign, NULL, NULL); /* XXX ?? */
+    EC_KEY_set_method(ec, meth);
+  }
+  return 0;
+}
+#endif
+
 static bool generate_key(ykpiv_state *state, enum enum_slot slot,
     enum enum_algorithm algorithm, const char *output_file_name,
     enum enum_key_format key_format, enum enum_pin_policy pin_policy,
@@ -168,17 +221,21 @@ static bool generate_key(ykpiv_state *state, enum enum_slot slot,
   if(key_format == key_format_arg_PEM) {
     public_key = EVP_PKEY_new();
     if(algorithm == algorithm_arg_RSA1024 || algorithm == algorithm_arg_RSA2048) {
+      BIGNUM *bignum_n = NULL;
+      BIGNUM *bignum_e = NULL;
       rsa = RSA_new();
-      rsa->n = BN_bin2bn(mod, mod_len, NULL);
-      if (rsa->n == NULL) {
+      bignum_n = BN_bin2bn(mod, mod_len, NULL);
+      if (bignum_n == NULL) {
         fprintf(stderr, "Failed to parse public key modulus.\n");
         goto generate_out;
       }
-      rsa->e = BN_bin2bn(exp, exp_len, NULL);
-      if(rsa->e == NULL) {
+      bignum_e = BN_bin2bn(exp, exp_len, NULL);
+      if(bignum_e == NULL) {
         fprintf(stderr, "Failed to parse public key exponent.\n");
         goto generate_out;
       }
+
+      RSA_set0_key(rsa, bignum_n, bignum_e, NULL);
       EVP_PKEY_set1_RSA(public_key, rsa);
     } else if(algorithm == algorithm_arg_ECCP256 || algorithm == algorithm_arg_ECCP384) {
       EC_GROUP *group;
@@ -329,39 +386,43 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
       unsigned char dmp1[128];
       unsigned char dmq1[128];
       unsigned char iqmp[128];
+      const BIGNUM *bn_e, *bn_p, *bn_q, *bn_dmp1, *bn_dmq1, *bn_iqmp;
 
       int element_len = 128;
       if(algorithm == YKPIV_ALGO_RSA1024) {
         element_len = 64;
       }
 
-      if((set_component(e, rsa_private_key->e, 3) == false) ||
+      RSA_get0_key(rsa_private_key, NULL, &bn_e, NULL);
+      RSA_get0_factors(rsa_private_key, &bn_p, &bn_q);
+      RSA_get0_crt_params(rsa_private_key, &bn_dmp1, &bn_dmq1, &bn_iqmp);
+      if((set_component(e, bn_e, 3) == false) ||
          !(e[0] == 0x01 && e[1] == 0x00 && e[2] == 0x01)) {
         fprintf(stderr, "Invalid public exponent for import (only 0x10001 supported)\n");
         goto import_out;
       }
 
-      if(set_component(p, rsa_private_key->p, element_len) == false) {
+      if(set_component(p, bn_p, element_len) == false) {
         fprintf(stderr, "Failed setting p component.\n");
         goto import_out;
       }
 
-      if(set_component(q, rsa_private_key->q, element_len) == false) {
+      if(set_component(q, bn_q, element_len) == false) {
         fprintf(stderr, "Failed setting q component.\n");
         goto import_out;
       }
 
-      if(set_component(dmp1, rsa_private_key->dmp1, element_len) == false) {
+      if(set_component(dmp1, bn_dmp1, element_len) == false) {
         fprintf(stderr, "Failed setting dmp1 component.\n");
         goto import_out;
       }
 
-      if(set_component(dmq1, rsa_private_key->dmq1, element_len) == false) {
+      if(set_component(dmq1, bn_dmq1, element_len) == false) {
         fprintf(stderr, "Failed setting dmq1 component.\n");
         goto import_out;
       }
 
-      if(set_component(iqmp, rsa_private_key->iqmp, element_len) == false) {
+      if(set_component(iqmp, bn_iqmp, element_len) == false) {
         fprintf(stderr, "Failed setting iqmp component.\n");
         goto import_out;
       }
@@ -627,6 +688,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     goto request_out;
   }
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   memcpy(digest, oid, oid_len);
   /* XXX: this should probably use X509_REQ_digest() but that's buggy */
   if(!ASN1_item_digest(ASN1_ITEM_rptr(X509_REQ_INFO), md, req->req_info,
@@ -640,6 +702,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     fprintf(stderr, "Unsupported algorithm %x or hash %x\n", algorithm, hash);
     goto request_out;
   }
+
   if(YKPIV_IS_RSA(algorithm)) {
     signinput = digest;
     len = oid_len + digest_len;
@@ -662,6 +725,13 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     /* mark that all bits should be used. */
     req->signature->flags = ASN1_STRING_FLAG_BITS_LEFT;
   }
+#else
+  /* With opaque structures we can not touch whatever we want, but we need
+   * to embed the sign_data function in the RSA/EC key structures  */
+  wrap_public_key(state, algorithm, public_key, key);
+
+  X509_REQ_sign(req, public_key, md);
+#endif
 
   if(key_format == key_format_arg_PEM) {
     PEM_write_X509_REQ(output_file, req);
@@ -681,9 +751,11 @@ request_out:
     EVP_PKEY_free(public_key);
   }
   if(req) {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
     if(req->sig_alg->parameter) {
       req->sig_alg->parameter = NULL;
     }
+#endif
     X509_REQ_free(req);
   }
   if(name) {
@@ -812,6 +884,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   if(nid == 0) {
     goto selfsign_out;
   }
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   if(YKPIV_IS_RSA(algorithm)) {
     signinput = digest;
     len = oid_len + md_len;
@@ -845,6 +918,13 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
      * certificate can be validated. */
     x509->signature->flags = ASN1_STRING_FLAG_BITS_LEFT;
   }
+#else
+  /* With opaque structures we can not touch whatever we want, but we need
+   * to embed the sign_data function in the RSA/EC key structures  */
+  wrap_public_key(state, algorithm, public_key, key);
+
+  X509_sign(x509, public_key, md);
+#endif
 
   if(key_format == key_format_arg_PEM) {
     PEM_write_X509(output_file, x509);
@@ -861,10 +941,12 @@ selfsign_out:
     fclose(output_file);
   }
   if(x509) {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
     if(x509->sig_alg->parameter) {
       x509->sig_alg->parameter = NULL;
       x509->cert_info->signature->parameter = NULL;
     }
+#endif
     X509_free(x509);
   }
   if(public_key) {
@@ -1325,7 +1407,7 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
   {
     unsigned char rand[128];
     EVP_MD_CTX *mdctx;
-    if(RAND_pseudo_bytes(rand, 128) == -1) {
+    if(RAND_bytes(rand, 128) == -1) {
       fprintf(stderr, "error: no randomness.\n");
       return false;
     }
@@ -1472,7 +1554,7 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
       size_t len2 = sizeof(data);
       RSA *rsa = EVP_PKEY_get1_RSA(pubkey);
 
-      if(RAND_pseudo_bytes(secret, sizeof(secret)) == -1) {
+      if(RAND_bytes(secret, sizeof(secret)) == -1) {
         fprintf(stderr, "error: no randomness.\n");
         ret = false;
         goto decipher_out;

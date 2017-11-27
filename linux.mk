@@ -1,4 +1,4 @@
-# Copyright (c) 2014-2016 Yubico AB
+# Copyright (c) 2014-2017 Yubico AB
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,42 +25,34 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-SUBDIRS = . tests
+#
+# Note: this build script is for testing OpenSSL 1.1 builds.  The official
+# Linux release builds are handled by the standard Makefile.
+#
+PACKAGE=yubico-piv-tool
+OPENSSLVERSION=1.1.0g
 
-AM_CFLAGS = $(WERROR_CFLAGS) $(WARN_CFLAGS)
-AM_CPPFLAGS = $(OPENSSL_CFLAGS)
-AM_CPPFLAGS += -I$(top_srcdir)/lib -I$(top_builddir)/lib
+all: linux
 
-bin_PROGRAMS = yubico-piv-tool
-yubico_piv_tool_SOURCES = yubico-piv-tool.c yubico-piv-tool.h2m
-yubico_piv_tool_LDADD = $(OPENSSL_LIBS) $(top_builddir)/lib/libykpiv.la
-yubico_piv_tool_LDADD += libpiv_cmd.la libpiv_util.la
+doit:
+	rm -rf tmp && mkdir tmp && cd tmp && \
+	mkdir -p root/licenses && \
+	cp ../openssl-$(OPENSSLVERSION).tar.gz . || \
+		curl -L -O "https://www.openssl.org/source/openssl-$(OPENSSLVERSION).tar.gz" && \
+	tar xfz openssl-$(OPENSSLVERSION).tar.gz && \
+	cd openssl-$(OPENSSLVERSION) && \
+	./Configure linux-x86_64 shared --prefix=$(PWD)/tmp/root $(CFLAGS) && \
+	make all install VERSION="$(OPENSSLVERSION)" && \
+	cp LICENSE $(PWD)/tmp$(ARCH)/root/licenses/openssl.txt && \
+	cd .. && \
+	cp ../$(PACKAGE)-$(VERSION).tar.gz . && \
+	tar xfz $(PACKAGE)-$(VERSION).tar.gz && \
+	cd $(PACKAGE)-$(VERSION)/ && \
+	CFLAGS=$(CFLAGS) PKG_CONFIG_PATH=$(PWD)/tmp/root/lib/pkgconfig ./configure --prefix=$(PWD)/tmp/root && \
+	make install $(CHECK) && \
+	cd .. && \
+	cd root && \
+	zip -r ../../$(PACKAGE)-$(VERSION)-linux-openssl-$(OPENSSLVERSION).zip *
 
-noinst_LTLIBRARIES = libpiv_cmd.la libpiv_util.la
-libpiv_cmd_la_SOURCES = cmdline.ggo cmdline.c cmdline.h
-libpiv_cmd_la_CFLAGS =
-
-libpiv_util_la_SOURCES = util.c util.h openssl-compat.c openssl-compat.h
-libpiv_util_la_LIBADD = $(top_builddir)/lib/libykpiv.la $(OPENSSL_LIBS)
-
-cmdline.c cmdline.h: cmdline.ggo Makefile.am $(top_srcdir)/configure.ac
-	$(GENGETOPT) --input $^
-
-BUILT_SOURCES = cmdline.c cmdline.h
-MAINTAINERCLEANFILES = $(BUILT_SOURCES)
-
-# Doc.
-
-dist_man_MANS = yubico-piv-tool.1
-MAINTAINERCLEANFILES += $(dist_man_MANS)
-
-yubico-piv-tool.1: $(yubico_piv_tool_SOURCES) $(libpiv_cmd_la_SOURCES) $(top_srcdir)/configure.ac | $(builddir)/yubico-piv-tool$(EXEEXT)
-	$(HELP2MAN) --no-info \
-		--name="Yubico PIV tool" \
-		--include=$(srcdir)/yubico-piv-tool.h2m \
-		--output=$@ $(builddir)/yubico-piv-tool$(EXEEXT)
-
-if ENABLE_COV
-AM_CFLAGS += --coverage
-AM_LDFLAGS = --coverage
-endif
+linux:
+	$(MAKE) -f linux.mk doit CHECK=check

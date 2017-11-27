@@ -21,7 +21,7 @@
 
 #ifdef _WINDOWS
 
-#define STATUS_SUCCESS                   ((NTSTATUS)0x00000000L) 
+#define STATUS_SUCCESS                   ((NTSTATUS)0x00000000L)
 
 struct des_key {
   HCRYPTPROV hProv;
@@ -399,7 +399,7 @@ prng_rc _ykpiv_prng_generate(unsigned char *buffer, const size_t cb_req) {
   }
 
 #else
-  if (-1 == RAND_pseudo_bytes(buffer, cb_req)) {
+  if (-1 == RAND_bytes(buffer, cb_req)) {
     rc = PRNG_GENERAL_ERROR;
   }
 
