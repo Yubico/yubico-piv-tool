@@ -49,7 +49,7 @@ doit:
 	tar xfz openssl-$(OPENSSLVERSION).tar.gz && \
 	cd openssl-$(OPENSSLVERSION) && \
 	./Configure darwin64-x86_64-cc shared no-ssl2 no-ssl3 no-engines --prefix=$(PWD)/tmp/root $(CFLAGS) && \
-	make all install_sw && \
+	make all install_sw VERSION="$(OPENSSLVERSION)" && \
 	cp LICENSE $(PWD)/tmp$(ARCH)/root/licenses/openssl.txt && \
 	rm -rf $(PWD)/tmp/root/ssl/ && \
 	rm -rf $(PWD)/tmp/root/bin/ && \
