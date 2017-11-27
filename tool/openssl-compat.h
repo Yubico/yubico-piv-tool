@@ -10,6 +10,8 @@
 #ifndef LIBCRYPTO_COMPAT_H
 #define LIBCRYPTO_COMPAT_H
 
+#ifndef _WINDOWS
+
 #include <openssl/opensslv.h>
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 
@@ -30,6 +32,6 @@ void RSA_get0_crt_params(const RSA *r,
 void X509_SIG_getm(X509_SIG *sig, X509_ALGOR **palg,
                    ASN1_OCTET_STRING **pdigest);
 
+#endif /* _WINDOWS */
 #endif /* OPENSSL_VERSION_NUMBER */
 #endif /* LIBCRYPTO_COMPAT_H */
-

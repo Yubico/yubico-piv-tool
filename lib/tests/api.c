@@ -28,9 +28,9 @@
  *
  */
 
-#include "../../tool/openssl-compat.h"
 #include "ykpiv.h"
 #include "internal.h"
+#include "../../tool/openssl-compat.h"
 
 #include <stddef.h>
 #include <stdio.h>

@@ -42,23 +42,14 @@ doit:
 	tar xfz openssl-$(OPENSSLVERSION).tar.gz && \
 	cd openssl-$(OPENSSLVERSION) && \
 	./Configure linux-x86_64 shared --prefix=$(PWD)/tmp/root $(CFLAGS) && \
-	make all install_sw && \
+	make all install VERSION="$(OPENSSLVERSION)" && \
 	cp LICENSE $(PWD)/tmp$(ARCH)/root/licenses/openssl.txt && \
-	rm -rf $(PWD)/tmp/root/ssl/ && \
-	rm -rf $(PWD)/tmp/root/bin/ && \
-	rm -rf $(PWD)/tmp/root/lib/engines/ && \
-	rm -rf $(PWD)/tmp/root/lib/libssl* && \
-	rm $(PWD)/tmp/root/lib/pkgconfig/libssl.pc && \
-	rm $(PWD)/tmp/root/lib/pkgconfig/openssl.pc && \
 	cd .. && \
 	cp ../$(PACKAGE)-$(VERSION).tar.gz . && \
 	tar xfz $(PACKAGE)-$(VERSION).tar.gz && \
 	cd $(PACKAGE)-$(VERSION)/ && \
 	CFLAGS=$(CFLAGS) PKG_CONFIG_PATH=$(PWD)/tmp/root/lib/pkgconfig ./configure --prefix=$(PWD)/tmp/root && \
 	make install $(CHECK) && \
-	rm $(PWD)/tmp/root/lib/*.la && \
-	rm -rf $(PWD)/tmp/root/lib/pkgconfig && \
-	cp COPYING $(PWD)/tmp/root/licenses/$(PACKAGE).txt && \
 	cd .. && \
 	cd root && \
 	zip -r ../../$(PACKAGE)-$(VERSION)-linux-openssl-$(OPENSSLVERSION).zip *
