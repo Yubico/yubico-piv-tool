@@ -38,7 +38,8 @@ endif
 
 LDADD = ../libykpiv.la $(OPENSSL_LIBS)
 
-api_SOURCES = api.c ../../tool/openssl-compat.c ../../tool/openssl-compat.h
+api_LDADD = ../../tool/libpiv_util.la
+api_SOURCES = api.c
 check_PROGRAMS = basic parse_key api
 TESTS = $(check_PROGRAMS)
 

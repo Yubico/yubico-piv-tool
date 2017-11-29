@@ -69,7 +69,7 @@ elif [ "x$BUILD_OPENSSL_VERSION" = "x1.1" ]; then
     make -f linux.mk VERSION=$version
 else
     ./configure $COVERAGE
-    make check
+    make all check
     if [ "x$COVERAGE" != "x" ]; then
         gem install coveralls-lcov
         coveralls-lcov coverage/app2.info

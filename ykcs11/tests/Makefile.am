@@ -42,9 +42,8 @@ else
 AM_LDFLAGS += -no-install
 endif
 
-ykcs11_tests_LDADD = ../libykcs11.la $(OPENSSL_LIBS)
-
-ykcs11_tests_SOURCES = ykcs11_tests.c ../../tool/openssl-compat.c ../../tool/openssl-compat.h
+ykcs11_tests_LDADD = ../libykcs11.la $(OPENSSL_LIBS) ../../tool/libpiv_util.la
+ykcs11_tests_SOURCES = ykcs11_tests.c
 check_PROGRAMS = ykcs11_tests
 TESTS = reset.sh $(check_PROGRAMS)
 
