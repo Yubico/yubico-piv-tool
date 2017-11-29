@@ -37,7 +37,7 @@ AC_SUBST([LT_CURRENT], 5)
 AC_SUBST([LT_REVISION], 0)
 AC_SUBST([LT_AGE], 4)
 
-AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
+AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AM_SILENT_RULES([yes])
 AC_PROG_CC
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
