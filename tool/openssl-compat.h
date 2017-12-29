@@ -13,7 +13,7 @@
 #ifndef _WINDOWS
 
 #include <openssl/opensslv.h>
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
 
 #include <openssl/rsa.h>
 #include <openssl/dsa.h>
@@ -33,5 +33,5 @@ void X509_SIG_getm(X509_SIG *sig, X509_ALGOR **palg,
                    ASN1_OCTET_STRING **pdigest);
 
 #endif /* _WINDOWS */
-#endif /* OPENSSL_VERSION_NUMBER */
+#endif /* OPENSSL_VERSION_NUMBER || LIBRESSL_VERSION_NUMBER */
 #endif /* LIBCRYPTO_COMPAT_H */

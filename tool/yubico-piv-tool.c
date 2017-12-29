@@ -124,7 +124,7 @@ static bool sign_data(ykpiv_state *state, const unsigned char *in, size_t len, u
   return false;
 }
 
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+#if !((OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER))
 static int ec_key_ex_data_idx = -1;
 
 struct internal_key {
@@ -688,7 +688,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     goto request_out;
   }
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
   memcpy(digest, oid, oid_len);
   /* XXX: this should probably use X509_REQ_digest() but that's buggy */
   if(!ASN1_item_digest(ASN1_ITEM_rptr(X509_REQ_INFO), md, req->req_info,
@@ -751,7 +751,7 @@ request_out:
     EVP_PKEY_free(public_key);
   }
   if(req) {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
     if(req->sig_alg->parameter) {
       req->sig_alg->parameter = NULL;
     }
@@ -884,7 +884,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   if(nid == 0) {
     goto selfsign_out;
   }
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
   if(YKPIV_IS_RSA(algorithm)) {
     signinput = digest;
     len = oid_len + md_len;
@@ -941,7 +941,7 @@ selfsign_out:
     fclose(output_file);
   }
   if(x509) {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
     if(x509->sig_alg->parameter) {
       x509->sig_alg->parameter = NULL;
       x509->cert_info->signature->parameter = NULL;
