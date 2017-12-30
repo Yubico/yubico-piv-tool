@@ -135,22 +135,28 @@ struct internal_key {
 
 int yk_rsa_meth_sign(int dtype, const unsigned char *m, unsigned int m_length,
     unsigned char *sigret, unsigned int *siglen, const RSA *rsa) {
+  size_t yk_siglen = RSA_size(rsa);
   const RSA_METHOD *meth = RSA_get_method(rsa);
   const struct internal_key *key = RSA_meth_get0_app_data(meth);
-  if (sign_data(key->state, m, m_length, sigret, (size_t *)siglen, key->algorithm, key->key))
-    return 0;
+  if (sign_data(key->state, m, m_length, sigret, &yk_siglen, key->algorithm, key->key)) {
+    *siglen = (unsigned int)yk_siglen;
+    return 1;
+  }
 
-  return 1;
+  return 0;
 }
 
 int yk_ec_meth_sign(int type, const unsigned char *dgst, int dlen,
     unsigned char *sig, unsigned int *siglen, const BIGNUM *kinv,
     const BIGNUM *r, EC_KEY *ec) {
+  size_t yk_siglen = ECDSA_size(ec);
   const struct internal_key *key = EC_KEY_get_ex_data(ec, ec_key_ex_data_idx);
-  if (sign_data(key->state, dgst, dlen, sig, (size_t *)siglen, key->algorithm, key->key))
-    return 0;
+  if (sign_data(key->state, dgst, dlen, sig, &yk_siglen, key->algorithm, key->key)) {
+    *siglen = (unsigned int)yk_siglen;
+    return 1;
+  }
 
-  return 1;
+  return 0;
 }
 
 static int wrap_public_key(ykpiv_state *state, int algorithm, EVP_PKEY *public_key,
@@ -158,7 +164,10 @@ static int wrap_public_key(ykpiv_state *state, int algorithm, EVP_PKEY *public_k
   if(YKPIV_IS_RSA(algorithm)) {
     RSA_METHOD *meth = RSA_meth_dup(RSA_get_default_method());
     RSA *rsa = EVP_PKEY_get0_RSA(public_key);
-    struct internal_key int_key = {state, algorithm, key};
+    static struct internal_key int_key;
+    int_key.state = state;
+    int_key.algorithm = algorithm;
+    int_key.key = key;
     RSA_meth_set0_app_data(meth, &int_key);
     RSA_meth_set_sign(meth, yk_rsa_meth_sign);
     RSA_set_method(rsa, meth);
