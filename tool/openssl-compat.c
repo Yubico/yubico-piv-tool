@@ -8,7 +8,7 @@
  */
 
 #include "openssl-compat.h"
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
 
 #include <string.h>
 #include <openssl/engine.h>
@@ -80,4 +80,4 @@ void X509_SIG_getm(X509_SIG *sig, X509_ALGOR **palg,
         *pdigest = sig->digest;
 }
 
-#endif /* OPENSSL_VERSION_NUMBER */
+#endif /* OPENSSL_VERSION_NUMBER || LIBRESSL_VERSION_NUMBER */
