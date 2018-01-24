@@ -39,7 +39,7 @@ libykpiv_la_include_HEADERS = ykpiv.h ykpiv-version.h
 EXTRA_libykpiv_la_DEPENDENCIES = ykpiv.map
 
 libykpiv_la_LIBADD = $(OPENSSL_LIBS) $(PCSC_LIBS)
-libykpiv_la_LIBADD += $(PCSC_WIN_LIBS) $(PCSC_MACOSX_LIBS)
+libykpiv_la_LIBADD += $(PCSC_WIN_LIBS) $(PCSC_MACOSX_LIBS) $(PCSC_CUSTOM_LIBS)
 
 libykpiv_la_LDFLAGS = -no-undefined
 libykpiv_la_LDFLAGS += -version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE)
