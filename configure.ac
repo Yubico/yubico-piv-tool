@@ -80,6 +80,18 @@ AC_ARG_WITH([backend],
     [],
     [with_backend=check])
 
+AC_ARG_WITH([pcsclib],
+  [AS_HELP_STRING([--with-pcsclib=ARG],
+    [Name of custom PCSC lib])],
+    [],
+    [with_pcsclib=])
+
+AC_ARG_WITH([pcscdir],
+  [AS_HELP_STRING([--with-pcscdir=ARG],
+    [Path to custom PCSC lib dir (use with --with-pcsclib)])],
+    [],
+    [with_pcscdir=])
+
 case "$with_backend$host" in
   check*-darwin*)
     AC_MSG_NOTICE([Detected Mac: selecting macscard backend])
@@ -138,8 +150,31 @@ if test "x$with_backend" = xmacscard; then
   LIBS="$save_LIBS"
 fi
 
+if test "x$with_pcsclib" != x; then
+  AC_MSG_NOTICE([checking for PCSC with custom lib])
+  AC_CHECK_HEADERS([PCSC/winscard.h])
+  if test "x$with_pcscdir" != x; then
+    PCSC_CUSTOM_LIBS="-Wl,-L$with_pcscdir -Wl,-l$with_pcsclib -Wl,-rpath,$with_pcscdir"
+  else
+    PCSC_CUSTOM_LIBS="-Wl,-l$with_pcsclib"
+  fi
+  save_CFLAGS="$CFLAGS"
+  CFLAGS="$CFLAGS $PCSC_CFLAGS"
+  save_LIBS="$LIBS"
+  LIBS="$LIBS $PCSC_CUSTOM_LIBS"
+  AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <PCSC/winscard.h>]],
+          [[SCardBeginTransaction(0)]])],
+                 [AC_SUBST([PCSC_CUSTOM_LIBS])],
+                 [AC_MSG_ERROR([cannot find custom PCSC library/headers])])
+  LIBS="$save_LIBS"
+  CFLAGS="$save_CFLAGS"
+  PCSC_MACOSX_LIBS=
+  PCSC_WIN_LIBS=
+  PCSC_LIBS=
+fi
+
 if test "x$with_backend" = xpcsc || test "x$with_backend" = xwinscard \
-  || test "x$with_backend" = xmacscard; then
+  || test "x$with_backend" = xmacscard || test "x$with_pcsclib" != x; then
   AC_DEFINE([BACKEND_PCSC], 1, [Define to 1 if you the PCSC backend.])
 else
   AC_MSG_ERROR([cannot find PCSC library])
@@ -269,6 +304,8 @@ AC_MSG_NOTICE([summary of build options:
             LIBS:   ${PCSC_WIN_LIBS}
   Mac PCSC
             LIBS:   ${PCSC_MACOSX_LIBS}
+  Custom PCSC
+            LIBS:   ${PCSC_CUSTOM_LIBS}
 
   YKCS11 debug:    ${ykcs11_debug}
   Hardware tests:  ${hw_tests}
