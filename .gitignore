@@ -75,12 +75,15 @@ tool/cmdline.h
 tool/cmdline.o
 tool/yubico-piv-tool
 tool/yubico-piv-tool.1
+tool/yubico-piv-tool.exe
 tool/yubico-piv-tool.o
 tool/.libs/
 tool/libpiv_cmd.la
 tool/libpiv_cmd_la-cmdline.lo
 tool/libpiv_cmd_la-cmdline.o
 tool/libpiv_util.la
+tool/openssl-compat.lo
+tool/openssl-compat.o
 tool/util.lo
 tool/util.o
 tool/tests/cert_9a.pem
