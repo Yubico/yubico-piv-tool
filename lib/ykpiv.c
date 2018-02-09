@@ -261,6 +261,8 @@ ykpiv_rc _ykpiv_select_application(ykpiv_state *state) {
   }
 
   _ykpiv_get_version(state, NULL);
+
+  return res;
 }
 
 ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state) {
