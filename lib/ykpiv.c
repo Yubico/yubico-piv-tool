@@ -447,7 +447,7 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
   }
 
   if (num_readers > *len) {
-    num_readers = *len;
+    num_readers = (pcsc_word)*len;
   }
 
   rc = SCardListReaders(state->context, NULL, readers, &num_readers);
@@ -520,7 +520,7 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
     if(state->verbose > 2) {
       fprintf(stderr, "Going to send %lu bytes in this go.\n", (unsigned long)this_size);
     }
-    apdu.st.lc = this_size;
+    apdu.st.lc = (unsigned char)this_size;
     memcpy(apdu.st.data, in_ptr, this_size);
     res = _send_data(state, &apdu, data, &recv_len, sw);
     if(res != YKPIV_OK) {
@@ -788,7 +788,7 @@ ykpiv_rc ykpiv_hex_decode(const char *hex_in, size_t in_len,
     char *ind_ptr = strchr(hex_translate, tolower(*hex_in++));
     int index = 0;
     if(ind_ptr) {
-      index = ind_ptr - hex_translate;
+      index = (int)(ind_ptr - hex_translate);
     } else {
       return YKPIV_PARSE_ERROR;
     }
@@ -861,7 +861,7 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   memcpy(dataptr, sign_in, (size_t)in_len);
   dataptr += in_len;
 
-  if((res = ykpiv_transfer_data(state, templ, indata, dataptr - indata, data,
+  if((res = ykpiv_transfer_data(state, templ, indata, (long)(dataptr - indata), data,
         &recv_len, &sw)) != YKPIV_OK) {
     if(state->verbose) {
       fprintf(stderr, "Sign command failed to communicate.\n");
@@ -1265,7 +1265,7 @@ ykpiv_rc _ykpiv_fetch_object(ykpiv_state *state, int object_id,
     return YKPIV_INVALID_OBJECT;
   }
 
-  if((res = ykpiv_transfer_data(state, templ, indata, inptr - indata, data, len, &sw))
+  if((res = ykpiv_transfer_data(state, templ, indata, (long)(inptr - indata), data, len, &sw))
       != YKPIV_OK) {
     return res;
   }
@@ -1277,7 +1277,7 @@ ykpiv_rc _ykpiv_fetch_object(ykpiv_state *state, int object_id,
       return YKPIV_SIZE_ERROR;
     }
     memmove(data, data + 1 + offs, outlen);
-    *len = outlen;
+    *len = (unsigned long)outlen;
     return YKPIV_OK;
   } else {
     return YKPIV_GENERIC_ERROR;
@@ -1319,7 +1319,7 @@ ykpiv_rc _ykpiv_save_object(ykpiv_state *state, int object_id,
   memcpy(dataptr, indata, len);
   dataptr += len;
 
-  if((res = ykpiv_transfer_data(state, templ, data, dataptr - data, NULL, &outlen,
+  if((res = ykpiv_transfer_data(state, templ, data, (long)(dataptr - data), NULL, &outlen,
     &sw)) != YKPIV_OK) {
     return res;
   }
@@ -1463,7 +1463,7 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
-  if ((res = ykpiv_transfer_data(state, templ, key_data, in_ptr - key_data, data, &recv_len, &sw)) != YKPIV_OK) {
+  if ((res = ykpiv_transfer_data(state, templ, key_data, (long)(in_ptr - key_data), data, &recv_len, &sw)) != YKPIV_OK) {
     goto Cleanup;
   }
   if (SW_SUCCESS != sw) {
@@ -1490,7 +1490,7 @@ ykpiv_rc ykpiv_attest(ykpiv_state *state, const unsigned char key, unsigned char
     return YKPIV_ARGUMENT_ERROR;
   }
 
-  ul_data_len = *data_len;
+  ul_data_len = (unsigned long)*data_len;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;

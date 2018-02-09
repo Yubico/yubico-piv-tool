@@ -599,7 +599,7 @@ void yc_log_event(uint32_t id, yc_log_level_t level, const char * sz_format, ...
 #ifdef _WIN32
   HANDLE hLog = NULL;
   LPCSTR sz_message = rgsz_message;
-  DWORD  dw_type = EVENTLOG_SUCCESS;
+  WORD   w_type = EVENTLOG_SUCCESS;
 #else
   int priority = LOG_INFO;
 #endif
@@ -610,20 +610,20 @@ void yc_log_event(uint32_t id, yc_log_level_t level, const char * sz_format, ...
 
   switch (level) {
     case YC_LOG_LEVEL_ERROR:
-      dw_type = EVENTLOG_ERROR_TYPE;
+      w_type = EVENTLOG_ERROR_TYPE;
       break;
     case YC_LOG_LEVEL_WARN:
-      dw_type = EVENTLOG_WARNING_TYPE;
+      w_type = EVENTLOG_WARNING_TYPE;
       break;
     case YC_LOG_LEVEL_INFO:
-      dw_type = EVENTLOG_INFORMATION_TYPE;
+      w_type = EVENTLOG_INFORMATION_TYPE;
       break;
     case YC_LOG_LEVEL_VERBOSE:
-      dw_type = EVENTLOG_INFORMATION_TYPE;
+      w_type = EVENTLOG_INFORMATION_TYPE;
       break;
     default:
     case YC_LOG_LEVEL_DEBUG:
-      dw_type = EVENTLOG_SUCCESS;
+      w_type = EVENTLOG_SUCCESS;
       break;
   }
 
@@ -645,7 +645,7 @@ void yc_log_event(uint32_t id, yc_log_level_t level, const char * sz_format, ...
 
   ReportEventA(
     hLog,
-    dw_type,
+    w_type,
     0,
     (DWORD)id,
     NULL,
