@@ -92,6 +92,7 @@ void teardown(void) {
   ck_assert_int_eq(res, YKPIV_OK);
 }
 
+#ifdef HW_TESTS
 START_TEST(test_devicemodel) {
   ykpiv_rc res;
   ykpiv_devmodel model;
@@ -926,6 +927,7 @@ START_TEST(test_pin_cache) {
   ck_assert_int_eq(res, YKPIV_OK);
 }
 END_TEST
+#endif
 
 int destruction_confirmed(void) {
   char *confirmed = getenv("YKPIV_ENV_HWTESTS_CONFIRMED");
