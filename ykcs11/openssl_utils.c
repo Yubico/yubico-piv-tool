@@ -35,6 +35,11 @@
 #include "debug.h"
 #include <string.h>
 
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+# define X509_set_notBefore X509_set1_notBefore
+# define X509_set_notAfter X509_set1_notAfter
+#endif
+
 CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, X509 **cert) {
 
   const unsigned char *p = data; // Mandatory temp variable required by OpenSSL
@@ -580,7 +585,9 @@ CK_RV do_pkcs_pss(ykcs11_rsa_key_t *key, CK_BYTE_PTR in, CK_ULONG in_len,
           int nid, CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
   unsigned char em[RSA_size(key)];
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   OpenSSL_add_all_digests();
+#endif
 
   DBG("Apply PSS padding to %lu bytes and get %d", in_len, RSA_size(key));
 
@@ -590,14 +597,18 @@ CK_RV do_pkcs_pss(ykcs11_rsa_key_t *key, CK_BYTE_PTR in, CK_ULONG in_len,
 
   // In case of raw PSS (no hash) this function will fail because OpenSSL requires an MD
   if (RSA_padding_add_PKCS1_PSS(key, em, out, EVP_get_digestbynid(nid), -2) == 0) {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
     EVP_cleanup();
+#endif
     return CKR_FUNCTION_FAILED;
   }
 
   memcpy(out, em, sizeof(em));
   *out_len = (CK_ULONG) sizeof(em);
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_cleanup();
+#endif
 
   return CKR_OK;
 }
