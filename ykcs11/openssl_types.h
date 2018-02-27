@@ -31,6 +31,7 @@
 #ifndef OPENSSL_TYPES_H
 #define OPENSSL_TYPES_H
 
+#include <openssl/bn.h>
 #include <openssl/x509.h>
 #include <openssl/evp.h>
 #include <openssl/rsa.h>
