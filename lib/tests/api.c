@@ -52,6 +52,10 @@ int destruction_confirmed(void);
 #ifndef ck_assert_mem_eq
 #define ck_assert_mem_eq(a,b,n) ck_assert(memcmp((a), (b), (n)) == 0)
 #endif
+// only defined in libcheck 0.10+ (RHEL7 is still shipping 0.9)
+#ifndef ck_assert_ptr_eq
+#define ck_assert_ptr_eq(a,b) ck_assert((void *)(a) == (void *)(b))
+#endif
 
 ykpiv_state *g_state;
 const uint8_t g_cert[] = {
