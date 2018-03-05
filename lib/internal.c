@@ -523,17 +523,17 @@ setting_bool_t _get_bool_config(const char *sz_setting) {
         if (*sz_line == '\r') continue;
         if (*sz_line == '\n') continue;
 
-        if (sscanf(sz_line, "%255[^=]=%255s", sz_name, sz_value) == 2);
+        if (sscanf(sz_line, "%255[^=]=%255s", sz_name, sz_value) == 2) {
+          /* strip leading/trailing whitespace */
+          psz_name = _strip_ws(sz_name);
 
-        /* strip leading/trailing whitespace */
-        psz_name = _strip_ws(sz_name);
+          if (!strcasecmp(psz_name, sz_setting)) {
+            psz_value = _strip_ws(sz_value);
 
-        if (!strcasecmp(psz_name, sz_setting)) {
-          psz_value = _strip_ws(sz_value);
-
-          setting.source = SETTING_SOURCE_ADMIN;
-          setting.value = (!strcmp(psz_value, "1") || !strcasecmp(psz_value, "true"));
-          break;
+            setting.source = SETTING_SOURCE_ADMIN;
+            setting.value = (!strcmp(psz_value, "1") || !strcasecmp(psz_value, "true"));
+            break;
+          }
         }
       }
     }
@@ -680,7 +680,7 @@ void yc_log_event(uint32_t id, yc_log_level_t level, const char * sz_format, ...
    }
 
    openlog(szLOG_SOURCE, LOG_PID | LOG_NDELAY, LOG_USER);
-   syslog(priority, rgsz_message);
+   syslog(priority, "%s", rgsz_message);
    closelog();
 
 #endif
