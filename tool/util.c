@@ -38,6 +38,7 @@
 #endif
 
 #include "openssl-compat.h"
+#include <openssl/bn.h>
 #include <openssl/evp.h>
 #include <openssl/x509.h>
 #include <openssl/rsa.h>
@@ -336,7 +337,6 @@ bool set_component(unsigned char *in_ptr, const BIGNUM *bn, int element_len) {
 bool prepare_rsa_signature(const unsigned char *in, unsigned int in_len, unsigned char *out, unsigned int *out_len, int nid) {
   X509_SIG *digestInfo;
   X509_ALGOR *algor;
-  ASN1_TYPE parameter;
   ASN1_OCTET_STRING *digest;
   unsigned char data[1024];
 

@@ -221,7 +221,6 @@ ykpiv_rc ykpiv_util_list_keys(ykpiv_state *state, uint8_t *key_count, ykpiv_key 
   size_t offset = 0;
   uint8_t buf[CB_BUF_MAX];
   size_t cbBuf = 0;
-  bool transaction = false;
   size_t i = 0;
   size_t cbRealloc = 0;
 
@@ -491,7 +490,6 @@ Cleanup:
 ykpiv_rc ykpiv_util_write_mscmap(ykpiv_state *state, ykpiv_container *containers, size_t n_containers) {
   ykpiv_rc res = YKPIV_OK;
   uint8_t buf[CB_OBJ_MAX];
-  size_t cbBuf = sizeof(buf);
   size_t offset = 0;
   size_t req_len = 0;
   size_t data_len = n_containers * sizeof(ykpiv_container);
@@ -1444,7 +1442,6 @@ static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf
 
 static ykpiv_rc _write_certificate(ykpiv_state *state, uint8_t slot, uint8_t *data, size_t data_len, uint8_t certinfo) {
   uint8_t buf[CB_OBJ_MAX];
-  size_t cbBuf = sizeof(buf);
   int object_id = ykpiv_util_slot_object(slot);
   size_t offset = 0;
   size_t req_len = 0;

@@ -52,6 +52,10 @@ int destruction_confirmed(void);
 #ifndef ck_assert_mem_eq
 #define ck_assert_mem_eq(a,b,n) ck_assert(memcmp((a), (b), (n)) == 0)
 #endif
+// only defined in libcheck 0.10+ (RHEL7 is still shipping 0.9)
+#ifndef ck_assert_ptr_eq
+#define ck_assert_ptr_eq(a,b) ck_assert((void *)(a) == (void *)(b))
+#endif
 
 ykpiv_state *g_state;
 const uint8_t g_cert[] = {
@@ -92,6 +96,7 @@ void teardown(void) {
   ck_assert_int_eq(res, YKPIV_OK);
 }
 
+#ifdef HW_TESTS
 START_TEST(test_devicemodel) {
   ykpiv_rc res;
   ykpiv_devmodel model;
@@ -271,7 +276,6 @@ static bool set_component(unsigned char *in_ptr, const BIGNUM *bn, int element_l
 static bool prepare_rsa_signature(const unsigned char *in, unsigned int in_len, unsigned char *out, unsigned int *out_len, int nid) {
   X509_SIG *digestInfo;
   X509_ALGOR *algor;
-  ASN1_TYPE parameter;
   ASN1_OCTET_STRING *digest;
   unsigned char data[1024];
 
@@ -926,6 +930,7 @@ START_TEST(test_pin_cache) {
   ck_assert_int_eq(res, YKPIV_OK);
 }
 END_TEST
+#endif
 
 int destruction_confirmed(void) {
   char *confirmed = getenv("YKPIV_ENV_HWTESTS_CONFIRMED");
