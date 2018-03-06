@@ -146,6 +146,12 @@ typedef enum {
   PRNG_GENERAL_ERROR = -1
 } prng_rc;
 
+typedef struct _ykpiv_version_t {
+  uint8_t major;
+  uint8_t minor;
+  uint8_t patch;
+} ykpiv_version_t;
+
 struct ykpiv_state {
   SCARDCONTEXT context;
   SCARDHANDLE card;
@@ -153,6 +159,8 @@ struct ykpiv_state {
   char *pin;
   ykpiv_allocator allocator;
   bool isNEO;
+  ykpiv_version_t ver;
+  uint32_t serial;
 };
 
 union u_APDU {
@@ -191,6 +199,37 @@ void* _ykpiv_realloc(ykpiv_state *state, void *address, size_t size);
 void _ykpiv_free(ykpiv_state *state, void *data);
 ykpiv_rc _ykpiv_save_object(ykpiv_state *state, int object_id, unsigned char *indata, size_t len);
 ykpiv_rc _ykpiv_fetch_object(ykpiv_state *state, int object_id, unsigned char *data, unsigned long *len);
+ykpiv_rc _send_data(ykpiv_state *state, APDU *apdu, unsigned char *data, uint32_t *recv_len, int *sw);
+ykpiv_rc _ykpiv_get_version(ykpiv_state *state, ykpiv_version_t *p_version);
+ykpiv_rc _ykpiv_util_get_serial(ykpiv_state *state, uint32_t *p_serial, bool f_force);
+
+/* authentication functions not ready for public api */
+ykpiv_rc ykpiv_auth_getchallenge(ykpiv_state *state, uint8_t *challenge, const size_t challenge_len);
+ykpiv_rc ykpiv_auth_verifyresponse(ykpiv_state *state, uint8_t *response, const size_t response_len);
+ykpiv_rc ykpiv_auth_deauthenticate(ykpiv_state *state);
+
+typedef enum _setting_source_t {
+  SETTING_SOURCE_USER,
+  SETTING_SOURCE_ADMIN,
+  SETTING_SOURCE_DEFAULT
+} setting_source_t;
+
+typedef struct _setting_bool_t {
+  bool value;
+  setting_source_t source;
+} setting_bool_t;
+
+setting_bool_t setting_get_bool(const char *sz_setting, bool f_default);
+
+typedef enum _yc_log_level_t {
+  YC_LOG_LEVEL_ERROR,
+  YC_LOG_LEVEL_WARN,
+  YC_LOG_LEVEL_INFO,
+  YC_LOG_LEVEL_VERBOSE,
+  YC_LOG_LEVEL_DEBUG
+} yc_log_level_t;
+
+void yc_log_event(uint32_t id, yc_log_level_t level, const char *sz_format, ...);
 
 #ifdef __cplusplus
 }

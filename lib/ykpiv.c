@@ -80,13 +80,9 @@
 
 static ykpiv_rc _cache_pin(ykpiv_state *state, const char *pin, size_t len);
 
-static ykpiv_rc _send_data(ykpiv_state *state, APDU *apdu,
-    unsigned char *data, uint32_t *recv_len, int *sw);
-
 unsigned const char aid[] = {
 	0xa0, 0x00, 0x00, 0x03, 0x08
 };
-
 
 static void* _default_alloc(void *data, size_t cb) {
   (void)data;
@@ -241,7 +237,9 @@ ykpiv_rc _ykpiv_select_application(ykpiv_state *state) {
   unsigned char data[0xff];
   uint32_t recv_len = sizeof(data);
   int sw;
-  ykpiv_rc res;
+  ykpiv_rc res = YKPIV_OK;
+
+  _ykpiv_util_get_serial(state, NULL, false);
 
   memset(apdu.raw, 0, sizeof(apdu));
   apdu.st.ins = YKPIV_INS_SELECT_APPLICATION;
@@ -254,14 +252,17 @@ ykpiv_rc _ykpiv_select_application(ykpiv_state *state) {
       fprintf(stderr, "Failed communicating with card: '%s'\n", ykpiv_strerror(res));
     }
     return res;
-  } else if(sw == SW_SUCCESS) {
-    return YKPIV_OK;
-  } else {
+  }
+  else if(sw != SW_SUCCESS) {
     if(state->verbose) {
       fprintf(stderr, "Failed selecting application: %04x\n", sw);
     }
     return YKPIV_GENERIC_ERROR;
   }
+
+  _ykpiv_get_version(state, NULL);
+
+  return res;
 }
 
 ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state) {
@@ -448,7 +449,7 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
   }
 
   if (num_readers > *len) {
-    num_readers = *len;
+    num_readers = (pcsc_word)*len;
   }
 
   rc = SCardListReaders(state->context, NULL, readers, &num_readers);
@@ -521,7 +522,7 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
     if(state->verbose > 2) {
       fprintf(stderr, "Going to send %lu bytes in this go.\n", (unsigned long)this_size);
     }
-    apdu.st.lc = this_size;
+    apdu.st.lc = (unsigned char)this_size;
     memcpy(apdu.st.data, in_ptr, this_size);
     res = _send_data(state, &apdu, data, &recv_len, sw);
     if(res != YKPIV_OK) {
@@ -574,7 +575,7 @@ Cleanup:
   return res;
 }
 
-static ykpiv_rc _send_data(ykpiv_state *state, APDU *apdu,
+ykpiv_rc _send_data(ykpiv_state *state, APDU *apdu,
     unsigned char *data, uint32_t *recv_len, int *sw) {
   long rc;
   unsigned int send_len = (unsigned int)apdu->st.lc + 5;
@@ -789,7 +790,7 @@ ykpiv_rc ykpiv_hex_decode(const char *hex_in, size_t in_len,
     char *ind_ptr = strchr(hex_translate, tolower(*hex_in++));
     int index = 0;
     if(ind_ptr) {
-      index = ind_ptr - hex_translate;
+      index = (int)(ind_ptr - hex_translate);
     } else {
       return YKPIV_PARSE_ERROR;
     }
@@ -862,7 +863,7 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   memcpy(dataptr, sign_in, (size_t)in_len);
   dataptr += in_len;
 
-  if((res = ykpiv_transfer_data(state, templ, indata, dataptr - indata, data,
+  if((res = ykpiv_transfer_data(state, templ, indata, (long)(dataptr - indata), data,
         &recv_len, &sw)) != YKPIV_OK) {
     if(state->verbose) {
       fprintf(stderr, "Sign command failed to communicate.\n");
@@ -944,32 +945,63 @@ Cleanup:
   return res;
 }
 
-ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len) {
+ykpiv_rc _ykpiv_get_version(ykpiv_state *state, ykpiv_version_t *p_version) {
   APDU apdu;
   unsigned char data[261];
   uint32_t recv_len = sizeof(data);
   int sw;
   ykpiv_rc res;
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+  if (!state) {
+    return YKPIV_ARGUMENT_ERROR;
+  }
+
+  /* get version from state if already from device */
+
+  if (state->ver.major || state->ver.minor || state->ver.patch) {
+    if (p_version) {
+      memcpy(p_version, &(state->ver), sizeof(ykpiv_version_t));
+    }
+    return YKPIV_OK;
+  }
+
+  /* get version from device */
 
   memset(apdu.raw, 0, sizeof(apdu));
   apdu.st.ins = YKPIV_INS_GET_VERSION;
   if((res = _send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
-    goto Cleanup;
+    return res;
   } else if(sw == SW_SUCCESS) {
-    int result = snprintf(version, len, "%d.%d.%d", data[0], data[1], data[2]);
+    state->ver.major = data[0];
+    state->ver.minor = data[1];
+    state->ver.patch = data[2];
+    if (p_version) {
+      memcpy(p_version, &(state->ver), sizeof(ykpiv_version_t));
+    }
+  } else {
+    res = YKPIV_GENERIC_ERROR;
+  }
+
+  return res;
+}
+
+ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len) {
+  ykpiv_rc res;
+  int result = 0;
+  ykpiv_version_t ver = {0};
+
+  if ((res = _ykpiv_begin_transaction(state)) < YKPIV_OK) return YKPIV_PCSC_ERROR;
+  if ((res = _ykpiv_ensure_application_selected(state)) < YKPIV_OK) goto Cleanup;
+
+  if ((res = _ykpiv_get_version(state, &ver)) >= YKPIV_OK) {
+    result = snprintf(version, len, "%d.%d.%d", ver.major, ver.minor, ver.patch);
     if(result < 0) {
       res = YKPIV_SIZE_ERROR;
     }
-    goto Cleanup;
-  } else {
-    res = YKPIV_GENERIC_ERROR;
-    goto Cleanup;
   }
 
 Cleanup:
+
   _ykpiv_end_transaction(state);
   return res;
 }
@@ -1050,7 +1082,7 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
 
 ykpiv_rc ykpiv_verify_select(ykpiv_state *state, const char *pin, const size_t pin_len, int *tries, bool force_select) {
   ykpiv_rc res = YKPIV_OK;
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
   if (force_select) {
     if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
   }
@@ -1235,7 +1267,7 @@ ykpiv_rc _ykpiv_fetch_object(ykpiv_state *state, int object_id,
     return YKPIV_INVALID_OBJECT;
   }
 
-  if((res = ykpiv_transfer_data(state, templ, indata, inptr - indata, data, len, &sw))
+  if((res = ykpiv_transfer_data(state, templ, indata, (long)(inptr - indata), data, len, &sw))
       != YKPIV_OK) {
     return res;
   }
@@ -1247,7 +1279,7 @@ ykpiv_rc _ykpiv_fetch_object(ykpiv_state *state, int object_id,
       return YKPIV_SIZE_ERROR;
     }
     memmove(data, data + 1 + offs, outlen);
-    *len = outlen;
+    *len = (unsigned long)outlen;
     return YKPIV_OK;
   } else {
     return YKPIV_GENERIC_ERROR;
@@ -1289,7 +1321,7 @@ ykpiv_rc _ykpiv_save_object(ykpiv_state *state, int object_id,
   memcpy(dataptr, indata, len);
   dataptr += len;
 
-  if((res = ykpiv_transfer_data(state, templ, data, dataptr - data, NULL, &outlen,
+  if((res = ykpiv_transfer_data(state, templ, data, (long)(dataptr - data), NULL, &outlen,
     &sw)) != YKPIV_OK) {
     return res;
   }
@@ -1433,7 +1465,7 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
-  if ((res = ykpiv_transfer_data(state, templ, key_data, in_ptr - key_data, data, &recv_len, &sw)) != YKPIV_OK) {
+  if ((res = ykpiv_transfer_data(state, templ, key_data, (long)(in_ptr - key_data), data, &recv_len, &sw)) != YKPIV_OK) {
     goto Cleanup;
   }
   if (SW_SUCCESS != sw) {
@@ -1454,15 +1486,18 @@ ykpiv_rc ykpiv_attest(ykpiv_state *state, const unsigned char key, unsigned char
   bool ret = false;
   unsigned char templ[] = {0, YKPIV_INS_ATTEST, key, 0};
   int sw;
+  unsigned long ul_data_len;
 
   if (state == NULL || data == NULL || data_len == NULL) {
     return YKPIV_ARGUMENT_ERROR;
   }
 
+  ul_data_len = (unsigned long)*data_len;
+
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
-  if ((res = ykpiv_transfer_data(state, templ, NULL, 0, data, data_len, &sw)) != YKPIV_OK) {
+  if ((res = ykpiv_transfer_data(state, templ, NULL, 0, data, &ul_data_len, &sw)) != YKPIV_OK) {
     goto Cleanup;
   }
   if (SW_SUCCESS != sw) {
@@ -1476,6 +1511,8 @@ ykpiv_rc ykpiv_attest(ykpiv_state *state, const unsigned char key, unsigned char
     res = YKPIV_GENERIC_ERROR;
     goto Cleanup;
   }
+
+  *data_len = (size_t)ul_data_len;
 
 Cleanup:
   _ykpiv_end_transaction(state);
@@ -1559,6 +1596,15 @@ ykpiv_rc ykpiv_auth_verifyresponse(ykpiv_state *state, uint8_t *response, const 
 
 Cleanup:
 
+  _ykpiv_end_transaction(state);
+  return res;
+}
+
+ykpiv_rc ykpiv_auth_deauthenticate(ykpiv_state *state) {
+  ykpiv_rc res = YKPIV_OK;
+
+  if ((res = _ykpiv_begin_transaction(state)) < YKPIV_OK) return res;
+  _ykpiv_util_get_serial(state, NULL, true);
   _ykpiv_end_transaction(state);
   return res;
 }

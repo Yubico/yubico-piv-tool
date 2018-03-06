@@ -1,23 +1,36 @@
-
-#ifdef _WINDOWS
+#ifdef _WIN32
 #include <windows.h>
+#include <strsafe.h>
+#ifdef _MSC_VER
+#define strcasecmp _stricmp
+#endif
+#else
+#include <ctype.h>
+#include <syslog.h>
+#endif
+
+/* the _WINDOWS define really means Windows native crypto-api/CNG */
+#ifdef _WINDOWS
 #include <wincrypt.h>
 #include <bcrypt.h>
 #else
 #include <openssl/des.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
-#include <string.h>
 #endif
 
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "internal.h"
 
 /*
 ** Definitions
 */
+
+/* crypt defines */
 
 #ifdef _WINDOWS
 
@@ -89,6 +102,24 @@ struct des_key {
 };
 
 #endif
+
+/* config defines */
+
+#ifdef _WIN32
+#define _CONFIG_REGKEY "Software\\Yubico\\yubikeypiv"
+#else
+#define _CONFIG_FILE   "/etc/yubico/yubikeypiv.conf"
+#endif
+
+#define _ENV_PREFIX    "YUBIKEY_PIV_"
+
+char *_strip_ws(char *sz);
+setting_bool_t _get_bool_config(const char *sz_setting);
+setting_bool_t _get_bool_env(const char *sz_setting);
+
+/* log */
+
+const char szLOG_SOURCE[] = "YubiKey PIV Library";
 
 /*
 ** Methods
@@ -271,14 +302,6 @@ des_rc des_encrypt(des_key* key, const unsigned char* in, const size_t inlen, un
   // reset key usage by encrypting a fake padded block
   CryptEncrypt(key->hKey, 0, TRUE, 0, buf, (DWORD*)&buflen, (DWORD)buflen);
 
-  //if (CALG_3DES == key->alg) {
-  //  // truncate the final pad block
-  //  *outlen = inlen - 8;
-  //}
-  //else {
-  //  *outlen = inlen;
-  //}
-
 #else
 
   /* openssl returns void */
@@ -442,4 +465,233 @@ pkcs5_rc pkcs5_pbkdf2_sha1(const unsigned char* password, const size_t cb_passwo
 #endif
 
   return rc;
+}
+
+/* settings */
+
+char *_strip_ws(char *sz) {
+  char *psz_head = sz;
+  char *psz_tail = sz + strlen(sz) - 1;
+
+  /* strip leading whitespace */
+  while (isspace(*psz_head)) {
+    psz_head++;
+  }
+
+  /* strip trailing whitespace */
+  while ((psz_tail >= psz_head) && isspace(*psz_tail)) {
+    *psz_tail-- = '\0';
+  }
+
+  return psz_head;
+}
+
+setting_bool_t _get_bool_config(const char *sz_setting) {
+  setting_bool_t setting = { false, SETTING_SOURCE_DEFAULT };
+
+#ifdef _WIN32
+  HKEY hKey = 0;
+  DWORD dwErr = 0;
+  DWORD dwValue = 0;
+  DWORD dwType = 0;
+  DWORD cbValue = sizeof(dwValue);
+
+  /* MINGW doesn't define RRF_SUBKEY_WOW6464KEY for RegGetValue, so read the traditional way */
+  if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, _CONFIG_REGKEY, 0, KEY_READ | KEY_WOW64_64KEY, &hKey) == 0) {
+    if (RegQueryValueExA(hKey, sz_setting, NULL, &dwType, (LPBYTE)&dwValue, &cbValue) == 0) {
+      setting.value = ((dwType == REG_DWORD) && (dwValue == 1));
+      setting.source = SETTING_SOURCE_ADMIN;
+    }
+    RegCloseKey(hKey);
+    hKey = 0;
+  }
+
+#else
+  /* read from config file*/
+  char sz_line[256];
+  char *psz_name = 0;
+  char *psz_value = 0;
+  char sz_name[256] = { 0 };
+  char sz_value[256] = { 0 };
+  size_t i = 0;
+  FILE *pf = 0;
+
+  if ((pf = fopen(_CONFIG_FILE, "r"))) {
+    while (!feof(pf)) {
+      if (fgets(sz_line, sizeof(sz_line), pf)) {
+        if (*sz_line == '#') continue;
+        if (*sz_line == '\r') continue;
+        if (*sz_line == '\n') continue;
+
+        if (sscanf(sz_line, "%255[^=]=%255s", sz_name, sz_value) == 2) {
+          /* strip leading/trailing whitespace */
+          psz_name = _strip_ws(sz_name);
+
+          if (!strcasecmp(psz_name, sz_setting)) {
+            psz_value = _strip_ws(sz_value);
+
+            setting.source = SETTING_SOURCE_ADMIN;
+            setting.value = (!strcmp(psz_value, "1") || !strcasecmp(psz_value, "true"));
+            break;
+          }
+        }
+      }
+    }
+    fclose(pf);
+  }
+
+#endif
+
+  return setting;
+}
+
+setting_bool_t _get_bool_env(const char *sz_setting) {
+  setting_bool_t setting = { false, SETTING_SOURCE_DEFAULT };
+  char *psz_value = NULL;
+  char sz_name[256] = { 0 };
+
+  snprintf(sz_name, sizeof(sz_name) - 1, "%s%s", _ENV_PREFIX, sz_setting);
+
+  /* MINGW does not implement getenv_s, only _wgetenv_s */
+#ifdef _MSC_VER
+  size_t cb_value = 0;
+  char sz_value[100] = { 0 };
+
+  if ((getenv_s(&cb_value, sz_value, sizeof(sz_value) - 1, sz_name) == 0) && (cb_value > 0)) {
+    psz_value = sz_value;
+  }
+
+#else
+  psz_value = getenv(sz_name);
+
+#endif
+
+  if (psz_value) {
+    setting.source = SETTING_SOURCE_USER;
+    setting.value = (!strcmp(psz_value, "1") || !strcasecmp(psz_value, "true"));
+  }
+
+  return setting;
+}
+
+setting_bool_t setting_get_bool(const char *sz_setting, bool def) {
+  setting_bool_t setting = { def, SETTING_SOURCE_DEFAULT };
+
+  setting = _get_bool_config(sz_setting);
+
+  if (setting.source == SETTING_SOURCE_DEFAULT) {
+    setting = _get_bool_env(sz_setting);
+  }
+
+  if (setting.source == SETTING_SOURCE_DEFAULT) {
+    setting.value = def;
+  }
+
+  return setting;
+}
+
+/* logging */
+
+void yc_log_event(uint32_t id, yc_log_level_t level, const char * sz_format, ...) {
+  char rgsz_message[4096];
+  va_list vl;
+
+#ifdef _WIN32
+  HANDLE hLog = NULL;
+  LPCSTR sz_message = rgsz_message;
+  WORD   w_type = EVENTLOG_SUCCESS;
+#else
+  int priority = LOG_INFO;
+#endif
+
+  va_start(vl, sz_format);
+
+#ifdef _WIN32
+
+  switch (level) {
+    case YC_LOG_LEVEL_ERROR:
+      w_type = EVENTLOG_ERROR_TYPE;
+      break;
+    case YC_LOG_LEVEL_WARN:
+      w_type = EVENTLOG_WARNING_TYPE;
+      break;
+    case YC_LOG_LEVEL_INFO:
+      w_type = EVENTLOG_INFORMATION_TYPE;
+      break;
+    case YC_LOG_LEVEL_VERBOSE:
+      w_type = EVENTLOG_INFORMATION_TYPE;
+      break;
+    default:
+    case YC_LOG_LEVEL_DEBUG:
+      w_type = EVENTLOG_SUCCESS;
+      break;
+  }
+
+  if (!(hLog = RegisterEventSourceA(NULL, szLOG_SOURCE))) {
+    goto Cleanup;
+  }
+
+  /* format message */
+
+  if (FAILED(StringCbVPrintfA(
+    rgsz_message,
+    sizeof(rgsz_message),
+    sz_format,
+    vl))) {
+      goto Cleanup;
+    };
+
+  // write to the local event log
+
+  ReportEventA(
+    hLog,
+    w_type,
+    0,
+    (DWORD)id,
+    NULL,
+    1,
+    0,
+    (LPCSTR *)&sz_message,
+    NULL);
+
+#else
+
+   switch (level) {
+     case YC_LOG_LEVEL_ERROR:
+       priority = LOG_ERR;
+       break;
+     case YC_LOG_LEVEL_WARN:
+       priority = LOG_WARNING;
+       break;
+     case YC_LOG_LEVEL_INFO:
+       priority = LOG_NOTICE;
+       break;
+     case YC_LOG_LEVEL_VERBOSE:
+       priority = LOG_INFO;
+       break;
+     default:
+     case YC_LOG_LEVEL_DEBUG:
+       priority = LOG_DEBUG;
+       break;
+   }
+
+   if (vsnprintf(rgsz_message, sizeof(rgsz_message), sz_format, vl) < 0) {
+     goto Cleanup;
+   }
+
+   openlog(szLOG_SOURCE, LOG_PID | LOG_NDELAY, LOG_USER);
+   syslog(priority, "%s", rgsz_message);
+   closelog();
+
+#endif
+
+Cleanup:
+
+  va_end(vl);
+#ifdef _WIN32
+  if (hLog) {
+    DeregisterEventSource(hLog);
+  }
+#endif
+
 }

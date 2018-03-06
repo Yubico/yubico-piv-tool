@@ -697,7 +697,6 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
   ykpiv_rc res = YKPIV_OK;
   unsigned char in_data[11];
   unsigned char *in_ptr = in_data;
-  char version[7];
   unsigned char data[1024];
   unsigned char templ[] = { 0, YKPIV_INS_GENERATE_ASYMMETRIC, 0, 0 };
   unsigned long recv_len = sizeof(data);
@@ -709,21 +708,47 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
   uint8_t *ptr_point = NULL;
   size_t  cb_point = 0;
 
+  setting_bool_t setting_roca = { 0 };
+  const char sz_setting_roca[] = "Enable_Unsafe_Keygen_ROCA";
+  const char sz_roca_format[] = "YubiKey serial number %u is affected by vulnerability "
+    "CVE-2017-15361 (ROCA) and should be replaced. On-chip key generation %s  "
+    "See YSA-2017-01 <https://www.yubico.com/support/security-advisories/ysa-2017-01/> "
+    "for additional information on device replacement and mitigation assistance.\n";
+  const char sz_roca_allow_user[] = "was permitted by an end-user configuration setting, but is not recommended.";
+  const char sz_roca_allow_admin[] = "was permitted by an administrator configuration setting, but is not recommended.";
+  const char sz_roca_block_user[] = "was blocked due to an end-user configuration setting.";
+  const char sz_roca_block_admin[] = "was blocked due to an administrator configuration setting.";
+  const char sz_roca_default[] = "was permitted by default, but is not recommended.  "
+    "The default behavior will change in a future Yubico release.";
+
+  if (!state) return YKPIV_ARGUMENT_ERROR;
+
   if (ykpiv_util_devicemodel(state) == DEVTYPE_YK4 && (algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048)) {
-    if ((res = ykpiv_get_version(state, version, sizeof(version))) == YKPIV_OK) {
-      int major, minor, build;
-#pragma warning(push)
-#pragma warning(suppress: 4996) // Suppress _CRT_SECURE_NO_WARNINGS complaint (about sscanf_s)
-      int match = sscanf(version, "%d.%d.%d", &major, &minor, &build);
-#pragma warning(pop)
-      if (match == 3 && major == 4 && (minor < 3 || (minor == 3 && build < 5))) {
-        fprintf(stderr, "On-chip RSA key generation on this YubiKey has been blocked.\n");
-        fprintf(stderr, "Please see https://yubi.co/ysa201701/ for details.\n");
+    if ((state->ver.major == 4) && (state->ver.minor < 3 || ((state->ver.minor == 3) && (state->ver.patch < 5)))) {
+      const char *psz_msg = NULL;
+      setting_roca = setting_get_bool(sz_setting_roca, true);
+
+      switch (setting_roca.source) {
+        case SETTING_SOURCE_ADMIN:
+          psz_msg = setting_roca.value ? sz_roca_allow_admin : sz_roca_block_admin;
+          break;
+
+        case SETTING_SOURCE_USER:
+          psz_msg = setting_roca.value ? sz_roca_allow_user : sz_roca_block_user;
+          break;
+
+        default:
+        case SETTING_SOURCE_DEFAULT:
+          psz_msg = sz_roca_default;
+          break;
+      }
+
+      fprintf(stderr, sz_roca_format, state->serial, psz_msg);
+      yc_log_event(1, setting_roca.value ? YC_LOG_LEVEL_WARN : YC_LOG_LEVEL_ERROR, sz_roca_format, state->serial, psz_msg);
+
+      if (!setting_roca.value) {
         return YKPIV_NOT_SUPPORTED;
       }
-    } else {
-      fprintf(stderr, "Failed to get device version.\n");
-      return YKPIV_GENERIC_ERROR;
     }
   }
 
@@ -1298,6 +1323,82 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
   }
 
   return object_id;
+}
+
+/* caller must make sure that this is wrapped in a transaction for synchronized operation */
+ykpiv_rc _ykpiv_util_get_serial(ykpiv_state *state, uint32_t *p_serial, bool f_force) {
+  ykpiv_rc res = YKPIV_OK;
+  APDU apdu;
+  const uint8_t templ[] = { 0, YKPIV_INS_SELECT_APPLICATION, 0x04, 0 };
+  const uint8_t yk_applet[] = { 0xa0, 0x00, 0x00, 0x05, 0x27, 0x20, 0x01, 0x01 };
+  unsigned char data[0xff];
+  uint32_t recv_len = sizeof(data);
+  int sw;
+  uint8_t *p_temp = NULL;
+
+  if (!state) {
+    return YKPIV_ARGUMENT_ERROR;
+  }
+
+  if (!f_force && (state->serial != 0)) {
+    if (p_serial) *p_serial = state->serial;
+    return YKPIV_OK;
+  }
+
+  /* this function does not use ykpiv_transfer_data because it requires two apdus and selects a different app */
+
+  memset(apdu.raw, 0, sizeof(apdu));
+  apdu.st.ins = YKPIV_INS_SELECT_APPLICATION;
+  apdu.st.p1 = 0x04;
+  apdu.st.lc = sizeof(yk_applet);
+  memcpy(apdu.st.data, yk_applet, sizeof(yk_applet));
+
+  if ((res = _send_data(state, &apdu, data, &recv_len, &sw)) < YKPIV_OK) {
+    if (state->verbose) {
+      fprintf(stderr, "Failed communicating with card: '%s'\n", ykpiv_strerror(res));
+    }
+    goto Cleanup;
+  }
+  else if (sw != SW_SUCCESS) {
+    if (state->verbose) {
+      fprintf(stderr, "Failed selecting yk application: %04x\n", sw);
+    }
+    res = YKPIV_GENERIC_ERROR;
+    goto Cleanup;
+  }
+
+  recv_len = sizeof(data);
+  memset(apdu.raw, 0, sizeof(apdu));
+  apdu.st.ins = 0x01;
+  apdu.st.p1 = 0x10;
+  apdu.st.lc = 0x00;
+
+  if ((res = _send_data(state, &apdu, data, &recv_len, &sw)) < YKPIV_OK) {
+    if (state->verbose) {
+      fprintf(stderr, "Failed communicating with card: '%s'\n", ykpiv_strerror(res));
+    }
+    goto Cleanup;
+  }
+  else if (sw != SW_SUCCESS) {
+    if (state->verbose) {
+      fprintf(stderr, "Failed retrieving serial number: %04x\n", sw);
+    }
+    res = YKPIV_GENERIC_ERROR;
+    goto Cleanup;
+  }
+
+  p_temp = (uint8_t*)(&state->serial);
+
+  *p_temp++ = data[3];
+  *p_temp++ = data[2];
+  *p_temp++ = data[1];
+  *p_temp++ = data[0];
+
+  if (p_serial) *p_serial = state->serial;
+
+Cleanup:
+
+  return res;
 }
 
 static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf, size_t *buf_len) {
