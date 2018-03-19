@@ -8,6 +8,7 @@ sudo apt-get update -qq && apt-get -qq upgrade
 sudo apt-get install -qq \
     autoconf \
     automake \
+    check \
     gengetopt \
     help2man \
     libpcsclite-dev \
