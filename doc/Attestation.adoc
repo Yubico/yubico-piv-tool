@@ -31,6 +31,6 @@ Then add the keys attestation certificate to that file:
 
 Now we're ready to verify the attestation:
 
-  $ yubico-piv-tool --action=attest --slot=f9 > attestation.pem
+  $ yubico-piv-tool --action=attest --slot=9a > attestation.pem
   $ openssl verify -CAfile certs.pem attestation.pem
   attestation.pem: OK
