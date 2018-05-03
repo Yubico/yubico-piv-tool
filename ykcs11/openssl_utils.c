@@ -75,6 +75,8 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa,
   RSA       *rsa = NULL;
   BIGNUM    *bignum_n = NULL;
   BIGNUM    *bignum_e = NULL;
+  BIGNUM    *bignum_prv = NULL;
+  unsigned char zeroes[512] = {0};
   EC_KEY    *eck = NULL;
   EC_GROUP  *ecg = NULL;
   EC_POINT  *ecp = NULL;
@@ -115,13 +117,20 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa,
     if(*data_ptr != 0x82)
       goto create_empty_cert_cleanup;
 
+    // OpenSSL 1.1 doesn't allow to set empty signatures
+    // Use a bogus private key
+    bignum_prv = BN_bin2bn(zeroes, len, NULL);
+    if (bignum_prv == NULL)
+      goto create_empty_cert_cleanup;
+
     data_ptr++;
     data_ptr += get_length(data_ptr, &len);
     bignum_e = BN_bin2bn(data_ptr, len, NULL);
     if(bignum_e == NULL)
       goto create_empty_cert_cleanup;
 
-    RSA_set0_key(rsa, bignum_n, bignum_e, NULL);
+    if (RSA_set0_key(rsa, bignum_n, bignum_e, bignum_prv) == 0)
+      goto create_empty_cert_cleanup;
 
     if (EVP_PKEY_set1_RSA(key, rsa) == 0)
       goto create_empty_cert_cleanup;
@@ -155,6 +164,15 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa,
     if (EC_KEY_set_public_key(eck, ecp) == 0)
       goto create_empty_cert_cleanup;
 
+    // OpenSSL 1.1 doesn't allow to set empty signatures
+    // Use a bogus private key
+    bignum_prv = BN_bin2bn(zeroes, 65, NULL);
+    if (bignum_prv == NULL)
+      goto create_empty_cert_cleanup;
+
+    if (EC_KEY_set_private_key(eck, bignum_prv) == 0)
+      goto create_empty_cert_cleanup;
+
     if (EVP_PKEY_set1_EC_KEY(key, eck) == 0)
       goto create_empty_cert_cleanup;
   }
@@ -170,18 +188,9 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa,
   X509_set_notBefore(cert, tm);
   X509_set_notAfter(cert, tm);
 
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
-  // Manually set the signature algorithms.
-  // OpenSSL 1.0.1i complains about empty DER fields
-  // 8 => md5WithRsaEncryption
-  cert->sig_alg->algorithm = OBJ_nid2obj(8);
-  cert->cert_info->signature->algorithm = OBJ_nid2obj(8);
-
-  // Manually set a signature (same reason as before)
-  ASN1_BIT_STRING_set_bit(cert->signature, 8, 1);
-  ASN1_BIT_STRING_set(cert->signature, (unsigned char*)"\x00", 1);
-  ASN1_BIT_STRING_set(cert->signature, (unsigned char*)"\x00", 1);
-#endif
+  // Write a bogus signature to make a valid certificate
+  if (X509_sign(cert, key, EVP_sha1()) == 0)
+    goto create_empty_cert_cleanup;
 
   len = i2d_X509(cert, NULL);
   if (len < 0)
@@ -223,10 +232,10 @@ create_empty_cert_cleanup:
     bignum_e = NULL;
   }
 
-/*  if (rsa != NULL) { // TODO: adding this generates an error. Automatically free'd by EVP_PKEY_free ?
-    RSA_free(rsa);
-    rsa = NULL;
-    }*/
+  if (bignum_prv != NULL) {
+    BN_free(bignum_prv);
+    bignum_prv = NULL;
+  }
 
   if (ecp != NULL) {
     EC_POINT_free(ecp);
