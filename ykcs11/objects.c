@@ -115,7 +115,7 @@ static piv_obj_t piv_objects[] = {
   {PIV_CERT_OBJ_LAST, 1, 0, 0, "", 0, 0, NULL, 24},
 
   {PIV_PVTK_OBJ_PIV_AUTH, 1, 1, 0, "Private key for PIV Authentication", 0, 0, get_proa, 0},   // 9a
-  {PIV_PVTK_OBJ_CARD_AUTH, 1, 0, 0, "Private key for Card Authentication", 0, 0, get_proa, 1}, // 9e
+  {PIV_PVTK_OBJ_CARD_AUTH, 1, 1, 0, "Private key for Card Authentication", 0, 0, get_proa, 1}, // 9e
   {PIV_PVTK_OBJ_DS, 1, 1, 0, "Private key for Digital Signature", 0, 0, get_proa, 2},          // 9c
   {PIV_PVTK_OBJ_KM, 1, 1, 0, "Private key for Key Management", 0, 0, get_proa, 3},             // 9d
   {PIV_PVTK_OBJ_RETIRED1, 1, 1, 0, "Private key for Retired Key 1", 0, 0, get_proa, 4},
@@ -239,7 +239,7 @@ static piv_pvtk_obj_t pvtkey_objects[] = {
   {1, 1, 0, 0, 0},
   {1, 1, 0, 0, 0},
   {1, 1, 0, 0, 0},
-  {1, 1, 0, 0, 1},
+  {1, 1, 0, 0, 0},
   {1, 1, 0, 0, 0},
   {1, 1, 0, 0, 0},
   {1, 1, 0, 0, 0},
