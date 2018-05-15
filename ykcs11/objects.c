@@ -1335,6 +1335,8 @@ CK_RV check_create_cert(CK_ATTRIBUTE_PTR templ, CK_ULONG n,
     case CKA_SUBJECT:
     case CKA_ISSUER:
     case CKA_CERTIFICATE_TYPE:
+    case CKA_PRIVATE:
+    case CKA_SERIAL_NUMBER:
       // Ignore other attributes
       break;
 
