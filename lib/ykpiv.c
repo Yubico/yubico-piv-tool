@@ -562,7 +562,11 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
       goto Cleanup;
     }
     if(*out_len + recv_len - 2 > max_out) {
-      fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.", *out_len + recv_len - 2, max_out);
+      if(state->verbose) {
+        fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.", *out_len + recv_len - 2, max_out);
+      }
+      res = YKPIV_SIZE_ERROR;
+      goto Cleanup;
     }
     if(out_data) {
       memcpy(out_data, data, recv_len - 2);
