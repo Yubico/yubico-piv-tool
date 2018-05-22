@@ -1282,6 +1282,12 @@ ykpiv_rc _ykpiv_fetch_object(ykpiv_state *state, int object_id,
     if(offs == 0) {
       return YKPIV_SIZE_ERROR;
     }
+    if(outlen > offs + 1 + *len) {
+      if(state->verbose) {
+        fprintf(stderr, "Invalid length indicated in object, total objlen is %lu, indicated length is %lu.", *len, outlen);
+      }
+      return YKPIV_SIZE_ERROR;
+    }
     memmove(data, data + 1 + offs, outlen);
     *len = (unsigned long)outlen;
     return YKPIV_OK;
