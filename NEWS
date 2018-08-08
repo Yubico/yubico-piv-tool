@@ -1,5 +1,7 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
+* Version 1.6.1 (unreleased)
+
 * Version 1.6.0 (released 2018-08-08)
 
 ** Security release to mitigate https://www.yubico.com/support/security-advisories/ysa-2018-03/[YSA-2018-03].
