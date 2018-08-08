@@ -1329,7 +1329,6 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
 ykpiv_rc _ykpiv_util_get_serial(ykpiv_state *state, uint32_t *p_serial, bool f_force) {
   ykpiv_rc res = YKPIV_OK;
   APDU apdu;
-  const uint8_t templ[] = { 0, YKPIV_INS_SELECT_APPLICATION, 0x04, 0 };
   const uint8_t yk_applet[] = { 0xa0, 0x00, 0x00, 0x05, 0x27, 0x20, 0x01, 0x01 };
   unsigned char data[0xff];
   uint32_t recv_len = sizeof(data);
