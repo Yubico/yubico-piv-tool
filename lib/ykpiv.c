@@ -1493,7 +1493,6 @@ Cleanup:
 
 ykpiv_rc ykpiv_attest(ykpiv_state *state, const unsigned char key, unsigned char *data, size_t *data_len) {
   ykpiv_rc res;
-  bool ret = false;
   unsigned char templ[] = {0, YKPIV_INS_ATTEST, key, 0};
   int sw;
   unsigned long ul_data_len;

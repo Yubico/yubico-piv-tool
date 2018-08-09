@@ -513,7 +513,6 @@ setting_bool_t _get_bool_config(const char *sz_setting) {
   char *psz_value = 0;
   char sz_name[256] = { 0 };
   char sz_value[256] = { 0 };
-  size_t i = 0;
   FILE *pf = 0;
 
   if ((pf = fopen(_CONFIG_FILE, "r"))) {
