@@ -561,6 +561,12 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
     unsigned char certdata[YKPIV_OBJ_MAX_SIZE];
     unsigned char *certptr = certdata;
     ykpiv_rc res;
+
+    if(cert_len > YKPIV_OBJ_MAX_SIZE) {
+      fprintf(stderr, "Length of certificate is more than can fit.\n");
+      goto import_cert_out;
+    }
+
     if (compress) {
       if (fread(certdata, 1, (size_t)cert_len, input_file) != (size_t)cert_len) {
         fprintf(stderr, "Failed to read compressed certificate\n");
