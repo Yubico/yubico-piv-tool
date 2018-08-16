@@ -134,7 +134,7 @@ int _ykpiv_set_length(unsigned char *buffer, size_t length) {
   if(length < 0x80) {
     *buffer++ = (unsigned char)length;
     return 1;
-  } else if(length < 0xff) {
+  } else if(length < 0x100) {
     *buffer++ = 0x81;
     *buffer++ = (unsigned char)length;
     return 2;
