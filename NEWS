@@ -1,6 +1,14 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
-* Version 1.6.1 (unreleased)
+* Version 1.6.1 (released 2018-08-17)
+
+** Compilation warning fixes for OpenSSL 1.1 builds.
+
+** Fix length when encoding exactly 0xff bytes.
+
+** Check length of objects correctly before storing in buffer.
+
+** Check length of certificate correctly when storing.
 
 * Version 1.6.0 (released 2018-08-08)
 
