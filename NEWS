@@ -1,5 +1,7 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
+* Version 1.6.2 (unreleased)
+
 * Version 1.6.1 (released 2018-08-17)
 
 ** Compilation warning fixes for OpenSSL 1.1 builds.
