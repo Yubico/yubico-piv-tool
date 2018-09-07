@@ -349,7 +349,19 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
 
   for(reader_ptr = reader_buf; *reader_ptr != '\0'; reader_ptr += strlen(reader_ptr) + 1) {
     if(wanted) {
-      if(!strstr(reader_ptr, wanted)) {
+      char *ptr = reader_ptr;
+      bool found = false;
+      do {
+        if(strlen(ptr) < strlen(wanted)) {
+          break;
+        }
+        if(strncasecmp(ptr, wanted, strlen(wanted)) == 0) {
+          found = true;
+          break;
+        }
+      } while(*ptr++);
+
+      if(found == false) {
         if(state->verbose) {
           fprintf(stderr, "skipping reader '%s' since it doesn't match '%s'.\n", reader_ptr, wanted);
         }
