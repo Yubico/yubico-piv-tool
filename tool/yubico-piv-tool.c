@@ -749,7 +749,10 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
    * to embed the sign_data function in the RSA/EC key structures  */
   wrap_public_key(state, algorithm, public_key, key);
 
-  X509_REQ_sign(req, public_key, md);
+  if(X509_REQ_sign(req, public_key, md) == 0) {
+    fprintf(stderr, "Failed signing request.\n");
+    goto request_out;
+  }
 #endif
 
   if(key_format == key_format_arg_PEM) {
@@ -952,7 +955,10 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
    * to embed the sign_data function in the RSA/EC key structures  */
   wrap_public_key(state, algorithm, public_key, key);
 
-  X509_sign(x509, public_key, md);
+  if(X509_sign(x509, public_key, md) == 0) {
+    fprintf(stderr, "Failed signing certificate.\n");
+    goto selfsign_out;
+  }
 #endif
 
   if(key_format == key_format_arg_PEM) {
