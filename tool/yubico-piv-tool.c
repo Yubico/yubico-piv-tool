@@ -163,20 +163,19 @@ int yk_ec_meth_sign(int type, const unsigned char *dgst, int dlen,
 
 static int wrap_public_key(ykpiv_state *state, int algorithm, EVP_PKEY *public_key,
     int key) {
+  static struct internal_key int_key;
+  int_key.state = state;
+  int_key.algorithm = algorithm;
+  int_key.key = key;
   if(YKPIV_IS_RSA(algorithm)) {
     RSA_METHOD *meth = RSA_meth_dup(RSA_get_default_method());
     RSA *rsa = EVP_PKEY_get0_RSA(public_key);
-    static struct internal_key int_key;
-    int_key.state = state;
-    int_key.algorithm = algorithm;
-    int_key.key = key;
     RSA_meth_set0_app_data(meth, &int_key);
     RSA_meth_set_sign(meth, yk_rsa_meth_sign);
     RSA_set_method(rsa, meth);
   } else {
     EC_KEY *ec = EVP_PKEY_get0_EC_KEY(public_key);
     EC_KEY_METHOD *meth = EC_KEY_METHOD_new(EC_KEY_get_method(ec));
-    struct internal_key int_key = {state, algorithm, key};
     if (ec_key_ex_data_idx == -1)
       ec_key_ex_data_idx = EC_KEY_get_ex_new_index(0, NULL, NULL, NULL, 0);
     EC_KEY_set_ex_data(ec, ec_key_ex_data_idx, &int_key);
