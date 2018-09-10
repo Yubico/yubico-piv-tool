@@ -133,6 +133,8 @@ struct internal_key {
   ykpiv_state *state;
   int algorithm;
   int key;
+  const unsigned char *oid;
+  size_t oid_len;
 };
 
 int yk_rsa_meth_sign(int dtype, const unsigned char *m, unsigned int m_length,
@@ -140,6 +142,14 @@ int yk_rsa_meth_sign(int dtype, const unsigned char *m, unsigned int m_length,
   size_t yk_siglen = RSA_size(rsa);
   const RSA_METHOD *meth = RSA_get_method(rsa);
   const struct internal_key *key = RSA_meth_get0_app_data(meth);
+  unsigned char message[256] = {0};
+
+  if(key->oid_len) {
+    memcpy(message, key->oid, key->oid_len);
+    memcpy(message + key->oid_len, m, m_length);
+    m_length += key->oid_len;
+    m = message;
+  }
   if (sign_data(key->state, m, m_length, sigret, &yk_siglen, key->algorithm, key->key)) {
     *siglen = (unsigned int)yk_siglen;
     return 1;
@@ -162,11 +172,13 @@ int yk_ec_meth_sign(int type, const unsigned char *dgst, int dlen,
 }
 
 static int wrap_public_key(ykpiv_state *state, int algorithm, EVP_PKEY *public_key,
-    int key) {
+    int key, const unsigned char *oid, size_t oid_len) {
   static struct internal_key int_key;
   int_key.state = state;
   int_key.algorithm = algorithm;
   int_key.key = key;
+  int_key.oid = oid;
+  int_key.oid_len = oid_len;
   if(YKPIV_IS_RSA(algorithm)) {
     RSA_METHOD *meth = RSA_meth_dup(RSA_get_default_method());
     RSA *rsa = EVP_PKEY_get0_RSA(public_key);
@@ -746,7 +758,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
 #else
   /* With opaque structures we can not touch whatever we want, but we need
    * to embed the sign_data function in the RSA/EC key structures  */
-  wrap_public_key(state, algorithm, public_key, key);
+  wrap_public_key(state, algorithm, public_key, key, oid, oid_len);
 
   if(X509_REQ_sign(req, public_key, md) == 0) {
     fprintf(stderr, "Failed signing request.\n");
@@ -952,7 +964,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
 #else
   /* With opaque structures we can not touch whatever we want, but we need
    * to embed the sign_data function in the RSA/EC key structures  */
-  wrap_public_key(state, algorithm, public_key, key);
+  wrap_public_key(state, algorithm, public_key, key, oid, oid_len);
 
   if(X509_sign(x509, public_key, md) == 0) {
     fprintf(stderr, "Failed signing certificate.\n");
