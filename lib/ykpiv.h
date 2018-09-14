@@ -194,6 +194,19 @@ extern "C"
    */
   ykpiv_rc ykpiv_verify_select(ykpiv_state *state, const char *pin, const size_t pin_len, int *tries, bool force_select);
 
+  /**
+   * Get serial number
+   *
+   * The card must be connected to call this function.
+   *
+   * @param state [in] State handle
+   * @param p_serial [out] uint32 to store retrieved serial number
+   *
+   * @return ykpiv_rc error code
+   *
+   */
+  ykpiv_rc ykpiv_get_serial(ykpiv_state *state, uint32_t* p_serial);
+
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -492,7 +505,7 @@ extern "C"
    * @param state state
    * @param ccc Unique Card ID to set. If NULL, randomly generate.
    *
-   * @return ypiv_rc error code
+   * @return ykpiv_rc error code
    *
    */
   ykpiv_rc ykpiv_util_set_cccid(ykpiv_state *state, const ykpiv_cccid *ccc);
@@ -647,6 +660,7 @@ extern "C"
 #define YKPIV_INS_RESET 0xfb
 #define YKPIV_INS_SET_PIN_RETRIES 0xfa
 #define YKPIV_INS_ATTEST 0xf9
+#define YKPIV_INS_GET_SERIAL 0xf8
 
 #define YKPIV_PINPOLICY_TAG 0xaa
 #define YKPIV_PINPOLICY_DEFAULT 0
@@ -671,12 +685,15 @@ extern "C"
 
 #define YKPIV_ATR_NEO_R3 "\x3b\xfc\x13\x00\x00\x81\x31\xfe\x15\x59\x75\x62\x69\x6b\x65\x79\x4e\x45\x4f\x72\x33\xe1"
 #define YKPIV_ATR_YK4    "\x3b\xf8\x13\x00\x00\x81\x31\xfe\x15\x59\x75\x62\x69\x6b\x65\x79\x34\xd4"
+#define YKPIV_ATR_YK5_P1 "\x3b\xf8\x13\x00\x00\x81\x31\xfe\x15\x01\x59\x75\x62\x69\x4b\x65\x79\xc1"
+#define YKPIV_ATR_YK5    "\x3b\xfd\x13\x00\x00\x81\x31\xfe\x15\x80\x73\xc0\x21\xc0\x57\x59\x75\x62\x69\x4b\x65\x79\x40"
 
 #define DEVTYPE_UNKNOWN  0x00000000
 #define DEVTYPE_NEO      0x4E450000 //"NE"
 #define DEVTYPE_YK       0x594B0000 //"YK"
 #define DEVTYPE_NEOr3    (DEVTYPE_NEO | 0x00007233) //"r3"
 #define DEVTYPE_YK4      (DEVTYPE_YK  | 0x00000034) // "4"
+#define DEVYTPE_YK5      (DEVTYPE_YK  | 0x00000035) // "5"
 
 #ifdef __cplusplus
 }

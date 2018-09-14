@@ -113,3 +113,9 @@ global:
     ykpiv_util_write_msroots;
     ykpiv_verify_select;
 } YKPIV_1.3.0;
+
+YKPIV_1.6.0
+{
+global:
+    ykpiv_get_serial;
+} YKPIV_1.5.0;

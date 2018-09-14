@@ -54,7 +54,6 @@
 #include "util.h"
 
 #define MAX(a,b) (a) > (b) ? (a) : (b)
-#define MIN(a,b) (a) < (b) ? (a) : (b)
 
 #define CHUID 0
 #define CCC 1
@@ -450,11 +449,11 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
       }
 
       rc = ykpiv_import_private_key(state, key, algorithm,
-                                    p, element_len,
-                                    q, element_len,
-                                    dmp1, element_len,
-                                    dmq1, element_len,
-                                    iqmp, element_len,
+                                    p, (size_t)element_len,
+                                    q, (size_t)element_len,
+                                    dmp1, (size_t)element_len,
+                                    dmq1, (size_t)element_len,
+                                    iqmp, (size_t)element_len,
                                     NULL, 0,
                                     pp, tp);
     }
@@ -586,7 +585,7 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
     } else {
       i2d_X509(cert, &certptr);
     }
-    if ((res = ykpiv_util_write_cert(state, get_slot_hex(slot), certdata, cert_len, compress)) != YKPIV_OK) {
+    if ((res = ykpiv_util_write_cert(state, get_slot_hex(slot), certdata, (size_t)cert_len, compress)) != YKPIV_OK) {
       fprintf(stderr, "Failed commands with device: %s\n", ykpiv_strerror(res));
     } else {
       ret = true;
@@ -1067,6 +1066,9 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
     op = ykpiv_change_puk;
   }
   res = op(state, pin, pin_len, new_pin, new_len, &tries);
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wswitch-enum"
   switch (res) {
     case YKPIV_OK:
       return true;
@@ -1088,6 +1090,7 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
       fprintf(stderr, "Failed changing/unblocking code, error: %s\n", ykpiv_strerror(res));
       return false;
   }
+#pragma GCC diagnostic pop
 }
 
 static bool delete_certificate(ykpiv_state *state, enum enum_slot slot) {
@@ -1258,7 +1261,7 @@ out:
 
 static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_MD *md,
     FILE *output) {
-  int object = ykpiv_util_slot_object(get_slot_hex(slot));
+  int object = (int)ykpiv_util_slot_object(get_slot_hex(slot));
   int slot_name;
   unsigned char data[3072];
   const unsigned char *ptr = data;
@@ -1376,7 +1379,9 @@ static bool status(ykpiv_state *state, enum enum_hash hash,
   unsigned char buf[3072];
   long unsigned len = sizeof(buf);
   int i;
+  uint32_t serial = 0;
   FILE *output_file = open_file(output_file_name, OUTPUT_TEXT);
+
   if(!output_file) {
     return false;
   }
@@ -1384,6 +1389,20 @@ static bool status(ykpiv_state *state, enum enum_hash hash,
   md = get_hash(hash, NULL, NULL);
   if(md == NULL) {
     return false;
+  }
+
+  fprintf(output_file, "Version:\t");
+  if (ykpiv_get_version(state, (char*)buf, (size_t)len) != YKPIV_OK) {
+    fprintf(output_file, "No data available\n");
+  } else {
+    fprintf(output_file, "%s\n", (char*)buf);
+  }
+
+  fprintf(output_file, "Serial Number:\t");
+  if (ykpiv_get_serial(state, &serial) != YKPIV_OK) {
+    fprintf(output_file, "No data available\n");
+  } else {
+    fprintf(output_file, "%d\n", serial);
   }
 
   fprintf(output_file, "CHUID:\t");
@@ -1714,7 +1733,7 @@ static bool list_readers(ykpiv_state *state) {
 static bool attest(ykpiv_state *state, enum enum_slot slot,
     enum enum_key_format key_format, const char *output_file_name) {
   unsigned char data[2048];
-  unsigned long len = sizeof(data);
+  size_t len = sizeof(data);
   bool ret = false;
   X509 *x509 = NULL;
   int key;
@@ -1736,7 +1755,7 @@ static bool attest(ykpiv_state *state, enum enum_slot slot,
 
   if(key_format == key_format_arg_PEM) {
     const unsigned char *ptr = data;
-    int len2 = len;
+    int len2 = (int)len;
     x509 = X509_new();
     if(!x509) {
       fprintf(stderr, "Failed allocating x509 structure.\n");
@@ -1787,7 +1806,7 @@ static bool write_object(ykpiv_state *state, int id,
   }
 
   if(verbosity) {
-    fprintf(stderr, "Writing %lu bytes of data to object %x.\n", len, id);
+    fprintf(stderr, "Writing %lu bytes of data to object %x.\n", (long unsigned int)len, id);
   }
 
   if((res = ykpiv_save_object(state, id, data, len)) != YKPIV_OK) {
@@ -1858,6 +1877,7 @@ int main(int argc, char *argv[]) {
               cmdline_parser_action_values[action]);
           return EXIT_FAILURE;
         }
+        /* fall through */
       case action_arg_generate:
       case action_arg_importMINUS_key:
       case action_arg_importMINUS_certificate:
@@ -1929,6 +1949,7 @@ int main(int argc, char *argv[]) {
           }
           password = pwbuf;
         }
+        /* fall through */
       case action_arg_generate:
       case action_arg_setMINUS_mgmMINUS_key:
       case action_arg_pinMINUS_retries:

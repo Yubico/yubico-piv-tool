@@ -208,8 +208,9 @@ Cleanup:
 }
 
 ykpiv_devmodel ykpiv_util_devicemodel(ykpiv_state *state) {
-  if (!state || state->context == SCARD_E_INVALID_HANDLE)
+  if (!state || !state->context || (state->context == (uintptr_t)-1)) {
     return DEVTYPE_UNKNOWN;
+  }
   return (state->isNEO ? DEVTYPE_NEOr3 : DEVTYPE_YK4);
 }
 
@@ -343,7 +344,15 @@ ykpiv_rc ykpiv_util_read_cert(ykpiv_state *state, uint8_t slot, uint8_t **data, 
   *data_len = 0;
 
   if (YKPIV_OK == (res = _read_certificate(state, slot, buf, &cbBuf))) {
-    if (NULL == (*data = _ykpiv_alloc(state, cbBuf))) {
+
+    /* handle those who write empty certificate blobs to PIV objects */
+    if (cbBuf == 0) {
+      *data = NULL;
+      *data_len = 0;
+      goto Cleanup;
+    }
+
+    if (!(*data = _ykpiv_alloc(state, cbBuf))) {
       res = YKPIV_MEMORY_ERROR;
       goto Cleanup;
     }
@@ -415,7 +424,7 @@ ykpiv_rc ykpiv_util_block_puk(ykpiv_state *state) {
         memcpy(&flags, p_item, cb_item);
       }
       else {
-        if (state->verbose) { fprintf(stderr, "admin flags exist, but are incorrect size = %zu", cb_item); }
+        if (state->verbose) { fprintf(stderr, "admin flags exist, but are incorrect size = %lu", (unsigned long)cb_item); }
       }
     }
   }
@@ -454,17 +463,17 @@ ykpiv_rc ykpiv_util_read_mscmap(ykpiv_state *state, ykpiv_container **containers
   if (YKPIV_OK == (res = _ykpiv_fetch_object(state, YKPIV_OBJ_MSCMAP, buf, (unsigned long*)&cbBuf))) {
     ptr = buf;
 
-    // check that object contents are at least large enough to read the header
+    /* check that object contents are at least large enough to read the header */
     if (cbBuf < CB_OBJ_TAG_MIN) {
       res = YKPIV_OK;
       goto Cleanup;
     }
 
     if (*ptr++ == TAG_MSCMAP) {
-      ptr += _ykpiv_get_length(ptr, &len);
+      ptr += (unsigned long)_ykpiv_get_length(ptr, &len);
 
-      // check that decoded length represents object contents
-      if (len > (cbBuf - (ptr - buf))) {
+      /* check that decoded length represents object contents */
+      if (len > (cbBuf - (size_t)(ptr - buf))) {
         res = YKPIV_OK;
         goto Cleanup;
       }
@@ -474,7 +483,7 @@ ykpiv_rc ykpiv_util_read_mscmap(ykpiv_state *state, ykpiv_container **containers
         goto Cleanup;
       }
 
-      // should check if container map isn't corrupt
+      /* should check if container map isn't corrupt */
 
       memcpy(*containers, ptr, len);
       *n_containers = len / sizeof(ykpiv_container);
@@ -516,7 +525,7 @@ ykpiv_rc ykpiv_util_write_mscmap(ykpiv_state *state, ykpiv_container *containers
   // encode object data for storage
 
   // calculate the required length of the encoded object
-  req_len = 1 /* data tag */ + _ykpiv_set_length(buf, data_len) + data_len;
+  req_len = 1 /* data tag */ + (unsigned long)_ykpiv_set_length(buf, data_len) + data_len;
 
   if (req_len > _obj_size_max(state)) {
     res = YKPIV_SIZE_ERROR;
@@ -588,7 +597,7 @@ ykpiv_rc ykpiv_util_read_msroots(ykpiv_state *state, uint8_t **data, size_t *dat
     ptr += _ykpiv_get_length(ptr, &len);
 
     // check that decoded length represents object contents
-    if (len > (cbBuf - (ptr - buf))) {
+    if (len > (cbBuf - (size_t)(ptr - buf))) {
       res = YKPIV_OK;
       goto Cleanup;
     }
@@ -671,14 +680,14 @@ ykpiv_rc ykpiv_util_write_msroots(ykpiv_state *state, uint8_t *data, size_t data
     offset = 0;
     data_chunk = MIN(cb_obj_max - CB_OBJ_TAG_MAX, data_len - data_offset);
 
-    // encode object data for storage
+    /* encode object data for storage */
     buf[offset++] = (i == (n_objs - 1)) ? TAG_MSROOTS_END : TAG_MSROOTS_MID;
     offset += _ykpiv_set_length(buf + offset, data_chunk);
     memcpy(buf + offset, data + data_offset, data_chunk);
     offset += data_chunk;
 
-    // write onto device
-    res = _ykpiv_save_object(state, YKPIV_OBJ_MSROOTS1 + i, buf, offset);
+    /* write onto device */
+    res = _ykpiv_save_object(state, (int)(YKPIV_OBJ_MSROOTS1 + i), buf, offset);
 
     if (YKPIV_OK != res) {
       goto Cleanup;
@@ -811,7 +820,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     *in_ptr++ = touch_policy;
   }
 
-  if (YKPIV_OK != (res = ykpiv_transfer_data(state, templ, in_data, (long)(in_ptr - in_data), data, &recv_len, &sw))) {
+  if (YKPIV_OK != (res = _ykpiv_transfer_data(state, templ, in_data, (long)(in_ptr - in_data), data, &recv_len, &sw))) {
     if (state->verbose) { fprintf(stderr, "Failed to communicate.\n"); }
     goto Cleanup;
   }
@@ -1084,7 +1093,7 @@ ykpiv_rc ykpiv_util_get_derived_mgm(ykpiv_state *state, const uint8_t *pin, cons
   if (YKPIV_OK == (res = _read_metadata(state, TAG_ADMIN, data, &cb_data))) {
     if (YKPIV_OK == (res = _get_metadata_item(data, cb_data, TAG_ADMIN_SALT, &p_item, &cb_item))) {
       if (cb_item != CB_ADMIN_SALT) {
-        if (state->verbose) fprintf(stderr, "derived mgm salt exists, but is incorrect size = %zu\n", cb_item);
+        if (state->verbose) fprintf(stderr, "derived mgm salt exists, but is incorrect size = %lu\n", (unsigned long)cb_item);
         res = YKPIV_GENERIC_ERROR;
         goto Cleanup;
       }
@@ -1127,7 +1136,7 @@ ykpiv_rc ykpiv_util_get_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
   }
 
   if (cb_item != member_size(ykpiv_mgm, data)) {
-    if (state->verbose) fprintf(stderr, "protected data contains mgm, but is the wrong size = %zu\n", cb_item);
+    if (state->verbose) fprintf(stderr, "protected data contains mgm, but is the wrong size = %lu\n", (unsigned long)cb_item);
     res = YKPIV_AUTHENTICATION_ERROR;
     goto Cleanup;
   }
@@ -1245,7 +1254,7 @@ ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
       memcpy(&flags_1, p_item, cb_item);
     }
     else {
-      if (state->verbose) fprintf(stderr, "admin data flags are an incorrect size = %zu\n", cb_item);
+      if (state->verbose) fprintf(stderr, "admin data flags are an incorrect size = %lu\n", (unsigned long)cb_item);
     }
 
     /* remove any existing salt */
@@ -1303,7 +1312,7 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
     object_id = YKPIV_OBJ_SIGNATURE;
     break;
 
-  case  YKPIV_KEY_KEYMGM:
+  case YKPIV_KEY_KEYMGM:
     object_id = YKPIV_OBJ_KEY_MANAGEMENT;
     break;
 
@@ -1322,88 +1331,13 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
     break;
   }
 
-  return object_id;
-}
-
-/* caller must make sure that this is wrapped in a transaction for synchronized operation */
-ykpiv_rc _ykpiv_util_get_serial(ykpiv_state *state, uint32_t *p_serial, bool f_force) {
-  ykpiv_rc res = YKPIV_OK;
-  APDU apdu;
-  const uint8_t yk_applet[] = { 0xa0, 0x00, 0x00, 0x05, 0x27, 0x20, 0x01, 0x01 };
-  unsigned char data[0xff];
-  uint32_t recv_len = sizeof(data);
-  int sw;
-  uint8_t *p_temp = NULL;
-
-  if (!state) {
-    return YKPIV_ARGUMENT_ERROR;
-  }
-
-  if (!f_force && (state->serial != 0)) {
-    if (p_serial) *p_serial = state->serial;
-    return YKPIV_OK;
-  }
-
-  /* this function does not use ykpiv_transfer_data because it requires two apdus and selects a different app */
-
-  memset(apdu.raw, 0, sizeof(apdu));
-  apdu.st.ins = YKPIV_INS_SELECT_APPLICATION;
-  apdu.st.p1 = 0x04;
-  apdu.st.lc = sizeof(yk_applet);
-  memcpy(apdu.st.data, yk_applet, sizeof(yk_applet));
-
-  if ((res = _send_data(state, &apdu, data, &recv_len, &sw)) < YKPIV_OK) {
-    if (state->verbose) {
-      fprintf(stderr, "Failed communicating with card: '%s'\n", ykpiv_strerror(res));
-    }
-    goto Cleanup;
-  }
-  else if (sw != SW_SUCCESS) {
-    if (state->verbose) {
-      fprintf(stderr, "Failed selecting yk application: %04x\n", sw);
-    }
-    res = YKPIV_GENERIC_ERROR;
-    goto Cleanup;
-  }
-
-  recv_len = sizeof(data);
-  memset(apdu.raw, 0, sizeof(apdu));
-  apdu.st.ins = 0x01;
-  apdu.st.p1 = 0x10;
-  apdu.st.lc = 0x00;
-
-  if ((res = _send_data(state, &apdu, data, &recv_len, &sw)) < YKPIV_OK) {
-    if (state->verbose) {
-      fprintf(stderr, "Failed communicating with card: '%s'\n", ykpiv_strerror(res));
-    }
-    goto Cleanup;
-  }
-  else if (sw != SW_SUCCESS) {
-    if (state->verbose) {
-      fprintf(stderr, "Failed retrieving serial number: %04x\n", sw);
-    }
-    res = YKPIV_GENERIC_ERROR;
-    goto Cleanup;
-  }
-
-  p_temp = (uint8_t*)(&state->serial);
-
-  *p_temp++ = data[3];
-  *p_temp++ = data[2];
-  *p_temp++ = data[1];
-  *p_temp++ = data[0];
-
-  if (p_serial) *p_serial = state->serial;
-
-Cleanup:
-
-  return res;
+  return (uint32_t)object_id;
 }
 
 static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf, size_t *buf_len) {
   ykpiv_rc res = YKPIV_OK;
   uint8_t *ptr = NULL;
-  int object_id = ykpiv_util_slot_object(slot);
+  int object_id = (int)ykpiv_util_slot_object(slot);
   size_t len = 0;
 
   if (-1 == object_id) return YKPIV_INVALID_OBJECT;
@@ -1423,7 +1357,7 @@ static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf
       ptr += _ykpiv_get_length(ptr, &len);
 
       // check that decoded length represents object contents
-      if (len > (*buf_len - (ptr - buf))) {
+      if (len > (*buf_len - (size_t)(ptr - buf))) {
         *buf_len = 0;
         return YKPIV_OK;
       }
@@ -1441,7 +1375,7 @@ static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf
 
 static ykpiv_rc _write_certificate(ykpiv_state *state, uint8_t slot, uint8_t *data, size_t data_len, uint8_t certinfo) {
   uint8_t buf[CB_OBJ_MAX];
-  int object_id = ykpiv_util_slot_object(slot);
+  int object_id = (int)ykpiv_util_slot_object(slot);
   size_t offset = 0;
   size_t req_len = 0;
 
@@ -1579,16 +1513,24 @@ static ykpiv_rc _set_metadata_item(uint8_t *data, size_t *pcb_data, size_t cb_da
 
       /* length doesn't match, expand/shrink to fit */
       p_next = p_temp + cb_temp;
-      cb_moved = (long)cb_item - (long)cb_temp + ((long)(cb_item != 0 ? _get_length_size(cb_item) : -1 /* for tag, if deleting */) - (long)cb_len); /* accounts for different length encoding */
+      cb_moved = (long)cb_item - (long)cb_temp +
+        ((long)(cb_item != 0 ? _get_length_size(cb_item) : -1 /* for tag, if deleting */) -
+        (long)cb_len); /* accounts for different length encoding */
 
       /* length would cause buffer overflow, return error */
-      if (*pcb_data + cb_moved > cb_data_max) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-conversion"
+      if ((size_t)(*pcb_data + cb_moved) > cb_data_max) {
         return YKPIV_GENERIC_ERROR;
       }
+#pragma GCC diagnostic pop
 
       /* move remaining data */
-      memmove(p_next + cb_moved, p_next, *pcb_data - (p_next - data));
+      memmove(p_next + cb_moved, p_next, *pcb_data - (size_t)(p_next - data));
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-conversion"
       *pcb_data += cb_moved;
+#pragma GCC diagnostic pop
 
       /* re-encode item and insert */
       if (cb_item != 0) {
@@ -1598,7 +1540,7 @@ static ykpiv_rc _set_metadata_item(uint8_t *data, size_t *pcb_data, size_t cb_da
       }
 
       return YKPIV_OK;
-    } //if tag found
+    } /* if tag found */
 
     p_temp += cb_temp;
   }
@@ -1610,7 +1552,7 @@ static ykpiv_rc _set_metadata_item(uint8_t *data, size_t *pcb_data, size_t cb_da
 
   // we did not find an existing tag, append
   p_temp = data + *pcb_data;
-  cb_len = _get_length_size(cb_item);
+  cb_len = (size_t)_get_length_size(cb_item);
 
   // length would cause buffer overflow, return error
   if (*pcb_data + cb_len + cb_item > cb_data_max) {
@@ -1666,7 +1608,7 @@ static ykpiv_rc _read_metadata(ykpiv_state *state, uint8_t tag, uint8_t* data, s
 
   p_temp += _ykpiv_get_length(p_temp, pcb_data);
 
-  if (*pcb_data > ((size_t)cb_temp - (p_temp - data))) {
+  if (*pcb_data > (cb_temp - (size_t)(p_temp - data))) {
     *pcb_data = 0;
     return YKPIV_GENERIC_ERROR;
   }
@@ -1712,7 +1654,7 @@ static ykpiv_rc _write_metadata(ykpiv_state *state, uint8_t tag, uint8_t *data, 
     memcpy(pTemp, data, cb_data);
     pTemp += cb_data;
 
-    res = _ykpiv_save_object(state, obj_id, buf, pTemp - buf);
+    res = _ykpiv_save_object(state, obj_id, buf, (size_t)(pTemp - buf));
   }
 
   return res;

@@ -304,8 +304,11 @@ des_rc des_encrypt(des_key* key, const unsigned char* in, const size_t inlen, un
 
 #else
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
   /* openssl returns void */
   DES_ecb3_encrypt((const_DES_cblock *)in, (DES_cblock*)out, &(key->ks1), &(key->ks2), &(key->ks3), 1);
+#pragma GCC diagnostic pop
 
 #endif
 
@@ -336,8 +339,11 @@ des_rc des_decrypt(des_key* key, const unsigned char* in, const size_t inlen, un
 
 #else
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
   /* openssl returns void */
   DES_ecb3_encrypt((const_DES_cblock*)in, (DES_cblock*)out, &(key->ks1), &(key->ks2), &(key->ks3), 0);
+#pragma GCC diagnostic pop
 
 #endif
 
@@ -400,7 +406,12 @@ bool yk_des_is_weak_key(const unsigned char *key, const size_t cb_key) {
 
   return false;
 #else
+  (void)cb_key; /* unused */
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
   return DES_is_weak_key((const_DES_cblock *)key);
+#pragma GCC diagnostic pop
 #endif
 }
 
@@ -431,7 +442,7 @@ prng_rc _ykpiv_prng_generate(unsigned char *buffer, const size_t cb_req) {
   return rc;
 }
 
-pkcs5_rc pkcs5_pbkdf2_sha1(const unsigned char* password, const size_t cb_password, const unsigned char* salt, const size_t cb_salt, unsigned long long iterations, unsigned char* key, const size_t cb_key) {
+pkcs5_rc pkcs5_pbkdf2_sha1(const uint8_t* password, const size_t cb_password, const uint8_t* salt, const size_t cb_salt, uint64_t iterations, const uint8_t* key, const size_t cb_key) {
   pkcs5_rc rc = PKCS5_OK;
 
 #ifdef _WINDOWS
@@ -459,8 +470,11 @@ pkcs5_rc pkcs5_pbkdf2_sha1(const unsigned char* password, const size_t cb_passwo
 
 #else
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
   /* for some reason openssl always returns 1 for PBKDF2 */
-  PKCS5_PBKDF2_HMAC_SHA1((const char*)password, cb_password, salt, cb_salt, iterations, cb_key, key);
+  PKCS5_PBKDF2_HMAC_SHA1((const char*)password, cb_password, salt, cb_salt, iterations, cb_key, (unsigned char*)key);
+#pragma GCC diagnostic pop
 
 #endif
 
@@ -491,7 +505,6 @@ setting_bool_t _get_bool_config(const char *sz_setting) {
 
 #ifdef _WIN32
   HKEY hKey = 0;
-  DWORD dwErr = 0;
   DWORD dwValue = 0;
   DWORD dwType = 0;
   DWORD cbValue = sizeof(dwValue);
