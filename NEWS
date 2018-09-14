@@ -1,6 +1,10 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
-* Version 1.6.2 (unreleased)
+* Version 1.6.2 (released 2018-09-14)
+
+** Compare reader names case insensitive.
+
+** Fix certificate and certificate request signatures with OpenSSL 1.1.
 
 * Version 1.6.1 (released 2018-08-17)
 
