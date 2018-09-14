@@ -1,5 +1,7 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
+* Version 1.6.3 (unreleased)
+
 * Version 1.6.2 (released 2018-09-14)
 
 ** Compare reader names case insensitive.
