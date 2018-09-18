@@ -30,6 +30,7 @@ SUBDIRS = . tests
 AM_CFLAGS = $(WERROR_CFLAGS) $(WARN_CFLAGS)
 AM_CPPFLAGS = $(OPENSSL_CFLAGS) $(PCSC_CFLAGS)
 AM_CPPFLAGS += -I$(top_srcdir)/lib -I$(top_builddir)/lib
+AM_CPPFLAGS += -I$(top_srcdir)/tool -I$(top_builddir)/tool
 
 lib_LTLIBRARIES = libykcs11.la
 
