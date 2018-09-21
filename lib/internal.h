@@ -178,21 +178,20 @@ union u_APDU {
 typedef union u_APDU APDU;
 typedef struct des_key des_key;
 
-extern unsigned const char aid[];
-
 des_rc des_import_key(const int type, const unsigned char* keyraw, const size_t keyrawlen, des_key** key);
 des_rc des_destroy_key(des_key* key);
 des_rc des_encrypt(des_key* key, const unsigned char* in, const size_t inlen, unsigned char* out, size_t* outlen);
 des_rc des_decrypt(des_key* key, const unsigned char* in, const size_t inlen, unsigned char* out, size_t* outlen);
-pkcs5_rc pkcs5_pbkdf2_sha1(const unsigned char* password, const size_t cb_password, const unsigned char* salt, const size_t cb_salt, unsigned long long iterations, unsigned char* key, const size_t cb_key);
+pkcs5_rc pkcs5_pbkdf2_sha1(const uint8_t* password, const size_t cb_password, const uint8_t* salt, const size_t cb_salt, uint64_t iterations, const uint8_t* key, const size_t cb_key);
 bool   yk_des_is_weak_key(const unsigned char *key, const size_t cb_key);
 
 prng_rc _ykpiv_prng_generate(unsigned char *buffer, const size_t cb_req);
 ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state);
 ykpiv_rc _ykpiv_end_transaction(ykpiv_state *state);
 ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state);
-int _ykpiv_set_length(unsigned char *buffer, size_t length);
-int _ykpiv_get_length(const unsigned char *buffer, size_t *len);
+ykpiv_rc _ykpiv_select_application(ykpiv_state *state);
+unsigned int _ykpiv_set_length(unsigned char *buffer, size_t length);
+unsigned int _ykpiv_get_length(const unsigned char *buffer, size_t *len);
 
 void* _ykpiv_alloc(ykpiv_state *state, size_t size);
 void* _ykpiv_realloc(ykpiv_state *state, void *address, size_t size);
@@ -200,8 +199,14 @@ void _ykpiv_free(ykpiv_state *state, void *data);
 ykpiv_rc _ykpiv_save_object(ykpiv_state *state, int object_id, unsigned char *indata, size_t len);
 ykpiv_rc _ykpiv_fetch_object(ykpiv_state *state, int object_id, unsigned char *data, unsigned long *len);
 ykpiv_rc _send_data(ykpiv_state *state, APDU *apdu, unsigned char *data, uint32_t *recv_len, int *sw);
-ykpiv_rc _ykpiv_get_version(ykpiv_state *state, ykpiv_version_t *p_version);
-ykpiv_rc _ykpiv_util_get_serial(ykpiv_state *state, uint32_t *p_serial, bool f_force);
+ykpiv_rc _ykpiv_transfer_data(
+    ykpiv_state *state,
+    const unsigned char *templ,
+    const unsigned char *in_data,
+    long in_len,
+    unsigned char *out_data,
+    unsigned long *out_len,
+    int *sw);
 
 /* authentication functions not ready for public api */
 ykpiv_rc ykpiv_auth_getchallenge(ykpiv_state *state, uint8_t *challenge, const size_t challenge_len);

@@ -33,9 +33,9 @@ AC_CONFIG_MACRO_DIR([m4])
 # Interfaces changed/added/removed:   CURRENT++       REVISION=0
 # Interfaces added:                             AGE++
 # Interfaces removed:                           AGE=0
-AC_SUBST([LT_CURRENT], 5)
-AC_SUBST([LT_REVISION], 5)
-AC_SUBST([LT_AGE], 4)
+AC_SUBST([LT_CURRENT], 6)
+AC_SUBST([LT_REVISION], 0)
+AC_SUBST([LT_AGE], 5)
 
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AM_SILENT_RULES([yes])
@@ -224,6 +224,7 @@ if test "$gl_gcc_warnings" = yes; then
   nw="$nw -Wconversion"             # Too many warnings for now
   nw="$nw -Wsuggest-attribute=pure" # Is it worth using attributes?
   nw="$nw -Wsuggest-attribute=const" # Is it worth using attributes?
+  nw="$nw -Waggregate-return"       # returning structs shouldn't be a problem
 
   gl_MANYWARN_ALL_GCC([ws])
   gl_MANYWARN_COMPLEMENT(ws, [$ws], [$nw])
