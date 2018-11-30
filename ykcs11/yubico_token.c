@@ -242,7 +242,7 @@ CK_RV YUBICO_get_token_mechanism_info(CK_MECHANISM_TYPE mec, CK_MECHANISM_INFO_P
 
 static CK_RV get_objects(ykpiv_state *state, CK_BBOOL num_only,
                          piv_obj_id_t *obj, CK_ULONG_PTR len, CK_ULONG_PTR num_certs) {
-  CK_BYTE      buf[2048];
+  CK_BYTE      buf[2100];
   CK_ULONG     buf_len;
   CK_BYTE      major;
   CK_ULONG     i;
