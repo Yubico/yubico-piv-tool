@@ -29,7 +29,7 @@ SUBDIRS = lib tool ykcs11
 
 ACLOCAL_AMFLAGS = -I m4
 
-EXTRA_DIST = windows.mk mac.mk tool/tests/basic.sh tools/fasc.pl ykcs11/tests/reset.sh
+EXTRA_DIST = windows.mk mac.mk tool/tests/basic.sh tools/fasc.pl ykcs11/ykcs11.module ykcs11/tests/reset.sh
 
 EXTRA_DIST += doc/Attestation.adoc doc/YKCS11_release_notes.adoc doc/YubiKey_PIV_introduction.adoc
 

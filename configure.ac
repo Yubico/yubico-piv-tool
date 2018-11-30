@@ -272,6 +272,19 @@ AC_SUBST(YKCS11_VERSION_MINOR, `echo $PACKAGE_VERSION | sed 's/.*\.\(.*\)\..*/\1
 AC_SUBST(YKCS11_VERSION_PATCH, `echo $PACKAGE_VERSION | sed 's/.*\..*\.\(.*\)/\1/g'`)
 AC_SUBST(YKCS11_VERSION_NUMBER, `printf "0x%02x%02x%02x" $YKCS11_VERSION_MAJOR $YKCS11_VERSION_MINOR $YKCS11_VERSION_PATCH`)
 
+pkcs11dir="\$(libdir)/pkcs11"
+AC_SUBST([pkcs11dir])
+
+AC_SUBST(DYN_LIB_EXT)
+case "${host}" in
+        *-mingw*|*-winnt*|*-cygwin*)
+                DYN_LIB_EXT=".dll"
+                ;;
+        *)
+                DYN_LIB_EXT=".so"
+                ;;
+esac
+
 AC_CONFIG_FILES([
   Makefile
   lib/Makefile
