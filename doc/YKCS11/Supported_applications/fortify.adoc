@@ -28,7 +28,7 @@ Fortify expects to find the YKCS11 module in the following locations:
 ----
 MacOS: /usr/local/lib/libykcs11.dylib
 Linux: /usr/local/lib/libykcs11.so
-Windows: %WINDIR/System32/libykcs11-1.dll
+Windows: %WINDIR/System32/libykcs11.dll
 ----
 
 The paths are specified in a file called `card.json`. On a Linux system, this file seems to reside in `$HOME/.fortify/card.json`. 

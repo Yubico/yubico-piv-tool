@@ -32,36 +32,44 @@ AM_CPPFLAGS = $(OPENSSL_CFLAGS) $(PCSC_CFLAGS)
 AM_CPPFLAGS += -I$(top_srcdir)/lib -I$(top_builddir)/lib
 AM_CPPFLAGS += -I$(top_srcdir)/tool -I$(top_builddir)/tool
 
+EXTRA_DIST  = ykcs11.module.in ykcs11.pc.in
+
 lib_LTLIBRARIES = libykcs11.la
 
-libykcs11_la_SOURCES = ykcs11.c ykcs11.pc.in ykcs11.map
+libykcs11_la_SOURCES = ykcs11.c
 libykcs11_la_SOURCES += ykcs11.h debug.h
 libykcs11_la_SOURCES += token.c token.h
 libykcs11_la_SOURCES += mechanisms.c mechanisms.h
 libykcs11_la_SOURCES += utils.c utils.h
 libykcs11_la_SOURCES += openssl_utils.c openssl_utils.h openssl_types.h
 libykcs11_la_SOURCES += objects.c objects.h obj_types.h
-libykcs11_la_SOURCES += pkcs11.h  pkcs11y.h
+libykcs11_la_SOURCES += pkcs11.h pkcs11y.h pkcs11.exports
 libykcs11_la_SOURCES += ykcs11-version.h
-
-EXTRA_libykcs11_la_DEPENDENCIES = ykcs11.map
 
 libykcs11_la_LIBADD = ../lib/libykpiv.la
 libykcs11_la_LIBADD += ../tool/libpiv_util.la
 
 libykcs11_la_LDFLAGS = -no-undefined
-libykcs11_la_LDFLAGS += -version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE)
+libykcs11_la_LDFLAGS += -export-symbols "$(srcdir)/pkcs11.exports"
+libykcs11_la_LDFLAGS += -module -avoid-version
 
-if HAVE_LD_VERSION_SCRIPT
-libykcs11_la_LDFLAGS += -Wl,--version-script=$(srcdir)/ykcs11.map
-else
-libykcs11_la_LDFLAGS += -export-symbols-regex '^C_.*'
-endif
+libykcs11dir = $(libdir)/pkcs11
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = ykcs11.pc
+
+p11kitdir = $(datadir)/p11-kit/modules
+p11kit_DATA = ykcs11.module
 
 if ENABLE_COV
 AM_CFLAGS += --coverage
 AM_LDFLAGS = --coverage
 endif
+
+# see http://wiki.cacert.org/wiki/Pkcs11TaskForce
+install-exec-hook:
+	$(MKDIR_P) "$(DESTDIR)$(pkcs11dir)"
+	for l in libykcs11$(DYN_LIB_EXT); do \
+		rm -f "$(DESTDIR)$(pkcs11dir)/$$l"; \
+		$(LN_S) ../$$l "$(DESTDIR)$(pkcs11dir)/$$l"; \
+	done

@@ -66,11 +66,11 @@ doit:
 	chmod u+w $(PWD)/tmp/root/lib/libcrypto.1.0.0.dylib && \
 	install_name_tool -id @loader_path/libcrypto.1.0.0.dylib $(PWD)/tmp/root/lib/libcrypto.1.0.0.dylib && \
 	install_name_tool -id @loader_path/libykpiv.1.dylib $(PWD)/tmp/root/lib/libykpiv.1.dylib && \
-	install_name_tool -id @loader_path/libykcs11.1.dylib $(PWD)/tmp/root/lib/libykcs11.1.dylib && \
+	install_name_tool -id @loader_path/libykcs11.so $(PWD)/tmp/root/lib/libykcs11.so && \
 	install_name_tool -change $(PWD)/tmp/root/lib/libcrypto.1.0.0.dylib @loader_path/libcrypto.1.0.0.dylib $(PWD)/tmp/root/lib/libykpiv.1.dylib && \
-	install_name_tool -change $(PWD)/tmp/root/lib/libcrypto.1.0.0.dylib @loader_path/libcrypto.1.0.0.dylib $(PWD)/tmp/root/lib/libykcs11.1.dylib && \
+	install_name_tool -change $(PWD)/tmp/root/lib/libcrypto.1.0.0.dylib @loader_path/libcrypto.1.0.0.dylib $(PWD)/tmp/root/lib/libykcs11.so && \
 	install_name_tool -change $(PWD)/tmp/root/lib/libcrypto.1.0.0.dylib @executable_path/../lib/libcrypto.1.0.0.dylib $(PWD)/tmp/root/bin/yubico-piv-tool && \
-	install_name_tool -change $(PWD)/tmp/root/lib/libykpiv.1.dylib @loader_path/libykpiv.1.dylib $(PWD)/tmp/root/lib/libykcs11.1.dylib && \
+	install_name_tool -change $(PWD)/tmp/root/lib/libykpiv.1.dylib @loader_path/libykpiv.1.dylib $(PWD)/tmp/root/lib/libykcs11.so && \
 	install_name_tool -change $(PWD)/tmp/root/lib/libykpiv.1.dylib @executable_path/../lib/libykpiv.1.dylib $(PWD)/tmp/root/bin/yubico-piv-tool ; \
 	if otool -L $(PWD)/tmp/root/lib/*.dylib $(PWD)/tmp/root/bin/* | grep '$(PWD)/tmp/root' | grep -q compatibility; then \
 		echo "something is incorrectly linked!"; \

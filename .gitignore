@@ -112,6 +112,7 @@ tool/yubico-piv-tool.gcno
 ykcs11/.libs/
 ykcs11/*.o
 ykcs11/*.lo
+ykcs11/ykcs11.module
 ykcs11/ykcs11.pc
 ykcs11/libykcs11.la
 ykcs11/ykcs11-version.h
