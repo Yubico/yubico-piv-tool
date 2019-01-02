@@ -31,24 +31,24 @@
 #  S9999F9999F999999F0F1F0000000000300001E
 # and outputs that in hex, encoded in the 5-bit form described in
 # "Technical Implementation Guidance: Smart Card Enabled Physical Access
-#  Control Systems"
+#  Control Systems Version 2.2", Section 6.2, Figure 7.
 
 use strict;
 use Bit::Vector;
 
 my %encoding = (
   0 => "00001",
-  1 => "00010",
-  2 => "00100",
-  3 => "00111",
-  4 => "01000",
-  5 => "01011",
+  1 => "10000",
+  2 => "01000",
+  3 => "11001",
+  4 => "00100",
+  5 => "10101",
   6 => "01101",
-  7 => "01110",
-  8 => "10000",
+  7 => "11100",
+  8 => "00010",
   9 => "10011",
-  S => "11010", # the examples and definitions of S and F differ
-  F => "10110", # but we'll go with the examples here..
+  S => "11010",
+  F => "10110",
   E => "11111",
 );
 
