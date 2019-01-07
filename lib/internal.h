@@ -126,6 +126,7 @@ extern "C"
 #define CB_OBJ_TAG_MIN      2                       // 1 byte tag + 1 byte len
 #define CB_OBJ_TAG_MAX      (CB_OBJ_TAG_MIN + 2)      // 1 byte tag + 3 bytes len
 
+#define CB_PIN_MAX          8
 #define member_size(type, member) sizeof(((type*)0)->member)
 
 typedef enum {

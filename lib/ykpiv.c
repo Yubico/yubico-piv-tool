@@ -1246,6 +1246,7 @@ static ykpiv_rc _cache_pin(ykpiv_state *state, const char *pin, size_t len) {
     return YKPIV_OK;
   }
   if (state->pin) {
+    yc_memzero(state->pin, strnlen(state->pin, CB_PIN_MAX));
     _ykpiv_free(state, state->pin);
     state->pin = NULL;
   }
@@ -1268,7 +1269,7 @@ static ykpiv_rc _verify(ykpiv_state *state, const char *pin, const size_t pin_le
   int sw;
   ykpiv_rc res;
 
-  if (pin_len > 8) {
+  if (pin_len > CB_PIN_MAX) {
     return YKPIV_SIZE_ERROR;
   }
 
@@ -1279,27 +1280,36 @@ static ykpiv_rc _verify(ykpiv_state *state, const char *pin, const size_t pin_le
   apdu.st.lc = pin ? 0x08 : 0;
   if (pin) {
     memcpy(apdu.st.data, pin, pin_len);
-    if (pin_len < 8) {
-      memset(apdu.st.data + pin_len, 0xff, 8 - pin_len);
+    if (pin_len < CB_PIN_MAX) {
+      memset(apdu.st.data + pin_len, 0xff, CB_PIN_MAX - pin_len);
     }
   }
-  if ((res = _send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
+
+  res = _send_data(state, &apdu, data, &recv_len, &sw);
+  yc_memzero(&apdu, sizeof(apdu));
+
+  if (res != YKPIV_OK) {
     return res;
-  } else if (sw == SW_SUCCESS) {
+  }
+  else if (sw == SW_SUCCESS) {
     if (pin && pin_len) {
       // Intentionally ignore errors.  If the PIN fails to save, it will only
       // be a problem if a reconnect is attempted.  Failure deferred until then.
       _cache_pin(state, pin, pin_len);
     }
+
     if (tries) *tries = (sw & 0xf);
     return YKPIV_OK;
-  } else if ((sw >> 8) == 0x63) {
+  }
+  else if ((sw >> 8) == 0x63) {
     if (tries) *tries = (sw & 0xf);
     return YKPIV_WRONG_PIN;
-  } else if (sw == SW_ERR_AUTH_BLOCKED) {
+  }
+  else if (sw == SW_ERR_AUTH_BLOCKED) {
     if (tries) *tries = 0;
     return YKPIV_WRONG_PIN;
-  } else {
+  }
+  else {
     return YKPIV_GENERIC_ERROR;
   }
 }
@@ -1385,10 +1395,10 @@ static ykpiv_rc _ykpiv_change_pin(ykpiv_state *state, int action, const char * c
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
   ykpiv_rc res;
-  if (current_pin_len > 8) {
+  if (current_pin_len > CB_PIN_MAX) {
     return YKPIV_SIZE_ERROR;
   }
-  if (new_pin_len > 8) {
+  if (new_pin_len > CB_PIN_MAX) {
     return YKPIV_SIZE_ERROR;
   }
   if(action == CHREF_ACT_UNBLOCK_PIN) {
@@ -1398,14 +1408,17 @@ static ykpiv_rc _ykpiv_change_pin(ykpiv_state *state, int action, const char * c
     templ[3] = 0x81;
   }
   memcpy(indata, current_pin, current_pin_len);
-  if(current_pin_len < 8) {
-    memset(indata + current_pin_len, 0xff, 8 - current_pin_len);
+  if(current_pin_len < CB_PIN_MAX) {
+    memset(indata + current_pin_len, 0xff, CB_PIN_MAX - current_pin_len);
   }
-  memcpy(indata + 8, new_pin, new_pin_len);
-  if(new_pin_len < 8) {
-    memset(indata + 8 + new_pin_len, 0xff, 8 - new_pin_len);
+  memcpy(indata + CB_PIN_MAX, new_pin, new_pin_len);
+  if(new_pin_len < CB_PIN_MAX) {
+    memset(indata + CB_PIN_MAX + new_pin_len, 0xff, CB_PIN_MAX - new_pin_len);
   }
+
   res = ykpiv_transfer_data(state, templ, indata, sizeof(indata), data, &recv_len, &sw);
+  yc_memzero(indata, sizeof(indata));
+
   if(res != YKPIV_OK) {
     return res;
   } else if(sw != SW_SUCCESS) {
