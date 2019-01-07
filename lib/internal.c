@@ -462,6 +462,8 @@ pkcs5_rc pkcs5_pbkdf2_sha1(const uint8_t* password, const size_t cb_password, co
   */
 
   if (STATUS_SUCCESS == BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_SHA1_ALGORITHM, NULL, BCRYPT_ALG_HANDLE_HMAC_FLAG)) {
+    /* suppress const qualifier warning b/c BCrypt doesn't take const input buffers */
+#pragma warning(suppress: 4090)
     if (STATUS_SUCCESS != BCryptDeriveKeyPBKDF2(hAlg, (PUCHAR)password, (ULONG)cb_password, (PUCHAR)salt, (ULONG)cb_salt, iterations, key, (ULONG)cb_key, 0)) {
       rc = PKCS5_GENERAL_ERROR;
     }
