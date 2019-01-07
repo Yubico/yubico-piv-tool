@@ -684,6 +684,7 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
   uint32_t recv_len = sizeof(data);
   int sw;
   ykpiv_rc res;
+  des_rc drc = DES_OK;
   des_key* mgm_key = NULL;
   size_t out_len = 0;
 
@@ -728,7 +729,12 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
     unsigned char *dataptr = apdu.st.data;
     unsigned char response[8];
     out_len = sizeof(response);
-    des_decrypt(mgm_key, challenge, sizeof(challenge), response, &out_len);
+    drc = des_decrypt(mgm_key, challenge, sizeof(challenge), response, &out_len);
+
+    if (drc != DES_OK) {
+      res = YKPIV_AUTHENTICATION_ERROR;
+      goto Cleanup;
+    }
 
     recv_len = sizeof(data);
     memset(apdu.raw, 0, sizeof(apdu));
@@ -766,7 +772,13 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
   {
     unsigned char response[8];
     out_len = sizeof(response);
-    des_encrypt(mgm_key, challenge, sizeof(challenge), response, &out_len);
+    drc = des_encrypt(mgm_key, challenge, sizeof(challenge), response, &out_len);
+
+    if (drc != DES_OK) {
+      res = YKPIV_AUTHENTICATION_ERROR;
+      goto Cleanup;
+    }
+
     if (memcmp(response, data + 4, 8) == 0) {
       res = YKPIV_OK;
     }
