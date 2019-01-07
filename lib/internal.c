@@ -241,6 +241,7 @@ des_rc des_import_key(const int type, const unsigned char* keyraw, const size_t 
 EXIT:
 #ifdef _WINDOWS
   if (pbSessionBlob) {
+    yc_memzero(pbSessionBlob, cbSessionBlob);
     free(pbSessionBlob);
     pbSessionBlob = NULL;
   }
@@ -353,6 +354,7 @@ EXIT:
 
 bool yk_des_is_weak_key(const unsigned char *key, const size_t cb_key) {
 #ifdef _WINDOWS
+  bool rv = false;
   /* defined weak keys, borrowed from openssl to be consistent across platforms */
   static const unsigned char weak_keys[][DES_LEN_DES] = {
     /* weak keys */
@@ -400,11 +402,13 @@ bool yk_des_is_weak_key(const unsigned char *key, const size_t cb_key) {
     if ((0 == memcmp(weak_keys[i], tmp, DES_LEN_DES)) ||
         (0 == memcmp(weak_keys[i], tmp + DES_LEN_DES, DES_LEN_DES)) ||
         (0 == memcmp(weak_keys[i], tmp + 2*DES_LEN_DES, DES_LEN_DES))) {
-      return true;
+      rv = true;
+      break;
     }
   }
 
-  return false;
+  yc_memzero(tmp, DES_LEN_3DES);
+  return rv;
 #else
   (void)cb_key; /* unused */
 

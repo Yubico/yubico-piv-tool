@@ -838,6 +838,7 @@ ykpiv_rc ykpiv_set_mgmkey2(ykpiv_state *state, const unsigned char *new_key, con
   res = YKPIV_GENERIC_ERROR;
 
 Cleanup:
+  yc_memzero(&apdu, sizeof(APDU));
   _ykpiv_end_transaction(state);
   return res;
 }
@@ -1704,6 +1705,7 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
   }
 
 Cleanup:
+  yc_memzero(key_data, sizeof(key_data));
   _ykpiv_end_transaction(state);
   return res;
 }
