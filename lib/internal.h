@@ -236,6 +236,18 @@ typedef enum _yc_log_level_t {
 
 void yc_log_event(uint32_t id, yc_log_level_t level, const char *sz_format, ...);
 
+#ifdef _WIN32
+#include <windows.h>
+#define yc_memzero SecureZeroMemory
+#elif __OPENBSD__
+#include <strings.h>
+#define yc_memzero explicit_bzero;
+#else
+#define __STDC_WANT_LIB_EXT1__ 1
+#include <string.h>
+#define yc_memzero(_p, _n) (void)memset_s(_p, (rsize_t)_n, 0, (rsize_t)_n)
+#endif
+
 #ifdef __cplusplus
 }
 #endif

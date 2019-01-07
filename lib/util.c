@@ -1146,7 +1146,7 @@ ykpiv_rc ykpiv_util_get_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
 
 Cleanup:
 
-  memset(data, 0, sizeof(data));
+  yc_memzero(data, sizeof(data));
 
   _ykpiv_end_transaction(state);
   return res;
