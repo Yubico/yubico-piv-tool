@@ -1044,6 +1044,12 @@ static ykpiv_rc _ykpiv_get_version(ykpiv_state *state, ykpiv_version_t *p_versio
   if((res = _send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
     return res;
   } else if(sw == SW_SUCCESS) {
+
+    /* check that we received enough data for the verson number */
+    if (recv_len < 3) {
+      return YKPIV_SIZE_ERROR;
+    }
+
     state->ver.major = data[0];
     state->ver.minor = data[1];
     state->ver.patch = data[2];
@@ -1180,6 +1186,11 @@ static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state, uint32_t *p_serial, bool f
       }
       return YKPIV_GENERIC_ERROR;
     }
+  }
+
+  /* check that we received enough data for the serial number */
+  if (recv_len < 4) {
+    return YKPIV_SIZE_ERROR;
   }
 
   p_temp = (uint8_t*)(&state->serial);

@@ -274,8 +274,9 @@ ykpiv_rc ykpiv_util_list_keys(ykpiv_state *state, uint8_t *key_count, ykpiv_key 
 
   for (i = 0; i < sizeof(SLOTS); i++) {
     cbBuf = sizeof(buf);
+    res = _read_certificate(state, SLOTS[i], buf, &cbBuf);
 
-    if (YKPIV_OK == (res = _read_certificate(state, SLOTS[i], buf, &cbBuf))) {
+    if ((res == YKPIV_OK) && (cbBuf > 0)) {
       // add current slot to result, grow result buffer if necessary
 
       cbRealloc = (sizeof(ykpiv_key) + cbBuf - 1) > (cbData - offset) ? MAX((sizeof(ykpiv_key) + cbBuf - 1) - (cbData - offset), CB_PAGE) : 0;
