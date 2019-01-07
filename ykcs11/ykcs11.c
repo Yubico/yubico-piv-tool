@@ -1942,7 +1942,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   *pulSignatureLen = sizeof(op_info.buf);
 
-  piv_rv = ykpiv_sign_data(piv_state, op_info.buf, op_info.buf_len, pSignature, pulSignatureLen, op_info.op.sign.algo, op_info.op.sign.key_id);
+  piv_rv = ykpiv_sign_data(piv_state, op_info.buf, op_info.buf_len, op_info.buf, pulSignatureLen, op_info.op.sign.algo, op_info.op.sign.key_id);
   if (piv_rv != YKPIV_OK) {
     if (piv_rv == YKPIV_AUTHENTICATION_ERROR) {
       DBG("Operation requires authentication or touch");
@@ -1958,19 +1958,21 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   DBG("Got %lu bytes back", *pulSignatureLen);
 #if YKCS11_DBG == 1
-  dump_data(pSignature, *pulSignatureLen, stderr, CK_TRUE, format_arg_hex);
+  dump_data(op_info.buf, *pulSignatureLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
   if (!is_RSA_mechanism(op_info.mechanism.mechanism)) {
     // ECDSA, we must remove the DER encoding and only return R,S
     // as required by the specs
-    strip_DER_encoding_from_ECSIG(pSignature, pulSignatureLen);
+    strip_DER_encoding_from_ECSIG(op_info.buf, pulSignatureLen);
 
     DBG("After removing DER encoding %lu", *pulSignatureLen);
 #if YKCS11_DBG == 1
     dump_data(pSignature, *pulSignatureLen, stderr, CK_TRUE, format_arg_hex);
 #endif
   }
+
+  memcpy(pSignature, op_info.buf, *pulSignatureLen);
 
   op_info.type = YKCS11_NOOP;
 
