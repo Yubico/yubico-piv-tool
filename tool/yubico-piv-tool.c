@@ -1849,6 +1849,36 @@ read_out:
   return ret;
 }
 
+static bool is_protected_object(int id) {
+    switch(id) {
+        case YKPIV_OBJ_FINGERPRINTS:
+        case YKPIV_OBJ_FACIAL:
+        case YKPIV_OBJ_PRINTED:
+        case YKPIV_OBJ_IRIS:
+            return true;
+    }
+    return false;
+}
+
+static bool verfy_state(ykpiv_state *state, struct gengetopt_args_info *args_info) {
+    char pinbuf[8+2] = {0};
+    char *pin = args_info->pin_arg;
+
+    if(!pin) {
+        if (!read_pw("PIN", pinbuf, sizeof(pinbuf), false, args_info->stdin_input_flag)) {
+            return false;
+        }
+        pin = pinbuf;
+    }
+    if(verify_pin(state, pin)) {
+        fprintf(stderr, "Successfully verified PIN.\n");
+    } else {
+        return false;
+    }
+    return true;
+}
+
+
 int main(int argc, char *argv[]) {
   struct gengetopt_args_info args_info;
   ykpiv_state *state;
@@ -2122,20 +2152,8 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_verifyMINUS_pin: {
-        char pinbuf[8+2] = {0};
-        char *pin = args_info.pin_arg;
-
-        if(!pin) {
-          if (!read_pw("PIN", pinbuf, sizeof(pinbuf), false, args_info.stdin_input_flag)) {
-            return false;
-          }
-          pin = pinbuf;
-        }
-        if(verify_pin(state, pin)) {
-          fprintf(stderr, "Successfully verified PIN.\n");
-        } else {
-          ret = EXIT_FAILURE;
-        }
+        if (!verfy_state(state, &args_info))
+            ret = EXIT_FAILURE;
         break;
       }
       case action_arg_changeMINUS_pin:
@@ -2222,6 +2240,13 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_readMINUS_object:
+        if (is_protected_object(args_info.id_arg)) {
+            if (!verfy_state(state, &args_info)) {
+                ret = EXIT_FAILURE;
+                break;
+            }
+        }
+
         if(read_object(state, args_info.id_arg, args_info.output_arg,
               args_info.format_arg) == false) {
           ret = EXIT_FAILURE;
