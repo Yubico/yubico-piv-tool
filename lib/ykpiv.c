@@ -1849,6 +1849,7 @@ ykpiv_rc ykpiv_auth_verifyresponse(ykpiv_state *state, uint8_t *response, const 
 
 Cleanup:
 
+  yc_memzero(&apdu, sizeof(apdu));
   _ykpiv_end_transaction(state);
   return res;
 }
