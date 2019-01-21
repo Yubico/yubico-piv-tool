@@ -240,9 +240,12 @@ void yc_log_event(uint32_t id, yc_log_level_t level, const char *sz_format, ...)
 #ifdef _WIN32
 #include <windows.h>
 #define yc_memzero SecureZeroMemory
-#elif __OPENBSD__
+#elif defined(BSD)
 #include <strings.h>
-#define yc_memzero explicit_bzero;
+#define yc_memzero explicit_bzero
+#elif defined(__linux__)
+#include <openssl/crypto.h>
+#define yc_memzero OPENSSL_cleanse
 #else
 #define __STDC_WANT_LIB_EXT1__ 1
 #include <string.h>

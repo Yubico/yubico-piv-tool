@@ -1399,8 +1399,10 @@ static ykpiv_rc _write_certificate(ykpiv_state *state, uint8_t slot, uint8_t *da
   // calculate the required length of the encoded object
   req_len = 1 /* cert tag */ + 3 /* compression tag + data*/ + 2 /* lrc */;
   req_len += _ykpiv_set_length(buf, data_len);
+  req_len += data_len;
 
-  if (req_len > _obj_size_max(state)) return YKPIV_SIZE_ERROR;
+  if (req_len < data_len) return YKPIV_SIZE_ERROR; /* detect overflow of unsigned size_t */
+  if (req_len > _obj_size_max(state)) return YKPIV_SIZE_ERROR; /* obj_size_max includes limits for TLV encoding */
 
   buf[offset++] = TAG_CERT;
   offset += _ykpiv_set_length(buf + offset, data_len);
