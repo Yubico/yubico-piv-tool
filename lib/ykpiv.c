@@ -1695,7 +1695,8 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
     padding = elem_len - lens[i];
     remaining = (uintptr_t)key_data + sizeof(key_data) - (uintptr_t)in_ptr;
     if (padding > remaining) {
-      return YKPIV_ALGORITHM_ERROR;
+      res = YKPIV_ALGORITHM_ERROR;
+      goto Cleanup;
     }
     memset(in_ptr, 0, padding);
     in_ptr += padding;
