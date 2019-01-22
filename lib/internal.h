@@ -193,6 +193,7 @@ ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state);
 ykpiv_rc _ykpiv_select_application(ykpiv_state *state);
 unsigned int _ykpiv_set_length(unsigned char *buffer, size_t length);
 unsigned int _ykpiv_get_length(const unsigned char *buffer, size_t *len);
+bool _ykpiv_has_valid_length(const unsigned char* buffer, size_t len);
 
 void* _ykpiv_alloc(ykpiv_state *state, size_t size);
 void* _ykpiv_realloc(ykpiv_state *state, void *address, size_t size);

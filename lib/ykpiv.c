@@ -186,6 +186,19 @@ unsigned int _ykpiv_get_length(const unsigned char *buffer, size_t *len) {
   return 0;
 }
 
+bool _ykpiv_has_valid_length(const unsigned char* buffer, size_t len) {
+  if ((buffer[0] < 0x81) && (len > 0)) {
+    return true;
+  }
+  else if (((*buffer & 0x7f) == 1) && (len > 1)) {
+    return true;
+  }
+  else if (((*buffer & 0x7f) == 2) && (len > 2)) {
+    return true;
+  }
+  return false;
+}
+
 static unsigned char *set_object(int object_id, unsigned char *buffer) {
   *buffer++ = 0x5c;
   if(object_id == YKPIV_OBJ_DISCOVERY) {
@@ -1514,8 +1527,14 @@ ykpiv_rc _ykpiv_fetch_object(ykpiv_state *state, int object_id,
   }
 
   if(sw == SW_SUCCESS) {
-    size_t outlen;
-    unsigned int offs = _ykpiv_get_length(data + 1, &outlen);
+    size_t outlen = 0;
+    unsigned int offs = 0;
+    
+    if ((*len < 2) || !_ykpiv_has_valid_length(data + 1, *len - 1)) {
+      return YKPIV_SIZE_ERROR;
+    }
+
+    offs = _ykpiv_get_length(data + 1, &outlen);
     if(offs == 0) {
       return YKPIV_SIZE_ERROR;
     }
