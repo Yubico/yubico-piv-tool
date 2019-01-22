@@ -218,6 +218,7 @@ ykpiv_rc ykpiv_util_list_keys(ykpiv_state *state, uint8_t *key_count, ykpiv_key 
   ykpiv_rc res = YKPIV_OK;
   ykpiv_key *pKey = NULL;
   uint8_t *pData = NULL;
+  uint8_t *pTemp = NULL;
   size_t cbData = 0;
   size_t offset = 0;
   uint8_t buf[CB_BUF_MAX];
@@ -282,10 +283,13 @@ ykpiv_rc ykpiv_util_list_keys(ykpiv_state *state, uint8_t *key_count, ykpiv_key 
       cbRealloc = (sizeof(ykpiv_key) + cbBuf - 1) > (cbData - offset) ? MAX((sizeof(ykpiv_key) + cbBuf - 1) - (cbData - offset), CB_PAGE) : 0;
 
       if (0 != cbRealloc) {
-        if (NULL == (pData = _ykpiv_realloc(state, pData, cbData + cbRealloc))) {
+        if (!(pTemp = _ykpiv_realloc(state, pData, cbData + cbRealloc))) {
+          /* realloc failed, pData will be freed in cleanup */
           res = YKPIV_MEMORY_ERROR;
           goto Cleanup;
         }
+        pData = pTemp;
+        pTemp = NULL;
       }
 
       cbData += cbRealloc;
@@ -556,6 +560,7 @@ ykpiv_rc ykpiv_util_read_msroots(ykpiv_state *state, uint8_t **data, size_t *dat
   int object_id = 0;
   uint8_t tag = 0;
   uint8_t *pData = NULL;
+  uint8_t *pTemp = NULL;
   size_t cbData = 0;
   size_t cbRealloc = 0;
   size_t offset = 0;
@@ -606,10 +611,13 @@ ykpiv_rc ykpiv_util_read_msroots(ykpiv_state *state, uint8_t **data, size_t *dat
     cbRealloc = len > (cbData - offset) ? len - (cbData - offset) : 0;
 
     if (0 != cbRealloc) {
-      if (NULL == (pData = _ykpiv_realloc(state, pData, cbData + cbRealloc))) {
+      if (!(pTemp = _ykpiv_realloc(state, pData, cbData + cbRealloc))) {
+        /* realloc failed, pData will be freed in cleanup */
         res = YKPIV_MEMORY_ERROR;
         goto Cleanup;
       }
+      pData = pTemp;
+      pTemp = NULL;
     }
 
     cbData += cbRealloc;
