@@ -1184,7 +1184,7 @@ ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
     }
   }
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) { res = YKPIV_PCSC_ERROR; goto Cleanup; }
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   /* try to set the mgm key as long as we don't encounter a fatal error */
@@ -1279,8 +1279,8 @@ ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
 
 Cleanup:
 
-  memset(data, 0, sizeof(data));
-  memset(mgm_key, 0, sizeof(mgm_key));
+  yc_memzero(data, sizeof(data));
+  yc_memzero(mgm_key, sizeof(mgm_key));
 
   _ykpiv_end_transaction(state);
   return res;
