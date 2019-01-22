@@ -1457,6 +1457,11 @@ static ykpiv_rc _get_metadata_item(uint8_t *data, size_t cb_data, uint8_t tag, u
 
   while (p_temp < (data + cb_data)) {
     tag_temp = *p_temp++;
+
+    if (!_ykpiv_has_valid_length(p_temp, (data + cb_data - p_temp))) {
+      return YKPIV_SIZE_ERROR;
+    }
+
     p_temp += _ykpiv_get_length(p_temp, &cb_temp);
 
     if (tag_temp == tag) {
