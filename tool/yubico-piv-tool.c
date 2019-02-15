@@ -49,6 +49,7 @@
 #include <openssl/pkcs12.h>
 #include <openssl/rand.h>
 #include <openssl/rsa.h>
+#include <openssl/x509v3.h>
 
 #include "cmdline.h"
 #include "util.h"
@@ -796,6 +797,15 @@ request_out:
   return ret;
 }
 
+static const struct {
+  int nid;
+  const char *ext;
+} selfsign_extensions[] = {
+  {NID_subject_key_identifier, "hash"},
+  {NID_authority_key_identifier, "keyid"},
+  {NID_basic_constraints, "CA:true"},
+};
+
 static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_format,
     const char *input_file_name, enum enum_slot slot, char *subject, enum enum_hash hash,
     const int *serial, int validDays, const char *output_file_name) {
@@ -920,6 +930,24 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   if(nid == 0) {
     goto selfsign_out;
   }
+
+  {
+    X509V3_CTX ctx;
+    X509_EXTENSION *ext;
+    int i;
+    X509V3_set_ctx(&ctx, x509, x509, NULL, NULL, 0);
+
+    for(i = 0; i < sizeof(selfsign_extensions) / sizeof(selfsign_extensions[0]); i++) {
+      const X509V3_EXT_METHOD *method = X509V3_EXT_get_nid(selfsign_extensions[i].nid);
+      void *ext_struc = method->s2i(method, &ctx, selfsign_extensions[i].ext);
+      ext = X509V3_EXT_i2d(NID_subject_key_identifier, 0, ext_struc);
+      if(!X509_add_ext(x509, ext, -1)) {
+        fprintf(stderr, "Failed adding extension %d (%d).\n", i, selfsign_extensions[i].nid);
+        goto selfsign_out;
+      }
+    }
+  }
+
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
   null_parameter.type = V_ASN1_NULL;
   null_parameter.value.ptr = NULL;
