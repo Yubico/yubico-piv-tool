@@ -800,10 +800,11 @@ request_out:
 static const struct {
   int nid;
   const char *ext;
+  int critical;
 } selfsign_extensions[] = {
-  {NID_subject_key_identifier, "hash"},
-  {NID_authority_key_identifier, "keyid"},
-  {NID_basic_constraints, "CA:true"},
+  {NID_subject_key_identifier, "hash", 0},
+  {NID_authority_key_identifier, "keyid", 0},
+  {NID_basic_constraints, "CA:true", 1},
 };
 
 static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_format,
@@ -933,14 +934,38 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
 
   {
     X509V3_CTX ctx;
-    X509_EXTENSION *ext;
     int i;
     X509V3_set_ctx(&ctx, x509, x509, NULL, NULL, 0);
 
     for(i = 0; i < sizeof(selfsign_extensions) / sizeof(selfsign_extensions[0]); i++) {
+      X509_EXTENSION *ext = NULL;
+      void *ext_struc;
       const X509V3_EXT_METHOD *method = X509V3_EXT_get_nid(selfsign_extensions[i].nid);
-      void *ext_struc = method->s2i(method, &ctx, selfsign_extensions[i].ext);
-      ext = X509V3_EXT_i2d(NID_subject_key_identifier, 0, ext_struc);
+
+      if(!method) {
+        fprintf(stderr, "Failed to get extension method for nid %d.\n", selfsign_extensions[i].nid);
+        goto selfsign_out;
+      }
+      if(method->v2i) {
+        STACK_OF(CONF_VALUE) *nval = X509V3_parse_list(selfsign_extensions[i].ext);
+        if(!nval) {
+          fprintf(stderr, "Failed parsing extension value for nid %d.\n", selfsign_extensions[i].nid);
+          goto selfsign_out;
+        }
+        ext_struc = method->v2i(method, &ctx, nval);
+      } else if(method->s2i) {
+        ext_struc = method->s2i(method, &ctx, selfsign_extensions[i].ext);
+      } else {
+        fprintf(stderr, "Unknown way to construct extension for nid %d.\n", selfsign_extensions[i].nid);
+        goto selfsign_out;
+      }
+
+      if(!ext_struc) {
+        fprintf(stderr, "Failed constructing extension value for nid %d.\n", selfsign_extensions[i].nid);
+        goto selfsign_out;
+      }
+
+      ext = X509V3_EXT_i2d(selfsign_extensions[i].nid, selfsign_extensions[i].critical, ext_struc);
       if(!X509_add_ext(x509, ext, -1)) {
         fprintf(stderr, "Failed adding extension %d (%d).\n", i, selfsign_extensions[i].nid);
         goto selfsign_out;
