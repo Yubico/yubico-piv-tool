@@ -26,7 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 PACKAGE=yubico-piv-tool
-OPENSSLVERSION=1.0.2p
+OPENSSLVERSION=1.0.2q
 CHECKVERSION=0.12.0
 
 all: usage 32bit 64bit
@@ -71,6 +71,9 @@ doit:
 	rm $(PWD)/tmp$(ARCH)/root/lib/*.la && \
 	rm -rf $(PWD)/tmp$(ARCH)/root/lib/pkgconfig/ && \
 	cp COPYING $(PWD)/tmp$(ARCH)/root/licenses/$(PACKAGE).txt && \
+	cd .. && \
+	cd check-$(CHECKVERSION) && \
+	make uninstall && \
 	cd .. && \
 	cd root && \
 	zip -r ../../$(PACKAGE)-$(VERSION)-win$(ARCH).zip *
