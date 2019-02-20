@@ -306,7 +306,7 @@ static void make_base128(unsigned long l, int first, CK_BYTE_PTR buf, CK_ULONG_P
     buf[(*n)++] = 0x80 | (CK_BYTE)l;
 }
 
-static void asn1_encode_oid(CK_CHAR_PTR oid, CK_BYTE_PTR asn1_oid, CK_ULONG_PTR len) {
+static CK_RV asn1_encode_oid(CK_CHAR_PTR oid, CK_BYTE_PTR asn1_oid, CK_ULONG_PTR len) {
   CK_CHAR_PTR tmp = (CK_BYTE_PTR) strdup((char *)oid);
   CK_CHAR_PTR p = tmp;
   CK_BYTE_PTR q = NULL;
@@ -314,6 +314,10 @@ static void asn1_encode_oid(CK_CHAR_PTR oid, CK_BYTE_PTR asn1_oid, CK_ULONG_PTR 
   CK_BYTE     b = 0;
   CK_ULONG    l = 0;
   CK_ULONG    nodes;
+
+  if (tmp == NULL) {
+    return CKR_HOST_MEMORY;
+  }
 
   q = p;
   *len = 0;
@@ -360,6 +364,8 @@ static void asn1_encode_oid(CK_CHAR_PTR oid, CK_BYTE_PTR asn1_oid, CK_ULONG_PTR 
   }
 
   free(tmp);
+
+  return CKR_OK;
 }
 
 static CK_KEY_TYPE get_key_type(EVP_PKEY *key) {
@@ -395,6 +401,7 @@ CK_RV get_doa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
   CK_BYTE     tmp[64];
   CK_ULONG    len = 0;
+  CK_RV       rv;
   DBG("For data object %lu, get ", obj);
 
   switch (template->type) {
@@ -439,7 +446,9 @@ CK_RV get_doa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   case CKA_OBJECT_ID: // TODO: how about just storing the OID in DER ?
     DBG("OID");
     memcpy((char *)tmp, data_objects[piv_objects[obj].sub_id].oid, sizeof(tmp));
-    asn1_encode_oid(tmp, tmp, &len);
+    if ((rv = asn1_encode_oid(tmp, tmp, &len)) != CKR_OK) {
+      return rv;
+    }
     data = tmp;
     break;
 
