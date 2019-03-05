@@ -37,16 +37,16 @@ history, this can be avoided by leaving the argument out all-together and the
 software will ask for key/pin to be input. For the management key option (-k)
 this is achieved by leaving out the value but will specifying -k.
 
-  $ key=`dd if=/dev/random bs=1 count=24 2>/dev/null | hexdump -v -e '/1 "%02X"'`
+  $ key=`dd if=/dev/urandom 2>/dev/null | tr -d '[:lower:]' | tr -cd '[:xdigit:]' | fold -w48 | head -1` 
   $ echo $key
   $ yubico-piv-tool -aset-mgm-key -n$key
 
 The PIN and PUK should be changed as well.
 
-  $ pin=`dd if=/dev/random bs=1 count=6 2>/dev/null | hexdump -v -e '/1 "%u"'|cut -c1-6`
+  $ pin=`dd if=/dev/urandom 2>/dev/null | tr -cd '[:digit:]' | fold -w6 | head -1`
   $ echo $pin
 
-  $ puk=`dd if=/dev/random bs=1 count=6 2>/dev/null | hexdump -v -e '/1 "%u"'|cut -c1-8`
+  $ puk=`dd if=/dev/urandom 2>/dev/null | tr -cd '[:digit:]' | fold -w8 | head -1`
   $ echo $puk
 
   $ yubico-piv-tool -achange-pin -P123456 -N$pin
