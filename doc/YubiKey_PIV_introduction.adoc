@@ -37,30 +37,30 @@ history, this can be avoided by leaving the argument out all-together and the
 software will ask for key/pin to be input. For the management key option (-k)
 this is achieved by leaving out the value but will specifying -k.
 
-  $ key=`dd if=/dev/urandom 2>/dev/null | tr -d '[:lower:]' | tr -cd '[:xdigit:]' | fold -w48 | head -1` 
-  $ echo $key
-  $ yubico-piv-tool -aset-mgm-key -n$key
+  $ key=$(export LC_CTYPE=C; dd if=/dev/urandom 2>/dev/null | tr -d '[:lower:]' | tr -cd '[:xdigit:]' | fold -w48 | head -1)
+  $ echo ${key}
+  $ yubico-piv-tool -aset-mgm-key -n${key}
 
 The PIN and PUK should be changed as well.
 
-  $ pin=`dd if=/dev/urandom 2>/dev/null | tr -cd '[:digit:]' | fold -w6 | head -1`
-  $ echo $pin
+  $ pin=$(export LC_CTYPE=C; dd if=/dev/urandom 2>/dev/null | tr -cd '[:digit:]' | fold -w6 | head -1)
+  $ echo ${pin}
 
-  $ puk=`dd if=/dev/urandom 2>/dev/null | tr -cd '[:digit:]' | fold -w8 | head -1`
-  $ echo $puk
+  $ puk=$(export LC_CTYPE=C; dd if=/dev/urandom 2>/dev/null | tr -cd '[:digit:]' | fold -w8 | head -1)
+  $ echo ${puk}
 
-  $ yubico-piv-tool -achange-pin -P123456 -N$pin
-  $ yubico-piv-tool -achange-puk -P12345678 -N$puk
+  $ yubico-piv-tool -achange-pin -P123456 -N${pin}
+  $ yubico-piv-tool -achange-puk -P12345678 -N${puk}
 
 === Other useful commands
 To generate a new private key:
 
-  $ yubico-piv-tool -k$key -agenerate -s9c
+  $ yubico-piv-tool -k${key} -agenerate -s9c
 
 To reset PIN/PUK retry counter AND codes (default pin 123456 puk
 12345678):
 
-  $ yubico-piv-tool -k$key -averify -P$pin -apin-retries --pin-retries=3 --puk-retries=3
+  $ yubico-piv-tool -k${key} -averify -P${pin} -apin-retries --pin-retries=3 --puk-retries=3
 
 To reset the application (PIN/PUK need to be blocked hence trying a couple
 of times -- you need to modify this if you have changed the default
