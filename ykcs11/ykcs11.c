@@ -1863,12 +1863,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     goto sign_out;
   }
 
-  if (op_info.type != YKCS11_SIGN) {
-    DBG("Operation not initialized");
-    rv = CKR_OPERATION_NOT_INITIALIZED;
-    goto sign_out;
-  }
-
   if (session.info.state == CKS_RO_PUBLIC_SESSION ||
       session.info.state == CKS_RW_PUBLIC_SESSION) {
     DBG("User is not logged in");
