@@ -1968,8 +1968,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   memcpy(pSignature, op_info.buf, *pulSignatureLen);
 
-  op_info.type = YKCS11_NOOP;
-
   rv = CKR_OK;
 
   sign_out:
