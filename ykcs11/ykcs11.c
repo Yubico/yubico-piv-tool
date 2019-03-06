@@ -1695,7 +1695,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
   CK_KEY_TYPE  type = 0;
   CK_ULONG     key_len = 0;
   CK_BYTE      exp[3];
-  CK_BYTE      buf[1024];
+  CK_BYTE      buf[1024] = {0};
   CK_ATTRIBUTE template[] = {
     {CKA_KEY_TYPE, &type, sizeof(type)},
     {CKA_MODULUS_BITS, &key_len, sizeof(key_len)},
