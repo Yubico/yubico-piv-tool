@@ -1,6 +1,22 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
-* Version 1.6.3 (unreleased)
+* Version 1.7.0 (released 2019-04-03)
+
+** Add ykpiv_get_serial() to API.
+
+** Add version and serial to status output.
+
+** FASC-N fixes for CHUID.
+
+** ykcs11: Fix ECDSA signatures.
+
+** Make selfsigned X.509 extensions have correct extensions to match openssl.
+
+** Security fixes.
+
+** Documentation fixes.
+
+** Try to clear memory that might contain secrets.
 
 * Version 1.6.2 (released 2018-09-14)
 
