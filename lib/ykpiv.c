@@ -186,6 +186,19 @@ unsigned int _ykpiv_get_length(const unsigned char *buffer, size_t *len) {
   return 0;
 }
 
+bool _ykpiv_has_valid_length(const unsigned char* buffer, size_t len) {
+  if ((buffer[0] < 0x81) && (len > 0)) {
+    return true;
+  }
+  else if (((*buffer & 0x7f) == 1) && (len > 1)) {
+    return true;
+  }
+  else if (((*buffer & 0x7f) == 2) && (len > 2)) {
+    return true;
+  }
+  return false;
+}
+
 static unsigned char *set_object(int object_id, unsigned char *buffer) {
   *buffer++ = 0x5c;
   if(object_id == YKPIV_OBJ_DISCOVERY) {
@@ -291,8 +304,8 @@ ykpiv_rc _ykpiv_select_application(ykpiv_state *state) {
    * can determine how to get the serial number, which for the NEO/Yk4
    * will result in another selection of the PIV applet. */
 
-  _ykpiv_get_version(state, NULL);
-  _ykpiv_get_serial(state, NULL, false);
+  res = _ykpiv_get_version(state, NULL);
+  if (res == YKPIV_OK) res = _ykpiv_get_serial(state, NULL, false);
 
   return res;
 }
@@ -684,6 +697,7 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
   uint32_t recv_len = sizeof(data);
   int sw;
   ykpiv_rc res;
+  des_rc drc = DES_OK;
   des_key* mgm_key = NULL;
   size_t out_len = 0;
 
@@ -728,7 +742,12 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
     unsigned char *dataptr = apdu.st.data;
     unsigned char response[8];
     out_len = sizeof(response);
-    des_decrypt(mgm_key, challenge, sizeof(challenge), response, &out_len);
+    drc = des_decrypt(mgm_key, challenge, sizeof(challenge), response, &out_len);
+
+    if (drc != DES_OK) {
+      res = YKPIV_AUTHENTICATION_ERROR;
+      goto Cleanup;
+    }
 
     recv_len = sizeof(data);
     memset(apdu.raw, 0, sizeof(apdu));
@@ -766,7 +785,13 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
   {
     unsigned char response[8];
     out_len = sizeof(response);
-    des_encrypt(mgm_key, challenge, sizeof(challenge), response, &out_len);
+    drc = des_encrypt(mgm_key, challenge, sizeof(challenge), response, &out_len);
+
+    if (drc != DES_OK) {
+      res = YKPIV_AUTHENTICATION_ERROR;
+      goto Cleanup;
+    }
+
     if (memcmp(response, data + 4, 8) == 0) {
       res = YKPIV_OK;
     }
@@ -838,6 +863,7 @@ ykpiv_rc ykpiv_set_mgmkey2(ykpiv_state *state, const unsigned char *new_key, con
   res = YKPIV_GENERIC_ERROR;
 
 Cleanup:
+  yc_memzero(&apdu, sizeof(APDU));
   _ykpiv_end_transaction(state);
   return res;
 }
@@ -1044,6 +1070,12 @@ static ykpiv_rc _ykpiv_get_version(ykpiv_state *state, ykpiv_version_t *p_versio
   if((res = _send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
     return res;
   } else if(sw == SW_SUCCESS) {
+
+    /* check that we received enough data for the verson number */
+    if (recv_len < 3) {
+      return YKPIV_SIZE_ERROR;
+    }
+
     state->ver.major = data[0];
     state->ver.minor = data[1];
     state->ver.patch = data[2];
@@ -1182,6 +1214,11 @@ static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state, uint32_t *p_serial, bool f
     }
   }
 
+  /* check that we received enough data for the serial number */
+  if (recv_len < 4) {
+    return YKPIV_SIZE_ERROR;
+  }
+
   p_temp = (uint8_t*)(&state->serial);
 
   *p_temp++ = data[3];
@@ -1222,6 +1259,7 @@ static ykpiv_rc _cache_pin(ykpiv_state *state, const char *pin, size_t len) {
     return YKPIV_OK;
   }
   if (state->pin) {
+    yc_memzero(state->pin, strnlen(state->pin, CB_PIN_MAX));
     _ykpiv_free(state, state->pin);
     state->pin = NULL;
   }
@@ -1244,7 +1282,7 @@ static ykpiv_rc _verify(ykpiv_state *state, const char *pin, const size_t pin_le
   int sw;
   ykpiv_rc res;
 
-  if (pin_len > 8) {
+  if (pin_len > CB_PIN_MAX) {
     return YKPIV_SIZE_ERROR;
   }
 
@@ -1255,27 +1293,36 @@ static ykpiv_rc _verify(ykpiv_state *state, const char *pin, const size_t pin_le
   apdu.st.lc = pin ? 0x08 : 0;
   if (pin) {
     memcpy(apdu.st.data, pin, pin_len);
-    if (pin_len < 8) {
-      memset(apdu.st.data + pin_len, 0xff, 8 - pin_len);
+    if (pin_len < CB_PIN_MAX) {
+      memset(apdu.st.data + pin_len, 0xff, CB_PIN_MAX - pin_len);
     }
   }
-  if ((res = _send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
+
+  res = _send_data(state, &apdu, data, &recv_len, &sw);
+  yc_memzero(&apdu, sizeof(apdu));
+
+  if (res != YKPIV_OK) {
     return res;
-  } else if (sw == SW_SUCCESS) {
+  }
+  else if (sw == SW_SUCCESS) {
     if (pin && pin_len) {
       // Intentionally ignore errors.  If the PIN fails to save, it will only
       // be a problem if a reconnect is attempted.  Failure deferred until then.
       _cache_pin(state, pin, pin_len);
     }
+
     if (tries) *tries = (sw & 0xf);
     return YKPIV_OK;
-  } else if ((sw >> 8) == 0x63) {
+  }
+  else if ((sw >> 8) == 0x63) {
     if (tries) *tries = (sw & 0xf);
     return YKPIV_WRONG_PIN;
-  } else if (sw == SW_ERR_AUTH_BLOCKED) {
+  }
+  else if (sw == SW_ERR_AUTH_BLOCKED) {
     if (tries) *tries = 0;
     return YKPIV_WRONG_PIN;
-  } else {
+  }
+  else {
     return YKPIV_GENERIC_ERROR;
   }
 }
@@ -1361,10 +1408,10 @@ static ykpiv_rc _ykpiv_change_pin(ykpiv_state *state, int action, const char * c
   unsigned char data[0xff];
   unsigned long recv_len = sizeof(data);
   ykpiv_rc res;
-  if (current_pin_len > 8) {
+  if (current_pin_len > CB_PIN_MAX) {
     return YKPIV_SIZE_ERROR;
   }
-  if (new_pin_len > 8) {
+  if (new_pin_len > CB_PIN_MAX) {
     return YKPIV_SIZE_ERROR;
   }
   if(action == CHREF_ACT_UNBLOCK_PIN) {
@@ -1374,14 +1421,17 @@ static ykpiv_rc _ykpiv_change_pin(ykpiv_state *state, int action, const char * c
     templ[3] = 0x81;
   }
   memcpy(indata, current_pin, current_pin_len);
-  if(current_pin_len < 8) {
-    memset(indata + current_pin_len, 0xff, 8 - current_pin_len);
+  if(current_pin_len < CB_PIN_MAX) {
+    memset(indata + current_pin_len, 0xff, CB_PIN_MAX - current_pin_len);
   }
-  memcpy(indata + 8, new_pin, new_pin_len);
-  if(new_pin_len < 8) {
-    memset(indata + 8 + new_pin_len, 0xff, 8 - new_pin_len);
+  memcpy(indata + CB_PIN_MAX, new_pin, new_pin_len);
+  if(new_pin_len < CB_PIN_MAX) {
+    memset(indata + CB_PIN_MAX + new_pin_len, 0xff, CB_PIN_MAX - new_pin_len);
   }
+
   res = ykpiv_transfer_data(state, templ, indata, sizeof(indata), data, &recv_len, &sw);
+  yc_memzero(indata, sizeof(indata));
+
   if(res != YKPIV_OK) {
     return res;
   } else if(sw != SW_SUCCESS) {
@@ -1477,8 +1527,14 @@ ykpiv_rc _ykpiv_fetch_object(ykpiv_state *state, int object_id,
   }
 
   if(sw == SW_SUCCESS) {
-    size_t outlen;
-    unsigned int offs = _ykpiv_get_length(data + 1, &outlen);
+    size_t outlen = 0;
+    unsigned int offs = 0;
+    
+    if ((*len < 2) || !_ykpiv_has_valid_length(data + 1, *len - 1)) {
+      return YKPIV_SIZE_ERROR;
+    }
+
+    offs = _ykpiv_get_length(data + 1, &outlen);
     if(offs == 0) {
       return YKPIV_SIZE_ERROR;
     }
@@ -1658,7 +1714,8 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
     padding = elem_len - lens[i];
     remaining = (uintptr_t)key_data + sizeof(key_data) - (uintptr_t)in_ptr;
     if (padding > remaining) {
-      return YKPIV_ALGORITHM_ERROR;
+      res = YKPIV_ALGORITHM_ERROR;
+      goto Cleanup;
     }
     memset(in_ptr, 0, padding);
     in_ptr += padding;
@@ -1693,6 +1750,7 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
   }
 
 Cleanup:
+  yc_memzero(key_data, sizeof(key_data));
   _ykpiv_end_transaction(state);
   return res;
 }
@@ -1811,6 +1869,7 @@ ykpiv_rc ykpiv_auth_verifyresponse(ykpiv_state *state, uint8_t *response, const 
 
 Cleanup:
 
+  yc_memzero(&apdu, sizeof(apdu));
   _ykpiv_end_transaction(state);
   return res;
 }

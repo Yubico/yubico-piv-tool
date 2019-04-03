@@ -126,6 +126,7 @@ extern "C"
 #define CB_OBJ_TAG_MIN      2                       // 1 byte tag + 1 byte len
 #define CB_OBJ_TAG_MAX      (CB_OBJ_TAG_MIN + 2)      // 1 byte tag + 3 bytes len
 
+#define CB_PIN_MAX          8
 #define member_size(type, member) sizeof(((type*)0)->member)
 
 typedef enum {
@@ -192,6 +193,7 @@ ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state);
 ykpiv_rc _ykpiv_select_application(ykpiv_state *state);
 unsigned int _ykpiv_set_length(unsigned char *buffer, size_t length);
 unsigned int _ykpiv_get_length(const unsigned char *buffer, size_t *len);
+bool _ykpiv_has_valid_length(const unsigned char* buffer, size_t len);
 
 void* _ykpiv_alloc(ykpiv_state *state, size_t size);
 void* _ykpiv_realloc(ykpiv_state *state, void *address, size_t size);
@@ -235,6 +237,21 @@ typedef enum _yc_log_level_t {
 } yc_log_level_t;
 
 void yc_log_event(uint32_t id, yc_log_level_t level, const char *sz_format, ...);
+
+#ifdef _WIN32
+#include <windows.h>
+#define yc_memzero SecureZeroMemory
+#elif defined(BSD)
+#include <strings.h>
+#define yc_memzero explicit_bzero
+#elif defined(__linux__)
+#include <openssl/crypto.h>
+#define yc_memzero OPENSSL_cleanse
+#else
+#define __STDC_WANT_LIB_EXT1__ 1
+#include <string.h>
+#define yc_memzero(_p, _n) (void)memset_s(_p, (rsize_t)_n, 0, (rsize_t)_n)
+#endif
 
 #ifdef __cplusplus
 }

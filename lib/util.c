@@ -218,6 +218,7 @@ ykpiv_rc ykpiv_util_list_keys(ykpiv_state *state, uint8_t *key_count, ykpiv_key 
   ykpiv_rc res = YKPIV_OK;
   ykpiv_key *pKey = NULL;
   uint8_t *pData = NULL;
+  uint8_t *pTemp = NULL;
   size_t cbData = 0;
   size_t offset = 0;
   uint8_t buf[CB_BUF_MAX];
@@ -274,17 +275,21 @@ ykpiv_rc ykpiv_util_list_keys(ykpiv_state *state, uint8_t *key_count, ykpiv_key 
 
   for (i = 0; i < sizeof(SLOTS); i++) {
     cbBuf = sizeof(buf);
+    res = _read_certificate(state, SLOTS[i], buf, &cbBuf);
 
-    if (YKPIV_OK == (res = _read_certificate(state, SLOTS[i], buf, &cbBuf))) {
+    if ((res == YKPIV_OK) && (cbBuf > 0)) {
       // add current slot to result, grow result buffer if necessary
 
       cbRealloc = (sizeof(ykpiv_key) + cbBuf - 1) > (cbData - offset) ? MAX((sizeof(ykpiv_key) + cbBuf - 1) - (cbData - offset), CB_PAGE) : 0;
 
       if (0 != cbRealloc) {
-        if (NULL == (pData = _ykpiv_realloc(state, pData, cbData + cbRealloc))) {
+        if (!(pTemp = _ykpiv_realloc(state, pData, cbData + cbRealloc))) {
+          /* realloc failed, pData will be freed in cleanup */
           res = YKPIV_MEMORY_ERROR;
           goto Cleanup;
         }
+        pData = pTemp;
+        pTemp = NULL;
       }
 
       cbData += cbRealloc;
@@ -555,6 +560,7 @@ ykpiv_rc ykpiv_util_read_msroots(ykpiv_state *state, uint8_t **data, size_t *dat
   int object_id = 0;
   uint8_t tag = 0;
   uint8_t *pData = NULL;
+  uint8_t *pTemp = NULL;
   size_t cbData = 0;
   size_t cbRealloc = 0;
   size_t offset = 0;
@@ -605,10 +611,13 @@ ykpiv_rc ykpiv_util_read_msroots(ykpiv_state *state, uint8_t **data, size_t *dat
     cbRealloc = len > (cbData - offset) ? len - (cbData - offset) : 0;
 
     if (0 != cbRealloc) {
-      if (NULL == (pData = _ykpiv_realloc(state, pData, cbData + cbRealloc))) {
+      if (!(pTemp = _ykpiv_realloc(state, pData, cbData + cbRealloc))) {
+        /* realloc failed, pData will be freed in cleanup */
         res = YKPIV_MEMORY_ERROR;
         goto Cleanup;
       }
+      pData = pTemp;
+      pTemp = NULL;
     }
 
     cbData += cbRealloc;
@@ -1145,7 +1154,7 @@ ykpiv_rc ykpiv_util_get_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
 
 Cleanup:
 
-  memset(data, 0, sizeof(data));
+  yc_memzero(data, sizeof(data));
 
   _ykpiv_end_transaction(state);
   return res;
@@ -1183,7 +1192,7 @@ ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
     }
   }
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) { res = YKPIV_PCSC_ERROR; goto Cleanup; }
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   /* try to set the mgm key as long as we don't encounter a fatal error */
@@ -1278,8 +1287,8 @@ ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
 
 Cleanup:
 
-  memset(data, 0, sizeof(data));
-  memset(mgm_key, 0, sizeof(mgm_key));
+  yc_memzero(data, sizeof(data));
+  yc_memzero(mgm_key, sizeof(mgm_key));
 
   _ykpiv_end_transaction(state);
   return res;
@@ -1398,8 +1407,10 @@ static ykpiv_rc _write_certificate(ykpiv_state *state, uint8_t slot, uint8_t *da
   // calculate the required length of the encoded object
   req_len = 1 /* cert tag */ + 3 /* compression tag + data*/ + 2 /* lrc */;
   req_len += _ykpiv_set_length(buf, data_len);
+  req_len += data_len;
 
-  if (req_len > _obj_size_max(state)) return YKPIV_SIZE_ERROR;
+  if (req_len < data_len) return YKPIV_SIZE_ERROR; /* detect overflow of unsigned size_t */
+  if (req_len > _obj_size_max(state)) return YKPIV_SIZE_ERROR; /* obj_size_max includes limits for TLV encoding */
 
   buf[offset++] = TAG_CERT;
   offset += _ykpiv_set_length(buf + offset, data_len);
@@ -1446,6 +1457,11 @@ static ykpiv_rc _get_metadata_item(uint8_t *data, size_t cb_data, uint8_t tag, u
 
   while (p_temp < (data + cb_data)) {
     tag_temp = *p_temp++;
+
+    if (!_ykpiv_has_valid_length(p_temp, (data + cb_data - p_temp))) {
+      return YKPIV_SIZE_ERROR;
+    }
+
     p_temp += _ykpiv_get_length(p_temp, &cb_temp);
 
     if (tag_temp == tag) {
