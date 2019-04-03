@@ -1,5 +1,7 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
+* Version 1.7.1 (unreleased)
+
 * Version 1.7.0 (released 2019-04-03)
 
 ** Add ykpiv_get_serial() to API.
