@@ -1842,6 +1842,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 {
   ykpiv_rc piv_rv;
   CK_RV    rv;
+  size_t   cbSignatureLen = 0;
 
   DIN;
 
@@ -1934,9 +1935,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   dump_data(op_info.buf, op_info.buf_len, stderr, CK_TRUE, format_arg_hex);
 #endif
 
-  *pulSignatureLen = sizeof(op_info.buf);
+  *pulSignatureLen = cbSignatureLen = sizeof(op_info.buf);
 
-  piv_rv = ykpiv_sign_data(piv_state, op_info.buf, op_info.buf_len, op_info.buf, pulSignatureLen, op_info.op.sign.algo, op_info.op.sign.key_id);
+  piv_rv = ykpiv_sign_data(piv_state, op_info.buf, op_info.buf_len, op_info.buf, &cbSignatureLen, op_info.op.sign.algo, op_info.op.sign.key_id);
+
+  *pulSignatureLen = cbSignatureLen;
+
   if (piv_rv != YKPIV_OK) {
     if (piv_rv == YKPIV_AUTHENTICATION_ERROR) {
       DBG("Operation requires authentication or touch");

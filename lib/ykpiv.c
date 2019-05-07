@@ -305,7 +305,19 @@ ykpiv_rc _ykpiv_select_application(ykpiv_state *state) {
    * will result in another selection of the PIV applet. */
 
   res = _ykpiv_get_version(state, NULL);
-  if (res == YKPIV_OK) res = _ykpiv_get_serial(state, NULL, false);
+  if (res != YKPIV_OK) {
+    if (state->verbose) {
+      fprintf(stderr, "Failed to retrieve version: '%s'\n", ykpiv_strerror(res));
+    }
+  }
+
+  res = _ykpiv_get_serial(state, NULL, false);
+  if (res != YKPIV_OK) {
+    if (state->verbose) {
+      fprintf(stderr, "Failed to retrieve serial number: '%s'\n", ykpiv_strerror(res));
+    }
+    res = YKPIV_OK;
+  }
 
   return res;
 }

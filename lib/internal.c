@@ -1,6 +1,5 @@
 #ifdef _WIN32
 #include <windows.h>
-#include <strsafe.h>
 #ifdef _MSC_VER
 #define strcasecmp _stricmp
 #endif
@@ -23,6 +22,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef _WIN32
+#include <strsafe.h> /* must be included after openssl headers */
+#endif
 
 #include "internal.h"
 
