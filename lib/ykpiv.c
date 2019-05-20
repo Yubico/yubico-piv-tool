@@ -520,6 +520,8 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
 
   if (num_readers > *len) {
     num_readers = (pcsc_word)*len;
+  } else if (num_readers < *len) {
+    *len = (size_t)num_readers;
   }
 
   rc = SCardListReaders(state->context, NULL, readers, &num_readers);

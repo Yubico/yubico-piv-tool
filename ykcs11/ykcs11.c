@@ -86,6 +86,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
 
   DIN;
 
+  memset(readers, '\0', sizeof(readers));
+
   if (piv_state != NULL)
     return CKR_CRYPTOKI_ALREADY_INITIALIZED;
 
