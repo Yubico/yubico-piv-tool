@@ -31,10 +31,6 @@ Ubuntu Linux. It is however possible to cross-compile it for Windows
 and Mac OS X using the relative makefiles (windows.mk and mac.mk).
 Both use PCSC as a backend.
 
-Keep in mind that communication with the YubiKey is carried out over
-the CCID transport. Hence, on Mac OS X the YubiKey should be
-whitelisted (more info at https://github.com/Yubico/ifd-yubico).
-
 Further testing at this stage has *not* been carried out, so
 additional tweaks might be needed to use operating systems different
 from Linux.
