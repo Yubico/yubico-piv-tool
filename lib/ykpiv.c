@@ -1214,7 +1214,7 @@ static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state, uint32_t *p_serial, bool f
     memset(apdu.raw, 0, sizeof(apdu));
     apdu.st.ins = YKPIV_INS_GET_SERIAL;
 
-    if ((res = _send_data(state, &apdu, data, &recv_len, &sw) != YKPIV_OK)) {
+    if ((res = _send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
       if(state->verbose) {
         fprintf(stderr, "Failed communicating with card: '%s'\n", ykpiv_strerror(res));
       }
