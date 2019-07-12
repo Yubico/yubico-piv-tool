@@ -368,11 +368,26 @@ CK_RV YUBICO_get_token_raw_certificate(ykpiv_state *state, piv_obj_id_t obj, CK_
 CK_RV YUBICO_token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF8CHAR_PTR pOldPin, CK_ULONG ulOldLen, CK_UTF8CHAR_PTR pNewPin, CK_ULONG ulNewLen) {
   int tries;
   ykpiv_rc res;
-  if (user_type != CKU_USER) {
-    DBG("TODO implement other users pin change");
-    return CKR_FUNCTION_FAILED;
+
+  switch(user_type){
+    case CKU_SO:{
+      unsigned char new_key[24];
+      size_t new_key_len = sizeof(new_key);
+      if(ykpiv_hex_decode((const char*)pNewPin, ulNewLen, new_key, &new_key_len) != YKPIV_OK) {
+        DBG("Failed to decode new pin")
+        return CKR_ARGUMENTS_BAD;
+      }
+      res = ykpiv_set_mgmkey(state, new_key);
+      break;
+    }
+    case CKU_USER:
+      res = ykpiv_change_pin(state, (const char*)pOldPin, ulOldLen, (const char*)pNewPin, ulNewLen, &tries);
+      break;
+    default:
+      DBG("TODO implement other context specific pin change");
+      return CKR_FUNCTION_FAILED;
   }
-  res = ykpiv_change_pin(state, (const char*)pOldPin, ulOldLen, (const char*)pNewPin, ulNewLen, &tries);
+
   switch (res) {
     case YKPIV_OK:
       return CKR_OK;
