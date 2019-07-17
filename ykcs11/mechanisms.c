@@ -35,7 +35,8 @@
 #include <string.h>
 
 #define F4 "\x01\x00\x01"
-#define PRIME256V1 "\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07"
+#define PRIME256V1 "\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07"                      
+#define SECP384R1 "\x06\x05\x2b\x81\x04\x00\x22"
 
 // Supported mechanisms for signature
 static const CK_MECHANISM_TYPE sign_mechanisms[] = {
@@ -419,11 +420,13 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
       break;
 
     case CKA_EC_PARAMS:
-      // Only support PRIME256V1
-      if (templ[i].ulValueLen != 10 || memcmp((CK_BYTE_PTR)templ[i].pValue, PRIME256V1, 10) != 0)
+      // Support PRIME256V1 and SECP384R1	  
+      if (templ[i].ulValueLen == 10 || memcmp((CK_BYTE_PTR)templ[i].pValue, PRIME256V1, 10) == 0)
+		op_info->op.gen.key_len = 256;
+	  else if(templ[i].ulValueLen == 7 || memcmp((CK_BYTE_PTR)templ[i].pValue, SECP384R1, 7) == 0)
+		op_info->op.gen.key_len = 384;
+	  else
         return CKR_FUNCTION_FAILED;
-
-      op_info->op.gen.key_len = 256;
       break;
 
     case CKA_ID:
