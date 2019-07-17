@@ -260,6 +260,15 @@ int get_length(const unsigned char *buffer, int *len) {
   return 0;
 }
 
+int get_curve_name(int key_algorithm) {
+  if(key_algorithm == YKPIV_ALGO_ECCP256) {
+	return NID_X9_62_prime256v1;
+  } else if(key_algorithm == YKPIV_ALGO_ECCP384) {
+	return NID_secp384r1;
+  }
+  return 0;
+}
+
 int set_length(unsigned char *buffer, int length) {
   if(length < 0x80) {
     *buffer++ = length;

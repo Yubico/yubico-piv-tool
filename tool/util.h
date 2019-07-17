@@ -48,6 +48,7 @@ size_t read_data(unsigned char*, size_t, FILE*, enum enum_format);
 void dump_data(unsigned const char*, unsigned int, FILE*, bool, enum enum_format);
 int set_length(unsigned char*, int);
 int get_length(const unsigned char*, int*);
+int get_curve_name(int);
 X509_NAME *parse_name(const char*);
 unsigned char get_algorithm(EVP_PKEY*);
 FILE *open_file(const char *file_name, enum file_mode mode);
