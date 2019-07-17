@@ -381,7 +381,13 @@ CK_RV YUBICO_token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF
       break;
     }
     case CKU_USER:
-      res = ykpiv_change_pin(state, (const char*)pOldPin, ulOldLen, (const char*)pNewPin, ulNewLen, &tries);
+      if(ulOldLen >= 4 && strncmp((const char*)pOldPin, "puk:", 4) == 0){
+        DBG("Changing PUK pin")
+        res = ykpiv_change_puk(state, (const char*)pOldPin + 4, ulOldLen - 4, (const char*)pNewPin, ulNewLen, &tries);
+      }else{
+        DBG("Changing USER pin")
+        res = ykpiv_change_pin(state, (const char*)pOldPin, ulOldLen, (const char*)pNewPin, ulNewLen, &tries);
+      }
       break;
     default:
       DBG("TODO implement other context specific pin change");
