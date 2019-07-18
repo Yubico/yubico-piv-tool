@@ -1801,8 +1801,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
 
     if (op_info.op.sign.key_len == 256)
       op_info.op.sign.algo = YKPIV_ALGO_ECCP256;
-    /*else
-      op_info.op.sign.algo = YKPIV_ALGO_ECCP384;*/ // TODO: add support for P384
+    else if(op_info.op.sign.key_len == 384)
+      op_info.op.sign.algo = YKPIV_ALGO_ECCP384;
   }
 
   DBG("Key length is %lu bit", op_info.op.sign.key_len);
@@ -1813,10 +1813,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     return CKR_KEY_HANDLE_INVALID;
   }
 
-  DBG("Algorithm is %d", op_info.op.sign.algo);
+  DBG("Algorithm is %d", op_info.op.sign.algo);  
   // Make sure that both mechanism and key have the same algorithm
-  if ((is_RSA_mechanism(pMechanism->mechanism) && op_info.op.sign.algo == YKPIV_ALGO_ECCP256) ||
-      (!is_RSA_mechanism(pMechanism->mechanism) && (op_info.op.sign.algo != YKPIV_ALGO_ECCP256))) {
+  if (!(is_RSA_mechanism(pMechanism->mechanism) &&  is_rsa_key_algorithm(op_info.op.sign.algo)) &&
+      !(is_EC_mechanism(pMechanism->mechanism) && is_ec_key_algorithm(op_info.op.sign.algo))) {
     DBG("Key and mechanism algorithm do not match");
     return CKR_ARGUMENTS_BAD;
   }
@@ -1913,12 +1913,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     }
     else {
       // ECDSA
-      if (ulDataLen > 128) {
-        // Specs say ECDSA only supports 1024 bit
-        DBG("Maximum data length for ECDSA is 128 bytes");
-        rv = CKR_FUNCTION_FAILED;
-        goto sign_out;
-      }
+	  if (is_EC_mechanism(op_info.mechanism.mechanism)) {
+		if (ulDataLen > 128) {
+		  // Specs say ECDSA only supports 1024 bit
+		  DBG("Maximum data length for ECDSA is 128 bytes");
+		  rv = CKR_FUNCTION_FAILED;
+		  goto sign_out;
+		}
+	  }
     }
 
     op_info.buf_len = ulDataLen;
@@ -1961,7 +1963,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   dump_data(op_info.buf, *pulSignatureLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
-  if (!is_RSA_mechanism(op_info.mechanism.mechanism)) {
+  if (is_EC_mechanism(op_info.mechanism.mechanism)) {
     // ECDSA, we must remove the DER encoding and only return R,S
     // as required by the specs
     strip_DER_encoding_from_ECSIG(op_info.buf, pulSignatureLen);

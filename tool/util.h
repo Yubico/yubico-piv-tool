@@ -63,5 +63,7 @@ unsigned char get_piv_algorithm(enum enum_algorithm);
 unsigned char get_pin_policy(enum enum_pin_policy);
 unsigned char get_touch_policy(enum enum_touch_policy);
 int SSH_write_X509(FILE *fp, X509 *x);
+bool is_rsa_key_algorithm(unsigned char);
+bool is_ec_key_algorithm(unsigned char);
 
 #endif
