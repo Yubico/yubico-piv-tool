@@ -601,3 +601,17 @@ int SSH_write_X509(FILE *fp, X509 *x) {
   return ret;
 
 }
+
+bool is_rsa_key_algorithm(unsigned char algo) {
+  if(algo == YKPIV_ALGO_RSA1024 || algo == YKPIV_ALGO_RSA2048) {
+	return true;
+  }
+  return false;
+}
+
+bool is_ec_key_algorithm(unsigned char algo) {
+  if(algo == YKPIV_ALGO_ECCP256 || algo == YKPIV_ALGO_ECCP384) {
+	return true;
+  }
+  return false;
+}

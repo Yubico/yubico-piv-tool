@@ -156,6 +156,22 @@ CK_BBOOL is_PSS_mechanism(CK_MECHANISM_TYPE m) {
   return CK_FALSE;
 }
 
+CK_BBOOL is_EC_mechanism(CK_MECHANISM_TYPE m) {
+  switch (m) {
+	case CKM_EC_KEY_PAIR_GEN:
+	case CKM_ECDSA:
+	case CKM_ECDSA_SHA1:
+	case CKM_ECDSA_SHA256:
+	case CKM_ECDSA_SHA384:
+	//case CKM_ECDSA_SHA512:
+	  return CK_TRUE;
+	default:
+	  return CK_FALSE;
+  }
+  
+  return CK_FALSE;
+}
+
 CK_BBOOL is_hashed_mechanism(CK_MECHANISM_TYPE m) {
 
   switch (m) {
@@ -320,6 +336,7 @@ CK_RV apply_sign_mechanism_finalize(op_info_t *op_info) {
 
   case CKM_ECDSA_SHA1:
   case CKM_ECDSA_SHA256:
+  case CKM_ECDSA_SHA384:
     // Finalize the hash
     rv = do_md_finalize(op_info->op.sign.md_ctx, op_info->buf, &op_info->buf_len, &nid);
     op_info->op.sign.md_ctx = NULL;
