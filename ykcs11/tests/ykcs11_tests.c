@@ -480,6 +480,186 @@ static void test_import_and_sign_all_10() {
 
 }
 
+// Import a newly generated P384 pvt key and a certificate
+// to every slot and use the key to sign some data
+static void test_import_and_sign_all_10_P384() {
+
+  EVP_PKEY       *evp;
+  EC_KEY         *eck;
+  const EC_POINT *ecp;
+  const BIGNUM   *bn;
+  char           pvt[48];
+  X509           *cert;
+  ASN1_TIME      *tm;
+  CK_BYTE        i, j;
+  CK_BYTE        some_data[32];
+
+  CK_ULONG    class_k = CKO_PRIVATE_KEY;
+  CK_ULONG    class_c = CKO_CERTIFICATE;
+  CK_ULONG    kt = CKK_ECDSA;
+  CK_BYTE     id = 0;
+  CK_BYTE     params[] = {0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x22};
+  CK_BYTE     sig[96];
+  CK_ULONG    recv_len;
+  CK_BYTE     value_c[3100];
+  CK_ULONG    cert_len;
+  CK_BYTE     der_encoded[110];
+  CK_BYTE_PTR der_ptr;
+  CK_BYTE_PTR r_ptr;
+  CK_BYTE_PTR s_ptr;
+  CK_ULONG    r_len;
+  CK_ULONG    s_len;
+
+  unsigned char  *p;
+
+  CK_ATTRIBUTE privateKeyTemplate[] = {
+    {CKA_CLASS, &class_k, sizeof(class_k)},
+    {CKA_KEY_TYPE, &kt, sizeof(kt)},
+    {CKA_ID, &id, sizeof(id)},
+    {CKA_EC_PARAMS, &params, sizeof(params)},
+    {CKA_VALUE, pvt, sizeof(pvt)}
+  };
+
+  CK_ATTRIBUTE publicKeyTemplate[] = {
+    {CKA_CLASS, &class_c, sizeof(class_c)},
+    {CKA_ID, &id, sizeof(id)},
+    {CKA_VALUE, value_c, sizeof(value_c)}
+  };
+
+  CK_OBJECT_HANDLE obj[24];
+  CK_SESSION_HANDLE session;
+  CK_MECHANISM mech = {CKM_ECDSA, NULL};
+
+  evp = EVP_PKEY_new();
+
+  if (evp == NULL)
+    exit(EXIT_FAILURE);
+
+  eck = EC_KEY_new_by_curve_name(NID_secp384r1);
+
+  if (eck == NULL)
+    exit(EXIT_FAILURE);
+
+  asrt(EC_KEY_generate_key(eck), 1, "GENERATE ECK");
+
+  bn = EC_KEY_get0_private_key(eck);
+
+  asrt(BN_bn2bin(bn, pvt), 48, "EXTRACT PVT");
+
+  if (EVP_PKEY_set1_EC_KEY(evp, eck) == 0)
+    exit(EXIT_FAILURE);
+
+  cert = X509_new();
+
+  if (cert == NULL)
+    exit(EXIT_FAILURE);
+
+  if (X509_set_pubkey(cert, evp) == 0)
+    exit(EXIT_FAILURE);
+
+  tm = ASN1_TIME_new();
+  if (tm == NULL)
+    exit(EXIT_FAILURE);
+
+  ASN1_TIME_set_string(tm, "000001010000Z");
+  X509_set_notBefore(cert, tm);
+  X509_set_notAfter(cert, tm);
+
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
+  cert->sig_alg->algorithm = OBJ_nid2obj(8);
+  cert->cert_info->signature->algorithm = OBJ_nid2obj(8);
+
+  ASN1_BIT_STRING_set_bit(cert->signature, 8, 1);
+  ASN1_BIT_STRING_set(cert->signature, "\x00", 1);
+#else
+  bogus_sign_cert(cert);
+#endif
+
+  p = value_c;
+  if ((cert_len = (CK_ULONG) i2d_X509(cert, &p)) == 0 || cert_len > sizeof(value_c))
+    exit(EXIT_FAILURE);
+
+  publicKeyTemplate[2].ulValueLen = cert_len;
+
+  asrt(funcs->C_Initialize(NULL), CKR_OK, "INITIALIZE");
+  asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
+  asrt(funcs->C_Login(session, CKU_SO, "010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
+
+  for (i = 0; i < 24; i++) {
+    id = i;
+    asrt(funcs->C_CreateObject(session, publicKeyTemplate, 3, obj + i), CKR_OK, "IMPORT CERT384");
+    asrt(funcs->C_CreateObject(session, privateKeyTemplate, 5, obj + i), CKR_OK, "IMPORT KEY384");
+  }
+
+  asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
+  
+  for (i = 0; i < 24; i++) {
+    for (j = 0; j < 10; j++) {
+	  
+      if(RAND_bytes(some_data, sizeof(some_data)) == -1)
+        exit(EXIT_FAILURE);
+
+      asrt(funcs->C_Login(session, CKU_USER, "123456", 6), CKR_OK, "Login USER");
+      asrt(funcs->C_SignInit(session, &mech, obj[i]), CKR_OK, "SignInit");
+
+      recv_len = sizeof(sig);
+      asrt(funcs->C_Sign(session, some_data, sizeof(some_data), sig, &recv_len), CKR_OK, "Sign");	  
+	  
+      r_len = 48;
+      s_len = 48;
+
+      der_ptr = der_encoded;
+      *der_ptr++ = 0x30;
+      *der_ptr++ = 0xff; // placeholder, fix below
+
+      r_ptr = sig;
+
+      *der_ptr++ = 0x02;
+      *der_ptr++ = r_len;
+      if (*r_ptr >= 0x80) {
+        *(der_ptr - 1) = *(der_ptr - 1) + 1;
+        *der_ptr++ = 0x00;
+      }
+      else if (*r_ptr == 0x00 && *(r_ptr + 1) < 0x80) {
+        r_len--;
+        *(der_ptr - 1) = *(der_ptr - 1) - 1;
+        r_ptr++;
+      }
+      memcpy(der_ptr, r_ptr, r_len);
+      der_ptr+= r_len;
+
+      s_ptr = sig + 48;
+
+      *der_ptr++ = 0x02;
+      *der_ptr++ = s_len;
+      if (*s_ptr >= 0x80) {
+        *(der_ptr - 1) = *(der_ptr - 1) + 1;
+        *der_ptr++ = 0x00;
+      }
+      else if (*s_ptr == 0x00 && *(s_ptr + 1) < 0x80) {
+        s_len--;
+        *(der_ptr - 1) = *(der_ptr - 1) - 1;
+        s_ptr++;
+      }
+      memcpy(der_ptr, s_ptr, s_len);
+      der_ptr+= s_len;
+
+      der_encoded[1] = der_ptr - der_encoded - 2;
+
+      dump_hex(der_encoded, der_encoded[1] + 2, stderr, 1);
+
+      asrt(ECDSA_verify(0, some_data, sizeof(some_data), der_encoded, der_encoded[1] + 2, eck), 1, "ECDSA VERIFICATION");
+
+      }
+  }
+
+  asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
+
+  asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
+  asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
+
+}
+
 // Import a newly generated RSA1024 pvt key and a certificate
 // to every slot and use the key to sign some data
 static void test_import_and_sign_all_10_RSA() {
@@ -709,6 +889,7 @@ int main(void) {
   test_session();
   test_login();
   test_import_and_sign_all_10();
+  test_import_and_sign_all_10_P384();
   test_import_and_sign_all_10_RSA();
 #else
   fprintf(stderr, "HARDWARE TESTS DISABLED!, skipping...\n");
