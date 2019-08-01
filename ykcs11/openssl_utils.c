@@ -102,7 +102,7 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_
     if (rsa == NULL)
       goto create_empty_cert_cleanup;
 
-    data_ptr = in + 5;	
+    data_ptr = in + 5;
     if (*data_ptr != 0x81)
       goto create_empty_cert_cleanup;
 
@@ -138,7 +138,7 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_
   else {
     // ECCP256 and ECCP384
     data_ptr = in + 3;
-	
+
     eck = EC_KEY_new();
     if (eck == NULL)
       goto create_empty_cert_cleanup;

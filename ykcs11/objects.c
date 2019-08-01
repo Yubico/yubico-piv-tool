@@ -1043,7 +1043,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
 }
 
-CK_ULONG piv_2_ykpiv(piv_obj_id_t id) {  
+CK_ULONG piv_2_ykpiv(piv_obj_id_t id) {
   switch(id) {
   case PIV_CERT_OBJ_X509_PIV_AUTH:
     return YKPIV_OBJ_AUTHENTICATION;
@@ -1442,8 +1442,9 @@ CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
     if (ec_params_len != 7 || memcmp(ec_params, SECP384R1, ec_params_len) != 0)
       return CKR_ATTRIBUTE_VALUE_INVALID;
   }
-  else
+  else {
 	return CKR_ATTRIBUTE_VALUE_INVALID;
+  }
 
   return CKR_OK;
 }
