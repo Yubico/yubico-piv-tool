@@ -438,9 +438,9 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
 
     case CKA_EC_PARAMS:
       // Support PRIME256V1 and SECP384R1	  
-      if (templ[i].ulValueLen == 10 || memcmp((CK_BYTE_PTR)templ[i].pValue, PRIME256V1, 10) == 0)
+      if (templ[i].ulValueLen == 10 && memcmp((CK_BYTE_PTR)templ[i].pValue, PRIME256V1, 10) == 0)
 		op_info->op.gen.key_len = 256;
-	  else if(templ[i].ulValueLen == 7 || memcmp((CK_BYTE_PTR)templ[i].pValue, SECP384R1, 7) == 0)
+	  else if(templ[i].ulValueLen == 7 && memcmp((CK_BYTE_PTR)templ[i].pValue, SECP384R1, 7) == 0)
 		op_info->op.gen.key_len = 384;
 	  else
         return CKR_FUNCTION_FAILED;

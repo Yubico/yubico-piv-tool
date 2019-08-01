@@ -178,7 +178,7 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa,
       *in_ptr++ = YKPIV_TOUCHPOLICY_ALWAYS;
     }
   }
-    
+
   if(ykpiv_transfer_data(state, templ, in_data, in_ptr - in_data, data, &recv_len, &sw) != YKPIV_OK ||
      sw != 0x9000)
     return CKR_DEVICE_ERROR;
