@@ -143,7 +143,7 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_
     if (eck == NULL)
       goto create_empty_cert_cleanup;
 
-	int curve_name = get_curve_name(key_algorithm);
+    int curve_name = get_curve_name(key_algorithm);
 	
 	ecg = EC_GROUP_new_by_curve_name(curve_name);
     if (ecg == NULL)
@@ -158,7 +158,7 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_
 
     data_ptr += get_length(data_ptr, &len);
 	
-	if (EC_POINT_oct2point(ecg, ecp, data_ptr, len, NULL) == 0)
+    if (EC_POINT_oct2point(ecg, ecp, data_ptr, len, NULL) == 0)
       goto create_empty_cert_cleanup;
 
     if (EC_KEY_set_public_key(eck, ecp) == 0)

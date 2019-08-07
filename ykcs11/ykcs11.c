@@ -1813,7 +1813,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     return CKR_KEY_HANDLE_INVALID;
   }
 
-  DBG("Algorithm is %d", op_info.op.sign.algo);  
+  DBG("Algorithm is %d", op_info.op.sign.algo);
   // Make sure that both mechanism and key have the same algorithm
   if (!(is_RSA_mechanism(pMechanism->mechanism) &&  is_rsa_key_algorithm(op_info.op.sign.algo)) &&
       !(is_EC_mechanism(pMechanism->mechanism) && is_ec_key_algorithm(op_info.op.sign.algo))) {
@@ -1913,7 +1913,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     }
     else {
       // ECDSA
-	  if (is_EC_mechanism(op_info.mechanism.mechanism)) {
+      if (is_EC_mechanism(op_info.mechanism.mechanism)) {
 		if (ulDataLen > 128) {
 		  // Specs say ECDSA only supports 1024 bit
 		  DBG("Maximum data length for ECDSA is 128 bytes");

@@ -183,6 +183,7 @@ static void test_mechanism_list_and_info() {
     CKM_ECDSA,
     CKM_ECDSA_SHA1,
     CKM_ECDSA_SHA256,
+    CKM_ECDSA_SHA384,
     CKM_SHA_1,
     CKM_SHA256,
     CKM_SHA384,
@@ -203,6 +204,7 @@ static void test_mechanism_list_and_info() {
     {1024, 2048, CKF_HW | CKF_SIGN},
     {1024, 2048, CKF_HW | CKF_SIGN},
     {256, 384, CKF_HW | CKF_GENERATE_KEY_PAIR},
+    {256, 384, CKF_HW | CKF_SIGN},
     {256, 384, CKF_HW | CKF_SIGN},
     {256, 384, CKF_HW | CKF_SIGN},
     {256, 384, CKF_HW | CKF_SIGN},
@@ -492,7 +494,7 @@ static void test_import_and_sign_all_10_P384() {
   X509           *cert;
   ASN1_TIME      *tm;
   CK_BYTE        i, j;
-  CK_BYTE        some_data[32];
+  CK_BYTE        some_data[16];
 
   CK_ULONG    class_k = CKO_PRIVATE_KEY;
   CK_ULONG    class_c = CKO_CERTIFICATE;
@@ -528,7 +530,7 @@ static void test_import_and_sign_all_10_P384() {
 
   CK_OBJECT_HANDLE obj[24];
   CK_SESSION_HANDLE session;
-  CK_MECHANISM mech = {CKM_ECDSA, NULL};
+  CK_MECHANISM mech = {CKM_ECDSA_SHA384, NULL};
 
   evp = EVP_PKEY_new();
 
@@ -595,7 +597,7 @@ static void test_import_and_sign_all_10_P384() {
   
   for (i = 0; i < 24; i++) {
     for (j = 0; j < 10; j++) {
-	  
+
       if(RAND_bytes(some_data, sizeof(some_data)) == -1)
         exit(EXIT_FAILURE);
 
@@ -603,7 +605,7 @@ static void test_import_and_sign_all_10_P384() {
       asrt(funcs->C_SignInit(session, &mech, obj[i]), CKR_OK, "SignInit");
 
       recv_len = sizeof(sig);
-      asrt(funcs->C_Sign(session, some_data, sizeof(some_data), sig, &recv_len), CKR_OK, "Sign");	  
+      asrt(funcs->C_Sign(session, some_data, sizeof(some_data), sig, &recv_len), CKR_OK, "Sign");
 	  
       r_len = 48;
       s_len = 48;
@@ -648,7 +650,9 @@ static void test_import_and_sign_all_10_P384() {
 
       dump_hex(der_encoded, der_encoded[1] + 2, stderr, 1);
 
-      asrt(ECDSA_verify(0, some_data, sizeof(some_data), der_encoded, der_encoded[1] + 2, eck), 1, "ECDSA VERIFICATION");
+      CK_BYTE some_data_hashed[48];
+      SHA384(some_data, sizeof(some_data), some_data_hashed);
+      asrt(ECDSA_verify(0, some_data_hashed, sizeof(some_data_hashed), der_encoded, der_encoded[1] + 2, eck), 1, "ECDSA-SHA384 VERIFICATION");
 
       }
   }

@@ -53,7 +53,8 @@ static const CK_MECHANISM_TYPE sign_mechanisms[] = {
   CKM_SHA512_RSA_PKCS_PSS,
   CKM_ECDSA,
   CKM_ECDSA_SHA1,
-  CKM_ECDSA_SHA256
+  CKM_ECDSA_SHA256,
+  CKM_ECDSA_SHA384
 };
 
 // Supported mechanisms for key pair generation
@@ -158,7 +159,7 @@ CK_BBOOL is_PSS_mechanism(CK_MECHANISM_TYPE m) {
 
 CK_BBOOL is_EC_mechanism(CK_MECHANISM_TYPE m) {
   switch (m) {
-	case CKM_EC_KEY_PAIR_GEN:
+    case CKM_EC_KEY_PAIR_GEN:
 	case CKM_ECDSA:
 	case CKM_ECDSA_SHA1:
 	case CKM_ECDSA_SHA256:
@@ -185,6 +186,7 @@ CK_BBOOL is_hashed_mechanism(CK_MECHANISM_TYPE m) {
   case CKM_SHA512_RSA_PKCS_PSS:
   case CKM_ECDSA_SHA1:
   case CKM_ECDSA_SHA256:
+  case CKM_ECDSA_SHA384:
   case CKM_SHA_1:
   case CKM_SHA256:
   case CKM_SHA384:
@@ -225,6 +227,7 @@ CK_RV apply_sign_mechanism_init(op_info_t *op_info) {
 
     case CKM_SHA384_RSA_PKCS:
     case CKM_SHA384_RSA_PKCS_PSS:
+    case CKM_ECDSA_SHA384:
       return do_md_init(YKCS11_SHA384, &op_info->op.sign.md_ctx);
 
     case CKM_SHA512_RSA_PKCS:
@@ -263,6 +266,7 @@ CK_RV apply_sign_mechanism_update(op_info_t *op_info, CK_BYTE_PTR in, CK_ULONG i
   case CKM_SHA512_RSA_PKCS_PSS:
   case CKM_ECDSA_SHA1:
   case CKM_ECDSA_SHA256:
+  case CKM_ECDSA_SHA384:
     rv = do_md_update(op_info->op.sign.md_ctx, in, in_len);
     if (rv != CKR_OK)
       return CKR_FUNCTION_FAILED;
