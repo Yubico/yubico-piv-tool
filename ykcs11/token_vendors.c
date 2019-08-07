@@ -136,7 +136,7 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa,
 
   case 256:
     if (rsa == CK_FALSE)
-	  key_algorithm = YKPIV_ALGO_ECCP256;
+      key_algorithm = YKPIV_ALGO_ECCP256;
     else
       return CKR_FUNCTION_FAILED;
 
