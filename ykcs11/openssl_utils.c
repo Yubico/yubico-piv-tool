@@ -149,7 +149,7 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_
     if (ecg == NULL)
       goto create_empty_cert_cleanup;
 
-	EC_GROUP_set_asn1_flag(ecg, curve_name);
+    EC_GROUP_set_asn1_flag(ecg, curve_name);
     EC_KEY_set_group(eck, ecg);
     ecp = EC_POINT_new(ecg);
 
