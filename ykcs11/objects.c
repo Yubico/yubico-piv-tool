@@ -1443,7 +1443,7 @@ CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
       return CKR_ATTRIBUTE_VALUE_INVALID;
   }
   else {
-	return CKR_ATTRIBUTE_VALUE_INVALID;
+    return CKR_ATTRIBUTE_VALUE_INVALID;
   }
 
   return CKR_OK;

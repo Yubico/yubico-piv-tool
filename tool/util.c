@@ -264,7 +264,7 @@ int get_curve_name(int key_algorithm) {
   if(key_algorithm == YKPIV_ALGO_ECCP256) {
     return NID_X9_62_prime256v1;
   } else if(key_algorithm == YKPIV_ALGO_ECCP384) {
-	return NID_secp384r1;
+    return NID_secp384r1;
   }
   return 0;
 }
@@ -611,7 +611,7 @@ bool is_rsa_key_algorithm(unsigned char algo) {
 
 bool is_ec_key_algorithm(unsigned char algo) {
   if(algo == YKPIV_ALGO_ECCP256 || algo == YKPIV_ALGO_ECCP384) {
-	return true;
+    return true;
   }
   return false;
 }
