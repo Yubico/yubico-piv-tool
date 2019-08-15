@@ -149,13 +149,13 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa,
       return CKR_FUNCTION_FAILED;
 
     break;
-	
+
   default:
     return CKR_FUNCTION_FAILED;
   }
-  
+
   *in_ptr++ = key_algorithm;
-  
+
   // PIN policy and touch
   if (vendor_defined != 0) {
     if (vendor_defined & CKA_PIN_ONCE) {

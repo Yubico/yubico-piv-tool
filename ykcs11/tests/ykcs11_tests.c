@@ -485,7 +485,6 @@ static void test_import_and_sign_all_10() {
 // Import a newly generated P384 pvt key and a certificate
 // to every slot and use the key to sign some data
 static void test_import_and_sign_all_10_P384() {
-
   EVP_PKEY       *evp;
   EC_KEY         *eck;
   const EC_POINT *ecp;
@@ -594,7 +593,7 @@ static void test_import_and_sign_all_10_P384() {
   }
 
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
-  
+
   for (i = 0; i < 24; i++) {
     for (j = 0; j < 10; j++) {
 
@@ -606,7 +605,7 @@ static void test_import_and_sign_all_10_P384() {
 
       recv_len = sizeof(sig);
       asrt(funcs->C_Sign(session, some_data, sizeof(some_data), sig, &recv_len), CKR_OK, "Sign");
-	  
+
       r_len = 48;
       s_len = 48;
 
@@ -653,8 +652,7 @@ static void test_import_and_sign_all_10_P384() {
       CK_BYTE some_data_hashed[48];
       SHA384(some_data, sizeof(some_data), some_data_hashed);
       asrt(ECDSA_verify(0, some_data_hashed, sizeof(some_data_hashed), der_encoded, der_encoded[1] + 2, eck), 1, "ECDSA-SHA384 VERIFICATION");
-
-      }
+    }
   }
 
   asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");

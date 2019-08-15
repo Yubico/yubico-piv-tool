@@ -1914,13 +1914,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     else {
       // ECDSA
       if (is_EC_mechanism(op_info.mechanism.mechanism)) {
-		if (ulDataLen > 128) {
-		  // Specs say ECDSA only supports 1024 bit
-		  DBG("Maximum data length for ECDSA is 128 bytes");
-		  rv = CKR_FUNCTION_FAILED;
-		  goto sign_out;
-		}
-	  }
+        if (ulDataLen > 128) {
+          // Specs say ECDSA only supports 128 bit
+          DBG("Maximum data length for ECDSA is 128 bytes");
+          rv = CKR_FUNCTION_FAILED;
+          goto sign_out;
+        }
+      }
     }
 
     op_info.buf_len = ulDataLen;
