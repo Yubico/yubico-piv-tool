@@ -1,0 +1,108 @@
+== Key Generation
+    $ yubico-piv-tool -a generate -s <slot> -k [ -A <key algorithm> -o <public key file> ]
+    $ yubico-piv-tool -a verify-pin -a selfsign -s <slot> [ -i <public key file> -S <subject dn> --serial <cert serial number> --valid-days DAYS -o <cert file> ]
+    $ yubico-piv-tool -a verify-pin -a request-certificate -s <slot> [ -i <public key file> -S <subject dn> -o <cert request file> ]
+    $ yubico-piv-tool -a import-certificate -s <slot> -k [ -o <cert file> ]
+
+=== Description
+An occupied slot on the Yubikey PIV interface usually contains a private key, a public key and an X509 certificate.
+The key pair generate, the certificate generation and the certificate import are done using different actions in the
+right order.
+
+Generating a key pair will have the public key as an output (action "generate"). The public key will be used to either
+generate a self signed certificate (action "selfsign") or a certificate request (action "request-certificate"). The
+resulting certificate should then be imported into the same slot (action "import-certificate").
+
+Generating the key pair and importing the certificate are both actions that require
+authentication, which is done by providing the management key. If no management key
+is provided, the tool will try to authenticate using the default management key.footnote:[It is strongly recommended to
+change the Yubikey's PIN, PUK and management key before start using it]
+
+While generating the certificate/certificate request does not require authentication,
+it does require verifying the PIN code, which has to be done in an action that must
+take place before the generation action, otherwise the operation will fail.
+
+=== Parameters
+
+|===================================
+|Parameter         | Required | Optional | Description | Possible values | Default value
+
+|-s, --slot        | X | | What key slot to operate on | 9a, 9c, 9d, 9e, 82, 83, 84, 85, 86, 87, 88, 89,
+                                                          8a, 8b, 8c, 8d, 8e, 8f, 90, 91, 92, 93, 94, 95, f9 |
+|-k, --key         | X | | Management key to use, if no value is specified key will be asked for | | 010203040506070801020304050607080102030405060708
+|-A, --algorithm   | | X | What algorithm to use to generate the key pair | RSA1024, RSA2048, ECCP256, ECCP384 | RSA2048
+|-i, --input       | | X | Filename to use as input | file name or "-" for stdin | -
+|-o, --output      | | X | Filename to use as output | file name or "-" for stdin | -
+|-S, --subject     | | X | The subject to use for the certificate. The subject must be written as: /CN=host.example.com/OU=test/O=example.com/ | |
+|--serial          | | X | Serial number of the self-signed certificate | |
+|--valid-days      | | X | Time (in days) until the self-signed certificate expires | | 365
+|===================================
+
+=== Examples
+
+==== Self signed certificate on slot 9a
+
+    $ yubico-piv-tool -a generate -s 9a -A ECCP256 -k
+    -----BEGIN PUBLIC KEY-----
+    MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEwyLPuYF7xF4iQ+5VWUnDQsMSf9O7
+    Jc1gBDHQJ0kfYnZ8tV2OFk3JFyfZDL9g9g3eFaH00dzstxH7te64DtYepw==
+    -----END PUBLIC KEY-----
+    Successfully generated a new private key.
+
+    $ yubico-piv-tool -a verify-pin -a selfsign -s 9a -S '/CN=piv_auth/OU=test/O=example.com/'
+    Enter PIN:
+    Successfully verified PIN.
+    Please paste the public key...
+    -----BEGIN PUBLIC KEY-----
+    MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEwyLPuYF7xF4iQ+5VWUnDQsMSf9O7
+    Jc1gBDHQJ0kfYnZ8tV2OFk3JFyfZDL9g9g3eFaH00dzstxH7te64DtYepw==
+    -----END PUBLIC KEY-----
+    -----BEGIN CERTIFICATE-----
+    MIIBujCCAWCgAwIBAgIJAJKWdUFfuvqiMAoGCCqGSM49BAMCMDgxETAPBgNVBAMM
+    CHBpdl9hdXRoMQ0wCwYDVQQLDAR0ZXN0MRQwEgYDVQQKDAtleGFtcGxlLmNvbTAe
+    Fw0xOTA4MTIxMzM0NTdaFw0yMDA4MTExMzM0NTdaMDgxETAPBgNVBAMMCHBpdl9h
+    dXRoMQ0wCwYDVQQLDAR0ZXN0MRQwEgYDVQQKDAtleGFtcGxlLmNvbTBZMBMGByqG
+    SM49AgEGCCqGSM49AwEHA0IABMMiz7mBe8ReIkPuVVlJw0LDEn/TuyXNYAQx0CdJ
+    H2J2fLVdjhZNyRcn2Qy/YPYN3hWh9NHc7LcR+7XuuA7WHqejUzBRMB0GA1UdDgQW
+    BBQS0iNbyP8W817uCk/2lPd19ZvNRDAfBgNVHSMEGDAWgBQS0iNbyP8W817uCk/2
+    lPd19ZvNRDAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0gAMEUCIQC5CTvl
+    LE0htwa89LBRRSL2BWHqciSLvqx9azjJfd63JAIgcAJSIhWpiXeBcGZdcTbnmkqU
+    kWu4LDU2ymBRp8pp4Iw=
+    -----END CERTIFICATE-----
+    Successfully generated a new self signed certificate.
+
+    $ yubico-piv-tool -a import-certificate -s 9a -k
+    Please paste the certificate...
+    -----BEGIN CERTIFICATE-----
+    MIIBujCCAWCgAwIBAgIJAJKWdUFfuvqiMAoGCCqGSM49BAMCMDgxETAPBgNVBAMM
+    CHBpdl9hdXRoMQ0wCwYDVQQLDAR0ZXN0MRQwEgYDVQQKDAtleGFtcGxlLmNvbTAe
+    Fw0xOTA4MTIxMzM0NTdaFw0yMDA4MTExMzM0NTdaMDgxETAPBgNVBAMMCHBpdl9h
+    dXRoMQ0wCwYDVQQLDAR0ZXN0MRQwEgYDVQQKDAtleGFtcGxlLmNvbTBZMBMGByqG
+    SM49AgEGCCqGSM49AwEHA0IABMMiz7mBe8ReIkPuVVlJw0LDEn/TuyXNYAQx0CdJ
+    H2J2fLVdjhZNyRcn2Qy/YPYN3hWh9NHc7LcR+7XuuA7WHqejUzBRMB0GA1UdDgQW
+    BBQS0iNbyP8W817uCk/2lPd19ZvNRDAfBgNVHSMEGDAWgBQS0iNbyP8W817uCk/2
+    lPd19ZvNRDAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0gAMEUCIQC5CTvl
+    LE0htwa89LBRRSL2BWHqciSLvqx9azjJfd63JAIgcAJSIhWpiXeBcGZdcTbnmkqU
+    kWu4LDU2ymBRp8pp4Iw=
+    -----END CERTIFICATE-----
+    Successfully imported a new certificate.
+
+It is also possible to combine all these commands above into one single command (notice the order of the actions):
+
+    $ yubico-piv-tool -a generate -a verify-pin -a selfsign -a import-certificate -s 9a -k -A ECCP256 -S '/CN=piv_auth/OU=test/O=example.com/'
+
+
+==== Signed certificate on slot 9c
+
+    $ yubico-piv-tool -a generate -s 9c -A RSA1024 -o pub.key
+    Successfully generated a new private key.
+
+    $ yubico-piv-tool -a verify-pin -a request-certificate -s 9c -S '/CN=digi_sign/OU=test/O=example.com/' -i pub.key -o csr.pem
+    Enter PIN:
+    Successfully verified PIN.
+    Successfully generated a certificate request.
+
+After sending the certificate request to the CA and getting a signed certificate:
+
+    $ yubico-piv-tool -a import-certificate -s 9c -i cert.pem
+    Successfully imported a new certificate.

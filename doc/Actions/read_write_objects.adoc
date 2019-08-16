@@ -1,0 +1,68 @@
+== Read/Write Objects
+    yubico-piv-tool -a read-object --id <object ID> [ -o <output file> -f <file format> ]
+    yubico-piv-tool -a write-object --id <object ID> -k [ -i <input file>  -f <file format>]
+
+=== Description
+Reads and stores raw data into a PIV slot. The form and ID of the data are detailed in the
+link:https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-73-4.pdf[PIV Specification SP 800-73-4].
+
+Writting an object is an action that requires authentication, which is done by providing the management key.
+If no management key is provided, the tool will try to authenticate using the default management key.
+footnote:[It is strongly recommended to change the Yubikey's PIN, PUK and management key before start using it.]
+
+=== Supported PIV Object IDs
+
+|===================================
+|Type of Object Data                            | ASN.1 OID                     | ID
+
+|Card Capability Container                      | 2.16.840.1.101.3.7.1.219.0    | 0x5fc107
+|Card Holder Unique Identifier                  | 2.16.840.1.101.3.7.2.48.0     | 0x5fc102
+|X.509 Certificate for PIV Authentication       | 2.16.840.1.101.3.7.2.1.1      | 0x5fc105
+|Cardholder Fingerprints                        | 2.16.840.1.101.3.7.2.96.16    | 0x5fc103
+|Security Object                                | 2.16.840.1.101.3.7.2.144.0    | 0x5fc106
+|Cardholder Facial Image                        | 2.16.840.1.101.3.7.2.96.48    | 0x5fc108
+|X.509 Certificate for Card Authentication      | 2.16.840.1.101.3.7.2.5.0      | 0x5fc101
+|X.509 Certificate for Digital Signature        | 2.16.840.1.101.3.7.2.1.0      | 0x5fc10a
+|X.509 Certificate for Key Management           | 2.16.840.1.101.3.7.2.1.2      | 0x5fc10b
+|Printed Information                            | 2.16.840.1.101.3.7.2.48.1     | 0x5fc109
+|Discovery Object                               | 2.16.840.1.101.3.7.2.96.80    | 0x7e
+|Key History Object                             | 2.16.840.1.101.3.7.2.96.96    | 0x5fc10c
+|Retired X.509 Certificate for Key Management   | 12.16.840.1.101.3.7.2.16.1    | 0x5fc10d
+|Retired X.509 Certificate for Key Management   | 22.16.840.1.101.3.7.2.16.2    | 0x5fc10e
+|Retired X.509 Certificate for Key Management   | 32.16.840.1.101.3.7.2.16.3    | 0x5fc10f
+|Retired X.509 Certificate for Key Management   | 42.16.840.1.101.3.7.2.16.4    | 0x5fc110
+|Retired X.509 Certificate for Key Management   | 52.16.840.1.101.3.7.2.16.5    | 0x5fc111
+|Retired X.509 Certificate for Key Management   | 62.16.840.1.101.3.7.2.16.6    | 0x5fc112
+|Retired X.509 Certificate for Key Management   | 72.16.840.1.101.3.7.2.16.7    | 0x5fc113
+|Retired X.509 Certificate for Key Management   | 82.16.840.1.101.3.7.2.16.8    | 0x5fc114
+|Retired X.509 Certificate for Key Management   | 92.16.840.1.101.3.7.2.16.9    | 0x5fc115
+|Retired X.509 Certificate for Key Management   | 102.16.840.1.101.3.7.2.16.10  | 0x5fc116
+|Retired X.509 Certificate for Key Management   | 112.16.840.1.101.3.7.2.16.11  | 0x5fc117
+|Retired X.509 Certificate for Key Management   | 122.16.840.1.101.3.7.2.16.12  | 0x5fc118
+|Retired X.509 Certificate for Key Management   | 132.16.840.1.101.3.7.2.16.13  | 0x5fc119
+|Retired X.509 Certificate for Key Management   | 142.16.840.1.101.3.7.2.16.14  | 0x5fc11a
+|Retired X.509 Certificate for Key Management   | 152.16.840.1.101.3.7.2.16.15  | 0x5fc11b
+|Retired X.509 Certificate for Key Management   | 162.16.840.1.101.3.7.2.16.16  | 0x5fc11c
+|Retired X.509 Certificate for Key Management   | 172.16.840.1.101.3.7.2.16.17  | 0x5fc11d
+|Retired X.509 Certificate for Key Management   | 182.16.840.1.101.3.7.2.16.18  | 0x5fc11e
+|Retired X.509 Certificate for Key Management   | 192.16.840.1.101.3.7.2.16.19  | 0x5fc11f
+|Retired X.509 Certificate for Key Management   | 202.16.840.1.101.3.7.2.16.20  | 0x5fc120
+|Cardholder Iris Images                         | 2.16.840.1.101.3.7.2.16.21    | 0x5fc121
+|===================================
+
+
+=== Parameters
+
+|===================================
+|Parameter          | Required | Optional | Description | Possible values | Default value
+
+|--id               | X | | The ID of the object to write/read according to PIV Specifications  | |
+|-k, --key          | X | | Management key to use, if no value is specified key will be asked for | | 010203040506070801020304050607080102030405060708
+|-i, --input        | | X | Filename to use as input | file name or "-" for stdin | -
+|-o, --output       | | X | Filename to use as output | file name or "-" for stdin | -
+|-f, --format       | | X | Format of data for write/read object | hex, base64, binary | hex
+|===================================
+
+=== Examples
+    $ yubico-piv-tool -a read-object --id 0x5fc10d
+    708202b2308202ae30820196a003020102020832b1fd4fd258f9bd300d06092a864886f70d01010b0500303b3115301306035504030c0c4d616e6167656d656e74434131153013060355040a0c0c454a4243412059756269636f310b3009060355040613025345301e170d3139303830383134333034325a170d3231303830373134333034325a30203111300f06035504030c08757365725f333834310b30090603550406130253453076301006072a8648ce3d020106052b810400220362000456444320b440fe49f312b023aa571da565e9bc966dc928aef49c87e45d95cccf5b07fbe9e6620d2bb9d3c268671b2eed0e912c1dfae34f1e8f61a24565cb6498129618b96b7e3f38962796aa67382878cbe2cc1a8c369a55cecbd31b7a5cb032a37f307d300c0603551d130101ff04023000301f0603551d230418301680140c6d2aca0fe3aef788b50479477aba8a87b08ad4301d0603551d250416301406082b0601050507030206082b06010505070304301d0603551d0e04160414a508f3007b5344dc8efe08d87dfdbcb53191c7f3300e0603551d0f0101ff0404030205e0300d06092a864886f70d01010b050003820101003993c325a5396ae1455e94d31dc6eda702b3e17b0f82de6d1c22e994de13124022d7b127dff25a082c6f8a4ff74e0a965cb619bbc62787072b5d1ecb5a06e4b9d24523534b1c4e6ac8265e8debb8111c62afbf8e1952e5ebd3ac81f6cf1900497719cb1ab60c1e92be9032db1f69bf04d5def4fe2788de04452f2b01ced25fb186ce1b67c830dbbcc5e9d857951e347047c75f7456d42e9519694a7361f0b892d9acec10a55e5a61c483942543b13bd2c345b08ed1adc043647505a8d3ce2152c4dfb8dc005e0fedc3d94aaf1e7e63b0c720c16481207451dd800e9cf7750c9bec580ce97aa540366ff1f1ad5366fc3aac5563db73b6f44574968e3922e9e9fb710100fe00

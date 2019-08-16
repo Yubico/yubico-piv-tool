@@ -1,0 +1,13 @@
+== Version
+    $ yubico-piv-tool -a version
+
+=== Description
+Displays the application version
+
+=== Parameters
+None
+
+=== Examples
+
+    $ yubico-piv-tool -a version
+    Application version 4.4.0 found.

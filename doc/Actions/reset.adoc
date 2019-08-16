@@ -1,0 +1,11 @@
+== Reset
+    $ yubico-piv-tool -a reset
+
+=== Description
+Erases all keys and certificates stored on the device and sets it to the default PIN,
+PUK and management key. This will only affect the PIV portion of the YubiKey, so any
+non-PIV configuration will remain intact. Resetting the device will not erase the
+attestation key and certificate (slot f9) either, but they can be overwritten.
+
+To reset the device, the PIN and the PUK need to be blocked, which happens when entering
+the wrong PIN and PUK more than the number of their retries.

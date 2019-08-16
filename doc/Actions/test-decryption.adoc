@@ -1,0 +1,65 @@
+== Test Decryption
+    $ yubico-piv-tool -a read-certificate -s <slot> [ -o cert.pem ]
+    $ yubico-piv-tool -a verify-pin -a test-decipher -s <slot> [ -i cert.pem ]
+
+=== Description
+Tests decryption function.
+
+"test-signature" and "test-decipher" are actions that require verifying the PIN code,
+which has to be done in an action that must take place before the generation action,
+otherwise the tests will fail.
+
+Performing the test will require the certificate stored on the slot to test. This is
+done using the "read-certificate" action first.
+
+=== Parameters
+
+|===================================
+|Parameter         | Required | Optional | Description | Possible values | Default value
+
+|-s, --slot        | X | | What key slot to operate on | 9a, 9c, 9d, 9e, 82, 83, 84, 85, 86, 87, 88, 89,
+                                                          8a, 8b, 8c, 8d, 8e, 8f, 90, 91, 92, 93, 94, 95, f9 |
+|-i, --input       | | X | Filename to use as input | file name or "-" for stdin | -
+|-o, --output      | | X | Filename to use as output | file name or "-" for stdin | -
+|===================================
+
+=== Examples
+
+    $ yubico-piv-tool -a read-certificate -s 9a
+    -----BEGIN CERTIFICATE-----
+    MIIBuTCCAWCgAwIBAgIJAMOZXtijzEepMAoGCCqGSM49BAMCMDgxETAPBgNVBAMM
+    CHBpdl9hdXRoMQ0wCwYDVQQLDAR0ZXN0MRQwEgYDVQQKDAtleGFtcGxlLmNvbTAe
+    Fw0xOTA4MTMwODEwNDVaFw0yMDA4MTIwODEwNDVaMDgxETAPBgNVBAMMCHBpdl9h
+    dXRoMQ0wCwYDVQQLDAR0ZXN0MRQwEgYDVQQKDAtleGFtcGxlLmNvbTBZMBMGByqG
+    SM49AgEGCCqGSM49AwEHA0IABKPfSKeNY204JiHsSUwDAV8GuYqZOHfJJxrT4E0q
+    VWsKdC5zwRc7xvb2YgbMonPW5BfIUi766/VwWN54UsqWVuWjUzBRMB0GA1UdDgQW
+    BBR/bpCmGr+ark0VbGX5UvYWy9dM9DAfBgNVHSMEGDAWgBR/bpCmGr+ark0VbGX5
+    UvYWy9dM9DAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0cAMEQCIHZZe7Xm
+    s6y8LKEBqGnbr1cbniHgMrvM1ST6GpL27HuaAiB+UwjI21GxIsd5r2avmwvT5LeZ
+    gQBns9KNCIgkwx+/Iw==
+    -----END CERTIFICATE-----
+
+    $ yubico-piv-tool -a verify-pin -a test-decipher -s 9a
+    Enter PIN: 
+    Successfully verified PIN.
+    Please paste the certificate to encrypt for...
+    -----BEGIN CERTIFICATE-----
+    MIIBuTCCAWCgAwIBAgIJAMOZXtijzEepMAoGCCqGSM49BAMCMDgxETAPBgNVBAMM
+    CHBpdl9hdXRoMQ0wCwYDVQQLDAR0ZXN0MRQwEgYDVQQKDAtleGFtcGxlLmNvbTAe
+    Fw0xOTA4MTMwODEwNDVaFw0yMDA4MTIwODEwNDVaMDgxETAPBgNVBAMMCHBpdl9h
+    dXRoMQ0wCwYDVQQLDAR0ZXN0MRQwEgYDVQQKDAtleGFtcGxlLmNvbTBZMBMGByqG
+    SM49AgEGCCqGSM49AwEHA0IABKPfSKeNY204JiHsSUwDAV8GuYqZOHfJJxrT4E0q
+    VWsKdC5zwRc7xvb2YgbMonPW5BfIUi766/VwWN54UsqWVuWjUzBRMB0GA1UdDgQW
+    BBR/bpCmGr+ark0VbGX5UvYWy9dM9DAfBgNVHSMEGDAWgBR/bpCmGr+ark0VbGX5
+    UvYWy9dM9DAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0cAMEQCIHZZe7Xm
+    s6y8LKEBqGnbr1cbniHgMrvM1ST6GpL27HuaAiB+UwjI21GxIsd5r2avmwvT5LeZ
+    gQBns9KNCIgkwx+/Iw==
+    -----END CERTIFICATE-----
+    Successfully performed ECDH exchange with card.
+
+It is also possible to combine the commands above into one single command (notice the order of the actions):
+
+    $ yubico-piv-tool -a read-certificate -a verify-pin -a test-decipher -s 9a -o cert.pem -i cert.pem
+    Enter PIN:
+    Successfully verified PIN.
+    Successfully performed ECDH exchange with card.
