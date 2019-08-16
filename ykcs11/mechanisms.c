@@ -36,6 +36,7 @@
 
 #define F4 "\x01\x00\x01"
 #define PRIME256V1 "\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07"
+#define SECP384R1 "\x06\x05\x2b\x81\x04\x00\x22"
 
 // Supported mechanisms for signature
 static const CK_MECHANISM_TYPE sign_mechanisms[] = {
@@ -52,7 +53,8 @@ static const CK_MECHANISM_TYPE sign_mechanisms[] = {
   CKM_SHA512_RSA_PKCS_PSS,
   CKM_ECDSA,
   CKM_ECDSA_SHA1,
-  CKM_ECDSA_SHA256
+  CKM_ECDSA_SHA256,
+  CKM_ECDSA_SHA384
 };
 
 // Supported mechanisms for key pair generation
@@ -155,6 +157,23 @@ CK_BBOOL is_PSS_mechanism(CK_MECHANISM_TYPE m) {
   return CK_FALSE;
 }
 
+CK_BBOOL is_EC_mechanism(CK_MECHANISM_TYPE m) {
+  switch (m) {
+  case CKM_EC_KEY_PAIR_GEN:
+  case CKM_ECDSA:
+  case CKM_ECDSA_SHA1:
+  case CKM_ECDSA_SHA256:
+  case CKM_ECDSA_SHA384:
+  //case CKM_ECDSA_SHA512:
+    return CK_TRUE;
+  default:
+    return CK_FALSE;
+  }
+
+  // Not reached
+  return CK_FALSE;
+}
+
 CK_BBOOL is_hashed_mechanism(CK_MECHANISM_TYPE m) {
 
   switch (m) {
@@ -168,6 +187,7 @@ CK_BBOOL is_hashed_mechanism(CK_MECHANISM_TYPE m) {
   case CKM_SHA512_RSA_PKCS_PSS:
   case CKM_ECDSA_SHA1:
   case CKM_ECDSA_SHA256:
+  case CKM_ECDSA_SHA384:
   case CKM_SHA_1:
   case CKM_SHA256:
   case CKM_SHA384:
@@ -208,6 +228,7 @@ CK_RV apply_sign_mechanism_init(op_info_t *op_info) {
 
     case CKM_SHA384_RSA_PKCS:
     case CKM_SHA384_RSA_PKCS_PSS:
+    case CKM_ECDSA_SHA384:
       return do_md_init(YKCS11_SHA384, &op_info->op.sign.md_ctx);
 
     case CKM_SHA512_RSA_PKCS:
@@ -246,6 +267,7 @@ CK_RV apply_sign_mechanism_update(op_info_t *op_info, CK_BYTE_PTR in, CK_ULONG i
   case CKM_SHA512_RSA_PKCS_PSS:
   case CKM_ECDSA_SHA1:
   case CKM_ECDSA_SHA256:
+  case CKM_ECDSA_SHA384:
     rv = do_md_update(op_info->op.sign.md_ctx, in, in_len);
     if (rv != CKR_OK)
       return CKR_FUNCTION_FAILED;
@@ -319,6 +341,7 @@ CK_RV apply_sign_mechanism_finalize(op_info_t *op_info) {
 
   case CKM_ECDSA_SHA1:
   case CKM_ECDSA_SHA256:
+  case CKM_ECDSA_SHA384:
     // Finalize the hash
     rv = do_md_finalize(op_info->op.sign.md_ctx, op_info->buf, &op_info->buf_len, &nid);
     op_info->op.sign.md_ctx = NULL;
@@ -419,11 +442,13 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
       break;
 
     case CKA_EC_PARAMS:
-      // Only support PRIME256V1
-      if (templ[i].ulValueLen != 10 || memcmp((CK_BYTE_PTR)templ[i].pValue, PRIME256V1, 10) != 0)
+      // Support PRIME256V1 and SECP384R1
+      if (templ[i].ulValueLen == 10 && memcmp((CK_BYTE_PTR)templ[i].pValue, PRIME256V1, 10) == 0)
+        op_info->op.gen.key_len = 256;
+      else if(templ[i].ulValueLen == 7 && memcmp((CK_BYTE_PTR)templ[i].pValue, SECP384R1, 7) == 0)
+        op_info->op.gen.key_len = 384;
+      else
         return CKR_FUNCTION_FAILED;
-
-      op_info->op.gen.key_len = 256;
       break;
 
     case CKA_ID:

@@ -87,6 +87,7 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa,
   unsigned char data[1024];
   unsigned char templ[] = {0, YKPIV_INS_GENERATE_ASYMMETRIC, 0, 0};
   unsigned char *certptr;
+  unsigned char key_algorithm;
   unsigned long recv_len = sizeof(data);
   int len_bytes;
   int sw;
@@ -119,7 +120,7 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa,
   switch(key_len) {
   case 2048:
     if (rsa == CK_TRUE)
-      *in_ptr++ = YKPIV_ALGO_RSA2048;
+      key_algorithm = YKPIV_ALGO_RSA2048;
     else
       return CKR_FUNCTION_FAILED;
 
@@ -127,7 +128,7 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa,
 
   case 1024:
     if (rsa == CK_TRUE)
-      *in_ptr++ = YKPIV_ALGO_RSA1024;
+      key_algorithm = YKPIV_ALGO_RSA1024;
     else
       return CKR_FUNCTION_FAILED;
 
@@ -135,7 +136,15 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa,
 
   case 256:
     if (rsa == CK_FALSE)
-      *in_ptr++ = YKPIV_ALGO_ECCP256;
+      key_algorithm = YKPIV_ALGO_ECCP256;
+    else
+      return CKR_FUNCTION_FAILED;
+
+    break;
+
+  case 384:
+    if (rsa == CK_FALSE)
+      key_algorithm = YKPIV_ALGO_ECCP384;
     else
       return CKR_FUNCTION_FAILED;
 
@@ -144,6 +153,9 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa,
   default:
     return CKR_FUNCTION_FAILED;
   }
+
+  *in_ptr++ = key_algorithm;
+
   // PIN policy and touch
   if (vendor_defined != 0) {
     if (vendor_defined & CKA_PIN_ONCE) {
@@ -173,7 +185,7 @@ static CK_RV COMMON_token_generate_key(ykpiv_state *state, CK_BBOOL rsa,
 
   // Create a new empty certificate for the key
   recv_len = sizeof(data);
-  if ((rv = do_create_empty_cert(data, recv_len, rsa, data, &recv_len)) != CKR_OK)
+  if ((rv = do_create_empty_cert(data, recv_len, rsa, key_algorithm, data, &recv_len)) != CKR_OK)
     return rv;
 
   if (recv_len < 0x80)

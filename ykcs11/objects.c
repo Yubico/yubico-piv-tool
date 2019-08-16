@@ -41,6 +41,7 @@
 
 #define F4 "\x01\x00\x01" // TODO: already define in mechanisms.c. Move
 #define PRIME256V1 "\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07" // TODO: already define in mechanisms.c. Move
+#define SECP384R1 "\x06\x05\x2b\x81\x04\x00\x22" // TODO: already define in mechanisms.c. Move
 
 CK_RV get_doa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template); // TODO: static?
 CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
@@ -1437,8 +1438,13 @@ CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
     if (ec_params_len != 10 || memcmp(ec_params, PRIME256V1, ec_params_len) != 0)
       return CKR_ATTRIBUTE_VALUE_INVALID;
   }
-  else /*if () TODO: P384*/
+  else if (*value_len == 48 || *value_len == 47) {
+    if (ec_params_len != 7 || memcmp(ec_params, SECP384R1, ec_params_len) != 0)
+      return CKR_ATTRIBUTE_VALUE_INVALID;
+  }
+  else {
     return CKR_ATTRIBUTE_VALUE_INVALID;
+  }
 
   return CKR_OK;
 }

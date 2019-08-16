@@ -48,6 +48,7 @@ size_t read_data(unsigned char*, size_t, FILE*, enum enum_format);
 void dump_data(unsigned const char*, unsigned int, FILE*, bool, enum enum_format);
 int set_length(unsigned char*, int);
 int get_length(const unsigned char*, int*);
+int get_curve_name(int);
 X509_NAME *parse_name(const char*);
 unsigned char get_algorithm(EVP_PKEY*);
 FILE *open_file(const char *file_name, enum file_mode mode);
@@ -62,5 +63,7 @@ unsigned char get_piv_algorithm(enum enum_algorithm);
 unsigned char get_pin_policy(enum enum_pin_policy);
 unsigned char get_touch_policy(enum enum_touch_policy);
 int SSH_write_X509(FILE *fp, X509 *x);
+bool is_rsa_key_algorithm(unsigned char);
+bool is_ec_key_algorithm(unsigned char);
 
 #endif

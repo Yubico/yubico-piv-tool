@@ -67,7 +67,7 @@ CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, X509 **cert) {
 
 }
 
-CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa,
+CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_ULONG key_algorithm,
                            CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
 
   X509      *cert = NULL;
@@ -136,29 +136,28 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa,
       goto create_empty_cert_cleanup;
   }
   else {
-    // ECCP256
+    // ECCP256 and ECCP384
     data_ptr = in + 3;
 
     eck = EC_KEY_new();
     if (eck == NULL)
       goto create_empty_cert_cleanup;
 
-    ecg = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+    int curve_name = get_curve_name(key_algorithm);
+
+    ecg = EC_GROUP_new_by_curve_name(curve_name);
     if (ecg == NULL)
       goto create_empty_cert_cleanup;
 
-    EC_GROUP_set_asn1_flag(ecg, NID_X9_62_prime256v1);
+    EC_GROUP_set_asn1_flag(ecg, curve_name);
     EC_KEY_set_group(eck, ecg);
     ecp = EC_POINT_new(ecg);
 
     if(*data_ptr++ != 0x86)
       goto create_empty_cert_cleanup;
 
-    // The curve point should always be 65 bytes
-    if (*data_ptr++ != 65)
-      goto create_empty_cert_cleanup;
-
-    if (EC_POINT_oct2point(ecg, ecp, data_ptr, 65, NULL) == 0)
+    data_ptr += get_length(data_ptr, &len);
+    if (EC_POINT_oct2point(ecg, ecp, data_ptr, len, NULL) == 0)
       goto create_empty_cert_cleanup;
 
     if (EC_KEY_set_public_key(eck, ecp) == 0)
@@ -166,7 +165,7 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa,
 
     // OpenSSL 1.1 doesn't allow to set empty signatures
     // Use a bogus private key
-    bignum_prv = BN_bin2bn(zeroes, 65, NULL);
+    bignum_prv = BN_bin2bn(zeroes, len, NULL);
     if (bignum_prv == NULL)
       goto create_empty_cert_cleanup;
 
