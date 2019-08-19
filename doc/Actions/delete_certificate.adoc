@@ -1,0 +1,22 @@
+== Delete Certificate
+
+    $ yubico-piv-tool -a delete-certificate -s <slot> -k
+
+=== Description
+Deletes a certificate from the specified slot. The corresponding private key does not
+get deleted unless it is overwritten.
+
+Deleting a certificate is an actions that requires authentication, which is done by
+providing the management key. If no management key is provided, the tool will try to
+authenticate using the default management key.footnote:[It is strongly recommended to
+change the Yubikey's PIN, PUK and management key before starting using it]
+
+=== Parameters
+
+|===================================
+|Parameter         | Required | Optional | Description | Possible values | Default value
+
+|-s, --slot        | X | | What key slot to operate on | 9a, 9c, 9d, 9e, 82, 83, 84, 85, 86, 87, 88, 89,
+                                                          8a, 8b, 8c, 8d, 8e, 8f, 90, 91, 92, 93, 94, 95, f9 |
+|-k, --key         | X | | Management key to use, if no value is specified key will be asked for | | 010203040506070801020304050607080102030405060708
+|===================================

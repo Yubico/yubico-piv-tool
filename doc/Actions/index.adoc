@@ -1,0 +1,30 @@
+== Actions
+
+|===================================
+|Action                                                         | Description
+
+|link:version.adoc[version]                                     | Returns the device's firmware version
+|link:status.adoc[status]                                       | Returns the device's metadata and content
+|list-readers                                                   | Lists the accessible smart card readers
+|link:key_generation.adoc[generate]                             | Generates and RSA or an EC key on a specific slot
+|link:key_import.adoc[import-key]                               | Imports a private key into a specific slot
+|link:key_import.adoc[import-cert, import-certificate]          | Imports an X509 certificate into a specific slot
+|link:key_generation.adoc[request, request-certificate]         | Generated a certification request for an asymmetric key stored on a specific slot
+|link:key_generation.adoc[selfsign, selfsign-certificate]       | Generates a self signed X509 certificate for an asymmetric key stored on a specific slot
+|link:delete_certificate.adoc[delete-cert, delete-certificate]  | Deletes a certificate from a specific slot
+|link:read_certificate.adoc[read-cert, read-certificate]        | Returns the X509 certificate stored on a specific slot
+|link:read_write_objects.adoc[write-object]                     | Stores an object in a slot
+|link:read_write_objects.adoc[read-object]                      | Returns the content of a slot
+|link:attest.adoc[attest]                                       | Generates an X509 certificate for an asymmetric key that was generated inside the YubiKey
+|link:test-signature.adoc[test-signature]                       | Tests the digital signing function
+|link:test-decryption.adoc[test-decipher]                       | Tests the decryption function
+|set-mgm-key                                                    | Set the management key required to perform administrative actions on the PIV interface
+|pin-retries                                                    | Changes the number of retries allowed before the PIN or the PUK are blocked
+|verify-pin, verify                                             | Verifies the PIN code required to access the PIV interface
+|change-pin                                                     | Changes the PIN code required to access the PIV interface
+|change-puk                                                     | Changes the PUK
+|unblock-pin                                                    | Sets a new the PIN code after it had been wrongly entered too many times
+|set-chuid                                                      | Sets/Changes the Card Holder Unique Identifier
+|set-ccc                                                        | Sets a new CCC
+|link:reset.adoc[reset]                                         | Resets the yubiKey's PIV interface
+|===================================

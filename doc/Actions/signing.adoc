@@ -1,0 +1,31 @@
+== Signing
+    $ yubico-piv-tool -a verify-pin --sign -s <slot> [ -H <hash algorithm> -A <key algorithm> -i <input data file> -o <signature file> ]
+
+=== Description
+Signs input data
+
+The signing operation requires verifying the PIN code, which is done using the "verify-pin" action
+
+=== Parameters
+
+|===================================
+|Parameter         | Required | Optional | Description | Possible values | Default value
+|sign              | X | | Sign data | |
+
+|-s, --slot        | X | | What key slot to operate on | 9a, 9c, 9d, 9e, 82, 83, 84, 85, 86, 87, 88, 89,
+                                                          8a, 8b, 8c, 8d, 8e, 8f, 90, 91, 92, 93, 94, 95, f9 |
+|-A, --algorithm   | | X | What algorithm to use to generate the key pair | RSA1024, RSA2048, ECCP256, ECCP384 | RSA2048
+|-H, --hash        | | X |  Hash to use for signatures | SHA1, SHA256, SHA384, SHA512 | SHA256
+|-i, --input       | | X | Filename to use as input | file name or "-" for stdin | -
+|-o, --output      | | X | Filename to use as output | file name or "-" for stdin | -
+|===================================
+
+=== Examples
+
+    $ yubico-piv-tool -a verify-pin --sign -s 9c -H SHA512 -A RSA1024 -i data.txt -o data.sig
+    Enter PIN:
+    Successfully verified PIN.
+    Signature successful!
+
+    $ openssl dgst -sha512 -verify pubkey.pem -signature data.sig data.txt
+    Verified OK

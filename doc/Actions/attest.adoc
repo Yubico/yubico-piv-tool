@@ -1,0 +1,3 @@
+== Attestation
+
+See details of the attestation function in link:../Attestation.adoc[Attestation]

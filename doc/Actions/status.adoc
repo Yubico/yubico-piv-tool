@@ -1,0 +1,82 @@
+== Status
+    $ yubico-piv-tool -a status [ -s <slot> ]
+
+=== Description
+Displays the device's meta data and the content of slots 9a, 9c, 9d and 9e. The content
+of slot f9 will be displayed if the slot is specified as an argument. This action,
+however, will *not* display the content of the retired slots (slots 82-95).
+
+=== Parameters
+
+|===================================
+|Parameter      | Required | Optional | Description | Possible values | Default value
+
+|-s, --slot     |  | X | What key slot to operate on | 9a, 9c, 9d, 9e, 82, 83, 84, 85, 86, 87, 88, 89,
+                                                       8a, 8b, 8c, 8d, 8e, 8f, 90, 91, 92, 93, 94, 95, f9 |
+|===================================
+
+=== Examples
+
+    $ yubico-piv-tool -a status
+    Version:	4.4.0
+    Serial Number:	12345678
+    CHUID:	No data available
+    CCC:	No data available
+    Slot 9a:
+	        Algorithm:	RSA1024
+	        Subject DN:	CN=piv_auth, C=SE
+	        Issuer DN:	CN=TestCA, O=Yubico, C=SE
+	        Fingerprint:	4a1416fce853b29eaf520174bf8639d72ff30bd84e4586f81ac2a19eda43fdf1
+	        Not Before:	Aug  8 14:29:23 2019 GMT
+	        Not After:	Aug  7 14:29:23 2021 GMT
+    Slot 9c:
+	        Algorithm:	RSA2048
+	        Subject DN:	CN=sign, C=SE
+	        Issuer DN:	CN=TestCA, O=Yubico, C=SE
+	        Fingerprint:	803a89d5e196835d4a7e5e600e413fec1d3014712fcfd9e31fe15010829226dd
+	        Not Before:	Aug  8 14:29:50 2019 GMT
+	        Not After:	Aug  7 14:29:50 2021 GMT
+    Slot 9d:
+	        Algorithm:	RSA1024
+	        Subject DN:	CN=key_mgm, C=SE
+	        Issuer DN:	CN=TestCA, O=Yubico, C=SE
+	        Fingerprint:	4a1416fce853429eaf420074bf8d39d72ff30bd84e4586f81ac2a19eda43fdf1
+	        Not Before:	Aug  8 14:29:23 2019 GMT
+	        Not After:	Aug  7 14:29:23 2021 GMT
+    Slot 9e:
+	        Algorithm:	RSA2048
+	        Subject DN:	CN=card_auth, C=SE
+	        Issuer DN:	CN=TestCA, O=Yubico, C=SE
+	        Fingerprint:	803a89d5e196845d4a7e5e6006413fec1d30157128cfd9e3afe15010829226dd
+	        Not Before:	Aug  8 14:29:50 2019 GMT
+	        Not After:	Aug  7 14:29:50 2021 GMT
+    PIN tries left:	3
+
+    $ yubico-piv-tool -a status -s 9a
+    Version:	4.4.0
+    Serial Number:	12345678
+    CHUID:	No data available
+    CCC:	No data available
+    Slot 9a:
+	        Algorithm:	RSA1024
+	        Subject DN:	CN=piv_auth, C=SE
+	        Issuer DN:	CN=TestCA, O=Yubico, C=SE
+	        Fingerprint:	4a1416fce853b29eaf520174bf8639d72ff30bd84e4586f81ac2a19eda43fdf1
+	        Not Before:	Aug  8 14:29:23 2019 GMT
+	        Not After:	Aug  7 14:29:23 2021 GMT
+    PIN tries left:	3
+
+    $ yubico-piv-tool -a status -s f9
+    Version:	4.4.0
+    Serial Number:	12345678
+    CHUID:	3019d4e739da739ced39ce739d836858210842108421c84210c3eb3410461c7c766122b38b2edf05183c3d041a350832303330303130313e00fe00
+    CCC:	f015a000000116ff02f9a5b5f5fc5cd67c63a147ddf405f10121f20121f300f40100f50110f600f700fa00fb00fc00fd00fe00
+    Slot f9:
+            Algorithm:	RSA2048
+            Subject DN:	CN=Test Attestation Certificate
+            Issuer DN:	CN=Test Attestation Certificate
+            Fingerprint:	8dbc03bea80282748f0403de0922c93751fe498d376b6ae1aa87d1b8af74c7a3
+            Not Before:	Jan 22 09:47:58 2018 GMT
+            Not After:	Jan 24 09:47:58 2018 GMT
+    PIN tries left:	3
+

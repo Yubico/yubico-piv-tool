@@ -1,0 +1,43 @@
+== Key Import
+    $ yubico-piv-tool -a import-key -s <slot> -k [ -i <input file> -p <input file password> -K <input file format> ]
+    $ yubico-piv-tool -a import-certificate -s <slot> -k [ -i <input file> -K <input file format> ]
+    $ yubico-piv-tool -a import-key -a import-certificate -s <slot> -k [ -i <input file> -p <input file password> -K <input file format> ]
+
+=== Description
+Imports a key, a certificate or both into the Yubikey PIV interface. The largest
+accepted keys are of size 2025/3049 bytes for current versions of YubiKey NEO and YubiKey 5, respectively;
+however, it is possible to import larger certificates but that requires compression in order
+for it to fit (see examples bellow).
+
+This action is also used to import decryption keys (aka. key management keys typically found in slot 9d) into
+the retired slots (slots 82-95)
+
+Importing either a key or a certificate is an action that requires authentication, which is done
+by providing the management key. If no management key is provided, the tool will try to authenticate
+using the default management key.footnote:[It is strongly recommended to change the Yubikey's PIN, PUK and
+management key before start using it.]
+
+=== Parameters
+
+|===================================
+|Parameter          | Required | Optional | Description | Possible values | Default value
+
+|-s, --slot         | X | | What key slot to operate on | 9a, 9c, 9d, 9e, 82, 83, 84, 85, 86, 87, 88, 89,
+                                                          8a, 8b, 8c, 8d, 8e, 8f, 90, 91, 92, 93, 94, 95, f9 |
+|-k, --key          | X | | Management key to use, if no value is specified key will be asked for | | 010203040506070801020304050607080102030405060708
+|-i, --input        | | X | Filename to use as input | file name or "-" for stdin | -
+|-K, --key-format   | | X | Format of the key/certificate being read/written | PEM, PKCS12, GZIP, DER, SSH | PEM
+|-p, --password     | | X | Password for decryption of private key file, if omitted password will be asked for | |
+|===================================
+
+=== Examples
+
+    $ yubico-piv-tool -a import-key -a import-certificate -s 9c -k -i key.pfx -K PKCS12
+    Enter Password:
+    Enter management key:
+    Successfully imported a new private key.
+    Successfully imported a new certificate.
+
+    $ yubico-piv-tool -a import-certificate -s 9c -k -i cert_4096.gz -K GZIP
+    Successfully imported a new certificate.
+
