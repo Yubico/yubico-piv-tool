@@ -1983,7 +1983,7 @@ int main(int argc, char *argv[]) {
   }
 
   if(ykpiv_connect(state, args_info.reader_arg) != YKPIV_OK) {
-    fprintf(stderr, "Failed to connect to reader.\n");
+    fprintf(stderr, "Failed to connect to yubikey.\nHave you tried turning it off and on again?");
     return EXIT_FAILURE;
   }
 
