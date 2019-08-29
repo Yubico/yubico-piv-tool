@@ -2120,7 +2120,7 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "Successfully set new management key.\n");
           }
         } else {
-          fprintf(stderr, "The new management key has to be exactly %d character.\n", KEY_LEN * 2);
+          fprintf(stderr, "The new management key has to be exactly %d hexidecimal characters.\n", KEY_LEN * 2);
           ret = EXIT_FAILURE;
         }
         break;
