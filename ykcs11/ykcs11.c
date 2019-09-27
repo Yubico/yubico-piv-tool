@@ -83,10 +83,18 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
 {
   CK_BYTE readers[2048];
   size_t len = sizeof(readers);
+  CK_RV rv;
 
   DIN;
 
   memset(readers, '\0', sizeof(readers));
+
+  if(pInitArgs)
+  {
+    CK_C_INITIALIZE_ARGS_PTR pArgs = (CK_C_INITIALIZE_ARGS_PTR)pInitArgs;
+    if(pArgs->flags || pArgs->CreateMutex || pArgs->DestroyMutex || pArgs->LockMutex || pArgs->UnlockMutex || pArgs->pReserved)
+      return CKR_CANT_LOCK;
+  }
 
   if (piv_state != NULL)
     return CKR_CRYPTOKI_ALREADY_INITIALIZED;
@@ -101,8 +109,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
     return CKR_FUNCTION_FAILED;
   }
 
-  if (parse_readers(piv_state, readers, len, slots, &n_slots, &n_slots_with_token) != CKR_OK)
-    return CKR_FUNCTION_FAILED;
+  if ((rv = parse_readers(piv_state, readers, len, slots, &n_slots, &n_slots_with_token)) != CKR_OK)
+    return rv;
 
   DBG("Found %lu slot(s) of which %lu tokenless/unsupported", n_slots, n_slots - n_slots_with_token);
 
@@ -1435,23 +1443,19 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
     return CKR_OPERATION_NOT_INITIALIZED;
 
   DBG("Can return %lu object(s)", ulMaxObjectCount);
+  *pulObjectCount = 0;
 
   // Return the next object, if any
-  while(find_obj.idx < find_obj.num &&
-        find_obj.objects[find_obj.idx] == OBJECT_INVALID)
+  while(find_obj.idx < find_obj.num) {
+    if(find_obj.objects[find_obj.idx] != OBJECT_INVALID) {
+      *phObject++ = find_obj.objects[find_obj.idx];
+      if(++(*pulObjectCount) == ulMaxObjectCount)
+        break;
+    }
     find_obj.idx++;
-
-  if (find_obj.idx == find_obj.num) {
-    *pulObjectCount = 0;
-    DOUT;
-    return CKR_OK;
   }
 
-  *phObject = find_obj.objects[find_obj.idx++];
-  *pulObjectCount = 1;
-
-  DBG("Returning object %lu", *phObject);
-
+  DBG("Returning %lu objects", *pulObjectCount);
   return CKR_OK;
 }
 

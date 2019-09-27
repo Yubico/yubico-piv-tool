@@ -38,9 +38,9 @@
 // TODO: this is mostly from OpenSC, how to give credit?
 typedef enum {
   PIV_DATA_OBJ_X509_PIV_AUTH = 0, // PIV authentication
-  PIV_DATA_OBJ_X509_CARD_AUTH,    // Card authentication
   PIV_DATA_OBJ_X509_DS,           // Digital signature
   PIV_DATA_OBJ_X509_KM,           // Key management
+  PIV_DATA_OBJ_X509_CARD_AUTH,    // Card authentication
   PIV_DATA_OBJ_X509_RETIRED1,     // Retired key 1
   PIV_DATA_OBJ_X509_RETIRED2,     // Retired key 2
   PIV_DATA_OBJ_X509_RETIRED3,     // Retired key 3
@@ -76,9 +76,9 @@ typedef enum {
   PIV_DATA_OBJ_LAST,
 
   PIV_CERT_OBJ_X509_PIV_AUTH,     // Certificate for PIV authentication
-  PIV_CERT_OBJ_X509_CARD_AUTH,    // Certificate for card authentication
   PIV_CERT_OBJ_X509_DS,           // Certificate for digital signature
   PIV_CERT_OBJ_X509_KM,           // Certificate for key management
+  PIV_CERT_OBJ_X509_CARD_AUTH,    // Certificate for card authentication
   PIV_CERT_OBJ_X509_RETIRED1,     // Certificate for retired key 1
   PIV_CERT_OBJ_X509_RETIRED2,     // Certificate for retired key 2
   PIV_CERT_OBJ_X509_RETIRED3,     // Certificate for retired key 3
@@ -102,9 +102,9 @@ typedef enum {
   PIV_CERT_OBJ_LAST,
 
   PIV_PVTK_OBJ_PIV_AUTH,          // Private key for PIV authentication
-  PIV_PVTK_OBJ_CARD_AUTH,         // Private key for card authentication
   PIV_PVTK_OBJ_DS,                // Private key for digital signature
   PIV_PVTK_OBJ_KM,                // Private key for key management
+  PIV_PVTK_OBJ_CARD_AUTH,         // Private key for card authentication
   PIV_PVTK_OBJ_RETIRED1,          // Private key for retired key 1
   PIV_PVTK_OBJ_RETIRED2,          // Private key for retired key 2
   PIV_PVTK_OBJ_RETIRED3,          // Private key for retired key 3
@@ -128,9 +128,9 @@ typedef enum {
   PIV_PVTK_OBJ_LAST,
 
   PIV_PUBK_OBJ_PIV_AUTH,          // Public key for PIV authentication
-  PIV_PUBK_OBJ_CARD_AUTH,         // Public key for card authentication
   PIV_PUBK_OBJ_DS,                // Public key for digital signature
   PIV_PUBK_OBJ_KM,                // Public key for key management
+  PIV_PUBK_OBJ_CARD_AUTH,         // Public key for card authentication
   PIV_PUBK_OBJ_RETIRED1,          // Public key for retired key 1
   PIV_PUBK_OBJ_RETIRED2,          // Public key for retired key 2
   PIV_PUBK_OBJ_RETIRED3,          // Public key for retired key 3
