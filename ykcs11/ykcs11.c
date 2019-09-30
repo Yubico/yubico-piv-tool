@@ -309,16 +309,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
   memcpy(pInfo, &slots[slotID].token->info, sizeof(CK_TOKEN_INFO));
 
   // Overwrite values that are application specific
-  pInfo->ulMaxSessionCount = CK_UNAVAILABLE_INFORMATION;   // TODO: should this be 1?
-  pInfo->ulSessionCount = CK_UNAVAILABLE_INFORMATION;      // number of sessions that this application currently has open with the token
-  pInfo->ulMaxRwSessionCount = CK_UNAVAILABLE_INFORMATION; // maximum number of read/write sessions that can be opened with the token at one time by a single TODO: should this be 1?
-  pInfo->ulRwSessionCount =  CK_UNAVAILABLE_INFORMATION;   // number of read/write sessions that this application currently has open with the token
-  pInfo->ulMaxPinLen = PIV_MAX_PIN_LEN;                    // maximum length in bytes of the PIN
-  pInfo->ulMinPinLen = PIV_MIN_PIN_LEN;                    // minimum length in bytes of the PIN
-  pInfo->ulTotalPublicMemory = CK_UNAVAILABLE_INFORMATION;
-  pInfo->ulFreePublicMemory = CK_UNAVAILABLE_INFORMATION;
-  pInfo->ulTotalPrivateMemory = CK_UNAVAILABLE_INFORMATION;
-  pInfo->ulFreePrivateMemory = CK_UNAVAILABLE_INFORMATION;
+  pInfo->ulSessionCount = (session.handle && !(session.info.flags & CKF_RW_SESSION)) ? 1 : 0;      // number of sessions that this application currently has open with the token
+  pInfo->ulRwSessionCount = (session.handle && (session.info.flags & CKF_RW_SESSION)) ? 1 : 0;   // number of read/write sessions that this application currently has open with the token
 
   DOUT;
   return CKR_OK;
@@ -333,7 +325,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_WaitForSlotEvent)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
@@ -446,7 +438,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
   DIN;
   DBG("Token initialization unsupported");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_InitPIN)(
@@ -458,7 +450,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitPIN)(
   DIN;
   DBG("PIN initialization unsupported");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_SetPIN)(
@@ -572,9 +564,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   // Store the slot
   session.slot = slots + slotID;
   //session.slot->info.slotID = slotID; // Redundant but required in CK_SESSION_INFO
-
-  // Store session state
-  session.info.state = 0;
 
   if ((flags & CKF_RW_SESSION)) {
     // R/W Session
@@ -760,7 +749,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetOperationState)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_SetOperationState)(
@@ -774,7 +763,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetOperationState)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_Login)(
@@ -1143,7 +1132,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CopyObject)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
@@ -1253,7 +1242,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetObjectSize)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
@@ -1312,7 +1301,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetAttributeValue)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
@@ -1501,7 +1490,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptInit)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_Encrypt)(
@@ -1515,7 +1504,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Encrypt)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_EncryptUpdate)(
@@ -1529,7 +1518,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptUpdate)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_EncryptFinal)(
@@ -1541,7 +1530,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptFinal)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
@@ -1553,7 +1542,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
@@ -1567,7 +1556,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_DecryptUpdate)(
@@ -1581,7 +1570,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptUpdate)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
@@ -1593,7 +1582,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_DigestInit)(
@@ -1654,7 +1643,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Digest)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_DigestUpdate)(
@@ -1666,7 +1655,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestUpdate)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_DigestKey)(
@@ -1677,7 +1666,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestKey)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_DigestFinal)(
@@ -1689,7 +1678,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestFinal)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
@@ -1999,7 +1988,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignUpdate)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
@@ -2011,7 +2000,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_SignRecoverInit)(
@@ -2023,7 +2012,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignRecoverInit)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_SignRecover)(
@@ -2037,7 +2026,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignRecover)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
@@ -2049,7 +2038,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_Verify)(
@@ -2063,7 +2052,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Verify)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_VerifyUpdate)(
@@ -2075,7 +2064,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyUpdate)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_VerifyFinal)(
@@ -2087,7 +2076,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyFinal)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_VerifyRecoverInit)(
@@ -2099,7 +2088,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyRecoverInit)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_VerifyRecover)(
@@ -2113,7 +2102,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyRecover)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_DigestEncryptUpdate)(
@@ -2127,7 +2116,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestEncryptUpdate)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_DecryptDigestUpdate)(
@@ -2141,7 +2130,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptDigestUpdate)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_SignEncryptUpdate)(
@@ -2155,7 +2144,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignEncryptUpdate)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_DecryptVerifyUpdate)(
@@ -2169,7 +2158,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptVerifyUpdate)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_GenerateKey)(
@@ -2183,7 +2172,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKey)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
@@ -2361,7 +2350,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_WrapKey)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_UnwrapKey)(
@@ -2378,7 +2367,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_UnwrapKey)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_DeriveKey)(
@@ -2393,7 +2382,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DeriveKey)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 /* Random number generation functions */
@@ -2407,7 +2396,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SeedRandom)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_GenerateRandom)(
@@ -2419,7 +2408,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateRandom)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_GetFunctionStatus)(
@@ -2429,7 +2418,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetFunctionStatus)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_CancelFunction)(
@@ -2439,7 +2428,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CancelFunction)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_FAILED;
+  return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
 CK_FUNCTION_LIST function_list = {

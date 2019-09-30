@@ -43,7 +43,6 @@ static const char *token_label = "YubiKey PIV";
 static const char *token_manufacturer = "Yubico";
 static const char *token_model = "YubiKey XXX";
 static const CK_FLAGS token_flags = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
-static const char *token_serial = "1234";
 static const CK_MECHANISM_TYPE token_mechanisms[] = { // KEEP ALIGNED WITH token_mechanism_infos
   CKM_RSA_PKCS_KEY_PAIR_GEN,
   CKM_RSA_PKCS,
@@ -201,14 +200,22 @@ CK_RV YUBICO_get_token_version(ykpiv_state *state, CK_VERSION_PTR version) {
   return CKR_OK;
 }
 
-CK_RV YUBICO_get_token_serial(CK_CHAR_PTR str, CK_ULONG len) {
+CK_RV YUBICO_get_token_serial(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
 
-  if (strlen(token_serial) > len)
+  uint32_t serial;
+  char buf[16];
+  int actual;
+
+  if(ykpiv_get_serial(state, &serial) != YKPIV_OK)
+    return CKR_FUNCTION_FAILED;
+
+  actual = sprintf(buf, "%d", serial);
+
+  if(actual >= len)
     return CKR_BUFFER_TOO_SMALL;
 
-  memcpy(str, token_serial, strlen(token_serial));
+  strcpy((char*)str, buf);
   return CKR_OK;
-
 }
 
 CK_RV YUBICO_get_token_mechanisms_num(CK_ULONG_PTR num) {

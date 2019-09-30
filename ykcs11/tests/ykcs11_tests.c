@@ -80,6 +80,17 @@ static void get_functions(CK_FUNCTION_LIST_PTR_PTR funcs) {
 
 }
 
+static void test_find_objects() {
+
+  CK_SESSION_HANDLE session = 0;
+
+  asrt(funcs->C_Initialize(NULL), CKR_OK, "INITIALIZE");
+  asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION, NULL, NULL, &session), CKR_OK, "OPENSESSION");
+  //asrt(funcs->C_FindObjectsInit())
+  asrt(funcs->C_CloseSession(session), CKR_OK, "CLOSESESSION");
+  asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
+}
+
 static void test_lib_info() {
 
   const CK_CHAR_PTR MANUFACTURER_ID    = "Yubico (www.yubico.com)";
@@ -876,6 +887,7 @@ int main(void) {
   get_functions(&funcs);
 
   test_lib_info();
+  test_find_objects();
 
 #ifdef HW_TESTS
   // Require user confirmation to continue, since this test suite will clear

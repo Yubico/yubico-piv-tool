@@ -152,7 +152,7 @@ CK_RV create_token(ykpiv_state *state, CK_BYTE_PTR p, ykcs11_slot_t *slot) {
   }
 
   memset(t_info->serialNumber, ' ', sizeof(t_info->serialNumber));
-  if(token.get_token_serial(t_info->serialNumber, sizeof(t_info->serialNumber)) != CKR_OK) {
+  if(token.get_token_serial(state, t_info->serialNumber, sizeof(t_info->serialNumber)) != CKR_OK) {
     ykpiv_disconnect(state);
     return CKR_FUNCTION_FAILED;
   }
@@ -162,11 +162,11 @@ CK_RV create_token(ykpiv_state *state, CK_BYTE_PTR p, ykcs11_slot_t *slot) {
     return CKR_FUNCTION_FAILED;
   }
 
-  t_info->ulMaxSessionCount = CK_UNAVAILABLE_INFORMATION;
+  t_info->ulMaxSessionCount = 1;
 
   t_info->ulSessionCount = CK_UNAVAILABLE_INFORMATION;
 
-  t_info->ulMaxRwSessionCount = CK_UNAVAILABLE_INFORMATION;
+  t_info->ulMaxRwSessionCount = 1;
 
   t_info->ulRwSessionCount =  CK_UNAVAILABLE_INFORMATION;
 
