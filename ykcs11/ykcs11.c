@@ -181,12 +181,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetInfo)(
   pInfo->cryptokiVersion = function_list.version;
 
   memset(pInfo->manufacturerID, ' ', sizeof(pInfo->manufacturerID));
-  strcpy((char *)pInfo->manufacturerID, YKCS11_MANUFACTURER);
+  memstrcpy(pInfo->manufacturerID, YKCS11_MANUFACTURER);
 
   pInfo->flags = 0;
 
   memset(pInfo->libraryDescription, ' ', sizeof(pInfo->libraryDescription));
-  strcpy((char *)pInfo->libraryDescription, YKCS11_LIBDESC);
+  memstrcpy(pInfo->libraryDescription, YKCS11_LIBDESC);
 
   pInfo->libraryVersion = ver;
 

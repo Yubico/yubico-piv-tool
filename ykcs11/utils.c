@@ -39,6 +39,10 @@ CK_BBOOL is_yubico_reader(char* reader_name) {
   return !strncmp(reader_name, "Yubico", 6);
 }
 
+void* memstrcpy(unsigned char *dst, char *src) {
+  return memcpy(dst, src, strlen(src));
+}
+
 CK_RV parse_readers(ykpiv_state *state, char* readers, const CK_ULONG len,
                        ykcs11_slot_t *slots, CK_ULONG_PTR n_slots, CK_ULONG_PTR n_with_token) {
 
@@ -66,7 +70,7 @@ CK_RV parse_readers(ykpiv_state *state, char* readers, const CK_ULONG len,
       ykpiv_init(&slot->state, YKCS11_DBG);
 
       memset(slot->info.slotDescription, ' ', sizeof(slot->info.slotDescription));
-      memcpy(slot->info.slotDescription, p, strlen(p));
+      memstrcpy(slot->info.slotDescription, p);
 
       memset(slot->info.manufacturerID, ' ', sizeof(slot->info.manufacturerID));
       memcpy(slot->info.manufacturerID, p, 6);
