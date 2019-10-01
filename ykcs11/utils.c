@@ -35,27 +35,20 @@
 #include <string.h>
 #include <pthread.h>
 
-CK_BBOOL has_token(const ykcs11_slot_t *slot) {
-
-  return (slot->info.flags & CKF_TOKEN_PRESENT);
-
+CK_BBOOL is_yubico_reader(char* reader_name) {
+  return !strncmp(reader_name, "Yubico", 6);
 }
 
-CK_BBOOL is_yubico_reader(char *reader_name) {
-  return strstr(reader_name, "Yubico") != NULL;
-}
-
-CK_RV parse_readers(ykpiv_state *state, const CK_BYTE_PTR readers, const CK_ULONG len,
+CK_RV parse_readers(ykpiv_state *state, char* readers, const CK_ULONG len,
                        ykcs11_slot_t *slots, CK_ULONG_PTR n_slots, CK_ULONG_PTR n_with_token) {
 
   CK_BYTE        i;
-  CK_BYTE_PTR    p;
   CK_BYTE_PTR    s;
   CK_ULONG       l;
 
   *n_slots = 0;
   *n_with_token = 0;
-  p = readers;
+  char *p;
 
   /*
    * According to pcsc-lite, the format of a reader name is:
@@ -63,66 +56,52 @@ CK_RV parse_readers(ykpiv_state *state, const CK_BYTE_PTR readers, const CK_ULON
    * https://ludovicrousseau.blogspot.se/2010/05/what-is-in-pcsc-reader-name.html
    */
 
-  for (i = 0; i < len; i++)
-    if (readers[i] == '\0' && i != len - 1) {
+  for (p = readers; *p; p += strlen(p) + 1) {
 
-      if(is_yubico_reader((char*) p)) {
-        // Values must NOT be null terminated and ' ' padded
+    if(is_yubico_reader(p)) {
+      // Values must NOT be null terminated and ' ' padded
 
-        memset(slots[*n_slots].info.slotDescription, ' ', sizeof(slots[*n_slots].info.slotDescription));
-        s = slots[*n_slots].info.slotDescription;
-        l = sizeof(slots[*n_slots].info.slotDescription);
-        memcpy((char *)s, (char*)p, l);
+      ykcs11_slot_t *slot = slots + *n_slots;
 
-        memset(slots[*n_slots].info.manufacturerID, ' ', sizeof(slots[*n_slots].info.manufacturerID));
-        s = slots[*n_slots].info.manufacturerID;
-        l = sizeof(slots[*n_slots].info.manufacturerID);
-        if(get_slot_manufacturer(s, l) != CKR_OK)
-          goto failure;
+      ykpiv_init(&slot->state, YKCS11_DBG);
 
-        if (get_slot_flags(&slots[*n_slots].info.flags) != CKR_OK)
-          goto failure;
+      memset(slot->info.slotDescription, ' ', sizeof(slot->info.slotDescription));
+      memcpy(slot->info.slotDescription, p, strlen(p));
 
-        // Treating hw and fw version the same
-        if (get_slot_version(&slots[*n_slots].info.hardwareVersion) != CKR_OK)
-          goto failure;
+      memset(slot->info.manufacturerID, ' ', sizeof(slot->info.manufacturerID));
+      memcpy(slot->info.manufacturerID, p, 6);
 
-        if (get_slot_version(&slots[*n_slots].info.firmwareVersion) != CKR_OK)
-          goto failure;
+      if (get_slot_flags(&slot->info.flags) != CKR_OK)
+        goto failure;
 
-        if (has_token(slots + *n_slots)) {
-          // Save token information
-          (*n_with_token)++;
+      // Treating hw and fw version the same
+      if (get_slot_version(&slot->info.hardwareVersion) != CKR_OK)
+        goto failure;
 
-          if (create_token(state, p, slots + *n_slots) != CKR_OK)
-            goto failure;
-        }
-      } else { // TODO: distinguish between tokenless and unsupported?
-        // Unknown slot, just save what info we have
-        memset(&slots[*n_slots].info, 0, sizeof(CK_SLOT_INFO));
-        memset(slots[*n_slots].info.slotDescription, ' ', sizeof(slots[*n_slots].info.slotDescription));
-        if (strlen((char *)p) <= sizeof(slots[*n_slots].info.slotDescription))
-          memcpy(slots[*n_slots].info.slotDescription, p, strlen((char *)p));
-        else
-          memcpy(slots[*n_slots].info.slotDescription, p, sizeof(slots[*n_slots].info.slotDescription));
-      }
+      if (get_slot_version(&slot->info.firmwareVersion) != CKR_OK)
+        goto failure;
 
-      (*n_slots)++;
-      p = readers + i + 1;
+      // Save token information
+      (*n_with_token)++;
+
+      if (create_token(p, slot) != CKR_OK)
+        goto failure;
     }
+
+    (*n_slots)++;
+  }
 
   return CKR_OK;
 
 failure:
   // TODO: destroy all token objects
   for (i = 0; i < *n_slots; i++)
-    if (has_token(slots + i))
-      destroy_token(slots + i);
+    destroy_token(slots + i);
 
   return CKR_FUNCTION_FAILED;
 }
 
-CK_RV create_token(ykpiv_state *state, CK_BYTE_PTR p, ykcs11_slot_t *slot) {
+CK_RV create_token(char *p, ykcs11_slot_t *slot) {
 
   CK_TOKEN_INFO_PTR t_info;
 
@@ -140,23 +119,23 @@ CK_RV create_token(ykpiv_state *state, CK_BYTE_PTR p, ykcs11_slot_t *slot) {
   if(get_token_manufacturer(t_info->manufacturerID, sizeof(t_info->manufacturerID)) != CKR_OK)
     return CKR_FUNCTION_FAILED;
 
-  if (ykpiv_connect(state, (char *)p) != YKPIV_OK)
+  if (ykpiv_connect(slot->state, (char *)p) != YKPIV_OK)
     return CKR_FUNCTION_FAILED;
 
   memset(t_info->model, ' ', sizeof(t_info->model));
-  if(get_token_model(state, t_info->model, sizeof(t_info->model)) != CKR_OK) {
-    ykpiv_disconnect(state);
+  if(get_token_model(slot->state, t_info->model, sizeof(t_info->model)) != CKR_OK) {
+    ykpiv_disconnect(slot->state);
     return CKR_FUNCTION_FAILED;
   }
 
   memset(t_info->serialNumber, ' ', sizeof(t_info->serialNumber));
-  if(get_token_serial(state, t_info->serialNumber, sizeof(t_info->serialNumber)) != CKR_OK) {
-    ykpiv_disconnect(state);
+  if(get_token_serial(slot->state, t_info->serialNumber, sizeof(t_info->serialNumber)) != CKR_OK) {
+    ykpiv_disconnect(slot->state);
     return CKR_FUNCTION_FAILED;
   }
 
   if (get_token_flags(&t_info->flags) != CKR_OK) {
-    ykpiv_disconnect(state);
+    ykpiv_disconnect(slot->state);
     return CKR_FUNCTION_FAILED;
   }
 
@@ -182,8 +161,8 @@ CK_RV create_token(ykpiv_state *state, CK_BYTE_PTR p, ykcs11_slot_t *slot) {
 
   memset(&t_info->hardwareVersion, 0, sizeof(t_info->hardwareVersion));
   // Ignore hardware version, report firmware version
-  if (get_token_version(state, &t_info->firmwareVersion) != CKR_OK) {
-    ykpiv_disconnect(state);
+  if (get_token_version(slot->state, &t_info->firmwareVersion) != CKR_OK) {
+    ykpiv_disconnect(slot->state);
     return CKR_FUNCTION_FAILED;
   }
 
@@ -192,7 +171,7 @@ CK_RV create_token(ykpiv_state *state, CK_BYTE_PTR p, ykcs11_slot_t *slot) {
   slot->token->objects = NULL;
   slot->token->n_objects = 0;
 
-  ykpiv_disconnect(state);
+  ykpiv_disconnect(slot->state);
 
   return CKR_OK;
 }

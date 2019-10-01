@@ -31,6 +31,7 @@
 #ifndef YKCS11_H
 #define YKCS11_H
 
+#include "ykpiv.h"
 #include "pkcs11y.h"
 #include "obj_types.h"
 #include "openssl_types.h"
@@ -46,6 +47,7 @@ typedef struct {
 
 typedef struct {
   CK_SLOT_INFO   info;
+  ykpiv_state *state;
   ykcs11_token_t *token;
 } ykcs11_slot_t;
 

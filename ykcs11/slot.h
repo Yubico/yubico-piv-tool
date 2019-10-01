@@ -33,7 +33,6 @@
 
 #include "pkcs11y.h"
 
-CK_RV get_slot_manufacturer(CK_UTF8CHAR_PTR str, CK_ULONG len);
 CK_RV get_slot_flags(CK_FLAGS_PTR flags);
 CK_RV get_slot_version(CK_VERSION_PTR version);
 

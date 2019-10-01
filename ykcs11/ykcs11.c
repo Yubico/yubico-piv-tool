@@ -57,8 +57,6 @@
 
 #define YKCS11_SESSION_ID 5355104
 
-static ykpiv_state *piv_state = NULL;
-
 static ykcs11_slot_t slots[YKCS11_MAX_SLOTS];
 static CK_ULONG      n_slots = 0;
 static CK_ULONG      n_slots_with_token = 0;
@@ -84,13 +82,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
   CK_VOID_PTR pInitArgs
 )
 {
-  CK_BYTE readers[2048];
-  size_t len = sizeof(readers);
   CK_RV rv;
 
   DIN;
 
-  if (piv_state != NULL)
+  if (mutex != NULL)
     return CKR_CRYPTOKI_ALREADY_INITIALIZED;
 
   locking.CreateMutex = noop_create_mutex;
@@ -132,35 +128,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
       return CKR_CANT_LOCK;
   }
 
-  if(locking.CreateMutex(&mutex) != CKR_OK) {
+  if((rv = locking.CreateMutex(&mutex)) != CKR_OK) {
     DBG("Unable to create mutex");
-    return CKR_FUNCTION_FAILED;
-  }
-
-  if (ykpiv_init(&piv_state, YKCS11_DBG) != YKPIV_OK) {
-    DBG("Unable to initialize libykpiv");
-    locking.DestroyMutex(mutex);
-    return CKR_FUNCTION_FAILED;
-  }
-
-  memset(readers, '\0', sizeof(readers));
-
-  if (ykpiv_list_readers(piv_state, (char*)readers, &len) != YKPIV_OK) {
-    DBG("Unable to list readers");
-    locking.DestroyMutex(mutex);
-    return CKR_FUNCTION_FAILED;
-  }
-
-  if ((rv = parse_readers(piv_state, readers, len, slots, &n_slots, &n_slots_with_token)) != CKR_OK) {
-    DBG("Unable to parse readers");
-    locking.DestroyMutex(mutex);
     return rv;
   }
 
-  DBG("Found %lu slot(s) of which %lu tokenless/unsupported", n_slots, n_slots - n_slots_with_token);
-
-  find_obj.active = CK_FALSE;
-  // TODO: FILL OUT INIT ARGS;
+  find_obj.active = CK_FALSE; // TODO: Move to session
 
   DOUT;
   return CKR_OK;
@@ -179,21 +152,20 @@ CK_DEFINE_FUNCTION(CK_RV, C_Finalize)(
     return CKR_ARGUMENTS_BAD;
   }
 
-  if (piv_state == NULL) {
+  if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
   locking.DestroyMutex(mutex);
-
+  mutex = NULL;
+/*
   for (i = 0; i < n_slots; i++) {
     destroy_token(slots + i);
+    ykpiv_done(slots[i].state);
   }
   memset(slots, 0, sizeof(slots));
-
-  ykpiv_done(piv_state);
-  piv_state = NULL;
-
+*/
   DOUT;
   return CKR_OK;
 }
@@ -246,15 +218,42 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
   CK_ULONG_PTR pulCount
 )
 {
+  CK_RV rv;
   CK_ULONG i;
   int j;
 
+  char readers[2048] = { 0 };
+  size_t len = sizeof(readers);
+
   DIN;
 
-  if (piv_state == NULL) {
+  if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
+
+  ykpiv_state *piv_state;
+  if (ykpiv_init(&piv_state, YKCS11_DBG) != YKPIV_OK) {
+    DBG("Unable to initialize libykpiv");
+    locking.DestroyMutex(mutex);
+    return CKR_FUNCTION_FAILED;
+  }
+
+  if (ykpiv_list_readers(piv_state, readers, &len) != YKPIV_OK) {
+    DBG("Unable to list readers");
+    locking.DestroyMutex(mutex);
+    return CKR_FUNCTION_FAILED;
+  }
+
+  if ((rv = parse_readers(piv_state, readers, len, slots, &n_slots, &n_slots_with_token)) != CKR_OK) {
+    DBG("Unable to parse readers");
+    locking.DestroyMutex(mutex);
+    return rv;
+  }
+
+  ykpiv_done_with_external_card(piv_state);
+
+  DBG("Found %lu slot(s) of which %lu tokenless/unsupported", n_slots, n_slots - n_slots_with_token);
 
   if (pulCount) {
     *pulCount = n_slots;
@@ -283,12 +282,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
   }
 
   for (j = 0, i = 0; i < n_slots; i++) {
-    if (tokenPresent) {
-      if (has_token(slots + i))
-        pSlotList[j++] = i;
-    }
-    else
-      pSlotList[i] = i;
+    pSlotList[j++] = i;
   }
 
   DBG("token present is %d", tokenPresent);
@@ -305,7 +299,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotInfo)(
 {
   DIN;
 
-  if (piv_state == NULL) {
+  if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -328,7 +322,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
 {
   DIN;
 
-  if (piv_state == NULL) {
+  if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -336,11 +330,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
   if (slotID >= n_slots) {
     DBG("Invalid slot ID %lu", slotID);
     return CKR_SLOT_ID_INVALID;
-  }
-
-  if (!has_token(slots + slotID)) {
-    DBG("Slot %lu has no token inserted", slotID);
-    return CKR_TOKEN_NOT_PRESENT;
   }
 
   memcpy(pInfo, &slots[slotID].token->info, sizeof(CK_TOKEN_INFO));
@@ -375,7 +364,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
 
   DIN;
 
-  if (piv_state == NULL) {
+  if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -424,7 +413,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismInfo)(
 {
   DIN;
 
-  if (piv_state == NULL) {
+  if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -484,7 +473,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetPIN)(
   DIN;
   CK_RV          rv;
 
-  if (piv_state == NULL) {
+  if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -504,7 +493,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetPIN)(
     user_type = CKU_SO;
   }
 
-  rv = token_change_pin(piv_state, user_type, pOldPin, ulOldLen, pNewPin, ulNewLen);
+  rv = token_change_pin(session.slot->state, user_type, pOldPin, ulOldLen, pNewPin, ulNewLen);
   if (rv != CKR_OK) {
     DBG("Pin change failed %lx", rv);
     return rv;
@@ -530,7 +519,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
 
   DIN; // TODO: pApplication and Notify
 
-  if (piv_state == NULL) {
+  if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -545,11 +534,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     return CKR_ARGUMENTS_BAD;
   }
 
-  if (!has_token(slots + slotID)) {
-    DBG("Slot %lu has no token inserted", slotID);
-    return CKR_TOKEN_NOT_PRESENT;
-  }
-
   if (session.handle != CK_INVALID_HANDLE) {
     DBG("A session with this or another token already exists");
     return CKR_SESSION_COUNT;
@@ -560,8 +544,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     return CKR_SESSION_PARALLEL_NOT_SUPPORTED;
   }
 
+  char buf[128];
+  memcpy(buf, slots[slotID].info.slotDescription, sizeof(slots[slotID].info.slotDescription));
+  *strchr(buf, ' ') = 0;
+
   // Connect to the slot
-  if(ykpiv_connect(piv_state, (char *)slots[slotID].info.slotDescription) != YKPIV_OK) {
+  if(ykpiv_connect(slots[slotID].state, buf) != YKPIV_OK) {
     DBG("Unable to connect to reader");
     return CKR_FUNCTION_FAILED;
   }
@@ -584,7 +572,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   session.info.ulDeviceError = 0;
 
   // Get the number of token objects
-  rv = get_token_objects_num(piv_state, &session.slot->token->n_objects, &session.slot->token->n_certs);
+  rv = get_token_objects_num(slots[slotID].state, &session.slot->token->n_objects, &session.slot->token->n_certs);
   if (rv != CKR_OK) {
     DBG("Unable to retrieve number of token objects");
     return rv;
@@ -605,7 +593,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   }
 
   // Save a list of all the available objects in the token
-  rv = get_token_object_list(piv_state, session.slot->token->objects, session.slot->token->n_objects);
+  rv = get_token_object_list(session.slot->state, session.slot->token->objects, session.slot->token->n_objects);
   if (rv != CKR_OK) {
     DBG("Unable to retrieve token objects");
     goto failure;
@@ -621,7 +609,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   // Get the actual certificate data from the token and store it as an X509 object
   for (i = 0; i < session.slot->token->n_certs; i++) {
     cert_len = sizeof(cert_data);
-    rv = get_token_raw_certificate(piv_state, cert_ids[i], cert_data, &cert_len);
+    rv = get_token_raw_certificate(session.slot->state, cert_ids[i], cert_data, &cert_len);
     if (rv != CKR_OK) {
       DBG("Unable to get certificate data from token");
       goto failure;
@@ -666,7 +654,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
 {
   DIN;
 
-  if (piv_state == NULL) {
+  if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -687,7 +675,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
   memset(&session, 0, sizeof(ykcs11_session_t));
   session.handle = CK_INVALID_HANDLE;
 
-  ykpiv_disconnect(piv_state);
+  ykpiv_disconnect(session.slot->state);
 
   DOUT;
   return CKR_OK;
@@ -701,7 +689,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
 
   DIN;
 
-  if (piv_state == NULL) {
+  if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -724,7 +712,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSessionInfo)(
 {
   DIN;
 
-  if (piv_state == NULL) {
+  if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -781,7 +769,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
   DIN;
   CK_RV          rv;
 
-  if (piv_state == NULL) {
+  if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -823,7 +811,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
       return CKR_USER_ANOTHER_ALREADY_LOGGED_IN;
     }
 
-    rv = token_login(piv_state, CKU_USER, pPin, ulPinLen);
+    rv = token_login(session.slot->state, CKU_USER, pPin, ulPinLen);
     if (rv != CKR_OK) {
       DBG("Unable to login as regular user");
       return rv;
@@ -846,7 +834,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
         session.info.state == CKS_RW_USER_FUNCTIONS)
       return CKR_USER_ANOTHER_ALREADY_LOGGED_IN;
 
-    rv = token_login(piv_state, CKU_SO, pPin, ulPinLen);
+    rv = token_login(session.slot->state, CKU_SO, pPin, ulPinLen);
     if (rv != CKR_OK) {
       DBG("Unable to login as SO");
       return rv;
@@ -882,7 +870,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Logout)(
 {
   DIN;
 
-  if (piv_state == NULL) {
+  if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -945,7 +933,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
   DIN;
 
-  if (piv_state == NULL) {
+  if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -1003,7 +991,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     object = PIV_CERT_OBJ_X509_PIV_AUTH + id;
 
-    rv = token_import_cert(piv_state, piv_2_ykpiv(object), value); // TODO: make function to get cert id
+    rv = token_import_cert(session.slot->state, piv_2_ykpiv(object), value); // TODO: make function to get cert id
     if (rv != CKR_OK) {
       DBG("Unable to import certificate");
       return rv;
@@ -1076,7 +1064,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     if (is_rsa == CK_TRUE) {
       DBG("Key is RSA");
-      rv = token_import_private_key(piv_state, piv_2_ykpiv(object),
+      rv = token_import_private_key(session.slot->state, piv_2_ykpiv(object),
                                           p, p_len,
                                           q, q_len,
                                           dp, dp_len,
@@ -1090,7 +1078,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     }
     else {
       DBG("Key is ECDSA");
-      rv = token_import_private_key(piv_state, piv_2_ykpiv(object),
+      rv = token_import_private_key(session.slot->state, piv_2_ykpiv(object),
                                           NULL, 0,
                                           NULL, 0,
                                           NULL, 0,
@@ -1148,7 +1136,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
 
   DBG("Deleting object %lu", hObject);
 
-  if (piv_state == NULL) {
+  if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -1176,7 +1164,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
     return rv;
   }
 
-  rv = token_delete_cert(piv_state, piv_2_ykpiv(hObject));
+  rv = token_delete_cert(session.slot->state, piv_2_ykpiv(hObject));
   if (rv != CKR_OK) {
     DBG("Unable to delete object %lu", hObject);
     return rv;
@@ -1249,7 +1237,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
 
   DIN;
 
-  if (piv_state == NULL) {
+  if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -1309,7 +1297,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
 
   DIN;
 
-  if (piv_state == NULL) {
+  if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -1400,7 +1388,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
 {
   DIN;
 
-  if (piv_state == NULL) {
+  if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -1446,7 +1434,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsFinal)(
 {
   DIN;
 
-  if (piv_state == NULL) {
+  if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -1584,7 +1572,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestInit)(
 {
   DIN;
 
-  if (piv_state == NULL) {
+  if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -1693,7 +1681,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
 
   DIN;
 
-  if (piv_state == NULL) {
+  if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -1926,7 +1914,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   *pulSignatureLen = cbSignatureLen = sizeof(op_info.buf);
 
-  piv_rv = ykpiv_sign_data(piv_state, op_info.buf, op_info.buf_len, op_info.buf, &cbSignatureLen, op_info.op.sign.algo, op_info.op.sign.key_id);
+  piv_rv = ykpiv_sign_data(session.slot->state, op_info.buf, op_info.buf_len, op_info.buf, &cbSignatureLen, op_info.op.sign.algo, op_info.op.sign.key_id);
 
   *pulSignatureLen = cbSignatureLen;
 
@@ -2191,7 +2179,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 
   DIN;
 
-  if (piv_state == NULL) {
+  if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -2269,7 +2257,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     DBG("Generating %lu bit EC key in object %u", op_info.op.gen.key_len, op_info.op.gen.key_id);
   }
 
-  if ((rv = token_generate_key(piv_state, op_info.op.gen.rsa, piv_2_ykpiv(op_info.op.gen.key_id), op_info.op.gen.key_len)) != CKR_OK) {
+  if ((rv = token_generate_key(session.slot->state, op_info.op.gen.rsa, piv_2_ykpiv(op_info.op.gen.key_id), op_info.op.gen.key_len)) != CKR_OK) {
     DBG("Unable to generate key pair");
     return rv;
   }
@@ -2308,7 +2296,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 
   // Write/Update the object
   cert_len = sizeof(cert_data);
-  rv = get_token_raw_certificate(piv_state, cert_id, cert_data, &cert_len);
+  rv = get_token_raw_certificate(session.slot->state, cert_id, cert_data, &cert_len);
   if (rv != CKR_OK) {
     DBG("Unable to get certificate data from token");
     return CKR_FUNCTION_FAILED;
