@@ -33,6 +33,7 @@
 #include "token.h"
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 
 CK_BBOOL has_token(const ykcs11_slot_t *slot) {
 
@@ -259,4 +260,64 @@ void strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG_PTR len) {
   *len = sig_halflen * 2;
   memcpy(data, buf, *len);
 
+}
+
+CK_RV native_create_mutex(void **mutex) {
+
+#ifdef __WIN32
+  CRITICAL_SECTION *mtx = calloc(1, sizeof(CRITICAL_SECTION));
+  if (mtx == NULL) {
+    return CKR_GENERAL_ERROR;
+  }
+  InitializeCriticalSection(mtx);
+#else
+  pthread_mutex_t *mtx = calloc(1, sizeof(pthread_mutex_t));
+  if (mtx == NULL) {
+    return CKR_GENERAL_ERROR;
+  }
+
+  pthread_mutex_init(mtx, NULL);
+#endif
+
+  *mutex = mtx;
+  return CKR_OK;
+}
+
+CK_RV native_destroy_mutex(void *mutex) {
+
+#ifdef __WIN32
+  DeleteCriticalSection(mutex);
+#else
+  pthread_mutex_destroy(mutex);
+#endif
+
+  free(mutex);
+
+  return CKR_OK;
+}
+
+CK_RV native_lock_mutex(void *mutex) {
+
+#ifdef __WIN32
+  EnterCriticalSection(mutex);
+#else
+  if (pthread_mutex_lock(mutex) != 0) {
+    return CKR_GENERAL_ERROR;
+  }
+#endif
+
+  return CKR_OK;
+}
+
+CK_RV native_unlock_mutex(void *mutex) {
+
+#ifdef __WIN32
+  LeaveCriticalSection(mutex);
+#else
+  if (pthread_mutex_unlock(mutex) != 0) {
+    return CKR_GENERAL_ERROR;
+  }
+#endif
+
+  return CKR_OK;
 }
