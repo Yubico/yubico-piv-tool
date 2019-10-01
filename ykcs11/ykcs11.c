@@ -661,13 +661,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
+  ykpiv_disconnect(session.slot->state);
+
   free(session.slot->token->objects);
   session.slot->token->objects = NULL;
 
   memset(&session, 0, sizeof(ykcs11_session_t));
-  session.handle = CK_INVALID_HANDLE;
-
-  ykpiv_disconnect(session.slot->state);
 
   DOUT;
   return CKR_OK;
