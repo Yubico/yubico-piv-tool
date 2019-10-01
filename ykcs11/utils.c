@@ -71,8 +71,7 @@ CK_RV parse_readers(ykpiv_state *state, char* readers, const CK_ULONG len,
       memset(slot->info.manufacturerID, ' ', sizeof(slot->info.manufacturerID));
       memcpy(slot->info.manufacturerID, p, 6);
 
-      if (get_slot_flags(&slot->info.flags) != CKR_OK)
-        goto failure;
+      slot->info.flags = CKF_TOKEN_PRESENT | CKF_HW_SLOT;
 
       // Treating hw and fw version the same
       if (get_slot_version(&slot->info.hardwareVersion) != CKR_OK)

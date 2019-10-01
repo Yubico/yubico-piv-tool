@@ -32,12 +32,6 @@
 #include "pkcs11.h"
 #include <string.h>
 
-CK_RV get_slot_flags(CK_FLAGS_PTR flags) {
-
-  *flags = CKF_TOKEN_PRESENT | CKF_HW_SLOT;
-  return CKR_OK;
-}
-
 CK_RV get_slot_version(CK_VERSION_PTR version) {
 
   version->major = 1;
