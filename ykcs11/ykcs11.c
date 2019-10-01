@@ -64,6 +64,8 @@ static CK_ULONG      n_slots = 0;
 static CK_ULONG      n_slots_with_token = 0;
 
 static ykcs11_session_t session;
+static CK_C_INITIALIZE_ARGS locking;
+static void *mutex;
 
 static struct {
   CK_BBOOL        active;
@@ -88,30 +90,72 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
 
   DIN;
 
+  if (piv_state != NULL)
+    return CKR_CRYPTOKI_ALREADY_INITIALIZED;
+
   memset(readers, '\0', sizeof(readers));
+
+  locking.CreateMutex = noop_create_mutex;
+  locking.DestroyMutex = noop_mutex_fn;
+  locking.LockMutex = noop_mutex_fn;
+  locking.UnlockMutex = noop_mutex_fn;
 
   if(pInitArgs)
   {
     CK_C_INITIALIZE_ARGS_PTR pArgs = (CK_C_INITIALIZE_ARGS_PTR)pInitArgs;
-    if(pArgs->flags || pArgs->CreateMutex || pArgs->DestroyMutex || pArgs->LockMutex || pArgs->UnlockMutex || pArgs->pReserved)
+    if(pArgs->pReserved)
+      return CKR_ARGUMENTS_BAD;
+    bool os_locking = pArgs->flags & CKF_OS_LOCKING_OK;
+    if(os_locking || pArgs->CreateMutex)
+      locking.CreateMutex = pArgs->CreateMutex;
+    if(os_locking || pArgs->DestroyMutex)
+      locking.DestroyMutex = pArgs->DestroyMutex;
+    if(os_locking || pArgs->LockMutex)
+      locking.LockMutex = pArgs->LockMutex;
+    if(os_locking || pArgs->UnlockMutex)
+      locking.UnlockMutex = pArgs->UnlockMutex;
+    if(os_locking) {
+      if(locking.CreateMutex == 0)
+        locking.CreateMutex = native_create_mutex;
+      if(locking.DestroyMutex == 0)
+        locking.DestroyMutex = native_destroy_mutex;
+      if(locking.LockMutex == 0)
+        locking.LockMutex = native_lock_mutex;
+      if(locking.UnlockMutex == 0)
+        locking.UnlockMutex = native_unlock_mutex;
+    }
+    if(locking.CreateMutex == 0)
+      return CKR_CANT_LOCK;
+    if(locking.DestroyMutex == 0)
+      return CKR_CANT_LOCK;
+    if(locking.LockMutex == 0)
+      return CKR_CANT_LOCK;
+    if(locking.UnlockMutex == 0)
       return CKR_CANT_LOCK;
   }
 
-  if (piv_state != NULL)
-    return CKR_CRYPTOKI_ALREADY_INITIALIZED;
+  if(locking.CreateMutex(&mutex) != CKR_OK) {
+    DBG("Unable to create mutex");
+    return CKR_FUNCTION_FAILED;
+  }
 
   if (ykpiv_init(&piv_state, YKCS11_DBG) != YKPIV_OK) {
     DBG("Unable to initialize libykpiv");
+    locking.DestroyMutex(mutex);
     return CKR_FUNCTION_FAILED;
   }
 
   if (ykpiv_list_readers(piv_state, (char*)readers, &len) != YKPIV_OK) {
     DBG("Unable to list readers");
+    locking.DestroyMutex(mutex);
     return CKR_FUNCTION_FAILED;
   }
 
-  if ((rv = parse_readers(piv_state, readers, len, slots, &n_slots, &n_slots_with_token)) != CKR_OK)
+  if ((rv = parse_readers(piv_state, readers, len, slots, &n_slots, &n_slots_with_token)) != CKR_OK) {
+    DBG("Unable to parse readers");
+    locking.DestroyMutex(mutex);
     return rv;
+  }
 
   DBG("Found %lu slot(s) of which %lu tokenless/unsupported", n_slots, n_slots - n_slots_with_token);
 
@@ -139,6 +183,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Finalize)(
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
+
+  locking.DestroyMutex(mutex);
 
   for (i = 0; i < n_slots; i++) {
     destroy_token(slots + i);

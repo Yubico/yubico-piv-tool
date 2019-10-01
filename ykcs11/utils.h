@@ -44,6 +44,9 @@ CK_BBOOL is_valid_key_id(CK_BYTE id);
 
 void strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG_PTR len);
 
+CK_RV noop_create_mutex(void **mutex);
+CK_RV noop_mutex_fn(void *mutex);
+
 CK_RV native_create_mutex(void **mutex);
 CK_RV native_destroy_mutex(void *mutex);
 CK_RV native_lock_mutex(void *mutex);

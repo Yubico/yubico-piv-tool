@@ -262,6 +262,15 @@ void strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
 }
 
+CK_RV noop_create_mutex(void **mutex) {
+  *mutex = (void*)0xf00f;
+  return CKR_OK;
+}
+
+CK_RV noop_mutex_fn(void *mutex) {
+  return CKR_OK;
+}
+
 CK_RV native_create_mutex(void **mutex) {
 
 #ifdef __WIN32
