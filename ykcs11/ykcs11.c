@@ -59,7 +59,6 @@
 
 static ykcs11_slot_t slots[YKCS11_MAX_SLOTS];
 static CK_ULONG      n_slots = 0;
-static CK_ULONG      n_slots_with_token = 0;
 
 static ykcs11_session_t session;
 static CK_C_INITIALIZE_ARGS locking;
@@ -235,33 +234,26 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
   ykpiv_state *piv_state;
   if (ykpiv_init(&piv_state, YKCS11_DBG) != YKPIV_OK) {
     DBG("Unable to initialize libykpiv");
-    locking.DestroyMutex(mutex);
     return CKR_FUNCTION_FAILED;
   }
 
   if (ykpiv_list_readers(piv_state, readers, &len) != YKPIV_OK) {
     DBG("Unable to list readers");
-    locking.DestroyMutex(mutex);
+    ykpiv_done(piv_state);
     return CKR_FUNCTION_FAILED;
-  }
-
-  if ((rv = parse_readers(readers, len, slots, &n_slots, &n_slots_with_token)) != CKR_OK) {
-    DBG("Unable to parse readers");
-    locking.DestroyMutex(mutex);
-    return rv;
   }
 
   ykpiv_done(piv_state);
 
-  DBG("Found %lu slot(s) of which %lu tokenless/unsupported", n_slots, n_slots - n_slots_with_token);
+  if ((rv = parse_readers(readers, slots, &n_slots)) != CKR_OK) {
+    DBG("Unable to parse readers");
+    return rv;
+  }
+
+  DBG("Found %lu slot(s)", n_slots);
 
   if (pulCount) {
     *pulCount = n_slots;
-
-    if (tokenPresent)
-      *pulCount = n_slots_with_token;
-    else
-      *pulCount = n_slots;
   }
 
   if (pSlotList == NULL_PTR) {
@@ -276,7 +268,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
     return CKR_ARGUMENTS_BAD;
   }
 
-  if ((tokenPresent && *pulCount < n_slots_with_token) || (!tokenPresent && *pulCount < n_slots)) {
+  if (*pulCount < n_slots) {
     DBG("Buffer too small: needed %lu, provided %lu", n_slots, *pulCount);
     return CKR_BUFFER_TOO_SMALL;
   }

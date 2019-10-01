@@ -43,16 +43,9 @@ void* memstrcpy(unsigned char *dst, char *src) {
   return memcpy(dst, src, strlen(src));
 }
 
-CK_RV parse_readers(char* readers, const CK_ULONG len,
-                       ykcs11_slot_t *slots, CK_ULONG_PTR n_slots, CK_ULONG_PTR n_with_token) {
-
-  CK_BYTE        i;
-  CK_BYTE_PTR    s;
-  CK_ULONG       l;
+CK_RV parse_readers(char* readers, ykcs11_slot_t *slots, CK_ULONG_PTR n_slots) {
 
   *n_slots = 0;
-  *n_with_token = 0;
-  char *p;
 
   /*
    * According to pcsc-lite, the format of a reader name is:
@@ -60,7 +53,7 @@ CK_RV parse_readers(char* readers, const CK_ULONG len,
    * https://ludovicrousseau.blogspot.se/2010/05/what-is-in-pcsc-reader-name.html
    */
 
-  for (p = readers; *p; p += strlen(p) + 1) {
+  for (char *p = readers; *p; p += strlen(p) + 1) {
 
     if(is_yubico_reader(p)) {
       // Values must NOT be null terminated and ' ' padded
@@ -76,6 +69,7 @@ CK_RV parse_readers(char* readers, const CK_ULONG len,
       memcpy(slot->info.manufacturerID, p, 6);
 
       slot->info.flags = CKF_TOKEN_PRESENT | CKF_HW_SLOT;
+      slot->token = 0;
 
       // Treating hw and fw version the same
       if (get_slot_version(&slot->info.hardwareVersion) != CKR_OK)
@@ -85,20 +79,18 @@ CK_RV parse_readers(char* readers, const CK_ULONG len,
         goto failure;
 
       // Save token information
-      (*n_with_token)++;
+      (*n_slots)++;
 
       if (create_token(p, slot) != CKR_OK)
         goto failure;
     }
-
-    (*n_slots)++;
   }
 
   return CKR_OK;
 
 failure:
   // TODO: destroy all token objects
-  for (i = 0; i < *n_slots; i++)
+  for (CK_ULONG i = 0; i < *n_slots; i++)
     destroy_token(slots + i);
 
   return CKR_FUNCTION_FAILED;
@@ -122,7 +114,7 @@ CK_RV create_token(char *p, ykcs11_slot_t *slot) {
   if(get_token_manufacturer(t_info->manufacturerID, sizeof(t_info->manufacturerID)) != CKR_OK)
     return CKR_FUNCTION_FAILED;
 
-  if (ykpiv_connect(slot->state, (char *)p) != YKPIV_OK)
+  if (ykpiv_connect(slot->state, p) != YKPIV_OK)
     return CKR_FUNCTION_FAILED;
 
   memset(t_info->model, ' ', sizeof(t_info->model));
