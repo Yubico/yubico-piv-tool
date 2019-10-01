@@ -93,8 +93,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
   if (piv_state != NULL)
     return CKR_CRYPTOKI_ALREADY_INITIALIZED;
 
-  memset(readers, '\0', sizeof(readers));
-
   locking.CreateMutex = noop_create_mutex;
   locking.DestroyMutex = noop_mutex_fn;
   locking.LockMutex = noop_mutex_fn;
@@ -144,6 +142,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
     locking.DestroyMutex(mutex);
     return CKR_FUNCTION_FAILED;
   }
+
+  memset(readers, '\0', sizeof(readers));
 
   if (ykpiv_list_readers(piv_state, (char*)readers, &len) != YKPIV_OK) {
     DBG("Unable to list readers");
