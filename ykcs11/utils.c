@@ -43,7 +43,7 @@ void* memstrcpy(unsigned char *dst, char *src) {
   return memcpy(dst, src, strlen(src));
 }
 
-CK_RV parse_readers(ykpiv_state *state, char* readers, const CK_ULONG len,
+CK_RV parse_readers(char* readers, const CK_ULONG len,
                        ykcs11_slot_t *slots, CK_ULONG_PTR n_slots, CK_ULONG_PTR n_with_token) {
 
   CK_BYTE        i;

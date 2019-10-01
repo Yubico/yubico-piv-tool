@@ -245,13 +245,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
     return CKR_FUNCTION_FAILED;
   }
 
-  if ((rv = parse_readers(piv_state, readers, len, slots, &n_slots, &n_slots_with_token)) != CKR_OK) {
+  if ((rv = parse_readers(readers, len, slots, &n_slots, &n_slots_with_token)) != CKR_OK) {
     DBG("Unable to parse readers");
     locking.DestroyMutex(mutex);
     return rv;
   }
 
-  ykpiv_done_with_external_card(piv_state);
+  ykpiv_done(piv_state);
 
   DBG("Found %lu slot(s) of which %lu tokenless/unsupported", n_slots, n_slots - n_slots_with_token);
 

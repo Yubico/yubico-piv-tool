@@ -36,7 +36,7 @@
 
 void* memstrcpy(unsigned char *dst, char *src);
 
-CK_RV parse_readers(ykpiv_state *state, char *readers, const CK_ULONG len,
+CK_RV parse_readers(char *readers, const CK_ULONG len,
                        ykcs11_slot_t *slots, CK_ULONG_PTR n_slots, CK_ULONG_PTR n_with_token);
 CK_RV create_token(char *reader, ykcs11_slot_t *slot);
 void  destroy_token(ykcs11_slot_t *slot);
