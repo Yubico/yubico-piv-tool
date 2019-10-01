@@ -221,7 +221,7 @@ CK_RV get_token_serial(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
   if(actual >= len)
     return CKR_BUFFER_TOO_SMALL;
 
-  strcpy((char*)str, buf);
+  memcpy(str, buf, strlen(buf));
   return CKR_OK;
 }
 
