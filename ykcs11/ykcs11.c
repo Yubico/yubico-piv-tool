@@ -37,6 +37,7 @@
 #include "objects.h"
 #include "utils.h"
 #include "mechanisms.h"
+#include "token.h"
 #include "openssl_types.h"
 #include "openssl_utils.h"
 #include "debug.h"
@@ -291,19 +292,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
     return CKR_SLOT_ID_INVALID;
   }
 
-  if (slots[slotID].vid == UNKNOWN) {
-    DBG("No support for slot %lu", slotID);
-    return CKR_SLOT_ID_INVALID;
-  }
-
   if (!has_token(slots + slotID)) {
     DBG("Slot %lu has no token inserted", slotID);
     return CKR_TOKEN_NOT_PRESENT;
-  }
-
-  if (slots[slotID].token->vid == UNKNOWN) {
-    DBG("No support for token in slot %lu", slotID);
-    return CKR_TOKEN_NOT_RECOGNIZED;
   }
 
   memcpy(pInfo, &slots[slotID].token->info, sizeof(CK_TOKEN_INFO));
@@ -334,7 +325,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
   CK_ULONG_PTR pulCount
 )
 {
-  token_vendor_t token;
   CK_ULONG count;
 
   DIN;
@@ -354,16 +344,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
     return CKR_ARGUMENTS_BAD;
   }
 
-  if (slots[slotID].vid == UNKNOWN) {
-    DBG("Slot %lu is tokenless/unsupported", slotID);
-    return CKR_SLOT_ID_INVALID;
-  }
-
   // TODO: check more return values
 
-  token = get_token_vendor(slots[slotID].vid);
-
-  if (token.get_token_mechanisms_num(&count) != CKR_OK)
+  if (get_token_mechanisms_num(&count) != CKR_OK)
     return CKR_FUNCTION_FAILED;
 
   if (pMechanismList == NULL_PTR) {
@@ -378,7 +361,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
     return CKR_BUFFER_TOO_SMALL;
   }
 
-  if (token.get_token_mechanism_list(pMechanismList, *pulCount) != CKR_OK) {
+  if (get_token_mechanism_list(pMechanismList, *pulCount) != CKR_OK) {
     DBG("Unable to retrieve mechanism list");
     return CKR_FUNCTION_FAILED;
   }
@@ -393,8 +376,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismInfo)(
   CK_MECHANISM_INFO_PTR pInfo
 )
 {
-  token_vendor_t token;
-
   DIN;
 
   if (piv_state == NULL) {
@@ -412,14 +393,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismInfo)(
     return CKR_ARGUMENTS_BAD;
   }
 
-  if (slots[slotID].vid == UNKNOWN) {
-    DBG("Slot %lu is tokenless/unsupported", slotID);
-    return CKR_SLOT_ID_INVALID;
-  }
-
-  token = get_token_vendor(slots[slotID].vid);
-
-  if (token.get_token_mechanism_info(type, pInfo) != CKR_OK) {
+  if (get_token_mechanism_info(type, pInfo) != CKR_OK) {
     DBG("Unable to retrieve mechanism information");
     return CKR_MECHANISM_INVALID;
   }
@@ -463,7 +437,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetPIN)(
 {
   DIN;
   CK_RV          rv;
-  token_vendor_t token;
 
   if (piv_state == NULL) {
     DBG("libykpiv is not initialized or already finalized");
@@ -485,8 +458,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetPIN)(
     user_type = CKU_SO;
   }
 
-  token = get_token_vendor(session.slot->token->vid);
-  rv = token.token_change_pin(piv_state, user_type, pOldPin, ulOldLen, pNewPin, ulNewLen);
+  rv = token_change_pin(piv_state, user_type, pOldPin, ulOldLen, pNewPin, ulNewLen);
   if (rv != CKR_OK) {
     DBG("Pin change failed %lx", rv);
     return rv;
@@ -504,7 +476,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   CK_SESSION_HANDLE_PTR phSession
 )
 {
-  token_vendor_t token;
   CK_RV          rv;
   piv_obj_id_t   *cert_ids;
   CK_ULONG       i;
@@ -528,16 +499,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     return CKR_ARGUMENTS_BAD;
   }
 
-  if (slots[slotID].vid == UNKNOWN) {
-    DBG("No support for slot %lu", slotID);
-    return CKR_TOKEN_NOT_RECOGNIZED;
-  }
-
-  if (slots[slotID].token->vid == UNKNOWN) {
-    DBG("No support for token in slot %lu", slotID);
-    return CKR_TOKEN_NOT_RECOGNIZED;
-  }
-
   if (!has_token(slots + slotID)) {
     DBG("Slot %lu has no token inserted", slotID);
     return CKR_TOKEN_NOT_PRESENT;
@@ -559,8 +520,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     return CKR_FUNCTION_FAILED;
   }
 
-  token = get_token_vendor(slots[slotID].token->vid);
-
   // Store the slot
   session.slot = slots + slotID;
   //session.slot->info.slotID = slotID; // Redundant but required in CK_SESSION_INFO
@@ -579,7 +538,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   session.info.ulDeviceError = 0;
 
   // Get the number of token objects
-  rv = token.get_token_objects_num(piv_state, &session.slot->token->n_objects, &session.slot->token->n_certs);
+  rv = get_token_objects_num(piv_state, &session.slot->token->n_objects, &session.slot->token->n_certs);
   if (rv != CKR_OK) {
     DBG("Unable to retrieve number of token objects");
     return rv;
@@ -600,7 +559,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   }
 
   // Save a list of all the available objects in the token
-  rv = token.get_token_object_list(piv_state, session.slot->token->objects, session.slot->token->n_objects);
+  rv = get_token_object_list(piv_state, session.slot->token->objects, session.slot->token->n_objects);
   if (rv != CKR_OK) {
     DBG("Unable to retrieve token objects");
     goto failure;
@@ -616,7 +575,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   // Get the actual certificate data from the token and store it as an X509 object
   for (i = 0; i < session.slot->token->n_certs; i++) {
     cert_len = sizeof(cert_data);
-    rv = token.get_token_raw_certificate(piv_state, cert_ids[i], cert_data, &cert_len);
+    rv = get_token_raw_certificate(piv_state, cert_ids[i], cert_data, &cert_len);
     if (rv != CKR_OK) {
       DBG("Unable to get certificate data from token");
       goto failure;
@@ -775,7 +734,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
 {
   DIN;
   CK_RV          rv;
-  token_vendor_t token;
 
   if (piv_state == NULL) {
     DBG("libykpiv is not initialized or already finalized");
@@ -804,8 +762,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
     return CKR_SESSION_READ_ONLY_EXISTS;
   }
 
-  token = get_token_vendor(session.slot->token->vid);
-
   switch (userType) {
   case CKU_USER:
     if (ulPinLen < PIV_MIN_PIN_LEN || ulPinLen > PIV_MAX_PIN_LEN)
@@ -821,7 +777,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
       return CKR_USER_ANOTHER_ALREADY_LOGGED_IN;
     }
 
-    rv = token.token_login(piv_state, CKU_USER, pPin, ulPinLen);
+    rv = token_login(piv_state, CKU_USER, pPin, ulPinLen);
     if (rv != CKR_OK) {
       DBG("Unable to login as regular user");
       return rv;
@@ -844,7 +800,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
         session.info.state == CKS_RW_USER_FUNCTIONS)
       return CKR_USER_ANOTHER_ALREADY_LOGGED_IN;
 
-    rv = token.token_login(piv_state, CKU_SO, pPin, ulPinLen);
+    rv = token_login(piv_state, CKU_SO, pPin, ulPinLen);
     if (rv != CKR_OK) {
       DBG("Unable to login as SO");
       return rv;
@@ -933,8 +889,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
   CK_ULONG         qinv_len;
   CK_BYTE_PTR      ec_data;
   CK_ULONG         ec_data_len;
-  CK_ULONG         vendor_defined;
-  token_vendor_t   token;
   CK_BBOOL         is_new;
   CK_BBOOL         is_rsa;
   CK_OBJECT_HANDLE object;
@@ -990,8 +944,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     return CKR_TEMPLATE_INCOMPLETE;
   }
 
-  token = get_token_vendor(session.slot->token->vid);
-
   switch (class) {
   case CKO_CERTIFICATE:
     DBG("Importing certificate");
@@ -1005,7 +957,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     object = PIV_CERT_OBJ_X509_PIV_AUTH + id;
 
-    rv = token.token_import_cert(piv_state, piv_2_ykpiv(object), value); // TODO: make function to get cert id
+    rv = token_import_cert(piv_state, piv_2_ykpiv(object), value); // TODO: make function to get cert id
     if (rv != CKR_OK) {
       DBG("Unable to import certificate");
       return rv;
@@ -1056,7 +1008,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     // Try to parse the key as EC
     is_rsa = CK_FALSE;
-    rv = check_create_ec_key(pTemplate, ulCount, &id, &ec_data, &ec_data_len, &vendor_defined);
+    rv = check_create_ec_key(pTemplate, ulCount, &id, &ec_data, &ec_data_len);
     if (rv != CKR_OK) {
       // Try to parse the key as RSA
       is_rsa = CK_TRUE;
@@ -1065,8 +1017,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
                                 &q, &q_len,
                                 &dp, &dp_len,
                                 &dq, &dq_len,
-                                &qinv, &qinv_len,
-                                &vendor_defined);
+                                &qinv, &qinv_len);
       if (rv != CKR_OK) {
         DBG("Private key template not valid");
         return rv;
@@ -1079,14 +1030,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     if (is_rsa == CK_TRUE) {
       DBG("Key is RSA");
-      rv = token.token_import_private_key(piv_state, piv_2_ykpiv(object),
+      rv = token_import_private_key(piv_state, piv_2_ykpiv(object),
                                           p, p_len,
                                           q, q_len,
                                           dp, dp_len,
                                           dq, dq_len,
                                           qinv, qinv_len,
-                                          NULL, 0,
-                                          vendor_defined);
+                                          NULL, 0);
       if (rv != CKR_OK) {
         DBG("Unable to import RSA private key");
         return rv;
@@ -1094,14 +1044,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     }
     else {
       DBG("Key is ECDSA");
-      rv = token.token_import_private_key(piv_state, piv_2_ykpiv(object),
+      rv = token_import_private_key(piv_state, piv_2_ykpiv(object),
                                           NULL, 0,
                                           NULL, 0,
                                           NULL, 0,
                                           NULL, 0,
                                           NULL, 0,
-                                          ec_data, ec_data_len,
-                                          vendor_defined);
+                                          ec_data, ec_data_len);
       if (rv != CKR_OK) {
         DBG("Unable to import ECDSA private key");
         return rv;
@@ -1141,7 +1090,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
 )
 {
   CK_RV          rv;
-  token_vendor_t token;
   CK_ULONG       i;
   CK_ULONG       j;
   CK_BYTE        id;
@@ -1182,9 +1130,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
     return rv;
   }
 
-  token = get_token_vendor(session.slot->token->vid);
-
-  rv = token.token_delete_cert(piv_state, piv_2_ykpiv(hObject));
+  rv = token_delete_cert(piv_state, piv_2_ykpiv(hObject));
   if (rv != CKR_OK) {
     DBG("Unable to delete object %lu", hObject);
     return rv;
@@ -2187,7 +2133,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 )
 {
   CK_RV          rv;
-  token_vendor_t token;
   CK_ULONG       i;
   CK_BBOOL       is_new;
   CK_ULONG       dobj_id;
@@ -2278,9 +2223,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     DBG("Generating %lu bit EC key in object %u", op_info.op.gen.key_len, op_info.op.gen.key_id);
   }
 
-  token = get_token_vendor(session.slot->token->vid);
-
-  if ((rv = token.token_generate_key(piv_state, op_info.op.gen.rsa, piv_2_ykpiv(op_info.op.gen.key_id), op_info.op.gen.key_len, op_info.op.gen.vendor_defined)) != CKR_OK) {
+  if ((rv = token_generate_key(piv_state, op_info.op.gen.rsa, piv_2_ykpiv(op_info.op.gen.key_id), op_info.op.gen.key_len)) != CKR_OK) {
     DBG("Unable to generate key pair");
     return rv;
   }
@@ -2319,7 +2262,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 
   // Write/Update the object
   cert_len = sizeof(cert_data);
-  rv = token.get_token_raw_certificate(piv_state, cert_id, cert_data, &cert_len);
+  rv = get_token_raw_certificate(piv_state, cert_id, cert_data, &cert_len);
   if (rv != CKR_OK) {
     DBG("Unable to get certificate data from token");
     return CKR_FUNCTION_FAILED;

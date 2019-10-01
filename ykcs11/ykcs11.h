@@ -34,12 +34,10 @@
 #include "pkcs11y.h"
 #include "obj_types.h"
 #include "openssl_types.h"
-#include "vendors.h"
 
 #define YKCS11_OP_BUFSIZE  4096
 
 typedef struct {
-  vendor_id_t   vid;
   CK_TOKEN_INFO info;
   piv_obj_id_t  *objects;  // List of objects in the token
   CK_ULONG      n_objects; // TOTAL number of objects in the token
@@ -47,7 +45,6 @@ typedef struct {
 } ykcs11_token_t;
 
 typedef struct {
-  vendor_id_t    vid;
   CK_SLOT_INFO   info;
   ykcs11_token_t *token;
 } ykcs11_slot_t;

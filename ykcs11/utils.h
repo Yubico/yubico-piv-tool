@@ -32,6 +32,7 @@
 #define UTILS_H
 
 #include "ykcs11.h"
+#include "token.h"
 
 CK_BBOOL has_token(const ykcs11_slot_t *slot);
 CK_RV parse_readers(ykpiv_state *state,const CK_BYTE_PTR readers, const CK_ULONG len,

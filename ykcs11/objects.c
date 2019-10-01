@@ -1366,7 +1366,7 @@ CK_RV check_create_cert(CK_ATTRIBUTE_PTR templ, CK_ULONG n,
 }
 
 CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
-                          CK_BYTE_PTR *value, CK_ULONG_PTR value_len, CK_ULONG_PTR vendor_defined) {
+                          CK_BYTE_PTR *value, CK_ULONG_PTR value_len) {
 
   CK_ULONG i;
   CK_BBOOL has_id = CK_FALSE;
@@ -1375,8 +1375,6 @@ CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
 
   CK_BYTE_PTR ec_params = NULL;
   CK_ULONG    ec_params_len = 0;
-
-  *vendor_defined = 0;
 
   for (i = 0; i < n; i++) {
     switch (templ[i].type) {
@@ -1411,10 +1409,6 @@ CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
       ec_params = (CK_BYTE_PTR)templ[i].pValue;
       ec_params_len = templ[i].ulValueLen;
 
-      break;
-
-    case CKA_VENDOR_DEFINED:
-      *vendor_defined = *((CK_ULONG_PTR)templ[i].pValue);
       break;
 
     case CKA_TOKEN:
@@ -1456,8 +1450,7 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
                            CK_BYTE_PTR *q, CK_ULONG_PTR q_len,
                            CK_BYTE_PTR *dp, CK_ULONG_PTR dp_len,
                            CK_BYTE_PTR *dq, CK_ULONG_PTR dq_len,
-                           CK_BYTE_PTR *qinv, CK_ULONG_PTR qinv_len,
-                           CK_ULONG_PTR vendor_defined) {
+                           CK_BYTE_PTR *qinv, CK_ULONG_PTR qinv_len) {
 
   CK_ULONG i;
   CK_BBOOL has_id = CK_FALSE;
@@ -1467,8 +1460,6 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
   CK_BBOOL has_dp = CK_FALSE;
   CK_BBOOL has_dq = CK_FALSE;
   CK_BBOOL has_qinv = CK_FALSE;
-
-  *vendor_defined = 0;
 
   for (i = 0; i < n; i++) {
     switch (templ[i].type) {
@@ -1531,10 +1522,6 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
       *qinv = (CK_BYTE_PTR)templ[i].pValue;
       *qinv_len = templ[i].ulValueLen;
 
-      break;
-
-    case CKA_VENDOR_DEFINED:
-      *vendor_defined = *((CK_ULONG_PTR)templ[i].pValue);
       break;
 
     case CKA_TOKEN:

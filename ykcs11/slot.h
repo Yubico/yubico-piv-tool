@@ -28,13 +28,13 @@
  *
  */
 
-#ifndef VENDOR_IDS_H
-#define VENDOR_IDS_H
+#ifndef YUBICO_PIV_TOOL_SLOT_H
+#define YUBICO_PIV_TOOL_SLOT_H
 
-typedef enum {
-  UNKNOWN = 0x00,
-  YUBICO  = 0x01
-} vendor_id_t;
+#include "pkcs11y.h"
 
+CK_RV get_slot_manufacturer(CK_UTF8CHAR_PTR str, CK_ULONG len);
+CK_RV get_slot_flags(CK_FLAGS_PTR flags);
+CK_RV get_slot_version(CK_VERSION_PTR version);
 
-#endif
+#endif //YUBICO_PIV_TOOL_SLOT_H

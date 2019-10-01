@@ -29,6 +29,7 @@
  */
 
 #include "mechanisms.h"
+#include "token.h"
 #include "openssl_utils.h"
 #include "utils.h"
 #include "debug.h"
@@ -76,7 +77,6 @@ CK_RV check_sign_mechanism(const ykcs11_session_t *s, const CK_MECHANISM_PTR m) 
 
   CK_ULONG          i;
   CK_BBOOL          supported = CK_FALSE;
-  token_vendor_t    token;
   CK_MECHANISM_INFO info;
 
   // Check if the mechanism is supported by the module
@@ -90,9 +90,7 @@ CK_RV check_sign_mechanism(const ykcs11_session_t *s, const CK_MECHANISM_PTR m) 
     return CKR_MECHANISM_INVALID;
 
   // Check if the mechanism is supported by the token
-  token = get_token_vendor(s->slot->token->vid);
-
-  if (token.get_token_mechanism_info(m->mechanism, &info) != CKR_OK)
+  if (get_token_mechanism_info(m->mechanism, &info) != CKR_OK)
     return CKR_MECHANISM_INVALID;
 
   // TODO: also check that parametes make sense if any? And key size is in [min max]
@@ -370,7 +368,6 @@ CK_RV check_generation_mechanism(const ykcs11_session_t *s, CK_MECHANISM_PTR m) 
 
   CK_ULONG          i;
   CK_BBOOL          supported = CK_FALSE;
-  token_vendor_t    token;
   CK_MECHANISM_INFO info;
 
   // Check if the mechanism is supported by the module
@@ -384,9 +381,7 @@ CK_RV check_generation_mechanism(const ykcs11_session_t *s, CK_MECHANISM_PTR m) 
     return CKR_MECHANISM_INVALID;
 
   // Check if the mechanism is supported by the token
-  token = get_token_vendor(s->slot->token->vid);
-
-  if (token.get_token_mechanism_info(m->mechanism, &info) != CKR_OK)
+  if (get_token_mechanism_info(m->mechanism, &info) != CKR_OK)
     return CKR_MECHANISM_INVALID;
 
   // TODO: also check that parametes make sense if any? And key size is in [min max]
@@ -483,7 +478,6 @@ CK_RV check_pvtkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
   CK_ULONG i;
 
   op_info->op.gen.rsa = is_RSA_mechanism(op_info->mechanism.mechanism);
-  op_info->op.gen.vendor_defined = 0;
 
   for (i = 0; i < n; i++) {
     switch (templ[i].type) {
@@ -524,9 +518,6 @@ CK_RV check_pvtkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
       op_info->op.gen.key_id = PIV_PVTK_OBJ_PIV_AUTH + *((CK_BYTE_PTR)templ[i].pValue);
       break;
 
-    case CKA_VENDOR_DEFINED:
-      op_info->op.gen.vendor_defined = (*((CK_ULONG_PTR)templ[i].pValue));
-
     case CKA_SENSITIVE:
     case CKA_DECRYPT:
     case CKA_UNWRAP:
@@ -552,7 +543,6 @@ CK_RV check_hash_mechanism(const ykcs11_session_t *s, CK_MECHANISM_PTR m) {
 
   CK_ULONG          i;
   CK_BBOOL          supported = CK_FALSE;
-  token_vendor_t    token;
   CK_MECHANISM_INFO info;
 
   // Check if the mechanism is supported by the module
@@ -566,9 +556,7 @@ CK_RV check_hash_mechanism(const ykcs11_session_t *s, CK_MECHANISM_PTR m) {
     return CKR_MECHANISM_INVALID;
 
   // Check if the mechanism is supported by the token
-  token = get_token_vendor(s->slot->token->vid);
-
-  if (token.get_token_mechanism_info(m->mechanism, &info) != CKR_OK)
+  if (get_token_mechanism_info(m->mechanism, &info) != CKR_OK)
     return CKR_MECHANISM_INVALID;
 
   // TODO: also check that parametes make sense if any? And key size is in [min max]
