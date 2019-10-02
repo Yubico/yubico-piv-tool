@@ -221,7 +221,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
   CK_ULONG i;
   int j;
 
-  char readers[2048] = { 0 };
+  char readers[2048];
   size_t len = sizeof(readers);
 
   DIN;
