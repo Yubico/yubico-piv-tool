@@ -226,6 +226,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 
   DIN;
 
+  if(pulCount == NULL_PTR) {
+    DBG("GetSlotList called with pulCount = NULL");
+    return CKR_ARGUMENTS_BAD;
+  }
+
   if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
@@ -243,38 +248,78 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
     return CKR_FUNCTION_FAILED;
   }
 
+  locking.LockMutex(mutex);
+
+  n_slots = 0;
+
+  for(char *reader = readers; *reader; reader += strlen(reader) + 1) {
+
+    if(is_yubico_reader(reader)) {
+
+      ykcs11_slot_t *slot = slots + n_slots;
+
+      // Values must NOT be null terminated and ' ' padded
+
+      memset(slot->info.slotDescription, ' ', sizeof(slot->info.slotDescription));
+      memstrcpy(slot->info.slotDescription, reader);
+
+      memset(slot->info.manufacturerID, ' ', sizeof(slot->info.manufacturerID));
+      memcpy(slot->info.manufacturerID, reader, 6);
+
+      slot->info.hardwareVersion.major = 1;
+      slot->info.hardwareVersion.minor = 0;
+      slot->info.firmwareVersion.major = 1;
+      slot->info.firmwareVersion.minor = 0;
+
+      slot->info.flags = CKF_REMOVABLE_DEVICE | CKF_HW_SLOT;
+
+      if (ykpiv_connect(piv_state, reader) == YKPIV_OK) {
+
+        slot->info.flags |= CKF_TOKEN_PRESENT;
+        slot->token.info.flags = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
+
+        slot->token.info.ulMinPinLen = 6;
+        slot->token.info.ulMaxPinLen = 8;
+
+        slot->token.info.hardwareVersion.major = 1;
+        slot->token.info.hardwareVersion.minor = 0;
+
+        memset(slot->token.info.label, ' ', sizeof(slot->token.info.label));
+        memstrcpy(slot->token.info.label, "Yubico PIV");
+
+        memset(slot->token.info.manufacturerID, ' ', sizeof(slot->info.manufacturerID));
+        memcpy(slot->token.info.manufacturerID, reader, 6);
+        
+        memset(slot->token.info.utcTime, ' ', sizeof(slot->token.info.utcTime));
+
+        get_token_model(piv_state, slot->token.info.model, sizeof(slot->token.info.model));
+        get_token_serial(piv_state, slot->token.info.serialNumber, sizeof(slot->token.info.serialNumber));
+        get_token_version(piv_state, &slot->token.info.firmwareVersion);
+
+        ykpiv_disconnect(piv_state);
+      }
+
+      if(!tokenPresent || (slot->info.flags & CKF_TOKEN_PRESENT)) {
+        n_slots++;
+      }
+    }
+  }
+
+  locking.UnlockMutex(mutex);
+
   ykpiv_done(piv_state);
 
-  if ((rv = parse_readers(readers, slots, &n_slots)) != CKR_OK) {
-    DBG("Unable to parse readers");
-    return rv;
-  }
-
-  DBG("Found %lu slot(s)", n_slots);
-
-  if (pulCount) {
-    *pulCount = n_slots;
-  }
-
-  if (pSlotList == NULL_PTR) {
-    // Just return the number of slots
-
-    DOUT;
-    return CKR_OK;
-  }
-
-  if (!pulCount) {
-    DOUT;
-    return CKR_ARGUMENTS_BAD;
-  }
-
-  if (*pulCount < n_slots) {
+  if (pSlotList && *pulCount < n_slots) {
     DBG("Buffer too small: needed %lu, provided %lu", n_slots, *pulCount);
     return CKR_BUFFER_TOO_SMALL;
   }
 
-  for (j = 0, i = 0; i < n_slots; i++) {
-    pSlotList[j++] = i;
+  *pulCount = n_slots;
+
+  if(pSlotList) {
+    for (j = 0, i = 0; i < n_slots; i++) {
+      pSlotList[j++] = i;
+    }
   }
 
   DBG("token present is %d", tokenPresent);
@@ -296,12 +341,17 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotInfo)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
+  locking.LockMutex(mutex);
+
   if (slotID >= n_slots) {
     DBG("Invalid slot ID %lu", slotID);
+    locking.UnlockMutex(mutex);
     return CKR_SLOT_ID_INVALID;
   }
 
   memcpy(pInfo, &slots[slotID].info, sizeof(CK_SLOT_INFO));
+
+  locking.UnlockMutex(mutex);
 
   DOUT;
   return CKR_OK;
@@ -319,16 +369,27 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
+  locking.LockMutex(mutex);
+
   if (slotID >= n_slots) {
     DBG("Invalid slot ID %lu", slotID);
+    locking.UnlockMutex(mutex);
     return CKR_SLOT_ID_INVALID;
   }
 
-  memcpy(pInfo, &slots[slotID].token->info, sizeof(CK_TOKEN_INFO));
+  if(!(slots[slotID].info.flags & CKF_TOKEN_PRESENT)) {
+    DBG("A token is not present in slot %d", slotID);
+    locking.UnlockMutex(mutex);
+    return CKR_TOKEN_NOT_PRESENT;
+  }
+
+  memcpy(pInfo, &slots[slotID].token.info, sizeof(CK_TOKEN_INFO));
 
   // Overwrite values that are application specific
-  pInfo->ulSessionCount = (session.handle && !(session.info.flags & CKF_RW_SESSION)) ? 1 : 0;      // number of sessions that this application currently has open with the token
-  pInfo->ulRwSessionCount = (session.handle && (session.info.flags & CKF_RW_SESSION)) ? 1 : 0;   // number of read/write sessions that this application currently has open with the token
+  //pInfo->ulSessionCount = (session.handle && !(session.info.flags & CKF_RW_SESSION)) ? 1 : 0;      // number of sessions that this application currently has open with the token
+  //pInfo->ulRwSessionCount = (session.handle && (session.info.flags & CKF_RW_SESSION)) ? 1 : 0;   // number of read/write sessions that this application currently has open with the token
+
+  locking.UnlockMutex(mutex);
 
   DOUT;
   return CKR_OK;
@@ -470,7 +531,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetPIN)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (session.handle == CK_INVALID_HANDLE) {
+  if (session.state == NULL) {
     DBG("User called SetPIN on closed session");
     return CKR_SESSION_CLOSED;
   }
@@ -485,7 +546,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetPIN)(
     user_type = CKU_SO;
   }
 
-  rv = token_change_pin(session.slot->state, user_type, pOldPin, ulOldLen, pNewPin, ulNewLen);
+  rv = token_change_pin(session.state, user_type, pOldPin, ulOldLen, pNewPin, ulNewLen);
   if (rv != CKR_OK) {
     DBG("Pin change failed %lx", rv);
     return rv;
@@ -516,19 +577,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (slotID >= n_slots) {
-    DBG("Invalid slot ID %lu", slotID);
-    return CKR_SLOT_ID_INVALID;
-  }
-
   if (phSession == NULL_PTR) {
     DBG("Wrong/Missing parameter");
     return CKR_ARGUMENTS_BAD;
-  }
-
-  if (session.handle != CK_INVALID_HANDLE) {
-    DBG("A session with this or another token already exists");
-    return CKR_SESSION_COUNT;
   }
 
   if ((flags & CKF_SERIAL_SESSION) == 0) {
@@ -536,13 +587,44 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     return CKR_SESSION_PARALLEL_NOT_SUPPORTED;
   }
 
-  char buf[128];
-  memcpy(buf, slots[slotID].info.slotDescription, sizeof(slots[slotID].info.slotDescription));
-  *strchr(buf, ' ') = 0;
+  locking.LockMutex(mutex);
+
+  if (slotID >= n_slots) {
+    DBG("Invalid slot ID %lu", slotID);
+    locking.UnlockMutex(mutex);
+    return CKR_SLOT_ID_INVALID;
+  }
+
+  if(!(slots[slotID].info.flags & CKF_TOKEN_PRESENT)) {
+    DBG("A token is not present in slot %d", slotID);
+    locking.UnlockMutex(mutex);
+    return CKR_TOKEN_NOT_PRESENT;
+  }
+
+  if (session.state != NULL) {
+    DBG("Too many sessions already exists");
+    locking.UnlockMutex(mutex);
+    return CKR_SESSION_COUNT;
+  }
+
+  // Initialize the slot
+  if(ykpiv_init(&session.state, YKCS11_DBG) != YKPIV_OK) {
+    DBG("Unable to connect to reader");
+    locking.UnlockMutex(mutex);
+    return CKR_FUNCTION_FAILED;
+  }
+
+  locking.UnlockMutex(mutex);
+
+  char buf[sizeof(slots[slotID].info.slotDescription)];
+  memcpy(buf, slots[slotID].info.slotDescription, sizeof(buf));
+  *strchr(buf, ' ') = 0; // TODO: BOOM if there are no spaces
 
   // Connect to the slot
-  if(ykpiv_connect(slots[slotID].state, buf) != YKPIV_OK) {
+  if(ykpiv_connect(session.state, buf) != YKPIV_OK) {
     DBG("Unable to connect to reader");
+    ykpiv_done(session.state);
+    session.state = NULL;
     return CKR_FUNCTION_FAILED;
   }
 
@@ -564,52 +646,66 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   session.info.ulDeviceError = 0;
 
   // Get the number of token objects
-  rv = get_token_objects_num(slots[slotID].state, &session.slot->token->n_objects, &session.slot->token->n_certs);
+  rv = get_token_objects_num(session.state, &session.slot->token.n_objects, &session.slot->token.n_certs);
   if (rv != CKR_OK) {
+    ykpiv_done(session.state);
+    session.state = NULL;
     DBG("Unable to retrieve number of token objects");
     return rv;
   }
 
   // Get memory for the objects
-  session.slot->token->objects = malloc(sizeof(piv_obj_id_t) * session.slot->token->n_objects);
-  if (session.slot->token->objects == NULL) {
+  session.slot->token.objects = malloc(sizeof(piv_obj_id_t) * session.slot->token.n_objects);
+  if (session.slot->token.objects == NULL) {
     DBG("Unable to allocate memory for token object ids");
+    ykpiv_done(session.state);
+    session.state = NULL;
     return CKR_HOST_MEMORY;
   }
 
   // Get memory for the certificates
-  cert_ids = malloc(sizeof(piv_obj_id_t) * session.slot->token->n_certs);
+  cert_ids = malloc(sizeof(piv_obj_id_t) * session.slot->token.n_certs);
   if (cert_ids == NULL) {
     DBG("Unable to allocate memory for token certificate ids");
+    ykpiv_done(session.state);
+    session.state = NULL;
     return CKR_HOST_MEMORY;
   }
 
   // Save a list of all the available objects in the token
-  rv = get_token_object_list(session.slot->state, session.slot->token->objects, session.slot->token->n_objects);
+  rv = get_token_object_list(session.state, session.slot->token.objects, session.slot->token.n_objects);
   if (rv != CKR_OK) {
     DBG("Unable to retrieve token objects");
+    ykpiv_done(session.state);
+    session.state = NULL;
     goto failure;
   }
 
   // Get a list of object ids for available certificates object from the session
-  rv = get_available_certificate_ids(&session, cert_ids, session.slot->token->n_certs);
+  rv = get_available_certificate_ids(&session, cert_ids, session.slot->token.n_certs);
   if (rv != CKR_OK) {
     DBG("Unable to retrieve certificate ids from the session");
+    ykpiv_done(session.state);
+    session.state = NULL;
     goto failure;
   }
 
   // Get the actual certificate data from the token and store it as an X509 object
-  for (i = 0; i < session.slot->token->n_certs; i++) {
+  for (i = 0; i < session.slot->token.n_certs; i++) {
     cert_len = sizeof(cert_data);
-    rv = get_token_raw_certificate(session.slot->state, cert_ids[i], cert_data, &cert_len);
+    rv = get_token_raw_certificate(session.state, cert_ids[i], cert_data, &cert_len);
     if (rv != CKR_OK) {
       DBG("Unable to get certificate data from token");
+      ykpiv_done(session.state);
+      session.state = NULL;
       goto failure;
     }
 
     rv = store_cert(cert_ids[i], cert_data, cert_len);
     if (rv != CKR_OK) {
       DBG("Unable to store certificate data");
+      ykpiv_done(session.state);
+      session.state = NULL;
       goto failure;
     }
   }
@@ -617,17 +713,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   free(cert_ids);
   cert_ids = NULL;
 
-  session.handle = YKCS11_SESSION_ID;
-
-  *phSession = session.handle;
+  *phSession = YKCS11_SESSION_ID;
 
   DOUT;
   return CKR_OK;
 
 failure:
-  if (session.slot->token->objects != NULL) {
-    free(session.slot->token->objects);
-    session.slot->token->objects = NULL;
+  if (session.slot->token.objects != NULL) {
+    free(session.slot->token.objects);
+    session.slot->token.objects = NULL;
   }
 
   if (cert_ids != NULL) {
@@ -651,22 +745,27 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (session.handle == CK_INVALID_HANDLE) {
-    DBG("Trying to close a session, but there is no existing one");
-    return CKR_SESSION_CLOSED;
-  }
-
   if (hSession != YKCS11_SESSION_ID) {
     DBG("Unknown session %lu", hSession);
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  ykpiv_disconnect(session.slot->state);
+  locking.LockMutex(mutex);
 
-  free(session.slot->token->objects);
-  session.slot->token->objects = NULL;
+  if (session.state == NULL) {
+    DBG("Trying to close a session, but there is no existing one");
+    locking.UnlockMutex(mutex);
+    return CKR_SESSION_CLOSED;
+  }
+
+  ykpiv_done(session.state);
+
+  free(session.slot->token.objects);
+  session.slot->token.objects = NULL;
 
   memset(&session, 0, sizeof(ykcs11_session_t));
+
+  locking.UnlockMutex(mutex);
 
   DOUT;
   return CKR_OK;
@@ -690,7 +789,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
     return CKR_SLOT_ID_INVALID;
   }
 
-  rv = C_CloseSession(session.handle);
+  rv = C_CloseSession(YKCS11_SESSION_ID);
 
   DOUT;
   return rv;
@@ -713,9 +812,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSessionInfo)(
     return CKR_ARGUMENTS_BAD;
   }
 
-  if (hSession != session.handle) {
+  if (hSession != YKCS11_SESSION_ID) {
     DBG("Unknown session %lu", hSession);
     return CKR_SESSION_HANDLE_INVALID;
+  }
+
+  if (session.state == NULL) {
+    DBG("Session is not open");
+    return CKR_SESSION_CLOSED;
   }
 
   memcpy(pInfo, &session.info, sizeof(CK_SESSION_INFO));
@@ -772,12 +876,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
 
   DBG("user %lu, pin %s, pinlen %lu", userType, pPin, ulPinLen);
 
-  if (session.handle != YKCS11_SESSION_ID) {
+  if (session.state == NULL) {
     DBG("Session is not open");
     return CKR_SESSION_CLOSED;
   }
 
-  if (hSession != session.handle) {
+  if (hSession != YKCS11_SESSION_ID) {
     DBG("Unknown session %lu", hSession);
     return CKR_SESSION_HANDLE_INVALID;
   }
@@ -802,7 +906,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
       return CKR_USER_ANOTHER_ALREADY_LOGGED_IN;
     }
 
-    rv = token_login(session.slot->state, CKU_USER, pPin, ulPinLen);
+    rv = token_login(session.state, CKU_USER, pPin, ulPinLen);
     if (rv != CKR_OK) {
       DBG("Unable to login as regular user");
       return rv;
@@ -825,7 +929,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
         session.info.state == CKS_RW_USER_FUNCTIONS)
       return CKR_USER_ANOTHER_ALREADY_LOGGED_IN;
 
-    rv = token_login(session.slot->state, CKU_SO, pPin, ulPinLen);
+    rv = token_login(session.state, CKU_SO, pPin, ulPinLen);
     if (rv != CKR_OK) {
       DBG("Unable to login as SO");
       return rv;
@@ -866,12 +970,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_Logout)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (session.handle != YKCS11_SESSION_ID) {
+  if (session.state == NULL) {
     DBG("Session is not open");
     return CKR_SESSION_CLOSED;
   }
 
-  if (hSession != session.handle) {
+  if (hSession != YKCS11_SESSION_ID) {
     DBG("Unknown session %lu", hSession);
     return CKR_SESSION_HANDLE_INVALID;
   }
@@ -929,12 +1033,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (session.handle != YKCS11_SESSION_ID) {
+  if (session.state == NULL) {
     DBG("Session is not open");
     return CKR_SESSION_CLOSED;
   }
 
-  if (hSession != session.handle) {
+  if (hSession != YKCS11_SESSION_ID) {
     DBG("Unknown session %lu", hSession);
     return CKR_SESSION_HANDLE_INVALID;
   }
@@ -982,15 +1086,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     object = PIV_CERT_OBJ_X509_PIV_AUTH + id;
 
-    rv = token_import_cert(session.slot->state, piv_2_ykpiv(object), value); // TODO: make function to get cert id
+    rv = token_import_cert(session.state, piv_2_ykpiv(object), value); // TODO: make function to get cert id
     if (rv != CKR_OK) {
       DBG("Unable to import certificate");
       return rv;
     }
 
     is_new = CK_TRUE;
-    for (i = 0; i < session.slot->token->n_objects; i++) {
-      if (session.slot->token->objects[i] == object)
+    for (i = 0; i < session.slot->token.n_objects; i++) {
+      if (session.slot->token.objects[i] == object)
         is_new = CK_FALSE;
     }
 
@@ -1003,17 +1107,17 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       // New object created, add it to the object list
 
       // Each object counts as three, even if we just only added a certificate
-      session.slot->token->n_objects += 3;
-      session.slot->token->n_certs++;
+      session.slot->token.n_objects += 3;
+      session.slot->token.n_certs++;
 
-      obj_ptr = realloc(session.slot->token->objects, session.slot->token->n_objects * sizeof(piv_obj_id_t));
+      obj_ptr = realloc(session.slot->token.objects, session.slot->token.n_objects * sizeof(piv_obj_id_t));
       if (obj_ptr == NULL) {
         DBG("Unable to store new item in the session");
         return CKR_HOST_MEMORY;
       }
-      session.slot->token->objects = obj_ptr;
+      session.slot->token.objects = obj_ptr;
 
-      obj_ptr = session.slot->token->objects + session.slot->token->n_objects - 3;
+      obj_ptr = session.slot->token.objects + session.slot->token.n_objects - 3;
       *obj_ptr++ = cert_id;
       *obj_ptr++ = pvtk_id;
       *obj_ptr++ = pubk_id;
@@ -1055,7 +1159,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     if (is_rsa == CK_TRUE) {
       DBG("Key is RSA");
-      rv = token_import_private_key(session.slot->state, piv_2_ykpiv(object),
+      rv = token_import_private_key(session.state, piv_2_ykpiv(object),
                                           p, p_len,
                                           q, q_len,
                                           dp, dp_len,
@@ -1069,7 +1173,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     }
     else {
       DBG("Key is ECDSA");
-      rv = token_import_private_key(session.slot->state, piv_2_ykpiv(object),
+      rv = token_import_private_key(session.state, piv_2_ykpiv(object),
                                           NULL, 0,
                                           NULL, 0,
                                           NULL, 0,
@@ -1132,12 +1236,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (session.handle != YKCS11_SESSION_ID) {
+  if (session.state == NULL) {
     DBG("Session is not open");
     return CKR_SESSION_CLOSED;
   }
 
-  if (hSession != session.handle) {
+  if (hSession != YKCS11_SESSION_ID) {
     DBG("Unknown session %lu", hSession);
     return CKR_SESSION_HANDLE_INVALID;
   }
@@ -1155,7 +1259,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
     return rv;
   }
 
-  rv = token_delete_cert(session.slot->state, piv_2_ykpiv(hObject));
+  rv = token_delete_cert(session.state, piv_2_ykpiv(hObject));
   if (rv != CKR_OK) {
     DBG("Unable to delete object %lu", hObject);
     return rv;
@@ -1168,7 +1272,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
   pvtk_id = PIV_PVTK_OBJ_PIV_AUTH + id;
   pubk_id = PIV_PUBK_OBJ_PIV_AUTH + id;
 
-  obj_ptr = malloc((session.slot->token->n_objects - 3) * sizeof(piv_obj_id_t));
+  obj_ptr = malloc((session.slot->token.n_objects - 3) * sizeof(piv_obj_id_t));
   if (obj_ptr == NULL) {
     DBG("Unable to allocate memory");
     return CKR_HOST_MEMORY;
@@ -1176,15 +1280,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
 
   i = 0;
   j = 0;
-  while (i < session.slot->token->n_objects) {
-    if (session.slot->token->objects[i] == cert_id ||
-        session.slot->token->objects[i] == pvtk_id ||
-        session.slot->token->objects[i] == pubk_id) {
+  while (i < session.slot->token.n_objects) {
+    if (session.slot->token.objects[i] == cert_id ||
+        session.slot->token.objects[i] == pvtk_id ||
+        session.slot->token.objects[i] == pubk_id) {
       i++;
       continue;
     }
 
-    obj_ptr[j++] = session.slot->token->objects[i++];
+    obj_ptr[j++] = session.slot->token.objects[i++];
   }
 
   rv = delete_cert(cert_id);
@@ -1194,11 +1298,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
     return CKR_FUNCTION_FAILED;
   }
 
-  free(session.slot->token->objects);
+  free(session.slot->token.objects);
 
-  session.slot->token->n_objects -= 3;
-  session.slot->token->n_certs--;
-  session.slot->token->objects = obj_ptr;
+  session.slot->token.n_objects -= 3;
+  session.slot->token.n_certs--;
+  session.slot->token.objects = obj_ptr;
 
   DOUT;
   return CKR_OK;
@@ -1233,12 +1337,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (session.handle != YKCS11_SESSION_ID) {
+  if (session.state == NULL) {
     DBG("Session is not open");
     return CKR_SESSION_CLOSED;
   }
 
-  if (hSession != session.handle) {
+  if (hSession != YKCS11_SESSION_ID) {
     DBG("Unknown session %lu", hSession);
     return CKR_SESSION_HANDLE_INVALID;
   }
@@ -1293,12 +1397,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (session.handle != YKCS11_SESSION_ID) {
+  if (session.state == NULL) {
     DBG("Session is not open");
     return CKR_SESSION_CLOSED;
   }
 
-  if (hSession != session.handle) {
+  if (hSession != YKCS11_SESSION_ID) {
     DBG("Unknown session %lu", hSession);
     return CKR_SESSION_HANDLE_INVALID;
   }
@@ -1310,7 +1414,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
     return CKR_ARGUMENTS_BAD;
 
   find_obj.idx = 0;
-  find_obj.num = session.slot->token->n_objects;
+  find_obj.num = session.slot->token.n_objects;
 
   // Check if we should remove private objects
   if (session.info.state == CKS_RO_PUBLIC_SESSION ||
@@ -1328,7 +1432,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
     DBG("Unable to allocate memory for finding objects");
     return CKR_HOST_MEMORY;
   }
-  memcpy(find_obj.objects, session.slot->token->objects, sizeof(piv_obj_id_t) * find_obj.num);
+  memcpy(find_obj.objects, session.slot->token.objects, sizeof(piv_obj_id_t) * find_obj.num);
 
   DBG("Initialized search with %lu parameters", ulCount);
 
@@ -1384,12 +1488,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (session.handle != YKCS11_SESSION_ID) {
+  if (session.state == NULL) {
     DBG("Session is not open");
     return CKR_SESSION_CLOSED;
   }
 
-  if (hSession != session.handle) {
+  if (hSession != YKCS11_SESSION_ID) {
     DBG("Unknown session %lu", hSession);
     return CKR_SESSION_HANDLE_INVALID;
   }
@@ -1430,12 +1534,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsFinal)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (session.handle != YKCS11_SESSION_ID) {
+  if (session.state == NULL) {
     DBG("Session is not open");
     return CKR_SESSION_CLOSED;
   }
 
-  if (hSession != session.handle) {
+  if (hSession != YKCS11_SESSION_ID) {
     DBG("Unknown session %lu", hSession);
     return CKR_SESSION_HANDLE_INVALID;
   }
@@ -1568,12 +1672,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestInit)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (session.handle != YKCS11_SESSION_ID) {
+  if (session.state == NULL) {
     DBG("Session is not open");
     return CKR_SESSION_CLOSED;
   }
 
-  if (hSession != session.handle) {
+  if (hSession != YKCS11_SESSION_ID) {
     DBG("Unknown session %lu", hSession);
     return CKR_SESSION_HANDLE_INVALID;
   }
@@ -1677,12 +1781,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (session.handle != YKCS11_SESSION_ID) {
+  if (session.state == NULL) {
     DBG("Session is not open");
     return CKR_SESSION_CLOSED;
   }
 
-  if (hSession != session.handle) {
+  if (hSession != YKCS11_SESSION_ID) {
     DBG("Unknown session %lu", hSession);
     return CKR_SESSION_HANDLE_INVALID;
   }
@@ -1818,13 +1922,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     goto sign_out;
   }
 
-  if (session.handle != YKCS11_SESSION_ID) {
+  if (session.state == NULL) {
     DBG("Session is not open");
     rv = CKR_SESSION_CLOSED;
     goto sign_out;
   }
 
-  if (hSession != session.handle) {
+  if (hSession != YKCS11_SESSION_ID) {
     DBG("Unknown session %lu", hSession);
     rv = CKR_SESSION_HANDLE_INVALID;
     goto sign_out;
@@ -1905,7 +2009,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   *pulSignatureLen = cbSignatureLen = sizeof(op_info.buf);
 
-  piv_rv = ykpiv_sign_data(session.slot->state, op_info.buf, op_info.buf_len, op_info.buf, &cbSignatureLen, op_info.op.sign.algo, op_info.op.sign.key_id);
+  piv_rv = ykpiv_sign_data(session.state, op_info.buf, op_info.buf_len, op_info.buf, &cbSignatureLen, op_info.op.sign.algo, op_info.op.sign.key_id);
 
   *pulSignatureLen = cbSignatureLen;
 
@@ -2175,12 +2279,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (session.handle != YKCS11_SESSION_ID) {
+  if (session.state == NULL) {
     DBG("Session is not open");
     return CKR_SESSION_CLOSED;
   }
 
-  if (hSession != session.handle) {
+  if (hSession != YKCS11_SESSION_ID) {
     DBG("Unknown session %lu", hSession);
     return CKR_SESSION_HANDLE_INVALID;
   }
@@ -2248,14 +2352,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     DBG("Generating %lu bit EC key in object %u", op_info.op.gen.key_len, op_info.op.gen.key_id);
   }
 
-  if ((rv = token_generate_key(session.slot->state, op_info.op.gen.rsa, piv_2_ykpiv(op_info.op.gen.key_id), op_info.op.gen.key_len)) != CKR_OK) {
+  if ((rv = token_generate_key(session.state, op_info.op.gen.rsa, piv_2_ykpiv(op_info.op.gen.key_id), op_info.op.gen.key_len)) != CKR_OK) {
     DBG("Unable to generate key pair");
     return rv;
   }
 
   is_new = CK_TRUE;
-  for (i = 0; i < session.slot->token->n_objects; i++) {
-    if (session.slot->token->objects[i] == op_info.op.gen.key_id)
+  for (i = 0; i < session.slot->token.n_objects; i++) {
+    if (session.slot->token.objects[i] == op_info.op.gen.key_id)
       is_new = CK_FALSE;
   }
 
@@ -2269,17 +2373,17 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     // New object created, add it to the object list
 
     // Each object counts as three (data object is always there)
-    session.slot->token->n_objects += 3;
-    session.slot->token->n_certs++;
+    session.slot->token.n_objects += 3;
+    session.slot->token.n_certs++;
 
-    obj_ptr = realloc(session.slot->token->objects, session.slot->token->n_objects * sizeof(piv_obj_id_t));
+    obj_ptr = realloc(session.slot->token.objects, session.slot->token.n_objects * sizeof(piv_obj_id_t));
     if (obj_ptr == NULL) {
       DBG("Unable to store new item in the session");
       return CKR_HOST_MEMORY;
     }
-    session.slot->token->objects = obj_ptr;
+    session.slot->token.objects = obj_ptr;
 
-    obj_ptr = session.slot->token->objects + session.slot->token->n_objects - 3;
+    obj_ptr = session.slot->token.objects + session.slot->token.n_objects - 3;
     *obj_ptr++ = cert_id;
     *obj_ptr++ = pvtk_id;
     *obj_ptr++ = pubk_id;
@@ -2287,7 +2391,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 
   // Write/Update the object
   cert_len = sizeof(cert_data);
-  rv = get_token_raw_certificate(session.slot->state, cert_id, cert_data, &cert_len);
+  rv = get_token_raw_certificate(session.state, cert_id, cert_data, &cert_len);
   if (rv != CKR_OK) {
     DBG("Unable to get certificate data from token");
     return CKR_FUNCTION_FAILED;

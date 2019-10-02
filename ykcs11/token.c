@@ -38,18 +38,13 @@
 #include <stdbool.h>
 #include "../tool/util.h"
 
-
-
-
 #define MIN_RSA_KEY_SIZE 1024
 #define MAX_RSA_KEY_SIZE 2048
 #define MIN_ECC_KEY_SIZE 256
 #define MAX_ECC_KEY_SIZE 384
 
-static const char *token_label = "YubiKey PIV";
-static const char *token_manufacturer = "Yubico";
 static const char *token_model = "YubiKey XXX";
-static const CK_FLAGS token_flags = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
+
 static const CK_MECHANISM_TYPE token_mechanisms[] = { // KEEP ALIGNED WITH token_mechanism_infos
     CKM_RSA_PKCS_KEY_PAIR_GEN,
     CKM_RSA_PKCS,
@@ -143,26 +138,6 @@ static const piv_obj_id_t token_objects[] = { // TODO: is there a way to get thi
 static const CK_ULONG neo_token_objects_num = sizeof(token_objects) / sizeof(piv_obj_id_t) - 20;
 static const CK_ULONG yk4_token_objects_num = sizeof(token_objects) / sizeof(piv_obj_id_t);
 
-CK_RV get_token_label(CK_UTF8CHAR_PTR str, CK_ULONG len) {
-
-  if (strlen(token_label) > len)
-    return CKR_BUFFER_TOO_SMALL;
-
-  memcpy(str, token_label, strlen(token_label));
-  return CKR_OK;
-
-}
-
-CK_RV get_token_manufacturer(CK_UTF8CHAR_PTR str, CK_ULONG len) {
-
-  if (strlen(token_manufacturer) > len)
-    return CKR_BUFFER_TOO_SMALL;
-
-  memcpy(str, token_manufacturer, strlen(token_manufacturer));
-  return CKR_OK;
-
-}
-
 CK_RV get_token_model(ykpiv_state *state, CK_UTF8CHAR_PTR str, CK_ULONG len) {
 
   char buf[16];
@@ -180,13 +155,6 @@ CK_RV get_token_model(ykpiv_state *state, CK_UTF8CHAR_PTR str, CK_ULONG len) {
   else
     memcpy(str + strlen(token_model) - 3, "NEO", 3);
 
-  return CKR_OK;
-
-}
-
-CK_RV get_token_flags(CK_FLAGS_PTR flags) {
-
-  *flags = token_flags;
   return CKR_OK;
 
 }

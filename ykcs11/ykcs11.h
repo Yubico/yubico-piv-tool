@@ -47,13 +47,12 @@ typedef struct {
 
 typedef struct {
   CK_SLOT_INFO   info;
-  ykpiv_state *state;
-  ykcs11_token_t *token;
+  ykcs11_token_t token;
 } ykcs11_slot_t;
 
 typedef struct {
-  CK_SESSION_HANDLE handle;
   CK_SESSION_INFO   info; /* slotid, state, flags, deviceerror */
+  ykpiv_state       *state;
   ykcs11_slot_t     *slot;
 } ykcs11_session_t;
 

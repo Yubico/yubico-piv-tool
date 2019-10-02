@@ -34,11 +34,8 @@
 #include "ykcs11.h"
 #include "token.h"
 
+CK_BBOOL is_yubico_reader(char* reader_name);
 void* memstrcpy(unsigned char *dst, char *src);
-
-CK_RV parse_readers(char *readers, ykcs11_slot_t *slots, CK_ULONG_PTR n_slots);
-CK_RV create_token(char *reader, ykcs11_slot_t *slot);
-void  destroy_token(ykcs11_slot_t *slot);
 
 CK_BBOOL is_valid_key_id(CK_BYTE id);
 

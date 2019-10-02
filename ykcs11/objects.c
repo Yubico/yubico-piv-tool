@@ -1199,8 +1199,8 @@ CK_ULONG piv_2_ykpiv(piv_obj_id_t id) {
 CK_RV get_attribute(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   CK_ULONG i;
 
-  for (i = 0; i < s->slot->token->n_objects; i++)
-    if (s->slot->token->objects[i] == obj) {
+  for (i = 0; i < s->slot->token.n_objects; i++)
+    if (s->slot->token.objects[i] == obj) {
       return piv_objects[obj].get_attribute(obj, template);
     }
 
@@ -1267,13 +1267,13 @@ CK_BBOOL is_private_object(ykcs11_session_t *s, CK_OBJECT_HANDLE obj) {
 CK_RV get_available_certificate_ids(ykcs11_session_t *s, piv_obj_id_t *cert_ids, CK_ULONG n_certs) {
   CK_ULONG i, j;
 
-  if (n_certs > s->slot->token->n_objects)
+  if (n_certs > s->slot->token.n_objects)
     return CKR_BUFFER_TOO_SMALL;
 
   j = 0;
-  for (i = 0; i < s->slot->token->n_objects; i++)
-    if (IS_CERT(s->slot->token->objects[i]) == CK_TRUE)
-      cert_ids[j++] = s->slot->token->objects[i];
+  for (i = 0; i < s->slot->token.n_objects; i++)
+    if (IS_CERT(s->slot->token.objects[i]) == CK_TRUE)
+      cert_ids[j++] = s->slot->token.objects[i];
 
   return CKR_OK;
 }
