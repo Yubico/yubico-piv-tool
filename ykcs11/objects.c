@@ -438,10 +438,12 @@ CK_RV get_doa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
   case CKA_VALUE:
     DBG("VALUE");
-    if(cert_objects[piv_objects[obj].sub_id].data) {
-      len = sizeof(tmp);
-      if ((rv = do_get_raw_cert(cert_objects[piv_objects[obj].sub_id].data, tmp, &len)) != CKR_OK)
-        return rv;
+    if(piv_objects[obj].sub_id < sizeof(cert_objects)/sizeof(cert_objects[0])) {
+      if(cert_objects[piv_objects[obj].sub_id].data) {
+        len = sizeof(tmp);
+        if ((rv = do_get_raw_cert(cert_objects[piv_objects[obj].sub_id].data, tmp, &len)) != CKR_OK)
+          return rv;
+      }
     }
     data = tmp;
     break;
