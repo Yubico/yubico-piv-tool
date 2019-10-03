@@ -64,16 +64,9 @@ static ykcs11_session_t session;
 static CK_C_INITIALIZE_ARGS locking;
 static void *mutex;
 
-static struct {
-  CK_BBOOL        active;
-  CK_ULONG        num;
-  CK_ULONG        idx;
-  piv_obj_id_t    *objects;
-} find_obj;
-
 op_info_t op_info;
 
-extern CK_FUNCTION_LIST function_list;
+static CK_FUNCTION_LIST function_list;
 
 /* General Purpose */
 
@@ -132,7 +125,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
     return rv;
   }
 
-  find_obj.active = CK_FALSE; // TODO: Move to session
+  memset(&slots, 0, sizeof(slots));
+  memset(&session, 0, sizeof(session));
+  n_slots = 0;
 
   DOUT;
   return CKR_OK;
@@ -158,13 +153,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_Finalize)(
 
   locking.DestroyMutex(mutex);
   mutex = NULL;
-/*
-  for (i = 0; i < n_slots; i++) {
-    destroy_token(slots + i);
-    ykpiv_done(slots[i].state);
-  }
-  memset(slots, 0, sizeof(slots));
-*/
+
+  memset(&slots, 0, sizeof(slots));
+  memset(&session, 0, sizeof(session));
+  n_slots = 0;
+
   DOUT;
   return CKR_OK;
 }
@@ -608,17 +601,17 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   }
 
   // Initialize the slot
-  if(ykpiv_init(&session.state, YKCS11_DBG) != YKPIV_OK) {
+  if(ykpiv_init(&session.state, 1) != YKPIV_OK) {
     DBG("Unable to connect to reader");
     locking.UnlockMutex(mutex);
     return CKR_FUNCTION_FAILED;
   }
 
-  locking.UnlockMutex(mutex);
-
   char buf[sizeof(slots[slotID].info.slotDescription)];
   memcpy(buf, slots[slotID].info.slotDescription, sizeof(buf));
   *strchr(buf, ' ') = 0; // TODO: BOOM if there are no spaces
+
+  locking.UnlockMutex(mutex);
 
   // Connect to the slot
   if(ykpiv_connect(session.state, buf) != YKPIV_OK) {
@@ -646,7 +639,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   session.info.ulDeviceError = 0;
 
   // Get the number of token objects
-  rv = get_token_objects_num(session.state, &session.slot->token.n_objects, &session.slot->token.n_certs);
+  rv = get_token_objects_num(session.state, &session.n_objects, &session.n_certs);
   if (rv != CKR_OK) {
     ykpiv_done(session.state);
     session.state = NULL;
@@ -655,8 +648,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   }
 
   // Get memory for the objects
-  session.slot->token.objects = malloc(sizeof(piv_obj_id_t) * session.slot->token.n_objects);
-  if (session.slot->token.objects == NULL) {
+  session.objects = malloc(sizeof(piv_obj_id_t) * session.n_objects);
+  if (session.objects == NULL) {
     DBG("Unable to allocate memory for token object ids");
     ykpiv_done(session.state);
     session.state = NULL;
@@ -664,7 +657,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   }
 
   // Get memory for the certificates
-  cert_ids = malloc(sizeof(piv_obj_id_t) * session.slot->token.n_certs);
+  cert_ids = malloc(sizeof(piv_obj_id_t) * session.n_certs);
   if (cert_ids == NULL) {
     DBG("Unable to allocate memory for token certificate ids");
     ykpiv_done(session.state);
@@ -673,7 +666,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   }
 
   // Save a list of all the available objects in the token
-  rv = get_token_object_list(session.state, session.slot->token.objects, session.slot->token.n_objects);
+  rv = get_token_object_list(session.state, session.objects, session.n_objects);
   if (rv != CKR_OK) {
     DBG("Unable to retrieve token objects");
     ykpiv_done(session.state);
@@ -682,7 +675,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   }
 
   // Get a list of object ids for available certificates object from the session
-  rv = get_available_certificate_ids(&session, cert_ids, session.slot->token.n_certs);
+  rv = get_available_certificate_ids(&session, cert_ids, session.n_certs);
   if (rv != CKR_OK) {
     DBG("Unable to retrieve certificate ids from the session");
     ykpiv_done(session.state);
@@ -691,7 +684,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   }
 
   // Get the actual certificate data from the token and store it as an X509 object
-  for (i = 0; i < session.slot->token.n_certs; i++) {
+  for (i = 0; i < session.n_certs; i++) {
     cert_len = sizeof(cert_data);
     rv = get_token_raw_certificate(session.state, cert_ids[i], cert_data, &cert_len);
     if (rv != CKR_OK) {
@@ -719,9 +712,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   return CKR_OK;
 
 failure:
-  if (session.slot->token.objects != NULL) {
-    free(session.slot->token.objects);
-    session.slot->token.objects = NULL;
+  if (session.objects != NULL) {
+    free(session.objects);
+    session.objects = NULL;
   }
 
   if (cert_ids != NULL) {
@@ -760,8 +753,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
 
   ykpiv_done(session.state);
 
-  free(session.slot->token.objects);
-  session.slot->token.objects = NULL;
+  free(session.objects);
+  session.objects = NULL;
 
   memset(&session, 0, sizeof(ykcs11_session_t));
 
@@ -1093,8 +1086,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     }
 
     is_new = CK_TRUE;
-    for (i = 0; i < session.slot->token.n_objects; i++) {
-      if (session.slot->token.objects[i] == object)
+    for (i = 0; i < session.n_objects; i++) {
+      if (session.objects[i] == object)
         is_new = CK_FALSE;
     }
 
@@ -1107,17 +1100,17 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       // New object created, add it to the object list
 
       // Each object counts as three, even if we just only added a certificate
-      session.slot->token.n_objects += 3;
-      session.slot->token.n_certs++;
+      session.n_objects += 3;
+      session.n_certs++;
 
-      obj_ptr = realloc(session.slot->token.objects, session.slot->token.n_objects * sizeof(piv_obj_id_t));
+      obj_ptr = realloc(session.objects, session.n_objects * sizeof(piv_obj_id_t));
       if (obj_ptr == NULL) {
         DBG("Unable to store new item in the session");
         return CKR_HOST_MEMORY;
       }
-      session.slot->token.objects = obj_ptr;
+      session.objects = obj_ptr;
 
-      obj_ptr = session.slot->token.objects + session.slot->token.n_objects - 3;
+      obj_ptr = session.objects + session.n_objects - 3;
       *obj_ptr++ = cert_id;
       *obj_ptr++ = pvtk_id;
       *obj_ptr++ = pubk_id;
@@ -1272,7 +1265,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
   pvtk_id = PIV_PVTK_OBJ_PIV_AUTH + id;
   pubk_id = PIV_PUBK_OBJ_PIV_AUTH + id;
 
-  obj_ptr = malloc((session.slot->token.n_objects - 3) * sizeof(piv_obj_id_t));
+  obj_ptr = malloc((session.n_objects - 3) * sizeof(piv_obj_id_t));
   if (obj_ptr == NULL) {
     DBG("Unable to allocate memory");
     return CKR_HOST_MEMORY;
@@ -1280,15 +1273,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
 
   i = 0;
   j = 0;
-  while (i < session.slot->token.n_objects) {
-    if (session.slot->token.objects[i] == cert_id ||
-        session.slot->token.objects[i] == pvtk_id ||
-        session.slot->token.objects[i] == pubk_id) {
+  while (i < session.n_objects) {
+    if (session.objects[i] == cert_id ||
+        session.objects[i] == pvtk_id ||
+        session.objects[i] == pubk_id) {
       i++;
       continue;
     }
 
-    obj_ptr[j++] = session.slot->token.objects[i++];
+    obj_ptr[j++] = session.objects[i++];
   }
 
   rv = delete_cert(cert_id);
@@ -1298,11 +1291,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
     return CKR_FUNCTION_FAILED;
   }
 
-  free(session.slot->token.objects);
+  free(session.objects);
 
-  session.slot->token.n_objects -= 3;
-  session.slot->token.n_certs--;
-  session.slot->token.objects = obj_ptr;
+  session.n_objects -= 3;
+  session.n_certs--;
+  session.objects = obj_ptr;
 
   DOUT;
   return CKR_OK;
@@ -1392,6 +1385,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
 
   DIN;
 
+  if (ulCount != 0 && pTemplate == NULL_PTR) {
+    DBG("Bad arguments");
+    return CKR_ARGUMENTS_BAD;
+  }
+
+  if (hSession != YKCS11_SESSION_ID) {
+    DBG("Unknown session %lu", hSession);
+    return CKR_SESSION_HANDLE_INVALID;
+  }
+
   if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
@@ -1402,19 +1405,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
     return CKR_SESSION_CLOSED;
   }
 
-  if (hSession != YKCS11_SESSION_ID) {
-    DBG("Unknown session %lu", hSession);
-    return CKR_SESSION_HANDLE_INVALID;
-  }
-
-  if (find_obj.active == CK_TRUE)
+  if (session.find_obj != NULL)  {
+    DBG("Search is already active");
     return CKR_OPERATION_ACTIVE;
-
-  if (ulCount != 0 && pTemplate == NULL_PTR)
-    return CKR_ARGUMENTS_BAD;
-
-  find_obj.idx = 0;
-  find_obj.num = session.slot->token.n_objects;
+  }
 
   // Check if we should remove private objects
   if (session.info.state == CKS_RO_PUBLIC_SESSION ||
@@ -1427,27 +1421,38 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
     private = CK_TRUE;
   }
 
-  find_obj.objects = malloc(sizeof(piv_obj_id_t) * find_obj.num);
-  if (find_obj.objects == NULL) {
+  session.find_obj = calloc(1, sizeof(ykcs11_find_t));
+  if (session.find_obj == NULL) {
     DBG("Unable to allocate memory for finding objects");
     return CKR_HOST_MEMORY;
   }
-  memcpy(find_obj.objects, session.slot->token.objects, sizeof(piv_obj_id_t) * find_obj.num);
+
+  session.find_obj->idx = 0;
+  session.find_obj->num = session.n_objects;
+  session.find_obj->objects = calloc(session.find_obj->num, sizeof(piv_obj_id_t));
+
+  if (session.find_obj->objects == NULL) {
+    DBG("Unable to allocate memory for finding objects");
+    free(session.find_obj);
+    return CKR_HOST_MEMORY;
+  }
+
+  memcpy(session.find_obj->objects, session.objects, session.find_obj->num * sizeof(piv_obj_id_t));
 
   DBG("Initialized search with %lu parameters", ulCount);
 
   // Match parameters
-  total = find_obj.num;
-  for (i = 0; i < find_obj.num; i++) {
+  total = session.find_obj->num;
+  for (i = 0; i < session.find_obj->num; i++) {
 
-    if (find_obj.objects[i] == OBJECT_INVALID)
+    if (session.find_obj->objects[i] == OBJECT_INVALID)
       continue; // Object already discarded, keep going
 
     // Strip away private objects if needed
     if (private == CK_FALSE)
-      if (is_private_object(&session, find_obj.objects[i]) == CK_TRUE) {
-        DBG("Stripping away private object %u", find_obj.objects[i]);
-        find_obj.objects[i] = OBJECT_INVALID;
+      if (is_private_object(&session, session.find_obj->objects[i]) == CK_TRUE) {
+        DBG("Stripping away private object %u", session.find_obj->objects[i]);
+        session.find_obj->objects[i] = OBJECT_INVALID;
         total--;
         continue;
       }
@@ -1455,9 +1460,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
     for (j = 0; j < ulCount; j++) {
       DBG("Parameter %lu\nType: %lu Value: %lu Len: %lu", j, pTemplate[j].type, *((CK_ULONG_PTR)pTemplate[j].pValue), pTemplate[j].ulValueLen);
 
-      if (attribute_match(&session, find_obj.objects[i], pTemplate + j) == CK_FALSE) {
+      if (attribute_match(&session, session.find_obj->objects[i], pTemplate + j) == CK_FALSE) {
         DBG("Removing object %u from the list", find_obj.objects[i]);
-        find_obj.objects[i] = OBJECT_INVALID;  // Object not matching, mark it
+        session.find_obj->objects[i] = OBJECT_INVALID;  // Object not matching, mark it
         total--;
         break;
       }
@@ -1467,8 +1472,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
   }
 
   DBG("%lu object(s) left after attribute matching", total);
-
-  find_obj.active = CK_TRUE;
 
   DOUT;
   return CKR_OK;
@@ -1503,20 +1506,20 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
       pulObjectCount == NULL_PTR)
     return CKR_ARGUMENTS_BAD;
 
-  if (find_obj.active != CK_TRUE)
+  if (session.find_obj == NULL)
     return CKR_OPERATION_NOT_INITIALIZED;
 
   DBG("Can return %lu object(s)", ulMaxObjectCount);
   *pulObjectCount = 0;
 
   // Return the next object, if any
-  while(find_obj.idx < find_obj.num) {
-    if(find_obj.objects[find_obj.idx] != OBJECT_INVALID) {
-      *phObject++ = find_obj.objects[find_obj.idx];
+  while(session.find_obj->idx < session.find_obj->num) {
+    if(session.find_obj->objects[session.find_obj->idx] != OBJECT_INVALID) {
+      *phObject++ = session.find_obj->objects[session.find_obj->idx];
       if(++(*pulObjectCount) == ulMaxObjectCount)
         break;
     }
-    find_obj.idx++;
+    session.find_obj->idx++;
   }
 
   DBG("Returning %lu objects", *pulObjectCount);
@@ -1544,13 +1547,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsFinal)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (find_obj.active != CK_TRUE)
+  if (session.find_obj == NULL)
     return CKR_OPERATION_NOT_INITIALIZED;
 
-  free(find_obj.objects);
-  find_obj.objects = NULL;
-
-  find_obj.active = CK_FALSE;
+  free(session.find_obj->objects);
+  free(session.find_obj);
+  session.find_obj = NULL;
 
   DOUT;
   return CKR_OK;
@@ -2358,8 +2360,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   }
 
   is_new = CK_TRUE;
-  for (i = 0; i < session.slot->token.n_objects; i++) {
-    if (session.slot->token.objects[i] == op_info.op.gen.key_id)
+  for (i = 0; i < session.n_objects; i++) {
+    if (session.objects[i] == op_info.op.gen.key_id)
       is_new = CK_FALSE;
   }
 
@@ -2373,17 +2375,17 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     // New object created, add it to the object list
 
     // Each object counts as three (data object is always there)
-    session.slot->token.n_objects += 3;
-    session.slot->token.n_certs++;
+    session.n_objects += 3;
+    session.n_certs++;
 
-    obj_ptr = realloc(session.slot->token.objects, session.slot->token.n_objects * sizeof(piv_obj_id_t));
+    obj_ptr = realloc(session.objects, session.n_objects * sizeof(piv_obj_id_t));
     if (obj_ptr == NULL) {
       DBG("Unable to store new item in the session");
       return CKR_HOST_MEMORY;
     }
-    session.slot->token.objects = obj_ptr;
+    session.objects = obj_ptr;
 
-    obj_ptr = session.slot->token.objects + session.slot->token.n_objects - 3;
+    obj_ptr = session.objects + session.n_objects - 3;
     *obj_ptr++ = cert_id;
     *obj_ptr++ = pvtk_id;
     *obj_ptr++ = pubk_id;
@@ -2503,7 +2505,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CancelFunction)(
   return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
-CK_FUNCTION_LIST function_list = {
+static CK_FUNCTION_LIST function_list = {
   { 2, 40 },
   C_Initialize,
   C_Finalize,
