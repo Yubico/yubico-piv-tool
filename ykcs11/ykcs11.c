@@ -1405,7 +1405,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
     return CKR_SESSION_CLOSED;
   }
 
-  if (session.find_obj != NULL)  {
+  if (session.find_obj.objects != NULL)  {
     DBG("Search is already active");
     return CKR_OPERATION_ACTIVE;
   }
@@ -1421,38 +1421,31 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
     private = CK_TRUE;
   }
 
-  session.find_obj = calloc(1, sizeof(ykcs11_find_t));
-  if (session.find_obj == NULL) {
+  session.find_obj.idx = 0;
+  session.find_obj.num = session.n_objects;
+  session.find_obj.objects = calloc(session.n_objects, sizeof(piv_obj_id_t));
+
+  if (session.find_obj.objects == NULL) {
     DBG("Unable to allocate memory for finding objects");
     return CKR_HOST_MEMORY;
   }
 
-  session.find_obj->idx = 0;
-  session.find_obj->num = session.n_objects;
-  session.find_obj->objects = calloc(session.find_obj->num, sizeof(piv_obj_id_t));
-
-  if (session.find_obj->objects == NULL) {
-    DBG("Unable to allocate memory for finding objects");
-    free(session.find_obj);
-    return CKR_HOST_MEMORY;
-  }
-
-  memcpy(session.find_obj->objects, session.objects, session.find_obj->num * sizeof(piv_obj_id_t));
+  memcpy(session.find_obj.objects, session.objects, session.n_objects * sizeof(piv_obj_id_t));
 
   DBG("Initialized search with %lu parameters", ulCount);
 
   // Match parameters
-  total = session.find_obj->num;
-  for (i = 0; i < session.find_obj->num; i++) {
+  total = session.find_obj.num;
+  for (i = 0; i < session.find_obj.num; i++) {
 
-    if (session.find_obj->objects[i] == OBJECT_INVALID)
+    if (session.find_obj.objects[i] == OBJECT_INVALID)
       continue; // Object already discarded, keep going
 
     // Strip away private objects if needed
     if (private == CK_FALSE)
-      if (is_private_object(&session, session.find_obj->objects[i]) == CK_TRUE) {
-        DBG("Stripping away private object %u", session.find_obj->objects[i]);
-        session.find_obj->objects[i] = OBJECT_INVALID;
+      if (is_private_object(&session, session.find_obj.objects[i]) == CK_TRUE) {
+        DBG("Stripping away private object %u", session.find_obj.objects[i]);
+        session.find_obj.objects[i] = OBJECT_INVALID;
         total--;
         continue;
       }
@@ -1460,9 +1453,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
     for (j = 0; j < ulCount; j++) {
       DBG("Parameter %lu\nType: %lu Value: %lu Len: %lu", j, pTemplate[j].type, *((CK_ULONG_PTR)pTemplate[j].pValue), pTemplate[j].ulValueLen);
 
-      if (attribute_match(&session, session.find_obj->objects[i], pTemplate + j) == CK_FALSE) {
+      if (attribute_match(&session, session.find_obj.objects[i], pTemplate + j) == CK_FALSE) {
         DBG("Removing object %u from the list", find_obj.objects[i]);
-        session.find_obj->objects[i] = OBJECT_INVALID;  // Object not matching, mark it
+        session.find_obj.objects[i] = OBJECT_INVALID;  // Object not matching, mark it
         total--;
         break;
       }
@@ -1506,20 +1499,20 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
       pulObjectCount == NULL_PTR)
     return CKR_ARGUMENTS_BAD;
 
-  if (session.find_obj == NULL)
+  if (session.find_obj.objects == NULL)
     return CKR_OPERATION_NOT_INITIALIZED;
 
   DBG("Can return %lu object(s)", ulMaxObjectCount);
   *pulObjectCount = 0;
 
   // Return the next object, if any
-  while(session.find_obj->idx < session.find_obj->num) {
-    if(session.find_obj->objects[session.find_obj->idx] != OBJECT_INVALID) {
-      *phObject++ = session.find_obj->objects[session.find_obj->idx];
+  while(session.find_obj.idx < session.find_obj.num) {
+    if(session.find_obj.objects[session.find_obj.idx] != OBJECT_INVALID) {
+      *phObject++ = session.find_obj.objects[session.find_obj.idx];
       if(++(*pulObjectCount) == ulMaxObjectCount)
         break;
     }
-    session.find_obj->idx++;
+    session.find_obj.idx++;
   }
 
   DBG("Returning %lu objects", *pulObjectCount);
@@ -1547,12 +1540,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsFinal)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (session.find_obj == NULL)
+  if (session.find_obj.objects == NULL)
     return CKR_OPERATION_NOT_INITIALIZED;
 
-  free(session.find_obj->objects);
-  free(session.find_obj);
-  session.find_obj = NULL;
+  free(session.find_obj.objects);
+  session.find_obj.objects = NULL;
 
   DOUT;
   return CKR_OK;

@@ -60,7 +60,7 @@ typedef struct {
   piv_obj_id_t    *objects;  // List of objects in the token
   CK_ULONG        n_objects; // TOTAL number of objects in the token
   CK_ULONG        n_certs;   // Number of certificate objects in the token (portion of n_objects)
-  ykcs11_find_t   *find_obj; // Active find operation (if any)
+  ykcs11_find_t   find_obj;  // Active find operation (if any)
 } ykcs11_session_t;
 
 typedef enum {
