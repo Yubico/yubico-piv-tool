@@ -369,38 +369,10 @@ static CK_RV asn1_encode_oid(CK_CHAR_PTR oid, CK_BYTE_PTR asn1_oid, CK_ULONG_PTR
   return CKR_OK;
 }
 
-static CK_KEY_TYPE get_key_type(EVP_PKEY *key) {
-  return do_get_key_type(key);
-}
-
-static CK_ULONG get_modulus_bits(EVP_PKEY *key) {
-  return do_get_rsa_modulus_length(key);
-}
-
-static CK_RV get_public_exponent(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
-  return do_get_public_exponent(key, data, len);
-}
-
-static CK_RV get_modulus(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
-  return do_get_modulus(key, data, len);
-}
-
-static CK_RV get_public_key(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
-  return do_get_public_key(key, data, len);
-}
-
-static CK_RV get_curve_parameters(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
-  return do_get_curve_parameters(key, data, len);
-}
-
-static CK_RV get_raw_cert(X509 *cert, CK_BYTE_PTR data, CK_ULONG_PTR len) {
-  return do_get_raw_cert(cert, data, len);
-}
-
 /* Get data object attribute */
 CK_RV get_doa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
-  CK_BYTE     tmp[64];
+  CK_BYTE     tmp[1024];
   CK_ULONG    ul_tmp;
   CK_ULONG    len = 0;
   CK_RV       rv;
@@ -464,7 +436,16 @@ CK_RV get_doa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     data = tmp;
     break;
 
-  /* case CKA_VALUE: */ // TODO: this can be done with -r and -d|-a
+  case CKA_VALUE:
+    DBG("VALUE");
+    if(cert_objects[piv_objects[obj].sub_id].data) {
+      len = sizeof(tmp);
+      if ((rv = do_get_raw_cert(cert_objects[piv_objects[obj].sub_id].data, tmp, &len)) != CKR_OK)
+        return rv;
+    }
+    data = tmp;
+    break;
+
   default:
     DBG("UNKNOWN ATTRIBUTE %lx", template[0].type);
     template->ulValueLen = CK_UNAVAILABLE_INFORMATION;
@@ -493,6 +474,7 @@ CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE     b_tmp[1024];
   CK_ULONG    ul_tmp;
   CK_ULONG    len = 0;
+  CK_RV       rv;
   DBG("For certificate object %lu, get ", obj);
 
   switch (template->type) {
@@ -527,8 +509,8 @@ CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   case CKA_VALUE:
     DBG("VALUE");
     len = sizeof(b_tmp);
-    if (get_raw_cert(cert_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
-      return CKR_FUNCTION_FAILED;
+    if ((rv = do_get_raw_cert(cert_objects[piv_objects[obj].sub_id].data, b_tmp, &len)) != CKR_OK)
+      return rv;
     data = b_tmp;
     break;
 
@@ -586,6 +568,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE     b_tmp[1024];
   CK_ULONG    ul_tmp; // TODO: fix elsewhere too
   CK_ULONG    len = 0;
+  CK_RV       rv;
   DBG("For private key object %lu, get ", obj);
 
   switch (template->type) {
@@ -620,7 +603,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   case CKA_KEY_TYPE:
     DBG("KEY TYPE");
     len = sizeof(CK_ULONG);
-    ul_tmp = get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    ul_tmp = do_get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
     if (ul_tmp == CKK_VENDOR_DEFINED)
       return CKR_FUNCTION_FAILED;
     data = (CK_BYTE_PTR) &ul_tmp;
@@ -680,7 +663,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     len = sizeof(b_tmp);
 
     // Make sure that this is an RSA key
-    ul_tmp = get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    ul_tmp = do_get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
     if (ul_tmp == CKK_VENDOR_DEFINED)
       return CKR_FUNCTION_FAILED;
     if (ul_tmp != CKK_RSA) {
@@ -688,8 +671,8 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
 
-    if (get_modulus(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
-      return CKR_FUNCTION_FAILED;
+    if ((rv = do_get_modulus(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len)) != CKR_OK)
+      return rv;
     data = b_tmp;
     break;
 
@@ -698,7 +681,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     len = sizeof(b_tmp);
 
     // Make sure that this is an EC key
-    ul_tmp = get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    ul_tmp = do_get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
     if (ul_tmp == CKK_VENDOR_DEFINED)
       return CKR_FUNCTION_FAILED;
     if (ul_tmp != CKK_ECDSA) {
@@ -706,8 +689,8 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
 
-    if (get_public_key(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
-      return CKR_FUNCTION_FAILED;
+    if ((rv = do_get_public_key(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len)) != CKR_OK)
+      return rv;
     data = b_tmp;
     break;
 
@@ -717,7 +700,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     len = sizeof(b_tmp);
 
     // Make sure that this is an EC key
-    ul_tmp = get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    ul_tmp = do_get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
     if (ul_tmp == CKK_VENDOR_DEFINED)
       return CKR_FUNCTION_FAILED;
     if (ul_tmp != CKK_ECDSA) {
@@ -725,8 +708,8 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
 
-    if (get_curve_parameters(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
-      return CKR_FUNCTION_FAILED;
+    if ((rv = do_get_curve_parameters(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len)) != CKR_OK)
+      return rv;
 
     data = b_tmp;
     break;
@@ -736,7 +719,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     len = sizeof(CK_ULONG);
 
     // Make sure that this is an RSA key
-    ul_tmp = get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    ul_tmp = do_get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
     if (ul_tmp == CKK_VENDOR_DEFINED)
       return CKR_FUNCTION_FAILED;
     if (ul_tmp != CKK_RSA) {
@@ -744,7 +727,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
 
-    ul_tmp = get_modulus_bits(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    ul_tmp = do_get_rsa_modulus_length(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
     if (ul_tmp == 0)
       return CKR_FUNCTION_FAILED;
     data = (CK_BYTE_PTR) &ul_tmp;
@@ -755,7 +738,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     len = sizeof(CK_ULONG);
 
     // Make sure that this is an RSA key
-    ul_tmp = get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    ul_tmp = do_get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
     if (ul_tmp == CKK_VENDOR_DEFINED)
       return CKR_FUNCTION_FAILED;
     if (ul_tmp != CKK_RSA) {
@@ -763,8 +746,8 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
 
-    if (get_public_exponent(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
-      return CKR_FUNCTION_FAILED;
+    if ((rv = do_get_public_exponent(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len)) != CKR_OK)
+      return rv;
     data = b_tmp;
     break;
 
@@ -864,7 +847,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   case CKA_KEY_TYPE:
     DBG("KEY TYPE");
     len = sizeof(CK_ULONG);
-    ul_tmp = get_key_type(pubkey_objects[piv_objects[obj].sub_id].data);
+    ul_tmp = do_get_key_type(pubkey_objects[piv_objects[obj].sub_id].data);
     if (ul_tmp == CKK_VENDOR_DEFINED) // This value is used as an error here
       return CKR_FUNCTION_FAILED;
     data = (CK_BYTE_PTR) &ul_tmp;
@@ -924,7 +907,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     len = sizeof(b_tmp);
 
     // Make sure that this is an EC key
-    ul_tmp = get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    ul_tmp = do_get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
     if (ul_tmp == CKK_VENDOR_DEFINED)
       return CKR_FUNCTION_FAILED;
     if (ul_tmp != CKK_ECDSA) {
@@ -932,7 +915,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
 
-    if (get_public_key(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
+    if (do_get_public_key(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
       return CKR_FUNCTION_FAILED;
     data = b_tmp;
     break;
@@ -943,7 +926,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     len = sizeof(b_tmp);
 
     // Make sure that this is an EC key
-    ul_tmp = get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    ul_tmp = do_get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
     if (ul_tmp == CKK_VENDOR_DEFINED)
       return CKR_FUNCTION_FAILED;
     if (ul_tmp != CKK_ECDSA) {
@@ -951,7 +934,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
 
-    if (get_curve_parameters(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
+    if (do_get_curve_parameters(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
       return CKR_FUNCTION_FAILED;
 
     data = b_tmp;
@@ -962,7 +945,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     len = sizeof(b_tmp);
 
     // Make sure that this is an RSA key
-    ul_tmp = get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    ul_tmp = do_get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
     if (ul_tmp == CKK_VENDOR_DEFINED)
       return CKR_FUNCTION_FAILED;
     if (ul_tmp != CKK_RSA) {
@@ -970,7 +953,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
 
-    if (get_modulus(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
+    if (do_get_modulus(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
       return CKR_FUNCTION_FAILED;
     data = b_tmp;
     break;
@@ -980,7 +963,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     len = sizeof(CK_ULONG);
 
     // Make sure that this is an RSA key
-    ul_tmp = get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    ul_tmp = do_get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
     if (ul_tmp == CKK_VENDOR_DEFINED)
       return CKR_FUNCTION_FAILED;
     if (ul_tmp != CKK_RSA) {
@@ -988,7 +971,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
 
-    ul_tmp = get_modulus_bits(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    ul_tmp = do_get_rsa_modulus_length(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
     if (ul_tmp == 0)
       return CKR_FUNCTION_FAILED;
     data = (CK_BYTE_PTR) &ul_tmp;
@@ -999,7 +982,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     len = sizeof(CK_ULONG);
 
     // Make sure that this is an RSA key
-    ul_tmp = get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    ul_tmp = do_get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
     if (ul_tmp == CKK_VENDOR_DEFINED)
       return CKR_FUNCTION_FAILED;
     if (ul_tmp != CKK_RSA) {
@@ -1007,7 +990,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
 
-    if (get_public_exponent(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
+    if (do_get_public_exponent(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
       return CKR_FUNCTION_FAILED;
     data = b_tmp;
     break;
