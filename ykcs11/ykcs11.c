@@ -54,12 +54,13 @@
 #define PIV_MGM_KEY_LEN 48
 
 #define YKCS11_MAX_SLOTS       16
+#define YKCS11_MAX_SESSIONS    16
 //#define YKCS11_MAX_SIG_BUF_LEN 1024
 
 static ykcs11_slot_t slots[YKCS11_MAX_SLOTS];
 static CK_ULONG      n_slots = 0;
 
-static ykcs11_session_t sessions[YKCS11_MAX_SLOTS];
+static ykcs11_session_t sessions[YKCS11_MAX_SESSIONS];
 
 static CK_C_INITIALIZE_ARGS locking;
 static void *mutex;
@@ -69,13 +70,13 @@ op_info_t op_info;
 static CK_FUNCTION_LIST function_list;
 
 static ykcs11_session_t* get_session(CK_SESSION_HANDLE handle) {
-  if(handle > YKCS11_MAX_SLOTS)
+  if(handle > YKCS11_MAX_SESSIONS)
     return NULL;
   return sessions + handle - 1;
 }
 
 static ykcs11_session_t* get_free_session() {
-  for(int i = 0; i < YKCS11_MAX_SLOTS; i++) {
+  for(int i = 0; i < YKCS11_MAX_SESSIONS; i++) {
     if(sessions[i].state == NULL) {
       return sessions + i;
     }
@@ -744,7 +745,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  for(int i=0; i<YKCS11_MAX_SLOTS; i++) {
+  for(int i=0; i<YKCS11_MAX_SESSIONS; i++) {
     ykcs11_session_t *session = &sessions[i];
     if(session->state != NULL) {
       if(session->info.slotID == slotID) {
