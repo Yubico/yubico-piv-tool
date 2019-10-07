@@ -54,13 +54,14 @@ typedef struct {
 } ykcs11_find_t;
 
 typedef struct {
-  CK_SESSION_INFO info;      // slotid, state, flags, deviceerror
-  ykcs11_slot_t   *slot;     // The slot the session is associated with
-  ykpiv_state     *state;    // The ykpiv_state for the session
-  piv_obj_id_t    *objects;  // List of objects in the token
-  CK_ULONG        n_objects; // TOTAL number of objects in the token
-  CK_ULONG        n_certs;   // Number of certificate objects in the token (portion of n_objects)
-  ykcs11_find_t   find_obj;  // Active find operation (if any)
+  CK_SESSION_HANDLE handle;
+  CK_SESSION_INFO   info;      // slotid, state, flags, deviceerror
+  ykcs11_slot_t     *slot;     // The slot the session is associated with
+  ykpiv_state       *state;    // The ykpiv_state for the session
+  piv_obj_id_t      *objects;  // List of objects in the token
+  CK_ULONG          n_objects; // TOTAL number of objects in the token
+  CK_ULONG          n_certs;   // Number of certificate objects in the token (portion of n_objects)
+  ykcs11_find_t     find_obj;  // Active find operation (if any)
 } ykcs11_session_t;
 
 typedef enum {
