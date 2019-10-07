@@ -53,12 +53,13 @@
 #define PIV_MGM_KEY_LEN 48
 
 #define YKCS11_MAX_SLOTS       16
+#define YKCS11_MAX_SESSIONS    16
 //#define YKCS11_MAX_SIG_BUF_LEN 1024
 
 static ykcs11_slot_t slots[YKCS11_MAX_SLOTS];
 static CK_ULONG      n_slots = 0;
 
-static ykcs11_session_t sessions[YKCS11_MAX_SLOTS];
+static ykcs11_session_t sessions[YKCS11_MAX_SESSIONS];
 static CK_ULONG         max_session_id = 0;
 
 static CK_C_INITIALIZE_ARGS locking;
@@ -69,7 +70,7 @@ op_info_t op_info;
 static CK_FUNCTION_LIST function_list;
 
 static ykcs11_session_t* get_session(CK_SESSION_HANDLE handle) {
-  for(int i=0; i<YKCS11_MAX_SLOTS; i++) {
+  for(int i=0; i<YKCS11_MAX_SESSIONS; i++) {
     ykcs11_session_t session = sessions[i];
     if(&session != NULL && session.handle == handle) {
       return &sessions[i];
@@ -79,7 +80,7 @@ static ykcs11_session_t* get_session(CK_SESSION_HANDLE handle) {
 }
 
 static CK_ULONG get_free_session_index() {
-  for(int i=0; i<YKCS11_MAX_SLOTS; i++) {
+  for(int i=0; i<YKCS11_MAX_SESSIONS; i++) {
     ykcs11_session_t session = sessions[i];
     if(&session == NULL) {
       return i;
@@ -88,7 +89,7 @@ static CK_ULONG get_free_session_index() {
       return i;
     }
   }
-  return YKCS11_MAX_SLOTS;
+  return YKCS11_MAX_SESSIONS;
 }
 
 /* General Purpose */
@@ -618,7 +619,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
 
   int session_index = get_free_session_index();
 
-  if (session_index >= YKCS11_MAX_SLOTS) {
+  if (session_index >= YKCS11_MAX_SESSIONS) {
     DBG("The maximum number of open session have already been reached");
     locking.UnlockMutex(mutex);
     return CKR_SESSION_COUNT;
@@ -802,7 +803,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  for(int i=0; i<YKCS11_MAX_SLOTS; i++) {
+  for(int i=0; i<YKCS11_MAX_SESSIONS; i++) {
     ykcs11_session_t session = sessions[i];
     if(&session != NULL && session.state != NULL) {
       if(session.info.slotID == slotID) {
