@@ -157,18 +157,12 @@ typedef enum {
 
 #define OBJECT_INVALID            (PIV_PUBK_OBJ_LAST + 1)
 
-typedef CK_RV (*get_attr_f)(CK_OBJECT_HANDLE, CK_ATTRIBUTE_PTR);
-
 typedef struct {
   const char   *oid;
   CK_BYTE      tag_len;
   CK_BYTE      tag_value[3];   // TODO: needed?
   CK_BYTE      containerid[2]; /* will use as relative paths for simulation */ // TODO: needed?
 } piv_data_obj_t;
-
-typedef struct {
-  X509 *data;
-} piv_cert_obj_t;
 
 typedef struct { // TODO: enough to use the public key for the parameters?
   CK_BBOOL decrypt;
@@ -179,7 +173,6 @@ typedef struct { // TODO: enough to use the public key for the parameters?
 } piv_pvtk_obj_t;
 
 typedef struct {
-  EVP_PKEY *data; // TODO: make custom type for this and X509
   CK_BBOOL encrypt;
   CK_BBOOL verify;
   CK_BBOOL wrap;
@@ -194,7 +187,7 @@ typedef struct {
   const char   *label;
   CK_BBOOL     copyable; // TODO: Optional, not used so far (default TRUE)
   CK_BBOOL     destroyable; // TODO: Optional, not used so far (default TRUE)
-  get_attr_f   get_attribute;
+  CK_RV        (*get_attribute)();
   CK_BYTE      sub_id; // Sub-object id
 } piv_obj_t;
 

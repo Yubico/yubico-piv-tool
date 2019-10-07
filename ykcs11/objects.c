@@ -37,16 +37,14 @@
 #include "utils.h"
 #include "debug.h"
 
-#define IS_CERT(x) (((x) >= PIV_CERT_OBJ_X509_PIV_AUTH && (x) <  PIV_CERT_OBJ_LAST) ? CK_TRUE : CK_FALSE)
-
 #define F4 "\x01\x00\x01" // TODO: already define in mechanisms.c. Move
 #define PRIME256V1 "\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07" // TODO: already define in mechanisms.c. Move
 #define SECP384R1 "\x06\x05\x2b\x81\x04\x00\x22" // TODO: already define in mechanisms.c. Move
 
-CK_RV get_doa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template); // TODO: static?
-CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
-CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
-CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
+static CK_RV get_doa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
+static CK_RV get_coa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
+static CK_RV get_proa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
+static CK_RV get_puoa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
 
 //TODO: this is mostly a snippet from OpenSC how to give credit?     Less and less so now
 /* Must be in order, and one per enumerated PIV_OBJ */
@@ -208,34 +206,6 @@ static piv_data_obj_t data_objects[] = {
   {"", 0, "", ""}
 };
 
-static piv_cert_obj_t cert_objects[] = {
-  {NULL},
-  {NULL},
-  {NULL},
-  {NULL},
-  {NULL},
-  {NULL},
-  {NULL},
-  {NULL},
-  {NULL},
-  {NULL},
-  {NULL},
-  {NULL},
-  {NULL},
-  {NULL},
-  {NULL},
-  {NULL},
-  {NULL},
-  {NULL},
-  {NULL},
-  {NULL},
-  {NULL},
-  {NULL},
-  {NULL},
-  {NULL},
-  {NULL}
-};
-
 static piv_pvtk_obj_t pvtkey_objects[] = {
   {1, 1, 0, 0, 0},
   {1, 1, 0, 0, 0},
@@ -265,31 +235,31 @@ static piv_pvtk_obj_t pvtkey_objects[] = {
 };
 
 static piv_pubk_obj_t pubkey_objects[] = {
-  {NULL, 1, 1, 0, 0},
-  {NULL, 1, 1, 0, 0},
-  {NULL, 1, 1, 0, 0},
-  {NULL, 1, 1, 0, 0},
-  {NULL, 1, 1, 0, 0},
-  {NULL, 1, 1, 0, 0},
-  {NULL, 1, 1, 0, 0},
-  {NULL, 1, 1, 0, 0},
-  {NULL, 1, 1, 0, 0},
-  {NULL, 1, 1, 0, 0},
-  {NULL, 1, 1, 0, 0},
-  {NULL, 1, 1, 0, 0},
-  {NULL, 1, 1, 0, 0},
-  {NULL, 1, 1, 0, 0},
-  {NULL, 1, 1, 0, 0},
-  {NULL, 1, 1, 0, 0},
-  {NULL, 1, 1, 0, 0},
-  {NULL, 1, 1, 0, 0},
-  {NULL, 1, 1, 0, 0},
-  {NULL, 1, 1, 0, 0},
-  {NULL, 1, 1, 0, 0},
-  {NULL, 1, 1, 0, 0},
-  {NULL, 1, 1, 0, 0},
-  {NULL, 1, 1, 0, 0},
-  {NULL, 1, 1, 0, 0}
+  {1, 1, 0, 0},
+  {1, 1, 0, 0},
+  {1, 1, 0, 0},
+  {1, 1, 0, 0},
+  {1, 1, 0, 0},
+  {1, 1, 0, 0},
+  {1, 1, 0, 0},
+  {1, 1, 0, 0},
+  {1, 1, 0, 0},
+  {1, 1, 0, 0},
+  {1, 1, 0, 0},
+  {1, 1, 0, 0},
+  {1, 1, 0, 0},
+  {1, 1, 0, 0},
+  {1, 1, 0, 0},
+  {1, 1, 0, 0},
+  {1, 1, 0, 0},
+  {1, 1, 0, 0},
+  {1, 1, 0, 0},
+  {1, 1, 0, 0},
+  {1, 1, 0, 0},
+  {1, 1, 0, 0},
+  {1, 1, 0, 0},
+  {1, 1, 0, 0},
+  {1, 1, 0, 0}
 };
 
 // Next two functions based off the code at
@@ -370,7 +340,7 @@ static CK_RV asn1_encode_oid(CK_CHAR_PTR oid, CK_BYTE_PTR asn1_oid, CK_ULONG_PTR
 }
 
 /* Get data object attribute */
-CK_RV get_doa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
+static CK_RV get_doa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
   CK_BYTE     tmp[1024];
   CK_ULONG    ul_tmp;
@@ -438,14 +408,8 @@ CK_RV get_doa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
   case CKA_VALUE:
     DBG("VALUE");
-    if(piv_objects[obj].sub_id < sizeof(cert_objects)/sizeof(cert_objects[0])) {
-      if(cert_objects[piv_objects[obj].sub_id].data) {
-        len = sizeof(tmp);
-        if ((rv = do_get_raw_cert(cert_objects[piv_objects[obj].sub_id].data, tmp, &len)) != CKR_OK)
-          return rv;
-      }
-    }
-    data = tmp;
+    len = s->data[piv_objects[obj].sub_id].len;
+    data = s->data[piv_objects[obj].sub_id].data;
     break;
 
   default:
@@ -471,7 +435,7 @@ CK_RV get_doa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 }
 
 /* Get certificate object attribute */
-CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
+static CK_RV get_coa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
   CK_BYTE     b_tmp[1024];
   CK_ULONG    ul_tmp;
@@ -511,7 +475,7 @@ CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   case CKA_VALUE:
     DBG("VALUE");
     len = sizeof(b_tmp);
-    if ((rv = do_get_raw_cert(cert_objects[piv_objects[obj].sub_id].data, b_tmp, &len)) != CKR_OK)
+    if ((rv = do_get_raw_cert(s->certs[piv_objects[obj].sub_id], b_tmp, &len)) != CKR_OK)
       return rv;
     data = b_tmp;
     break;
@@ -565,7 +529,7 @@ CK_RV get_coa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 }
 
 /* Get private key object attribute */
-CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
+static CK_RV get_proa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
   CK_BYTE     b_tmp[1024];
   CK_ULONG    ul_tmp; // TODO: fix elsewhere too
@@ -605,7 +569,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   case CKA_KEY_TYPE:
     DBG("KEY TYPE");
     len = sizeof(CK_ULONG);
-    ul_tmp = do_get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    ul_tmp = do_get_key_type(s->pkeys[piv_objects[obj].sub_id]); // Getting the info from the pubk
     if (ul_tmp == CKK_VENDOR_DEFINED)
       return CKR_FUNCTION_FAILED;
     data = (CK_BYTE_PTR) &ul_tmp;
@@ -665,7 +629,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     len = sizeof(b_tmp);
 
     // Make sure that this is an RSA key
-    ul_tmp = do_get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    ul_tmp = do_get_key_type(s->pkeys[piv_objects[obj].sub_id]); // Getting the info from the pubk
     if (ul_tmp == CKK_VENDOR_DEFINED)
       return CKR_FUNCTION_FAILED;
     if (ul_tmp != CKK_RSA) {
@@ -673,7 +637,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
 
-    if ((rv = do_get_modulus(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len)) != CKR_OK)
+    if ((rv = do_get_modulus(s->pkeys[piv_objects[obj].sub_id], b_tmp, &len)) != CKR_OK)
       return rv;
     data = b_tmp;
     break;
@@ -683,7 +647,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     len = sizeof(b_tmp);
 
     // Make sure that this is an EC key
-    ul_tmp = do_get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    ul_tmp = do_get_key_type(s->pkeys[piv_objects[obj].sub_id]); // Getting the info from the pubk
     if (ul_tmp == CKK_VENDOR_DEFINED)
       return CKR_FUNCTION_FAILED;
     if (ul_tmp != CKK_ECDSA) {
@@ -691,7 +655,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
 
-    if ((rv = do_get_public_key(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len)) != CKR_OK)
+    if ((rv = do_get_public_key(s->pkeys[piv_objects[obj].sub_id], b_tmp, &len)) != CKR_OK)
       return rv;
     data = b_tmp;
     break;
@@ -702,7 +666,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     len = sizeof(b_tmp);
 
     // Make sure that this is an EC key
-    ul_tmp = do_get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    ul_tmp = do_get_key_type(s->pkeys[piv_objects[obj].sub_id]); // Getting the info from the pubk
     if (ul_tmp == CKK_VENDOR_DEFINED)
       return CKR_FUNCTION_FAILED;
     if (ul_tmp != CKK_ECDSA) {
@@ -710,7 +674,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
 
-    if ((rv = do_get_curve_parameters(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len)) != CKR_OK)
+    if ((rv = do_get_curve_parameters(s->pkeys[piv_objects[obj].sub_id], b_tmp, &len)) != CKR_OK)
       return rv;
 
     data = b_tmp;
@@ -721,7 +685,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     len = sizeof(CK_ULONG);
 
     // Make sure that this is an RSA key
-    ul_tmp = do_get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    ul_tmp = do_get_key_type(s->pkeys[piv_objects[obj].sub_id]); // Getting the info from the pubk
     if (ul_tmp == CKK_VENDOR_DEFINED)
       return CKR_FUNCTION_FAILED;
     if (ul_tmp != CKK_RSA) {
@@ -729,7 +693,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
 
-    ul_tmp = do_get_rsa_modulus_length(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    ul_tmp = do_get_rsa_modulus_length(s->pkeys[piv_objects[obj].sub_id]); // Getting the info from the pubk
     if (ul_tmp == 0)
       return CKR_FUNCTION_FAILED;
     data = (CK_BYTE_PTR) &ul_tmp;
@@ -740,7 +704,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     len = sizeof(CK_ULONG);
 
     // Make sure that this is an RSA key
-    ul_tmp = do_get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    ul_tmp = do_get_key_type(s->pkeys[piv_objects[obj].sub_id]); // Getting the info from the pubk
     if (ul_tmp == CKK_VENDOR_DEFINED)
       return CKR_FUNCTION_FAILED;
     if (ul_tmp != CKK_RSA) {
@@ -748,7 +712,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
 
-    if ((rv = do_get_public_exponent(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len)) != CKR_OK)
+    if ((rv = do_get_public_exponent(s->pkeys[piv_objects[obj].sub_id], b_tmp, &len)) != CKR_OK)
       return rv;
     data = b_tmp;
     break;
@@ -810,7 +774,7 @@ CK_RV get_proa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 }
 
 /* Get public key object attribute */
-CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
+static CK_RV get_puoa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
   CK_BYTE     b_tmp[1024];
   CK_ULONG    ul_tmp;
@@ -849,7 +813,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   case CKA_KEY_TYPE:
     DBG("KEY TYPE");
     len = sizeof(CK_ULONG);
-    ul_tmp = do_get_key_type(pubkey_objects[piv_objects[obj].sub_id].data);
+    ul_tmp = do_get_key_type(s->pkeys[piv_objects[obj].sub_id]);
     if (ul_tmp == CKK_VENDOR_DEFINED) // This value is used as an error here
       return CKR_FUNCTION_FAILED;
     data = (CK_BYTE_PTR) &ul_tmp;
@@ -909,7 +873,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     len = sizeof(b_tmp);
 
     // Make sure that this is an EC key
-    ul_tmp = do_get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    ul_tmp = do_get_key_type(s->pkeys[piv_objects[obj].sub_id]); // Getting the info from the pubk
     if (ul_tmp == CKK_VENDOR_DEFINED)
       return CKR_FUNCTION_FAILED;
     if (ul_tmp != CKK_ECDSA) {
@@ -917,7 +881,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
 
-    if (do_get_public_key(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
+    if (do_get_public_key(s->pkeys[piv_objects[obj].sub_id], b_tmp, &len) != CKR_OK)
       return CKR_FUNCTION_FAILED;
     data = b_tmp;
     break;
@@ -928,7 +892,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     len = sizeof(b_tmp);
 
     // Make sure that this is an EC key
-    ul_tmp = do_get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    ul_tmp = do_get_key_type(s->pkeys[piv_objects[obj].sub_id]); // Getting the info from the pubk
     if (ul_tmp == CKK_VENDOR_DEFINED)
       return CKR_FUNCTION_FAILED;
     if (ul_tmp != CKK_ECDSA) {
@@ -936,7 +900,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
 
-    if (do_get_curve_parameters(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
+    if (do_get_curve_parameters(s->pkeys[piv_objects[obj].sub_id], b_tmp, &len) != CKR_OK)
       return CKR_FUNCTION_FAILED;
 
     data = b_tmp;
@@ -947,7 +911,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     len = sizeof(b_tmp);
 
     // Make sure that this is an RSA key
-    ul_tmp = do_get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    ul_tmp = do_get_key_type(s->pkeys[piv_objects[obj].sub_id]); // Getting the info from the pubk
     if (ul_tmp == CKK_VENDOR_DEFINED)
       return CKR_FUNCTION_FAILED;
     if (ul_tmp != CKK_RSA) {
@@ -955,7 +919,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
 
-    if (do_get_modulus(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
+    if (do_get_modulus(s->pkeys[piv_objects[obj].sub_id], b_tmp, &len) != CKR_OK)
       return CKR_FUNCTION_FAILED;
     data = b_tmp;
     break;
@@ -965,7 +929,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     len = sizeof(CK_ULONG);
 
     // Make sure that this is an RSA key
-    ul_tmp = do_get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    ul_tmp = do_get_key_type(s->pkeys[piv_objects[obj].sub_id]); // Getting the info from the pubk
     if (ul_tmp == CKK_VENDOR_DEFINED)
       return CKR_FUNCTION_FAILED;
     if (ul_tmp != CKK_RSA) {
@@ -973,7 +937,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
 
-    ul_tmp = do_get_rsa_modulus_length(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    ul_tmp = do_get_rsa_modulus_length(s->pkeys[piv_objects[obj].sub_id]); // Getting the info from the pubk
     if (ul_tmp == 0)
       return CKR_FUNCTION_FAILED;
     data = (CK_BYTE_PTR) &ul_tmp;
@@ -984,7 +948,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
     len = sizeof(CK_ULONG);
 
     // Make sure that this is an RSA key
-    ul_tmp = do_get_key_type(pubkey_objects[piv_objects[obj].sub_id].data); // Getting the info from the pubk
+    ul_tmp = do_get_key_type(s->pkeys[piv_objects[obj].sub_id]); // Getting the info from the pubk
     if (ul_tmp == CKK_VENDOR_DEFINED)
       return CKR_FUNCTION_FAILED;
     if (ul_tmp != CKK_RSA) {
@@ -992,7 +956,7 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
 
-    if (do_get_public_exponent(pubkey_objects[piv_objects[obj].sub_id].data, b_tmp, &len) != CKR_OK)
+    if (do_get_public_exponent(s->pkeys[piv_objects[obj].sub_id], b_tmp, &len) != CKR_OK)
       return CKR_FUNCTION_FAILED;
     data = b_tmp;
     break;
@@ -1032,75 +996,123 @@ CK_RV get_puoa(CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
 
 CK_ULONG piv_2_ykpiv(piv_obj_id_t id) {
   switch(id) {
+  case PIV_DATA_OBJ_CCC:
+    return YKPIV_OBJ_CAPABILITY;
+
+  case PIV_DATA_OBJ_CHUI:
+    return YKPIV_OBJ_CHUID;
+
+  case PIV_DATA_OBJ_CHF:
+    return YKPIV_OBJ_FINGERPRINTS;
+
+  case PIV_DATA_OBJ_SEC_OBJ:
+    return YKPIV_OBJ_SECURITY;
+
+  case PIV_DATA_OBJ_CHFI:
+    return YKPIV_OBJ_FACIAL;
+
+  case PIV_DATA_OBJ_PI:
+    return YKPIV_OBJ_PRINTED;
+
+  case PIV_DATA_OBJ_HISTORY:
+    return YKPIV_OBJ_KEY_HISTORY;
+
+  case PIV_DATA_OBJ_IRIS_IMAGE:
+    return YKPIV_OBJ_IRIS;
+
+  case PIV_DATA_OBJ_X509_PIV_AUTH:
   case PIV_CERT_OBJ_X509_PIV_AUTH:
     return YKPIV_OBJ_AUTHENTICATION;
 
+  case PIV_DATA_OBJ_X509_CARD_AUTH:
   case PIV_CERT_OBJ_X509_CARD_AUTH:
     return YKPIV_OBJ_CARD_AUTH;
 
+  case PIV_DATA_OBJ_X509_DS:
   case PIV_CERT_OBJ_X509_DS:
     return YKPIV_OBJ_SIGNATURE;
 
+  case PIV_DATA_OBJ_X509_KM:
   case PIV_CERT_OBJ_X509_KM:
     return YKPIV_OBJ_KEY_MANAGEMENT;
 
+  case PIV_DATA_OBJ_X509_RETIRED1:
   case PIV_CERT_OBJ_X509_RETIRED1:
     return YKPIV_OBJ_RETIRED1;
 
+  case PIV_DATA_OBJ_X509_RETIRED2:
   case PIV_CERT_OBJ_X509_RETIRED2:
     return YKPIV_OBJ_RETIRED2;
 
+  case PIV_DATA_OBJ_X509_RETIRED3:
   case PIV_CERT_OBJ_X509_RETIRED3:
     return YKPIV_OBJ_RETIRED3;
 
+  case PIV_DATA_OBJ_X509_RETIRED4:
   case PIV_CERT_OBJ_X509_RETIRED4:
     return YKPIV_OBJ_RETIRED4;
 
+  case PIV_DATA_OBJ_X509_RETIRED5:
   case PIV_CERT_OBJ_X509_RETIRED5:
     return YKPIV_OBJ_RETIRED5;
 
+  case PIV_DATA_OBJ_X509_RETIRED6:
   case PIV_CERT_OBJ_X509_RETIRED6:
     return YKPIV_OBJ_RETIRED6;
 
+  case PIV_DATA_OBJ_X509_RETIRED7:
   case PIV_CERT_OBJ_X509_RETIRED7:
     return YKPIV_OBJ_RETIRED7;
 
+  case PIV_DATA_OBJ_X509_RETIRED8:
   case PIV_CERT_OBJ_X509_RETIRED8:
     return YKPIV_OBJ_RETIRED8;
 
+  case PIV_DATA_OBJ_X509_RETIRED9:
   case PIV_CERT_OBJ_X509_RETIRED9:
     return YKPIV_OBJ_RETIRED9;
 
+  case PIV_DATA_OBJ_X509_RETIRED10:
   case PIV_CERT_OBJ_X509_RETIRED10:
     return YKPIV_OBJ_RETIRED10;
 
+  case PIV_DATA_OBJ_X509_RETIRED11:
   case PIV_CERT_OBJ_X509_RETIRED11:
     return YKPIV_OBJ_RETIRED11;
 
+  case PIV_DATA_OBJ_X509_RETIRED12:
   case PIV_CERT_OBJ_X509_RETIRED12:
     return YKPIV_OBJ_RETIRED12;
 
+  case PIV_DATA_OBJ_X509_RETIRED13:
   case PIV_CERT_OBJ_X509_RETIRED13:
     return YKPIV_OBJ_RETIRED13;
 
+  case PIV_DATA_OBJ_X509_RETIRED14:
   case PIV_CERT_OBJ_X509_RETIRED14:
     return YKPIV_OBJ_RETIRED14;
 
+  case PIV_DATA_OBJ_X509_RETIRED15:
   case PIV_CERT_OBJ_X509_RETIRED15:
     return YKPIV_OBJ_RETIRED15;
 
+  case PIV_DATA_OBJ_X509_RETIRED16:
   case PIV_CERT_OBJ_X509_RETIRED16:
     return YKPIV_OBJ_RETIRED16;
 
+  case PIV_DATA_OBJ_X509_RETIRED17:
   case PIV_CERT_OBJ_X509_RETIRED17:
     return YKPIV_OBJ_RETIRED17;
 
+  case PIV_DATA_OBJ_X509_RETIRED18:
   case PIV_CERT_OBJ_X509_RETIRED18:
     return YKPIV_OBJ_RETIRED18;
 
+  case PIV_DATA_OBJ_X509_RETIRED19:
   case PIV_CERT_OBJ_X509_RETIRED19:
     return YKPIV_OBJ_RETIRED19;
 
+  case PIV_DATA_OBJ_X509_RETIRED20:
   case PIV_CERT_OBJ_X509_RETIRED20:
     return YKPIV_OBJ_RETIRED20;
 
@@ -1186,7 +1198,7 @@ CK_RV get_attribute(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR 
 
   for (i = 0; i < s->n_objects; i++)
     if (s->objects[i] == obj) {
-      return piv_objects[obj].get_attribute(obj, template);
+      return piv_objects[obj].get_attribute(s, obj, template);
     }
 
   return CKR_OBJECT_HANDLE_INVALID;
@@ -1249,47 +1261,67 @@ CK_BBOOL is_private_object(ykcs11_session_t *s, CK_OBJECT_HANDLE obj) {
   return private == CK_FALSE ? CK_FALSE : CK_TRUE;
 }
 
-CK_RV get_available_certificate_ids(ykcs11_session_t *s, piv_obj_id_t *cert_ids, CK_ULONG n_certs) {
-  CK_ULONG i, j;
+piv_obj_id_t find_cert_object(piv_obj_id_t obj) {
+  for(piv_obj_id_t id = PIV_CERT_OBJ_X509_PIV_AUTH; id <= PIV_CERT_OBJ_X509_RETIRED20; id++) {
+    if(piv_objects[id].sub_id == piv_objects[obj].sub_id)
+      return id;
+  }
+  return -1;
+}
 
-  if (n_certs > s->n_objects)
-    return CKR_BUFFER_TOO_SMALL;
+piv_obj_id_t find_pubk_object(piv_obj_id_t obj) {
+  for(piv_obj_id_t id = PIV_PUBK_OBJ_PIV_AUTH; id <= PIV_PUBK_OBJ_RETIRED20; id++) {
+    if(piv_objects[id].sub_id == piv_objects[obj].sub_id)
+      return id;
+  }
+  return -1;
+}
 
-  j = 0;
-  for (i = 0; i < s->n_objects; i++)
-    if (IS_CERT(s->objects[i]) == CK_TRUE)
-      cert_ids[j++] = s->objects[i];
+piv_obj_id_t find_pvtk_object(piv_obj_id_t obj) {
+  for(piv_obj_id_t id = PIV_PVTK_OBJ_PIV_AUTH; id <= PIV_PVTK_OBJ_RETIRED20; id++) {
+    if(piv_objects[id].sub_id == piv_objects[obj].sub_id)
+      return id;
+  }
+  return -1;
+}
 
+CK_RV store_data(ykcs11_session_t *s, piv_obj_id_t cert_id, CK_BYTE_PTR data, CK_ULONG len) {
+  s->data[piv_objects[cert_id].sub_id].data = realloc(s->data[piv_objects[cert_id].sub_id].data, len);
+  if(s->data[piv_objects[cert_id].sub_id].data == NULL) {
+    return CKR_HOST_MEMORY;
+  }
+  memcpy(s->data[piv_objects[cert_id].sub_id].data, data, len);
+  s->data[piv_objects[cert_id].sub_id].len = len;
   return CKR_OK;
 }
 
-CK_RV store_cert(piv_obj_id_t cert_id, CK_BYTE_PTR data, CK_ULONG len) {
+CK_RV store_cert(ykcs11_session_t *s, piv_obj_id_t cert_id, CK_BYTE_PTR data, CK_ULONG len) {
 
   CK_RV rv;
 
   // Store the certificate as an object
-  rv = do_store_cert(data, len, &cert_objects[piv_objects[cert_id].sub_id].data);
+  rv = do_store_cert(data, len, &s->certs[piv_objects[cert_id].sub_id]);
   if (rv != CKR_OK)
     return rv;
 
   // Extract and store the public key as an object
-  rv = do_store_pubk(cert_objects[piv_objects[cert_id].sub_id].data, &pubkey_objects[piv_objects[cert_id].sub_id].data);
+  rv = do_store_pubk(s->certs[piv_objects[cert_id].sub_id], &s->pkeys[piv_objects[cert_id].sub_id]);
   if (rv != CKR_OK)
     return rv;
 
   return CKR_OK;
 }
 
-CK_RV delete_cert(piv_obj_id_t cert_id) {
+CK_RV delete_cert(ykcs11_session_t *s, piv_obj_id_t cert_id) {
   CK_RV rv;
 
   // Clear the object containing the certificate
-  rv = do_delete_cert(&cert_objects[piv_objects[cert_id].sub_id].data);
+  rv = do_delete_cert(&s->certs[piv_objects[cert_id].sub_id]);
   if (rv != CKR_OK)
     return rv;
 
   // Clear the object containing the public key
-  rv = do_delete_pubk(&pubkey_objects[piv_objects[cert_id].sub_id].data);
+  rv = do_delete_pubk(&s->pkeys[piv_objects[cert_id].sub_id]);
   if (rv != CKR_OK)
     return rv;
 

@@ -224,124 +224,15 @@ CK_RV get_token_mechanism_info(CK_MECHANISM_TYPE mec, CK_MECHANISM_INFO_PTR info
 
 }
 
-static CK_RV get_objects(ykpiv_state *state, CK_BBOOL num_only,
-                         piv_obj_id_t *obj, CK_ULONG_PTR len, CK_ULONG_PTR num_certs) {
-  CK_BYTE      buf[2048];
-  CK_ULONG     buf_len;
-  CK_BYTE      major;
-  CK_ULONG     i;
+CK_RV get_token_object_ids(piv_obj_id_t **obj, CK_ULONG_PTR len) {
 
-  piv_obj_id_t certs[24];
-  piv_obj_id_t pvtkeys[24];
-  piv_obj_id_t pubkeys[24];
-  CK_ULONG     n_cert = 0;
-  CK_ULONG     token_objects_num = neo_token_objects_num;
-
-  if (state == NULL || len == NULL_PTR)
-    return CKR_ARGUMENTS_BAD;
-
-  if (num_only == CK_FALSE && obj == NULL)
-    return CKR_ARGUMENTS_BAD;
-
-  if (ykpiv_get_version(state, (char *) buf, sizeof(buf)) != YKPIV_OK)
-    return CKR_FUNCTION_FAILED;
-
-  major = buf[0] - '0';
-
-  buf_len = sizeof(buf);
-  if (ykpiv_fetch_object(state, YKPIV_OBJ_AUTHENTICATION, buf, &buf_len) == YKPIV_OK) {
-    certs[n_cert] = PIV_CERT_OBJ_X509_PIV_AUTH;
-    pvtkeys[n_cert] = PIV_PVTK_OBJ_PIV_AUTH;
-    pubkeys[n_cert] = PIV_PUBK_OBJ_PIV_AUTH;
-    n_cert++;
-    DBG("Found AUTH cert (9a)");
-  }
-
-  buf_len = sizeof(buf);
-  if (ykpiv_fetch_object(state, YKPIV_OBJ_CARD_AUTH, buf, &buf_len) == YKPIV_OK) {
-    certs[n_cert] = PIV_CERT_OBJ_X509_CARD_AUTH;
-    pvtkeys[n_cert] = PIV_PVTK_OBJ_CARD_AUTH;
-    pubkeys[n_cert] = PIV_PUBK_OBJ_CARD_AUTH;
-    n_cert++;
-    DBG("Found CARD AUTH cert (9e)");
-  }
-
-  buf_len = sizeof(buf);
-  if (ykpiv_fetch_object(state, YKPIV_OBJ_SIGNATURE, buf, &buf_len) == YKPIV_OK) {
-    certs[n_cert] = PIV_CERT_OBJ_X509_DS;
-    pvtkeys[n_cert] = PIV_PVTK_OBJ_DS;
-    pubkeys[n_cert] = PIV_PUBK_OBJ_DS;
-    n_cert++;
-    DBG("Found SIGNATURE cert (9c)");
-  }
-
-  buf_len = sizeof(buf);
-  if (ykpiv_fetch_object(state, YKPIV_OBJ_KEY_MANAGEMENT, buf, &buf_len) == YKPIV_OK) {
-    certs[n_cert] = PIV_CERT_OBJ_X509_KM;
-    pvtkeys[n_cert] = PIV_PVTK_OBJ_KM;
-    pubkeys[n_cert] = PIV_PUBK_OBJ_KM;
-    n_cert++;
-    DBG("Found KMK cert (9d)");
-  }
-
-  if (major >= 4) {
-    for (i = 0; i < 20; i++) {
-      buf_len = sizeof(buf);
-      if (ykpiv_fetch_object(state, YKPIV_OBJ_RETIRED1 + i, buf, &buf_len) == YKPIV_OK) {
-        certs[n_cert] = PIV_CERT_OBJ_X509_RETIRED1 + i;
-        pvtkeys[n_cert] = PIV_PVTK_OBJ_RETIRED1 + i;
-        pubkeys[n_cert] = PIV_PUBK_OBJ_RETIRED1 + i;
-        n_cert++;
-        DBG("Found RETIRED cert (%lx)", 0x82 + i);
-      }
-    }
-    token_objects_num = yk4_token_objects_num;
-  }
-
-  DBG("The total number of objects for this token is %lu", (n_cert * 3) + token_objects_num);
-
-  if (num_only == CK_TRUE) {
-    // We just want the number of objects
-    // Each cert object counts for 3: cert, pub key, pvt key
-    *len = (n_cert * 3) + token_objects_num;
-    if (num_certs != NULL)
-      *num_certs = n_cert;
-    return CKR_OK;
-  }
-
-  if (*len < (n_cert * 3) + token_objects_num)
-    return CKR_BUFFER_TOO_SMALL;
-
-  // Copy data objects
-  if (major >= 4) {
-    // YK4: just copy all the objects
-    memcpy(obj, token_objects, token_objects_num * sizeof(piv_obj_id_t));
-  }
-  else {
-    // NEO: remove retired keys
-    memcpy(obj, token_objects, 4 * sizeof(piv_obj_id_t));
-    memcpy(obj + 4, token_objects + 24, (neo_token_objects_num - 4) * sizeof(piv_obj_id_t));
-  }
-
-  // Copy certificates
-  if (n_cert > 0) {
-    memcpy(obj + token_objects_num, certs, n_cert * sizeof(piv_obj_id_t));
-    memcpy(obj + token_objects_num + n_cert, pvtkeys, n_cert * sizeof(piv_obj_id_t));
-    memcpy(obj + token_objects_num + (2 * n_cert), pubkeys, n_cert * sizeof(piv_obj_id_t));
-  }
+  *obj = (piv_obj_id_t*)token_objects;
+  *len = sizeof(token_objects) / sizeof(token_objects[0]);
 
   return CKR_OK;
 }
 
-CK_RV get_token_objects_num(ykpiv_state *state, CK_ULONG_PTR num, CK_ULONG_PTR num_certs) {
-  return get_objects(state, CK_TRUE, NULL, num, num_certs);
-}
-
-CK_RV get_token_object_list(ykpiv_state *state, piv_obj_id_t *obj, CK_ULONG num) {
-  return get_objects(state, CK_FALSE, obj, &num, NULL);
-}
-
-CK_RV get_token_raw_certificate(ykpiv_state *state, piv_obj_id_t obj, CK_BYTE_PTR data, CK_ULONG_PTR len) {
+CK_RV get_token_object(ykpiv_state *state, piv_obj_id_t obj, CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
   if (ykpiv_fetch_object(state, piv_2_ykpiv(obj), data, len) != YKPIV_OK)
     return CKR_FUNCTION_FAILED;

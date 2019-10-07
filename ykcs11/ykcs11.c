@@ -47,6 +47,7 @@
 
 #define YKCS11_MANUFACTURER "Yubico (www.yubico.com)"
 #define YKCS11_LIBDESC      "PKCS#11 PIV Library (SP-800-73)"
+#define YKCS11_APPLICATION  "Yubico PIV"
 
 #define PIV_MIN_PIN_LEN 6
 #define PIV_MAX_PIN_LEN 8
@@ -257,7 +258,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
       memstrcpy(slot->info.slotDescription, reader);
 
       memset(slot->info.manufacturerID, ' ', sizeof(slot->info.manufacturerID));
-      memcpy(slot->info.manufacturerID, reader, 6);
+      memstrcpy(slot->info.manufacturerID, YKCS11_MANUFACTURER);
 
       slot->info.hardwareVersion.major = 1;
       slot->info.hardwareVersion.minor = 0;
@@ -278,10 +279,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
         slot->token.info.hardwareVersion.minor = 0;
 
         memset(slot->token.info.label, ' ', sizeof(slot->token.info.label));
-        memstrcpy(slot->token.info.label, "Yubico PIV");
+        memstrcpy(slot->token.info.label, YKCS11_APPLICATION);
 
         memset(slot->token.info.manufacturerID, ' ', sizeof(slot->info.manufacturerID));
-        memcpy(slot->token.info.manufacturerID, reader, 6);
+        memstrcpy(slot->token.info.manufacturerID, YKCS11_MANUFACTURER);
         
         memset(slot->token.info.utcTime, ' ', sizeof(slot->token.info.utcTime));
 
@@ -549,6 +550,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetPIN)(
   return CKR_OK;
 }
 
+static int compare_piv_obj_id(const void *a, const void *b) {
+
+  return (*(piv_obj_id_t*)a - *(piv_obj_id_t*)b);
+}
+
 CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   CK_SLOT_ID slotID,
   CK_FLAGS flags,
@@ -558,10 +564,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
 )
 {
   CK_RV          rv;
-  piv_obj_id_t   *cert_ids;
   CK_ULONG       i;
-  CK_BYTE        cert_data[3072];  // Max cert value for ykpiv
-  CK_ULONG       cert_len = sizeof(cert_data);
+  CK_BYTE        data[3072];  // Max cert value for ykpiv
+  CK_ULONG       len;
 
   DIN; // TODO: pApplication and Notify
 
@@ -595,35 +600,31 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   }
 
   if (session.state != NULL) {
-    DBG("Too many sessions already exists");
+    DBG("Too many sessions already exist");
     locking.UnlockMutex(mutex);
     return CKR_SESSION_COUNT;
   }
 
   // Initialize the slot
-  if(ykpiv_init(&session.state, 1) != YKPIV_OK) {
+  if(ykpiv_init(&session.state, YKCS11_DBG) != YKPIV_OK) {
     DBG("Unable to connect to reader");
     locking.UnlockMutex(mutex);
     return CKR_FUNCTION_FAILED;
   }
 
-  char buf[sizeof(slots[slotID].info.slotDescription)];
-  memcpy(buf, slots[slotID].info.slotDescription, sizeof(buf));
-  *strchr(buf, ' ') = 0; // TODO: BOOM if there are no spaces
+  char reader[sizeof(slots[slotID].info.slotDescription)];
+  memcpy(reader, slots[slotID].info.slotDescription, sizeof(reader));
+  *strchr(reader, ' ') = 0; // TODO: BOOM if there are no spaces
 
   locking.UnlockMutex(mutex);
 
   // Connect to the slot
-  if(ykpiv_connect(session.state, buf) != YKPIV_OK) {
+  if(ykpiv_connect(session.state, reader) != YKPIV_OK) {
     DBG("Unable to connect to reader");
     ykpiv_done(session.state);
     session.state = NULL;
     return CKR_FUNCTION_FAILED;
   }
-
-  // Store the slot
-  session.slot = slots + slotID;
-  //session.slot->info.slotID = slotID; // Redundant but required in CK_SESSION_INFO
 
   if ((flags & CKF_RW_SESSION)) {
     // R/W Session
@@ -637,36 +638,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   session.info.slotID = slotID;
   session.info.flags = flags;
   session.info.ulDeviceError = 0;
+  session.n_objects = 0;
 
-  // Get the number of token objects
-  rv = get_token_objects_num(session.state, &session.n_objects, &session.n_certs);
-  if (rv != CKR_OK) {
-    ykpiv_done(session.state);
-    session.state = NULL;
-    DBG("Unable to retrieve number of token objects");
-    return rv;
-  }
-
-  // Get memory for the objects
-  session.objects = malloc(sizeof(piv_obj_id_t) * session.n_objects);
-  if (session.objects == NULL) {
-    DBG("Unable to allocate memory for token object ids");
-    ykpiv_done(session.state);
-    session.state = NULL;
-    return CKR_HOST_MEMORY;
-  }
-
-  // Get memory for the certificates
-  cert_ids = malloc(sizeof(piv_obj_id_t) * session.n_certs);
-  if (cert_ids == NULL) {
-    DBG("Unable to allocate memory for token certificate ids");
-    ykpiv_done(session.state);
-    session.state = NULL;
-    return CKR_HOST_MEMORY;
-  }
-
-  // Save a list of all the available objects in the token
-  rv = get_token_object_list(session.state, session.objects, session.n_objects);
+  piv_obj_id_t *obj_ids;
+  CK_ULONG num_ids;
+  rv = get_token_object_ids(&obj_ids, &num_ids);
   if (rv != CKR_OK) {
     DBG("Unable to retrieve token objects");
     ykpiv_done(session.state);
@@ -674,37 +650,36 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     goto failure;
   }
 
-  // Get a list of object ids for available certificates object from the session
-  rv = get_available_certificate_ids(&session, cert_ids, session.n_certs);
-  if (rv != CKR_OK) {
-    DBG("Unable to retrieve certificate ids from the session");
-    ykpiv_done(session.state);
-    session.state = NULL;
-    goto failure;
+  // Save a list of all the available objects in the session
+
+  for(i = 0; i < num_ids; i++) {
+    len = sizeof(data);
+    if(get_token_object(session.state, obj_ids[i], data, &len) == CKR_OK) {
+      session.objects[session.n_objects++] = obj_ids[i];
+      rv = store_data(&session, obj_ids[i], data, len);
+      if (rv != CKR_OK) {
+        DBG("Unable to store object data");
+        ykpiv_done(session.state);
+        session.state = NULL;
+        goto failure;
+      }
+      piv_obj_id_t cert_id = find_cert_object(obj_ids[i]);
+      if(cert_id != (piv_obj_id_t)-1) {
+        session.objects[session.n_objects++] = cert_id;
+        session.objects[session.n_objects++] = find_pubk_object(obj_ids[i]);
+        session.objects[session.n_objects++] = find_pvtk_object(obj_ids[i]);
+        rv = store_cert(&session, cert_id, data, len);
+        if (rv != CKR_OK) {
+          DBG("Unable to store certificate data");
+          ykpiv_done(session.state);
+          session.state = NULL;
+          goto failure;
+        }
+      }
+    }
   }
 
-  // Get the actual certificate data from the token and store it as an X509 object
-  for (i = 0; i < session.n_certs; i++) {
-    cert_len = sizeof(cert_data);
-    rv = get_token_raw_certificate(session.state, cert_ids[i], cert_data, &cert_len);
-    if (rv != CKR_OK) {
-      DBG("Unable to get certificate data from token");
-      ykpiv_done(session.state);
-      session.state = NULL;
-      goto failure;
-    }
-
-    rv = store_cert(cert_ids[i], cert_data, cert_len);
-    if (rv != CKR_OK) {
-      DBG("Unable to store certificate data");
-      ykpiv_done(session.state);
-      session.state = NULL;
-      goto failure;
-    }
-  }
-
-  free(cert_ids);
-  cert_ids = NULL;
+  qsort(session.objects, session.n_objects, sizeof(piv_obj_id_t), compare_piv_obj_id);
 
   *phSession = YKCS11_SESSION_ID;
 
@@ -712,16 +687,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   return CKR_OK;
 
 failure:
-  if (session.objects != NULL) {
-    free(session.objects);
-    session.objects = NULL;
-  }
-
-  if (cert_ids != NULL) {
-    free(cert_ids);
-    cert_ids = NULL;
-  }
-
   //free_certs(); // TODO: remove the one allocated so far
 
   return rv;
@@ -753,9 +718,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
 
   ykpiv_done(session.state);
 
-  free(session.objects);
-  session.objects = NULL;
-
   memset(&session, 0, sizeof(ykcs11_session_t));
 
   locking.UnlockMutex(mutex);
@@ -775,11 +737,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
   if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
-  }
-
-  if (session.slot != slots + slotID) {
-    DBG("Invalid slot ID %lu", slotID);
-    return CKR_SLOT_ID_INVALID;
   }
 
   rv = C_CloseSession(YKCS11_SESSION_ID);
@@ -1100,23 +1057,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       // New object created, add it to the object list
 
       // Each object counts as three, even if we just only added a certificate
+      obj_ptr = session.objects + session.n_objects;
       session.n_objects += 3;
-      session.n_certs++;
 
-      obj_ptr = realloc(session.objects, session.n_objects * sizeof(piv_obj_id_t));
-      if (obj_ptr == NULL) {
-        DBG("Unable to store new item in the session");
-        return CKR_HOST_MEMORY;
-      }
-      session.objects = obj_ptr;
-
-      obj_ptr = session.objects + session.n_objects - 3;
       *obj_ptr++ = cert_id;
       *obj_ptr++ = pvtk_id;
       *obj_ptr++ = pubk_id;
     }
 
-    rv = store_cert(cert_id, value, value_len);
+    rv = store_cert(&session, cert_id, value, value_len);
     if (rv != CKR_OK) {
       DBG("Unable to store certificate data");
       return CKR_FUNCTION_FAILED;
@@ -1284,18 +1233,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
     obj_ptr[j++] = session.objects[i++];
   }
 
-  rv = delete_cert(cert_id);
+  rv = delete_cert(&session, cert_id);
   if (rv != CKR_OK) {
     free(obj_ptr);
     DBG("Unable to delete certificate data");
     return CKR_FUNCTION_FAILED;
   }
 
-  free(session.objects);
-
   session.n_objects -= 3;
-  session.n_certs--;
-  session.objects = obj_ptr;
+  memcpy(session.objects, obj_ptr, session.n_objects * sizeof(piv_obj_id_t));
 
   DOUT;
   return CKR_OK;
@@ -1405,7 +1351,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
     return CKR_SESSION_CLOSED;
   }
 
-  if (session.find_obj.objects != NULL)  {
+  if (session.find_obj.n_objects != 0)  {
     DBG("Search is already active");
     return CKR_OPERATION_ACTIVE;
   }
@@ -1422,21 +1368,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
   }
 
   session.find_obj.idx = 0;
-  session.find_obj.num = session.n_objects;
-  session.find_obj.objects = calloc(session.n_objects, sizeof(piv_obj_id_t));
-
-  if (session.find_obj.objects == NULL) {
-    DBG("Unable to allocate memory for finding objects");
-    return CKR_HOST_MEMORY;
-  }
+  session.find_obj.n_objects = session.n_objects;
 
   memcpy(session.find_obj.objects, session.objects, session.n_objects * sizeof(piv_obj_id_t));
 
   DBG("Initialized search with %lu parameters", ulCount);
 
   // Match parameters
-  total = session.find_obj.num;
-  for (i = 0; i < session.find_obj.num; i++) {
+  total = session.find_obj.n_objects;
+  for (i = 0; i < session.find_obj.n_objects; i++) {
 
     if (session.find_obj.objects[i] == OBJECT_INVALID)
       continue; // Object already discarded, keep going
@@ -1499,14 +1439,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
       pulObjectCount == NULL_PTR)
     return CKR_ARGUMENTS_BAD;
 
-  if (session.find_obj.objects == NULL)
+  if (session.find_obj.n_objects == 0)
     return CKR_OPERATION_NOT_INITIALIZED;
 
   DBG("Can return %lu object(s)", ulMaxObjectCount);
   *pulObjectCount = 0;
 
   // Return the next object, if any
-  while(session.find_obj.idx < session.find_obj.num) {
+  while(session.find_obj.idx < session.find_obj.n_objects) {
     if(session.find_obj.objects[session.find_obj.idx] != OBJECT_INVALID) {
       *phObject++ = session.find_obj.objects[session.find_obj.idx];
       if(++(*pulObjectCount) == ulMaxObjectCount)
@@ -1540,11 +1480,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsFinal)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (session.find_obj.objects == NULL)
+  if (session.find_obj.n_objects == 0)
     return CKR_OPERATION_NOT_INITIALIZED;
 
-  free(session.find_obj.objects);
-  session.find_obj.objects = NULL;
+  session.find_obj.n_objects = 0;
 
   DOUT;
   return CKR_OK;
@@ -2367,17 +2306,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     // New object created, add it to the object list
 
     // Each object counts as three (data object is always there)
+    obj_ptr = session.objects + session.n_objects;
     session.n_objects += 3;
-    session.n_certs++;
 
-    obj_ptr = realloc(session.objects, session.n_objects * sizeof(piv_obj_id_t));
-    if (obj_ptr == NULL) {
-      DBG("Unable to store new item in the session");
-      return CKR_HOST_MEMORY;
-    }
-    session.objects = obj_ptr;
-
-    obj_ptr = session.objects + session.n_objects - 3;
     *obj_ptr++ = cert_id;
     *obj_ptr++ = pvtk_id;
     *obj_ptr++ = pubk_id;
@@ -2385,13 +2316,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 
   // Write/Update the object
   cert_len = sizeof(cert_data);
-  rv = get_token_raw_certificate(session.state, cert_id, cert_data, &cert_len);
+  rv = get_token_object(session.state, cert_id, cert_data, &cert_len);
   if (rv != CKR_OK) {
     DBG("Unable to get certificate data from token");
     return CKR_FUNCTION_FAILED;
   }
 
-  rv = store_cert(cert_id, cert_data, cert_len);
+  rv = store_cert(&session, cert_id, cert_data, cert_len);
   if (rv != CKR_OK) {
     DBG("Unable to store certificate data");
     return CKR_FUNCTION_FAILED;
