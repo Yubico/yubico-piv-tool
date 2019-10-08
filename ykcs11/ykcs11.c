@@ -298,7 +298,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 
         memset(slot->token.info.manufacturerID, ' ', sizeof(slot->info.manufacturerID));
         memstrcpy(slot->token.info.manufacturerID, YKCS11_MANUFACTURER);
-        
+
         memset(slot->token.info.utcTime, ' ', sizeof(slot->token.info.utcTime));
 
         get_token_model(piv_state, slot->token.info.model, sizeof(slot->token.info.model));
@@ -387,7 +387,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
   }
 
   if(!(slots[slotID].info.flags & CKF_TOKEN_PRESENT)) {
-    DBG("A token is not present in slot %d", slotID);
+    DBG("A token is not present in slot %lu", slotID);
     locking.UnlockMutex(mutex);
     return CKR_TOKEN_NOT_PRESENT;
   }
@@ -606,7 +606,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   }
 
   if(!(slots[slotID].info.flags & CKF_TOKEN_PRESENT)) {
-    DBG("A token is not present in slot %d", slotID);
+    DBG("A token is not present in slot %lu", slotID);
     locking.UnlockMutex(mutex);
     return CKR_TOKEN_NOT_PRESENT;
   }
@@ -745,17 +745,17 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  for(int i=0; i<YKCS11_MAX_SESSIONS; i++) {
-    ykcs11_session_t *session = &sessions[i];
-    if(session->state != NULL) {
-      if(session->info.slotID == slotID) {
-        rv = C_CloseSession(session - sessions);
-        if( rv != CKR_OK) {
-          return rv;
-        }  
-      }
+  locking.LockMutex(mutex);
+
+  for(int i= 1; i<=YKCS11_MAX_SESSIONS; i++) {
+    ykcs11_session_t *session = get_session(i);
+    if(session != NULL && session->state != NULL && session->info.slotID == slotID) {
+      ykpiv_done(session->state);
+      memset(session, 0, sizeof(*session));
     }
   }
+
+  locking.UnlockMutex(mutex);
 
   DOUT;
   return CKR_OK;
@@ -780,7 +780,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSessionInfo)(
 
   ykcs11_session_t* session = get_session(hSession);
 
-  if (session==NULL || session->state == NULL) {
+  if (session == NULL || session->state == NULL) {
     DBG("Session is not open");
     return CKR_SESSION_CLOSED;
   }
@@ -841,7 +841,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
 
   ykcs11_session_t* session = get_session(hSession);
 
-  if (session==NULL || session->state == NULL) {
+  if (session == NULL || session->state == NULL) {
     DBG("Session is not open");
     return CKR_SESSION_CLOSED;
   }
@@ -932,7 +932,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Logout)(
 
   ykcs11_session_t* session = get_session(hSession);
 
-  if (session==NULL || session->state == NULL) {
+  if (session == NULL || session->state == NULL) {
     DBG("Session is not open");
     return CKR_SESSION_CLOSED;
   }
@@ -992,7 +992,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
   ykcs11_session_t* session = get_session(hSession);
 
-  if (session==NULL || session->state == NULL) {
+  if (session == NULL || session->state == NULL) {
     DBG("Session is not open");
     return CKR_SESSION_CLOSED;
   }
@@ -1185,7 +1185,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
 
   ykcs11_session_t* session = get_session(hSession);
 
-  if (session==NULL || session->state == NULL) {
+  if (session == NULL || session->state == NULL) {
     DBG("Session is not open");
     return CKR_SESSION_CLOSED;
   }
@@ -1355,7 +1355,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
   // Check if we should remove private objects
   if (session->info.state == CKS_RO_PUBLIC_SESSION ||
       session->info.state == CKS_RW_PUBLIC_SESSION) {
-    DBG("Removing private objects because state is %lu", session.info.state);
+    DBG("Removing private objects because state is %lu", session->info.state);
     private = CK_FALSE;
   }
   else {
@@ -1390,13 +1390,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
       DBG("Parameter %lu\nType: %lu Value: %lu Len: %lu", j, pTemplate[j].type, *((CK_ULONG_PTR)pTemplate[j].pValue), pTemplate[j].ulValueLen);
 
       if (attribute_match(session, session->find_obj.objects[i], pTemplate + j) == CK_FALSE) {
-        DBG("Removing object %u from the list", find_obj.objects[i]);
+        DBG("Removing object %u from the list", session->find_obj.objects[i]);
         session->find_obj.objects[i] = OBJECT_INVALID;  // Object not matching, mark it
         total--;
         break;
       }
       else
-        DBG("Keeping object %u in the list", find_obj.objects[i]);
+        DBG("Keeping object %u in the list", session->find_obj.objects[i]);
     }
   }
 
@@ -1751,7 +1751,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     // Also store the raw public key if the mechanism is PSS
     if (is_PSS_mechanism(pMechanism->mechanism)) {
       template[2].pValue = buf;
-      template[2].ulValueLen = (key_len + 7) / 8 ;
+      template[2].ulValueLen = (key_len + 7) / 8;
 
       if (get_attribute(session, hKey, template + 2) != CKR_OK) {
         DBG("Unable to get public key");
@@ -1800,7 +1800,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
 
   DBG("Algorithm is %d", op_info.op.sign.algo);
   // Make sure that both mechanism and key have the same algorithm
-  if (!(is_RSA_mechanism(pMechanism->mechanism) &&  is_rsa_key_algorithm(op_info.op.sign.algo)) &&
+  if (!(is_RSA_mechanism(pMechanism->mechanism) && is_rsa_key_algorithm(op_info.op.sign.algo)) &&
       !(is_EC_mechanism(pMechanism->mechanism) && is_ec_key_algorithm(op_info.op.sign.algo))) {
     DBG("Key and mechanism algorithm do not match");
     return CKR_ARGUMENTS_BAD;
