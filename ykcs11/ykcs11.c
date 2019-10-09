@@ -1621,6 +1621,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestInit)(
   }
   memcpy(&op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
 
+  CK_ULONG hash_length = get_hash_length(pMechanism->mechanism);
+  op_info.op.hash.hash_len = hash_length;
+
+  CK_RV rv;
+  rv = apply_hash_mechanism_init(&op_info);
+  if(rv != CKR_OK) {
+    DBG("Unable to initialize digest operation");
+    return rv;
+  }
+
   op_info.type = YKCS11_HASH;
 
   DOUT;
@@ -1636,9 +1646,71 @@ CK_DEFINE_FUNCTION(CK_RV, C_Digest)(
 )
 {
   DIN;
-  DBG("TODO!!!");
+
+  if (mutex == NULL) {
+    DBG("libykpiv is not initialized or already finalized");
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  ykcs11_session_t* session = get_session(hSession);
+
+  if (session == NULL || session->state == NULL) {
+    DBG("Session is not open");
+    return CKR_SESSION_CLOSED;
+  }
+
+  if (op_info.type != YKCS11_HASH) {
+    DBG("Other operation in process");
+    return CKR_OPERATION_ACTIVE;
+  }
+
+  if (pulDigestLen == NULL) {
+    DBG("Wrong/missing parameter");
+    return CKR_ARGUMENTS_BAD;
+  }
+
+  if (pDigest == NULL) {
+    // Just return the size of the digest
+    DBG("The size of the digest will be %lu", op_info.op.hash.hash_len);
+
+    *pulDigestLen = op_info.op.hash.hash_len;
+
+    DOUT;
+    return CKR_OK;
+  }
+
+  if (*pulDigestLen < op_info.op.hash.hash_len) {
+    DBG("pulDigestLen too small, data will not fit, expected = %lu, got "
+            "%lu", op_info.op.hash.hash_len, *pulDigestLen);
+
+    *pulDigestLen = op_info.op.hash.hash_len;
+    return CKR_BUFFER_TOO_SMALL;
+  }
+
+  DBG("Sending %lu bytes to digest", ulDataLen);
+
+  CK_RV rv;
+  rv = apply_hash_mechanism_update(&op_info, pData, ulDataLen);
+  if (rv != CKR_OK) {
+    DBG("Unable to perform digest operation step");
+    return rv;
+  }
+
+  rv = apply_hash_mechanism_finalize(&op_info);
+  if (rv != CKR_OK) {
+    DBG("Unable to finalize digest operation");
+    return rv;
+  }
+
+  memcpy(pDigest, op_info.buf, op_info.buf_len);
+  *pulDigestLen = op_info.buf_len;
+
+  DBG("Got %lu bytes back", *pulDigestLen);
+
+  op_info.type = YKCS11_NOOP;
+
   DOUT;
-  return CKR_FUNCTION_NOT_SUPPORTED;
+  return CKR_OK;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_DigestUpdate)(
@@ -2378,10 +2450,40 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateRandom)(
   CK_ULONG ulRandomLen
 )
 {
-  DIN;
-  DBG("TODO!!!");
-  DOUT;
-  return CKR_FUNCTION_NOT_SUPPORTED;
+  
+  if (mutex == NULL) {
+    DBG("libykpiv is not initialized or already finalized");
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  size_t len = ulRandomLen;
+  if (len != ulRandomLen || pRandomData == NULL) {
+    DBG("Invalid parameter");
+    return CKR_ARGUMENTS_BAD;
+  }
+
+  ykcs11_session_t* session = get_session(hSession);
+
+  if (session == NULL || session->state == NULL) {
+    DBG("Session is not open");
+    return CKR_SESSION_CLOSED;
+  }
+
+  CK_RV rv = CKR_OK;
+
+// the OpenSC pkcs11 test calls with 0 and expects CKR_OK, do that..
+if (len > 0) {
+  rv = generate_prng(pRandomData, len);
+}
+  
+if (len != ulRandomLen) {
+  DBG("Incorrect amount of data returned");
+  rv = CKR_FUNCTION_FAILED;
+}
+
+DOUT;
+return rv;
+
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_GetFunctionStatus)(

@@ -94,6 +94,8 @@ typedef struct {
 
 typedef struct {
   CK_BYTE todo;
+  ykcs11_md_ctx_t   *md_ctx; // Digest context
+  CK_ULONG          hash_len; // Length in bits
 } hash_info_t;
 
 typedef struct {

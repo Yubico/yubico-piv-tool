@@ -49,5 +49,9 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
 CK_RV check_pvtkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG n); // TODO: Move to objects.c
 
 CK_RV check_hash_mechanism(const ykcs11_session_t *s, CK_MECHANISM_PTR m);
+CK_ULONG get_hash_length(CK_MECHANISM_TYPE m);
+CK_RV apply_hash_mechanism_init(op_info_t *op_info);
+CK_RV apply_hash_mechanism_update(op_info_t *op_info, CK_BYTE_PTR in, CK_ULONG in_len);
+CK_RV apply_hash_mechanism_finalize(op_info_t *op_info);
 
 #endif
