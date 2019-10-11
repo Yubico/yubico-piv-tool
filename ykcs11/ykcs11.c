@@ -721,7 +721,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-
   locking.LockMutex(mutex);
 
   ykcs11_session_t *session = get_session(hSession);
@@ -1915,6 +1914,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   size_t   cbSignatureLen = 0;
 
   DIN;
+
+  if (mutex == NULL) {
+    DBG("libykpiv is not initialized or already finalized");
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
 
   ykcs11_session_t* session = get_session(hSession);
 
