@@ -54,17 +54,6 @@ typedef struct {
   CK_BYTE_PTR     data;
 } ykcs11_data_t;
 
-typedef struct {
-  CK_SESSION_INFO info;        // slotid, state, flags, deviceerror
-  ykpiv_state     *state;      // The ykpiv_state for the session
-  piv_obj_id_t    objects[29 * 4]; // List of objects in the token
-  CK_ULONG        n_objects;   // TOTAL number of objects in the token
-  ykcs11_data_t   data[29];    // Raw data
-  X509            *certs[25];  // Certificates
-  EVP_PKEY        *pkeys[25];  // Public keys
-  ykcs11_find_t   find_obj;    // Active find operation (if any)
-} ykcs11_session_t;
-
 typedef enum {
   YKCS11_NOOP,
   YKCS11_GEN,
@@ -113,5 +102,17 @@ typedef struct {
   CK_BYTE          buf[YKCS11_OP_BUFSIZE];
   CK_ULONG         buf_len;
 } op_info_t;
+
+typedef struct {
+  CK_SESSION_INFO info;        // slotid, state, flags, deviceerror
+  ykpiv_state     *state;      // The ykpiv_state for the session
+  piv_obj_id_t    objects[29 * 4]; // List of objects in the token
+  CK_ULONG        n_objects;   // TOTAL number of objects in the token
+  ykcs11_data_t   data[37];    // Raw data, stored by sub_id 1-36
+  X509            *certs[25];  // Certificates, stored by sub_id 1-24
+  EVP_PKEY        *pkeys[25];  // Public keys, stored by sub_id 1-24
+  ykcs11_find_t   find_obj;    // Active find operation (if any)
+  op_info_t       op_info;
+} ykcs11_session_t;
 
 #endif

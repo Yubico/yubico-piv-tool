@@ -66,8 +66,6 @@ static ykcs11_session_t sessions[YKCS11_MAX_SESSIONS];
 static CK_C_INITIALIZE_ARGS locking;
 static void *mutex;
 
-op_info_t op_info;
-
 static CK_FUNCTION_LIST function_list;
 
 static ykcs11_session_t* get_session(CK_SESSION_HANDLE handle) {
@@ -900,11 +898,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
     break;
 
   case CKU_CONTEXT_SPECIFIC:
-    if (op_info.type == YKCS11_NOOP) {
+    if (session->op_info.type == YKCS11_NOOP) {
       DBG("No operation in progress. Context specific user is forbidden.");
       return CKR_USER_TYPE_INVALID;
     }
-    if (op_info.type == YKCS11_SIGN) {
+    if (session->op_info.type == YKCS11_SIGN) {
       return C_Login(hSession, CKU_USER, pPin, ulPinLen);
     }
     else
@@ -1475,7 +1473,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsFinal)(
     return CKR_OPERATION_NOT_INITIALIZED;
 
   session->find_obj.n_objects = 0;
-  op_info.type = YKCS11_NOOP;
 
   DOUT;
   return CKR_OK;
@@ -1604,7 +1601,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestInit)(
     return CKR_SESSION_CLOSED;
   }
 
-  if (op_info.type != YKCS11_NOOP) {
+  if (session->op_info.type != YKCS11_NOOP) {
     DBG("Other operation in process");
     return CKR_OPERATION_ACTIVE;
   }
@@ -1621,19 +1618,19 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestInit)(
     DBG("Mechanism %lu is not supported either by the token or the module", pMechanism->mechanism);
     return CKR_MECHANISM_INVALID;
   }
-  memcpy(&op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
+  memcpy(&session->op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
 
   CK_ULONG hash_length = get_hash_length(pMechanism->mechanism);
-  op_info.op.hash.hash_len = hash_length;
+  session->op_info.op.hash.hash_len = hash_length;
 
   CK_RV rv;
-  rv = apply_hash_mechanism_init(&op_info);
+  rv = apply_hash_mechanism_init(&session->op_info);
   if(rv != CKR_OK) {
     DBG("Unable to initialize digest operation");
     return rv;
   }
 
-  op_info.type = YKCS11_HASH;
+  session->op_info.type = YKCS11_HASH;
 
   DOUT;
   return CKR_OK;
@@ -1661,7 +1658,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Digest)(
     return CKR_SESSION_CLOSED;
   }
 
-  if (op_info.type != YKCS11_HASH) {
+  if (session->op_info.type != YKCS11_HASH) {
     DBG("Other operation in process");
     return CKR_OPERATION_ACTIVE;
   }
@@ -1673,43 +1670,43 @@ CK_DEFINE_FUNCTION(CK_RV, C_Digest)(
 
   if (pDigest == NULL) {
     // Just return the size of the digest
-    DBG("The size of the digest will be %lu", op_info.op.hash.hash_len);
+    DBG("The size of the digest will be %lu", session->op_info.op.hash.hash_len);
 
-    *pulDigestLen = op_info.op.hash.hash_len;
+    *pulDigestLen = session->op_info.op.hash.hash_len;
 
     DOUT;
     return CKR_OK;
   }
 
-  if (*pulDigestLen < op_info.op.hash.hash_len) {
+  if (*pulDigestLen < session->op_info.op.hash.hash_len) {
     DBG("pulDigestLen too small, data will not fit, expected = %lu, got "
-            "%lu", op_info.op.hash.hash_len, *pulDigestLen);
+            "%lu", session->op_info.op.hash.hash_len, *pulDigestLen);
 
-    *pulDigestLen = op_info.op.hash.hash_len;
+    *pulDigestLen = session->op_info.op.hash.hash_len;
     return CKR_BUFFER_TOO_SMALL;
   }
 
   DBG("Sending %lu bytes to digest", ulDataLen);
 
   CK_RV rv;
-  rv = apply_hash_mechanism_update(&op_info, pData, ulDataLen);
+  rv = apply_hash_mechanism_update(&session->op_info, pData, ulDataLen);
   if (rv != CKR_OK) {
     DBG("Unable to perform digest operation step");
     return rv;
   }
 
-  rv = apply_hash_mechanism_finalize(&op_info);
+  rv = apply_hash_mechanism_finalize(&session->op_info);
   if (rv != CKR_OK) {
     DBG("Unable to finalize digest operation");
     return rv;
   }
 
-  memcpy(pDigest, op_info.buf, op_info.buf_len);
-  *pulDigestLen = op_info.buf_len;
+  memcpy(pDigest, session->op_info.buf, session->op_info.buf_len);
+  *pulDigestLen = session->op_info.buf_len;
 
   DBG("Got %lu bytes back", *pulDigestLen);
 
-  op_info.type = YKCS11_NOOP;
+  session->op_info.type = YKCS11_NOOP;
 
   DOUT;
   return CKR_OK;
@@ -1782,7 +1779,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     return CKR_SESSION_CLOSED;
   }
 
-  if (op_info.type != YKCS11_NOOP) {
+  if (session->op_info.type != YKCS11_NOOP) {
     DBG("Other operation in process");
     return CKR_OPERATION_ACTIVE;
   }
@@ -1797,7 +1794,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     DBG("Mechanism %lu is not supported either by the token or the module", pMechanism->mechanism);
     return CKR_MECHANISM_INVALID; // TODO: also the key has a list of allowed mechanisms, check that
   }
-  memcpy(&op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
+  memcpy(&session->op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
 
   //  Get key algorithm
   if (get_attribute(session, hKey, template) != CKR_OK) {
@@ -1815,13 +1812,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
       return CKR_KEY_HANDLE_INVALID;
     }
 
-    op_info.op.sign.key_len = key_len;
-    op_info.op.sign.sig_len = (key_len + 7) / 8;
+    session->op_info.op.sign.key_len = key_len;
+    session->op_info.op.sign.sig_len = (key_len + 7) / 8;
 
     if (key_len == 1024)
-      op_info.op.sign.algo = YKPIV_ALGO_RSA1024;
+      session->op_info.op.sign.algo = YKPIV_ALGO_RSA1024;
     else
-      op_info.op.sign.algo = YKPIV_ALGO_RSA2048;
+      session->op_info.op.sign.algo = YKPIV_ALGO_RSA2048;
 
     // Also store the raw public key if the mechanism is PSS
     if (is_PSS_mechanism(pMechanism->mechanism)) {
@@ -1838,12 +1835,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
         return CKR_KEY_HANDLE_INVALID;
       }
 
-      if (do_encode_rsa_public_key(&op_info.op.sign.key, buf, (key_len + 7) / 8, exp, sizeof(exp)) != CKR_OK) {
+      if (do_encode_rsa_public_key(&session->op_info.op.sign.key, buf, (key_len + 7) / 8, exp, sizeof(exp)) != CKR_OK) {
         return CKR_FUNCTION_FAILED;
       }
     }
     else {
-      op_info.op.sign.key = NULL;
+      session->op_info.op.sign.key = NULL;
     }
 
   }
@@ -1857,36 +1854,36 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     // The buffer contains an uncompressed point of the form 04, len, 04, x, y
     // Where len is |x| + |y| + 1 bytes
 
-    op_info.op.sign.key_len = (CK_ULONG) (((buf[1] - 1) / 2) * 8);
-    op_info.op.sign.sig_len = ((op_info.op.sign.key_len + 7) / 8) * 2;
+    session->op_info.op.sign.key_len = (CK_ULONG) (((buf[1] - 1) / 2) * 8);
+    session->op_info.op.sign.sig_len = ((session->op_info.op.sign.key_len + 7) / 8) * 2;
 
-    if (op_info.op.sign.key_len == 256)
-      op_info.op.sign.algo = YKPIV_ALGO_ECCP256;
-    else if(op_info.op.sign.key_len == 384)
-      op_info.op.sign.algo = YKPIV_ALGO_ECCP384;
+    if (session->op_info.op.sign.key_len == 256)
+      session->op_info.op.sign.algo = YKPIV_ALGO_ECCP256;
+    else if(session->op_info.op.sign.key_len == 384)
+      session->op_info.op.sign.algo = YKPIV_ALGO_ECCP384;
   }
 
-  DBG("Key length is %lu bit", op_info.op.sign.key_len);
+  DBG("Key length is %lu bit", session->op_info.op.sign.key_len);
 
-  op_info.op.sign.key_id = piv_2_ykpiv(hKey);
-  if (op_info.op.sign.key_id == 0) {
+  session->op_info.op.sign.key_id = piv_2_ykpiv(hKey);
+  if (session->op_info.op.sign.key_id == 0) {
     DBG("Incorrect key %lu", hKey);
     return CKR_KEY_HANDLE_INVALID;
   }
 
-  DBG("Algorithm is %d", op_info.op.sign.algo);
+  DBG("Algorithm is %d", session->op_info.op.sign.algo);
   // Make sure that both mechanism and key have the same algorithm
-  if (!(is_RSA_mechanism(pMechanism->mechanism) && is_rsa_key_algorithm(op_info.op.sign.algo)) &&
-      !(is_EC_mechanism(pMechanism->mechanism) && is_ec_key_algorithm(op_info.op.sign.algo))) {
+  if (!(is_RSA_mechanism(pMechanism->mechanism) && is_rsa_key_algorithm(session->op_info.op.sign.algo)) &&
+      !(is_EC_mechanism(pMechanism->mechanism) && is_ec_key_algorithm(session->op_info.op.sign.algo))) {
     DBG("Key and mechanism algorithm do not match");
     return CKR_ARGUMENTS_BAD;
   }
 
-  op_info.type = YKCS11_SIGN;
+  session->op_info.type = YKCS11_SIGN;
 
   // TODO: check mechanism parameters and key length and key supported parameters
 
-  if (apply_sign_mechanism_init(&op_info) != CKR_OK) {
+  if (apply_sign_mechanism_init(&session->op_info) != CKR_OK) {
     DBG("Unable to initialize signing operation");
     return CKR_FUNCTION_FAILED;
   }
@@ -1909,12 +1906,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   DIN;
 
-  if (op_info.type != YKCS11_SIGN) {
-    DBG("Signature operation not initialized");
-    rv = CKR_OPERATION_NOT_INITIALIZED;
-    goto sign_out;
-  }
-
   ykcs11_session_t* session = get_session(hSession);
 
   if (session == NULL || session->state == NULL) {
@@ -1930,19 +1921,25 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     goto sign_out;
   }
 
+  if (session->op_info.type != YKCS11_SIGN) {
+    DBG("Signature operation not initialized");
+    rv = CKR_OPERATION_NOT_INITIALIZED;
+    goto sign_out;
+  }
+
   if (pSignature == NULL_PTR) {
     // Just return the size of the signature
-    *pulSignatureLen = op_info.op.sign.sig_len;
+    *pulSignatureLen = session->op_info.op.sign.sig_len;
     DBG("The size of the signature will be %lu", *pulSignatureLen);
 
     DOUT;
     return CKR_OK;
   }
 
-  if (*pulSignatureLen < op_info.op.sign.sig_len) {
+  if (*pulSignatureLen < session->op_info.op.sign.sig_len) {
     DBG("pulSignatureLen too small, signature will not fit, expected %u, got %lu", 
-            op_info.op.sign.sig_len, *pulSignatureLen);
-    *pulSignatureLen = op_info.op.sign.sig_len;
+            session->op_info.op.sign.sig_len, *pulSignatureLen);
+    *pulSignatureLen = session->op_info.op.sign.sig_len;
     return CKR_BUFFER_TOO_SMALL;
   }
 
@@ -1951,25 +1948,25 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   dump_data(pData, ulDataLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
-  if (is_hashed_mechanism(op_info.mechanism.mechanism) == CK_TRUE) {
-    if (apply_sign_mechanism_update(&op_info, pData, ulDataLen) != CKR_OK) {
+  if (is_hashed_mechanism(session->op_info.mechanism.mechanism) == CK_TRUE) {
+    if (apply_sign_mechanism_update(&session->op_info, pData, ulDataLen) != CKR_OK) {
       DBG("Unable to perform signing operation step");
       rv = CKR_FUNCTION_FAILED; // TODO: every error in here must stop and clear the signing operation
       goto sign_out;
     }
   }
   else {
-    if (is_RSA_mechanism(op_info.mechanism.mechanism)) {
+    if (is_RSA_mechanism(session->op_info.mechanism.mechanism)) {
       // RSA_X_509
-      if (ulDataLen > (op_info.op.sign.key_len / 8)) {
-          DBG("Data must be shorter than key length (%lu bits)", op_info.op.sign.key_len);
+      if (ulDataLen > (session->op_info.op.sign.key_len / 8)) {
+          DBG("Data must be shorter than key length (%lu bits)", session->op_info.op.sign.key_len);
           rv = CKR_FUNCTION_FAILED;
           goto sign_out;
       }
     }
     else {
       // ECDSA
-      if (is_EC_mechanism(op_info.mechanism.mechanism)) {
+      if (is_EC_mechanism(session->op_info.mechanism.mechanism)) {
         if (ulDataLen > 128) {
           // Specs say ECDSA only supports 128 bit
           DBG("Maximum data length for ECDSA is 128 bytes");
@@ -1979,25 +1976,25 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
       }
     }
 
-    op_info.buf_len = ulDataLen;
-    memcpy(op_info.buf, pData, ulDataLen);
+    session->op_info.buf_len = ulDataLen;
+    memcpy(session->op_info.buf, pData, ulDataLen);
   }
 
-  if (apply_sign_mechanism_finalize(&op_info) != CKR_OK) {
+  if (apply_sign_mechanism_finalize(&session->op_info) != CKR_OK) {
     DBG("Unable to finalize signing operation");
     rv = CKR_FUNCTION_FAILED;
     goto sign_out;
   }
 
-  DBG("Using key %lx", op_info.op.sign.key_id);
-  DBG("After padding and transformation there are %lu bytes", op_info.buf_len);
+  DBG("Using key %lx", session->op_info.op.sign.key_id);
+  DBG("After padding and transformation there are %lu bytes", session->op_info.buf_len);
 #if YKCS11_DBG == 1
-  dump_data(op_info.buf, op_info.buf_len, stderr, CK_TRUE, format_arg_hex);
+  dump_data(session->op_info.buf, session->op_info.buf_len, stderr, CK_TRUE, format_arg_hex);
 #endif
 
-  *pulSignatureLen = cbSignatureLen = sizeof(op_info.buf);
+  *pulSignatureLen = cbSignatureLen = sizeof(session->op_info.buf);
 
-  piv_rv = ykpiv_sign_data(session->state, op_info.buf, op_info.buf_len, op_info.buf, &cbSignatureLen, op_info.op.sign.algo, op_info.op.sign.key_id);
+  piv_rv = ykpiv_sign_data(session->state, session->op_info.buf, session->op_info.buf_len, session->op_info.buf, &cbSignatureLen, session->op_info.op.sign.algo, session->op_info.op.sign.key_id);
 
   *pulSignatureLen = cbSignatureLen;
 
@@ -2019,10 +2016,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   dump_data(op_info.buf, *pulSignatureLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
-  if (is_EC_mechanism(op_info.mechanism.mechanism)) {
+  if (is_EC_mechanism(session->op_info.mechanism.mechanism)) {
     // ECDSA, we must remove the DER encoding and only return R,S
     // as required by the specs
-    strip_DER_encoding_from_ECSIG(op_info.buf, pulSignatureLen);
+    strip_DER_encoding_from_ECSIG(session->op_info.buf, pulSignatureLen);
 
     DBG("After removing DER encoding %lu", *pulSignatureLen);
 #if YKCS11_DBG == 1
@@ -2030,13 +2027,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 #endif
   }
 
-  memcpy(pSignature, op_info.buf, *pulSignatureLen);
+  memcpy(pSignature, session->op_info.buf, *pulSignatureLen);
 
   rv = CKR_OK;
 
   sign_out:
-  op_info.type = YKCS11_NOOP;
-  sign_mechanism_cleanup(&op_info);
+  session->op_info.type = YKCS11_NOOP;
+  sign_mechanism_cleanup(&session->op_info);
 
   DOUT;
   return rv;
@@ -2050,10 +2047,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignUpdate)(
 {
   DIN;
   DBG("TODO!!!");
-  if(op_info.type == YKCS11_SIGN) {
-    op_info.type = YKCS11_NOOP;
-    sign_mechanism_cleanup(&op_info);
-  }
   DOUT;
   return CKR_FUNCTION_NOT_SUPPORTED;
 }
@@ -2283,7 +2276,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     return CKR_SESSION_READ_ONLY;
   }
 
-  if (op_info.type != YKCS11_NOOP) {
+  if (session->op_info.type != YKCS11_NOOP) {
     DBG("Other operation in process");
     return CKR_OPERATION_ACTIVE;
   }
@@ -2306,55 +2299,55 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     DBG("Mechanism %lu is not supported either by the token or the module", pMechanism->mechanism);
     return rv;
   }
-  memcpy(&op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
+  memcpy(&session->op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
 
   // Clear values
-  op_info.op.gen.key_len = 0;
-  op_info.op.gen.key_id = 0;
+  session->op_info.op.gen.key_len = 0;
+  session->op_info.op.gen.key_id = 0;
 
   // Check the template for the public key
-  if ((rv = check_pubkey_template(&op_info, pPublicKeyTemplate, ulPublicKeyAttributeCount)) != CKR_OK) {
+  if ((rv = check_pubkey_template(&session->op_info, pPublicKeyTemplate, ulPublicKeyAttributeCount)) != CKR_OK) {
     DBG("Invalid public key template");
     return rv;
   }
 
   // Check the template for the private key
-  if ((rv = check_pvtkey_template(&op_info, pPrivateKeyTemplate, ulPrivateKeyAttributeCount)) != CKR_OK) {
+  if ((rv = check_pvtkey_template(&session->op_info, pPrivateKeyTemplate, ulPrivateKeyAttributeCount)) != CKR_OK) {
     DBG("Invalid private key template");
     return rv;
   }
 
-  if (op_info.op.gen.key_len == 0) {
+  if (session->op_info.op.gen.key_len == 0) {
     DBG("Key length not specified");
     return CKR_TEMPLATE_INCOMPLETE;
   }
 
-  if (op_info.op.gen.key_id == 0) {
+  if (session->op_info.op.gen.key_id == 0) {
     DBG("Key id not specified");
     return CKR_TEMPLATE_INCOMPLETE;
   }
 
-  if (op_info.op.gen.rsa) {
-    DBG("Generating %lu bit RSA key in object %u", op_info.op.gen.key_len, op_info.op.gen.key_id);
+  if (session->op_info.op.gen.rsa) {
+    DBG("Generating %lu bit RSA key in object %u", session->op_info.op.gen.key_len, session->op_info.op.gen.key_id);
   }
   else {
-    DBG("Generating %lu bit EC key in object %u", op_info.op.gen.key_len, op_info.op.gen.key_id);
+    DBG("Generating %lu bit EC key in object %u", session->op_info.op.gen.key_len, session->op_info.op.gen.key_id);
   }
 
-  if ((rv = token_generate_key(session->state, op_info.op.gen.rsa, piv_2_ykpiv(op_info.op.gen.key_id), op_info.op.gen.key_len)) != CKR_OK) {
+  if ((rv = token_generate_key(session->state, session->op_info.op.gen.rsa, piv_2_ykpiv(session->op_info.op.gen.key_id), session->op_info.op.gen.key_len)) != CKR_OK) {
     DBG("Unable to generate key pair");
     return rv;
   }
 
   is_new = CK_TRUE;
   for (i = 0; i < session->n_objects; i++) {
-    if (session->objects[i] == op_info.op.gen.key_id)
+    if (session->objects[i] == session->op_info.op.gen.key_id)
       is_new = CK_FALSE;
   }
 
-  dobj_id = op_info.op.gen.key_id - PIV_PVTK_OBJ_PIV_AUTH; // TODO: make function for these
+  dobj_id = session->op_info.op.gen.key_id - PIV_PVTK_OBJ_PIV_AUTH; // TODO: make function for these
   cert_id = PIV_DATA_OBJ_LAST + 1 + dobj_id;
-  pvtk_id = op_info.op.gen.key_id;
+  pvtk_id = session->op_info.op.gen.key_id;
   pubk_id = PIV_PVTK_OBJ_LAST + 1 + dobj_id;
 
   // Check whether we created a new object or updated an existing one
@@ -2383,8 +2376,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     return CKR_FUNCTION_FAILED;
   }
 
-  *phPrivateKey = op_info.op.gen.key_id;
-  *phPublicKey  = op_info.op.gen.key_id - PIV_PVTK_OBJ_KM + PIV_PUBK_OBJ_KM; // TODO: make function for these?
+  *phPrivateKey = session->op_info.op.gen.key_id;
+  *phPublicKey  = session->op_info.op.gen.key_id - PIV_PVTK_OBJ_KM + PIV_PUBK_OBJ_KM; // TODO: make function for these?
 
   DOUT;
   return CKR_OK;
