@@ -1450,10 +1450,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
   while(session->find_obj.idx < session->find_obj.n_objects) {
     if(session->find_obj.objects[session->find_obj.idx] != OBJECT_INVALID) {
       *phObject++ = session->find_obj.objects[session->find_obj.idx];
-      if(++(*pulObjectCount) == ulMaxObjectCount)
-        break;
+      (*pulObjectCount)++;
     }
     session->find_obj.idx++;
+    if(*pulObjectCount == ulMaxObjectCount) {
+        break;
+    }
   }
 
   DBG("Returning %lu objects", *pulObjectCount);
@@ -2061,6 +2063,19 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignUpdate)(
 {
   DIN;
   DBG("TODO!!!");
+
+  ykcs11_session_t* session = get_session(hSession);
+
+  if (session == NULL || session->state == NULL) {
+    DBG("Session is not open");
+    return CKR_SESSION_CLOSED;
+  }
+
+  if(session->op_info.type == YKCS11_SIGN) {
+    session->op_info.type = YKCS11_NOOP;
+    sign_mechanism_cleanup(&session->op_info);
+  }
+
   DOUT;
   return CKR_FUNCTION_NOT_SUPPORTED;
 }
