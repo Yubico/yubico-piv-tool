@@ -292,6 +292,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
         slot->token_info.hardwareVersion.major = 1;
         slot->token_info.hardwareVersion.minor = 0;
 
+        slot->token_info.ulMaxRwSessionCount = YKCS11_MAX_SESSIONS;
+        slot->token_info.ulMaxSessionCount = YKCS11_MAX_SESSIONS;
+
         memset(slot->token_info.label, ' ', sizeof(slot->token_info.label));
         memstrcpy(slot->token_info.label, YKCS11_APPLICATION);
 
@@ -393,9 +396,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
 
   memcpy(pInfo, &slots[slotID].token_info, sizeof(CK_TOKEN_INFO));
 
-  // Overwrite values that are application specific
-  //pInfo->ulSessionCount = (session.handle && !(session.info.flags & CKF_RW_SESSION)) ? 1 : 0;      // number of sessions that this application currently has open with the token
-  //pInfo->ulRwSessionCount = (session.handle && (session.info.flags & CKF_RW_SESSION)) ? 1 : 0;   // number of read/write sessions that this application currently has open with the token
+  for(int i = 0; i < YKCS11_MAX_SESSIONS; i++) {
+    if(sessions[i].state) {
+      if(sessions[i].info.flags & CKF_RW_SESSION) {
+        pInfo->ulRwSessionCount++;
+      }
+      else {
+        pInfo->ulSessionCount++;
+      }
+    }
+  }
 
   locking.UnlockMutex(mutex);
 
