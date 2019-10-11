@@ -39,17 +39,13 @@
 #define YKCS11_OP_BUFSIZE  4096
 
 typedef struct {
-  CK_TOKEN_INFO info;
-} ykcs11_token_t;
-
-typedef struct {
-  CK_SLOT_INFO   info;
-  ykcs11_token_t token;
+  CK_SLOT_INFO  slot_info;
+  CK_TOKEN_INFO token_info;
 } ykcs11_slot_t;
 
 typedef struct {
   CK_ULONG        idx;
-  piv_obj_id_t    objects[64];
+  piv_obj_id_t    objects[29 * 4];
   CK_ULONG        n_objects;
 } ykcs11_find_t;
 
@@ -61,7 +57,7 @@ typedef struct {
 typedef struct {
   CK_SESSION_INFO info;        // slotid, state, flags, deviceerror
   ykpiv_state     *state;      // The ykpiv_state for the session
-  piv_obj_id_t    objects[72]; // List of objects in the token
+  piv_obj_id_t    objects[29 * 4]; // List of objects in the token
   CK_ULONG        n_objects;   // TOTAL number of objects in the token
   ykcs11_data_t   data[37];    // Raw data
   X509            *certs[25];  // Certificates

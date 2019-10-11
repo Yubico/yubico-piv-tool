@@ -71,7 +71,7 @@ op_info_t op_info;
 static CK_FUNCTION_LIST function_list;
 
 static ykcs11_session_t* get_session(CK_SESSION_HANDLE handle) {
-  if(handle > YKCS11_MAX_SESSIONS)
+  if(handle < 1 || handle > YKCS11_MAX_SESSIONS)
     return NULL;
   return sessions + handle - 1;
 }
@@ -270,46 +270,46 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 
       // Values must NOT be null terminated and ' ' padded
 
-      memset(slot->info.slotDescription, ' ', sizeof(slot->info.slotDescription));
-      memstrcpy(slot->info.slotDescription, reader);
+      memset(slot->slot_info.slotDescription, ' ', sizeof(slot->slot_info.slotDescription));
+      memstrcpy(slot->slot_info.slotDescription, reader);
 
-      memset(slot->info.manufacturerID, ' ', sizeof(slot->info.manufacturerID));
-      memstrcpy(slot->info.manufacturerID, YKCS11_MANUFACTURER);
+      memset(slot->slot_info.manufacturerID, ' ', sizeof(slot->slot_info.manufacturerID));
+      memstrcpy(slot->slot_info.manufacturerID, YKCS11_MANUFACTURER);
 
-      slot->info.hardwareVersion.major = 1;
-      slot->info.hardwareVersion.minor = 0;
-      slot->info.firmwareVersion.major = 1;
-      slot->info.firmwareVersion.minor = 0;
+      slot->slot_info.hardwareVersion.major = 1;
+      slot->slot_info.hardwareVersion.minor = 0;
+      slot->slot_info.firmwareVersion.major = 1;
+      slot->slot_info.firmwareVersion.minor = 0;
 
-      slot->info.flags = CKF_REMOVABLE_DEVICE | CKF_HW_SLOT;
+      slot->slot_info.flags = CKF_REMOVABLE_DEVICE | CKF_HW_SLOT;
 
       if (ykpiv_connect(piv_state, reader) == YKPIV_OK) {
 
-        slot->info.flags |= CKF_TOKEN_PRESENT;
-        slot->token.info.flags = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
+        slot->slot_info.flags |= CKF_TOKEN_PRESENT;
+        slot->token_info.flags = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
 
-        slot->token.info.ulMinPinLen = 6;
-        slot->token.info.ulMaxPinLen = 8;
+        slot->token_info.ulMinPinLen = 6;
+        slot->token_info.ulMaxPinLen = 8;
 
-        slot->token.info.hardwareVersion.major = 1;
-        slot->token.info.hardwareVersion.minor = 0;
+        slot->token_info.hardwareVersion.major = 1;
+        slot->token_info.hardwareVersion.minor = 0;
 
-        memset(slot->token.info.label, ' ', sizeof(slot->token.info.label));
-        memstrcpy(slot->token.info.label, YKCS11_APPLICATION);
+        memset(slot->token_info.label, ' ', sizeof(slot->token_info.label));
+        memstrcpy(slot->token_info.label, YKCS11_APPLICATION);
 
-        memset(slot->token.info.manufacturerID, ' ', sizeof(slot->info.manufacturerID));
-        memstrcpy(slot->token.info.manufacturerID, YKCS11_MANUFACTURER);
+        memset(slot->token_info.manufacturerID, ' ', sizeof(slot->token_info.manufacturerID));
+        memstrcpy(slot->token_info.manufacturerID, YKCS11_MANUFACTURER);
 
-        memset(slot->token.info.utcTime, ' ', sizeof(slot->token.info.utcTime));
+        memset(slot->token_info.utcTime, ' ', sizeof(slot->token_info.utcTime));
 
-        get_token_model(piv_state, slot->token.info.model, sizeof(slot->token.info.model));
-        get_token_serial(piv_state, slot->token.info.serialNumber, sizeof(slot->token.info.serialNumber));
-        get_token_version(piv_state, &slot->token.info.firmwareVersion);
+        get_token_model(piv_state, slot->token_info.model, sizeof(slot->token_info.model));
+        get_token_serial(piv_state, slot->token_info.serialNumber, sizeof(slot->token_info.serialNumber));
+        get_token_version(piv_state, &slot->token_info.firmwareVersion);
 
         ykpiv_disconnect(piv_state);
       }
 
-      if(!tokenPresent || (slot->info.flags & CKF_TOKEN_PRESENT)) {
+      if(!tokenPresent || (slot->token_info.flags & CKF_TOKEN_PRESENT)) {
         n_slots++;
       }
     }
@@ -359,7 +359,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotInfo)(
     return CKR_SLOT_ID_INVALID;
   }
 
-  memcpy(pInfo, &slots[slotID].info, sizeof(CK_SLOT_INFO));
+  memcpy(pInfo, &slots[slotID].slot_info, sizeof(CK_SLOT_INFO));
 
   locking.UnlockMutex(mutex);
 
@@ -387,13 +387,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
     return CKR_SLOT_ID_INVALID;
   }
 
-  if(!(slots[slotID].info.flags & CKF_TOKEN_PRESENT)) {
+  if(!(slots[slotID].slot_info.flags & CKF_TOKEN_PRESENT)) {
     DBG("A token is not present in slot %lu", slotID);
     locking.UnlockMutex(mutex);
     return CKR_TOKEN_NOT_PRESENT;
   }
 
-  memcpy(pInfo, &slots[slotID].token.info, sizeof(CK_TOKEN_INFO));
+  memcpy(pInfo, &slots[slotID].token_info, sizeof(CK_TOKEN_INFO));
 
   // Overwrite values that are application specific
   //pInfo->ulSessionCount = (session.handle && !(session.info.flags & CKF_RW_SESSION)) ? 1 : 0;      // number of sessions that this application currently has open with the token
@@ -606,7 +606,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     return CKR_SLOT_ID_INVALID;
   }
 
-  if(!(slots[slotID].info.flags & CKF_TOKEN_PRESENT)) {
+  if(!(slots[slotID].slot_info.flags & CKF_TOKEN_PRESENT)) {
     DBG("A token is not present in slot %lu", slotID);
     locking.UnlockMutex(mutex);
     return CKR_TOKEN_NOT_PRESENT;
@@ -628,8 +628,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     return CKR_FUNCTION_FAILED;
   }
 
-  char reader[sizeof(slots[slotID].info.slotDescription)];
-  memcpy(reader, slots[slotID].info.slotDescription, sizeof(reader));
+  char reader[sizeof(slots[slotID].slot_info.slotDescription)];
+  memcpy(reader, slots[slotID].slot_info.slotDescription, sizeof(reader));
   *strchr(reader, ' ') = 0; // TODO: BOOM if there are no spaces
 
   locking.UnlockMutex(mutex);
