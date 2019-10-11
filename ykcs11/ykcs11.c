@@ -1453,9 +1453,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
       (*pulObjectCount)++;
     }
     session->find_obj.idx++;
-    if(*pulObjectCount == ulMaxObjectCount) {
-        break;
-    }
   }
 
   DBG("Returning %lu objects", *pulObjectCount);
