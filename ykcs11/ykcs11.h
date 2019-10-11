@@ -43,17 +43,6 @@ typedef struct {
   CK_TOKEN_INFO token_info;
 } ykcs11_slot_t;
 
-typedef struct {
-  CK_ULONG        idx;
-  piv_obj_id_t    objects[29 * 4];
-  CK_ULONG        n_objects;
-} ykcs11_find_t;
-
-typedef struct {
-  CK_ULONG        len;
-  CK_BYTE_PTR     data;
-} ykcs11_data_t;
-
 typedef enum {
   YKCS11_NOOP,
   YKCS11_GEN,
@@ -102,6 +91,17 @@ typedef struct {
   CK_BYTE          buf[YKCS11_OP_BUFSIZE];
   CK_ULONG         buf_len;
 } op_info_t;
+
+typedef struct {
+  CK_ULONG        idx;
+  piv_obj_id_t    objects[29 * 4];
+  CK_ULONG        n_objects;
+} ykcs11_find_t;
+
+typedef struct {
+  CK_ULONG        len;
+  CK_BYTE_PTR     data;
+} ykcs11_data_t;
 
 typedef struct {
   CK_SESSION_INFO info;        // slotid, state, flags, deviceerror
