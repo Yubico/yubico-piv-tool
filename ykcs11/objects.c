@@ -1285,13 +1285,13 @@ piv_obj_id_t find_pvtk_object(piv_obj_id_t obj) {
   return -1;
 }
 
-CK_RV store_data(ykcs11_session_t *s, piv_obj_id_t cert_id, CK_BYTE_PTR data, CK_ULONG len) {
-  s->data[piv_objects[cert_id].sub_id].data = realloc(s->data[piv_objects[cert_id].sub_id].data, len);
-  if(s->data[piv_objects[cert_id].sub_id].data == NULL) {
+CK_RV store_data(ykcs11_session_t *s, piv_obj_id_t obj, CK_BYTE_PTR data, CK_ULONG len) {
+  s->data[piv_objects[obj].sub_id].data = realloc(s->data[piv_objects[obj].sub_id].data, len);
+  if(s->data[piv_objects[obj].sub_id].data == NULL) {
     return CKR_HOST_MEMORY;
   }
-  memcpy(s->data[piv_objects[cert_id].sub_id].data, data, len);
-  s->data[piv_objects[cert_id].sub_id].len = len;
+  memcpy(s->data[piv_objects[obj].sub_id].data, data, len);
+  s->data[piv_objects[obj].sub_id].len = len;
   return CKR_OK;
 }
 
