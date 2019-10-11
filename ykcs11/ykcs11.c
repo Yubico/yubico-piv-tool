@@ -1447,11 +1447,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
   *pulObjectCount = 0;
 
   // Return the next object, if any
-  while(session->find_obj.idx < session->find_obj.n_objects) {
+  while(session->find_obj.idx < session->find_obj.n_objects && *pulObjectCount < ulMaxObjectCount) {
     if(session->find_obj.objects[session->find_obj.idx] != OBJECT_INVALID) {
       *phObject++ = session->find_obj.objects[session->find_obj.idx];
-      if(++(*pulObjectCount) == ulMaxObjectCount)
-        break;
+      (*pulObjectCount)++;
     }
     session->find_obj.idx++;
   }
