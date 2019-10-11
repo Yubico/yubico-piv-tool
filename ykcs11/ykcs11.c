@@ -40,6 +40,7 @@
 #include "token.h"
 #include "openssl_types.h"
 #include "openssl_utils.h"
+#include <openssl/rand.h>
 #include "debug.h"
 
 #include <stdbool.h>
@@ -1474,6 +1475,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsFinal)(
     return CKR_OPERATION_NOT_INITIALIZED;
 
   session->find_obj.n_objects = 0;
+  op_info.type = YKCS11_NOOP;
 
   DOUT;
   return CKR_OK;
@@ -1814,6 +1816,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     }
 
     op_info.op.sign.key_len = key_len;
+    op_info.op.sign.sig_len = (key_len + 7) / 8;
 
     if (key_len == 1024)
       op_info.op.sign.algo = YKPIV_ALGO_RSA1024;
@@ -1855,6 +1858,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     // Where len is |x| + |y| + 1 bytes
 
     op_info.op.sign.key_len = (CK_ULONG) (((buf[1] - 1) / 2) * 8);
+    op_info.op.sign.sig_len = ((op_info.op.sign.key_len + 7) / 8) * 2;
 
     if (op_info.op.sign.key_len == 256)
       op_info.op.sign.algo = YKPIV_ALGO_ECCP256;
@@ -1928,19 +1932,18 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   if (pSignature == NULL_PTR) {
     // Just return the size of the signature
-    if (is_RSA_mechanism(op_info.mechanism.mechanism)) {
-      // RSA
-       *pulSignatureLen = (op_info.op.sign.key_len + 7) / 8;
-    }
-    else {
-      // ECDSA
-      *pulSignatureLen = ((op_info.op.sign.key_len + 7) / 8) * 2;
-    }
-
+    *pulSignatureLen = op_info.op.sign.sig_len;
     DBG("The size of the signature will be %lu", *pulSignatureLen);
 
     DOUT;
     return CKR_OK;
+  }
+
+  if (*pulSignatureLen < op_info.op.sign.sig_len) {
+    DBG("pulSignatureLen too small, signature will not fit, expected %u, got %lu", 
+            op_info.op.sign.sig_len, *pulSignatureLen);
+    *pulSignatureLen = op_info.op.sign.sig_len;
+    return CKR_BUFFER_TOO_SMALL;
   }
 
   DBG("Sending %lu bytes to sign", ulDataLen);
@@ -2047,6 +2050,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignUpdate)(
 {
   DIN;
   DBG("TODO!!!");
+  if(op_info.type == YKCS11_SIGN) {
+    op_info.type = YKCS11_NOOP;
+    sign_mechanism_cleanup(&op_info);
+  }
   DOUT;
   return CKR_FUNCTION_NOT_SUPPORTED;
 }
@@ -2473,7 +2480,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateRandom)(
 
 // the OpenSC pkcs11 test calls with 0 and expects CKR_OK, do that..
 if (len > 0) {
-  rv = generate_prng(pRandomData, len);
+  if (RAND_bytes(pRandomData, len) == -1) {
+    rv = CKR_GENERAL_ERROR;
+  }
 }
   
 if (len != ulRandomLen) {

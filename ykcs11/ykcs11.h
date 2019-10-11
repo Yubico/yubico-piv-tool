@@ -90,6 +90,7 @@ typedef struct {
   CK_BYTE           algo;    // Algo for ykpiv // TODO: infer this from the key length?
   CK_ULONG          key_id;  // Key id for ykpiv // TODO: make this a BYTE and store the id {0, 1, 2, 3}
   CK_ULONG          key_len; // Length in bits
+  CK_ULONG          sig_len;// Length of the signature in bytes
 } sign_info_t;
 
 typedef struct {

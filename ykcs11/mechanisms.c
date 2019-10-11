@@ -651,8 +651,7 @@ CK_RV apply_hash_mechanism_update(op_info_t *op_info,
 CK_RV apply_hash_mechanism_finalize(op_info_t *op_info) {
 
   int ret;
-  ret = EVP_DigestFinal_ex(op_info->op.hash.md_ctx, op_info->buf,
-                           &op_info->buf_len);
+  ret = EVP_DigestFinal_ex(op_info->op.hash.md_ctx, op_info->buf, (unsigned int *) &op_info->buf_len);
 
   EVP_MD_CTX_destroy(op_info->op.hash.md_ctx);
   op_info->op.hash.md_ctx = NULL;
