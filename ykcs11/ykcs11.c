@@ -68,6 +68,10 @@ static void *mutex;
 
 static CK_FUNCTION_LIST function_list;
 
+static CK_SESSION_HANDLE get_session_handle(ykcs11_session_t *session) {
+  return sessions - session + 1;
+}
+
 static ykcs11_session_t* get_session(CK_SESSION_HANDLE handle) {
   if(handle < 1 || handle > YKCS11_MAX_SESSIONS)
     return NULL;
@@ -699,7 +703,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
 
   qsort(session->objects, session->n_objects, sizeof(piv_obj_id_t), compare_piv_obj_id);
 
-  *phSession = session - sessions + 1;
+  *phSession = get_session_handle(session);
 
   DOUT;
   return CKR_OK;
