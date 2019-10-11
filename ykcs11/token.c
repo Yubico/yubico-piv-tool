@@ -135,8 +135,6 @@ static const piv_obj_id_t token_objects[] = { // TODO: is there a way to get thi
     //PIV_DATA_OBJ_SM_SIGNER,     // Secure messaging signer
     //PIV_DATA_OBJ_PC_REF_DATA,   // Pairing code reference data
 };
-static const CK_ULONG neo_token_objects_num = sizeof(token_objects) / sizeof(piv_obj_id_t) - 20;
-static const CK_ULONG yk4_token_objects_num = sizeof(token_objects) / sizeof(piv_obj_id_t);
 
 CK_RV get_token_model(ykpiv_state *state, CK_UTF8CHAR_PTR str, CK_ULONG len) {
 

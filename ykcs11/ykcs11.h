@@ -59,7 +59,7 @@ typedef struct {
   ykpiv_state     *state;      // The ykpiv_state for the session
   piv_obj_id_t    objects[29 * 4]; // List of objects in the token
   CK_ULONG        n_objects;   // TOTAL number of objects in the token
-  ykcs11_data_t   data[37];    // Raw data
+  ykcs11_data_t   data[29];    // Raw data
   X509            *certs[25];  // Certificates
   EVP_PKEY        *pkeys[25];  // Public keys
   ykcs11_find_t   find_obj;    // Active find operation (if any)
