@@ -68,7 +68,7 @@ static void *mutex;
 static CK_FUNCTION_LIST function_list;
 
 static CK_SESSION_HANDLE get_session_handle(ykcs11_session_t *session) {
-  return sessions - session + 1;
+  return session - sessions + 1;
 }
 
 static ykcs11_session_t* get_session(CK_SESSION_HANDLE handle) {
@@ -668,9 +668,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     return CKR_FUNCTION_FAILED;
   }
 
-  char reader[sizeof(slots[slotID].slot_info.slotDescription)];
-  memcpy(reader, slots[slotID].slot_info.slotDescription, sizeof(reader));
-  *strchr(reader, ' ') = 0; // TODO: BOOM if there are no spaces
+  char reader[sizeof(slots[slotID].slot_info.slotDescription) + 1];
+  memcpy(reader, slots[slotID].slot_info.slotDescription, sizeof(reader) - 1);
+  reader[sizeof(reader) - 1] = 0;
+  while(reader[strlen(reader) - 1] == ' ')
+    reader[strlen(reader) - 1] = 0;
 
   locking.UnlockMutex(mutex);
 
