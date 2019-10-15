@@ -56,7 +56,6 @@
 
 #define YKCS11_MAX_SLOTS       16
 #define YKCS11_MAX_SESSIONS    16
-//#define YKCS11_MAX_SIG_BUF_LEN 1024
 
 static ykcs11_slot_t slots[YKCS11_MAX_SLOTS];
 static CK_ULONG      n_slots = 0;
@@ -1360,7 +1359,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
     return CKR_SESSION_CLOSED;
   }
 
-  if (session->find_obj.n_objects != 0)  {
+  if (session->find_obj.active)  {
     DBG("Search is already active");
     return CKR_OPERATION_ACTIVE;
   }
@@ -1376,6 +1375,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
     private = CK_TRUE;
   }
 
+  session->find_obj.active = CK_TRUE;
   session->find_obj.idx = 0;
   session->find_obj.n_objects = session->n_objects;
 
@@ -1445,7 +1445,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
       pulObjectCount == NULL_PTR)
     return CKR_ARGUMENTS_BAD;
 
-  if (session->find_obj.n_objects == 0)
+  if (!session->find_obj.active)
     return CKR_OPERATION_NOT_INITIALIZED;
 
   DBG("Can return %lu object(s)", ulMaxObjectCount);
@@ -1482,10 +1482,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsFinal)(
     return CKR_SESSION_CLOSED;
   }
 
-  if (session->find_obj.n_objects == 0)
+  if (!session->find_obj.active)
     return CKR_OPERATION_NOT_INITIALIZED;
 
-  session->find_obj.n_objects = 0;
+  session->find_obj.active = CK_FALSE;
 
   DOUT;
   return CKR_OK;

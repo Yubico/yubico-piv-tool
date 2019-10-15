@@ -38,9 +38,16 @@
 
 #define YKCS11_OP_BUFSIZE  4096
 
+typedef enum {
+  YKCS11_PUBLIC,
+  YKCS11_USER,
+  YKCS11_SO
+} ykcs11_login_state_t;
+
 typedef struct {
   CK_SLOT_INFO  slot_info;
   CK_TOKEN_INFO token_info;
+  ykcs11_login_state_t login_state;
 } ykcs11_slot_t;
 
 typedef enum {
@@ -93,6 +100,7 @@ typedef struct {
 } op_info_t;
 
 typedef struct {
+  CK_BBOOL        active;     
   CK_ULONG        idx;
   piv_obj_id_t    objects[29 * 4];
   CK_ULONG        n_objects;
