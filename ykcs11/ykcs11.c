@@ -632,6 +632,35 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
 
   memset(session, 0, sizeof(*session));
 
+  if (flags & CKF_RW_SESSION) {
+    // R/W Session
+    switch(slots[slotID].login_state) {
+      case YKCS11_PUBLIC:
+        session->info.state = CKS_RW_PUBLIC_SESSION;
+        break;
+      case YKCS11_USER:
+        session->info.state = CKS_RW_USER_FUNCTIONS;
+        break;
+      case YKCS11_SO:
+        session->info.state = CKS_RW_SO_FUNCTIONS;
+        break;
+    }
+  }
+  else {
+    // R/O Session
+    switch(slots[slotID].login_state) {
+      case YKCS11_PUBLIC:
+        session->info.state = CKS_RO_PUBLIC_SESSION;
+        break;
+      case YKCS11_USER:
+        session->info.state = CKS_RO_USER_FUNCTIONS;
+        break;
+      case YKCS11_SO:
+        locking.UnlockMutex(mutex);
+        return CKR_SESSION_READ_WRITE_SO_EXISTS;
+    }
+  }
+
   // Initialize the slot
   if(ykpiv_init(&session->state, YKCS11_DBG) != YKPIV_OK) {
     DBG("Unable to initialize ykpiv library");
@@ -651,15 +680,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     ykpiv_done(session->state);
     session->state = NULL;
     return CKR_FUNCTION_FAILED;
-  }
-
-  if ((flags & CKF_RW_SESSION)) {
-    // R/W Session
-    session->info.state = CKS_RW_PUBLIC_SESSION; // Nobody has logged in, default RO session
-  }
-  else {
-    // R/O Session
-    session->info.state = CKS_RO_PUBLIC_SESSION; // Nobody has logged in, default RW session
   }
 
   session->info.slotID = slotID;
@@ -989,7 +1009,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
   CK_ULONG         ec_data_len;
   CK_BBOOL         is_new;
   CK_BBOOL         is_rsa;
-  CK_OBJECT_HANDLE object;
+  CK_ULONG         dobj_id;
   CK_ULONG         cert_id;
   CK_ULONG         pvtk_id;
   CK_ULONG         pubk_id;
@@ -1000,6 +1020,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
   if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  if (pTemplate == NULL_PTR ||
+      phObject == NULL_PTR) {
+    DBG("Wrong/Missing parameter");
+    return CKR_ARGUMENTS_BAD;
   }
 
   ykcs11_session_t* session = get_session(hSession);
@@ -1014,20 +1040,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     return CKR_SESSION_READ_ONLY;
   }
 
-  if (pTemplate == NULL_PTR ||
-      phObject == NULL_PTR) {
-    DBG("Wrong/Missing parameter");
-    return CKR_ARGUMENTS_BAD;
-  }
-
   class = CKO_VENDOR_DEFINED; // Use this as a known value
   for (i = 0; i < ulCount; i++) {
     if (pTemplate[i].type == CKA_CLASS) {
       class = *((CK_ULONG_PTR)pTemplate[i].pValue);
 
       // Can only import certificates and private keys
-      if (*((CK_ULONG_PTR)pTemplate[i].pValue) != CKO_CERTIFICATE &&
-          *((CK_ULONG_PTR)pTemplate[i].pValue) != CKO_PRIVATE_KEY) {
+      if (class != CKO_CERTIFICATE &&
+          class != CKO_PRIVATE_KEY) {
         DBG("Unsupported class %lu", class);
         return CKR_ATTRIBUTE_VALUE_INVALID;
       }
@@ -1050,9 +1070,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     }
     DBG("Certificate id is %u", id);
 
-    object = PIV_CERT_OBJ_X509_PIV_AUTH + id - 1;
+    cert_id = find_cert_object(id);
+    dobj_id = find_data_object(id);
+    pvtk_id = find_pvtk_object(id);
+    pubk_id = find_pubk_object(id);
 
-    rv = token_import_cert(session->state, piv_2_ykpiv(object), value); // TODO: make function to get cert id
+    rv = token_import_cert(session->state, piv_2_ykpiv(cert_id), value); // TODO: make function to get cert id
     if (rv != CKR_OK) {
       DBG("Unable to import certificate");
       return rv;
@@ -1060,35 +1083,35 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     is_new = CK_TRUE;
     for (i = 0; i < session->n_objects; i++) {
-      if (session->objects[i] == object)
+      if (session->objects[i] == cert_id)
         is_new = CK_FALSE;
     }
-
-    cert_id = PIV_CERT_OBJ_X509_PIV_AUTH + id; // TODO: make function for these
-    pvtk_id = PIV_PVTK_OBJ_PIV_AUTH + id;
-    pubk_id = PIV_PUBK_OBJ_PIV_AUTH + id;
 
     // Check whether we created a new object or updated an existing one
     if (is_new == CK_TRUE) {
       // New object created, add it to the object list
-
-      // Each object counts as three, even if we just only added a certificate
       obj_ptr = session->objects + session->n_objects;
-
+      *obj_ptr++ = dobj_id;
       *obj_ptr++ = cert_id;
       *obj_ptr++ = pvtk_id;
       *obj_ptr++ = pubk_id;
+      session->n_objects = obj_ptr - session->objects;
+      qsort(session->objects, session->n_objects, sizeof(piv_obj_id_t), compare_piv_obj_id);
+    }
 
-      session->n_objects += 3;
+    rv = store_data(session, dobj_id, value, value_len);
+    if (rv != CKR_OK) {
+      DBG("Unable to store data in session");
+      return CKR_FUNCTION_FAILED;
     }
 
     rv = store_cert(session, cert_id, value, value_len);
     if (rv != CKR_OK) {
-      DBG("Unable to store certificate data");
+      DBG("Unable to store certificate in session");
       return CKR_FUNCTION_FAILED;
     }
-    *phObject = cert_id;
 
+    *phObject = cert_id;
     break;
 
   case CKO_PRIVATE_KEY:
@@ -1114,11 +1137,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     DBG("Key id is %u", id);
 
-    object = PIV_PVTK_OBJ_PIV_AUTH + id - 1;
+    pvtk_id = find_pvtk_object(id);
 
     if (is_rsa == CK_TRUE) {
       DBG("Key is RSA");
-      rv = token_import_private_key(session->state, piv_2_ykpiv(object),
+      rv = token_import_private_key(session->state, piv_2_ykpiv(pvtk_id),
                                           p, p_len,
                                           q, q_len,
                                           dp, dp_len,
@@ -1132,7 +1155,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     }
     else {
       DBG("Key is ECDSA");
-      rv = token_import_private_key(session->state, piv_2_ykpiv(object),
+      rv = token_import_private_key(session->state, piv_2_ykpiv(pvtk_id),
                                           NULL, 0,
                                           NULL, 0,
                                           NULL, 0,
@@ -1145,13 +1168,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       }
     }
 
-    *phObject = PIV_PVTK_OBJ_PIV_AUTH + id - 1;
-
+    *phObject = pvtk_id;
     break;
 
   default:
     DBG("Unknown object type");
-    return CKR_ATTRIBUTE_TYPE_INVALID;
+    return CKR_ATTRIBUTE_VALUE_INVALID;
   }
 
   DOUT;
@@ -1181,10 +1203,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
   CK_ULONG       i;
   CK_ULONG       j;
   CK_BYTE        id;
-  CK_ULONG       cert_id;
+  CK_ULONG       dobj_id;
   CK_ULONG       pvtk_id;
   CK_ULONG       pubk_id;
-  piv_obj_id_t   *obj_ptr;
 
   DIN;
 
@@ -1221,41 +1242,28 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
     return rv;
   }
 
-  // Remove the object from the session
-  // Do it in a slightly inefficient way but preserve ordering
+  // Remove the related objects from the session
+  dobj_id = find_data_object(id);
+  pvtk_id = find_pvtk_object(id);
+  pubk_id = find_pubk_object(id);
 
-  cert_id = PIV_CERT_OBJ_X509_PIV_AUTH + id - 1; // TODO: make function for these
-  pvtk_id = PIV_PVTK_OBJ_PIV_AUTH + id - 1;
-  pubk_id = PIV_PUBK_OBJ_PIV_AUTH + id - 1;
-
-  obj_ptr = malloc((session->n_objects - 3) * sizeof(piv_obj_id_t));
-  if (obj_ptr == NULL) {
-    DBG("Unable to allocate memory");
-    return CKR_HOST_MEMORY;
-  }
-
-  i = 0;
   j = 0;
-  while (i < session->n_objects) {
-    if (session->objects[i] == cert_id ||
+  for (i = 0; i < session->n_objects; i++) {
+    if (session->objects[i] == hObject ||
+        session->objects[i] == dobj_id ||
         session->objects[i] == pvtk_id ||
         session->objects[i] == pubk_id) {
-      i++;
       continue;
     }
-
-    obj_ptr[j++] = session->objects[i++];
+    session->objects[j++] = session->objects[i];
   }
+  session->n_objects = j;
 
-  rv = delete_cert(session, cert_id);
+  rv = delete_cert(session, hObject);
   if (rv != CKR_OK) {
-    free(obj_ptr);
     DBG("Unable to delete certificate data");
     return CKR_FUNCTION_FAILED;
   }
-
-  session->n_objects -= 3;
-  memcpy(session->objects, obj_ptr, session->n_objects * sizeof(piv_obj_id_t));
 
   DOUT;
   return CKR_OK;
