@@ -126,17 +126,17 @@ static piv_obj_t piv_objects[] = {
   {PIV_PVTK_OBJ_RETIRED7, 1, 1, 0, "Private key for Retired Key 7", 0, 0, get_proa, 11},
   {PIV_PVTK_OBJ_RETIRED8, 1, 1, 0, "Private key for Retired Key 8", 0, 0, get_proa, 12},
   {PIV_PVTK_OBJ_RETIRED9, 1, 1, 0, "Private key for Retired Key 9", 0, 0, get_proa, 13},
-  {PIV_PVTK_OBJ_RETIRED10, 1, 1, 0, "Private key forRretired Key 10", 0, 0, get_proa, 14},
-  {PIV_PVTK_OBJ_RETIRED11, 1, 1, 0, "Private key forRretired Key 11", 0, 0, get_proa, 15},
-  {PIV_PVTK_OBJ_RETIRED12, 1, 1, 0, "Private key forRretired Key 12", 0, 0, get_proa, 16},
-  {PIV_PVTK_OBJ_RETIRED13, 1, 1, 0, "Private key forRretired Key 13", 0, 0, get_proa, 17},
-  {PIV_PVTK_OBJ_RETIRED14, 1, 1, 0, "Private key forRretired Key 14", 0, 0, get_proa, 18},
-  {PIV_PVTK_OBJ_RETIRED15, 1, 1, 0, "Private key forRretired Key 15", 0, 0, get_proa, 19},
-  {PIV_PVTK_OBJ_RETIRED16, 1, 1, 0, "Private key forRretired Key 16", 0, 0, get_proa, 20},
-  {PIV_PVTK_OBJ_RETIRED17, 1, 1, 0, "Private key forRretired Key 17", 0, 0, get_proa, 21},
-  {PIV_PVTK_OBJ_RETIRED18, 1, 1, 0, "Private key forRretired Key 18", 0, 0, get_proa, 22},
-  {PIV_PVTK_OBJ_RETIRED19, 1, 1, 0, "Private key forRretired Key 19", 0, 0, get_proa, 23},
-  {PIV_PVTK_OBJ_RETIRED20, 1, 1, 0, "Private key forRretired Key 20", 0, 0, get_proa, 24},
+  {PIV_PVTK_OBJ_RETIRED10, 1, 1, 0, "Private key for Retired Key 10", 0, 0, get_proa, 14},
+  {PIV_PVTK_OBJ_RETIRED11, 1, 1, 0, "Private key for Retired Key 11", 0, 0, get_proa, 15},
+  {PIV_PVTK_OBJ_RETIRED12, 1, 1, 0, "Private key for Retired Key 12", 0, 0, get_proa, 16},
+  {PIV_PVTK_OBJ_RETIRED13, 1, 1, 0, "Private key for Retired Key 13", 0, 0, get_proa, 17},
+  {PIV_PVTK_OBJ_RETIRED14, 1, 1, 0, "Private key for Retired Key 14", 0, 0, get_proa, 18},
+  {PIV_PVTK_OBJ_RETIRED15, 1, 1, 0, "Private key for Retired Key 15", 0, 0, get_proa, 19},
+  {PIV_PVTK_OBJ_RETIRED16, 1, 1, 0, "Private key for Retired Key 16", 0, 0, get_proa, 20},
+  {PIV_PVTK_OBJ_RETIRED17, 1, 1, 0, "Private key for Retired Key 17", 0, 0, get_proa, 21},
+  {PIV_PVTK_OBJ_RETIRED18, 1, 1, 0, "Private key for Retired Key 18", 0, 0, get_proa, 22},
+  {PIV_PVTK_OBJ_RETIRED19, 1, 1, 0, "Private key for Retired Key 19", 0, 0, get_proa, 23},
+  {PIV_PVTK_OBJ_RETIRED20, 1, 1, 0, "Private key for Retired Key 20", 0, 0, get_proa, 24},
   {PIV_PVTK_OBJ_LAST, 1, 0, 0, "", 0, 0, NULL, 25},
 
   {PIV_PUBK_OBJ_PIV_AUTH, 1, 0, 0, "Public key for PIV Authentication", 0, 0, get_puoa, 1},
@@ -1261,25 +1261,37 @@ CK_BBOOL is_private_object(ykcs11_session_t *s, CK_OBJECT_HANDLE obj) {
   return private == CK_FALSE ? CK_FALSE : CK_TRUE;
 }
 
-piv_obj_id_t find_cert_object(piv_obj_id_t obj) {
+CK_BYTE get_key_id(piv_obj_id_t obj) {
+  return (obj < PIV_DATA_OBJ_X509_PIV_AUTH || obj > PIV_PUBK_OBJ_RETIRED20) ? 0 : piv_objects[obj].sub_id;
+}
+
+piv_obj_id_t find_data_object(CK_BYTE sub_id) {
+  for(piv_obj_id_t id = PIV_DATA_OBJ_X509_PIV_AUTH; id <= PIV_DATA_OBJ_X509_RETIRED20; id++) {
+    if(piv_objects[id].sub_id == sub_id)
+      return id;
+  }
+  return -1;
+}
+
+piv_obj_id_t find_cert_object(CK_BYTE sub_id) {
   for(piv_obj_id_t id = PIV_CERT_OBJ_X509_PIV_AUTH; id <= PIV_CERT_OBJ_X509_RETIRED20; id++) {
-    if(piv_objects[id].sub_id == piv_objects[obj].sub_id)
+    if(piv_objects[id].sub_id == sub_id)
       return id;
   }
   return -1;
 }
 
-piv_obj_id_t find_pubk_object(piv_obj_id_t obj) {
+piv_obj_id_t find_pubk_object(CK_BYTE sub_id) {
   for(piv_obj_id_t id = PIV_PUBK_OBJ_PIV_AUTH; id <= PIV_PUBK_OBJ_RETIRED20; id++) {
-    if(piv_objects[id].sub_id == piv_objects[obj].sub_id)
+    if(piv_objects[id].sub_id == sub_id)
       return id;
   }
   return -1;
 }
 
-piv_obj_id_t find_pvtk_object(piv_obj_id_t obj) {
+piv_obj_id_t find_pvtk_object(CK_BYTE sub_id) {
   for(piv_obj_id_t id = PIV_PVTK_OBJ_PIV_AUTH; id <= PIV_PVTK_OBJ_RETIRED20; id++) {
-    if(piv_objects[id].sub_id == piv_objects[obj].sub_id)
+    if(piv_objects[id].sub_id == sub_id)
       return id;
   }
   return -1;
@@ -1346,7 +1358,7 @@ CK_RV check_create_cert(CK_ATTRIBUTE_PTR templ, CK_ULONG n,
 
     case CKA_ID:
       has_id = CK_TRUE;
-      if (is_valid_key_id(*((CK_BYTE_PTR)templ[i].pValue)) == CK_FALSE)
+      if (find_cert_object(*((CK_BYTE_PTR)templ[i].pValue)) == (piv_obj_id_t)-1)
         return CKR_ATTRIBUTE_VALUE_INVALID;
 
       *id = *((CK_BYTE_PTR)templ[i].pValue);
@@ -1409,7 +1421,7 @@ CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
 
     case CKA_ID:
       has_id = CK_TRUE;
-      if (is_valid_key_id(*((CK_BYTE_PTR)templ[i].pValue)) == CK_FALSE)
+      if (find_pvtk_object(*((CK_BYTE_PTR)templ[i].pValue)) == (piv_obj_id_t)-1)
         return CKR_ATTRIBUTE_VALUE_INVALID;
 
       *id = *((CK_BYTE_PTR)templ[i].pValue);
@@ -1488,7 +1500,7 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
 
     case CKA_ID:
       has_id = CK_TRUE;
-      if (is_valid_key_id(*((CK_BYTE_PTR)templ[i].pValue)) == CK_FALSE)
+      if (find_pvtk_object(*((CK_BYTE_PTR)templ[i].pValue)) == (piv_obj_id_t)-1)
         return CKR_ATTRIBUTE_VALUE_INVALID;
 
       *id = *((CK_BYTE_PTR)templ[i].pValue);
@@ -1577,10 +1589,10 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
 
 CK_RV check_delete_cert(CK_OBJECT_HANDLE hObject, CK_BYTE_PTR id) {
 
-  if (hObject < PIV_CERT_OBJ_X509_PIV_AUTH || hObject >= PIV_CERT_OBJ_LAST)
-    return CKR_FUNCTION_FAILED;
+  if (hObject < PIV_CERT_OBJ_X509_PIV_AUTH || hObject > PIV_CERT_OBJ_X509_RETIRED20)
+    return CKR_ARGUMENTS_BAD;
 
-  *id = hObject - PIV_CERT_OBJ_X509_PIV_AUTH;
+  *id = get_key_id(hObject);
 
   return CKR_OK;
 }

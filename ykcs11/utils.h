@@ -37,8 +37,6 @@
 CK_BBOOL is_yubico_reader(char* reader_name);
 void* memstrcpy(unsigned char *dst, char *src);
 
-CK_BBOOL is_valid_key_id(CK_BYTE id);
-
 void strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG_PTR len);
 
 CK_RV noop_create_mutex(void **mutex);

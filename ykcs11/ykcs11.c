@@ -685,11 +685,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
         session->state = NULL;
         goto failure;
       }
-      piv_obj_id_t cert_id = find_cert_object(obj_ids[i]);
+      CK_BYTE key_id = get_key_id(obj_ids[i]);
+      piv_obj_id_t cert_id = find_cert_object(key_id);
       if(cert_id != (piv_obj_id_t)-1) {
         session->objects[session->n_objects++] = cert_id;
-        session->objects[session->n_objects++] = find_pubk_object(obj_ids[i]);
-        session->objects[session->n_objects++] = find_pvtk_object(obj_ids[i]);
+        session->objects[session->n_objects++] = find_pubk_object(key_id);
+        session->objects[session->n_objects++] = find_pvtk_object(key_id);
         rv = store_cert(session, cert_id, data, len);
         if (rv != CKR_OK) {
           DBG("Unable to store certificate data");
@@ -1050,7 +1051,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     }
     DBG("Certificate id is %u", id);
 
-    object = PIV_CERT_OBJ_X509_PIV_AUTH + id;
+    object = PIV_CERT_OBJ_X509_PIV_AUTH + id - 1;
 
     rv = token_import_cert(session->state, piv_2_ykpiv(object), value); // TODO: make function to get cert id
     if (rv != CKR_OK) {
@@ -1114,7 +1115,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     DBG("Key id is %u", id);
 
-    object = PIV_PVTK_OBJ_PIV_AUTH + id;
+    object = PIV_PVTK_OBJ_PIV_AUTH + id - 1;
 
     if (is_rsa == CK_TRUE) {
       DBG("Key is RSA");
@@ -1145,7 +1146,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       }
     }
 
-    *phObject = PIV_PVTK_OBJ_PIV_AUTH + id;
+    *phObject = PIV_PVTK_OBJ_PIV_AUTH + id - 1;
 
     break;
 
@@ -1224,9 +1225,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
   // Remove the object from the session
   // Do it in a slightly inefficient way but preserve ordering
 
-  cert_id = PIV_CERT_OBJ_X509_PIV_AUTH + id; // TODO: make function for these
-  pvtk_id = PIV_PVTK_OBJ_PIV_AUTH + id;
-  pubk_id = PIV_PUBK_OBJ_PIV_AUTH + id;
+  cert_id = PIV_CERT_OBJ_X509_PIV_AUTH + id - 1; // TODO: make function for these
+  pvtk_id = PIV_PVTK_OBJ_PIV_AUTH + id - 1;
+  pubk_id = PIV_PUBK_OBJ_PIV_AUTH + id - 1;
 
   obj_ptr = malloc((session->n_objects - 3) * sizeof(piv_obj_id_t));
   if (obj_ptr == NULL) {
@@ -2303,7 +2304,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 
   if (session->info.state != CKS_RW_SO_FUNCTIONS) {
     DBG("Authentication required to generate keys");
-    return CKR_SESSION_READ_ONLY;
+    return CKR_USER_TYPE_INVALID;
   }
 
   if (session->op_info.type != YKCS11_NOOP) {
@@ -2357,57 +2358,63 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     return CKR_TEMPLATE_INCOMPLETE;
   }
 
+  dobj_id = find_data_object(session->op_info.op.gen.key_id);
+  cert_id = find_cert_object(session->op_info.op.gen.key_id);
+  pvtk_id = find_pvtk_object(session->op_info.op.gen.key_id);
+  pubk_id = find_pubk_object(session->op_info.op.gen.key_id);
+
   if (session->op_info.op.gen.rsa) {
-    DBG("Generating %lu bit RSA key in object %u", session->op_info.op.gen.key_len, session->op_info.op.gen.key_id);
+    DBG("Generating %lu bit RSA key in object %lu (%lx)", session->op_info.op.gen.key_len, pvtk_id, piv_2_ykpiv(pvtk_id));
   }
   else {
-    DBG("Generating %lu bit EC key in object %u", session->op_info.op.gen.key_len, session->op_info.op.gen.key_id);
+    DBG("Generating %lu bit EC key in object %lu (%lx)", session->op_info.op.gen.key_len, pvtk_id, piv_2_ykpiv(pvtk_id));
   }
 
-  if ((rv = token_generate_key(session->state, session->op_info.op.gen.rsa, piv_2_ykpiv(session->op_info.op.gen.key_id), session->op_info.op.gen.key_len)) != CKR_OK) {
+  if ((rv = token_generate_key(session->state, session->op_info.op.gen.rsa, piv_2_ykpiv(pvtk_id), session->op_info.op.gen.key_len)) != CKR_OK) {
     DBG("Unable to generate key pair");
     return rv;
   }
 
   is_new = CK_TRUE;
   for (i = 0; i < session->n_objects; i++) {
-    if (session->objects[i] == session->op_info.op.gen.key_id)
+    if (session->objects[i] == pvtk_id)
       is_new = CK_FALSE;
   }
-
-  dobj_id = session->op_info.op.gen.key_id - PIV_PVTK_OBJ_PIV_AUTH; // TODO: make function for these
-  cert_id = PIV_DATA_OBJ_LAST + 1 + dobj_id;
-  pvtk_id = session->op_info.op.gen.key_id;
-  pubk_id = PIV_PVTK_OBJ_LAST + 1 + dobj_id;
 
   // Check whether we created a new object or updated an existing one
   if (is_new == CK_TRUE) {
     // New object created, add it to the object list
-
-    // Each object counts as three (data object is always there)
     obj_ptr = session->objects + session->n_objects;
+    *obj_ptr++ = dobj_id;
     *obj_ptr++ = cert_id;
     *obj_ptr++ = pvtk_id;
     *obj_ptr++ = pubk_id;
-    session->n_objects += 3;
+    session->n_objects = obj_ptr - session->objects;
+    qsort(session->objects, session->n_objects, sizeof(piv_obj_id_t), compare_piv_obj_id);
   }
 
   // Write/Update the object
   cert_len = sizeof(cert_data);
-  rv = get_token_object(session->state, cert_id, cert_data, &cert_len);
+  rv = get_token_object(session->state, dobj_id, cert_data, &cert_len);
   if (rv != CKR_OK) {
-    DBG("Unable to get certificate data from token");
+    DBG("Unable to get data from token");
+    return CKR_FUNCTION_FAILED;
+  }
+
+  rv = store_data(session, dobj_id, cert_data, cert_len);
+  if (rv != CKR_OK) {
+    DBG("Unable to store data in session");
     return CKR_FUNCTION_FAILED;
   }
 
   rv = store_cert(session, cert_id, cert_data, cert_len);
   if (rv != CKR_OK) {
-    DBG("Unable to store certificate data");
+    DBG("Unable to store certificate in session");
     return CKR_FUNCTION_FAILED;
   }
 
-  *phPrivateKey = session->op_info.op.gen.key_id;
-  *phPublicKey  = session->op_info.op.gen.key_id - PIV_PVTK_OBJ_KM + PIV_PUBK_OBJ_KM; // TODO: make function for these?
+  *phPrivateKey = pvtk_id;
+  *phPublicKey  = pubk_id;
 
   DOUT;
   return CKR_OK;

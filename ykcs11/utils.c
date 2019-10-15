@@ -43,15 +43,6 @@ void* memstrcpy(unsigned char *dst, char *src) {
   return memcpy(dst, src, strlen(src));
 }
 
-CK_BBOOL is_valid_key_id(CK_BYTE id) {
-
-  // Valid ids are [0, 23] aka [0x00, 0x17]
-  if (id > 23)
-    return CK_FALSE;
-
-  return CK_TRUE;
-}
-
 void strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
   CK_BYTE_PTR  data_ptr;

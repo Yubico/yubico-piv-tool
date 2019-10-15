@@ -62,9 +62,9 @@ typedef struct {
   ykcs11_md_ctx_t   *md_ctx; // Digest context
   ykcs11_rsa_key_t  *key;    // Raw public key (needed for PSS)
   CK_BYTE           algo;    // Algo for ykpiv // TODO: infer this from the key length?
-  CK_ULONG          key_id;  // Key id for ykpiv // TODO: make this a BYTE and store the id {0, 1, 2, 3}
+  CK_BYTE           key_id;  // Key id for ykpiv // TODO: make this a BYTE and store the key_id {0, 1, 2, 3}
   CK_ULONG          key_len; // Length in bits
-  CK_ULONG          sig_len;// Length of the signature in bytes
+  CK_ULONG          sig_len; // Length of the signature in bytes
 } sign_info_t;
 
 typedef struct {

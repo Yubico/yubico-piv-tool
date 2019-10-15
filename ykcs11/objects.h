@@ -33,11 +33,13 @@
 
 #include "ykcs11.h"
 
-CK_ULONG piv_2_ykpiv(piv_obj_id_t id);
+CK_ULONG piv_2_ykpiv(piv_obj_id_t obj);
+CK_BYTE get_key_id(piv_obj_id_t obj);
 
-piv_obj_id_t find_cert_object(piv_obj_id_t obj);
-piv_obj_id_t find_pubk_object(piv_obj_id_t obj);
-piv_obj_id_t find_pvtk_object(piv_obj_id_t obj);
+piv_obj_id_t find_data_object(CK_BYTE key_id);
+piv_obj_id_t find_cert_object(CK_BYTE key_id);
+piv_obj_id_t find_pubk_object(CK_BYTE key_id);
+piv_obj_id_t find_pvtk_object(CK_BYTE key_id);
 
 CK_RV    get_attribute(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
 CK_BBOOL attribute_match(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR attribute);

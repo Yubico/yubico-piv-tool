@@ -29,6 +29,7 @@
  */
 
 #include "mechanisms.h"
+#include "objects.h"
 #include "token.h"
 #include "openssl_utils.h"
 #include "utils.h"
@@ -447,10 +448,10 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
       break;
 
     case CKA_ID:
-      if (is_valid_key_id(*((CK_BYTE_PTR)templ[i].pValue)) == CK_FALSE)
+      if (find_pubk_object(*((CK_BYTE_PTR)templ[i].pValue)) == (piv_obj_id_t)-1)
         return CKR_ATTRIBUTE_VALUE_INVALID;
 
-      op_info->op.gen.key_id = PIV_PVTK_OBJ_PIV_AUTH + *((CK_BYTE_PTR)templ[i].pValue);
+      op_info->op.gen.key_id = *((CK_BYTE_PTR)templ[i].pValue);
       break;
 
     case CKA_TOKEN:
@@ -506,16 +507,16 @@ CK_RV check_pvtkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
       break;*/
 
     case CKA_ID:
-      if (is_valid_key_id(*((CK_BYTE_PTR)templ[i].pValue)) == CK_FALSE)
+      if (find_pvtk_object(*((CK_BYTE_PTR)templ[i].pValue)) == (piv_obj_id_t)-1)
         return CKR_ATTRIBUTE_VALUE_INVALID;
 
       // Check if ID was already specified in the public key template
       // In that case it has to match
       if (op_info->op.gen.key_id != 0 &&
-          op_info->op.gen.key_id != (*((CK_BYTE_PTR)templ[i].pValue) + PIV_PVTK_OBJ_PIV_AUTH))
+          op_info->op.gen.key_id != *((CK_BYTE_PTR)templ[i].pValue))
         return CKR_TEMPLATE_INCONSISTENT;
 
-      op_info->op.gen.key_id = PIV_PVTK_OBJ_PIV_AUTH + *((CK_BYTE_PTR)templ[i].pValue);
+      op_info->op.gen.key_id = *((CK_BYTE_PTR)templ[i].pValue);
       break;
 
     case CKA_SENSITIVE:
