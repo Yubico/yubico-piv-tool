@@ -774,8 +774,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
 
   for(int i = 0; i < YKCS11_MAX_SESSIONS; i++) {
     ykcs11_session_t *other = sessions + i;
-    if(other->state == session->state) {
-      DBG("Other sesion with the same slot exists, just implicitly decrease reference count");
+    if(other != session && other->state == session->state) {
       session->state = NULL;
       break;
     }
@@ -806,10 +805,18 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
 
   locking.LockMutex(mutex);
 
-  for(int i= 1; i<=YKCS11_MAX_SESSIONS; i++) {
-    ykcs11_session_t *session = get_session(i);
-    if(session != NULL && session->state != NULL && session->info.slotID == slotID) {
-      ykpiv_done(session->state);
+  for(int i = 0; i < YKCS11_MAX_SESSIONS; i++) {
+    ykcs11_session_t *session = sessions + i;
+    if(session->state && session->info.slotID == slotID) {
+      for(int j = 0; j < YKCS11_MAX_SESSIONS; j++) {
+        ykcs11_session_t *other = sessions + j;
+        if(other != session && other->state == session->state) {
+          session->state = NULL;
+          break;
+        }
+      }
+      if(session->state)
+        ykpiv_done(session->state);
       memset(session, 0, sizeof(*session));
     }
   }
