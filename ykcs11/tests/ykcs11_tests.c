@@ -460,6 +460,91 @@ static void test_generate_ec() {
   dprintf(0, "TEST END: test_generate_ec()\n");
 }
 
+static void test_generate_ec_P384() {
+  dprintf(0, "TEST START: test_generate_ec_P384()\n");
+
+  CK_BYTE     i, j;
+  CK_BYTE     some_data[32];
+  CK_BYTE     params[] = {0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x22};
+  CK_ULONG    class_k = CKO_PRIVATE_KEY;
+  CK_ULONG    class_c = CKO_PUBLIC_KEY;
+  CK_ULONG    kt = CKK_ECDSA;
+  CK_BYTE     id = 0;
+  CK_BYTE     sig[96];
+  CK_ULONG    recv_len;
+
+  CK_ATTRIBUTE privateKeyTemplate[] = {
+    {CKA_CLASS, &class_k, sizeof(class_k)},
+    {CKA_KEY_TYPE, &kt, sizeof(kt)},
+    {CKA_ID, &id, sizeof(id)}
+  };
+
+  CK_ATTRIBUTE publicKeyTemplate[] = {
+    {CKA_CLASS, &class_c, sizeof(class_c)},
+    {CKA_ID, &id, sizeof(id)},
+    {CKA_EC_PARAMS, &params, sizeof(params)}
+  };
+
+  CK_MECHANISM keygen_mech = {CKM_EC_KEY_PAIR_GEN, NULL};
+  CK_MECHANISM sign_mech = {CKM_ECDSA, NULL};
+
+  CK_OBJECT_HANDLE privkey[24], pubkey[24];
+
+  CK_SESSION_HANDLE session;
+  init_connection();
+  asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
+  asrt(funcs->C_Login(session, CKU_SO, "010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
+
+  for (i = 0; i < 24; i++) {
+    id = i+1;
+    asrt(funcs->C_GenerateKeyPair(session, &keygen_mech, publicKeyTemplate, 3, privateKeyTemplate, 3, pubkey+i, privkey+i), CKR_OK, "GEN RSA KEYPAIR");
+  }
+  asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
+
+  for (i = 0; i < 24; i++) {
+    for (j = 0; j < 10; j++) {
+      if(RAND_bytes(some_data, sizeof(some_data)) == -1)
+        exit(EXIT_FAILURE);
+
+      asrt(funcs->C_Login(session, CKU_USER, "123456", 6), CKR_OK, "Login USER");
+      asrt(funcs->C_SignInit(session, &sign_mech, privkey[i]), CKR_OK, "SignInit");
+
+      recv_len = sizeof(sig);
+      asrt(funcs->C_Sign(session, some_data, sizeof(some_data), sig, &recv_len), CKR_OK, "Sign");
+    }
+  }
+
+  asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
+
+
+  CK_OBJECT_HANDLE cert_handle;
+  CK_ULONG n_cert_handle;
+  CK_BYTE ckaid = 0;
+  CK_ULONG class_cert = CKO_CERTIFICATE;
+  CK_ATTRIBUTE idTemplate[] = {
+    {CKA_ID, &ckaid, sizeof(ckaid)}
+  };
+  CK_ATTRIBUTE idClassTemplate[] = {
+    {CKA_ID, &ckaid, sizeof(ckaid)},
+    {CKA_CLASS, &class_cert, sizeof(class_cert)}
+  };
+
+  asrt(funcs->C_Login(session, CKU_SO, "010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
+  for(i=0; i<24; i++) {
+    asrt(funcs->C_GetAttributeValue(session, privkey[i], idTemplate, 1), CKR_OK, "GET CKA_ID");
+    asrt(funcs->C_FindObjectsInit(session, idClassTemplate, 2), CKR_OK, "FIND INIT");
+    asrt(funcs->C_FindObjects(session, &cert_handle, 1, &n_cert_handle), CKR_OK, "FIND");
+    asrt(funcs->C_FindObjectsFinal(session), CKR_OK, "FIND FINAL");
+
+    asrt(funcs->C_DestroyObject(session, cert_handle), CKR_OK, "Destroy Object");
+  }
+  asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
+
+  asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
+  asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
+  dprintf(0, "TEST END: test_generate_ec_P384()\n");
+}
+
 static void test_generate_rsa() {
   dprintf(0, "TEST START: test_generate_rsa()\n");
 
@@ -1261,6 +1346,65 @@ static void test_import_and_sign_all_10_RSA() {
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
   dprintf(0, "TEST END: test_import_and_sign_all_10_RSA()\n");
 }
+
+static void test_digest() {
+  dprintf(0, "TEST START: test_digest()\n");
+  CK_BYTE     i;
+  CK_BYTE     some_data[32];
+  CK_BYTE     digest_data[128];
+  CK_ULONG    digest_len;
+  CK_BYTE     hashed_data[128];
+  CK_ULONG    sha1_len = 20;
+  CK_ULONG    sha256_len = 32;
+  CK_ULONG    sha384_len = 48;
+  CK_ULONG    sha512_len = 64;
+
+  CK_MECHANISM mech_sha1 = {CKM_SHA_1, NULL};
+  CK_MECHANISM mech_sha256 = {CKM_SHA256, NULL};
+  CK_MECHANISM mech_sha384 = {CKM_SHA384, NULL};
+  CK_MECHANISM mech_sha512 = {CKM_SHA512, NULL};
+
+  CK_SESSION_HANDLE session;
+  init_connection();
+  asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession");
+
+  for(i=0; i<10; i++) {
+    if(RAND_bytes(some_data, sizeof(some_data)) == -1)
+        exit(EXIT_FAILURE);
+
+    asrt(funcs->C_DigestInit(session, &mech_sha1), CKR_OK, "DIGEST INIT SHA1");  
+    digest_len = 128;
+    asrt(funcs->C_Digest(session, some_data, 32, digest_data, &digest_len), CKR_OK, "DIGEST SHA1");
+    asrt(digest_len, sha1_len, "SHA1 LEN");
+    SHA1(some_data, sizeof(some_data), hashed_data);
+    asrt(memcmp(hashed_data, digest_data, digest_len), 0, "SHA1");
+
+    asrt(funcs->C_DigestInit(session, &mech_sha256), CKR_OK, "DIGEST INIT SHA256");  
+    digest_len = 128;
+    asrt(funcs->C_Digest(session, some_data, 32, digest_data, &digest_len), CKR_OK, "DIGEST SHA256");
+    asrt(digest_len, sha256_len, "SHA256 LEN");
+    SHA256(some_data, sizeof(some_data), hashed_data);
+    asrt(memcmp(hashed_data, digest_data, digest_len), 0, "SHA256");
+
+    asrt(funcs->C_DigestInit(session, &mech_sha384), CKR_OK, "DIGEST INIT SHA384");  
+    digest_len = 128;
+    asrt(funcs->C_Digest(session, some_data, 32, digest_data, &digest_len), CKR_OK, "DIGEST SHA384");
+    asrt(digest_len, sha384_len, "SHA384 LEN");
+    SHA384(some_data, sizeof(some_data), hashed_data);
+    asrt(memcmp(hashed_data, digest_data, digest_len), 0, "SHA384");
+
+    asrt(funcs->C_DigestInit(session, &mech_sha512), CKR_OK, "DIGEST INIT SHA512");  
+    digest_len = 128;
+    asrt(funcs->C_Digest(session, some_data, 32, digest_data, &digest_len), CKR_OK, "DIGEST SHA512");
+    asrt(digest_len, sha512_len, "SHA512 LEN");
+    SHA512(some_data, sizeof(some_data), hashed_data);
+    asrt(memcmp(hashed_data, digest_data, digest_len), 0, "SHA512");
+  }
+
+  asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
+  asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
+  dprintf(0, "TEST END: test_digest()\n");
+}
 #endif
 
 int destruction_confirmed(void) {
@@ -1294,9 +1438,11 @@ int main(void) {
   test_login();
   test_multiple_sessions();
   test_max_multiple_sessions();
+  test_digest();
   test_find_objects();
   test_generate_rsa();
   test_generate_ec();
+  test_generate_ec_P384();
   test_import_and_sign_all_10();
   test_import_and_sign_all_10_P384();
   test_import_and_sign_all_10_RSA();
