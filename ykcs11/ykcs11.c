@@ -635,12 +635,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
 
   memset(session, 0, sizeof(*session));
 
-  // Extract the reader name from slotDescription, and prepend with '@' to make ykpiv_connect use this exact name
-  size_t last = lastnon(slots[slotID].slot_info.slotDescription, sizeof(slots[slotID].slot_info.slotDescription), ' ');
-  session->reader[0] = '@';
-  memcpy(session->reader + 1, slots[slotID].slot_info.slotDescription, last + 1);
-  session->reader[last + 2] = 0;
-
   if (flags & CKF_RW_SESSION) {
     // R/W Session
     switch(slots[slotID].login_state) {
@@ -669,6 +663,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
         return CKR_SESSION_READ_WRITE_SO_EXISTS;
     }
   }
+
+  // Extract the reader name from slotDescription, and prepend with '@' to make ykpiv_connect use this exact name
+  size_t last = lastnon(slots[slotID].slot_info.slotDescription, sizeof(slots[slotID].slot_info.slotDescription), ' ');
+  session->reader[0] = '@';
+  memcpy(session->reader + 1, slots[slotID].slot_info.slotDescription, last + 1);
+  session->reader[last + 2] = 0;
 
   for(int i = 0; i < YKCS11_MAX_SESSIONS; i++) {
     ykcs11_session_t *other = sessions + i;
