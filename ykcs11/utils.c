@@ -43,6 +43,14 @@ void* memstrcpy(unsigned char *dst, char *src) {
   return memcpy(dst, src, strlen(src));
 }
 
+size_t lastnon(unsigned char *src, size_t len, unsigned char c) {
+  size_t last = len;
+  for(size_t pos = 0; pos < len; pos++)
+    if(src[pos] != c)
+      last = pos;
+  return last;
+}
+
 void strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
   CK_BYTE_PTR  data_ptr;

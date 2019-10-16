@@ -113,6 +113,7 @@ typedef struct {
 
 typedef struct {
   CK_SESSION_INFO info;        // slotid, state, flags, deviceerror
+  char            reader[80];  // reader that state was opened against 
   ykpiv_state     *state;      // The ykpiv_state for the session
   piv_obj_id_t    objects[29 * 4]; // List of objects in the token
   CK_ULONG        n_objects;   // TOTAL number of objects in the token

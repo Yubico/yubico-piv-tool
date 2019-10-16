@@ -635,6 +635,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
 
   memset(session, 0, sizeof(*session));
 
+  // Extract the reader name from slotDescription, and prepend with '@' to make ykpiv_connect use this exact name
+  size_t last = lastnon(slots[slotID].slot_info.slotDescription, sizeof(slots[slotID].slot_info.slotDescription), ' ');
+  session->reader[0] = '@';
+  memcpy(session->reader + 1, slots[slotID].slot_info.slotDescription, last + 1);
+  session->reader[last + 2] = 0;
+
   if (flags & CKF_RW_SESSION) {
     // R/W Session
     switch(slots[slotID].login_state) {
@@ -664,29 +670,34 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     }
   }
 
-  // Initialize the slot
-  if(ykpiv_init(&session->state, YKCS11_DBG) != YKPIV_OK) {
-    DBG("Unable to initialize ykpiv library");
-    locking.UnlockMutex(mutex);
-    return CKR_FUNCTION_FAILED;
+  for(int i = 0; i < YKCS11_MAX_SESSIONS; i++) {
+    ykcs11_session_t *other = sessions + i;
+    if(other->state && !strcmp(other->reader, session->reader)) {
+      DBG("Copying state from session %lu", get_session_handle(other));
+      session->state = other->state;
+      break;
+    }
   }
 
-  char reader[sizeof(slots[slotID].slot_info.slotDescription) + 2];
-  memcpy(reader + 1, slots[slotID].slot_info.slotDescription, sizeof(reader) - 2);
-  reader[0] = '@';
-  reader[sizeof(reader) - 1] = 0;
-  while(reader[strlen(reader) - 1] == ' ')
-    reader[strlen(reader) - 1] = 0;
+  if(!session->state) {
+    // Initialize the slot
+    if(ykpiv_init(&session->state, YKCS11_DBG) != YKPIV_OK) {
+      DBG("Unable to initialize ykpiv library");
+      locking.UnlockMutex(mutex);
+      return CKR_FUNCTION_FAILED;
+    }
+
+    // Connect to the slot
+    if(ykpiv_connect(session->state, session->reader) != YKPIV_OK) {
+      DBG("Unable to connect to reader");
+      ykpiv_done(session->state);
+      session->state = NULL;
+      locking.UnlockMutex(mutex);
+      return CKR_FUNCTION_FAILED;
+    }
+  }
 
   locking.UnlockMutex(mutex);
-
-  // Connect to the slot
-  if(ykpiv_connect(session->state, reader) != YKPIV_OK) {
-    DBG("Unable to connect to reader");
-    ykpiv_done(session->state);
-    session->state = NULL;
-    return CKR_FUNCTION_FAILED;
-  }
 
   session->info.slotID = slotID;
   session->info.flags = flags;
@@ -758,10 +769,20 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
   if (session == NULL || session->state == NULL) {
     DBG("Trying to close a session, but there is no existing one");
     locking.UnlockMutex(mutex);
-    return CKR_SESSION_CLOSED;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
-  ykpiv_done(session->state);
+  for(int i = 0; i < YKCS11_MAX_SESSIONS; i++) {
+    ykcs11_session_t *other = sessions + i;
+    if(other->state == session->state) {
+      DBG("Other sesion with the same slot exists, just implicitly decrease reference count");
+      session->state = NULL;
+      break;
+    }
+  }
+
+  if(session->state)
+    ykpiv_done(session->state);
   memset(session, 0, sizeof(*session));
 
   locking.UnlockMutex(mutex);
