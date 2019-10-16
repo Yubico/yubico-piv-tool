@@ -284,7 +284,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 
       slot->slot_info.flags = CKF_REMOVABLE_DEVICE | CKF_HW_SLOT;
 
-      if (ykpiv_connect(piv_state, reader) == YKPIV_OK) {
+      char buf[80] = { '@' };
+      strcat(buf, reader);
+
+      if (ykpiv_connect(piv_state, buf) == YKPIV_OK) {
 
         slot->slot_info.flags |= CKF_TOKEN_PRESENT;
         slot->token_info.flags = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
@@ -668,8 +671,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     return CKR_FUNCTION_FAILED;
   }
 
-  char reader[sizeof(slots[slotID].slot_info.slotDescription) + 1];
-  memcpy(reader, slots[slotID].slot_info.slotDescription, sizeof(reader) - 1);
+  char reader[sizeof(slots[slotID].slot_info.slotDescription) + 2];
+  memcpy(reader + 1, slots[slotID].slot_info.slotDescription, sizeof(reader) - 2);
+  reader[0] = '@';
   reader[sizeof(reader) - 1] = 0;
   while(reader[strlen(reader) - 1] == ' ')
     reader[strlen(reader) - 1] = 0;

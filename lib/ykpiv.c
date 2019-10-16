@@ -103,7 +103,7 @@
 
 static ykpiv_rc _cache_pin(ykpiv_state *state, const char *pin, size_t len);
 static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state, uint32_t *p_serial, bool force);
-static ykpiv_rc _ykpiv_get_version(ykpiv_state *state, ykpiv_version_t *p_version);
+static ykpiv_rc _ykpiv_get_version(ykpiv_state *state, ykpiv_version_t *p_version, bool force);
 
 static unsigned const char aid[] = {
 	0xa0, 0x00, 0x00, 0x03, 0x08
@@ -267,6 +267,11 @@ ykpiv_rc ykpiv_disconnect(ykpiv_state *state) {
     state->context = (SCARDCONTEXT)-1;
   }
 
+  state->serial = 0;
+  state->ver.major = 0;
+  state->ver.minor = 0;
+  state->ver.patch = 0;
+
   return YKPIV_OK;
 }
 
@@ -304,14 +309,14 @@ ykpiv_rc _ykpiv_select_application(ykpiv_state *state) {
    * can determine how to get the serial number, which for the NEO/Yk4
    * will result in another selection of the PIV applet. */
 
-  res = _ykpiv_get_version(state, NULL);
+  res = _ykpiv_get_version(state, NULL, true);
   if (res != YKPIV_OK) {
     if (state->verbose) {
       fprintf(stderr, "Failed to retrieve version: '%s'\n", ykpiv_strerror(res));
     }
   }
 
-  res = _ykpiv_get_serial(state, NULL, false);
+  res = _ykpiv_get_serial(state, NULL, true);
   if (res != YKPIV_OK) {
     if (state->verbose) {
       fprintf(stderr, "Failed to retrieve serial number: '%s'\n", ykpiv_strerror(res));
@@ -398,72 +403,101 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
   size_t num_readers = sizeof(reader_buf);
   long rc;
   char *reader_ptr;
+  ykpiv_rc ret;
   SCARDHANDLE card = (SCARDHANDLE)-1;
 
-  ykpiv_rc ret = ykpiv_list_readers(state, reader_buf, &num_readers);
-  if(ret != YKPIV_OK) {
-    return ret;
-  }
-
-  for(reader_ptr = reader_buf; *reader_ptr != '\0'; reader_ptr += strlen(reader_ptr) + 1) {
-    if(wanted) {
-      char *ptr = reader_ptr;
-      bool found = false;
-      do {
-        if(strlen(ptr) < strlen(wanted)) {
-          break;
-        }
-        if(strncasecmp(ptr, wanted, strlen(wanted)) == 0) {
-          found = true;
-          break;
-        }
-      } while(*ptr++);
-
-      if(found == false) {
+  if(wanted && *wanted == '@') {
+    wanted++; // Skip the '@' 
+    if(state->verbose) {
+      fprintf(stderr, "Trying to connect to reader '%s'.\n", wanted);
+    }
+    if(SCardIsValidContext(state->context) != SCARD_S_SUCCESS) {
+      rc = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &state->context);
+      if (rc != SCARD_S_SUCCESS) {
         if(state->verbose) {
-          fprintf(stderr, "skipping reader '%s' since it doesn't match '%s'.\n", reader_ptr, wanted);
+          fprintf (stderr, "SCardEstablishContext failed, rc=%08lx\n", rc);
         }
-        continue;
+        return YKPIV_PCSC_ERROR;
       }
     }
-    if(state->verbose) {
-      fprintf(stderr, "trying to connect to reader '%s'.\n", reader_ptr);
-    }
-    rc = SCardConnect(state->context, reader_ptr, SCARD_SHARE_SHARED,
-		      SCARD_PROTOCOL_T1, &card, &active_protocol);
+    rc = SCardConnect(state->context, wanted, SCARD_SHARE_SHARED,
+          SCARD_PROTOCOL_T1, &card, &active_protocol);
     if(rc != SCARD_S_SUCCESS)
     {
       if(state->verbose) {
-        fprintf(stderr, "SCardConnect failed, rc=%08lx\n", rc);
+        fprintf(stderr, "SCardConnect failed for '%s', rc=%08lx\n", wanted, rc);
       }
-      continue;
+      SCardReleaseContext(state->context);
+      state->context = (SCARDCONTEXT)-1;
+      return YKPIV_PCSC_ERROR;
+    }
+  } else
+  {
+    ret = ykpiv_list_readers(state, reader_buf, &num_readers);
+    if(ret != YKPIV_OK) {
+      return ret;
     }
 
-    // at this point, card should not equal state->card, to allow _ykpiv_connect() to determine device type
-    if (YKPIV_OK == _ykpiv_connect(state, state->context, card)) {
-      /*
-       * Select applet.  This is done here instead of in _ykpiv_connect() because
-       * you may not want to select the applet when connecting to a card handle that
-       * was supplied by an external library.
-       */
-      if (YKPIV_OK != (ret = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
-#if ENABLE_APPLICATION_RESELECTION
-      ret = _ykpiv_ensure_application_selected(state);
-#else
-      ret = _ykpiv_select_application(state);
-#endif
-      _ykpiv_end_transaction(state);
-      return ret;
+    for(reader_ptr = reader_buf; *reader_ptr != '\0'; reader_ptr += strlen(reader_ptr) + 1) {
+      if(wanted) {
+        char *ptr = reader_ptr;
+        bool found = false;
+        do {
+          if(strlen(ptr) < strlen(wanted)) {
+            break;
+          }
+          if(strncasecmp(ptr, wanted, strlen(wanted)) == 0) {
+            found = true;
+            break;
+          }
+        } while(*ptr++);
+
+        if(found == false) {
+          if(state->verbose) {
+            fprintf(stderr, "Skipping reader '%s' since it doesn't match '%s'.\n", reader_ptr, wanted);
+          }
+          continue;
+        }
+      }
+      if(state->verbose) {
+        fprintf(stderr, "Trying to connect to reader '%s' matching '%s'.\n", reader_ptr, wanted);
+      }
+      rc = SCardConnect(state->context, reader_ptr, SCARD_SHARE_SHARED,
+            SCARD_PROTOCOL_T1, &card, &active_protocol);
+      if(rc == SCARD_S_SUCCESS)
+      {
+        break;
+      }
+      if(state->verbose) {
+        fprintf(stderr, "SCardConnect failed for '%s', rc=%08lx\n", reader_ptr, rc);
+      }
+    }
+
+    if(*reader_ptr == '\0') {
+      if(state->verbose) {
+        fprintf(stderr, "No usable reader found matching '%s'.\n", wanted);
+      }
+      SCardReleaseContext(state->context);
+      state->context = (SCARDCONTEXT)-1;
+      return YKPIV_PCSC_ERROR;
     }
   }
 
-  if(*reader_ptr == '\0') {
-    if(state->verbose) {
-      fprintf(stderr, "error: no usable reader found.\n");
-    }
-    SCardReleaseContext(state->context);
-    state->context = (SCARDCONTEXT)-1;
-    return YKPIV_PCSC_ERROR;
+  // at this point, card should not equal state->card, to allow _ykpiv_connect() to determine device type
+  if (YKPIV_OK == _ykpiv_connect(state, state->context, card)) {
+    /*
+      * Select applet.  This is done here instead of in _ykpiv_connect() because
+      * you may not want to select the applet when connecting to a card handle that
+      * was supplied by an external library.
+      */
+    if (YKPIV_OK != (ret = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+#if ENABLE_APPLICATION_RESELECTION
+    ret = _ykpiv_ensure_application_selected(state);
+#else
+    ret = _ykpiv_select_application(state);
+#endif
+    _ykpiv_end_transaction(state);
+    return ret;
   }
 
   return YKPIV_GENERIC_ERROR;
@@ -1057,7 +1091,7 @@ ykpiv_rc ykpiv_decipher_data(ykpiv_state *state, const unsigned char *in,
   return res;
 }
 
-static ykpiv_rc _ykpiv_get_version(ykpiv_state *state, ykpiv_version_t *p_version) {
+static ykpiv_rc _ykpiv_get_version(ykpiv_state *state, ykpiv_version_t *p_version, bool f_force) {
   APDU apdu;
   unsigned char data[261];
   uint32_t recv_len = sizeof(data);
@@ -1070,7 +1104,7 @@ static ykpiv_rc _ykpiv_get_version(ykpiv_state *state, ykpiv_version_t *p_versio
 
   /* get version from state if already from device */
 
-  if (state->ver.major || state->ver.minor || state->ver.patch) {
+  if (!f_force && (state->ver.major || state->ver.minor || state->ver.patch)) {
     if (p_version) {
       memcpy(p_version, &(state->ver), sizeof(ykpiv_version_t));
     }
@@ -1111,7 +1145,7 @@ ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len) {
   if ((res = _ykpiv_begin_transaction(state)) < YKPIV_OK) return YKPIV_PCSC_ERROR;
   if ((res = _ykpiv_ensure_application_selected(state)) < YKPIV_OK) goto Cleanup;
 
-  if ((res = _ykpiv_get_version(state, &ver)) >= YKPIV_OK) {
+  if ((res = _ykpiv_get_version(state, &ver, false)) >= YKPIV_OK) {
     result = snprintf(version, len, "%d.%d.%d", ver.major, ver.minor, ver.patch);
     if(result < 0) {
       res = YKPIV_SIZE_ERROR;
