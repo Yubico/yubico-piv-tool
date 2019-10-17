@@ -314,7 +314,7 @@ static void test_multiple_sessions() {
 
   // Close the second session
   asrt(funcs->C_CloseSession(session2), CKR_OK, "MultipleSessions_CloseSession2");
-  asrt(funcs->C_GetSessionInfo(session2, &pInfo), CKR_SESSION_CLOSED, "MultipleSessions_closedSession2Info");
+  asrt(funcs->C_GetSessionInfo(session2, &pInfo), CKR_SESSION_HANDLE_INVALID, "MultipleSessions_closedSession2Info");
   
   // Open a fourth session; should get the same handle as the previously closed session and it should be a public session
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session4), CKR_OK, "MultipleSessions_OpenSession4");
@@ -342,7 +342,7 @@ static void test_max_multiple_sessions() {
   CK_SESSION_INFO pInfo;
   asrt(funcs->C_CloseAllSessions(0), CKR_OK, "MaxMultipleSessions_CloseAllSessions");
   for(int i=1; i<=17; i++) {
-    asrt(funcs->C_GetSessionInfo(i, &pInfo), CKR_SESSION_CLOSED, "MaxMultipleSessions_closedSessionsInfo");
+    asrt(funcs->C_GetSessionInfo(i, &pInfo), CKR_SESSION_HANDLE_INVALID, "MaxMultipleSessions_closedSessionsInfo");
   }
 
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");

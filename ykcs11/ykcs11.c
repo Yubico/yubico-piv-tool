@@ -559,7 +559,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetPIN)(
 
   if (session == NULL || session->state == NULL) {
     DBG("User called SetPIN on closed session");
-    return CKR_SESSION_CLOSED;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   CK_USER_TYPE user_type = CKU_USER;
@@ -805,6 +805,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
 
   locking.LockMutex(mutex);
 
+  if (slotID >= n_slots) {
+    DBG("Invalid slot ID %lu", slotID);
+    locking.UnlockMutex(mutex);
+    return CKR_SLOT_ID_INVALID;
+  }
+
   for(int i = 0; i < YKCS11_MAX_SESSIONS; i++) {
     ykcs11_session_t *session = sessions + i;
     if(session->state && session->info.slotID == slotID) {
@@ -848,7 +854,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSessionInfo)(
 
   if (session == NULL || session->state == NULL) {
     DBG("Session is not open");
-    return CKR_SESSION_CLOSED;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   memcpy(pInfo, &session->info, sizeof(CK_SESSION_INFO));
@@ -909,7 +915,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
 
   if (session == NULL || session->state == NULL) {
     DBG("Session is not open");
-    return CKR_SESSION_CLOSED;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (userType == CKU_SO && (session->info.flags & CKF_RW_SESSION) == 0) { // TODO: make macros for these?
@@ -1000,7 +1006,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Logout)(
 
   if (session == NULL || session->state == NULL) {
     DBG("Session is not open");
-    return CKR_SESSION_CLOSED;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (session->info.state == CKS_RO_PUBLIC_SESSION ||
@@ -1066,7 +1072,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
   if (session == NULL || session->state == NULL) {
     DBG("Session is not open");
-    return CKR_SESSION_CLOSED;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (session->info.state != CKS_RW_SO_FUNCTIONS) {
@@ -1254,7 +1260,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
 
   if (session == NULL || session->state == NULL) {
     DBG("Session is not open");
-    return CKR_SESSION_CLOSED;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   // Only certificates can be deleted
@@ -1336,7 +1342,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
 
   if (session == NULL || session->state == NULL) {
     DBG("Session is not open");
-    return CKR_SESSION_CLOSED;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (pTemplate == NULL_PTR || ulCount == 0)
@@ -1398,7 +1404,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
 
   if (session == NULL || session->state == NULL) {
     DBG("Session is not open");
-    return CKR_SESSION_CLOSED;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (session->find_obj.active)  {
@@ -1479,7 +1485,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
 
   if (session == NULL || session->state == NULL) {
     DBG("Session is not open");
-    return CKR_SESSION_CLOSED;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (phObject == NULL_PTR ||
@@ -1521,7 +1527,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsFinal)(
 
   if (session == NULL || session->state == NULL) {
     DBG("Session is not open");
-    return CKR_SESSION_CLOSED;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (!session->find_obj.active)
@@ -1653,7 +1659,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestInit)(
 
   if (session == NULL || session->state == NULL) {
     DBG("Session is not open");
-    return CKR_SESSION_CLOSED;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (session->op_info.type != YKCS11_NOOP) {
@@ -1710,7 +1716,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Digest)(
 
   if (session == NULL || session->state == NULL) {
     DBG("Session is not open");
-    return CKR_SESSION_CLOSED;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (session->op_info.type != YKCS11_HASH) {
@@ -1831,7 +1837,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
 
   if (session == NULL || session->state == NULL) {
     DBG("Session is not open");
-    return CKR_SESSION_CLOSED;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (session->op_info.type != YKCS11_NOOP) {
@@ -1970,7 +1976,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   if (session == NULL || session->state == NULL) {
     DBG("Session is not open");
-    rv = CKR_SESSION_CLOSED;
+    rv = CKR_SESSION_HANDLE_INVALID;
     goto sign_out;
   }
 
@@ -2112,7 +2118,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignUpdate)(
 
   if (session == NULL || session->state == NULL) {
     DBG("Session is not open");
-    return CKR_SESSION_CLOSED;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if(session->op_info.type == YKCS11_SIGN) {
@@ -2341,7 +2347,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 
   if (session == NULL || session->state == NULL) {
     DBG("Session is not open");
-    return CKR_SESSION_CLOSED;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (session->info.state != CKS_RW_SO_FUNCTIONS) {
@@ -2545,7 +2551,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateRandom)(
 
   if (session == NULL || session->state == NULL) {
     DBG("Session is not open");
-    return CKR_SESSION_CLOSED;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   CK_RV rv = CKR_OK;
