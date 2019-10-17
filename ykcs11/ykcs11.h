@@ -75,13 +75,14 @@ typedef struct {
 } sign_info_t;
 
 typedef struct {
-  CK_BYTE todo;
   ykcs11_md_ctx_t   *md_ctx; // Digest context
   CK_ULONG          hash_len; // Length in bits
 } hash_info_t;
 
 typedef struct {
-  CK_BYTE todo;
+  CK_BYTE  key_id;
+  CK_ULONG key_len; // Length in bits
+  CK_BYTE  algo;    // Algo for ykpiv // TODO: infer this from the key length?
 } decrypt_info_t;
 
 typedef union {

@@ -59,6 +59,15 @@ static const CK_MECHANISM_TYPE sign_mechanisms[] = {
   CKM_ECDSA_SHA384
 };
 
+// Supported mechanisms for RSA decryption
+static const CK_MECHANISM_TYPE decrypt_rsa_mechanisms[] = {
+  CKM_RSA_PKCS,
+  //CKM_SHA1_RSA_PKCS,
+  //CKM_SHA256_RSA_PKCS,
+  //CKM_SHA384_RSA_PKCS,
+  //CKM_SHA512_RSA_PKCS
+};
+
 // Supported mechanisms for key pair generation
 static const CK_MECHANISM_TYPE generation_mechanisms[] = {
   CKM_RSA_PKCS_KEY_PAIR_GEN,
@@ -660,6 +669,31 @@ CK_RV apply_hash_mechanism_finalize(op_info_t *op_info) {
   if (ret != 1) {
     return CKR_FUNCTION_FAILED;
   }
+
+  return CKR_OK;
+}
+
+CK_RV check_rsa_decrypt_mechanism(const ykcs11_session_t *s, CK_MECHANISM_PTR m) {
+
+  CK_ULONG          i;
+  CK_BBOOL          supported = CK_FALSE;
+  CK_MECHANISM_INFO info;
+
+  // Check if the mechanism is supported by the module
+  for (i = 0; i < sizeof(decrypt_rsa_mechanisms) / sizeof(CK_MECHANISM_TYPE); i++) {
+    if (m->mechanism == decrypt_rsa_mechanisms[i]) {
+      supported = CK_TRUE;
+      break;
+    }
+  }
+  if (supported == CK_FALSE)
+    return CKR_MECHANISM_INVALID;
+
+  // Check if the mechanism is supported by the token
+  if (get_token_mechanism_info(m->mechanism, &info) != CKR_OK)
+    return CKR_MECHANISM_INVALID;
+
+  // TODO: also check that parametes make sense if any? And key size is in [min max]
 
   return CKR_OK;
 }

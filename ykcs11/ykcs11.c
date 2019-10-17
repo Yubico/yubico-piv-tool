@@ -1597,10 +1597,84 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
   CK_OBJECT_HANDLE hKey
 )
 {
+  CK_KEY_TYPE  type = 0;
+  CK_ULONG     key_len = 0;
+  CK_ATTRIBUTE template[] = {
+    {CKA_KEY_TYPE, &type, sizeof(type)},
+    {CKA_MODULUS_BITS, &key_len, sizeof(key_len)},
+  };
+
   DIN;
-  DBG("TODO!!!");
+  
+  if (mutex == NULL) {
+    DBG("libykpiv is not initialized or already finalized");
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  ykcs11_session_t* session = get_session(hSession);
+
+  if (session == NULL || session->state == NULL) {
+    DBG("Session is not open");
+    return CKR_SESSION_CLOSED;
+  }
+
+  if (session->op_info.type != YKCS11_NOOP) {
+    DBG("Other operation in process");
+    return CKR_OPERATION_ACTIVE;
+  }
+
+  if (pMechanism == NULL_PTR)
+    return CKR_ARGUMENTS_BAD;
+
+  DBG("Trying to decrypt some data with mechanism %lu and key %lu", pMechanism->mechanism, hKey);
+
+  // Check if mechanism is supported
+  if (check_rsa_decrypt_mechanism(session, pMechanism) != CKR_OK) {
+    DBG("Mechanism %lu is not supported either by the token or the module", pMechanism->mechanism);
+    return CKR_MECHANISM_INVALID; // TODO: also the key has a list of allowed mechanisms, check that
+  }
+  memcpy(&session->op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
+
+  //  Get key algorithm
+  if (get_attribute(session, hKey, template) != CKR_OK) {
+    DBG("Unable to get key type");
+    return CKR_KEY_HANDLE_INVALID;
+  }
+
+  DBG("Key type is %lu\n", type);
+
+  if(type == CKK_RSA) {
+    if (get_attribute(session, hKey, template + 1) != CKR_OK) {
+      DBG("Unable to get key length");
+      return CKR_KEY_HANDLE_INVALID;
+    }
+
+    session->op_info.op.decrypt.key_len = key_len;
+
+    if (key_len == 1024) {
+      session->op_info.op.decrypt.algo = YKPIV_ALGO_RSA1024;
+    } else {
+      session->op_info.op.decrypt.algo = YKPIV_ALGO_RSA2048;
+    }
+
+  } else {
+    DBG("Referenced key is not an RSA key. Only RSA decryption is supported");
+    return CKR_KEY_TYPE_INCONSISTENT;
+  }
+
+  DBG("Key length is %lu bit", session->op_info.op.decrypt.key_len);
+  
+  session->op_info.op.decrypt.key_id = piv_2_ykpiv(hKey);
+  if (session->op_info.op.decrypt.key_id == 0) {
+    DBG("Incorrect key %lu", hKey);
+    return CKR_KEY_HANDLE_INVALID;
+  }
+
+  session->op_info.buf_len = 0;
+  session->op_info.type = YKCS11_DECRYPT;
+
   DOUT;
-  return CKR_FUNCTION_NOT_SUPPORTED;
+  return CKR_OK;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
@@ -1611,10 +1685,103 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
   CK_ULONG_PTR pulDataLen
 )
 {
+  ykpiv_rc piv_rv;
+  CK_RV    rv;
+  size_t   cbDataLen = 0;
+  CK_BYTE  dec_unwrap[1024];
+  CK_ULONG dec_unwrap_len;
+  
   DIN;
-  DBG("TODO!!!");
+
+  if (mutex == NULL) {
+    DBG("libykpiv is not initialized or already finalized");
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  ykcs11_session_t* session = get_session(hSession);
+
+  if (session == NULL || session->state == NULL) {
+    DBG("Session is not open");
+    rv = CKR_SESSION_HANDLE_INVALID;
+    goto decrypt_out;
+  }
+
+  if (session->info.state == CKS_RO_PUBLIC_SESSION ||
+      session->info.state == CKS_RW_PUBLIC_SESSION) {
+    DBG("User is not logged in");
+    rv = CKR_USER_NOT_LOGGED_IN;
+    goto decrypt_out;
+  }
+
+  if (session->op_info.type != YKCS11_DECRYPT) {
+    DBG("Decryption operation not initialized");
+    rv = CKR_OPERATION_NOT_INITIALIZED;
+    goto decrypt_out;
+  }
+
+  // NOTE: datalen is just an approximation here since the data is encrypted
+  CK_ULONG datalen;
+  if (session->op_info.mechanism.mechanism == CKM_RSA_PKCS) {
+    datalen = (session->op_info.op.decrypt.key_len + 7) / 8 - 11;
+  } else {
+    DBG("Mechanism %lu not supported", session->op_info.mechanism.mechanism);
+    rv = CKR_MECHANISM_INVALID;
+    goto decrypt_out;
+  }
+  DBG("The size of the data will be %lu", datalen);
+
+  if (pData == NULL_PTR) {
+    // Just return the size of the decrypted data
+    *pulDataLen = datalen;
+    DBG("The size of the signature will be %lu", *pulSignatureLen);
+    DOUT;
+    return CKR_OK;
+  }
+
+  DBG("Sending %lu bytes to be decrypted", ulEncryptedDataLen);
+#if YKCS11_DBG == 1
+  dump_data(pEncryptedData, ulEncryptedDataLen, stderr, CK_TRUE, format_arg_hex);
+#endif
+
+  session->op_info.buf_len = ulEncryptedDataLen;
+  memcpy(session->op_info.buf, pEncryptedData, ulEncryptedDataLen);
+
+  DBG("Using key %04x for decryption", session->op_info.op.decrypt.key_id);
+
+  *pulDataLen = cbDataLen = sizeof(session->op_info.buf);
+
+  piv_rv = ykpiv_decipher_data(session->state, session->op_info.buf, session->op_info.buf_len, 
+                               session->op_info.buf, &cbDataLen, 
+                               session->op_info.op.decrypt.algo, session->op_info.op.decrypt.key_id);
+
+  if (piv_rv != YKPIV_OK) {
+    if (piv_rv == YKPIV_AUTHENTICATION_ERROR) {
+      DBG("Operation requires authentication or touch");
+      rv = CKR_USER_NOT_LOGGED_IN;
+      goto decrypt_out;
+    } else {
+      DBG("Decrypt error, %s", ykpiv_strerror(piv_rv));
+      rv = CKR_FUNCTION_FAILED;
+      goto decrypt_out;
+    }
+  }
+
+  *pulDataLen = RSA_padding_check_PKCS1_type_2(dec_unwrap, sizeof(dec_unwrap), session->op_info.buf + 1, cbDataLen - 1, session->op_info.op.decrypt.key_len/8);
+  
+
+  DBG("Got %lu bytes back", *pulDataLen);
+#if YKCS11_DBG == 1
+  dump_data(op_info.buf, *pulDataLen, stderr, CK_TRUE, format_arg_hex);
+#endif
+
+  memcpy(pData, dec_unwrap, *pulDataLen);
+  rv = CKR_OK;
+
+  decrypt_out:
+  session->op_info.type = YKCS11_NOOP;
+
   DOUT;
-  return CKR_FUNCTION_NOT_SUPPORTED;
+  return rv;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_DecryptUpdate)(
