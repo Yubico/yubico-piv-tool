@@ -1721,12 +1721,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
 
   // NOTE: datalen is just an approximation here since the data is encrypted
   CK_ULONG datalen;
-  if (session->op_info.mechanism.mechanism == CKM_RSA_PKCS) {
-    datalen = (session->op_info.op.decrypt.key_len + 7) / 8 - 11;
-  } else {
+  if (check_rsa_decrypt_mechanism(session, &(session->op_info.mechanism)) != CKR_OK) {
     DBG("Mechanism %lu not supported", session->op_info.mechanism.mechanism);
     rv = CKR_MECHANISM_INVALID;
     goto decrypt_out;
+  } else {
+    datalen = (session->op_info.op.decrypt.key_len + 7) / 8 - 11;
   }
   DBG("The size of the data will be %lu", datalen);
 
@@ -1767,7 +1767,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
   }
 
   *pulDataLen = RSA_padding_check_PKCS1_type_2(dec_unwrap, sizeof(dec_unwrap), session->op_info.buf + 1, cbDataLen - 1, session->op_info.op.decrypt.key_len/8);
-  
 
   DBG("Got %lu bytes back", *pulDataLen);
 #if YKCS11_DBG == 1
@@ -2305,6 +2304,19 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
 {
   DIN;
   DBG("TODO!!!");
+
+  ykcs11_session_t* session = get_session(hSession);
+
+  if (session == NULL || session->state == NULL) {
+    DBG("Session is not open");
+    return CKR_SESSION_HANDLE_INVALID;
+  }
+
+  if(session->op_info.type == YKCS11_SIGN) {
+    session->op_info.type = YKCS11_NOOP;
+    sign_mechanism_cleanup(&session->op_info);
+  }
+  
   DOUT;
   return CKR_FUNCTION_NOT_SUPPORTED;
 }

@@ -1401,7 +1401,7 @@ static void test_decrypt_RSA() {
 
   CK_OBJECT_HANDLE obj_cert[24], obj_pvtkey[24];
   CK_SESSION_HANDLE session;
-  CK_MECHANISM mech = {CKM_RSA_PKCS, NULL};
+  CK_MECHANISM mech = {CKM_RSA_X_509, NULL};
 
   evp = EVP_PKEY_new();
 
