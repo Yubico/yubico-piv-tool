@@ -47,6 +47,7 @@ typedef enum {
 typedef struct {
   CK_SLOT_INFO  slot_info;
   CK_TOKEN_INFO token_info;
+  ykpiv_state   *piv_state;
   ykcs11_login_state_t login_state;
 } ykcs11_slot_t;
 
@@ -114,8 +115,7 @@ typedef struct {
 
 typedef struct {
   CK_SESSION_INFO info;        // slotid, state, flags, deviceerror
-  char            reader[80];  // reader that state was opened against 
-  ykpiv_state     *state;      // The ykpiv_state for the session
+  ykcs11_slot_t   *slot;       // The slot for the session 
   piv_obj_id_t    objects[29 * 4]; // List of objects in the token
   CK_ULONG        n_objects;   // TOTAL number of objects in the token
   ykcs11_data_t   data[37];    // Raw data, stored by sub_id 1-36
