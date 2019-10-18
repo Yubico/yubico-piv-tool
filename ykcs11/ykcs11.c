@@ -2293,7 +2293,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
 
   ykcs11_session_t* session = get_session(hSession);
 
-  if (session == NULL || session->state == NULL) {
+  if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
     return CKR_SESSION_HANDLE_INVALID;
   }
