@@ -313,7 +313,7 @@ static CK_RV get_doa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR
     data = (CK_BYTE_PTR) piv_objects[obj].label;
     break;
 
-  case CKA_OBJECT_ID: // TODO: how about just storing the OID in DER ?
+  case CKA_OBJECT_ID:
     DBG("OID");
     data = (CK_BYTE_PTR)data_objects[piv_objects[obj].sub_id];
     len = strlen(data_objects[piv_objects[obj].sub_id]);
