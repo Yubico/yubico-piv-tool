@@ -292,9 +292,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
       slot->slot_info.firmwareVersion.major = 1;
       slot->slot_info.firmwareVersion.minor = 0;
 
+      slot->slot_info.flags = CKF_HW_SLOT | CKF_REMOVABLE_DEVICE;
+
       for(CK_ULONG i = 0; i < n_slots; i++) {
         if(!memcmp(slot->slot_info.slotDescription, slots[i].slot_info.slotDescription, sizeof(slot->slot_info.slotDescription))) {
-          printf("Reusing slot %lu for %s\n", i, reader);
           slot = slots + i;
           mark[i] = false; // Un-mark for disconnect
           break;
@@ -303,7 +304,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 
       // Initialize piv_state and increase slot count if this is a new slot
       if(slot == slots + n_slots) {
-        printf("Initializing slot %lu\n", slot-slots);
+        DBG("Initializing slot %lu for '%s'", slot-slots, reader);
         ykpiv_init(&slot->piv_state, YKCS11_DBG);
         n_slots++;
       }
@@ -314,7 +315,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
       // Try to connect if unconnected (both new and existing slots)
       if (!(slot->slot_info.flags & CKF_TOKEN_PRESENT) && ykpiv_connect(slot->piv_state, buf) == YKPIV_OK) {
 
-        printf("Connected slot %lu to %s\n", slot-slots, reader);
+        DBG("Connected slot %lu to '%s'", slot-slots, reader);
 
         slot->slot_info.flags |= CKF_TOKEN_PRESENT;
         slot->token_info.flags = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
@@ -346,7 +347,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
   // Disconnect connected slots that are no longer present
   for(CK_ULONG i = 0; i < n_slots; i++) {
     if(mark[i] && (slots[i].slot_info.flags & CKF_TOKEN_PRESENT)) {
-      printf("Disconnecting slot %lu\n", i);
+      DBG("Disconnecting slot %lu", i);
       ykpiv_disconnect(slots[i].piv_state);
       slots[i].slot_info.flags &= ~CKF_TOKEN_PRESENT;
     }
