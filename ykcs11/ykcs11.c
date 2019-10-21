@@ -369,7 +369,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
     if(!tokenPresent || (slots[i].slot_info.flags & CKF_TOKEN_PRESENT)) {
       if(pSlotList) {
         if(count >= *pulCount) {
-          DBG("Buffer too small: needed %lu, provided %lu", i, *pulCount);
+          DBG("Buffer too small: needed %lu, provided %lu", count, *pulCount);
           return CKR_BUFFER_TOO_SMALL;
         }
         pSlotList[count] = i;
