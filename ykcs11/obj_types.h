@@ -157,13 +157,6 @@ typedef enum {
 
 #define OBJECT_INVALID            (PIV_PUBK_OBJ_LAST + 1)
 
-typedef struct {
-  const char   *oid;
-  CK_BYTE      tag_len;
-  CK_BYTE      tag_value[3];   // TODO: needed?
-  CK_BYTE      containerid[2]; /* will use as relative paths for simulation */ // TODO: needed?
-} piv_data_obj_t;
-
 typedef struct { // TODO: enough to use the public key for the parameters?
   CK_BBOOL decrypt;
   CK_BBOOL sign;

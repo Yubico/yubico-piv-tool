@@ -166,44 +166,44 @@ static piv_obj_t piv_objects[] = {
   {PIV_PUBK_OBJ_LAST, 1, 0, 0, "", 0, 0, NULL, 25}
 };
 
-static piv_data_obj_t data_objects[] = {
-  {"2.16.840.1.101.3.7.2.1.1",   3, "\x5F\xC1\x05", "\x01\x01"}, // PIV Authentication
-  {"2.16.840.1.101.3.7.2.1.0",   3, "\x5F\xC1\x0A", "\x01\x00"}, // Digital Signature
-  {"2.16.840.1.101.3.7.2.1.2",   3, "\x5F\xC1\x0B", "\x01\x02"}, // Key Management
-  {"2.16.840.1.101.3.7.2.5.0",   3, "\x5F\xC1\x01", "\x05\x00"}, // Card Authentication
-  {"2.16.840.1.101.3.7.2.16.1",  3, "\x5F\xC1\x0D", "\x10\x01"}, // Retired Key 1
-  {"2.16.840.1.101.3.7.2.16.2",  3, "\x5F\xC1\x0E", "\x10\x02"}, // Retired Key 2
-  {"2.16.840.1.101.3.7.2.16.3",  3, "\x5F\xC1\x0F", "\x10\x03"}, // Retired Key 3
-  {"2.16.840.1.101.3.7.2.16.4",  3, "\x5F\xC1\x10", "\x10\x04"}, // Retired Key 4
-  {"2.16.840.1.101.3.7.2.16.5",  3, "\x5F\xC1\x11", "\x10\x05"}, // Retired Key 5
-  {"2.16.840.1.101.3.7.2.16.6",  3, "\x5F\xC1\x12", "\x10\x06"}, // Retired Key 6
-  {"2.16.840.1.101.3.7.2.16.7",  3, "\x5F\xC1\x13", "\x10\x07"}, // Retired Key 7
-  {"2.16.840.1.101.3.7.2.16.8",  3, "\x5F\xC1\x14", "\x10\x08"}, // Retired Key 8
-  {"2.16.840.1.101.3.7.2.16.9",  3, "\x5F\xC1\x15", "\x10\x09"}, // Retired Key 9
-  {"2.16.840.1.101.3.7.2.16.10", 3, "\x5F\xC1\x16", "\x10\x0A"}, // Retired Key 10
-  {"2.16.840.1.101.3.7.2.16.11", 3, "\x5F\xC1\x17", "\x10\x0B"}, // Retired Key 11
-  {"2.16.840.1.101.3.7.2.16.12", 3, "\x5F\xC1\x18", "\x10\x0C"}, // Retired Key 12
-  {"2.16.840.1.101.3.7.2.16.13", 3, "\x5F\xC1\x19", "\x10\x0D"}, // Retired Key 13
-  {"2.16.840.1.101.3.7.2.16.14", 3, "\x5F\xC1\x1A", "\x10\x0E"}, // Retired Key 14
-  {"2.16.840.1.101.3.7.2.16.15", 3, "\x5F\xC1\x1B", "\x10\x0F"}, // Retired Key 15
-  {"2.16.840.1.101.3.7.2.16.16", 3, "\x5F\xC1\x1C", "\x10\x10"}, // Retired Key 16
-  {"2.16.840.1.101.3.7.2.16.17", 3, "\x5F\xC1\x1D", "\x10\x11"}, // Retired Key 17
-  {"2.16.840.1.101.3.7.2.16.18", 3, "\x5F\xC1\x1E", "\x10\x12"}, // Retired Key 18
-  {"2.16.840.1.101.3.7.2.16.19", 3, "\x5F\xC1\x1F", "\x10\x13"}, // Retired Key 19
-  {"2.16.840.1.101.3.7.2.16.20", 3, "\x5F\xC1\x20", "\x10\x14"}, // Retired Key 20
-  {"2.16.840.1.101.3.7.1.219.0", 3, "\x5F\xC1\x07", "\xDB\x00"}, // CCC
-  {"2.16.840.1.101.3.7.2.48.0",  3, "\x5F\xC1\x02", "\x30\x00"}, // CHUID
-  {"2.16.840.1.101.3.7.2.96.16", 3, "\x5F\xC1\x03", "\x60\x10"}, // CHFP
-  {"2.16.840.1.101.3.7.2.144.0", 3, "\x5F\xC1\x06", "\x90\x00"}, // Security Object
-  {"2.16.840.1.101.3.7.2.96.48", 3, "\x5F\xC1\x08", "\x60\x30"}, // CHFI
-  {"2.16.840.1.101.3.7.2.48.1",  3, "\x5F\xC1\x09", "\x30\x01"}, // Printed Information
-  {"2.16.840.1.101.3.7.2.96.80", 1, "\x7E",         "\x60\x50"}, // Discovery Object
-  {"2.16.840.1.101.3.7.2.96.96", 3, "\x5F\xC1\x0C", "\x60\x60"}, // Key History Object
-  {"2.16.840.1.101.3.7.2.16.21", 3, "\x5F\xC1\x21", "\x10\x15"}, // CHII
-  {"2.16.840.1.101.3.7.2.16.22", 2, "\x7F\x61",     "\x10\x16"}, // Biometric Information
-  {"2.16.840.1.101.3.7.2.16.23", 3, "\x5F\xC1\x22", "\x10\x17"}, // Secure Messaging Certificate Signer
-  {"2.16.840.1.101.3.7.2.16.24", 3, "\x5F\xC1\x23", "\x10\x18"}, // Pairing Code Reference Data Container
-  {"", 0, "", ""}
+static const char *data_objects[] = {
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x01\x01",	// 2.16.840.1.101.3.7.2.1.1
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x01\x00",	// 2.16.840.1.101.3.7.2.1.0
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x01\x02",	// 2.16.840.1.101.3.7.2.1.2
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x05\x00",	// 2.16.840.1.101.3.7.2.5.0
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x10\x01",	// 2.16.840.1.101.3.7.2.16.1
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x10\x02",	// 2.16.840.1.101.3.7.2.16.2
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x10\x03",	// 2.16.840.1.101.3.7.2.16.3
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x10\x04",	// 2.16.840.1.101.3.7.2.16.4
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x10\x05",	// 2.16.840.1.101.3.7.2.16.5
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x10\x06",	// 2.16.840.1.101.3.7.2.16.6
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x10\x07",	// 2.16.840.1.101.3.7.2.16.7
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x10\x08",	// 2.16.840.1.101.3.7.2.16.8
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x10\x09",	// 2.16.840.1.101.3.7.2.16.9
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x10\x0a",	// 2.16.840.1.101.3.7.2.16.10
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x10\x0b",	// 2.16.840.1.101.3.7.2.16.11
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x10\x0c",	// 2.16.840.1.101.3.7.2.16.12
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x10\x0d",	// 2.16.840.1.101.3.7.2.16.13
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x10\x0e",	// 2.16.840.1.101.3.7.2.16.14
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x10\x0f",	// 2.16.840.1.101.3.7.2.16.15
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x10\x10",	// 2.16.840.1.101.3.7.2.16.16
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x10\x11",	// 2.16.840.1.101.3.7.2.16.17
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x10\x12",	// 2.16.840.1.101.3.7.2.16.18
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x10\x13",	// 2.16.840.1.101.3.7.2.16.19
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x10\x14",	// 2.16.840.1.101.3.7.2.16.20
+	"\x60\x86\x48\x01\x65\x03\x07\x01\x81\x5b\x00",	// 2.16.840.1.101.3.7.1.219.0
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x30\x00",	// 2.16.840.1.101.3.7.2.48.0
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x60\x10",	// 2.16.840.1.101.3.7.2.96.16
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x81\x10\x00",	// 2.16.840.1.101.3.7.2.144.0
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x60\x30",	// 2.16.840.1.101.3.7.2.96.48
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x30\x01",	// 2.16.840.1.101.3.7.2.48.1
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x60\x50",	// 2.16.840.1.101.3.7.2.96.80
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x60\x60",	// 2.16.840.1.101.3.7.2.96.96
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x10\x15",	// 2.16.840.1.101.3.7.2.16.21
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x10\x16",	// 2.16.840.1.101.3.7.2.16.22
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x10\x17",	// 2.16.840.1.101.3.7.2.16.23
+	"\x60\x86\x48\x01\x65\x03\x07\x02\x10\x18",	// 2.16.840.1.101.3.7.2.16.24
+	""
 };
 
 static piv_pvtk_obj_t pvtkey_objects[] = {
@@ -262,87 +262,10 @@ static piv_pubk_obj_t pubkey_objects[] = {
   {1, 1, 0, 0}
 };
 
-// Next two functions based off the code at
-// https://github.com/m9aertner/oidConverter/blob/master/oid.c
-// TODO: how to give credit? OR JUST STORE THE OID ALREADY ENCODED?
-static void make_base128(unsigned long l, int first, CK_BYTE_PTR buf, CK_ULONG_PTR n) {
-  if (l > 127)
-    make_base128(l / 128, 0, buf, n);
-
-  l %= 128;
-
-  if (first)
-    buf[(*n)++] = (CK_BYTE)l;
-  else
-    buf[(*n)++] = 0x80 | (CK_BYTE)l;
-}
-
-static CK_RV asn1_encode_oid(CK_CHAR_PTR oid, CK_BYTE_PTR asn1_oid, CK_ULONG_PTR len) {
-  CK_CHAR_PTR tmp = (CK_BYTE_PTR) strdup((char *)oid);
-  CK_CHAR_PTR p = tmp;
-  CK_BYTE_PTR q = NULL;
-  CK_ULONG    n = 0;
-  CK_BYTE     b = 0;
-  CK_ULONG    l = 0;
-  CK_ULONG    nodes;
-
-  if (tmp == NULL) {
-    return CKR_HOST_MEMORY;
-  }
-
-  q = p;
-  *len = 0;
-  nodes = 1;
-  while (*p != 0) {
-    if (*p == '.')
-      nodes++;
-    p++;
-  }
-
-  n = 0;
-  b = 0;
-  p = q;
-  while (n < nodes) {
-    q = p;
-    while (*p != 0) {
-      if (*p == '.')
-        break;
-      p++;
-    }
-
-    if (*p == '.') {
-      *p = 0;
-      l = (CK_ULONG) atoi((char *)q);
-      q = p + 1;
-      p = q;
-    }
-    else {
-      l = (CK_ULONG) atoi((char *)q);
-      //      q = p;
-    }
-
-    /* Digit is in l. */
-    if (n == 0)
-      b = 40 * ((CK_BYTE)l);
-    else if (n == 1) {
-      b += (CK_BYTE) l;
-      asn1_oid[(*len)++] = b;
-    }
-    else {
-      make_base128(l, 1, asn1_oid, len);
-    }
-    n++;
-  }
-
-  free(tmp);
-
-  return CKR_OK;
-}
-
 /* Get data object attribute */
 static CK_RV get_doa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
-  CK_BYTE     tmp[1024];
+  CK_BYTE     tmp[10240];
   CK_ULONG    ul_tmp;
   CK_ULONG    len = 0;
   CK_RV       rv;
@@ -392,11 +315,8 @@ static CK_RV get_doa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR
 
   case CKA_OBJECT_ID: // TODO: how about just storing the OID in DER ?
     DBG("OID");
-    memcpy((char *)tmp, data_objects[piv_objects[obj].sub_id].oid, sizeof(tmp));
-    if ((rv = asn1_encode_oid(tmp, tmp, &len)) != CKR_OK) {
-      return rv;
-    }
-    data = tmp;
+    data = (CK_BYTE_PTR)data_objects[piv_objects[obj].sub_id];
+    len = strlen(data_objects[piv_objects[obj].sub_id]);
     break;
 
   case CKA_MODIFIABLE:
