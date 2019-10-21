@@ -232,10 +232,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
   CK_ULONG_PTR pulCount
 )
 {
-  CK_RV rv;
   CK_ULONG i;
-  int j;
-
   char readers[2048];
   size_t len = sizeof(readers);
 
@@ -294,6 +291,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 
       slot->slot_info.flags = CKF_HW_SLOT | CKF_REMOVABLE_DEVICE;
 
+      // Find existing slot, if any
       for(CK_ULONG i = 0; i < n_slots; i++) {
         if(!memcmp(slot->slot_info.slotDescription, slots[i].slot_info.slotDescription, sizeof(slot->slot_info.slotDescription))) {
           slot = slots + i;
@@ -355,21 +353,24 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 
   locking.UnlockMutex(mutex);
 
-  if (pSlotList && *pulCount < n_slots) {
-    DBG("Buffer too small: needed %lu, provided %lu", n_slots, *pulCount);
-    return CKR_BUFFER_TOO_SMALL;
-  }
-
-  *pulCount = n_slots;
-
-  if(pSlotList) {
-    for (i = 0; i < n_slots; i++) {
-      pSlotList[i] = i;
+  CK_ULONG count = 0;
+  for (i = 0; i < n_slots; i++) {
+    if(!tokenPresent || (slots[i].slot_info.flags & CKF_TOKEN_PRESENT)) {
+      if(pSlotList) {
+        if(count >= *pulCount) {
+          DBG("Buffer too small: needed %lu, provided %lu", i, *pulCount);
+          return CKR_BUFFER_TOO_SMALL;
+        }
+        pSlotList[count] = i;
+      }
+      count++;
     }
   }
 
+  *pulCount = count;
+
   DBG("token present is %d", tokenPresent);
-  DBG("number of slot(s) is %lu", *pulCount);
+  DBG("number of slots is %lu", *pulCount);
 
   DOUT;
   return CKR_OK;
