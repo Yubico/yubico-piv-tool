@@ -86,6 +86,17 @@ static ykcs11_session_t* get_free_session() {
   return NULL;
 }
 
+CK_STATE get_session_state(ykcs11_session_t *session) {
+  switch(session->slot->login_state) {
+    case YKCS11_PUBLIC:
+      return (session->info.flags & CKF_RW_SESSION) ? CKS_RW_PUBLIC_SESSION : CKS_RO_PUBLIC_SESSION;
+    case YKCS11_USER:
+      return (session->info.flags & CKF_RW_SESSION) ? CKS_RW_USER_FUNCTIONS : CKS_RO_USER_FUNCTIONS;
+    case YKCS11_SO:
+      return CKS_RW_SO_FUNCTIONS;
+  }
+}
+
 /* General Purpose */
 
 CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
@@ -605,7 +616,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetPIN)(
   }
 
   CK_USER_TYPE user_type = CKU_USER;
-  if (session->info.state == CKS_RW_SO_FUNCTIONS) {
+  if (get_session_state(session) == CKS_RW_SO_FUNCTIONS) {
     user_type = CKU_SO;
   }
 
@@ -677,35 +688,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
 
   memset(session, 0, sizeof(*session));
   session->slot = slots + slotID;
-
-  if (flags & CKF_RW_SESSION) {
-    // R/W Session
-    switch(session->slot->login_state) {
-      case YKCS11_PUBLIC:
-        session->info.state = CKS_RW_PUBLIC_SESSION;
-        break;
-      case YKCS11_USER:
-        session->info.state = CKS_RW_USER_FUNCTIONS;
-        break;
-      case YKCS11_SO:
-        session->info.state = CKS_RW_SO_FUNCTIONS;
-        break;
-    }
-  }
-  else {
-    // R/O Session
-    switch(session->slot->login_state) {
-      case YKCS11_PUBLIC:
-        session->info.state = CKS_RO_PUBLIC_SESSION;
-        break;
-      case YKCS11_USER:
-        session->info.state = CKS_RO_USER_FUNCTIONS;
-        break;
-      case YKCS11_SO:
-        locking.UnlockMutex(mutex);
-        return CKR_SESSION_READ_WRITE_SO_EXISTS;
-    }
-  }
 
   locking.UnlockMutex(mutex);
 
@@ -846,6 +828,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSessionInfo)(
   }
 
   memcpy(pInfo, &session->info, sizeof(CK_SESSION_INFO));
+  pInfo->state = get_session_state(session);
 
   DOUT;
   return CKR_OK;
@@ -906,24 +889,19 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (userType == CKU_SO && (session->info.flags & CKF_RW_SESSION) == 0) { // TODO: make macros for these?
-    DBG("Tried to log-in SO user to a read-only session");
-    return CKR_SESSION_READ_ONLY_EXISTS;
-  }
-
   switch (userType) {
   case CKU_USER:
     if (ulPinLen < PIV_MIN_PIN_LEN || ulPinLen > PIV_MAX_PIN_LEN)
       return CKR_ARGUMENTS_BAD;
 
-    /*if (session.info.state == CKS_RW_USER_FUNCTIONS) {
-      DBG("This user type is already logged in");
-      return CKR_USER_ALREADY_LOGGED_IN;
-      }*/ //TODO: FIx to allow multiple login. Decide on context specific.
-
-    if (session->info.state == CKS_RW_SO_FUNCTIONS) {
-      DBG("A different uyser type is already logged in");
+    if (session->slot->login_state == YKCS11_SO) {
+      DBG("Tried to log-in USER to a SO session");
       return CKR_USER_ANOTHER_ALREADY_LOGGED_IN;
+    }
+
+    if (session->slot->login_state == YKCS11_USER) {
+      DBG("Tried to log-in USER to a USER session");
+      return CKR_USER_ALREADY_LOGGED_IN;
     }
 
     rv = token_login(session->slot->piv_state, CKU_USER, pPin, ulPinLen);
@@ -932,22 +910,29 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
       return rv;
     }
 
-    if ((session->info.flags & CKF_RW_SESSION) == 0)
-      session->info.state = CKS_RO_USER_FUNCTIONS;
-    else
-      session->info.state = CKS_RW_USER_FUNCTIONS;
+    session->slot->login_state = YKCS11_USER;
     break;
 
   case CKU_SO:
     if (ulPinLen != PIV_MGM_KEY_LEN)
       return CKR_ARGUMENTS_BAD;
 
-    if (session->info.state == CKS_RW_SO_FUNCTIONS)
-      return CKR_USER_ALREADY_LOGGED_IN;
-
-    if (session->info.state == CKS_RO_USER_FUNCTIONS ||
-        session->info.state == CKS_RW_USER_FUNCTIONS)
+    if (session->slot->login_state == YKCS11_USER) {
+      DBG("Tried to log-in SO to a USER session");
       return CKR_USER_ANOTHER_ALREADY_LOGGED_IN;
+    }
+
+    if (session->slot->login_state == YKCS11_SO) {
+      DBG("Tried to log-in SO to a SO session");
+      return CKR_USER_ALREADY_LOGGED_IN;
+    }
+
+    for(CK_ULONG i = 0; i < YKCS11_MAX_SESSIONS; i++) {
+      if (sessions[i].slot == session->slot && !(sessions[i].info.flags & CKF_RW_SESSION)) {
+        DBG("Tried to log-in SO with existing RO sessions");
+        return CKR_SESSION_READ_ONLY_EXISTS;
+      }
+    }
 
     rv = token_login(session->slot->piv_state, CKU_SO, pPin, ulPinLen);
     if (rv != CKR_OK) {
@@ -955,7 +940,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
       return rv;
     }
 
-    session->info.state = CKS_RW_SO_FUNCTIONS;
+    session->slot->login_state = YKCS11_SO;
     break;
 
   case CKU_CONTEXT_SPECIFIC:
@@ -997,14 +982,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_Logout)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (session->info.state == CKS_RO_PUBLIC_SESSION ||
-      session->info.state == CKS_RW_PUBLIC_SESSION)
+  if (session->slot->login_state == YKCS11_PUBLIC)
     return CKR_USER_NOT_LOGGED_IN;
 
-  if ((session->info.flags & CKF_RW_SESSION) == 0)
-    session->info.state = CKS_RO_PUBLIC_SESSION;
-  else
-    session->info.state = CKS_RW_PUBLIC_SESSION;
+  session->slot->login_state = YKCS11_PUBLIC;
 
   DOUT;
   return CKR_OK;
@@ -1063,9 +1044,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (session->info.state != CKS_RW_SO_FUNCTIONS) {
+  if (get_session_state(session) != CKS_RW_SO_FUNCTIONS) {
     DBG("Authentication required to import objects");
-    return CKR_SESSION_READ_ONLY;
+    return CKR_USER_TYPE_INVALID;
   }
 
   class = CKO_VENDOR_DEFINED; // Use this as a known value
@@ -1253,9 +1234,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
 
   // Only certificates can be deleted
   // SO must be logged in
-  if (session->info.state != CKS_RW_SO_FUNCTIONS) {
+  if (get_session_state(session) != CKS_RW_SO_FUNCTIONS) {
     DBG("Unable to delete objects, SO must be logged in");
-    return CKR_USER_NOT_LOGGED_IN;
+    return CKR_USER_TYPE_INVALID;
   }
 
   rv = check_delete_cert(hObject, &id);
@@ -1401,9 +1382,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
   }
 
   // Check if we should remove private objects
-  if (session->info.state == CKS_RO_PUBLIC_SESSION ||
-      session->info.state == CKS_RW_PUBLIC_SESSION) {
-    DBG("Removing private objects because state is %lu", session->info.state);
+  if (get_session_state(session) == CKS_RO_PUBLIC_SESSION ||
+      get_session_state(session) == CKS_RW_PUBLIC_SESSION) {
+    DBG("Removing private objects because state is %lu", get_session_state(session));
     private = CK_FALSE;
   }
   else {
@@ -1694,8 +1675,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
     goto decrypt_out;
   }
 
-  if (session->info.state == CKS_RO_PUBLIC_SESSION ||
-      session->info.state == CKS_RW_PUBLIC_SESSION) {
+  if (get_session_state(session) == CKS_RO_PUBLIC_SESSION ||
+      get_session_state(session) == CKS_RW_PUBLIC_SESSION) {
     DBG("User is not logged in");
     rv = CKR_USER_NOT_LOGGED_IN;
     goto decrypt_out;
@@ -2134,8 +2115,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     goto sign_out;
   }
 
-  if (session->info.state == CKS_RO_PUBLIC_SESSION ||
-      session->info.state == CKS_RW_PUBLIC_SESSION) {
+  if (get_session_state(session) == CKS_RO_PUBLIC_SESSION ||
+      get_session_state(session) == CKS_RW_PUBLIC_SESSION) {
     DBG("User is not logged in");
     rv = CKR_USER_NOT_LOGGED_IN;
     goto sign_out;
@@ -2517,7 +2498,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (session->info.state != CKS_RW_SO_FUNCTIONS) {
+  if (get_session_state(session) != CKS_RW_SO_FUNCTIONS) {
     DBG("Authentication required to generate keys");
     return CKR_USER_TYPE_INVALID;
   }
