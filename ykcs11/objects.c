@@ -209,7 +209,7 @@ static const char *data_objects[] = {
 static piv_pvtk_obj_t pvtkey_objects[] = {
   {1, 1, 0, 0, 0},
   {1, 1, 0, 0, 0},
-  {1, 1, 0, 0, 0},
+  {1, 1, 0, 0, 1},
   {1, 1, 0, 0, 0},
   {1, 1, 0, 0, 0},
   {1, 1, 0, 0, 0},
@@ -357,10 +357,13 @@ static CK_RV get_doa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR
 /* Get certificate object attribute */
 static CK_RV get_coa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
+  CK_BYTE_PTR p_tmp;
   CK_BYTE     b_tmp[1024];
   CK_ULONG    ul_tmp;
   CK_ULONG    len = 0;
   CK_RV       rv;
+  X509_NAME*  name;
+  X509*       cert = s->certs[piv_objects[obj].sub_id];
   DBG("For certificate object %lu, get ", obj);
 
   switch (template->type) {
@@ -392,10 +395,37 @@ static CK_RV get_coa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR
     data = (CK_BYTE_PTR) piv_objects[obj].label;
     break;
 
+  case CKA_SUBJECT:
+    DBG("SUBJECT");
+    name = X509_get_subject_name(cert);
+    p_tmp = b_tmp;
+    i2d_X509_NAME(name, &p_tmp);
+    len = p_tmp - b_tmp;
+    data = b_tmp;
+    break;
+
+  case CKA_ISSUER:
+    DBG("ISSUER");
+    name = X509_get_issuer_name(cert);
+    p_tmp = b_tmp;
+    i2d_X509_NAME(name, &p_tmp);
+    len = p_tmp - b_tmp;
+    data = b_tmp;
+    break;
+
+  case CKA_SERIAL_NUMBER:
+    DBG("SERIAL_NUMBER");
+    ASN1_INTEGER *sn = X509_get_serialNumber(cert);
+    p_tmp = b_tmp;
+    i2d_ASN1_INTEGER(sn, &p_tmp);
+    len = p_tmp - b_tmp;
+    data = b_tmp;
+    break;
+
   case CKA_VALUE:
     DBG("VALUE");
     len = sizeof(b_tmp);
-    if ((rv = do_get_raw_cert(s->certs[piv_objects[obj].sub_id], b_tmp, &len)) != CKR_OK)
+    if ((rv = do_get_raw_cert(cert, b_tmp, &len)) != CKR_OK)
       return rv;
     data = b_tmp;
     break;
@@ -421,9 +451,6 @@ static CK_RV get_coa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR
     data = b_tmp;
     break;
 
-  /* case CKA_ISSUER: */
-  /* case CKA_SERIAL_NUMBER: */
-  /* case CKA_SUBJECT: */
   /* case CKA_START_DATE: */
   /* case CKA_END_DATE: */
   default: // TODO: there are other attributes for a (x509) certificate

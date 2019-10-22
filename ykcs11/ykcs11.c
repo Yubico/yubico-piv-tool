@@ -891,17 +891,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
 
   switch (userType) {
   case CKU_USER:
+    // Multiple logins are allowed because we hard code that CKA_ALWAYS_AUTHENTICATE is always true
     if (ulPinLen < PIV_MIN_PIN_LEN || ulPinLen > PIV_MAX_PIN_LEN)
       return CKR_ARGUMENTS_BAD;
 
     if (session->slot->login_state == YKCS11_SO) {
       DBG("Tried to log-in USER to a SO session");
       return CKR_USER_ANOTHER_ALREADY_LOGGED_IN;
-    }
-
-    if (session->slot->login_state == YKCS11_USER) {
-      DBG("Tried to log-in USER to a USER session");
-      return CKR_USER_ALREADY_LOGGED_IN;
     }
 
     rv = token_login(session->slot->piv_state, CKU_USER, pPin, ulPinLen);
