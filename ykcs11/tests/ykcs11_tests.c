@@ -274,9 +274,11 @@ static void test_login() {
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
 
   asrt(funcs->C_Login(session, CKU_USER, "123456", 6), CKR_OK, "Login USER");
+  asrt(funcs->C_Login(session, CKU_SO, "010203040506070801020304050607080102030405060708", 48), CKR_USER_ANOTHER_ALREADY_LOGGED_IN, "Login SO");
   asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
 
   asrt(funcs->C_Login(session, CKU_SO, "010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
+  asrt(funcs->C_Login(session, CKU_USER, "123456", 6), CKR_USER_ANOTHER_ALREADY_LOGGED_IN, "Login USER");
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
 
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
@@ -287,40 +289,56 @@ static void test_login() {
 
 static void test_multiple_sessions() {
   dprintf(0, "TEST START: test_multiple_sessions()\n");
-  init_connection();
+  CK_SESSION_INFO info;
   CK_SESSION_HANDLE session1, session2, session3, session4;
+  
+  init_connection();
 
   // Open first session as a public session (no logging in)
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session1), CKR_OK, "MultipleSessions_OpenSession1");
   asrt(session1, 1, "MultipleSessions_session1Handle");
-  CK_SESSION_INFO pInfo;
-  asrt(funcs->C_GetSessionInfo(session1, &pInfo), CKR_OK, "MultipleSessions_session1Info");
-  asrt(pInfo.state, CKS_RW_PUBLIC_SESSION, "MultipleSession_session1State");
+  asrt(funcs->C_GetSessionInfo(session1, &info), CKR_OK, "MultipleSessions_session1Info");
+  asrt(info.state, CKS_RW_PUBLIC_SESSION, "MultipleSession_session1State");
 
-  // Open the second session and log in as user
+  // Open the second session and log in as user. Both sessions should then be logged in as user
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session2), CKR_OK, "MultipleSessions_OpenSession2");
   asrt(session2, 2, "MultipleSessions_session2Handle");
   asrt(funcs->C_Login(session2, CKU_USER, "123456", 6), CKR_OK, "MultipleSession_Login USER");
-  asrt(funcs->C_GetSessionInfo(session2, &pInfo), CKR_OK, "MultipleSessions_session2Info");
-  asrt(pInfo.state, CKS_RW_USER_FUNCTIONS, "MultipleSession_session2State");
+  asrt(funcs->C_GetSessionInfo(session2, &info), CKR_OK, "MultipleSessions_session2Info");
+  asrt(info.state, CKS_RW_USER_FUNCTIONS, "MultipleSession_session2State");
+  asrt(funcs->C_GetSessionInfo(session1, &info), CKR_OK, "MultipleSessions_session1Info");
+  asrt(info.state, CKS_RW_USER_FUNCTIONS, "MultipleSession_session1State");
+  // Log out from the second session. Both sessions should then be loged out
   asrt(funcs->C_Logout(session2), CKR_OK, "Logout USER");
+  asrt(funcs->C_GetSessionInfo(session2, &info), CKR_OK, "MultipleSessions_session2Info");
+  asrt(info.state, CKS_RW_PUBLIC_SESSION, "MultipleSession_session2State");
+  asrt(funcs->C_GetSessionInfo(session1, &info), CKR_OK, "MultipleSessions_session1Info");
+  asrt(info.state, CKS_RW_PUBLIC_SESSION, "MultipleSession_session1State");
 
   // Open the third session and log in as so user
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session3), CKR_OK, "MultipleSessions_OpenSession3");
   asrt(session3, 3, "MultipleSessions_session3Handle");
   asrt(funcs->C_Login(session3, CKU_SO, "010203040506070801020304050607080102030405060708", 48), CKR_OK, "MultipleSessions_Login SO");
-  asrt(funcs->C_GetSessionInfo(session3, &pInfo), CKR_OK, "MultipleSessions_session3Info");
-  asrt(pInfo.state, CKS_RW_SO_FUNCTIONS, "MultipleSession_session3State");
+  asrt(funcs->C_GetSessionInfo(session3, &info), CKR_OK, "MultipleSessions_session3Info");
+  asrt(info.state, CKS_RW_SO_FUNCTIONS, "MultipleSession_session3State");
+  asrt(funcs->C_GetSessionInfo(session2, &info), CKR_OK, "MultipleSessions_session2Info");
+  asrt(info.state, CKS_RW_SO_FUNCTIONS, "MultipleSession_session2State");
+  asrt(funcs->C_GetSessionInfo(session1, &info), CKR_OK, "MultipleSessions_session1Info");
+  asrt(info.state, CKS_RW_SO_FUNCTIONS, "MultipleSession_session1State");
 
   // Close the second session
   asrt(funcs->C_CloseSession(session2), CKR_OK, "MultipleSessions_CloseSession2");
-  asrt(funcs->C_GetSessionInfo(session2, &pInfo), CKR_SESSION_HANDLE_INVALID, "MultipleSessions_closedSession2Info");
+  asrt(funcs->C_GetSessionInfo(session2, &info), CKR_SESSION_HANDLE_INVALID, "MultipleSessions_closedSession2Info");
   
-  // Open a fourth session; should get the same handle as the previously closed session and it should be a public session
+  // Open a fourth session; should get the same handle as the previously closed session and it should be an SO session
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session4), CKR_OK, "MultipleSessions_OpenSession4");
   asrt(session4, session2, "MultipleSessions_session4Handle");
-  asrt(funcs->C_GetSessionInfo(session4, &pInfo), CKR_OK, "MultipleSessions_session4Info");
-  asrt(pInfo.state, CKS_RW_PUBLIC_SESSION, "MultipleSession_session4State");
+  asrt(funcs->C_GetSessionInfo(session4, &info), CKR_OK, "MultipleSessions_session4Info");
+  asrt(info.state, CKS_RW_SO_FUNCTIONS, "MultipleSession_session4State");
+
+  asrt(funcs->C_Login(session2, CKU_USER, "123456", 6), CKR_USER_ANOTHER_ALREADY_LOGGED_IN, "MultipleSession_Login USER");
+  asrt(funcs->C_GetSessionInfo(session4, &info), CKR_OK, "MultipleSessions_session4Info");
+  asrt(info.state, CKS_RW_SO_FUNCTIONS, "MultipleSession_session4State");
 
   // Close all session and end test
   asrt(funcs->C_CloseAllSessions(0), CKR_OK, "MultipleSessions_CloseAllSessions");
