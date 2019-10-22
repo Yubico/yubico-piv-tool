@@ -944,7 +944,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
       DBG("No operation in progress. Context specific user is forbidden.");
       return CKR_USER_TYPE_INVALID;
     }
-    if (session->op_info.type == YKCS11_SIGN) {
+    if (session->op_info.type == YKCS11_SIGN || session->op_info.type == YKCS11_DECRYPT) {
       return C_Login(hSession, CKU_USER, pPin, ulPinLen);
     }
     else
