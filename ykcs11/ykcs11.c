@@ -492,6 +492,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
     return CKR_ARGUMENTS_BAD;
   }
 
+  locking.LockMutex(mutex);
+
   if (slotID >= n_slots) {
     DBG("Invalid slot ID %lu", slotID);
     return CKR_SLOT_ID_INVALID;
@@ -502,6 +504,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
     locking.UnlockMutex(mutex);
     return CKR_TOKEN_NOT_PRESENT;
   }
+
+  locking.UnlockMutex(mutex);
 
   // TODO: check more return values
 
@@ -547,6 +551,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismInfo)(
     return CKR_ARGUMENTS_BAD;
   }
 
+  locking.LockMutex(mutex);
+
   if (slotID >= n_slots) {
     DBG("Invalid slot ID %lu", slotID);
     return CKR_SLOT_ID_INVALID;
@@ -557,6 +563,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismInfo)(
     locking.UnlockMutex(mutex);
     return CKR_TOKEN_NOT_PRESENT;
   }
+
+  locking.UnlockMutex(mutex);
 
   if (get_token_mechanism_info(type, pInfo) != CKR_OK) {
     DBG("Unable to retrieve mechanism information");
