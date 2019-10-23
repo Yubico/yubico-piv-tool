@@ -44,6 +44,8 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_
                            CK_BYTE_PTR out, CK_ULONG_PTR out_len);
 CK_RV do_check_cert(CK_BYTE_PTR in, CK_ULONG_PTR cert_len);
 CK_RV do_get_raw_cert(X509 *cert, CK_BYTE_PTR out, CK_ULONG_PTR out_len);
+CK_RV do_get_raw_name(X509_NAME *name, CK_BYTE_PTR out, CK_ULONG_PTR out_len);
+CK_RV do_get_raw_integer(ASN1_INTEGER *serial, CK_BYTE_PTR out, CK_ULONG_PTR out_len);
 CK_RV do_delete_cert(X509 **cert);
 //CK_RV free_cert(X509 *cert);
 

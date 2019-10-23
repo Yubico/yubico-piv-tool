@@ -362,8 +362,6 @@ static CK_RV get_coa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR
   CK_ULONG    ul_tmp;
   CK_ULONG    len = 0;
   CK_RV       rv;
-  X509_NAME*  name;
-  X509*       cert = s->certs[piv_objects[obj].sub_id];
   DBG("For certificate object %lu, get ", obj);
 
   switch (template->type) {
@@ -397,35 +395,32 @@ static CK_RV get_coa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR
 
   case CKA_SUBJECT:
     DBG("SUBJECT");
-    name = X509_get_subject_name(cert);
-    p_tmp = b_tmp;
-    i2d_X509_NAME(name, &p_tmp);
-    len = p_tmp - b_tmp;
+    len = sizeof(b_tmp);
+    if ((rv = do_get_raw_name(X509_get_subject_name(s->certs[piv_objects[obj].sub_id]), b_tmp, &len)) != CKR_OK)
+      return rv;
     data = b_tmp;
     break;
 
   case CKA_ISSUER:
     DBG("ISSUER");
-    name = X509_get_issuer_name(cert);
-    p_tmp = b_tmp;
-    i2d_X509_NAME(name, &p_tmp);
-    len = p_tmp - b_tmp;
+    len = sizeof(b_tmp);
+    if ((rv = do_get_raw_name(X509_get_issuer_name(s->certs[piv_objects[obj].sub_id]), b_tmp, &len)) != CKR_OK)
+      return rv;
     data = b_tmp;
     break;
 
   case CKA_SERIAL_NUMBER:
     DBG("SERIAL_NUMBER");
-    ASN1_INTEGER *sn = X509_get_serialNumber(cert);
-    p_tmp = b_tmp;
-    i2d_ASN1_INTEGER(sn, &p_tmp);
-    len = p_tmp - b_tmp;
+    len = sizeof(b_tmp);
+    if ((rv = do_get_raw_integer(X509_get_serialNumber(s->certs[piv_objects[obj].sub_id]), b_tmp, &len)) != CKR_OK)
+      return rv;
     data = b_tmp;
     break;
 
   case CKA_VALUE:
     DBG("VALUE");
     len = sizeof(b_tmp);
-    if ((rv = do_get_raw_cert(cert, b_tmp, &len)) != CKR_OK)
+    if ((rv = do_get_raw_cert(s->certs[piv_objects[obj].sub_id], b_tmp, &len)) != CKR_OK)
       return rv;
     data = b_tmp;
     break;
@@ -680,7 +675,6 @@ static CK_RV get_proa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
 
   /* case CKA_SIGN_RECOVER: */
   /* case CKA_VENDOR_DEFINED: */
-  /* case CKA_SUBJECT: */
   /* case CKA_PRIVATE_EXPONENT: */
   /* case CKA_PRIME_1: */
   /* case CKA_PRIME_2: */
@@ -693,7 +687,6 @@ static CK_RV get_proa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
   /* case CKA_VALUE_BITS: */
   /* case CKA_VALUE_LEN: */
   /* case CKA_EXTRACTABLE: */
-  /* case CKA_LOCAL: */
   /* case CKA_NEVER_EXTRACTABLE: */
   /* case CKA_ALWAYS_SENSITIVE:*/
   /* case CKA_START_DATE:  */
@@ -917,8 +910,6 @@ static CK_RV get_puoa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
 
   /* case CKA_START_DATE: */
   /* case CKA_END_DATE: */
-  /* case CKA_SUBJECT: */
-  /* case CKA_LOCAL: */
   default:
     DBG("UNKNOWN ATTRIBUTE %lx", template[0].type); // TODO: there are other parameters for public keys
     template->ulValueLen = CK_UNAVAILABLE_INFORMATION;
