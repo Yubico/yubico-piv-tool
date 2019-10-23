@@ -496,6 +496,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
 
   if (slotID >= n_slots) {
     DBG("Invalid slot ID %lu", slotID);
+    locking.UnlockMutex(mutex);
     return CKR_SLOT_ID_INVALID;
   }
 
@@ -555,6 +556,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismInfo)(
 
   if (slotID >= n_slots) {
     DBG("Invalid slot ID %lu", slotID);
+    locking.UnlockMutex(mutex);
     return CKR_SLOT_ID_INVALID;
   }
 
