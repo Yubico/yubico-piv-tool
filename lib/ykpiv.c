@@ -232,6 +232,7 @@ ykpiv_rc ykpiv_init_with_allocator(ykpiv_state **state, int verbose, const ykpiv
   s->allocator = *allocator;
   s->verbose = verbose;
   s->context = (SCARDCONTEXT)-1;
+  s->disposition = *state == (ykpiv_state*)-1 ? SCARD_LEAVE_CARD : SCARD_RESET_CARD;
   *state = s;
   return YKPIV_OK;
 }
@@ -258,7 +259,7 @@ ykpiv_rc ykpiv_done(ykpiv_state *state) {
 
 ykpiv_rc ykpiv_disconnect(ykpiv_state *state) {
   if(state->card) {
-    SCardDisconnect(state->card, SCARD_RESET_CARD);
+    SCardDisconnect(state->card, state->disposition);
     state->card = 0;
   }
 
@@ -512,7 +513,7 @@ static ykpiv_rc reconnect(ykpiv_state *state) {
     fprintf(stderr, "trying to reconnect to current reader.\n");
   }
   rc = SCardReconnect(state->card, SCARD_SHARE_SHARED,
-		      SCARD_PROTOCOL_T1, SCARD_RESET_CARD, &active_protocol);
+		      SCARD_PROTOCOL_T1, state->disposition, &active_protocol);
   if(rc != SCARD_S_SUCCESS) {
     if(state->verbose) {
       fprintf(stderr, "SCardReconnect failed, rc=%08lx\n", rc);

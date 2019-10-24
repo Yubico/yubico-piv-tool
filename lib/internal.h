@@ -156,6 +156,7 @@ typedef struct _ykpiv_version_t {
 struct ykpiv_state {
   SCARDCONTEXT context;
   SCARDHANDLE card;
+  DWORD disposition;
   int  verbose;
   char *pin;
   ykpiv_allocator allocator;
