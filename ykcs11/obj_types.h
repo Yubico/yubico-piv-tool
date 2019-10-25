@@ -157,6 +157,11 @@ typedef enum {
 
 #define OBJECT_INVALID            (PIV_PUBK_OBJ_LAST + 1)
 
+typedef struct {
+  CK_ULONG len;
+  const char *data;
+} piv_data_obj_t;
+
 typedef struct { // TODO: enough to use the public key for the parameters?
   CK_BBOOL decrypt;
   CK_BBOOL sign;
