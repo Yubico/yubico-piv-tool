@@ -296,7 +296,7 @@ static CK_RV get_doa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR
 
   case CKA_LABEL:
     DBG("LABEL");
-    len = strlen(piv_objects[obj].label) + 1;
+    len = strlen(piv_objects[obj].label);
     data = (CK_BYTE_PTR) piv_objects[obj].label;
     break;
 
@@ -309,7 +309,7 @@ static CK_RV get_doa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR
 
   case CKA_APPLICATION:
     DBG("APPLICATION");
-    len = strlen(piv_objects[obj].label) + 1;
+    len = strlen(piv_objects[obj].label);
     data = (CK_BYTE_PTR) piv_objects[obj].label;
     break;
 
@@ -389,7 +389,7 @@ static CK_RV get_coa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR
 
   case CKA_LABEL:
     DBG("LABEL");
-    len = strlen(piv_objects[obj].label) + 1;
+    len = strlen(piv_objects[obj].label);
     data = (CK_BYTE_PTR) piv_objects[obj].label;
     break;
 
@@ -504,7 +504,7 @@ static CK_RV get_proa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
 
   case CKA_LABEL:
     DBG("LABEL");
-    len = strlen(piv_objects[obj].label) + 1;
+    len = strlen(piv_objects[obj].label);
     data = (CK_BYTE_PTR) piv_objects[obj].label;
     break;
 
@@ -746,7 +746,7 @@ static CK_RV get_puoa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
 
   case CKA_LABEL:
     DBG("LABEL");
-    len = strlen(piv_objects[obj].label) + 1;
+    len = strlen(piv_objects[obj].label);
     data = (CK_BYTE_PTR) piv_objects[obj].label;
     break;
 
