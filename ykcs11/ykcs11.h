@@ -47,6 +47,7 @@ typedef enum {
 typedef struct {
   CK_SLOT_INFO  slot_info;
   CK_TOKEN_INFO token_info;
+  ykpiv_state   *piv_state;
   ykcs11_login_state_t login_state;
 } ykcs11_slot_t;
 

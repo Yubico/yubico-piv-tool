@@ -182,6 +182,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Finalize)(
 
   locking.LockMutex(mutex);
 
+  // Close all session states
   for(int i = 0; i < YKCS11_MAX_SESSIONS; i++) {
     ykcs11_session_t *session = sessions + i;
     if(session->state) {
@@ -189,13 +190,20 @@ CK_DEFINE_FUNCTION(CK_RV, C_Finalize)(
     }
   }
 
-  locking.UnlockMutex(mutex);
-  locking.DestroyMutex(mutex);
-  mutex = NULL;
+  // Close all slot states (will reset cards)
+  for(CK_ULONG i = 0; i < n_slots; i++) {
+    if(slots[i].piv_state) {
+      ykpiv_done(slots[i].piv_state);
+    }
+  }
 
   memset(&slots, 0, sizeof(slots));
   memset(&sessions, 0, sizeof(sessions));
   n_slots = 0;
+
+  locking.UnlockMutex(mutex);
+  locking.DestroyMutex(mutex);
+  mutex = NULL;
 
   DOUT;
   return CKR_OK;
@@ -265,7 +273,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  ykpiv_state *piv_state = (ykpiv_state*)-1;
+  ykpiv_state *piv_state;
   if (ykpiv_init(&piv_state, YKCS11_DBG) != YKPIV_OK) {
     DBG("Unable to initialize libykpiv");
     return CKR_FUNCTION_FAILED;
@@ -276,6 +284,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
     ykpiv_done(piv_state);
     return CKR_FUNCTION_FAILED;
   }
+
+  ykpiv_done(piv_state);
 
   locking.LockMutex(mutex);
 
@@ -317,6 +327,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 
       // Increase slot count if this is a new slot
       if(slot == slots + n_slots) {
+        DBG("Initializing slot %lu for '%s'", slot-slots, reader);
+        ykpiv_init(&slot->piv_state, YKCS11_DBG);
         n_slots++;
       }
 
@@ -324,7 +336,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
       strcat(buf, reader);
       
       // Try to connect if unconnected (both new and existing slots)
-      if (!(slot->slot_info.flags & CKF_TOKEN_PRESENT) && ykpiv_connect(piv_state, buf) == YKPIV_OK) {
+      if (!(slot->slot_info.flags & CKF_TOKEN_PRESENT) && ykpiv_connect(slot->piv_state, buf) == YKPIV_OK) {
 
         DBG("Connected slot %lu to '%s'", slot-slots, reader);
 
@@ -348,11 +360,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 
         memset(slot->token_info.utcTime, ' ', sizeof(slot->token_info.utcTime));
 
-        get_token_model(piv_state, slot->token_info.model, sizeof(slot->token_info.model));
-        get_token_serial(piv_state, slot->token_info.serialNumber, sizeof(slot->token_info.serialNumber));
-        get_token_version(piv_state, &slot->token_info.firmwareVersion);
-
-        ykpiv_disconnect(piv_state);
+        get_token_model(slot->piv_state, slot->token_info.model, sizeof(slot->token_info.model));
+        get_token_serial(slot->piv_state, slot->token_info.serialNumber, sizeof(slot->token_info.serialNumber));
+        get_token_version(slot->piv_state, &slot->token_info.firmwareVersion);
       }
     }
   }
@@ -360,14 +370,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
   // Disconnect connected slots that are no longer present
   for(CK_ULONG i = 0; i < n_slots; i++) {
     if(mark[i] && (slots[i].slot_info.flags & CKF_TOKEN_PRESENT)) {
-      DBG("Removing slot %lu", i);
+      DBG("Disconnecting slot %lu", i);
+      ykpiv_disconnect(slots[i].piv_state);
       slots[i].slot_info.flags &= ~CKF_TOKEN_PRESENT;
     }
   }
 
   locking.UnlockMutex(mutex);
-
-  ykpiv_done(piv_state);
 
   CK_ULONG count = 0;
   for (i = 0; i < n_slots; i++) {
