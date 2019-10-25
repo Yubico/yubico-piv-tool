@@ -716,6 +716,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   session->state = (ykpiv_state*)-1;
 
   if(ykpiv_init(&session->state, YKCS11_DBG) != YKPIV_OK) {
+    DBG("Unable to initialize libykpiv");
+    session->state = NULL;
     locking.UnlockMutex(mutex);
     return CKR_FUNCTION_FAILED;
   }
@@ -730,14 +732,17 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   buf[len + 2] = 0;
 
   if(ykpiv_connect(session->state, buf) != YKPIV_OK) {
+    DBG("Unable to connect to %s", buf);
+    ykpiv_done(session->state);
+    session->state = NULL;
     return CKR_FUNCTION_FAILED;
   }
+
+  // Save a list of all the available objects in the session
 
   piv_obj_id_t *obj_ids;
   CK_ULONG num_ids;
   rv = get_token_object_ids(&obj_ids, &num_ids);
-
-  // Save a list of all the available objects in the session
 
   for(i = 0; i < num_ids; i++) {
     len = sizeof(data);
@@ -746,7 +751,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
       rv = store_data(session, obj_ids[i], data, len);
       if (rv != CKR_OK) {
         DBG("Unable to store object data");
-        goto failure;
+        ykpiv_done(session->state);
+        session->state = NULL;
+        return rv;
       }
       CK_BYTE key_id = get_key_id(obj_ids[i]);
       piv_obj_id_t cert_id = find_cert_object(key_id);
@@ -757,25 +764,19 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
         rv = store_cert(session, cert_id, data, len);
         if (rv != CKR_OK) {
           DBG("Unable to store certificate data");
-          goto failure;
+          ykpiv_done(session->state);
+          session->state = NULL;
+          return rv;
         }
       }
     }
   }
 
   qsort(session->objects, session->n_objects, sizeof(piv_obj_id_t), compare_piv_obj_id);
-
   *phSession = get_session_handle(session);
 
   DOUT;
   return CKR_OK;
-
-failure:
-  ykpiv_done(session->state);
-  memset(session, 0, sizeof(*session));
-  //free_certs(); // TODO: remove the one allocated so far
-
-  return rv;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(

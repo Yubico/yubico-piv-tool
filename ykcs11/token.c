@@ -28,6 +28,7 @@
  *
  */
 
+#include "utils.h"
 #include "token.h"
 #include "pkcs11.h"
 #include <string.h>
@@ -146,7 +147,8 @@ CK_RV get_token_model(ykpiv_state *state, CK_UTF8CHAR_PTR str, CK_ULONG len) {
   if (ykpiv_get_version(state, buf, sizeof(buf)) != YKPIV_OK)
     return CKR_FUNCTION_FAILED;
 
-  memcpy(str, token_model, strlen(token_model));
+  memset(str, ' ', len);
+  memstrcpy(str, token_model);
 
   if (buf[0] >= '4')
     memcpy(str + strlen(token_model) - 3, "YK4", 3);
@@ -154,7 +156,6 @@ CK_RV get_token_model(ykpiv_state *state, CK_UTF8CHAR_PTR str, CK_ULONG len) {
     memcpy(str + strlen(token_model) - 3, "NEO", 3);
 
   return CKR_OK;
-
 }
 
 CK_RV get_token_version(ykpiv_state *state, CK_VERSION_PTR version) {
@@ -187,7 +188,9 @@ CK_RV get_token_serial(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
   if(actual >= len)
     return CKR_BUFFER_TOO_SMALL;
 
-  memcpy(str, buf, strlen(buf));
+  memset(str, ' ', len);
+  memstrcpy(str, buf);
+
   return CKR_OK;
 }
 
@@ -195,7 +198,6 @@ CK_RV get_token_mechanisms_num(CK_ULONG_PTR num) {
 
   *num = token_mechanisms_num;
   return CKR_OK;
-
 }
 
 CK_RV get_token_mechanism_list(CK_MECHANISM_TYPE_PTR mec, CK_ULONG num) {
@@ -205,7 +207,6 @@ CK_RV get_token_mechanism_list(CK_MECHANISM_TYPE_PTR mec, CK_ULONG num) {
 
   memcpy(mec, token_mechanisms, token_mechanisms_num * sizeof(CK_MECHANISM_TYPE));
   return CKR_OK;
-
 }
 
 CK_RV get_token_mechanism_info(CK_MECHANISM_TYPE mec, CK_MECHANISM_INFO_PTR info) {
@@ -219,7 +220,6 @@ CK_RV get_token_mechanism_info(CK_MECHANISM_TYPE mec, CK_MECHANISM_INFO_PTR info
     }
 
   return CKR_MECHANISM_INVALID;
-
 }
 
 CK_RV get_token_object_ids(piv_obj_id_t **obj, CK_ULONG_PTR len) {

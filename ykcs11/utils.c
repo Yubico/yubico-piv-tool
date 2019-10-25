@@ -35,15 +35,15 @@
 #include <string.h>
 #include <pthread.h>
 
-CK_BBOOL is_yubico_reader(char* reader_name) {
+CK_BBOOL is_yubico_reader(const char* reader_name) {
   return !strncmp(reader_name, "Yubico", 6);
 }
 
-void* memstrcpy(unsigned char *dst, char *src) {
+void* memstrcpy(unsigned char *dst, const char *src) {
   return memcpy(dst, src, strlen(src));
 }
 
-size_t lastnon(unsigned char *src, size_t len, unsigned char c) {
+size_t lastnon(unsigned const char *src, size_t len, unsigned char c) {
   size_t last = len;
   for(size_t pos = 0; pos < len; pos++)
     if(src[pos] != c)
