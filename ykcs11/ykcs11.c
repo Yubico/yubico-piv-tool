@@ -603,9 +603,79 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
 )
 {
   DIN;
-  DBG("Token initialization unsupported");
+
+  if (mutex == NULL) {
+    DBG("libykpiv is not initialized or already finalized");
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  locking.LockMutex(mutex);
+
+  if (slotID >= n_slots) {
+    DBG("Invalid slot ID %lu", slotID);
+    locking.UnlockMutex(mutex);
+    return CKR_SLOT_ID_INVALID;
+  }
+
+  if(!(slots[slotID].slot_info.flags & CKF_TOKEN_PRESENT)) {
+    DBG("A token is not present in slot %lu", slotID);
+    locking.UnlockMutex(mutex);
+    return CKR_TOKEN_NOT_PRESENT;
+  }
+
+  for(int i = 0; i < YKCS11_MAX_SESSIONS; i++) {
+    ykcs11_session_t *session = sessions + i;
+    if(session->state && session->info.slotID == slotID) {
+      locking.UnlockMutex(mutex);
+      return CKR_SESSION_EXISTS;
+    }
+  }
+
+  unsigned char mgm_key[24];
+  size_t len = sizeof(mgm_key);
+  ykpiv_rc rc;
+
+  if((rc = ykpiv_hex_decode((const char*)pPin, ulPinLen, mgm_key, &len)) != YKPIV_OK) {
+    DBG("ykpiv_hex_decode failed %d", rc);
+    locking.UnlockMutex(mutex);
+    return CKR_FUNCTION_FAILED;
+  }
+
+  ykpiv_state *state = slots[slotID].piv_state;
+  int tries;
+
+  while((rc = ykpiv_verify(state, "", &tries)) == YKPIV_WRONG_PIN && tries > 0) {
+    DBG("ykpiv_verify (%d), %d tries left", rc, tries);
+  }
+
+  while((rc = ykpiv_unblock_pin(state, "", 0, "", 0, &tries)) == YKPIV_WRONG_PIN && tries > 0) {
+    DBG("ykpiv_unblock_pin (%d), %d tries left", rc, tries);
+  }
+
+  if((rc = ykpiv_util_reset(state)) != YKPIV_OK) {
+    DBG("ykpiv_util_reset failed %d", rc);
+    locking.UnlockMutex(mutex);
+    return CKR_FUNCTION_FAILED;
+  }
+
+  unsigned char def_mgm_key[] = { 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8 };
+
+  if((rc = ykpiv_authenticate(state, def_mgm_key)) != YKPIV_OK) {
+    DBG("ykpiv_authenticate failed %d", rc);
+    locking.UnlockMutex(mutex);
+    return CKR_FUNCTION_FAILED;
+  }
+
+  if((rc = ykpiv_set_mgmkey(state, mgm_key)) != YKPIV_OK) {
+    DBG("ykpiv_set_mgmkey failed %d", rc);
+    locking.UnlockMutex(mutex);
+    return CKR_FUNCTION_FAILED;
+  }
+
+  locking.UnlockMutex(mutex);
+
   DOUT;
-  return CKR_FUNCTION_NOT_SUPPORTED;
+  return CKR_OK;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_InitPIN)(
@@ -968,7 +1038,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
     }
 
     for(CK_ULONG i = 0; i < YKCS11_MAX_SESSIONS; i++) {
-      if (sessions[i].info.slotID == session->info.slotID && !(sessions[i].info.flags & CKF_RW_SESSION)) {
+      if (sessions[i].state && sessions[i].info.slotID == session->info.slotID && !(sessions[i].info.flags & CKF_RW_SESSION)) {
         DBG("Tried to log-in SO with existing RO sessions");
         return CKR_SESSION_READ_ONLY_EXISTS;
       }
@@ -1070,7 +1140,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
-
   if (pTemplate == NULL_PTR ||
       phObject == NULL_PTR) {
     DBG("Wrong/Missing parameter");
