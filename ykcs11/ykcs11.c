@@ -328,7 +328,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
       // Increase slot count if this is a new slot
       if(slot == slots + n_slots) {
         DBG("Initializing slot %lu for '%s'", slot-slots, reader);
-        ykpiv_init(&slot->piv_state, YKCS11_DBG);
+        if(ykpiv_init(&slot->piv_state, YKCS11_DBG) != YKPIV_OK) {
+          DBG("Unable to initialize libykpiv");
+          locking.UnlockMutex(mutex);
+          return CKR_FUNCTION_FAILED;
+        }
         n_slots++;
       }
 

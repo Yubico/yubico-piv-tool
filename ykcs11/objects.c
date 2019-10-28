@@ -265,7 +265,7 @@ static piv_pubk_obj_t pubkey_objects[] = {
 /* Get data object attribute */
 static CK_RV get_doa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
-  CK_BYTE     tmp[10240];
+  CK_BYTE     tmp;
   CK_ULONG    ul_tmp;
   CK_ULONG    len = 0;
   CK_RV       rv;
@@ -283,15 +283,15 @@ static CK_RV get_doa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR
     // Technically all these objects are token objects
     DBG("TOKEN");
     len = 1;
-    tmp[0] = piv_objects[obj].token;
-    data = tmp;
+    tmp = piv_objects[obj].token;
+    data = &tmp;
     break;
 
   case CKA_PRIVATE:
     DBG("PRIVATE");
     len = 1;
-    tmp[0] = piv_objects[obj].private;
-    data = tmp;
+    tmp = piv_objects[obj].private;
+    data = &tmp;
     break;
 
   case CKA_LABEL:
@@ -303,8 +303,8 @@ static CK_RV get_doa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR
   case CKA_ID:
     DBG("ID");
     len = sizeof(CK_BYTE);
-    tmp[0] = piv_objects[obj].sub_id;
-    data = tmp;
+    tmp = piv_objects[obj].sub_id;
+    data = &tmp;
     break;
 
   case CKA_APPLICATION:
@@ -321,9 +321,9 @@ static CK_RV get_doa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR
 
   case CKA_MODIFIABLE:
     DBG("MODIFIABLE");
-    len = 1;
-    tmp[0] = piv_objects[obj].modifiable;
-    data = tmp;
+    len = sizeof(CK_BYTE);
+    tmp = piv_objects[obj].modifiable;
+    data = &tmp;
     break;
 
   case CKA_VALUE:
@@ -357,8 +357,7 @@ static CK_RV get_doa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR
 /* Get certificate object attribute */
 static CK_RV get_coa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
-  CK_BYTE_PTR p_tmp;
-  CK_BYTE     b_tmp[1024];
+  CK_BYTE     b_tmp[3072]; // Max cert value for ykpiv
   CK_ULONG    ul_tmp;
   CK_ULONG    len = 0;
   CK_RV       rv;
