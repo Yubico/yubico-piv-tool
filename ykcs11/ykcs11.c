@@ -635,10 +635,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
   size_t len = sizeof(mgm_key);
   ykpiv_rc rc;
 
-  if((rc = ykpiv_hex_decode((const char*)pPin, ulPinLen, mgm_key, &len)) != YKPIV_OK) {
+  if((rc = ykpiv_hex_decode((const char*)pPin, ulPinLen, mgm_key, &len)) != YKPIV_OK || len != 24) {
     DBG("ykpiv_hex_decode failed %d", rc);
     locking.UnlockMutex(mutex);
-    return CKR_FUNCTION_FAILED;
+    return CKR_ARGUMENTS_BAD;
   }
 
   ykpiv_state *state = slots[slotID].piv_state;
