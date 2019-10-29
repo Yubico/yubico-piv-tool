@@ -504,31 +504,6 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
   return YKPIV_GENERIC_ERROR;
 }
 
-static ykpiv_rc reconnect(ykpiv_state *state) {
-  pcsc_word active_protocol = 0;
-  long rc;
-  ykpiv_rc res;
-  int tries;
-  if(state->verbose) {
-    fprintf(stderr, "trying to reconnect to current reader.\n");
-  }
-  rc = SCardReconnect(state->card, SCARD_SHARE_SHARED,
-		      SCARD_PROTOCOL_T1, state->disposition, &active_protocol);
-  if(rc != SCARD_S_SUCCESS) {
-    if(state->verbose) {
-      fprintf(stderr, "SCardReconnect failed, rc=%08lx\n", rc);
-    }
-    return YKPIV_PCSC_ERROR;
-  }
-  if ((res = _ykpiv_select_application(state)) != YKPIV_OK) {
-    return res;
-  }
-  if (state->pin) {
-    return ykpiv_verify(state, state->pin, &tries);
-  }
-  return YKPIV_OK;
-}
-
 ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
   pcsc_word num_readers = 0;
   long rc;
@@ -578,23 +553,39 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
 ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state) {
 #if ENABLE_IMPLICIT_TRANSACTIONS
   long rc;
-
-  rc = SCardBeginTransaction(state->card);
-  if((long)((unsigned long)rc & 0xFFFFFFFF) == SCARD_W_RESET_CARD) {
-   ykpiv_rc res = YKPIV_OK;
-   if((res = reconnect(state)) != YKPIV_OK) {
-      return res;
+  int retries = 0;
+  while((rc = SCardBeginTransaction(state->card)) == 0xffffffff80100068 && retries < 5) {
+    retries++;
+    if(state->verbose) {
+      fprintf(stderr, "SCardBeginTransaction indicates card was reset, SCardReconnect retry %d\n", retries);
     }
-    rc = SCardBeginTransaction(state->card);
+    pcsc_word active_protocol = 0;
+    rc = SCardReconnect(state->card, SCARD_SHARE_SHARED,
+            SCARD_PROTOCOL_T1, SCARD_LEAVE_CARD, &active_protocol);
+    if(rc != SCARD_S_SUCCESS) {
+      if(state->verbose) {
+        fprintf(stderr, "SCardReconnect failed, rc=%08lx\n", rc);
+      }
+      return YKPIV_PCSC_ERROR;
+    }    
   }
   if(rc != SCARD_S_SUCCESS) {
     if(state->verbose) {
-      fprintf(stderr, "error: Failed to begin pcsc transaction, rc=%08lx\n", rc);
+      fprintf(stderr, "SCardBeginTransaction failed after %d retries, rc=%08lx\n", retries, rc);
     }
     return YKPIV_PCSC_ERROR;
   }
+  if(retries) {
+    ykpiv_rc res;
+    if ((res = _ykpiv_select_application(state)) != YKPIV_OK) {
+      return res;
+    }
+    if (state->pin) {
+      int tries;
+      return ykpiv_verify(state, state->pin, &tries);
+    }
+  }
 #endif /* ENABLE_IMPLICIT_TRANSACTIONS */
-
   return YKPIV_OK;
 }
 
@@ -602,8 +593,8 @@ ykpiv_rc _ykpiv_end_transaction(ykpiv_state *state) {
 #if ENABLE_IMPLICIT_TRANSACTIONS
   long rc = SCardEndTransaction(state->card, SCARD_LEAVE_CARD);
   if(rc != SCARD_S_SUCCESS && state->verbose) {
-    fprintf(stderr, "error: Failed to end pcsc transaction, rc=%08lx\n", rc);
-    return YKPIV_PCSC_ERROR;
+    fprintf(stderr, "SCardEndTransaction failed, rc=%08lx\n", rc);
+    //return YKPIV_PCSC_ERROR;
   }
 #endif /* ENABLE_IMPLICIT_TRANSACTIONS */
   return YKPIV_OK;
@@ -1408,7 +1399,6 @@ ykpiv_rc ykpiv_get_pin_retries(ykpiv_state *state, int *tries) {
   // WRONG_PIN is expected on successful query.
   return ykrc == YKPIV_WRONG_PIN ? YKPIV_OK : ykrc;
 }
-
 
 ykpiv_rc ykpiv_set_pin_retries(ykpiv_state *state, int pin_tries, int puk_tries) {
   ykpiv_rc res = YKPIV_OK;
