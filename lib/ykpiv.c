@@ -259,7 +259,9 @@ ykpiv_rc ykpiv_done(ykpiv_state *state) {
 
 ykpiv_rc ykpiv_disconnect(ykpiv_state *state) {
   if(state->card) {
+    SCardBeginTransaction(state->card); // Ensure we don't reset the card while someone else is in a transaction
     SCardDisconnect(state->card, state->disposition);
+    // SCardEndTransaction would just fail since the handle is now invalid, assume transaction is implicitly ended
     state->card = 0;
   }
 
@@ -552,9 +554,9 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
 
 ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state) {
 #if ENABLE_IMPLICIT_TRANSACTIONS
-  long rc;
+  LONG rc;
   int retries = 0;
-  while((rc = SCardBeginTransaction(state->card)) == 0xffffffff80100068 && retries < 5) {
+  while((rc = SCardBeginTransaction(state->card)) == SCARD_W_RESET_CARD && retries < 5) {
     retries++;
     if(state->verbose) {
       fprintf(stderr, "SCardBeginTransaction indicates card was reset, SCardReconnect retry %d\n", retries);
@@ -564,14 +566,14 @@ ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state) {
             SCARD_PROTOCOL_T1, SCARD_LEAVE_CARD, &active_protocol);
     if(rc != SCARD_S_SUCCESS) {
       if(state->verbose) {
-        fprintf(stderr, "SCardReconnect failed, rc=%08lx\n", rc);
+        fprintf(stderr, "SCardReconnect failed, rc=%x\n", rc);
       }
       return YKPIV_PCSC_ERROR;
     }    
   }
   if(rc != SCARD_S_SUCCESS) {
     if(state->verbose) {
-      fprintf(stderr, "SCardBeginTransaction failed after %d retries, rc=%08lx\n", retries, rc);
+      fprintf(stderr, "SCardBeginTransaction failed after %d retries, rc=%x\n", retries, rc);
     }
     return YKPIV_PCSC_ERROR;
   }
@@ -591,9 +593,9 @@ ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state) {
 
 ykpiv_rc _ykpiv_end_transaction(ykpiv_state *state) {
 #if ENABLE_IMPLICIT_TRANSACTIONS
-  long rc = SCardEndTransaction(state->card, SCARD_LEAVE_CARD);
+  LONG rc = SCardEndTransaction(state->card, SCARD_LEAVE_CARD);
   if(rc != SCARD_S_SUCCESS && state->verbose) {
-    fprintf(stderr, "SCardEndTransaction failed, rc=%08lx\n", rc);
+    fprintf(stderr, "SCardEndTransaction failed, rc=%x\n", rc);
     //return YKPIV_PCSC_ERROR;
   }
 #endif /* ENABLE_IMPLICIT_TRANSACTIONS */
@@ -699,7 +701,7 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
 
 ykpiv_rc _send_data(ykpiv_state *state, APDU *apdu,
     unsigned char *data, uint32_t *recv_len, int *sw) {
-  long rc;
+  LONG rc;
   unsigned int send_len = (unsigned int)apdu->st.lc + 5;
   pcsc_word tmp_len = *recv_len;
 
@@ -711,7 +713,7 @@ ykpiv_rc _send_data(ykpiv_state *state, APDU *apdu,
   rc = SCardTransmit(state->card, SCARD_PCI_T1, apdu->raw, send_len, NULL, data, &tmp_len);
   if(rc != SCARD_S_SUCCESS) {
     if(state->verbose) {
-      fprintf (stderr, "error: SCardTransmit failed, rc=%08lx\n", rc);
+      fprintf (stderr, "error: SCardTransmit failed, rc=%x\n", rc);
     }
     return YKPIV_PCSC_ERROR;
   }
