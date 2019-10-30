@@ -658,9 +658,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
     return CKR_FUNCTION_FAILED;
   }
 
-  unsigned char def_mgm_key[] = { 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8 };
-
-  if((rc = ykpiv_authenticate(state, def_mgm_key)) != YKPIV_OK) {
+  if((rc = ykpiv_authenticate(state, NULL)) != YKPIV_OK) {
     DBG("ykpiv_authenticate failed %d", rc);
     locking.UnlockMutex(mutex);
     return CKR_FUNCTION_FAILED;
