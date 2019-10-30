@@ -582,7 +582,7 @@ ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state) {
     }
     if (state->pin) {
       int tries;
-      return ykpiv_verify(state, state->pin, &tries);
+      return _ykpiv_verify(state, state->pin, strlen(state->pin), &tries);
     }
   }
 #endif /* ENABLE_IMPLICIT_TRANSACTIONS */
@@ -1315,7 +1315,7 @@ static ykpiv_rc _cache_pin(ykpiv_state *state, const char *pin, size_t len) {
 #endif
 }
 
-static ykpiv_rc _verify(ykpiv_state *state, const char *pin, const size_t pin_len, int *tries) {
+ykpiv_rc _ykpiv_verify(ykpiv_state *state, const char *pin, const size_t pin_len, int *tries) {
   APDU apdu;
   unsigned char data[261];
   uint32_t recv_len = sizeof(data);
@@ -1377,7 +1377,7 @@ ykpiv_rc ykpiv_verify_select(ykpiv_state *state, const char *pin, const size_t p
   if (force_select) {
     if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
   }
-  res = _verify(state, pin, pin_len, tries);
+  res = _ykpiv_verify(state, pin, pin_len, tries);
 Cleanup:
 
   _ykpiv_end_transaction(state);

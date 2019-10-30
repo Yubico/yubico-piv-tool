@@ -192,6 +192,7 @@ ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state);
 ykpiv_rc _ykpiv_end_transaction(ykpiv_state *state);
 ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state);
 ykpiv_rc _ykpiv_select_application(ykpiv_state *state);
+ykpiv_rc _ykpiv_verify(ykpiv_state *state, const char *pin, const size_t pin_len, int *tries);
 unsigned int _ykpiv_set_length(unsigned char *buffer, size_t length);
 unsigned int _ykpiv_get_length(const unsigned char *buffer, size_t *len);
 bool _ykpiv_has_valid_length(const unsigned char* buffer, size_t len);
