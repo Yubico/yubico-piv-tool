@@ -259,7 +259,9 @@ ykpiv_rc ykpiv_done(ykpiv_state *state) {
 
 ykpiv_rc ykpiv_disconnect(ykpiv_state *state) {
   if(state->card) {
-    SCardBeginTransaction(state->card); // Ensure we don't reset the card while someone else is in a transaction
+     // Ensure we don't reset the card while someone else is in a transaction
+    if(state->disposition == SCARD_RESET_CARD)
+      SCardBeginTransaction(state->card);
     SCardDisconnect(state->card, state->disposition);
     // SCardEndTransaction would just fail since the handle is now invalid, assume transaction is implicitly ended
     state->card = 0;
