@@ -259,11 +259,7 @@ ykpiv_rc ykpiv_done(ykpiv_state *state) {
 
 ykpiv_rc ykpiv_disconnect(ykpiv_state *state) {
   if(state->card) {
-     // Ensure we don't reset the card while someone else is in a transaction
-    if(state->disposition == SCARD_RESET_CARD)
-      SCardBeginTransaction(state->card);
     SCardDisconnect(state->card, state->disposition);
-    // SCardEndTransaction would just fail since the handle is now invalid, assume transaction is implicitly ended
     state->card = 0;
   }
 
@@ -406,7 +402,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
   pcsc_word active_protocol;
   char reader_buf[2048];
   size_t num_readers = sizeof(reader_buf);
-  long rc;
+  LONG rc;
   char *reader_ptr;
   ykpiv_rc ret;
   SCARDHANDLE card = (SCARDHANDLE)-1;
@@ -420,7 +416,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
       rc = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &state->context);
       if (rc != SCARD_S_SUCCESS) {
         if(state->verbose) {
-          fprintf (stderr, "SCardEstablishContext failed, rc=%08lx\n", rc);
+          fprintf (stderr, "SCardEstablishContext failed, rc=%x\n", rc);
         }
         return YKPIV_PCSC_ERROR;
       }
@@ -430,7 +426,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
     if(rc != SCARD_S_SUCCESS)
     {
       if(state->verbose) {
-        fprintf(stderr, "SCardConnect failed for '%s', rc=%08lx\n", wanted, rc);
+        fprintf(stderr, "SCardConnect failed for '%s', rc=%x\n", wanted, rc);
       }
       SCardReleaseContext(state->context);
       state->context = (SCARDCONTEXT)-1;
@@ -474,7 +470,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
         break;
       }
       if(state->verbose) {
-        fprintf(stderr, "SCardConnect failed for '%s', rc=%08lx\n", reader_ptr, rc);
+        fprintf(stderr, "SCardConnect failed for '%s', rc=%x\n", reader_ptr, rc);
       }
     }
 
@@ -510,13 +506,13 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
 
 ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
   pcsc_word num_readers = 0;
-  long rc;
+  LONG rc;
 
   if(SCardIsValidContext(state->context) != SCARD_S_SUCCESS) {
     rc = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &state->context);
     if (rc != SCARD_S_SUCCESS) {
       if(state->verbose) {
-        fprintf (stderr, "error: SCardEstablishContext failed, rc=%08lx\n", rc);
+        fprintf (stderr, "error: SCardEstablishContext failed, rc=%x\n", rc);
       }
       return YKPIV_PCSC_ERROR;
     }
@@ -525,7 +521,7 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
   rc = SCardListReaders(state->context, NULL, NULL, &num_readers);
   if (rc != SCARD_S_SUCCESS) {
     if(state->verbose) {
-      fprintf (stderr, "error: SCardListReaders failed, rc=%08lx\n", rc);
+      fprintf (stderr, "error: SCardListReaders failed, rc=%x\n", rc);
     }
     SCardReleaseContext(state->context);
     state->context = (SCARDCONTEXT)-1;
@@ -542,7 +538,7 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
   if (rc != SCARD_S_SUCCESS)
   {
     if(state->verbose) {
-      fprintf (stderr, "error: SCardListReaders failed, rc=%08lx\n", rc);
+      fprintf (stderr, "error: SCardListReaders failed, rc=%x\n", rc);
     }
     SCardReleaseContext(state->context);
     state->context = (SCARDCONTEXT)-1;
