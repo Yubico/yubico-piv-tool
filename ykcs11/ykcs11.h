@@ -115,7 +115,7 @@ typedef struct {
 
 typedef struct {
   CK_SESSION_INFO info;        // slotid, state, flags, deviceerror
-  ykpiv_state     *state;      // PIV state for the session 
+  ykcs11_slot_t   *slot;       // slot for open session, or NULL 
   piv_obj_id_t    objects[29 * 4]; // List of objects in the token
   CK_ULONG        n_objects;   // TOTAL number of objects in the token
   ykcs11_data_t   data[37];    // Raw data, stored by sub_id 1-36
