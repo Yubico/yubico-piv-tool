@@ -183,7 +183,7 @@ CK_RV get_token_serial(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
   if(ykpiv_get_serial(state, &serial) != YKPIV_OK)
     return CKR_FUNCTION_FAILED;
 
-  actual = sprintf(buf, "%d", serial);
+  actual = snprintf(buf, sizeof(buf), "%d", serial);
 
   if(actual >= len)
     return CKR_BUFFER_TOO_SMALL;

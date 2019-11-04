@@ -233,7 +233,6 @@ ykpiv_rc ykpiv_init_with_allocator(ykpiv_state **state, int verbose, const ykpiv
   s->allocator = *allocator;
   s->verbose = verbose;
   s->context = (SCARDCONTEXT)-1;
-  s->disposition = *state == (ykpiv_state*)-1 ? SCARD_LEAVE_CARD : SCARD_RESET_CARD;
   *state = s;
   return YKPIV_OK;
 }
@@ -242,6 +241,30 @@ ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose) {
   return ykpiv_init_with_allocator(state, verbose, &_default_allocator);
 }
 
+ykpiv_rc ykpiv_reset_card(ykpiv_state *state) {
+  LONG rc = SCardBeginTransaction(state->card);
+  if(rc == SCARD_W_RESET_CARD) {
+    if(state->verbose) {
+      fprintf(stderr, "SCardBeginTransaction indicates card was reset\n");
+    }
+    return YKPIV_OK;
+  }
+  if(rc != SCARD_S_SUCCESS) {
+    if(state->verbose) {
+      fprintf(stderr, "SCardBeginTransaction failed, rc=%lx\n", (long)rc);
+    }
+    return YKPIV_GENERIC_ERROR;
+  }
+  rc = SCardEndTransaction(state->card, SCARD_RESET_CARD);
+  if(rc != SCARD_S_SUCCESS) {
+    if(state->verbose) {
+      fprintf(stderr, "SCardEndTransaction failed, rc=%lx\n", (long)rc);
+    }
+    return YKPIV_GENERIC_ERROR;
+  }
+  return YKPIV_OK;
+}
+  
 static ykpiv_rc _ykpiv_done(ykpiv_state *state, bool disconnect) {
   if (disconnect)
     ykpiv_disconnect(state);
@@ -260,7 +283,7 @@ ykpiv_rc ykpiv_done(ykpiv_state *state) {
 
 ykpiv_rc ykpiv_disconnect(ykpiv_state *state) {
   if(state->card) {
-    SCardDisconnect(state->card, state->disposition);
+    SCardDisconnect(state->card, SCARD_RESET_CARD);
     state->card = 0;
   }
 

@@ -677,6 +677,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
     return CKR_FUNCTION_FAILED;
   }
 
+  if((rc = ykpiv_reset_card(slot->piv_state)) != YKPIV_OK) {
+    DBG("ykpiv_reset_card failed %d", rc);
+    locking.UnlockMutex(slot->mutex);
+    return CKR_FUNCTION_FAILED;
+  }
+
   locking.UnlockMutex(slot->mutex);
 
   DOUT;
@@ -704,7 +710,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetPIN)(
 )
 {
   DIN;
-  CK_RV          rv;
 
   if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
@@ -725,14 +730,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetPIN)(
 
   locking.LockMutex(session->slot->mutex);
 
-  rv = token_change_pin(session->slot->piv_state, user_type, pOldPin, ulOldLen, pNewPin, ulNewLen);
+  CK_RV rv = token_change_pin(session->slot->piv_state, user_type, pOldPin, ulOldLen, pNewPin, ulNewLen);
   if (rv != CKR_OK) {
     DBG("Pin change failed %lx", rv);
     locking.UnlockMutex(session->slot->mutex);
     return rv;
   }
 
-  locking.LockMutex(session->slot->mutex);
+  locking.UnlockMutex(session->slot->mutex);
 
   DOUT;
   return CKR_OK;
@@ -835,6 +840,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
         }
       }
     }
+  }
+
+  ykpiv_rc rc;
+  if((rc = ykpiv_reset_card(session->slot->piv_state)) != YKPIV_OK) {
+    DBG("ykpiv_reset_card failed %d", rc);
+    locking.UnlockMutex(session->slot->mutex);
+    return CKR_FUNCTION_FAILED;
   }
 
   locking.UnlockMutex(session->slot->mutex);
@@ -1203,6 +1215,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       return rv;
     }
 
+    ykpiv_rc rc;
+    if((rc = ykpiv_reset_card(session->slot->piv_state)) != YKPIV_OK) {
+      DBG("ykpiv_reset_card failed %d", rc);
+      locking.UnlockMutex(session->slot->mutex);
+      return CKR_FUNCTION_FAILED;
+    }
+
     locking.UnlockMutex(session->slot->mutex);
 
     is_new = CK_TRUE;
@@ -1296,6 +1315,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       }
     }
 
+    if((rc = ykpiv_reset_card(session->slot->piv_state)) != YKPIV_OK) {
+      DBG("ykpiv_reset_card failed %d", rc);
+      locking.UnlockMutex(session->slot->mutex);
+      return CKR_FUNCTION_FAILED;
+    }
+
     locking.UnlockMutex(session->slot->mutex);
     *phObject = pvtk_id;
     break;
@@ -1372,6 +1397,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
     DBG("Unable to delete object %lu", hObject);
     locking.UnlockMutex(session->slot->mutex);
     return rv;
+  }
+
+  ykpiv_rc rc;
+  if((rc = ykpiv_reset_card(session->slot->piv_state)) != YKPIV_OK) {
+    DBG("ykpiv_reset_card failed %d", rc);
+    locking.UnlockMutex(session->slot->mutex);
+    return CKR_FUNCTION_FAILED;
   }
 
   locking.UnlockMutex(session->slot->mutex);
@@ -1849,6 +1881,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
   piv_rv = ykpiv_decipher_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, 
                                session->op_info.buf, &cbDataLen, 
                                session->op_info.op.decrypt.algo, session->op_info.op.decrypt.key_id);
+
+  ykpiv_rc rc;
+  if((rc = ykpiv_reset_card(session->slot->piv_state)) != YKPIV_OK) {
+    DBG("ykpiv_reset_card failed %d", rc);
+    locking.UnlockMutex(session->slot->mutex);
+    return CKR_FUNCTION_FAILED;
+  }
 
   locking.UnlockMutex(session->slot->mutex);
 
@@ -2328,6 +2367,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   piv_rv = ykpiv_sign_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, session->op_info.buf, &cbSignatureLen, session->op_info.op.sign.algo, session->op_info.op.sign.key_id);
 
+  ykpiv_rc rc;
+  if((rc = ykpiv_reset_card(session->slot->piv_state)) != YKPIV_OK) {
+    DBG("ykpiv_reset_card failed %d", rc);
+    locking.UnlockMutex(session->slot->mutex);
+    return CKR_FUNCTION_FAILED;
+  }
+
   locking.UnlockMutex(session->slot->mutex);
 
   *pulSignatureLen = cbSignatureLen;
@@ -2711,6 +2757,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   rv = get_token_object(session->slot->piv_state, dobj_id, cert_data, &cert_len);
   if (rv != CKR_OK) {
     DBG("Unable to get data from token");
+    locking.UnlockMutex(session->slot->mutex);
+    return CKR_FUNCTION_FAILED;
+  }
+
+  ykpiv_rc rc;
+  if((rc = ykpiv_reset_card(session->slot->piv_state)) != YKPIV_OK) {
+    DBG("ykpiv_reset_card failed %d", rc);
     locking.UnlockMutex(session->slot->mutex);
     return CKR_FUNCTION_FAILED;
   }
