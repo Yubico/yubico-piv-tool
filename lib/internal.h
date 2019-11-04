@@ -158,6 +158,7 @@ struct ykpiv_state {
   SCARDHANDLE card;
   int  verbose;
   char *pin;
+  uint8_t *mgm_key;
   ykpiv_allocator allocator;
   bool isNEO;
   ykpiv_version_t ver;
