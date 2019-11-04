@@ -694,7 +694,7 @@ extern "C"
 #define DEVTYPE_YK       0x594B0000 //"YK"
 #define DEVTYPE_NEOr3    (DEVTYPE_NEO | 0x00007233) //"r3"
 #define DEVTYPE_YK4      (DEVTYPE_YK  | 0x00000034) // "4"
-#define DEVYTPE_YK5      (DEVTYPE_YK  | 0x00000035) // "5"
+#define DEVTYPE_YK5      (DEVTYPE_YK  | 0x00000035) // "5"
 
 #ifdef __cplusplus
 }

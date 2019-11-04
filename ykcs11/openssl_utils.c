@@ -599,7 +599,7 @@ CK_RV do_pkcs_1_t1(CK_BYTE_PTR in, CK_ULONG in_len, CK_BYTE_PTR out, CK_ULONG_PT
   unsigned char buffer[512];
 
   key_len /= 8;
-  DBG("Apply padding to %lu bytes and get %lu\n", in_len, key_len);
+  DBG("Apply padding to %lu bytes and get %lu", in_len, key_len);
 
   // TODO: rand must be seeded first (should be automatic)
   if (*out_len < key_len)

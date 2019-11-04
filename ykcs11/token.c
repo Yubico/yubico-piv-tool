@@ -344,12 +344,12 @@ CK_RV token_generate_key(ykpiv_state *state, CK_BBOOL rsa,
       int major, minor, build;
       int match = sscanf(version, "%d.%d.%d", &major, &minor, &build);
       if(match == 3 && major == 4 && (minor < 3 || (minor == 3 && build < 5))) {
-        DBG("On-chip RSA key generation on this YubiKey has been blocked.\n");
-        DBG("Please see https://yubi.co/ysa201701/ for details.\n");
+        DBG("On-chip RSA key generation on this YubiKey has been blocked.");
+        DBG("Please see https://yubi.co/ysa201701/ for details.");
         return CKR_FUNCTION_FAILED;
       }
     } else {
-      DBG("Failed to communicate.\n");
+      DBG("Failed to communicate.");
       return CKR_DEVICE_ERROR;
     }
   }
@@ -400,9 +400,10 @@ CK_RV token_generate_key(ykpiv_state *state, CK_BBOOL rsa,
 
   *in_ptr++ = key_algorithm;
 
-  if(ykpiv_transfer_data(state, templ, in_data, in_ptr - in_data, data, &recv_len, &sw) != YKPIV_OK ||
-     sw != 0x9000)
+  if(ykpiv_transfer_data(state, templ, in_data, in_ptr - in_data, data, &recv_len, &sw) != YKPIV_OK || sw != 0x9000) {
+    DBG(stderr, "Failed to generate key, sw = %04x.", sw);
     return CKR_DEVICE_ERROR;
+  }
 
   // Create a new empty certificate for the key
   recv_len = sizeof(data);
