@@ -49,6 +49,7 @@ typedef struct {
   CK_TOKEN_INFO token_info;
   ykpiv_state   *piv_state;
   ykcs11_login_state_t login_state;
+  void* mutex;
 } ykcs11_slot_t;
 
 typedef enum {
