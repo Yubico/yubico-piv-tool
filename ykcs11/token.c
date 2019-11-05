@@ -151,7 +151,9 @@ CK_RV get_token_model(ykpiv_state *state, CK_UTF8CHAR_PTR str, CK_ULONG len) {
   memset(str, ' ', len);
   memstrcpy(str, token_model);
 
-  if (buf[0] >= '4')
+  if (buf[0] >= '5')
+    memcpy(str + strlen(token_model) - 3, "YK5", 3);
+  else if (buf[0] >= '4')
     memcpy(str + strlen(token_model) - 3, "YK4", 3);
   else
     memcpy(str + strlen(token_model) - 3, "NEO", 3);
