@@ -113,7 +113,7 @@ static void test_lib_info() {
   dprintf(0, "TEST END: test_lib_info()\n");
 }
 
-#ifdef HW_TESTS
+#if HW_TESTS != 555
 static void test_initalize() {
   dprintf(0, "TEST START: test_initalize()\n");
   asrt(funcs->C_Initialize(NULL), CKR_OK, "INITIALIZE");
@@ -159,7 +159,7 @@ static int test_token_info() {
   asrt(info.hardwareVersion.major, HW.major, "HW_MAJ");
   asrt(info.hardwareVersion.minor, HW.minor, "HW_MIN");
 
-  if (info.firmwareVersion.major != 4 && info.firmwareVersion.major != 0)
+  if (info.firmwareVersion.major != 4 && info.firmwareVersion.major != 5)
     asrt(info.firmwareVersion.major, 4, "FW_MAJ");
 
   asrt(strncmp(info.utcTime, TOKEN_TIME, sizeof(info.utcTime)), 0, "TOKEN_TIME");
@@ -1608,7 +1608,7 @@ int main(void) {
 
   test_lib_info();
 
-#ifdef HW_TESTS
+#if HW_TESTS != 555
   // Require user confirmation to continue, since this test suite will clear
   // any data stored on connected keys.
   if (!destruction_confirmed())
