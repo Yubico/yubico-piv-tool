@@ -100,9 +100,9 @@ static const CK_MECHANISM_INFO token_mechanism_infos[] = { // KEEP ALIGNED WITH 
 
 static const piv_obj_id_t token_objects[] = { // TODO: is there a way to get this from the token?
     PIV_DATA_OBJ_X509_PIV_AUTH,   // PIV authentication
-    PIV_DATA_OBJ_X509_CARD_AUTH,  // card authentication
     PIV_DATA_OBJ_X509_DS,         // digital signature
     PIV_DATA_OBJ_X509_KM,         // key management
+    PIV_DATA_OBJ_X509_CARD_AUTH,  // card authentication
     PIV_DATA_OBJ_X509_RETIRED1,   // Retired key 1
     PIV_DATA_OBJ_X509_RETIRED2,   // Retired key 2
     PIV_DATA_OBJ_X509_RETIRED3,   // Retired key 3
@@ -123,6 +123,7 @@ static const piv_obj_id_t token_objects[] = { // TODO: is there a way to get thi
     PIV_DATA_OBJ_X509_RETIRED18,  // Retired key 18
     PIV_DATA_OBJ_X509_RETIRED19,  // Retired key 19
     PIV_DATA_OBJ_X509_RETIRED20,  // Retired key 20
+    PIV_DATA_OBJ_X509_ATTESTATION,// Attestation key
     PIV_DATA_OBJ_CCC,             // Card capability container
     PIV_DATA_OBJ_CHUI,            // Cardholder unique id
     PIV_DATA_OBJ_CHF,             // Cardholder fingerprints

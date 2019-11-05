@@ -73,19 +73,20 @@ static piv_obj_t piv_objects[] = {
   {PIV_DATA_OBJ_X509_RETIRED18, 1, 0, 0, "X.509 Certificate for Retired Key 18", 0, 0, get_doa, 22},
   {PIV_DATA_OBJ_X509_RETIRED19, 1, 0, 0, "X.509 Certificate for Retired Key 19", 0, 0, get_doa, 23},
   {PIV_DATA_OBJ_X509_RETIRED20, 1, 0, 0, "X.509 Certificate for Retired Key 20", 0, 0, get_doa, 24},
-  {PIV_DATA_OBJ_CCC, 1, 0, 0, "Card Capability Container", 0, 0, get_doa, 25},
-  {PIV_DATA_OBJ_CHUI, 1, 0, 0, "Card Holder Unique Identifier", 0, 0, get_doa, 26},
-  {PIV_DATA_OBJ_CHF, 1, 1, 0, "Card Holder Fingerprints", 0, 0, get_doa, 27},
-  {PIV_DATA_OBJ_SEC_OBJ, 1, 0, 0, "Security Object", 0, 0, get_doa, 28},
-  {PIV_DATA_OBJ_CHFI, 1, 1, 0, "Cardholder Facial Images", 0, 0, get_doa, 29},
-  {PIV_DATA_OBJ_PI, 1, 1, 0, "Printed Information", 0, 0, get_doa, 30},
-  {PIV_DATA_OBJ_DISCOVERY, 1, 0, 0, "Discovery Object", 0, 0, get_doa, 31},
-  {PIV_DATA_OBJ_HISTORY, 1, 0, 0, "Key History Object", 0, 0, get_doa, 32},
-  {PIV_DATA_OBJ_IRIS_IMAGE, 1, 1, 0, "Cardholder Iris Images", 0, 0, get_doa, 33},
-  {PIV_DATA_OBJ_BITGT, 1, 0, 0, "Biometric Information Templates Group Template", 0, 0, get_doa, 34},
-  {PIV_DATA_OBJ_SM_SIGNER, 1, 0, 0, "Secure Messaging Certificate Signer", 0, 0, get_doa, 35},
-  {PIV_DATA_OBJ_PC_REF_DATA, 1, 1, 0, "Pairing Code Reference Data Container", 0, 0, get_doa, 36},
-  {PIV_DATA_OBJ_LAST, 1, 0, 0, "", 0, 0, NULL, 37},
+  {PIV_DATA_OBJ_X509_ATTESTATION, 1, 0, 0, "X.509 Certificate for Attestation", 0, 0, get_doa, 25},
+
+  {PIV_DATA_OBJ_CCC, 1, 0, 0, "Card Capability Container", 0, 0, get_doa, 26},
+  {PIV_DATA_OBJ_CHUI, 1, 0, 0, "Card Holder Unique Identifier", 0, 0, get_doa, 27},
+  {PIV_DATA_OBJ_CHF, 1, 1, 0, "Card Holder Fingerprints", 0, 0, get_doa, 28},
+  {PIV_DATA_OBJ_SEC_OBJ, 1, 0, 0, "Security Object", 0, 0, get_doa, 29},
+  {PIV_DATA_OBJ_CHFI, 1, 1, 0, "Cardholder Facial Images", 0, 0, get_doa, 30},
+  {PIV_DATA_OBJ_PI, 1, 1, 0, "Printed Information", 0, 0, get_doa, 31},
+  {PIV_DATA_OBJ_DISCOVERY, 1, 0, 0, "Discovery Object", 0, 0, get_doa, 32},
+  {PIV_DATA_OBJ_HISTORY, 1, 0, 0, "Key History Object", 0, 0, get_doa, 33},
+  {PIV_DATA_OBJ_IRIS_IMAGE, 1, 1, 0, "Cardholder Iris Images", 0, 0, get_doa, 34},
+  {PIV_DATA_OBJ_BITGT, 1, 0, 0, "Biometric Information Templates Group Template", 0, 0, get_doa, 35},
+  {PIV_DATA_OBJ_SM_SIGNER, 1, 0, 0, "Secure Messaging Certificate Signer", 0, 0, get_doa, 36},
+  {PIV_DATA_OBJ_PC_REF_DATA, 1, 1, 0, "Pairing Code Reference Data Container", 0, 0, get_doa, 37},
 
   {PIV_CERT_OBJ_X509_PIV_AUTH, 1, 0, 0, "X.509 Certificate for PIV Authentication", 0, 0, get_coa, 1},
   {PIV_CERT_OBJ_X509_DS, 1, 0, 0, "X.509 Certificate for Digital Signature", 0, 0, get_coa, 2},
@@ -111,7 +112,7 @@ static piv_obj_t piv_objects[] = {
   {PIV_CERT_OBJ_X509_RETIRED18, 1, 0, 0, "X.509 Certificate for Retired Key 18", 0, 0, get_coa, 22},
   {PIV_CERT_OBJ_X509_RETIRED19, 1, 0, 0, "X.509 Certificate for Retired Key 19", 0, 0, get_coa, 23},
   {PIV_CERT_OBJ_X509_RETIRED20, 1, 0, 0, "X.509 Certificate for Retired Key 20", 0, 0, get_coa, 24},
-  {PIV_CERT_OBJ_LAST, 1, 0, 0, "", 0, 0, NULL, 25},
+  {PIV_CERT_OBJ_X509_ATTESTATION, 1, 0, 0, "X.509 Certificate for Attestation", 0, 0, get_coa, 25},
 
   {PIV_PVTK_OBJ_PIV_AUTH, 1, 1, 0, "Private key for PIV Authentication", 0, 0, get_proa, 1},   // 9a
   {PIV_PVTK_OBJ_DS, 1, 1, 0, "Private key for Digital Signature", 0, 0, get_proa, 2},          // 9c
@@ -137,7 +138,7 @@ static piv_obj_t piv_objects[] = {
   {PIV_PVTK_OBJ_RETIRED18, 1, 1, 0, "Private key for Retired Key 18", 0, 0, get_proa, 22},
   {PIV_PVTK_OBJ_RETIRED19, 1, 1, 0, "Private key for Retired Key 19", 0, 0, get_proa, 23},
   {PIV_PVTK_OBJ_RETIRED20, 1, 1, 0, "Private key for Retired Key 20", 0, 0, get_proa, 24},
-  {PIV_PVTK_OBJ_LAST, 1, 0, 0, "", 0, 0, NULL, 25},
+  {PIV_PVTK_OBJ_ATTESTATION, 1, 1, 0, "Private key for Attestation", 0, 0, get_proa, 25},
 
   {PIV_PUBK_OBJ_PIV_AUTH, 1, 0, 0, "Public key for PIV Authentication", 0, 0, get_puoa, 1},
   {PIV_PUBK_OBJ_DS, 1, 0, 0, "Public key for Digital Signature", 0, 0, get_puoa, 2},
@@ -163,10 +164,11 @@ static piv_obj_t piv_objects[] = {
   {PIV_PUBK_OBJ_RETIRED18, 1, 0, 0, "Public key for Retired Key 18", 0, 0, get_puoa, 22},
   {PIV_PUBK_OBJ_RETIRED19, 1, 0, 0, "Public key for Retired Key 19", 0, 0, get_puoa, 23},
   {PIV_PUBK_OBJ_RETIRED20, 1, 0, 0, "Public key for Retired Key 20", 0, 0, get_puoa, 24},
-  {PIV_PUBK_OBJ_LAST, 1, 0, 0, "", 0, 0, NULL, 25}
+  {PIV_PUBK_OBJ_ATTESTATION, 1, 0, 0, "Public key for Attestation", 0, 0, get_puoa, 25}
 };
 
 static piv_data_obj_t data_objects[] = {
+  {0, ""},
 	{10, "\x60\x86\x48\x01\x65\x03\x07\x02\x01\x01"},	// 2.16.840.1.101.3.7.2.1.1
 	{10, "\x60\x86\x48\x01\x65\x03\x07\x02\x01\x00"},	// 2.16.840.1.101.3.7.2.1.0
 	{10, "\x60\x86\x48\x01\x65\x03\x07\x02\x01\x02"},	// 2.16.840.1.101.3.7.2.1.2
@@ -191,6 +193,7 @@ static piv_data_obj_t data_objects[] = {
 	{10, "\x60\x86\x48\x01\x65\x03\x07\x02\x10\x12"},	// 2.16.840.1.101.3.7.2.16.18
 	{10, "\x60\x86\x48\x01\x65\x03\x07\x02\x10\x13"},	// 2.16.840.1.101.3.7.2.16.19
 	{10, "\x60\x86\x48\x01\x65\x03\x07\x02\x10\x14"},	// 2.16.840.1.101.3.7.2.16.20
+	{10, "\x60\x86\x48\x01\x65\x03\x07\x02\x10\x15"},	// 2.16.840.1.101.3.7.2.16.21 TODO: FIXME !!!
 	{11, "\x60\x86\x48\x01\x65\x03\x07\x01\x81\x5b\x00"},	// 2.16.840.1.101.3.7.1.219.0
 	{10, "\x60\x86\x48\x01\x65\x03\x07\x02\x30\x00"},	// 2.16.840.1.101.3.7.2.48.0
 	{10, "\x60\x86\x48\x01\x65\x03\x07\x02\x60\x10"},	// 2.16.840.1.101.3.7.2.96.16
@@ -203,7 +206,6 @@ static piv_data_obj_t data_objects[] = {
 	{10, "\x60\x86\x48\x01\x65\x03\x07\x02\x10\x16"},	// 2.16.840.1.101.3.7.2.16.22
 	{10, "\x60\x86\x48\x01\x65\x03\x07\x02\x10\x17"},	// 2.16.840.1.101.3.7.2.16.23
 	{10, "\x60\x86\x48\x01\x65\x03\x07\x02\x10\x18"},	// 2.16.840.1.101.3.7.2.16.24
-	{0, ""}
 };
 
 static piv_pvtk_obj_t pvtkey_objects[] = {
@@ -231,10 +233,12 @@ static piv_pvtk_obj_t pvtkey_objects[] = {
   {1, 1, 0, 0, 0},
   {1, 1, 0, 0, 0},
   {1, 1, 0, 0, 0},
+  {1, 1, 0, 0, 0},
   {1, 1, 0, 0, 0}
 };
 
 static piv_pubk_obj_t pubkey_objects[] = {
+  {1, 1, 0, 0},
   {1, 1, 0, 0},
   {1, 1, 0, 0},
   {1, 1, 0, 0},
@@ -1053,6 +1057,10 @@ CK_ULONG piv_2_ykpiv(piv_obj_id_t id) {
   case PIV_CERT_OBJ_X509_RETIRED20:
     return YKPIV_OBJ_RETIRED20;
 
+  case PIV_DATA_OBJ_X509_ATTESTATION:
+  case PIV_CERT_OBJ_X509_ATTESTATION:
+    return YKPIV_OBJ_ATTESTATION;
+
   case PIV_PVTK_OBJ_PIV_AUTH:
     return YKPIV_KEY_AUTHENTICATION;
 
@@ -1124,6 +1132,9 @@ CK_ULONG piv_2_ykpiv(piv_obj_id_t id) {
 
   case PIV_PVTK_OBJ_RETIRED20:
     return YKPIV_KEY_RETIRED20;
+
+  case PIV_PVTK_OBJ_ATTESTATION:
+    return YKPIV_KEY_ATTESTATION;
 
   default:
     return 0ul;
@@ -1199,11 +1210,11 @@ CK_BBOOL is_private_object(ykcs11_session_t *s, CK_OBJECT_HANDLE obj) {
 }
 
 CK_BYTE get_key_id(piv_obj_id_t obj) {
-  return (obj < PIV_DATA_OBJ_X509_PIV_AUTH || obj > PIV_PUBK_OBJ_RETIRED20) ? 0 : piv_objects[obj].sub_id;
+  return (obj < PIV_DATA_OBJ_X509_PIV_AUTH || obj > PIV_PUBK_OBJ_ATTESTATION) ? 0 : piv_objects[obj].sub_id;
 }
 
 piv_obj_id_t find_data_object(CK_BYTE sub_id) {
-  for(piv_obj_id_t id = PIV_DATA_OBJ_X509_PIV_AUTH; id <= PIV_DATA_OBJ_X509_RETIRED20; id++) {
+  for(piv_obj_id_t id = PIV_DATA_OBJ_X509_PIV_AUTH; id <= PIV_DATA_OBJ_X509_ATTESTATION; id++) {
     if(piv_objects[id].sub_id == sub_id)
       return id;
   }
@@ -1211,7 +1222,7 @@ piv_obj_id_t find_data_object(CK_BYTE sub_id) {
 }
 
 piv_obj_id_t find_cert_object(CK_BYTE sub_id) {
-  for(piv_obj_id_t id = PIV_CERT_OBJ_X509_PIV_AUTH; id <= PIV_CERT_OBJ_X509_RETIRED20; id++) {
+  for(piv_obj_id_t id = PIV_CERT_OBJ_X509_PIV_AUTH; id <= PIV_CERT_OBJ_X509_ATTESTATION; id++) {
     if(piv_objects[id].sub_id == sub_id)
       return id;
   }
@@ -1219,7 +1230,7 @@ piv_obj_id_t find_cert_object(CK_BYTE sub_id) {
 }
 
 piv_obj_id_t find_pubk_object(CK_BYTE sub_id) {
-  for(piv_obj_id_t id = PIV_PUBK_OBJ_PIV_AUTH; id <= PIV_PUBK_OBJ_RETIRED20; id++) {
+  for(piv_obj_id_t id = PIV_PUBK_OBJ_PIV_AUTH; id <= PIV_PUBK_OBJ_ATTESTATION; id++) {
     if(piv_objects[id].sub_id == sub_id)
       return id;
   }
@@ -1227,7 +1238,7 @@ piv_obj_id_t find_pubk_object(CK_BYTE sub_id) {
 }
 
 piv_obj_id_t find_pvtk_object(CK_BYTE sub_id) {
-  for(piv_obj_id_t id = PIV_PVTK_OBJ_PIV_AUTH; id <= PIV_PVTK_OBJ_RETIRED20; id++) {
+  for(piv_obj_id_t id = PIV_PVTK_OBJ_PIV_AUTH; id <= PIV_PVTK_OBJ_ATTESTATION; id++) {
     if(piv_objects[id].sub_id == sub_id)
       return id;
   }

@@ -105,7 +105,7 @@ typedef struct {
 typedef struct {
   CK_BBOOL        active;     
   CK_ULONG        idx;
-  piv_obj_id_t    objects[29 * 4];
+  piv_obj_id_t    objects[30 * 4];
   CK_ULONG        n_objects;
 } ykcs11_find_t;
 
@@ -117,11 +117,11 @@ typedef struct {
 typedef struct {
   CK_SESSION_INFO info;        // slotid, state, flags, deviceerror
   ykcs11_slot_t   *slot;       // slot for open session, or NULL 
-  piv_obj_id_t    objects[29 * 4]; // List of objects in the token
+  piv_obj_id_t    objects[30 * 4]; // List of objects in the token
   CK_ULONG        n_objects;   // TOTAL number of objects in the token
-  ykcs11_data_t   data[37];    // Raw data, stored by sub_id 1-36
-  X509            *certs[25];  // Certificates, stored by sub_id 1-24
-  EVP_PKEY        *pkeys[25];  // Public keys, stored by sub_id 1-24
+  ykcs11_data_t   data[38];    // Raw data, stored by sub_id 1-37
+  X509            *certs[26];  // Certificates, stored by sub_id 1-25
+  EVP_PKEY        *pkeys[26];  // Public keys, stored by sub_id 1-25
   ykcs11_find_t   find_obj;    // Active find operation (if any)
   op_info_t       op_info;
 } ykcs11_session_t;

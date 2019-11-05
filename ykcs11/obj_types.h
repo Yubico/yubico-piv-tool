@@ -37,7 +37,7 @@
 
 // TODO: this is mostly from OpenSC, how to give credit?
 typedef enum {
-  PIV_DATA_OBJ_X509_PIV_AUTH = 0, // PIV authentication
+  PIV_DATA_OBJ_X509_PIV_AUTH,     // PIV authentication
   PIV_DATA_OBJ_X509_DS,           // Digital signature
   PIV_DATA_OBJ_X509_KM,           // Key management
   PIV_DATA_OBJ_X509_CARD_AUTH,    // Card authentication
@@ -61,6 +61,7 @@ typedef enum {
   PIV_DATA_OBJ_X509_RETIRED18,    // Retired key 18
   PIV_DATA_OBJ_X509_RETIRED19,    // Retired key 19
   PIV_DATA_OBJ_X509_RETIRED20,    // Retired key 20
+  PIV_DATA_OBJ_X509_ATTESTATION,  // Attestation key
   PIV_DATA_OBJ_CCC,               // Card capability container
   PIV_DATA_OBJ_CHUI,              // Cardholder unique id
   PIV_DATA_OBJ_CHF,               // Cardholder fingerprints
@@ -73,7 +74,6 @@ typedef enum {
   PIV_DATA_OBJ_BITGT,             // Biometric information templates group template
   PIV_DATA_OBJ_SM_SIGNER,         // Secure messaging signer
   PIV_DATA_OBJ_PC_REF_DATA,       // Pairing code reference data
-  PIV_DATA_OBJ_LAST,
 
   PIV_CERT_OBJ_X509_PIV_AUTH,     // Certificate for PIV authentication
   PIV_CERT_OBJ_X509_DS,           // Certificate for digital signature
@@ -99,7 +99,7 @@ typedef enum {
   PIV_CERT_OBJ_X509_RETIRED18,    // Certificate for retired key 18
   PIV_CERT_OBJ_X509_RETIRED19,    // Certificate for retired key 19
   PIV_CERT_OBJ_X509_RETIRED20,    // Certificate for retired key 20
-  PIV_CERT_OBJ_LAST,
+  PIV_CERT_OBJ_X509_ATTESTATION,  // Certificate for attestation
 
   PIV_PVTK_OBJ_PIV_AUTH,          // Private key for PIV authentication
   PIV_PVTK_OBJ_DS,                // Private key for digital signature
@@ -125,7 +125,7 @@ typedef enum {
   PIV_PVTK_OBJ_RETIRED18,         // Private key for retired key 18
   PIV_PVTK_OBJ_RETIRED19,         // Private key for retired key 19
   PIV_PVTK_OBJ_RETIRED20,         // Private key for retired key 20
-  PIV_PVTK_OBJ_LAST,
+  PIV_PVTK_OBJ_ATTESTATION,       // Private key for Attestation
 
   PIV_PUBK_OBJ_PIV_AUTH,          // Public key for PIV authentication
   PIV_PUBK_OBJ_DS,                // Public key for digital signature
@@ -151,11 +151,9 @@ typedef enum {
   PIV_PUBK_OBJ_RETIRED18,         // Public key for retired key 18
   PIV_PUBK_OBJ_RETIRED19,         // Public key for retired key 19
   PIV_PUBK_OBJ_RETIRED20,         // Public key for retired key 20
-  PIV_PUBK_OBJ_LAST
-
+  PIV_PUBK_OBJ_ATTESTATION,       // Public key for Attestation
+  OBJECT_INVALID
 } piv_obj_id_t;
-
-#define OBJECT_INVALID            (PIV_PUBK_OBJ_LAST + 1)
 
 typedef struct {
   CK_ULONG len;
