@@ -2166,8 +2166,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     return CKR_KEY_HANDLE_INVALID;
   }
 
-  DBG("Key type is %lu\n", type);
-
   // Get key length and algorithm type
   if (type == CKK_RSA) {
     // RSA key
@@ -2701,64 +2699,58 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   DBG("Found %lu attributes for the public key and %lu attributes for the private key", ulPublicKeyAttributeCount, ulPrivateKeyAttributeCount);
 
   // Check if mechanism is supported
-  if ((rv = check_generation_mechanism(session, pMechanism)) != CKR_OK) {
+  if ((rv = check_generation_mechanism(pMechanism)) != CKR_OK) {
     DBG("Mechanism %lu is not supported either by the token or the module", pMechanism->mechanism);
     return rv;
   }
-  memcpy(&session->op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
+
+  gen_info_t gen;
 
   // Clear values
-  session->op_info.op.gen.key_len = 0;
-  session->op_info.op.gen.key_id = 0;
+  gen.key_len = 0;
+  gen.key_id = 0;
 
   // Check the template for the public key
-  if ((rv = check_pubkey_template(&session->op_info, pPublicKeyTemplate, ulPublicKeyAttributeCount)) != CKR_OK) {
+  if ((rv = check_pubkey_template(&gen, pMechanism, pPublicKeyTemplate, ulPublicKeyAttributeCount)) != CKR_OK) {
     DBG("Invalid public key template");
     return rv;
   }
 
   // Check the template for the private key
-  if ((rv = check_pvtkey_template(&session->op_info, pPrivateKeyTemplate, ulPrivateKeyAttributeCount)) != CKR_OK) {
+  if ((rv = check_pvtkey_template(&gen, pMechanism, pPrivateKeyTemplate, ulPrivateKeyAttributeCount)) != CKR_OK) {
     DBG("Invalid private key template");
     return rv;
   }
 
-  if (session->op_info.op.gen.key_len == 0) {
+  if (gen.key_len == 0) {
     DBG("Key length not specified");
     return CKR_TEMPLATE_INCOMPLETE;
   }
 
-  if (session->op_info.op.gen.key_id == 0) {
+  if (gen.key_id == 0) {
     DBG("Key id not specified");
     return CKR_TEMPLATE_INCOMPLETE;
   }
 
-  dobj_id = find_data_object(session->op_info.op.gen.key_id);
-  cert_id = find_cert_object(session->op_info.op.gen.key_id);
-  pvtk_id = find_pvtk_object(session->op_info.op.gen.key_id);
-  pubk_id = find_pubk_object(session->op_info.op.gen.key_id);
+  dobj_id = find_data_object(gen.key_id);
+  cert_id = find_cert_object(gen.key_id);
+  pvtk_id = find_pvtk_object(gen.key_id);
+  pubk_id = find_pubk_object(gen.key_id);
 
-  if (session->op_info.op.gen.rsa) {
-    DBG("Generating %lu bit RSA key in object %lu (%lx)", session->op_info.op.gen.key_len, pvtk_id, piv_2_ykpiv(pvtk_id));
+  if (gen.rsa) {
+    DBG("Generating %lu bit RSA key in object %lu (%lx)", gen.key_len, pvtk_id, piv_2_ykpiv(pvtk_id));
   }
   else {
-    DBG("Generating %lu bit EC key in object %lu (%lx)", session->op_info.op.gen.key_len, pvtk_id, piv_2_ykpiv(pvtk_id));
+    DBG("Generating %lu bit EC key in object %lu (%lx)", gen.key_len, pvtk_id, piv_2_ykpiv(pvtk_id));
   }
 
   locking.LockMutex(session->slot->mutex);
 
-  if ((rv = token_generate_key(session->slot->piv_state, session->op_info.op.gen.rsa, piv_2_ykpiv(pvtk_id), session->op_info.op.gen.key_len)) != CKR_OK) {
+  cert_len = sizeof(cert_data);
+  if ((rv = token_generate_key(session->slot->piv_state, gen.rsa, piv_2_ykpiv(pvtk_id), gen.key_len, cert_data, &cert_len)) != CKR_OK) {
     DBG("Unable to generate key pair");
     locking.UnlockMutex(session->slot->mutex);
     return rv;
-  }
-
-  cert_len = sizeof(cert_data);
-  rv = get_token_object(session->slot->piv_state, dobj_id, cert_data, &cert_len);
-  if (rv != CKR_OK) {
-    DBG("Unable to get data from token");
-    locking.UnlockMutex(session->slot->mutex);
-    return CKR_FUNCTION_FAILED;
   }
 
   ykpiv_rc rc;

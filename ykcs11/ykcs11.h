@@ -88,7 +88,6 @@ typedef struct {
 } decrypt_info_t;
 
 typedef union {
-  gen_info_t     gen;
   sign_info_t    sign;
   hash_info_t    hash;
   decrypt_info_t decrypt;

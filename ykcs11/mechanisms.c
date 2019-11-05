@@ -371,7 +371,7 @@ CK_RV sign_mechanism_cleanup(op_info_t *op_info) {
   return CKR_OK;
 }
 
-CK_RV check_generation_mechanism(const ykcs11_session_t *s, CK_MECHANISM_PTR m) {
+CK_RV check_generation_mechanism(CK_MECHANISM_PTR m) {
 
   CK_ULONG          i;
   CK_BBOOL          supported = CK_FALSE;
@@ -397,11 +397,11 @@ CK_RV check_generation_mechanism(const ykcs11_session_t *s, CK_MECHANISM_PTR m) 
 
 }
 
-CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG n) {
+CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTRIBUTE_PTR templ, CK_ULONG n) {
 
   CK_ULONG i;
 
-  op_info->op.gen.rsa = is_RSA_mechanism(op_info->mechanism.mechanism);
+  gen->rsa = is_RSA_mechanism(mechanism->mechanism);
 
   for (i = 0; i < n; i++) {
     switch (templ[i].type) {
@@ -412,14 +412,14 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
       break;
 
     case CKA_KEY_TYPE:
-      if ((op_info->op.gen.rsa == CK_TRUE  && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_RSA) ||
-          (op_info->op.gen.rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_ECDSA))
+      if ((gen->rsa == CK_TRUE  && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_RSA) ||
+          (gen->rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_ECDSA))
         return CKR_TEMPLATE_INCONSISTENT;
 
       break;
 
     case CKA_PUBLIC_EXPONENT:
-      if (op_info->op.gen.rsa == CK_FALSE)
+      if (gen->rsa == CK_FALSE)
         return CKR_ATTRIBUTE_VALUE_INVALID;
 
       // Only support F4
@@ -431,7 +431,7 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
       break;
 
     case CKA_MODULUS_BITS:
-      if (op_info->op.gen.rsa == CK_FALSE)
+      if (gen->rsa == CK_FALSE)
         return CKR_ATTRIBUTE_VALUE_INVALID;
 
       if (*((CK_ULONG_PTR) templ[i].pValue) != 1024 &&
@@ -440,15 +440,15 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
         return CKR_ATTRIBUTE_VALUE_INVALID;
       }
 
-      op_info->op.gen.key_len = *((CK_ULONG_PTR) templ[i].pValue);
+      gen->key_len = *((CK_ULONG_PTR) templ[i].pValue);
       break;
 
     case CKA_EC_PARAMS:
       // Support PRIME256V1 and SECP384R1
       if (templ[i].ulValueLen == 10 && memcmp((CK_BYTE_PTR)templ[i].pValue, PRIME256V1, 10) == 0)
-        op_info->op.gen.key_len = 256;
+        gen->key_len = 256;
       else if(templ[i].ulValueLen == 7 && memcmp((CK_BYTE_PTR)templ[i].pValue, SECP384R1, 7) == 0)
-        op_info->op.gen.key_len = 384;
+        gen->key_len = 384;
       else
         return CKR_FUNCTION_FAILED;
       break;
@@ -457,7 +457,7 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
       if (find_pubk_object(*((CK_BYTE_PTR)templ[i].pValue)) == (piv_obj_id_t)-1)
         return CKR_ATTRIBUTE_VALUE_INVALID;
 
-      op_info->op.gen.key_id = *((CK_BYTE_PTR)templ[i].pValue);
+      gen->key_id = *((CK_BYTE_PTR)templ[i].pValue);
       break;
 
     case CKA_TOKEN:
@@ -480,11 +480,11 @@ CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
 
 }
 
-CK_RV check_pvtkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG n) {
+CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTRIBUTE_PTR templ, CK_ULONG n) {
 
   CK_ULONG i;
 
-  op_info->op.gen.rsa = is_RSA_mechanism(op_info->mechanism.mechanism);
+  gen->rsa = is_RSA_mechanism(mechanism->mechanism);
 
   for (i = 0; i < n; i++) {
     switch (templ[i].type) {
@@ -495,8 +495,8 @@ CK_RV check_pvtkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
       break;
 
     case CKA_KEY_TYPE:
-      if ((op_info->op.gen.rsa == CK_TRUE  && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_RSA) ||
-          (op_info->op.gen.rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_ECDSA))
+      if ((gen->rsa == CK_TRUE  && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_RSA) ||
+          (gen->rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_ECDSA))
         return CKR_TEMPLATE_INCONSISTENT;
 
       break;
@@ -518,11 +518,11 @@ CK_RV check_pvtkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG
 
       // Check if ID was already specified in the public key template
       // In that case it has to match
-      if (op_info->op.gen.key_id != 0 &&
-          op_info->op.gen.key_id != *((CK_BYTE_PTR)templ[i].pValue))
+      if (gen->key_id != 0 &&
+          gen->key_id != *((CK_BYTE_PTR)templ[i].pValue))
         return CKR_TEMPLATE_INCONSISTENT;
 
-      op_info->op.gen.key_id = *((CK_BYTE_PTR)templ[i].pValue);
+      gen->key_id = *((CK_BYTE_PTR)templ[i].pValue);
       break;
 
     case CKA_SENSITIVE:

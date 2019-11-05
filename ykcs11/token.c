@@ -324,8 +324,7 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
   return CKR_OK;
 }
 
-CK_RV token_generate_key(ykpiv_state *state, CK_BBOOL rsa,
-                                       CK_BYTE key, CK_ULONG key_len) {
+CK_RV token_generate_key(ykpiv_state *state, CK_BBOOL rsa, CK_BYTE key, CK_ULONG key_len, CK_BYTE_PTR cert_data, CK_ULONG_PTR cert_len) {
   // TODO: make a function in ykpiv for this
   unsigned char in_data[11];
   unsigned char *in_ptr = in_data;
@@ -402,7 +401,7 @@ CK_RV token_generate_key(ykpiv_state *state, CK_BBOOL rsa,
   *in_ptr++ = key_algorithm;
 
   if(ykpiv_transfer_data(state, templ, in_data, in_ptr - in_data, data, &recv_len, &sw) != YKPIV_OK || sw != 0x9000) {
-    DBG(stderr, "Failed to generate key, sw = %04x.", sw);
+    DBG("Failed to generate key, sw = %04x.", sw);
     return CKR_DEVICE_ERROR;
   }
 
@@ -431,8 +430,16 @@ CK_RV token_generate_key(ykpiv_state *state, CK_BBOOL rsa,
   *certptr++ = 0;
 
   // Store the certificate into the token
-  if (ykpiv_save_object(state, ykpiv_util_slot_object(key), data, (size_t)(certptr - data)) != YKPIV_OK)
+  if (ykpiv_save_object(state, ykpiv_util_slot_object(key), data, certptr - data) != YKPIV_OK)
     return CKR_DEVICE_ERROR;
+
+  if(*cert_len < certptr - data) {
+    DBG("Certificate buffer too small.");
+    return CKR_BUFFER_TOO_SMALL;
+  }
+
+  memcpy(cert_data, data, certptr - data);
+  *cert_len = certptr - data;
 
   return CKR_OK;
 }
