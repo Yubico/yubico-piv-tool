@@ -508,7 +508,7 @@ CK_RV apply_verify_mechanism_update(op_info_t *op_info, CK_BYTE_PTR in, CK_ULONG
   return CKR_OK;
 }
 
-CK_RV check_generation_mechanism(const ykcs11_session_t *s, CK_MECHANISM_PTR m) {
+CK_RV check_generation_mechanism(CK_MECHANISM_PTR m) {
 
   CK_ULONG          i;
   CK_BBOOL          supported = CK_FALSE;
@@ -641,11 +641,9 @@ CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
 /*    case CKA_MODULUS_BITS:
       if (op_info->op.gen.rsa == CK_FALSE)
         return CKR_MECHANISM_PARAM_INVALID;
-
       if (*((CK_ULONG_PTR)templ[i].pValue) != 1024 &&
           *((CK_ULONG_PTR) templ[i].pValue) != 2048) // TODO: make define?
         return CKR_MECHANISM_PARAM_INVALID;
-
       op_info->op.gen.key_len = *((CK_ULONG_PTR) templ[i].pValue); // TODO: check length?
       break;*/
 
