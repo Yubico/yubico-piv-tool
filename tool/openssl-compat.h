@@ -31,6 +31,7 @@ void RSA_get0_crt_params(const RSA *r,
                          const BIGNUM **iqmp);
 void X509_SIG_getm(X509_SIG *sig, X509_ALGOR **palg,
                    ASN1_OCTET_STRING **pdigest);
+int ECDSA_SIG_set0(ECDSA_SIG *sig, BIGNUM *r, BIGNUM *s);
 
 #endif /* _WINDOWS */
 #endif /* OPENSSL_VERSION_NUMBER || LIBRESSL_VERSION_NUMBER */
