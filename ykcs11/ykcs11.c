@@ -1904,7 +1904,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
 
   DBG("Got %lu bytes back", *pulDataLen);
 #if YKCS11_DBG
-  dump_data(op_info.buf, *pulDataLen, stderr, CK_TRUE, format_arg_hex);
+  dump_data(session->op_info.buf, *pulDataLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
   memcpy(pData, dec_unwrap, *pulDataLen);
@@ -2388,7 +2388,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   DBG("Got %lu bytes back", *pulSignatureLen);
 #if YKCS11_DBG
-  dump_data(op_info.buf, *pulSignatureLen, stderr, CK_TRUE, format_arg_hex);
+  dump_data(session->op_info.buf, *pulSignatureLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
   if (is_EC_mechanism(session->op_info.mechanism.mechanism)) {
