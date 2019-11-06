@@ -143,6 +143,23 @@ CK_BBOOL is_RSA_mechanism(CK_MECHANISM_TYPE m) {
   return CK_FALSE;
 }
 
+CK_BBOOL is_RSA_sign_mechanism(CK_MECHANISM_TYPE m) {
+
+  switch (m) {
+    case CKM_RSA_PKCS:
+    case CKM_SHA1_RSA_PKCS:
+    case CKM_SHA256_RSA_PKCS:
+    case CKM_SHA384_RSA_PKCS:
+    case CKM_SHA512_RSA_PKCS:
+      return CK_TRUE;
+
+    default:
+      return CK_FALSE;
+  }
+
+  return CK_FALSE;
+}
+
 CK_BBOOL is_PSS_mechanism(CK_MECHANISM_TYPE m) {
 
   switch (m) {
@@ -150,8 +167,8 @@ CK_BBOOL is_PSS_mechanism(CK_MECHANISM_TYPE m) {
   case CKM_SHA1_RSA_PKCS_PSS:
 //  case CKM_SHA224_RSA_PKCS_PSS:
   case CKM_SHA256_RSA_PKCS_PSS:
-  case CKM_SHA512_RSA_PKCS_PSS:
   case CKM_SHA384_RSA_PKCS_PSS:
+  case CKM_SHA512_RSA_PKCS_PSS:
     return CK_TRUE;
 
   default:
@@ -173,6 +190,21 @@ CK_BBOOL is_EC_mechanism(CK_MECHANISM_TYPE m) {
     return CK_TRUE;
   default:
     return CK_FALSE;
+  }
+
+  // Not reached
+  return CK_FALSE;
+}
+
+CK_BBOOL is_EC_sign_mechanism(CK_MECHANISM_TYPE m) {
+  switch (m) {
+    case CKM_ECDSA:
+    case CKM_ECDSA_SHA1:
+    case CKM_ECDSA_SHA256:
+    case CKM_ECDSA_SHA384:
+      return CK_TRUE;
+    default:
+      return CK_FALSE;
   }
 
   // Not reached
@@ -371,7 +403,112 @@ CK_RV sign_mechanism_cleanup(op_info_t *op_info) {
   return CKR_OK;
 }
 
-CK_RV check_generation_mechanism(CK_MECHANISM_PTR m) {
+CK_RV verify_mechanism_cleanup(op_info_t *op_info) {
+
+  if (op_info->op.verify.md_ctx != NULL) {
+    do_md_cleanup(op_info->op.verify.md_ctx);
+    op_info->op.verify.md_ctx = NULL;
+  }
+
+  return CKR_OK;
+}
+
+CK_RV apply_verify_mechanism_init(op_info_t *op_info) {
+  const EVP_MD *md = NULL;
+
+  op_info->buf_len = 0;
+  op_info->op.verify.padding = 0;
+  op_info->op.verify.md = NULL;
+  op_info->op.verify.md_ctx = NULL;
+
+  switch (op_info->mechanism.mechanism) {
+    case CKM_RSA_PKCS:
+    case CKM_RSA_PKCS_PSS:
+    case CKM_ECDSA:
+      // No hash required for these mechanisms
+      return CKR_OK;
+
+    case CKM_SHA1_RSA_PKCS:
+    case CKM_SHA1_RSA_PKCS_PSS:
+    case CKM_ECDSA_SHA1:
+      md = EVP_sha1();
+      break;
+
+    case CKM_SHA256_RSA_PKCS:
+    case CKM_SHA256_RSA_PKCS_PSS:
+    case CKM_ECDSA_SHA256:
+      md = EVP_sha256();
+      break;
+
+    case CKM_SHA384_RSA_PKCS:
+    case CKM_SHA384_RSA_PKCS_PSS:
+    case CKM_ECDSA_SHA384:
+      md = EVP_sha384();
+      break;
+
+    case CKM_SHA512_RSA_PKCS:
+    case CKM_SHA512_RSA_PKCS_PSS:
+      md = EVP_sha512();
+      break;
+
+    default:
+      DBG("Mechanism %lu not supported", op_info->mechanism.mechanism);
+      return CKR_MECHANISM_INVALID;
+  }
+
+  op_info->op.verify.md = md;
+  op_info->op.verify.md_ctx = EVP_MD_CTX_create();
+  if (op_info->op.verify.md_ctx == NULL) {
+    return CKR_FUNCTION_FAILED;
+  }
+  if (EVP_DigestInit(op_info->op.verify.md_ctx, md) == 0) {
+    return CKR_FUNCTION_FAILED;
+  }
+
+  return CKR_OK;
+}
+
+CK_RV apply_verify_mechanism_update(op_info_t *op_info, CK_BYTE_PTR in, CK_ULONG in_len) {
+  switch (op_info->mechanism.mechanism) {
+    case CKM_RSA_PKCS:
+    //case CKM_RSA_PKCS_PSS:
+    case CKM_ECDSA:
+      // No hash required for these mechanisms
+      if (op_info->buf_len + in_len > sizeof(op_info->buf)) {
+        return CKR_DATA_LEN_RANGE;
+      }
+
+      memcpy(op_info->buf + op_info->buf_len, in, in_len);
+      op_info->buf_len += in_len;
+      break;
+
+    case CKM_SHA1_RSA_PKCS:
+    //case CKM_SHA1_RSA_PKCS_PSS:
+    case CKM_ECDSA_SHA1:
+    case CKM_SHA256_RSA_PKCS:
+    //case CKM_SHA256_RSA_PKCS_PSS:
+    case CKM_ECDSA_SHA256:
+    case CKM_SHA384_RSA_PKCS:
+    //case CKM_SHA384_RSA_PKCS_PSS:
+    case CKM_ECDSA_SHA384:
+    case CKM_SHA512_RSA_PKCS:
+    //case CKM_SHA512_RSA_PKCS_PSS:
+    case CKM_ECDSA_SHA512:
+      if (EVP_DigestUpdate(op_info->op.verify.md_ctx, in, in_len) != 1) {
+        EVP_MD_CTX_destroy(op_info->op.verify.md_ctx);
+        op_info->op.sign.md_ctx = NULL;
+        return CKR_FUNCTION_FAILED;
+      }
+      break;
+
+    default:
+      return CKR_FUNCTION_FAILED;
+  }
+
+  return CKR_OK;
+}
+
+CK_RV check_generation_mechanism(const ykcs11_session_t *s, CK_MECHANISM_PTR m) {
 
   CK_ULONG          i;
   CK_BBOOL          supported = CK_FALSE;

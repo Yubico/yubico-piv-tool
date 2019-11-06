@@ -48,4 +48,7 @@ CK_RV native_destroy_mutex(void *mutex);
 CK_RV native_lock_mutex(void *mutex);
 CK_RV native_unlock_mutex(void *mutex);
 
+CK_RV verify_signature(ykcs11_session_t *session, op_info_t *op_info, 
+                  CK_BYTE_PTR signature, CK_ULONG signature_len);
+
 #endif

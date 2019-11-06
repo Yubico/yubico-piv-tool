@@ -56,6 +56,7 @@ typedef enum {
   YKCS11_NOOP,
   YKCS11_GEN,
   YKCS11_SIGN,
+  YKCS11_VERIFY,
   YKCS11_HASH,
   YKCS11_DECRYPT
 } ykcs11_op_type_t;
@@ -77,6 +78,14 @@ typedef struct {
 } sign_info_t;
 
 typedef struct {
+  ykcs11_md_ctx_t   *md_ctx;          // running hash
+  const EVP_MD      *md;              // digest used
+  CK_ULONG          padding;          // padding in the rsa case
+  CK_BYTE           key_id;           // Key id
+  CK_ULONG          key_len;          // Length in bits
+} verify_info_t;
+
+typedef struct {
   ykcs11_md_ctx_t   *md_ctx; // Digest context
   CK_ULONG          hash_len; // Length in bits
 } hash_info_t;
@@ -89,6 +98,7 @@ typedef struct {
 
 typedef union {
   sign_info_t    sign;
+  verify_info_t  verify;
   hash_info_t    hash;
   decrypt_info_t decrypt;
 } op_t;

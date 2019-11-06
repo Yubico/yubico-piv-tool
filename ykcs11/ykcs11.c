@@ -2496,10 +2496,96 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
   CK_OBJECT_HANDLE hKey
 )
 {
+  CK_KEY_TYPE  type = 0;
+  CK_ULONG     key_len = 0;
+  CK_BYTE      exp[3];
+  CK_BYTE      buf[1024] = {0};
+  CK_ATTRIBUTE template[] = {
+    {CKA_KEY_TYPE, &type, sizeof(type)},
+    {CKA_MODULUS_BITS, &key_len, sizeof(key_len)},
+    {CKA_EC_POINT, buf, sizeof(buf)},
+  };
+  
   DIN;
-  DBG("TODO!!!");
+
+  if (mutex == NULL) {
+    DBG("libykpiv is not initialized or already finalized");
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  ykcs11_session_t* session = get_session(hSession);
+
+  if (session == NULL || session->slot == NULL) {
+    DBG("Session is not open");
+    return CKR_SESSION_HANDLE_INVALID;
+  }
+
+  if (session->op_info.type != YKCS11_NOOP) {
+    DBG("Other operation in process");
+    return CKR_OPERATION_ACTIVE;
+  }
+
+  if (pMechanism == NULL_PTR)
+    return CKR_ARGUMENTS_BAD;
+
+  DBG("Trying to verify data with mechanism %lu and key %lu", pMechanism->mechanism, hKey);
+  
+  // Check if mechanism is supported
+  if (check_sign_mechanism(session, pMechanism) != CKR_OK) {
+    DBG("Mechanism %lu is not supported either by the token or the module", pMechanism->mechanism);
+    return CKR_MECHANISM_INVALID; // TODO: also the key has a list of allowed mechanisms, check that
+  }
+  memcpy(&session->op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
+  
+  //  Get key algorithm
+  if (get_attribute(session, hKey, template) != CKR_OK) {
+    DBG("Unable to get key type");
+    return CKR_KEY_HANDLE_INVALID;
+  }
+  
+  DBG("Key type is %lu\n", type);
+
+  // Get key length and algorithm type
+  if (type == CKK_RSA) {
+    // RSA key
+    if (get_attribute(session, hKey, template + 1) != CKR_OK) {
+      DBG("Unable to get key length");
+      return CKR_KEY_HANDLE_INVALID;
+    }
+
+    session->op_info.op.verify.key_len = key_len;
+  } else {
+    // ECDSA key
+    if (get_attribute(session, hKey, template + 2) != CKR_OK) {
+      DBG("Unable to get key length");
+      return CKR_KEY_HANDLE_INVALID;
+    }
+
+    // The buffer contains an uncompressed point of the form 04, len, 04, x, y
+    // Where len is |x| + |y| + 1 bytes
+    session->op_info.op.verify.key_len = (CK_ULONG) (((buf[1] - 1) / 2) * 8);    
+  }
+
+  DBG("Key length is %lu bit", session->op_info.op.verify.key_len);
+  session->op_info.op.verify.key_id = get_key_id(hKey);
+  if (session->op_info.op.verify.key_id == 0) {
+    DBG("Incorrect key %lu", hKey);
+    return CKR_KEY_HANDLE_INVALID;
+  }
+  
+  if (apply_verify_mechanism_init(&session->op_info) != CKR_OK) {
+    DBG("Unable to initialize verification operation");
+    return CKR_FUNCTION_FAILED;
+  }
+
+  if (type == CKK_RSA && is_RSA_sign_mechanism(session->op_info.mechanism.mechanism) ) {
+    session->op_info.op.verify.padding = RSA_PKCS1_PADDING;
+  }
+
+  session->op_info.type = YKCS11_VERIFY;
+
   DOUT;
-  return CKR_FUNCTION_NOT_SUPPORTED;
+  return CKR_OK;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_Verify)(
@@ -2510,10 +2596,75 @@ CK_DEFINE_FUNCTION(CK_RV, C_Verify)(
   CK_ULONG ulSignatureLen
 )
 {
+  CK_RV    rv;
+  CK_ULONG siglen;
+
   DIN;
-  DBG("TODO!!!");
+  
+  if (mutex == NULL) {
+    DBG("libykpiv is not initialized or already finalized");
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  ykcs11_session_t* session = get_session(hSession);
+
+  if (session == NULL || session->slot == NULL) {
+    DBG("Session is not open");
+    rv = CKR_SESSION_HANDLE_INVALID;
+    goto verify_out;
+  }
+
+  if (pData == NULL || pSignature == NULL) {
+    DBG("Invalid parameters");
+    rv = CKR_ARGUMENTS_BAD;
+    goto verify_out;
+  }
+
+  if (session->op_info.type != YKCS11_VERIFY) {
+    DBG("Signature operation not initialized");
+    rv = CKR_OPERATION_NOT_INITIALIZED;
+    goto verify_out;
+  }
+
+  if (is_RSA_sign_mechanism(session->op_info.mechanism.mechanism)) {
+    siglen = (session->op_info.op.verify.key_len + 7) / 8;
+  } else if (is_EC_sign_mechanism(session->op_info.mechanism.mechanism)) {
+    siglen = ((session->op_info.op.verify.key_len + 7) / 8) * 2;
+  } else {
+    DBG("Mechanism %lu not supported", session->op_info.mechanism.mechanism);
+    rv = CKR_MECHANISM_INVALID;
+    goto verify_out;
+  }
+
+  if (ulSignatureLen != siglen) {
+    DBG("Wrong data length, expected %lu, got %lu", siglen, ulSignatureLen);
+    rv = CKR_SIGNATURE_LEN_RANGE;
+    goto verify_out;
+  }
+
+  rv = apply_verify_mechanism_update(&session->op_info, pData, ulDataLen);
+  if (rv != CKR_OK) {
+    DBG("Unable to perform verification operation step");
+    goto verify_out;
+  }
+
+  DBG("Using key %04x", session->op_info.op.verify.key_id);
+
+  rv = verify_signature(session, &session->op_info, pSignature, ulSignatureLen);
+  if (rv != CKR_OK) {
+    DBG("Unable to verify signature");
+    goto verify_out;
+  }
+
+  DBG("Signature successfully verified");
+  rv = CKR_OK;
+
+  verify_out:
+  session->op_info.type = YKCS11_NOOP;
+  verify_mechanism_cleanup(&session->op_info);
+
   DOUT;
-  return CKR_FUNCTION_NOT_SUPPORTED;
+  return rv;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_VerifyUpdate)(
