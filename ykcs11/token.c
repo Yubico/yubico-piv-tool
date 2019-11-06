@@ -180,13 +180,33 @@ CK_RV get_token_version(ykpiv_state *state, CK_VERSION_PTR version) {
 CK_RV get_token_serial(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
 
   uint32_t serial;
-  char buf[16];
+  char buf[len];
   int actual;
 
   if(ykpiv_get_serial(state, &serial) != YKPIV_OK)
     return CKR_FUNCTION_FAILED;
 
-  actual = snprintf(buf, sizeof(buf), "%d", serial);
+  actual = snprintf(buf, sizeof(buf), "%u", serial);
+
+  if(actual >= len)
+    return CKR_BUFFER_TOO_SMALL;
+
+  memset(str, ' ', len);
+  memstrcpy(str, buf);
+
+  return CKR_OK;
+}
+
+CK_RV get_token_label(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
+
+  uint32_t serial;
+  char buf[len];
+  int actual;
+
+  if(ykpiv_get_serial(state, &serial) != YKPIV_OK)
+    return CKR_FUNCTION_FAILED;
+
+  actual = snprintf(buf, sizeof(buf), "Yubico PIV #%u", serial);
 
   if(actual >= len)
     return CKR_BUFFER_TOO_SMALL;

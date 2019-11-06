@@ -37,6 +37,7 @@
 CK_RV get_token_model(ykpiv_state *state, CK_UTF8CHAR_PTR str, CK_ULONG len);
 CK_RV get_token_serial(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len);
 CK_RV get_token_version(ykpiv_state *state, CK_VERSION_PTR version);
+CK_RV get_token_label(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len);
 
 CK_RV get_token_mechanisms_num(CK_ULONG_PTR num);
 CK_RV get_token_mechanism_list(CK_MECHANISM_TYPE_PTR mec, CK_ULONG num);

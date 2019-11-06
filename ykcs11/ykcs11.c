@@ -48,7 +48,6 @@
 
 #define YKCS11_MANUFACTURER "Yubico (www.yubico.com)"
 #define YKCS11_LIBDESC      "PKCS#11 PIV Library (SP-800-73)"
-#define YKCS11_APPLICATION  "Yubico PIV"
 
 #define PIV_MIN_PIN_LEN 6
 #define PIV_MAX_PIN_LEN 8
@@ -353,9 +352,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
         slot->token_info.ulMaxRwSessionCount = YKCS11_MAX_SESSIONS;
         slot->token_info.ulMaxSessionCount = YKCS11_MAX_SESSIONS;
 
-        memset(slot->token_info.label, ' ', sizeof(slot->token_info.label));
-        memstrcpy(slot->token_info.label, YKCS11_APPLICATION);
-
         memset(slot->token_info.manufacturerID, ' ', sizeof(slot->token_info.manufacturerID));
         memstrcpy(slot->token_info.manufacturerID, YKCS11_MANUFACTURER);
 
@@ -364,6 +360,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
         get_token_model(slot->piv_state, slot->token_info.model, sizeof(slot->token_info.model));
         get_token_serial(slot->piv_state, slot->token_info.serialNumber, sizeof(slot->token_info.serialNumber));
         get_token_version(slot->piv_state, &slot->token_info.firmwareVersion);
+        get_token_label(slot->piv_state, slot->token_info.label, sizeof(slot->token_info.label));
       }
     }
   }
@@ -1865,7 +1862,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
   }
 
   DBG("Sending %lu bytes to be decrypted", ulEncryptedDataLen);
-#if YKCS11_DBG == 1
+#if YKCS11_DBG
   dump_data(pEncryptedData, ulEncryptedDataLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
@@ -1906,7 +1903,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
   *pulDataLen = RSA_padding_check_PKCS1_type_2(dec_unwrap, sizeof(dec_unwrap), session->op_info.buf + 1, cbDataLen - 1, session->op_info.op.decrypt.key_len/8);
 
   DBG("Got %lu bytes back", *pulDataLen);
-#if YKCS11_DBG == 1
+#if YKCS11_DBG
   dump_data(op_info.buf, *pulDataLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
@@ -2311,7 +2308,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   }
 
   DBG("Sending %lu bytes to sign", ulDataLen);
-#if YKCS11_DBG == 1
+#if YKCS11_DBG
   dump_data(pData, ulDataLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
@@ -2355,7 +2352,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   DBG("Using key %x", session->op_info.op.sign.key_id);
   DBG("After padding and transformation there are %lu bytes", session->op_info.buf_len);
-#if YKCS11_DBG == 1
+#if YKCS11_DBG
   dump_data(session->op_info.buf, session->op_info.buf_len, stderr, CK_TRUE, format_arg_hex);
 #endif
 
@@ -2390,7 +2387,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   }
 
   DBG("Got %lu bytes back", *pulSignatureLen);
-#if YKCS11_DBG == 1
+#if YKCS11_DBG
   dump_data(op_info.buf, *pulSignatureLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
@@ -2400,7 +2397,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     strip_DER_encoding_from_ECSIG(session->op_info.buf, pulSignatureLen);
 
     DBG("After removing DER encoding %lu", *pulSignatureLen);
-#if YKCS11_DBG == 1
+#if YKCS11_DBG
     dump_data(pSignature, *pulSignatureLen, stderr, CK_TRUE, format_arg_hex);
 #endif
   }

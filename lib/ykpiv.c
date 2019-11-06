@@ -247,20 +247,20 @@ ykpiv_rc ykpiv_reset_card(ykpiv_state *state) {
   LONG rc = SCardBeginTransaction(state->card);
   if(rc == SCARD_W_RESET_CARD) {
     if(state->verbose) {
-      fprintf(stderr, "SCardBeginTransaction indicates card was reset\n");
+      fprintf(stderr, "SCardBeginTransaction indicates card #%u was already reset\n", state->serial);
     }
     return YKPIV_OK;
   }
   if(rc != SCARD_S_SUCCESS) {
     if(state->verbose) {
-      fprintf(stderr, "SCardBeginTransaction failed, rc=%lx\n", (long)rc);
+      fprintf(stderr, "SCardBeginTransaction on card #%u failed, rc=%lx\n", state->serial, (long)rc);
     }
     return YKPIV_GENERIC_ERROR;
   }
   rc = SCardEndTransaction(state->card, SCARD_RESET_CARD);
   if(rc != SCARD_S_SUCCESS) {
     if(state->verbose) {
-      fprintf(stderr, "SCardEndTransaction failed, rc=%lx\n", (long)rc);
+      fprintf(stderr, "SCardEndTransaction(SCARD_RESET_CARD) on card #%u failed, rc=%lx\n", state->serial, (long)rc);
     }
     return YKPIV_GENERIC_ERROR;
   }
@@ -286,6 +286,9 @@ ykpiv_rc ykpiv_done(ykpiv_state *state) {
 
 ykpiv_rc ykpiv_disconnect(ykpiv_state *state) {
   if(state->card) {
+    if(state->verbose) {
+      fprintf(stderr, "Disconnect card #%u.\n", state->serial);
+    }
     SCardDisconnect(state->card, SCARD_RESET_CARD);
     state->card = 0;
   }
@@ -437,7 +440,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
   if(wanted && *wanted == '@') {
     wanted++; // Skip the '@' 
     if(state->verbose) {
-      fprintf(stderr, "Trying to connect to reader '%s'.\n", wanted);
+      fprintf(stderr, "Connect reader '%s'.\n", wanted);
     }
     if(SCardIsValidContext(state->context) != SCARD_S_SUCCESS) {
       rc = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &state->context);
@@ -488,7 +491,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
         }
       }
       if(state->verbose) {
-        fprintf(stderr, "Trying to connect to reader '%s' matching '%s'.\n", reader_ptr, wanted);
+        fprintf(stderr, "Connect reader '%s' matching '%s'.\n", reader_ptr, wanted);
       }
       rc = SCardConnect(state->context, reader_ptr, SCARD_SHARE_SHARED,
             SCARD_PROTOCOL_T1, &card, &active_protocol);
@@ -539,7 +542,7 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
     rc = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &state->context);
     if (rc != SCARD_S_SUCCESS) {
       if(state->verbose) {
-        fprintf (stderr, "error: SCardEstablishContext failed, rc=%lx\n", (long)rc);
+        fprintf (stderr, "SCardEstablishContext failed, rc=%lx\n", (long)rc);
       }
       return YKPIV_PCSC_ERROR;
     }
@@ -548,7 +551,7 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
   rc = SCardListReaders(state->context, NULL, NULL, &num_readers);
   if (rc != SCARD_S_SUCCESS) {
     if(state->verbose) {
-      fprintf (stderr, "error: SCardListReaders failed, rc=%lx\n", (long)rc);
+      fprintf (stderr, "SCardListReaders failed, rc=%lx\n", (long)rc);
     }
     SCardReleaseContext(state->context);
     state->context = (SCARDCONTEXT)-1;
@@ -565,7 +568,7 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
   if (rc != SCARD_S_SUCCESS)
   {
     if(state->verbose) {
-      fprintf (stderr, "error: SCardListReaders failed, rc=%lx\n", (long)rc);
+      fprintf (stderr, "SCardListReaders failed, rc=%lx\n", (long)rc);
     }
     SCardReleaseContext(state->context);
     state->context = (SCARDCONTEXT)-1;
@@ -584,21 +587,21 @@ ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state) {
   while((rc = SCardBeginTransaction(state->card)) == SCARD_W_RESET_CARD && retries < 5) {
     retries++;
     if(state->verbose) {
-      fprintf(stderr, "SCardBeginTransaction indicates card was reset, SCardReconnect retry %d\n", retries);
+      fprintf(stderr, "Reconnect card #%u attempt number %d\n", state->serial, retries);
     }
     pcsc_word active_protocol = 0;
     rc = SCardReconnect(state->card, SCARD_SHARE_SHARED,
             SCARD_PROTOCOL_T1, SCARD_LEAVE_CARD, &active_protocol);
     if(rc != SCARD_S_SUCCESS) {
       if(state->verbose) {
-        fprintf(stderr, "SCardReconnect failed, rc=%lx\n", (long)rc);
+        fprintf(stderr, "SCardReconnect on card #%u failed, rc=%lx\n", state->serial, (long)rc);
       }
       return YKPIV_PCSC_ERROR;
     }    
   }
   if(rc != SCARD_S_SUCCESS) {
     if(state->verbose) {
-      fprintf(stderr, "SCardBeginTransaction failed after %d retries, rc=%lx\n", retries, (long)rc);
+      fprintf(stderr, "SCardBeginTransaction on card #%u failed after %d retries, rc=%lx\n", state->serial, retries, (long)rc);
     }
     return YKPIV_PCSC_ERROR;
   }
@@ -624,7 +627,7 @@ ykpiv_rc _ykpiv_end_transaction(ykpiv_state *state) {
 #if ENABLE_IMPLICIT_TRANSACTIONS
   LONG rc = SCardEndTransaction(state->card, SCARD_LEAVE_CARD);
   if(rc != SCARD_S_SUCCESS && state->verbose) {
-    fprintf(stderr, "SCardEndTransaction failed, rc=%lx\n", (long)rc);
+    fprintf(stderr, "SCardEndTransaction on card #%u failed, rc=%lx\n", state->serial, (long)rc);
     //return YKPIV_PCSC_ERROR;
   }
 #endif /* ENABLE_IMPLICIT_TRANSACTIONS */
@@ -741,7 +744,7 @@ ykpiv_rc _send_data(ykpiv_state *state, APDU *apdu,
   LONG rc = SCardTransmit(state->card, SCARD_PCI_T1, apdu->raw, send_len, NULL, data, &tmp_len);
   if(rc != SCARD_S_SUCCESS) {
     if(state->verbose) {
-      fprintf (stderr, "error: SCardTransmit failed, rc=%lx\n", (long)rc);
+      fprintf (stderr, "SCardTransmit on card #%u failed, rc=%lx\n", state->serial, (long)rc);
     }
     return YKPIV_PCSC_ERROR;
   }
