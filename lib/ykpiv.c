@@ -553,6 +553,11 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
     if(state->verbose) {
       fprintf (stderr, "SCardListReaders failed, rc=%lx\n", (long)rc);
     }
+    if(rc == SCARD_E_NO_READERS_AVAILABLE) {
+      *readers = 0;
+      *len = 1;
+      return YKPIV_OK;
+    }
     SCardReleaseContext(state->context);
     state->context = (SCARDCONTEXT)-1;
     return YKPIV_PCSC_ERROR;
