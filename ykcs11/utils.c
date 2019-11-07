@@ -62,8 +62,10 @@ CK_BBOOL is_yubico_reader(const char* reader_name) {
   return !strncmp(reader_name, "Yubico", 6);
 }
 
-void* memstrcpy(unsigned char *dst, const char *src) {
-  return memcpy(dst, src, strlen(src));
+size_t memstrcpy(void *dst, const char *src) {
+  size_t len = strlen(src);
+  memcpy(dst, src, len);
+  return len;
 }
 
 size_t lastnon(unsigned const char *src, size_t len, unsigned char c) {

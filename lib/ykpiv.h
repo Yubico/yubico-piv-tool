@@ -692,9 +692,9 @@ extern "C"
 #define DEVTYPE_UNKNOWN  0x00000000
 #define DEVTYPE_NEO      0x4E450000 //"NE"
 #define DEVTYPE_YK       0x594B0000 //"YK"
-#define DEVTYPE_NEOr3    (DEVTYPE_NEO | 0x00007233) //"r3"
-#define DEVTYPE_YK4      (DEVTYPE_YK  | 0x00000034) // "4"
-#define DEVTYPE_YK5      (DEVTYPE_YK  | 0x00000035) // "5"
+#define DEVTYPE_NEOr3    (DEVTYPE_NEO | 0x00007233) // "r3"
+#define DEVTYPE_YK4      (DEVTYPE_YK  | 0x00003034) // "04"
+#define DEVTYPE_YK5      (DEVTYPE_YK  | 0x00003035) // "05"
 
 #ifdef __cplusplus
 }

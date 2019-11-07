@@ -126,8 +126,8 @@ static int test_token_info() {
 
   const CK_CHAR_PTR TOKEN_LABEL  = "YubiKey PIV";
   const CK_CHAR_PTR TOKEN_MODEL  = "YubiKey ";  // Skip last 3 characters (version dependent)
-  const CK_CHAR_PTR TOKEN_MODEL_YK4  = "YubiKey YK4";
-  const CK_CHAR_PTR TOKEN_MODEL_YK5  = "YubiKey YK5";
+  const CK_CHAR_PTR TOKEN_MODEL_YK4  = "YubiKey YK04";
+  const CK_CHAR_PTR TOKEN_MODEL_YK5  = "YubiKey YK05";
   //const CK_CHAR_PTR TOKEN_SERIAL = "1234";
   const CK_FLAGS TOKEN_FLAGS = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
   const CK_VERSION HW = {1, 0};
@@ -154,7 +154,7 @@ static int test_token_info() {
 
   if (strncmp(info.model, TOKEN_MODEL_YK4, strlen(TOKEN_MODEL_YK4)) != 0 &&
       strncmp(info.model, TOKEN_MODEL_YK5, strlen(TOKEN_MODEL_YK5)) != 0) {
-    dprintf(0, "\n\n** WARNING: Only YK4 supported.  Skipping remaining tests.\n\n");
+    dprintf(0, "\n\n** WARNING: Only YK04 and YK05 supported. Skipping remaining tests.\n\n");
     return -1;
   }
 

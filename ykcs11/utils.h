@@ -35,7 +35,7 @@
 #include "token.h"
 
 CK_BBOOL is_yubico_reader(const char* reader_name);
-void* memstrcpy(unsigned char *dst, const char *src);
+size_t memstrcpy(void *dst, const char *src);
 size_t lastnon(unsigned const char *src, size_t len, unsigned char c);
 
 void strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG_PTR len);
