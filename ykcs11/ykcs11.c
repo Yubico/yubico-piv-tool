@@ -1764,8 +1764,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
     return CKR_KEY_HANDLE_INVALID;
   }
 
-  DBG("Key type is %lu\n", type);
-
   if(type == CKK_RSA) {
     if (get_attribute(session, hKey, template + 1) != CKR_OK) {
       DBG("Unable to get key length");
@@ -1842,15 +1840,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
     goto decrypt_out;
   }
 
-  // NOTE: datalen is just an approximation here since the data is encrypted
-  CK_ULONG datalen;
-  if (check_rsa_decrypt_mechanism(session, &(session->op_info.mechanism)) != CKR_OK) {
-    DBG("Mechanism %lu not supported", session->op_info.mechanism.mechanism);
-    rv = CKR_MECHANISM_INVALID;
-    goto decrypt_out;
-  } else {
-    datalen = (session->op_info.op.decrypt.key_len + 7) / 8 - 11;
-  }
+  CK_ULONG datalen = (session->op_info.op.decrypt.key_len + 7) / 8 - 11;
   DBG("The size of the data will be %lu", datalen);
 
   if (pData == NULL_PTR) {
@@ -2543,8 +2533,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
     return CKR_KEY_HANDLE_INVALID;
   }
   
-  DBG("Key type is %lu\n", type);
-
   // Get key length and algorithm type
   if (type == CKK_RSA) {
     // RSA key

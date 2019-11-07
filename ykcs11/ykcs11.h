@@ -54,7 +54,6 @@ typedef struct {
 
 typedef enum {
   YKCS11_NOOP,
-  YKCS11_GEN,
   YKCS11_SIGN,
   YKCS11_VERIFY,
   YKCS11_HASH,
