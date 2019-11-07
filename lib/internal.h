@@ -160,7 +160,7 @@ struct ykpiv_state {
   char *pin;
   uint8_t *mgm_key;
   ykpiv_allocator allocator;
-  bool isNEO;
+  uint32_t model;
   ykpiv_version_t ver;
   uint32_t serial;
 };

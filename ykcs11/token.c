@@ -206,7 +206,7 @@ CK_RV get_token_label(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
   if(ykpiv_get_serial(state, &serial) != YKPIV_OK)
     return CKR_FUNCTION_FAILED;
 
-  actual = snprintf(buf, sizeof(buf), "Yubico PIV #%u", serial);
+  actual = snprintf(buf, sizeof(buf), "YubiKey PIV #%u", serial);
 
   if(actual >= len)
     return CKR_BUFFER_TOO_SMALL;

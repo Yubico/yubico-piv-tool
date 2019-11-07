@@ -113,7 +113,7 @@ static void test_lib_info() {
   dprintf(0, "TEST END: test_lib_info()\n");
 }
 
-#if HW_TESTS != 555
+#if HW_TESTS
 static void test_initalize() {
   dprintf(0, "TEST START: test_initalize()\n");
   asrt(funcs->C_Initialize(NULL), CKR_OK, "INITIALIZE");
@@ -127,7 +127,8 @@ static int test_token_info() {
   const CK_CHAR_PTR TOKEN_LABEL  = "YubiKey PIV";
   const CK_CHAR_PTR TOKEN_MODEL  = "YubiKey ";  // Skip last 3 characters (version dependent)
   const CK_CHAR_PTR TOKEN_MODEL_YK4  = "YubiKey YK4";
-  const CK_CHAR_PTR TOKEN_SERIAL = "1234";
+  const CK_CHAR_PTR TOKEN_MODEL_YK5  = "YubiKey YK5";
+  //const CK_CHAR_PTR TOKEN_SERIAL = "1234";
   const CK_FLAGS TOKEN_FLAGS = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
   const CK_VERSION HW = {1, 0};
   const CK_CHAR_PTR TOKEN_TIME   = "                ";
@@ -135,23 +136,24 @@ static int test_token_info() {
 
   init_connection();
   asrt(funcs->C_GetTokenInfo(0, &info), CKR_OK, "GetTokeninfo");
-  //asrt(strncmp(info.label, TOKEN_LABEL, strlen(TOKEN_LABEL)), 0, "TOKEN_LABEL");
+  asrt(strncmp(info.label, TOKEN_LABEL, strlen(TOKEN_LABEL)), 0, "TOKEN_LABEL");
   // Skip manufacturer id (not used)
   asrt(strncmp(info.model, TOKEN_MODEL, strlen(TOKEN_MODEL)), 0, "TOKEN_MODEL");
   //asrt(strncmp(info.serialNumber, TOKEN_SERIAL, strlen(TOKEN_SERIAL)), 0, "SERIAL_NUMBER");
   asrt(info.flags, TOKEN_FLAGS, "TOKEN_FLAGS");
-  //asrt(info.ulMaxSessionCount, CK_UNAVAILABLE_INFORMATION, "MAX_SESSION_COUNT");
-  //asrt(info.ulSessionCount, CK_UNAVAILABLE_INFORMATION, "SESSION_COUNT");
-  //asrt(info.ulMaxRwSessionCount, CK_UNAVAILABLE_INFORMATION, "MAX_RW_SESSION_COUNT");
-  //asrt(info.ulRwSessionCount, CK_UNAVAILABLE_INFORMATION, "RW_SESSION_COUNT");
+  asrt(info.ulMaxSessionCount, 16, "MAX_SESSION_COUNT");
+  asrt(info.ulSessionCount, 0, "SESSION_COUNT");
+  asrt(info.ulMaxRwSessionCount, 16, "MAX_RW_SESSION_COUNT");
+  asrt(info.ulRwSessionCount, 0, "RW_SESSION_COUNT");
   asrt(info.ulMaxPinLen, 8, "MAX_PIN_LEN");
   asrt(info.ulMinPinLen, 6, "MIN_PIN_LEN");
-  //asrt(info.ulTotalPublicMemory, CK_UNAVAILABLE_INFORMATION, "TOTAL_PUB_MEM");
-  //asrt(info.ulFreePublicMemory, CK_UNAVAILABLE_INFORMATION, "FREE_PUB_MEM");
-  //asrt(info.ulTotalPrivateMemory, CK_UNAVAILABLE_INFORMATION, "TOTAL_PVT_MEM");
-  //asrt(info.ulFreePrivateMemory, CK_UNAVAILABLE_INFORMATION, "FREE_PVT_MEM");
+  asrt(info.ulTotalPublicMemory, 0, "TOTAL_PUB_MEM");
+  asrt(info.ulFreePublicMemory, 0, "FREE_PUB_MEM");
+  asrt(info.ulTotalPrivateMemory, 0, "TOTAL_PVT_MEM");
+  asrt(info.ulFreePrivateMemory, 0, "FREE_PVT_MEM");
 
-  if (strncmp(info.model, TOKEN_MODEL_YK4, strlen(TOKEN_MODEL_YK4)) != 0) {
+  if (strncmp(info.model, TOKEN_MODEL_YK4, strlen(TOKEN_MODEL_YK4)) != 0 &&
+      strncmp(info.model, TOKEN_MODEL_YK5, strlen(TOKEN_MODEL_YK5)) != 0) {
     dprintf(0, "\n\n** WARNING: Only YK4 supported.  Skipping remaining tests.\n\n");
     return -1;
   }
@@ -1796,7 +1798,7 @@ int main(void) {
 
   test_lib_info();
 
-#if HW_TESTS != 555
+#if HW_TESTS
   // Require user confirmation to continue, since this test suite will clear
   // any data stored on connected keys.
   if (!destruction_confirmed())

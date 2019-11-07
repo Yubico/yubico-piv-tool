@@ -96,7 +96,7 @@ void teardown(void) {
   ck_assert_int_eq(res, YKPIV_OK);
 }
 
-#if HW_TESTS != 555
+#if HW_TESTS
 START_TEST(test_devicemodel) {
   ykpiv_rc res;
   ykpiv_devmodel model;
@@ -108,15 +108,20 @@ START_TEST(test_devicemodel) {
   ck_assert_int_eq(res, YKPIV_OK);
   fprintf(stderr, "Version: %s\n", version);
   model = ykpiv_util_devicemodel(g_state);
-  fprintf(stdout, "Model: %u\n", model);
-  ck_assert(model == DEVTYPE_YK4 || model == DEVTYPE_NEOr3);
+  fprintf(stdout, "Model: %x\n", model);
+  ck_assert(model == DEVTYPE_YK5 || model == DEVTYPE_YK4 || model == DEVTYPE_NEOr3);
 
   res = ykpiv_list_readers(g_state, reader_buf, &num_readers);
   ck_assert_int_eq(res, YKPIV_OK);
   ck_assert_int_gt(num_readers, 0);
-  if (model == DEVTYPE_YK4) {
-    //ck_assert_ptr_nonnull(strstr(reader_buf, "Yubikey"));
-    //ck_assert(version[0] == '4'); // Verify app version 4.x
+  if (model == DEVTYPE_YK5) {
+    ck_assert_ptr_nonnull(strstr(reader_buf, "YubiKey"));
+    ck_assert(version[0] == '5'); // Verify app version 5.x
+    ck_assert(version[1] == '.');
+  }
+  else if (model == DEVTYPE_YK4) {
+    ck_assert_ptr_nonnull(strstr(reader_buf, "Yubikey"));
+    ck_assert(version[0] == '4'); // Verify app version 4.x
     ck_assert(version[1] == '.');
   }
   else {
@@ -449,7 +454,7 @@ START_TEST(test_import_key) {
     ykpiv_devmodel model;
     model = ykpiv_util_devicemodel(g_state);
     res = ykpiv_attest(g_state, 0x9a, attest, &attest_len);
-    if (model == DEVTYPE_YK4) {
+    if (model != DEVTYPE_NEOr3) {
       ck_assert_int_eq(res, YKPIV_GENERIC_ERROR);
     }
     else {
@@ -466,7 +471,7 @@ START_TEST(test_pin_policy_always) {
     ykpiv_devmodel model;
     model = ykpiv_util_devicemodel(g_state);
     // Only works with YK4.  NEO should skip.
-    if (model != DEVTYPE_YK4) {
+    if (model == DEVTYPE_NEOr3) {
       fprintf(stderr, "WARNING: Not supported with Yubikey NEO.  Test skipped.\n");
       return;
     }
@@ -573,7 +578,7 @@ START_TEST(test_generate_key) {
     model = ykpiv_util_devicemodel(g_state);
     res = ykpiv_attest(g_state, YKPIV_KEY_AUTHENTICATION, attest, &attest_len);
     // Only works with YK4.  NEO should error.
-    if (model == DEVTYPE_YK4) {
+    if (model != DEVTYPE_NEOr3) {
       ck_assert_int_eq(res, YKPIV_OK);
       ck_assert_int_gt(attest_len, 0);
     }
@@ -947,7 +952,7 @@ Suite *test_suite(void) {
 
   s = suite_create("libykpiv api");
   tc = tcase_create("api");
-#if HW_TESTS != 555
+#if HW_TESTS
   tcase_add_unchecked_fixture(tc, setup, teardown);
 
   // Must be first: Reset device.  Tests run serially, and depend on a clean slate.
