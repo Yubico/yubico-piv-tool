@@ -2454,7 +2454,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
   }
 
   if (*pulSignatureLen < session->op_info.op.sign.sig_len) {
-    DBG("pulSignatureLen too small, signature will not fit, expected %u, got %lu", 
+    DBG("pulSignatureLen too small, signature will not fit, expected %lu, got %lu", 
             session->op_info.op.sign.sig_len, *pulSignatureLen);
     *pulSignatureLen = session->op_info.op.sign.sig_len;
     return CKR_BUFFER_TOO_SMALL;
@@ -2467,7 +2467,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
     goto sign_out;
   }
 
-  DBG("Using key %lx", session->op_info.op.sign.key_id);
+  DBG("Using key %x", session->op_info.op.sign.key_id);
   DBG("After padding and transformation there are %lu bytes", session->op_info.buf_len);
 #if YKCS11_DBG == 1
   dump_data(session->op_info.buf, session->op_info.buf_len, stderr, CK_TRUE, format_arg_hex);
@@ -2494,7 +2494,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
 
   DBG("Got %lu bytes back", *pulSignatureLen);
 #if YKCS11_DBG == 1
-  dump_data(op_info.buf, *pulSignatureLen, stderr, CK_TRUE, format_arg_hex);
+  dump_data(session->op_info.buf, *pulSignatureLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
   if (is_EC_mechanism(session->op_info.mechanism.mechanism)) {
