@@ -734,11 +734,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetPIN)(
   return CKR_OK;
 }
 
-static int compare_piv_obj_id(const void *a, const void *b) {
-
-  return (*(piv_obj_id_t*)a - *(piv_obj_id_t*)b);
-}
-
 CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   CK_SLOT_ID slotID,
   CK_FLAGS flags,
@@ -835,7 +830,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
 
   locking.UnlockMutex(session->slot->mutex);
 
-  qsort(session->objects, session->n_objects, sizeof(piv_obj_id_t), compare_piv_obj_id);
+  sort_objects(session);
   *phSession = get_session_handle(session);
 
   DOUT;
@@ -1122,7 +1117,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
   CK_ULONG         qinv_len;
   CK_BYTE_PTR      ec_data;
   CK_ULONG         ec_data_len;
-  CK_BBOOL         is_new;
   CK_BBOOL         is_rsa;
   CK_ULONG         dobj_id;
   CK_ULONG         cert_id;
@@ -1201,14 +1195,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     locking.UnlockMutex(session->slot->mutex);
 
-    is_new = CK_TRUE;
-    for (i = 0; i < session->n_objects; i++) {
-      if (session->objects[i] == cert_id)
-        is_new = CK_FALSE;
-    }
-
     // Check whether we created a new object or updated an existing one
-    if (is_new == CK_TRUE) {
+    if (!is_present(session, cert_id)) {
       // New object created, add it to the object list
       obj_ptr = session->objects + session->n_objects;
       *obj_ptr++ = dobj_id;
@@ -1216,7 +1204,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       *obj_ptr++ = pvtk_id;
       *obj_ptr++ = pubk_id;
       session->n_objects = obj_ptr - session->objects;
-      qsort(session->objects, session->n_objects, sizeof(piv_obj_id_t), compare_piv_obj_id);
+      sort_objects(session);
     }
 
     rv = store_data(session, dobj_id, value, value_len);
@@ -2861,7 +2849,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 {
   CK_RV          rv;
   CK_ULONG       i;
-  CK_BBOOL       is_new;
   CK_ULONG       dobj_id;
   CK_ULONG       cert_id;
   CK_ULONG       pvtk_id;
@@ -2964,14 +2951,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 
   locking.UnlockMutex(session->slot->mutex);
 
-  is_new = CK_TRUE;
-  for (i = 0; i < session->n_objects; i++) {
-    if (session->objects[i] == pvtk_id)
-      is_new = CK_FALSE;
-  }
-
   // Check whether we created a new object or updated an existing one
-  if (is_new == CK_TRUE) {
+  if (!is_present(session, pvtk_id)) {
     // New object created, add it to the object list
     obj_ptr = session->objects + session->n_objects;
     *obj_ptr++ = dobj_id;
@@ -2979,7 +2960,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     *obj_ptr++ = pvtk_id;
     *obj_ptr++ = pubk_id;
     session->n_objects = obj_ptr - session->objects;
-    qsort(session->objects, session->n_objects, sizeof(piv_obj_id_t), compare_piv_obj_id);
+    sort_objects(session);
   }
 
   // Write/Update the object

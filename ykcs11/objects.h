@@ -36,6 +36,8 @@
 CK_ULONG piv_2_ykpiv(piv_obj_id_t obj);
 CK_BYTE get_key_id(piv_obj_id_t obj);
 
+CK_BBOOL is_present(ykcs11_session_t *s, piv_obj_id_t id);
+
 piv_obj_id_t find_data_object(CK_BYTE key_id);
 piv_obj_id_t find_cert_object(CK_BYTE key_id);
 piv_obj_id_t find_pubk_object(CK_BYTE key_id);
@@ -44,6 +46,7 @@ piv_obj_id_t find_pvtk_object(CK_BYTE key_id);
 CK_RV    get_attribute(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
 CK_BBOOL attribute_match(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR attribute);
 CK_BBOOL is_private_object(ykcs11_session_t *s, CK_OBJECT_HANDLE obj);
+void sort_objects(ykcs11_session_t *s);
 
 CK_RV    store_data(ykcs11_session_t *s, piv_obj_id_t cert_id, CK_BYTE_PTR data, CK_ULONG len);
 CK_RV    store_cert(ykcs11_session_t *s, piv_obj_id_t cert_id, CK_BYTE_PTR data, CK_ULONG len);

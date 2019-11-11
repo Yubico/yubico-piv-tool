@@ -286,14 +286,14 @@ static CK_RV get_doa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR
   case CKA_TOKEN:
     // Technically all these objects are token objects
     DBG("TOKEN");
-    len = 1;
+    len = sizeof(CK_BBOOL);
     tmp = piv_objects[obj].token;
     data = &tmp;
     break;
 
   case CKA_PRIVATE:
     DBG("PRIVATE");
-    len = 1;
+    len = sizeof(CK_BBOOL);
     tmp = piv_objects[obj].private;
     data = &tmp;
     break;
@@ -325,7 +325,7 @@ static CK_RV get_doa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR
 
   case CKA_MODIFIABLE:
     DBG("MODIFIABLE");
-    len = sizeof(CK_BYTE);
+    len = sizeof(CK_BBOOL);
     tmp = piv_objects[obj].modifiable;
     data = &tmp;
     break;
@@ -1154,14 +1154,23 @@ CK_ULONG piv_2_ykpiv(piv_obj_id_t id) {
   }
 }
 
+static int compare_piv_obj_id(const void *a, const void *b) {
+  return (*(piv_obj_id_t*)a - *(piv_obj_id_t*)b);
+}
+
+void sort_objects(ykcs11_session_t *s) {
+  qsort(s->objects, s->n_objects, sizeof(piv_obj_id_t), compare_piv_obj_id);
+}
+
+CK_BBOOL is_present(ykcs11_session_t *s, piv_obj_id_t id) {
+  return bsearch(&id, s->objects, s->n_objects, sizeof(piv_obj_id_t), compare_piv_obj_id) ? CK_TRUE : CK_FALSE;
+}
+
 CK_RV get_attribute(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
-  CK_ULONG i;
 
-  for (i = 0; i < s->n_objects; i++)
-    if (s->objects[i] == obj) {
-      return piv_objects[obj].get_attribute(s, obj, template);
-    }
-
+  if (is_present(s, obj)) {
+    return piv_objects[obj].get_attribute(s, obj, template);
+  }
   return CKR_OBJECT_HANDLE_INVALID;
 }
 
@@ -1208,18 +1217,7 @@ CK_BBOOL attribute_match(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE
 }
 
 CK_BBOOL is_private_object(ykcs11_session_t *s, CK_OBJECT_HANDLE obj) {
-
-  CK_ATTRIBUTE attr;
-  CK_BYTE      private;
-
-  attr.type = CKA_PRIVATE;
-  attr.pValue = &private;
-  attr.ulValueLen = sizeof(private);
-
-  if (get_attribute(s, obj, &attr) != CKR_OK)
-    return CK_FALSE;
-
-  return private == CK_FALSE ? CK_FALSE : CK_TRUE;
+  return (obj < PIV_DATA_OBJ_X509_PIV_AUTH || obj > PIV_PUBK_OBJ_ATTESTATION) ? CK_FALSE : piv_objects[obj].private;
 }
 
 CK_BYTE get_key_id(piv_obj_id_t obj) {
