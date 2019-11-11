@@ -352,6 +352,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
         slot->token_info.ulMaxRwSessionCount = YKCS11_MAX_SESSIONS;
         slot->token_info.ulMaxSessionCount = YKCS11_MAX_SESSIONS;
 
+        slot->token_info.ulTotalPublicMemory = CK_UNAVAILABLE_INFORMATION;
+        slot->token_info.ulFreePublicMemory = CK_UNAVAILABLE_INFORMATION;
+        slot->token_info.ulTotalPrivateMemory = CK_UNAVAILABLE_INFORMATION;
+        slot->token_info.ulFreePrivateMemory = CK_UNAVAILABLE_INFORMATION;
+
         memset(slot->token_info.manufacturerID, ' ', sizeof(slot->token_info.manufacturerID));
         memstrcpy(slot->token_info.manufacturerID, YKCS11_MANUFACTURER);
 
@@ -3096,7 +3101,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetFunctionStatus)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_NOT_SUPPORTED;
+  return CKR_FUNCTION_NOT_PARALLEL;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_CancelFunction)(
@@ -3106,7 +3111,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CancelFunction)(
   DIN;
   DBG("TODO!!!");
   DOUT;
-  return CKR_FUNCTION_NOT_SUPPORTED;
+  return CKR_FUNCTION_NOT_PARALLEL;
 }
 
 static CK_FUNCTION_LIST function_list = {
