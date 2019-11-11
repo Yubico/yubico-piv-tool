@@ -2318,9 +2318,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   if (piv_rv != YKPIV_OK) {
     if (piv_rv == YKPIV_AUTHENTICATION_ERROR) {
-      DBG("Operation requires authentication or touch");
-      rv = CKR_USER_NOT_LOGGED_IN;
-      goto sign_out;
+        DBG("Operation requires authentication or touch");
+        rv = CKR_USER_NOT_LOGGED_IN;
+        goto sign_out;  
     }
     else {
       DBG("Sign error, %s", ykpiv_strerror(piv_rv));
@@ -2363,23 +2363,54 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignUpdate)(
   CK_ULONG ulPartLen
 )
 {
+  CK_RV    rv;
+  
   DIN;
-  DBG("TODO!!!");
+
+  if (mutex == NULL) {
+    DBG("libykpiv is not initialized or already finalized");
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
 
   ykcs11_session_t* session = get_session(hSession);
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
-    return CKR_SESSION_HANDLE_INVALID;
+    rv = CKR_SESSION_HANDLE_INVALID;
+    goto sign_out;
   }
 
-  if(session->op_info.type == YKCS11_SIGN) {
+  if (session->op_info.type != YKCS11_SIGN) {
+    DBG("Signature operation not initialized");
+    rv = CKR_OPERATION_NOT_INITIALIZED;
+    goto sign_out;
+  }
+
+  if (pPart == NULL) {
+    DBG("No data provided");
+    rv = CKR_ARGUMENTS_BAD;
+    goto sign_out;
+  }
+
+#if YKCS11_DBG == 1
+  dump_data(pPart, ulPartLen, stderr, CK_TRUE, format_arg_hex);
+#endif
+
+  if (apply_sign_mechanism_update(&session->op_info, pPart, ulPartLen) != CKR_OK) {
+    DBG("Unable to perform signing operation step");
+    rv = CKR_FUNCTION_FAILED;
+    goto sign_out;
+  }
+
+  rv = CKR_OK;
+
+  sign_out:
+  if(rv != CKR_OK) {
     session->op_info.type = YKCS11_NOOP;
     sign_mechanism_cleanup(&session->op_info);
   }
-
   DOUT;
-  return CKR_FUNCTION_NOT_SUPPORTED;
+  return rv;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
@@ -2388,23 +2419,112 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
   CK_ULONG_PTR pulSignatureLen
 )
 {
+  ykpiv_rc piv_rv;
+  CK_RV    rv;
+  size_t   cbSignatureLen = 0;
+
   DIN;
-  DBG("TODO!!!");
+
+  if (mutex == NULL) {
+    DBG("libykpiv is not initialized or already finalized");
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
 
   ykcs11_session_t* session = get_session(hSession);
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
-    return CKR_SESSION_HANDLE_INVALID;
+    rv = CKR_SESSION_HANDLE_INVALID;
+    goto sign_out;
   }
 
-  if(session->op_info.type == YKCS11_SIGN) {
-    session->op_info.type = YKCS11_NOOP;
-    sign_mechanism_cleanup(&session->op_info);
+  if (get_session_state(session) == CKS_RO_PUBLIC_SESSION ||
+      get_session_state(session) == CKS_RW_PUBLIC_SESSION) {
+    DBG("User is not logged in");
+    rv = CKR_USER_NOT_LOGGED_IN;
+    goto sign_out;
   }
+
+  if (session->op_info.type != YKCS11_SIGN) {
+    DBG("Signature operation not initialized");
+    rv = CKR_OPERATION_NOT_INITIALIZED;
+    goto sign_out;
+  }
+
+  if (pSignature == NULL_PTR) {
+    // Just return the size of the signature
+    *pulSignatureLen = session->op_info.op.sign.sig_len;
+    DBG("The size of the signature will be %lu", *pulSignatureLen);
+
+    DOUT;
+    return CKR_OK;
+  }
+
+  if (*pulSignatureLen < session->op_info.op.sign.sig_len) {
+    DBG("pulSignatureLen too small, signature will not fit, expected %u, got %lu", 
+            session->op_info.op.sign.sig_len, *pulSignatureLen);
+    *pulSignatureLen = session->op_info.op.sign.sig_len;
+    return CKR_BUFFER_TOO_SMALL;
+  }
+
+
+  if (apply_sign_mechanism_finalize(&session->op_info) != CKR_OK) {
+    DBG("Unable to finalize signing operation");
+    rv = CKR_FUNCTION_FAILED;
+    goto sign_out;
+  }
+
+  DBG("Using key %lx", session->op_info.op.sign.key_id);
+  DBG("After padding and transformation there are %lu bytes", session->op_info.buf_len);
+#if YKCS11_DBG == 1
+  dump_data(session->op_info.buf, session->op_info.buf_len, stderr, CK_TRUE, format_arg_hex);
+#endif
+
+  *pulSignatureLen = cbSignatureLen = sizeof(session->op_info.buf);
+
+  piv_rv = ykpiv_sign_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, session->op_info.buf, &cbSignatureLen, session->op_info.op.sign.algo, session->op_info.op.sign.key_id);
+
+  *pulSignatureLen = cbSignatureLen;
+
+  if (piv_rv != YKPIV_OK) {
+    if (piv_rv == YKPIV_AUTHENTICATION_ERROR) {
+      DBG("Operation requires authentication or touch");
+      rv = CKR_USER_NOT_LOGGED_IN;
+      goto sign_out;
+    }
+    else {
+      DBG("Sign error, %s", ykpiv_strerror(piv_rv));
+      rv = CKR_FUNCTION_FAILED;
+      goto sign_out;
+    }
+  }
+
+  DBG("Got %lu bytes back", *pulSignatureLen);
+#if YKCS11_DBG == 1
+  dump_data(op_info.buf, *pulSignatureLen, stderr, CK_TRUE, format_arg_hex);
+#endif
+
+  if (is_EC_mechanism(session->op_info.mechanism.mechanism)) {
+    // ECDSA, we must remove the DER encoding and only return R,S
+    // as required by the specs
+    strip_DER_encoding_from_ECSIG(session->op_info.buf, pulSignatureLen);
+
+    DBG("After removing DER encoding %lu", *pulSignatureLen);
+#if YKCS11_DBG == 1
+    dump_data(pSignature, *pulSignatureLen, stderr, CK_TRUE, format_arg_hex);
+#endif
+  }
+
+  memcpy(pSignature, session->op_info.buf, *pulSignatureLen);
   
+  rv = CKR_OK;
+
+  sign_out:
+  session->op_info.type = YKCS11_NOOP;
+  sign_mechanism_cleanup(&session->op_info);
+
   DOUT;
-  return CKR_FUNCTION_NOT_SUPPORTED;
+  return rv;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_SignRecoverInit)(

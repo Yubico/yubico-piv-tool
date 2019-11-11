@@ -449,6 +449,13 @@ static CK_RV get_coa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR
     data = b_tmp;
     break;
 
+  case CKA_TRUSTED:
+    DBG("TRUSTED");
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = 0;
+    data = b_tmp;
+    break;
+
   /* case CKA_START_DATE: */
   /* case CKA_END_DATE: */
   default: // TODO: there are other attributes for a (x509) certificate
@@ -528,14 +535,21 @@ static CK_RV get_proa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
     break;
 
   case CKA_SENSITIVE:
-    DBG("SENSITIVE"); // Default empty
+    DBG("SENSITIVE"); // Always true
     len = sizeof(CK_BBOOL);
     b_tmp[0] = 1;
     data = b_tmp;
     break;
 
+  case CKA_EXTRACTABLE:
+    DBG("EXTRACTABLE"); // Always false
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = 0;
+    data = b_tmp;
+    break;
+
   case CKA_LOCAL:
-    DBG("LOCAL"); // Default empty
+    DBG("LOCAL"); // Always true
     len = sizeof(CK_BBOOL);
     b_tmp[0] = 1;
     data = b_tmp;
@@ -689,7 +703,6 @@ static CK_RV get_proa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
   /* case CKA_BASE: */
   /* case CKA_VALUE_BITS: */
   /* case CKA_VALUE_LEN: */
-  /* case CKA_EXTRACTABLE: */
   /* case CKA_NEVER_EXTRACTABLE: */
   /* case CKA_ALWAYS_SENSITIVE:*/
   /* case CKA_START_DATE:  */
@@ -770,14 +783,14 @@ static CK_RV get_puoa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
     break;
 
   case CKA_SENSITIVE:
-    DBG("SENSITIVE"); // Default empty
+    DBG("SENSITIVE"); // Always false
     len = sizeof(CK_BBOOL);
     b_tmp[0] = 0;
     data = b_tmp;
     break;
 
   case CKA_LOCAL:
-    DBG("LOCAL"); // Default empty
+    DBG("LOCAL"); // Always false
     len = sizeof(CK_BBOOL);
     b_tmp[0] = 0;
     data = b_tmp;

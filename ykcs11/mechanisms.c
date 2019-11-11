@@ -288,11 +288,34 @@ CK_RV apply_sign_mechanism_update(op_info_t *op_info, CK_BYTE_PTR in, CK_ULONG i
 
   switch (op_info->mechanism.mechanism) {
   case CKM_RSA_PKCS:
+    // Specs say there should be enough space for PKCS#1 padding
+    if (op_info->buf_len + in_len > (op_info->op.sign.key_len + 7) / 8 - 11) {
+      return CKR_DATA_LEN_RANGE;
+    }
+
+    memcpy(op_info->buf + op_info->buf_len, in, in_len);
+    op_info->buf_len += in_len;
+    return CKR_OK;
+
   case CKM_RSA_PKCS_PSS:
-  case CKM_ECDSA:
   case CKM_RSA_X_509:
-    // Mechanism not suitable for multipart signatures
-    return CKR_FUNCTION_FAILED;
+    if (op_info->buf_len + in_len > sizeof(op_info->buf)) {
+      return CKR_DATA_LEN_RANGE;
+    }
+
+    memcpy(op_info->buf + op_info->buf_len, in, in_len);
+    op_info->buf_len += in_len;
+    return CKR_OK;
+
+  case CKM_ECDSA:
+    if (op_info->buf_len + in_len > 128) {
+      // Specs say ECDSA only supports data up to 1024 bit
+      return CKR_DATA_LEN_RANGE;
+    }
+
+    memcpy(op_info->buf + op_info->buf_len, in, in_len);
+    op_info->buf_len += in_len;
+    return CKR_OK;
 
   case CKM_SHA1_RSA_PKCS:
   case CKM_SHA256_RSA_PKCS:

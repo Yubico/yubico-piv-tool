@@ -1781,6 +1781,78 @@ static void test_digest() {
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
   dprintf(0, "TEST END: test_digest()\n");
 }
+
+static void test_login_order() {
+  dprintf(0, "TEST START: test_login_order()\n");
+
+  CK_BYTE     i, j;
+  CK_BYTE     some_data[32];
+  CK_BYTE     params[] = {0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07};
+  CK_ULONG    class_k = CKO_PRIVATE_KEY;
+  CK_ULONG    class_c = CKO_PUBLIC_KEY;
+  CK_ULONG    kt = CKK_ECDSA;
+  CK_BYTE     id = 1;
+  CK_BYTE     sig[64];
+  CK_ULONG    recv_len = sizeof(sig);
+
+  CK_ATTRIBUTE privateKeyTemplate[] = {
+    {CKA_CLASS, &class_k, sizeof(class_k)},
+    {CKA_KEY_TYPE, &kt, sizeof(kt)},
+    {CKA_ID, &id, sizeof(id)}
+  };
+
+  CK_ATTRIBUTE publicKeyTemplate[] = {
+    {CKA_CLASS, &class_c, sizeof(class_c)},
+    {CKA_ID, &id, sizeof(id)},
+    {CKA_EC_PARAMS, &params, sizeof(params)}
+  };
+
+  CK_MECHANISM keygen_mech = {CKM_EC_KEY_PAIR_GEN, NULL};
+  CK_MECHANISM sign_mech = {CKM_ECDSA, NULL};
+
+  CK_OBJECT_HANDLE privkey, pubkey, cert;
+  CK_SESSION_HANDLE session, session2;
+
+  init_connection();
+  asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
+  asrt(funcs->C_Login(session, CKU_SO, "010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
+
+  asrt(funcs->C_GenerateKeyPair(session, &keygen_mech, publicKeyTemplate, 3, privateKeyTemplate, 3, &pubkey, &privkey), CKR_OK, "GEN EC KEYPAIR");
+  asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
+
+  
+  asrt(funcs->C_Login(session, CKU_USER, "123456", 6), CKR_OK, "Login USER");
+  asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session2), CKR_OK, "OpenSession2");
+
+  asrt(funcs->C_SignInit(session, &sign_mech, privkey), CKR_OK, "SignInit");
+  asrt(funcs->C_Sign(session, some_data, sizeof(some_data), sig, &recv_len), CKR_OK, "Sign");
+  asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
+
+  CK_ULONG n_cert;
+  CK_BYTE ckaid = 0;
+  CK_ULONG class_cert = CKO_CERTIFICATE;
+  CK_ATTRIBUTE idTemplate[] = {
+    {CKA_ID, &ckaid, sizeof(ckaid)}
+  };
+  CK_ATTRIBUTE idClassTemplate[] = {
+    {CKA_ID, &ckaid, sizeof(ckaid)},
+    {CKA_CLASS, &class_cert, sizeof(class_cert)}
+  };
+
+  asrt(funcs->C_Login(session, CKU_SO, "010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
+  asrt(funcs->C_GetAttributeValue(session, privkey, idTemplate, 1), CKR_OK, "GET CKA_ID");
+  asrt(funcs->C_FindObjectsInit(session, idClassTemplate, 2), CKR_OK, "FIND INIT");
+  asrt(funcs->C_FindObjects(session, &cert, 1, &n_cert), CKR_OK, "FIND");
+  asrt(n_cert, 1, "FIND NR OBJECTS");
+  asrt(funcs->C_FindObjectsFinal(session), CKR_OK, "FIND FINAL");
+
+  asrt(funcs->C_DestroyObject(session, cert), CKR_OK, "Destroy Object");
+  asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
+  asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
+  asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
+  dprintf(0, "TEST END: test_login_order()\n");
+}
+
 #endif
 
 int destruction_confirmed(void) {
@@ -1824,6 +1896,8 @@ int main(void) {
   test_import_and_sign_all_10_RSA();
   test_import_and_sign_RSA_SHA256();
   test_decrypt_RSA();
+  test_decrypt_RSA();
+  test_login_order();
 #else
   fprintf(stderr, "HARDWARE TESTS DISABLED!, skipping...\n");
 #endif
