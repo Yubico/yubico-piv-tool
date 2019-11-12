@@ -662,6 +662,7 @@ extern "C"
 #define YKPIV_INS_SET_PIN_RETRIES 0xfa
 #define YKPIV_INS_ATTEST 0xf9
 #define YKPIV_INS_GET_SERIAL 0xf8
+#define YKPIV_INS_GET_METADATA 0xf7
 
 #define YKPIV_PINPOLICY_TAG 0xaa
 #define YKPIV_PINPOLICY_DEFAULT 0
@@ -674,6 +675,16 @@ extern "C"
 #define YKPIV_TOUCHPOLICY_NEVER 1
 #define YKPIV_TOUCHPOLICY_ALWAYS 2
 #define YKPIV_TOUCHPOLICY_CACHED 3
+
+#define YKPIV_METADATA_ALGORITHM_TAG 0x01 // See values for YKPIV_ALGO_TAG
+
+#define YKPIV_METADATA_POLICY_TAG 0x02 // Two bytes, see values for YKPIV_PINPOLICY_TAG and YKPIV_TOUCHPOLICY_TAG
+
+#define YKPIV_METADATA_ORIGIN_TAG 0x03
+#define YKPIV_METADATA_ORIGIN_GENERATED 0x01
+#define YKPIV_METADATA_ORIGIN_IMPORTED 0x02
+
+#define YKPIV_METADATA_PUBKEY_TAG 0x04 // RSA: DER-encoded sequence N, E; EC: Uncompressed EC point X, Y
 
 #define YKPIV_IS_EC(a) ((a == YKPIV_ALGO_ECCP256 || a == YKPIV_ALGO_ECCP384))
 #define YKPIV_IS_RSA(a) ((a == YKPIV_ALGO_RSA1024 || a == YKPIV_ALGO_RSA2048))
@@ -689,12 +700,10 @@ extern "C"
 #define YKPIV_ATR_YK5_P1 "\x3b\xf8\x13\x00\x00\x81\x31\xfe\x15\x01\x59\x75\x62\x69\x4b\x65\x79\xc1"
 #define YKPIV_ATR_YK5    "\x3b\xfd\x13\x00\x00\x81\x31\xfe\x15\x80\x73\xc0\x21\xc0\x57\x59\x75\x62\x69\x4b\x65\x79\x40"
 
-#define DEVTYPE_UNKNOWN  0x00000000
-#define DEVTYPE_NEO      0x4E450000 //"NE"
-#define DEVTYPE_YK       0x594B0000 //"YK"
-#define DEVTYPE_NEOr3    (DEVTYPE_NEO | 0x00007233) // "r3"
-#define DEVTYPE_YK4      (DEVTYPE_YK  | 0x00003034) // "04"
-#define DEVTYPE_YK5      (DEVTYPE_YK  | 0x00003035) // "05"
+#define DEVTYPE_UNKNOWN  0x58585820 // "XXX" 
+#define DEVTYPE_NEO      0x4E454F20 // "NEO"
+#define DEVTYPE_YK4      0x594B3420 // "YK4"
+#define DEVTYPE_YK5      0x594B3520 // "YK5"
 
 #ifdef __cplusplus
 }
