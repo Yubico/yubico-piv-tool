@@ -1059,16 +1059,7 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
     default:
       return YKPIV_ALGORITHM_ERROR;
   }
-
-  // Reauthenticate for keys that requires PIN every time
-  // For now we assume only slot 9c requires that
-  if(key == 0x9c && state->pin) {
-    int tries;
-    if((res = _ykpiv_verify(state, state->pin, strlen(state->pin), &tries)) != YKPIV_OK) {
-      return res;
-    }
-  }
-
+  
   if(in_len < 0x80) {
     bytes = 1;
   } else if(in_len < 0xff) {
@@ -1086,19 +1077,38 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   memcpy(dataptr, sign_in, (size_t)in_len);
   dataptr += in_len;
 
-  if((res = _ykpiv_transfer_data(state, templ, indata, (long)(dataptr - indata), data,
-        &recv_len, &sw)) != YKPIV_OK) {
+  if((res = _ykpiv_transfer_data(state, templ, indata, (long)(dataptr - indata), data, &recv_len, &sw)) != YKPIV_OK) {
     if(state->verbose) {
-      fprintf(stderr, "Sign command failed to communicate.\n");
+      fprintf(stderr, "Sign command failed to communicate with status %x.\n", res);
     }
     return res;
   } else if(sw != SW_SUCCESS) {
     if(state->verbose) {
-      fprintf(stderr, "Failed sign command with code %x.\n", sw);
+      fprintf(stderr, "Sign command failed with code %x.\n", sw);
+    }
+    if (sw == SW_ERR_SECURITY_STATUS && state->pin) {
+      int tries;
+      if((res = _ykpiv_verify(state, state->pin, strlen(state->pin), &tries)) != YKPIV_OK) {
+        if(state->verbose) {
+          fprintf(stderr, "Veryfy PIN failed with status %x.\n", res);
+        }
+        return res;
+      }
+      recv_len = sizeof(data);
+      if((res = _ykpiv_transfer_data(state, templ, indata, (long)(dataptr - indata), data, &recv_len, &sw)) != YKPIV_OK) {
+        if(state->verbose) {
+          fprintf(stderr, "Retry of Sign command failed to communicate with status %x.\n", res);
+        }
+        return res;
+      } else if(sw != SW_SUCCESS) {
+        if(state->verbose) {
+          fprintf(stderr, "Retry of Sign command failed with code %x.\n", sw);
+        }
+      }
     }
     if (sw == SW_ERR_SECURITY_STATUS)
       return YKPIV_AUTHENTICATION_ERROR;
-    else
+    else if(sw != SW_SUCCESS)
       return YKPIV_GENERIC_ERROR;
   }
   /* skip the first 7c tag */
