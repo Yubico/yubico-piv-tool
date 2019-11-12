@@ -1247,7 +1247,7 @@ static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state) {
   ykpiv_rc res = YKPIV_OK;
   APDU apdu;
   const uint8_t yk_applet[] = { 0xa0, 0x00, 0x00, 0x05, 0x27, 0x20, 0x01, 0x01 };
-  unsigned char data[0xff];
+  uint8_t data[0xff];
   uint32_t recv_len = sizeof(data);
   int sw;
   uint8_t *p_temp = NULL;
@@ -1346,12 +1346,13 @@ static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state) {
     return YKPIV_SIZE_ERROR;
   }
 
-  p_temp = (uint8_t*)(&state->serial);
-
-  *p_temp++ = data[3];
-  *p_temp++ = data[2];
-  *p_temp++ = data[1];
-  *p_temp++ = data[0];
+  state->serial = data[0];
+  state->serial <<= 8;
+  state->serial += data[1];
+  state->serial <<= 8;
+  state->serial += data[2];
+  state->serial <<= 8;
+  state->serial += data[3];
 
 Cleanup:
 

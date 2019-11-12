@@ -634,7 +634,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
 
   locking.UnlockMutex(mutex);
 
-  unsigned char mgm_key[24];
+  CK_BYTE mgm_key[24];
   size_t len = sizeof(mgm_key);
   ykpiv_rc rc;
 
