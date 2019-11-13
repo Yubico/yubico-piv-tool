@@ -3045,25 +3045,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_SeedRandom)(
 )
 {
   DIN;
-  DBG("TODO!!!");
-  DOUT;
-  return CKR_FUNCTION_NOT_SUPPORTED;
-}
 
-CK_DEFINE_FUNCTION(CK_RV, C_GenerateRandom)(
-  CK_SESSION_HANDLE hSession,
-  CK_BYTE_PTR pRandomData,
-  CK_ULONG ulRandomLen
-)
-{
-  
   if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  size_t len = ulRandomLen;
-  if (len != ulRandomLen || pRandomData == NULL) {
+  if (pSeed == NULL && ulSeedLen != 0) {
     DBG("Invalid parameter");
     return CKR_ARGUMENTS_BAD;
   }
@@ -3075,23 +3063,48 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateRandom)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  CK_RV rv = CKR_OK;
-
-// the OpenSC pkcs11 test calls with 0 and expects CKR_OK, do that..
-if (len > 0) {
-  if (RAND_bytes(pRandomData, len) == -1) {
-    rv = CKR_GENERAL_ERROR;
+  if(ulSeedLen != 0) {
+    RAND_seed(pSeed, ulSeedLen);
   }
-}
-  
-if (len != ulRandomLen) {
-  DBG("Incorrect amount of data returned");
-  rv = CKR_FUNCTION_FAILED;
+
+  DOUT;
+  return CKR_OK;
 }
 
-DOUT;
-return rv;
+CK_DEFINE_FUNCTION(CK_RV, C_GenerateRandom)(
+  CK_SESSION_HANDLE hSession,
+  CK_BYTE_PTR pRandomData,
+  CK_ULONG ulRandomLen
+)
+{
+  DIN;
 
+  if (mutex == NULL) {
+    DBG("libykpiv is not initialized or already finalized");
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  if (pRandomData == NULL && ulRandomLen != 0) {
+    DBG("Invalid parameter");
+    return CKR_ARGUMENTS_BAD;
+  }
+
+  ykcs11_session_t* session = get_session(hSession);
+
+  if (session == NULL || session->slot == NULL) {
+    DBG("Session is not open");
+    return CKR_SESSION_HANDLE_INVALID;
+  }
+
+  // the OpenSC pkcs11 test calls with 0 and expects CKR_OK, do that..
+  if (ulRandomLen != 0) {
+    if (RAND_bytes(pRandomData, ulRandomLen) == -1) {
+      return CKR_GENERAL_ERROR;
+    }
+  }
+
+  DOUT;
+  return CKR_OK;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_GetFunctionStatus)(
