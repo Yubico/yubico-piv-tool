@@ -1428,6 +1428,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
+  if (!is_present(session, hObject)) {
+    DBG("Object handle is invalid");
+    return CKR_OBJECT_HANDLE_INVALID;
+  }
+
   if (pTemplate == NULL_PTR || ulCount == 0)
     return CKR_ARGUMENTS_BAD;
 
@@ -1701,6 +1706,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
     return CKR_SESSION_CLOSED;
   }
 
+  if (!is_present(session, hKey)) {
+    DBG("Key handle is invalid");
+    return CKR_OBJECT_HANDLE_INVALID;
+  }
+
   if (session->op_info.type != YKCS11_NOOP) {
     DBG("Other operation in process");
     return CKR_OPERATION_ACTIVE;
@@ -1819,7 +1829,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
   session->op_info.buf_len = ulEncryptedDataLen;
   memcpy(session->op_info.buf, pEncryptedData, ulEncryptedDataLen);
 
-  DBG("Using key %04x for decryption", session->op_info.op.decrypt.key_id);
+  DBG("Using key %x for decryption", session->op_info.op.decrypt.key_id);
 
   *pulDataLen = cbDataLen = sizeof(session->op_info.buf);
 
@@ -2081,6 +2091,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
     return CKR_SESSION_HANDLE_INVALID;
+  }
+
+  if (!is_present(session, hKey)) {
+    DBG("Key handle is invalid");
+    return CKR_OBJECT_HANDLE_INVALID;
   }
 
   if (session->op_info.type != YKCS11_NOOP) {
@@ -2576,6 +2591,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
+  if (!is_present(session, hKey)) {
+    DBG("Key handle is invalid");
+    return CKR_OBJECT_HANDLE_INVALID;
+  }
+
   if (session->op_info.type != YKCS11_NOOP) {
     DBG("Other operation in process");
     return CKR_OPERATION_ACTIVE;
@@ -2702,7 +2722,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Verify)(
     goto verify_out;
   }
 
-  DBG("Using key %04x", session->op_info.op.verify.key_id);
+  DBG("Using key %x", session->op_info.op.verify.key_id);
 
   rv = verify_signature(session, &session->op_info, pSignature, ulSignatureLen);
   if (rv != CKR_OK) {

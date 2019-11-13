@@ -1167,11 +1167,7 @@ CK_BBOOL is_present(ykcs11_session_t *s, piv_obj_id_t id) {
 }
 
 CK_RV get_attribute(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
-
-  if (is_present(s, obj)) {
-    return piv_objects[obj].get_attribute(s, obj, template);
-  }
-  return CKR_OBJECT_HANDLE_INVALID;
+  return piv_objects[obj].get_attribute(s, obj, template);
 }
 
 CK_BBOOL attribute_match(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR attribute) {
