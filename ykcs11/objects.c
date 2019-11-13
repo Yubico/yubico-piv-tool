@@ -1172,13 +1172,8 @@ CK_RV get_attribute(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR 
 
 CK_BBOOL attribute_match(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR attribute) {
 
-  CK_ATTRIBUTE to_match;
-  CK_BYTE_PTR data;
-
-  // Get the size first
-  to_match.type = attribute->type;
-  to_match.pValue = NULL;
-  to_match.ulValueLen = 0;
+  CK_BYTE data[4096];
+  CK_ATTRIBUTE to_match = { attribute->type, data, sizeof(data) };
 
   if (get_attribute(s, obj, &to_match) != CKR_OK)
     return CK_FALSE;
@@ -1186,28 +1181,10 @@ CK_BBOOL attribute_match(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE
   if (to_match.ulValueLen != attribute->ulValueLen)
     return CK_FALSE;
 
-  // Allocate space for the attribute
-  data = malloc(to_match.ulValueLen);
-  if (data == NULL)
-    return CK_FALSE;
-
-  // Retrieve the attribute
-  to_match.pValue = data;
-  if (get_attribute(s, obj, &to_match) != CKR_OK) {
-    free(data);
-    data = NULL;
-    return CK_FALSE;
-  }
-
   // Compare the attributes
   if (memcmp(attribute->pValue, to_match.pValue, to_match.ulValueLen) != 0) {
-    free(data);
-    data = NULL;
     return CK_FALSE;
   }
-
-  free(data);
-  data = NULL;
 
   return CK_TRUE;
 }
