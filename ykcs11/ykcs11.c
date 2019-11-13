@@ -1341,6 +1341,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
+  if (!is_present(session, hObject)) {
+    DBG("Object handle is invalid");
+    return CKR_OBJECT_HANDLE_INVALID;
+  }
+
   // Only certificates can be deleted
   // SO must be logged in
   if (get_session_state(session) != CKS_RW_SO_FUNCTIONS) {
