@@ -2079,7 +2079,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
   CK_ATTRIBUTE template[] = {
     {CKA_KEY_TYPE, &type, sizeof(type)},
     {CKA_MODULUS_BITS, &key_len, sizeof(key_len)},
-    {CKA_MODULUS, NULL, 0},
+    {CKA_MODULUS, buf, sizeof(buf)},
     {CKA_PUBLIC_EXPONENT, exp, sizeof(exp)},
     {CKA_EC_POINT, buf, sizeof(buf)},
   };
@@ -2144,8 +2144,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
 
     // Also store the raw public key if the mechanism is PSS
     if (is_PSS_mechanism(pMechanism->mechanism)) {
-      template[2].pValue = buf;
-      template[2].ulValueLen = (key_len + 7) / 8;
 
       if (get_attribute(session, hKey, template + 2) != CKR_OK) {
         DBG("Unable to get public key");
