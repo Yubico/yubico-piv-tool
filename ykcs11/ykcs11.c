@@ -176,7 +176,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Finalize)(
 
   DIN;
 
-  if (pReserved != NULL_PTR) {
+  if (pReserved != NULL) {
     DBG("Finalized called with pReserved != NULL");
     return CKR_ARGUMENTS_BAD;
   }
@@ -235,7 +235,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetFunctionList)(
 {
   DIN;
 
-  if(ppFunctionList == NULL_PTR) {
+  if(ppFunctionList == NULL) {
     DBG("GetFunctionList called with ppFunctionList = NULL");
     return CKR_ARGUMENTS_BAD;
   }
@@ -259,7 +259,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 
   DIN;
 
-  if(pulCount == NULL_PTR) {
+  if(pulCount == NULL) {
     DBG("GetSlotList called with pulCount = NULL");
     return CKR_ARGUMENTS_BAD;
   }
@@ -506,7 +506,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (pulCount == NULL_PTR) {
+  if (pulCount == NULL) {
     DBG("Wrong/Missing parameter");
     return CKR_ARGUMENTS_BAD;
   }
@@ -532,7 +532,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
   if (get_token_mechanisms_num(&count) != CKR_OK)
     return CKR_FUNCTION_FAILED;
 
-  if (pMechanismList == NULL_PTR) {
+  if (pMechanismList == NULL) {
     *pulCount = count;
     DBG("Found %lu mechanisms", *pulCount);
     DOUT;
@@ -566,7 +566,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismInfo)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (pInfo == NULL_PTR) {
+  if (pInfo == NULL) {
     DBG("Wrong/Missing parameter");
     return CKR_ARGUMENTS_BAD;
   }
@@ -759,7 +759,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  if (phSession == NULL_PTR) {
+  if (phSession == NULL) {
     DBG("Wrong/Missing parameter");
     return CKR_ARGUMENTS_BAD;
   }
@@ -1136,8 +1136,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
   
-  if (pTemplate == NULL_PTR ||
-      phObject == NULL_PTR) {
+  if (pTemplate == NULL ||
+      phObject == NULL) {
     DBG("Wrong/Missing parameter");
     return CKR_ARGUMENTS_BAD;
   }
@@ -1438,7 +1438,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
     return CKR_OBJECT_HANDLE_INVALID;
   }
 
-  if (pTemplate == NULL_PTR || ulCount == 0)
+  if (pTemplate == NULL || ulCount == 0)
     return CKR_ARGUMENTS_BAD;
 
   rv_final = CKR_OK;
@@ -1476,14 +1476,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
   CK_ULONG ulCount
 )
 {
-  CK_ULONG i;
-  CK_ULONG j;
-  CK_ULONG total;
-  CK_BBOOL private;
-
   DIN;
 
-  if (ulCount != 0 && pTemplate == NULL_PTR) {
+  if (ulCount != 0 && pTemplate == NULL) {
     DBG("Bad arguments");
     return CKR_ARGUMENTS_BAD;
   }
@@ -1505,56 +1500,38 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
     return CKR_OPERATION_ACTIVE;
   }
 
-  // Check if we should remove private objects
-  if (get_session_state(session) == CKS_RO_PUBLIC_SESSION ||
-      get_session_state(session) == CKS_RW_PUBLIC_SESSION) {
-    DBG("Removing private objects because state is %lu", get_session_state(session));
-    private = CK_FALSE;
-  }
-  else {
-    DBG("Keeping private objects");
-    private = CK_TRUE;
-  }
-
   session->find_obj.active = CK_TRUE;
+  session->find_obj.n_objects = 0;
   session->find_obj.idx = 0;
-  session->find_obj.n_objects = session->n_objects;
-
-  memcpy(session->find_obj.objects, session->objects, session->n_objects * sizeof(piv_obj_id_t));
 
   DBG("Initialized search with %lu parameters", ulCount);
 
   // Match parameters
-  total = session->find_obj.n_objects;
-  for (i = 0; i < session->find_obj.n_objects; i++) {
-
-    if (session->find_obj.objects[i] == OBJECT_INVALID)
-      continue; // Object already discarded, keep going
+  for (CK_ULONG i = 0; i < session->n_objects; i++) {
 
     // Strip away private objects if needed
-    if (private == CK_FALSE)
-      if (is_private_object(session, session->find_obj.objects[i]) == CK_TRUE) {
-        DBG("Stripping away private object %u", session->find_obj.objects[i]);
-        session->find_obj.objects[i] = OBJECT_INVALID;
-        total--;
+    if (session->slot->login_state == YKCS11_PUBLIC)
+      if (is_private_object(session, session->objects[i]) == CK_TRUE) {
+        DBG("Removing private object %u", session->objects[i]);
         continue;
       }
 
-    for (j = 0; j < ulCount; j++) {
-      DBG("Parameter %lu\nType: %lu Value: %lu Len: %lu", j, pTemplate[j].type, *((CK_ULONG_PTR)pTemplate[j].pValue), pTemplate[j].ulValueLen);
-
-      if (attribute_match(session, session->find_obj.objects[i], pTemplate + j) == CK_FALSE) {
-        DBG("Removing object %u from the list", session->find_obj.objects[i]);
-        session->find_obj.objects[i] = OBJECT_INVALID;  // Object not matching, mark it
-        total--;
+    bool keep = true;
+    for (CK_ULONG j = 0; j < ulCount; j++) {
+      if (attribute_match(session, session->objects[i], pTemplate + j) == CK_FALSE) {
+        DBG("Removing object %u", session->objects[i]);
+        keep = false;
         break;
       }
-      else
-        DBG("Keeping object %u in the list", session->find_obj.objects[i]);
+    }
+
+    if(keep) {
+      DBG("Keeping object %u", session->objects[i]);
+      session->find_obj.objects[session->find_obj.n_objects++] = session->objects[i];
     }
   }
 
-  DBG("%lu object(s) left after attribute matching", total);
+  DBG("%lu object(s) left after attribute matching", session->find_obj.n_objects);
 
   DOUT;
   return CKR_OK;
@@ -1581,9 +1558,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (phObject == NULL_PTR ||
+  if (phObject == NULL ||
       ulMaxObjectCount == 0 ||
-      pulObjectCount == NULL_PTR)
+      pulObjectCount == NULL)
     return CKR_ARGUMENTS_BAD;
 
   if (!session->find_obj.active)
@@ -1721,7 +1698,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
     return CKR_OPERATION_ACTIVE;
   }
 
-  if (pMechanism == NULL_PTR)
+  if (pMechanism == NULL)
     return CKR_ARGUMENTS_BAD;
 
   DBG("Trying to decrypt some data with mechanism %lu and key %lu", pMechanism->mechanism, hKey);
@@ -1818,7 +1795,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
   CK_ULONG datalen = (session->op_info.op.decrypt.key_len + 7) / 8 - 11;
   DBG("The size of the data will be %lu", datalen);
 
-  if (pData == NULL_PTR) {
+  if (pData == NULL) {
     // Just return the size of the decrypted data
     *pulDataLen = datalen;
     DBG("The size of the signature will be %lu", *pulDataLen);
@@ -1925,7 +1902,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestInit)(
     return CKR_OPERATION_ACTIVE;
   }
 
-  if (pMechanism == NULL_PTR) {
+  if (pMechanism == NULL) {
     DBG("Wrong/Missing parameter");
     return CKR_ARGUMENTS_BAD;
   }
@@ -2108,7 +2085,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     return CKR_OPERATION_ACTIVE;
   }
 
-  if (pMechanism == NULL_PTR)
+  if (pMechanism == NULL)
     return CKR_ARGUMENTS_BAD;
 
   DBG("Trying to sign some data with mechanism %lu and key %lu", pMechanism->mechanism, hKey);
@@ -2252,7 +2229,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     goto sign_out;
   }
 
-  if (pSignature == NULL_PTR) {
+  if (pSignature == NULL) {
     // Just return the size of the signature
     *pulSignatureLen = session->op_info.op.sign.sig_len;
     DBG("The size of the signature will be %lu", *pulSignatureLen);
@@ -2462,7 +2439,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
     goto sign_out;
   }
 
-  if (pSignature == NULL_PTR) {
+  if (pSignature == NULL) {
     // Just return the size of the signature
     *pulSignatureLen = session->op_info.op.sign.sig_len;
     DBG("The size of the signature will be %lu", *pulSignatureLen);
@@ -2604,7 +2581,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
     return CKR_OPERATION_ACTIVE;
   }
 
-  if (pMechanism == NULL_PTR)
+  if (pMechanism == NULL)
     return CKR_ARGUMENTS_BAD;
 
   DBG("Trying to verify data with mechanism %lu and key %lu", pMechanism->mechanism, hKey);
@@ -2909,11 +2886,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     return CKR_OPERATION_ACTIVE;
   }
 
-  if (pMechanism == NULL_PTR ||
-      pPublicKeyTemplate == NULL_PTR ||
-      pPrivateKeyTemplate == NULL_PTR ||
-      phPublicKey == NULL_PTR ||
-      phPrivateKey == NULL_PTR) {
+  if (pMechanism == NULL ||
+      pPublicKeyTemplate == NULL ||
+      pPrivateKeyTemplate == NULL ||
+      phPublicKey == NULL ||
+      phPrivateKey == NULL) {
     DBG("Wrong/Missing parameter");
     return CKR_ARGUMENTS_BAD;
   }

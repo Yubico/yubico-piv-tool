@@ -343,7 +343,7 @@ static CK_RV get_doa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR
   }
 
   /* Just get the length */
-  if (template->pValue == NULL_PTR) {
+  if (template->pValue == NULL) {
     template->ulValueLen = len;
     return CKR_OK;
   }
@@ -465,7 +465,7 @@ static CK_RV get_coa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR
   }
 
   /* Just get the length */
-  if (template->pValue == NULL_PTR) {
+  if (template->pValue == NULL) {
     template->ulValueLen = len;
     return CKR_OK;
   }
@@ -714,7 +714,7 @@ static CK_RV get_proa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
   }
 
   /* Just get the length */
-  if (template->pValue == NULL_PTR) {
+  if (template->pValue == NULL) {
     template->ulValueLen = len;
     return CKR_OK;
   }
@@ -933,7 +933,7 @@ static CK_RV get_puoa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
   }
 
   /* Just get the length */
-  if (template->pValue == NULL_PTR) {
+  if (template->pValue == NULL) {
     template->ulValueLen = len;
     return CKR_OK;
   }
