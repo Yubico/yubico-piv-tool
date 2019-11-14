@@ -55,6 +55,10 @@ static const err_t errors[] = {
   ERR (YKPIV_WRONG_PIN, "Wrong PIN code"),
   ERR (YKPIV_INVALID_OBJECT, "Object invalid"),
   ERR (YKPIV_ALGORITHM_ERROR, "Algorithm error"),
+  ERR (YKPIV_PIN_LOCKED, "PIN locked"),
+  ERR (YKPIV_ARGUMENT_ERROR, "Argument error"),
+  ERR (YKPIV_RANGE_ERROR, "Range error"),
+  ERR (YKPIV_NOT_SUPPORTED, "Not supported"),
 };
 
 /**

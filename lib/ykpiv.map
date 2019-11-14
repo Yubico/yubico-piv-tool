@@ -124,4 +124,5 @@ YKPIV_1.8.0
 {
 global:
     ykpiv_reset_card;
+    ykpiv_get_metadata;
 } YKPIV_1.6.0;
