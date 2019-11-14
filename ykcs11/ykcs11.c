@@ -818,10 +818,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
       }
       CK_BYTE key_id = get_key_id(obj_ids[i]);
       piv_obj_id_t cert_id = find_cert_object(key_id);
+      piv_obj_id_t pubk_id = find_pubk_object(key_id);
+      piv_obj_id_t pvtk_id = find_pvtk_object(key_id);
       if(cert_id != (piv_obj_id_t)-1) {
         session->objects[session->n_objects++] = cert_id;
-        session->objects[session->n_objects++] = find_pubk_object(key_id);
-        session->objects[session->n_objects++] = find_pvtk_object(key_id);
+        session->objects[session->n_objects++] = pubk_id;
+        session->objects[session->n_objects++] = pvtk_id;
         rv = store_cert(session, cert_id, data, len);
         if (rv != CKR_OK) {
           DBG("Unable to store certificate data");
@@ -829,6 +831,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
           session->slot = NULL;
           return rv;
         }
+        /*
+        len = sizeof(data);
+        if(ykpiv_attest(session->slot->piv_state, piv_2_ykpiv(pvtk_id), data, &len) == YKPIV_OK) {
+          printf("Got a %lu byte attestation\n", len);
+        }
+        */
       }
     }
   }
@@ -863,6 +871,18 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
+  piv_obj_id_t *obj_ids;
+  CK_ULONG num_ids;
+  get_token_object_ids(&obj_ids, &num_ids);
+
+  for(CK_ULONG i = 0; i < num_ids; i++) {
+    if(is_present(session, obj_ids[i]))
+      delete_data(session, obj_ids[i]);
+    piv_obj_id_t cert_id = find_cert_object(get_key_id(obj_ids[i]));
+    if(is_present(session, cert_id))
+      delete_cert(session, cert_id);
+  }
+
   memset(session, 0, sizeof(*session));
   locking.UnlockMutex(mutex);
 
@@ -891,9 +911,20 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
     return CKR_SLOT_ID_INVALID;
   }
 
+  piv_obj_id_t *obj_ids;
+  CK_ULONG num_ids;
+  get_token_object_ids(&obj_ids, &num_ids);
+
   for(int i = 0; i < YKCS11_MAX_SESSIONS; i++) {
     ykcs11_session_t *session = sessions + i;
     if(session->slot && session->info.slotID == slotID) {
+      for(CK_ULONG i = 0; i < num_ids; i++) {
+        if(is_present(session, obj_ids[i]))
+          delete_data(session, obj_ids[i]);
+        piv_obj_id_t cert_id = find_cert_object(get_key_id(obj_ids[i]));
+        if(is_present(session, cert_id))
+          delete_cert(session, cert_id);
+      }
       memset(session, 0, sizeof(*session));
     }
   }
@@ -1404,9 +1435,31 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetObjectSize)(
 )
 {
   DIN;
-  DBG("TODO!!!");
+
+  if (mutex == NULL) {
+    DBG("libykpiv is not initialized or already finalized");
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  ykcs11_session_t* session = get_session(hSession);
+
+  if (session == NULL || session->slot == NULL) {
+    DBG("Session is not open");
+    return CKR_SESSION_HANDLE_INVALID;
+  }
+
+  if (!is_present(session, hObject)) {
+    DBG("Object handle is invalid");
+    return CKR_OBJECT_HANDLE_INVALID;
+  }
+
+  if (pulSize == NULL)
+    return CKR_ARGUMENTS_BAD;
+
+  CK_RV rv = get_data_len(session, hObject, pulSize);
+
   DOUT;
-  return CKR_FUNCTION_NOT_SUPPORTED;
+  return rv;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
@@ -1446,7 +1499,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
 
     rv = get_attribute(session, hObject, pTemplate + i);
 
-    // TODO: this function has some complex cases for return vlaue. Make sure to check them.
+    // TODO: this function has some complex cases for return value. Make sure to check them.
     if (rv != CKR_OK) {
       DBG("Unable to get attribute 0x%lx of object %lu", (pTemplate + i)->type, hObject);
       rv_final = rv;
@@ -1571,11 +1624,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
 
   // Return the next object, if any
   while(session->find_obj.idx < session->find_obj.n_objects && *pulObjectCount < ulMaxObjectCount) {
-    if(session->find_obj.objects[session->find_obj.idx] != OBJECT_INVALID) {
-      *phObject++ = session->find_obj.objects[session->find_obj.idx];
-      (*pulObjectCount)++;
-    }
-    session->find_obj.idx++;
+    *phObject++ = session->find_obj.objects[session->find_obj.idx++];
+    (*pulObjectCount)++;
   }
 
   DBG("Returning %lu objects", *pulObjectCount);

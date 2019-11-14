@@ -1239,6 +1239,16 @@ CK_RV store_data(ykcs11_session_t *s, piv_obj_id_t obj, CK_BYTE_PTR data, CK_ULO
   return CKR_OK;
 }
 
+CK_RV delete_data(ykcs11_session_t *s, piv_obj_id_t obj) {
+  free(s->data[piv_objects[obj].sub_id].data);
+  return CKR_OK;
+}
+
+CK_RV get_data_len(ykcs11_session_t *s, piv_obj_id_t obj, CK_ULONG_PTR len) {
+  *len = s->data[piv_objects[obj].sub_id].len;
+  return CKR_OK;
+}
+
 CK_RV store_cert(ykcs11_session_t *s, piv_obj_id_t cert_id, CK_BYTE_PTR data, CK_ULONG len) {
 
   CK_RV rv;
