@@ -455,7 +455,7 @@ START_TEST(test_import_key) {
     model = ykpiv_util_devicemodel(g_state);
     res = ykpiv_attest(g_state, 0x9a, attest, &attest_len);
     if (model != DEVTYPE_NEO) {
-      ck_assert_int_eq(res, YKPIV_GENERIC_ERROR);
+      ck_assert_int_eq(res, YKPIV_ARGUMENT_ERROR);
     }
     else {
       ck_assert_int_eq(res, YKPIV_NOT_SUPPORTED);
@@ -518,6 +518,10 @@ START_TEST(test_pin_policy_always) {
     prepare_rsa_signature(data, data_len, encoded, &enc_len, EVP_MD_type(md));
     ck_assert_int_ne(RSA_padding_add_PKCS1_type_1(signinput, padlen, encoded, enc_len), 0);
 
+    // Clear the pin cache, otherwise it will be re-verified automatically
+    res = ykpiv_clear_pin_cache(g_state);
+    ck_assert_int_eq(res, YKPIV_OK);
+
     // Sign without verify: fail
     res = ykpiv_sign_data(g_state, signinput, padlen, signature, &sig_len, YKPIV_ALGO_RSA2048, 0x9e);
     ck_assert_int_eq(res, YKPIV_AUTHENTICATION_ERROR);
@@ -526,6 +530,10 @@ START_TEST(test_pin_policy_always) {
     res = ykpiv_verify(g_state, "123456", NULL);
     ck_assert_int_eq(res, YKPIV_OK);
     res = ykpiv_sign_data(g_state, signinput, padlen, signature, &sig_len, YKPIV_ALGO_RSA2048, 0x9e);
+    ck_assert_int_eq(res, YKPIV_OK);
+
+    // Clear the pin cache, otherwise it will be re-verified automatically
+    res = ykpiv_clear_pin_cache(g_state);
     ck_assert_int_eq(res, YKPIV_OK);
 
     // Sign again without verify: fail

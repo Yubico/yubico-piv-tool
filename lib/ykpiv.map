@@ -125,4 +125,6 @@ YKPIV_1.8.0
 global:
     ykpiv_reset_card;
     ykpiv_get_metadata;
+    ykpiv_clear_pin_cache;
+    ykpiv_clear_mgm_key_cache;
 } YKPIV_1.6.0;

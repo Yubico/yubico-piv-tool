@@ -253,14 +253,6 @@ CK_RV get_token_object_ids(piv_obj_id_t **obj, CK_ULONG_PTR len) {
   return CKR_OK;
 }
 
-CK_RV get_token_object(ykpiv_state *state, piv_obj_id_t obj, CK_BYTE_PTR data, CK_ULONG_PTR len) {
-
-  if (ykpiv_fetch_object(state, piv_2_ykpiv(obj), data, len) != YKPIV_OK)
-    return CKR_FUNCTION_FAILED;
-
-  return CKR_OK;
-}
-
 CK_RV token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF8CHAR_PTR pOldPin, CK_ULONG ulOldLen, CK_UTF8CHAR_PTR pNewPin, CK_ULONG ulNewLen) {
   int tries;
   ykpiv_rc res;

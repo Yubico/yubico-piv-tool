@@ -133,6 +133,8 @@ extern "C"
                                     const unsigned char pin_policy, const unsigned char touch_policy);
   ykpiv_rc ykpiv_attest(ykpiv_state *state, const unsigned char key, unsigned char *data, size_t *data_len);
   ykpiv_rc ykpiv_get_metadata(ykpiv_state *state, const unsigned char key, unsigned char *data, size_t *data_len);
+  ykpiv_rc ykpiv_clear_pin_cache(ykpiv_state *state);
+  ykpiv_rc ykpiv_clear_mgm_key_cache(ykpiv_state *state);
 
   /**
    * Return the number of PIN attempts remaining before PIN is locked.

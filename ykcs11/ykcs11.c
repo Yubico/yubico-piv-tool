@@ -807,7 +807,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
 
   for(i = 0; i < num_ids; i++) {
     len = sizeof(data);
-    if(get_token_object(session->slot->piv_state, obj_ids[i], data, &len) == CKR_OK) {
+    if(ykpiv_fetch_object(session->slot->piv_state, piv_2_ykpiv(obj_ids[i]), data, &len) == YKPIV_OK) {
       session->objects[session->n_objects++] = obj_ids[i];
       rv = store_data(session, obj_ids[i], data, len);
       if (rv != CKR_OK) {
@@ -833,8 +833,17 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
         }
         /*
         len = sizeof(data);
-        if(ykpiv_attest(session->slot->piv_state, piv_2_ykpiv(pvtk_id), data, &len) == YKPIV_OK) {
-          printf("Got a %lu byte attestation\n", len);
+        ykpiv_rc rc;
+        if((rc = ykpiv_get_metadata(session->slot->piv_state, piv_2_ykpiv(pvtk_id), data, &len)) == YKPIV_OK) {
+          printf("Session %lu got %lu bytes metadata for key %lx\n", get_session_handle(session), len, piv_2_ykpiv(pvtk_id));
+        } else {
+          printf("Session %lu failed to get metadata for key %lx: %d %s\n", get_session_handle(session), piv_2_ykpiv(pvtk_id), rc, ykpiv_strerror(rc));
+        }
+        len = sizeof(data);
+        if((rc = ykpiv_attest(session->slot->piv_state, piv_2_ykpiv(pvtk_id), data, &len)) == YKPIV_OK) {
+          printf("Got %lu bytes attestation for key %lx\n", len, piv_2_ykpiv(pvtk_id));
+        } else {
+          printf("Failed to get attestation for key %lx: %d %s\n", piv_2_ykpiv(pvtk_id), rc, ykpiv_strerror(rc));
         }
         */
       }

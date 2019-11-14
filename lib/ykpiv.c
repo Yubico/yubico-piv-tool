@@ -1407,6 +1407,23 @@ static ykpiv_rc _cache_pin(ykpiv_state *state, const char *pin, size_t len) {
 #endif
 }
 
+ykpiv_rc ykpiv_clear_pin_cache(ykpiv_state *state) {
+#if DISABLE_PIN_CACHE
+  // Some embedded applications of this library may not want to keep the PIN
+  // data in RAM for security reasons.
+  return YKPIV_OK;
+#else
+  if (!state)
+    return YKPIV_ARGUMENT_ERROR;
+  if (state->pin) {
+    yc_memzero(state->pin, strnlen(state->pin, CB_PIN_MAX));
+    _ykpiv_free(state, state->pin);
+    state->pin = NULL;
+  }
+  return YKPIV_OK;
+#endif
+}
+
 static ykpiv_rc _cache_mgm_key(ykpiv_state *state, unsigned const char *key) {
 #ifdef DISABLE_MGM_KEY_CACHE
   // Some embedded applications of this library may not want to keep the MGM_KEY
@@ -1429,6 +1446,23 @@ static ykpiv_rc _cache_mgm_key(ykpiv_state *state, unsigned const char *key) {
       return YKPIV_MEMORY_ERROR;
     }
     memcpy(state->mgm_key, key, CB_MGM_KEY);
+  }
+  return YKPIV_OK;
+#endif
+}
+
+ykpiv_rc ykpiv_clear_mgm_key_cache(ykpiv_state *state) {
+#if DISABLE_MGM_KEY_CACHE
+  // Some embedded applications of this library may not want to keep the PIN
+  // data in RAM for security reasons.
+  return YKPIV_OK;
+#else
+  if (!state)
+    return YKPIV_ARGUMENT_ERROR;
+  if (state->mgm_key) {
+    yc_memzero(state->mgm_key, CB_MGM_KEY);
+    _ykpiv_free(state, state->mgm_key);
+    state->mgm_key = NULL;
   }
   return YKPIV_OK;
 #endif

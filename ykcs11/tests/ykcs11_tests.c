@@ -126,8 +126,8 @@ static int test_token_info() {
 
   const CK_CHAR_PTR TOKEN_LABEL  = "YubiKey PIV";
   const CK_CHAR_PTR TOKEN_MODEL  = "YubiKey ";  // Skip last 3 characters (version dependent)
-  const CK_CHAR_PTR TOKEN_MODEL_YK4  = "YubiKey YK04";
-  const CK_CHAR_PTR TOKEN_MODEL_YK5  = "YubiKey YK05";
+  const CK_CHAR_PTR TOKEN_MODEL_YK4  = "YubiKey YK4";
+  const CK_CHAR_PTR TOKEN_MODEL_YK5  = "YubiKey YK5";
   //const CK_CHAR_PTR TOKEN_SERIAL = "1234";
   const CK_FLAGS TOKEN_FLAGS = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
   const CK_VERSION HW = {1, 0};
@@ -147,10 +147,10 @@ static int test_token_info() {
   asrt(info.ulRwSessionCount, 0, "RW_SESSION_COUNT");
   asrt(info.ulMaxPinLen, 8, "MAX_PIN_LEN");
   asrt(info.ulMinPinLen, 6, "MIN_PIN_LEN");
-  asrt(info.ulTotalPublicMemory, 0, "TOTAL_PUB_MEM");
-  asrt(info.ulFreePublicMemory, 0, "FREE_PUB_MEM");
-  asrt(info.ulTotalPrivateMemory, 0, "TOTAL_PVT_MEM");
-  asrt(info.ulFreePrivateMemory, 0, "FREE_PVT_MEM");
+  asrt(info.ulTotalPublicMemory, -1, "TOTAL_PUB_MEM");
+  asrt(info.ulFreePublicMemory, -1, "FREE_PUB_MEM");
+  asrt(info.ulTotalPrivateMemory, -1, "TOTAL_PVT_MEM");
+  asrt(info.ulFreePrivateMemory, -1, "FREE_PVT_MEM");
 
   if (strncmp(info.model, TOKEN_MODEL_YK4, strlen(TOKEN_MODEL_YK4)) != 0 &&
       strncmp(info.model, TOKEN_MODEL_YK5, strlen(TOKEN_MODEL_YK5)) != 0) {
