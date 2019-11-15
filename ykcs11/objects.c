@@ -530,7 +530,7 @@ static CK_RV get_atst(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
   CK_BYTE sub_id = piv_objects[obj].sub_id;
   if(s->atst[sub_id] == NULL && is_relevant_attribute(template)) {
     unsigned char data[3072];
-    unsigned long len = sizeof(data);
+    size_t len = sizeof(data);
     ykpiv_rc rc;
     if((rc = ykpiv_attest(s->slot->piv_state, piv_2_ykpiv(find_pvtk_object(sub_id)), data, &len)) == YKPIV_OK) {
       do_store_cert(data, len, &s->atst[sub_id]);
