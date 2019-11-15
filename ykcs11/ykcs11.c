@@ -747,11 +747,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   CK_SESSION_HANDLE_PTR phSession
 )
 {
-  CK_RV          rv;
-  CK_ULONG       i;
-  CK_BYTE        data[3072];  // Max cert value for ykpiv
-  CK_ULONG       len;
-
   DIN; // TODO: pApplication and Notify
 
   if (mutex == NULL) {
@@ -799,53 +794,40 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
 
   piv_obj_id_t *obj_ids;
   CK_ULONG num_ids;
-  rv = get_token_object_ids(&obj_ids, &num_ids);
+  get_token_object_ids(&obj_ids, &num_ids);
 
   locking.LockMutex(session->slot->mutex);
 
   // Save a list of all the available objects in the session
 
-  for(i = 0; i < num_ids; i++) {
-    len = sizeof(data);
+  for(CK_ULONG i = 0; i < num_ids; i++) {
+    CK_BYTE data[3072];  // Max cert value for ykpiv
+    CK_ULONG len = sizeof(data);
     if(ykpiv_fetch_object(session->slot->piv_state, piv_2_ykpiv(obj_ids[i]), data, &len) == YKPIV_OK) {
       session->objects[session->n_objects++] = obj_ids[i];
-      rv = store_data(session, obj_ids[i], data, len);
+      CK_RV rv = store_data(session, obj_ids[i], data, len);
       if (rv != CKR_OK) {
-        DBG("Unable to store object data");
-        locking.UnlockMutex(session->slot->mutex);
+        DBG("Unable to store %lu bytes for data object %u", len, obj_ids[i]);
         session->slot = NULL;
+        locking.UnlockMutex(session->slot->mutex);
         return rv;
       }
       CK_BYTE key_id = get_key_id(obj_ids[i]);
       piv_obj_id_t cert_id = find_cert_object(key_id);
-      piv_obj_id_t pubk_id = find_pubk_object(key_id);
-      piv_obj_id_t pvtk_id = find_pvtk_object(key_id);
+      piv_obj_id_t atst_id = find_atst_object(key_id);
       if(cert_id != (piv_obj_id_t)-1) {
         session->objects[session->n_objects++] = cert_id;
-        session->objects[session->n_objects++] = pubk_id;
-        session->objects[session->n_objects++] = pvtk_id;
+        session->objects[session->n_objects++] = find_pubk_object(key_id);
+        session->objects[session->n_objects++] = find_pvtk_object(key_id);
+        if(atst_id != (piv_obj_id_t)-1) // Attestation key doesn't have an attestation
+          session->objects[session->n_objects++] = atst_id;
         rv = store_cert(session, cert_id, data, len);
         if (rv != CKR_OK) {
-          DBG("Unable to store certificate data");
-          locking.UnlockMutex(session->slot->mutex);
+          DBG("Unable to store %lu bytes for certificate %u", len, cert_id);
           session->slot = NULL;
+          locking.UnlockMutex(session->slot->mutex);
           return rv;
         }
-        /*
-        len = sizeof(data);
-        ykpiv_rc rc;
-        if((rc = ykpiv_get_metadata(session->slot->piv_state, piv_2_ykpiv(pvtk_id), data, &len)) == YKPIV_OK) {
-          printf("Session %lu got %lu bytes metadata for key %lx\n", get_session_handle(session), len, piv_2_ykpiv(pvtk_id));
-        } else {
-          printf("Session %lu failed to get metadata for key %lx: %d %s\n", get_session_handle(session), piv_2_ykpiv(pvtk_id), rc, ykpiv_strerror(rc));
-        }
-        len = sizeof(data);
-        if((rc = ykpiv_attest(session->slot->piv_state, piv_2_ykpiv(pvtk_id), data, &len)) == YKPIV_OK) {
-          printf("Got %lu bytes attestation for key %lx\n", len, piv_2_ykpiv(pvtk_id));
-        } else {
-          printf("Failed to get attestation for key %lx: %d %s\n", piv_2_ykpiv(pvtk_id), rc, ykpiv_strerror(rc));
-        }
-        */
       }
     }
   }
@@ -1568,6 +1550,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
 
   DBG("Initialized search with %lu parameters", ulCount);
 
+  locking.LockMutex(session->slot->mutex);
+
   // Match parameters
   for (CK_ULONG i = 0; i < session->n_objects; i++) {
 
@@ -1592,6 +1576,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
       session->find_obj.objects[session->find_obj.n_objects++] = session->objects[i];
     }
   }
+
+  locking.UnlockMutex(session->slot->mutex);
 
   DBG("%lu object(s) left after attribute matching", session->find_obj.n_objects);
 

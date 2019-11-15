@@ -129,6 +129,7 @@ typedef struct {
   CK_ULONG        n_objects;   // TOTAL number of objects in the token
   ykcs11_data_t   data[38];    // Raw data, stored by sub_id 1-37
   X509            *certs[26];  // Certificates, stored by sub_id 1-25
+  X509            *atst[26];   // Attestations, stored by sub_id 1-25
   EVP_PKEY        *pkeys[26];  // Public keys, stored by sub_id 1-25
   ykcs11_find_t   find_obj;    // Active find operation (if any)
   op_info_t       op_info;
