@@ -538,6 +538,7 @@ static CK_RV get_atst(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
       s->atst[sub_id] = X509_new();
       X509_NAME_add_entry_by_txt(X509_get_issuer_name(s->atst[sub_id]), "CN", MBSTRING_ASC, (unsigned char*)ykpiv_strerror(rc), -1, -1, 0);
       X509_NAME_add_entry_by_txt(X509_get_subject_name(s->atst[sub_id]), "CN", MBSTRING_ASC, (unsigned char*)ykpiv_strerror(rc), -1, -1, 0);
+      ASN1_INTEGER_set(X509_get_serialNumber(s->atst[sub_id]), 0);
     }
   }
   return _get_coa(s->atst, obj, template);
@@ -600,21 +601,21 @@ static CK_RV get_proa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
   case CKA_SENSITIVE:
     DBG("SENSITIVE"); // Always true
     len = sizeof(CK_BBOOL);
-    b_tmp[0] = 1;
+    b_tmp[0] = CK_TRUE;
     data = b_tmp;
     break;
 
   case CKA_EXTRACTABLE:
     DBG("EXTRACTABLE"); // Always false
     len = sizeof(CK_BBOOL);
-    b_tmp[0] = 0;
+    b_tmp[0] = CK_FALSE;
     data = b_tmp;
     break;
 
   case CKA_LOCAL:
     DBG("LOCAL"); // Always true
     len = sizeof(CK_BBOOL);
-    b_tmp[0] = 1;
+    b_tmp[0] = CK_TRUE;
     data = b_tmp;
     break;
 
@@ -848,14 +849,14 @@ static CK_RV get_puoa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
   case CKA_SENSITIVE:
     DBG("SENSITIVE"); // Always false
     len = sizeof(CK_BBOOL);
-    b_tmp[0] = 0;
+    b_tmp[0] = CK_FALSE;
     data = b_tmp;
     break;
 
   case CKA_LOCAL:
     DBG("LOCAL"); // Always false
     len = sizeof(CK_BBOOL);
-    b_tmp[0] = 0;
+    b_tmp[0] = CK_FALSE;
     data = b_tmp;
     break;
 
