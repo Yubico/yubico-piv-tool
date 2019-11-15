@@ -260,7 +260,7 @@ static piv_pvtk_obj_t pvtkey_objects[] = {
   {1, 1, 0, 0, 0},
   {1, 1, 0, 0, 0},
   {1, 1, 0, 0, 0},
-  {1, 1, 0, 0, 0}
+  {0, 0, 0, 0, 0}
 };
 
 static piv_pubk_obj_t pubkey_objects[] = {

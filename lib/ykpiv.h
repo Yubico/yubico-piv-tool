@@ -551,6 +551,7 @@ extern "C"
   ykpiv_rc ykpiv_util_write_mscmap(ykpiv_state *state, ykpiv_container *containers, size_t n_containers);
   ykpiv_rc ykpiv_util_read_msroots(ykpiv_state  *state, uint8_t **data, size_t *data_len);
   ykpiv_rc ykpiv_util_write_msroots(ykpiv_state *state, uint8_t *data, size_t data_len);
+  ykpiv_rc ykpiv_util_parse_metadata(uint8_t *data, size_t cb_data);
 
 
 ////////////////////////////////////////////////////////////////////////////////

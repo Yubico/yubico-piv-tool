@@ -1481,6 +1481,25 @@ static ykpiv_rc _get_metadata_item(uint8_t *data, size_t cb_data, uint8_t tag, u
   return YKPIV_GENERIC_ERROR;
 }
 
+ykpiv_rc ykpiv_util_parse_metadata(uint8_t *data, size_t cb_data) {
+  uint8_t *p;
+  size_t cb;
+  if(_get_metadata_item(data, cb_data, YKPIV_METADATA_ALGORITHM_TAG, &p, &cb) == YKPIV_OK) {
+    printf("Algorithm = 0x%x\n", *p);
+  }
+  if(_get_metadata_item(data, cb_data, YKPIV_METADATA_POLICY_TAG, &p, &cb) == YKPIV_OK) {
+    printf("Pin policy = %d\n", p[0]);
+    printf("Touch policy = %d\n", p[1]);
+  }
+  if(_get_metadata_item(data, cb_data, YKPIV_METADATA_ORIGIN_TAG, &p, &cb) == YKPIV_OK) {
+    printf("Origin = %d\n", *p);
+  }
+  if(_get_metadata_item(data, cb_data, YKPIV_METADATA_PUBKEY_TAG, &p, &cb) == YKPIV_OK) {
+    printf("Public key %lu bytes at %p\n", cb, p);
+  }
+  return YKPIV_OK;
+} 
+
 static int _get_length_size(size_t length) {
   if (length < 0x80) {
     return 1;
