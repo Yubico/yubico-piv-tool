@@ -74,7 +74,7 @@ static piv_obj_t piv_objects[] = {
   {PIV_DATA_OBJ_X509_RETIRED18, 1, 0, 0, "X.509 Certificate for Retired Key 18", 0, 0, get_doa, 22},
   {PIV_DATA_OBJ_X509_RETIRED19, 1, 0, 0, "X.509 Certificate for Retired Key 19", 0, 0, get_doa, 23},
   {PIV_DATA_OBJ_X509_RETIRED20, 1, 0, 0, "X.509 Certificate for Retired Key 20", 0, 0, get_doa, 24},
-  {PIV_DATA_OBJ_X509_ATTESTATION, 1, 0, 0, "X.509 Certificate for Attestation", 0, 0, get_doa, 25},
+  {PIV_DATA_OBJ_X509_ATTESTATION, 1, 0, 0, "X.509 Certificate for PIV Attestation", 0, 0, get_doa, 25},
 
   {PIV_DATA_OBJ_CCC, 1, 0, 0, "Card Capability Container", 0, 0, get_doa, 26},
   {PIV_DATA_OBJ_CHUI, 1, 0, 0, "Card Holder Unique Identifier", 0, 0, get_doa, 27},
@@ -113,32 +113,32 @@ static piv_obj_t piv_objects[] = {
   {PIV_CERT_OBJ_X509_RETIRED18, 1, 0, 0, "X.509 Certificate for Retired Key 18", 0, 0, get_coa, 22},
   {PIV_CERT_OBJ_X509_RETIRED19, 1, 0, 0, "X.509 Certificate for Retired Key 19", 0, 0, get_coa, 23},
   {PIV_CERT_OBJ_X509_RETIRED20, 1, 0, 0, "X.509 Certificate for Retired Key 20", 0, 0, get_coa, 24},
-  {PIV_CERT_OBJ_X509_ATTESTATION, 1, 0, 0, "X.509 Certificate for Attestation", 0, 0, get_coa, 25},
+  {PIV_CERT_OBJ_X509_ATTESTATION, 1, 0, 0, "X.509 Certificate for PIV Attestation", 0, 0, get_coa, 25},
 
-  {PIV_CERT_OBJ_X509_ATTESTATION_PIV_AUTH, 1, 0, 0, "X.509 Certificate for Attestation of PIV Authentication", 0, 0, get_atst, 1},
-  {PIV_CERT_OBJ_X509_ATTESTATION_DS, 1, 0, 0, "X.509 Certificate for Attestation of Digital Signature", 0, 0, get_atst, 2},
-  {PIV_CERT_OBJ_X509_ATTESTATION_KM, 1, 0, 0, "X.509 Certificate for Attestation of Key Management", 0, 0, get_atst, 3},
-  {PIV_CERT_OBJ_X509_ATTESTATION_CARD_AUTH, 1, 0, 0, "X.509 Certificate for Attestation of Card Authentication", 0, 0, get_atst, 4},
-  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED1, 1, 0, 0, "X.509 Certificate for Attestation of Retired Key 1", 0, 0, get_atst, 5},
-  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED2, 1, 0, 0, "X.509 Certificate for Attestation of Retired Key 2", 0, 0, get_atst, 6},
-  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED3, 1, 0, 0, "X.509 Certificate for Attestation of Retired Key 3", 0, 0, get_atst, 7},
-  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED4, 1, 0, 0, "X.509 Certificate for Attestation of Retired Key 4", 0, 0, get_atst, 8},
-  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED5, 1, 0, 0, "X.509 Certificate for Attestation of Retired Key 5", 0, 0, get_atst, 9},
-  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED6, 1, 0, 0, "X.509 Certificate for Attestation of Retired Key 6", 0, 0, get_atst, 10},
-  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED7, 1, 0, 0, "X.509 Certificate for Attestation of Retired Key 7", 0, 0, get_atst, 11},
-  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED8, 1, 0, 0, "X.509 Certificate for Attestation of Retired Key 8", 0, 0, get_atst, 12},
-  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED9, 1, 0, 0, "X.509 Certificate for Attestation of Retired Key 9", 0, 0, get_atst, 13},
-  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED10, 1, 0, 0, "X.509 Certificate for Attestation of Retired Key 10", 0, 0, get_atst, 14},
-  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED11, 1, 0, 0, "X.509 Certificate for Attestation of Retired Key 11", 0, 0, get_atst, 15},
-  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED12, 1, 0, 0, "X.509 Certificate for Attestation of Retired Key 12", 0, 0, get_atst, 16},
-  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED13, 1, 0, 0, "X.509 Certificate for Attestation of Retired Key 13", 0, 0, get_atst, 17},
-  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED14, 1, 0, 0, "X.509 Certificate for Attestation of Retired Key 14", 0, 0, get_atst, 18},
-  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED15, 1, 0, 0, "X.509 Certificate for Attestation of Retired Key 15", 0, 0, get_atst, 19},
-  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED16, 1, 0, 0, "X.509 Certificate for Attestation of Retired Key 16", 0, 0, get_atst, 20},
-  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED17, 1, 0, 0, "X.509 Certificate for Attestation of Retired Key 17", 0, 0, get_atst, 21},
-  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED18, 1, 0, 0, "X.509 Certificate for Attestation of Retired Key 18", 0, 0, get_atst, 22},
-  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED19, 1, 0, 0, "X.509 Certificate for Attestation of Retired Key 19", 0, 0, get_atst, 23},
-  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED20, 1, 0, 0, "X.509 Certificate for Attestation of Retired Key 20", 0, 0, get_atst, 24},
+  {PIV_CERT_OBJ_X509_ATTESTATION_PIV_AUTH, 1, 0, 0, "X.509 Certificate for PIV Attestation 9a", 0, 0, get_atst, 1},
+  {PIV_CERT_OBJ_X509_ATTESTATION_DS, 1, 0, 0, "X.509 Certificate for PIV Attestation 9c", 0, 0, get_atst, 2},
+  {PIV_CERT_OBJ_X509_ATTESTATION_KM, 1, 0, 0, "X.509 Certificate for PIV Attestation 9d", 0, 0, get_atst, 3},
+  {PIV_CERT_OBJ_X509_ATTESTATION_CARD_AUTH, 1, 0, 0, "X.509 Certificate for PIV Attestation 9e", 0, 0, get_atst, 4},
+  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED1, 1, 0, 0, "X.509 Certificate for PIV Attestation 82", 0, 0, get_atst, 5},
+  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED2, 1, 0, 0, "X.509 Certificate for PIV Attestation 83", 0, 0, get_atst, 6},
+  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED3, 1, 0, 0, "X.509 Certificate for PIV Attestation 84", 0, 0, get_atst, 7},
+  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED4, 1, 0, 0, "X.509 Certificate for PIV Attestation 85", 0, 0, get_atst, 8},
+  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED5, 1, 0, 0, "X.509 Certificate for PIV Attestation 86", 0, 0, get_atst, 9},
+  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED6, 1, 0, 0, "X.509 Certificate for PIV Attestation 87", 0, 0, get_atst, 10},
+  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED7, 1, 0, 0, "X.509 Certificate for PIV Attestation 88", 0, 0, get_atst, 11},
+  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED8, 1, 0, 0, "X.509 Certificate for PIV Attestation 89", 0, 0, get_atst, 12},
+  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED9, 1, 0, 0, "X.509 Certificate for PIV Attestation 8a", 0, 0, get_atst, 13},
+  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED10, 1, 0, 0, "X.509 Certificate for PIV Attestation 8b", 0, 0, get_atst, 14},
+  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED11, 1, 0, 0, "X.509 Certificate for PIV Attestation 8c", 0, 0, get_atst, 15},
+  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED12, 1, 0, 0, "X.509 Certificate for PIV Attestation 8d", 0, 0, get_atst, 16},
+  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED13, 1, 0, 0, "X.509 Certificate for PIV Attestation 8e", 0, 0, get_atst, 17},
+  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED14, 1, 0, 0, "X.509 Certificate for PIV Attestation 8f", 0, 0, get_atst, 18},
+  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED15, 1, 0, 0, "X.509 Certificate for PIV Attestation 90", 0, 0, get_atst, 19},
+  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED16, 1, 0, 0, "X.509 Certificate for PIV Attestation 91", 0, 0, get_atst, 20},
+  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED17, 1, 0, 0, "X.509 Certificate for PIV Attestation 92", 0, 0, get_atst, 21},
+  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED18, 1, 0, 0, "X.509 Certificate for PIV Attestation 93", 0, 0, get_atst, 22},
+  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED19, 1, 0, 0, "X.509 Certificate for PIV Attestation 94", 0, 0, get_atst, 23},
+  {PIV_CERT_OBJ_X509_ATTESTATION_RETIRED20, 1, 0, 0, "X.509 Certificate for PIV Attestation 95", 0, 0, get_atst, 24},
 
   {PIV_PVTK_OBJ_PIV_AUTH, 1, 1, 0, "Private key for PIV Authentication", 0, 0, get_proa, 1},   // 9a
   {PIV_PVTK_OBJ_DS, 1, 1, 0, "Private key for Digital Signature", 0, 0, get_proa, 2},          // 9c
@@ -164,7 +164,7 @@ static piv_obj_t piv_objects[] = {
   {PIV_PVTK_OBJ_RETIRED18, 1, 1, 0, "Private key for Retired Key 18", 0, 0, get_proa, 22},
   {PIV_PVTK_OBJ_RETIRED19, 1, 1, 0, "Private key for Retired Key 19", 0, 0, get_proa, 23},
   {PIV_PVTK_OBJ_RETIRED20, 1, 1, 0, "Private key for Retired Key 20", 0, 0, get_proa, 24},
-  {PIV_PVTK_OBJ_ATTESTATION, 1, 1, 0, "Private key for Attestation", 0, 0, get_proa, 25},
+  {PIV_PVTK_OBJ_ATTESTATION, 1, 1, 0, "Private key for PIV Attestation", 0, 0, get_proa, 25},
 
   {PIV_PUBK_OBJ_PIV_AUTH, 1, 0, 0, "Public key for PIV Authentication", 0, 0, get_puoa, 1},
   {PIV_PUBK_OBJ_DS, 1, 0, 0, "Public key for Digital Signature", 0, 0, get_puoa, 2},
@@ -190,7 +190,7 @@ static piv_obj_t piv_objects[] = {
   {PIV_PUBK_OBJ_RETIRED18, 1, 0, 0, "Public key for Retired Key 18", 0, 0, get_puoa, 22},
   {PIV_PUBK_OBJ_RETIRED19, 1, 0, 0, "Public key for Retired Key 19", 0, 0, get_puoa, 23},
   {PIV_PUBK_OBJ_RETIRED20, 1, 0, 0, "Public key for Retired Key 20", 0, 0, get_puoa, 24},
-  {PIV_PUBK_OBJ_ATTESTATION, 1, 0, 0, "Public key for Attestation", 0, 0, get_puoa, 25}
+  {PIV_PUBK_OBJ_ATTESTATION, 1, 0, 0, "Public key for PIV Attestation", 0, 0, get_puoa, 25}
 };
 
 static piv_data_obj_t data_objects[] = {
@@ -510,13 +510,35 @@ static CK_RV get_coa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR
   return _get_coa(s->certs, obj, template);
 }
 
+// Using bsearch requires this to be sorted by numeric value
+static CK_ATTRIBUTE_TYPE relevant[] = {
+  CKA_VALUE,
+  CKA_ISSUER,
+  CKA_SERIAL_NUMBER,
+  CKA_SUBJECT,
+};
+
+static int compare_ck_attribute_type(const void *a, const void *b) {
+  return (*(CK_ATTRIBUTE_TYPE*)a - *(CK_ATTRIBUTE_TYPE*)b);
+}
+
+static CK_BBOOL is_relevant_attribute(CK_ATTRIBUTE_PTR template) {
+  return bsearch(&template->type, relevant, sizeof(relevant)/sizeof(relevant[0]), sizeof(relevant[0]), compare_ck_attribute_type) ? CK_TRUE : CK_FALSE;
+}
+
 static CK_RV get_atst(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE sub_id = piv_objects[obj].sub_id;
-  if(s->atst[sub_id] == NULL) {
+  if(s->atst[sub_id] == NULL && is_relevant_attribute(template)) {
     unsigned char data[3072];
     unsigned long len = sizeof(data);
-    ykpiv_attest(s->slot->piv_state, piv_2_ykpiv(find_pvtk_object(sub_id)), data, &len);
-    do_store_cert(data, len, &s->atst[sub_id]);
+    ykpiv_rc rc;
+    if((rc = ykpiv_attest(s->slot->piv_state, piv_2_ykpiv(find_pvtk_object(sub_id)), data, &len)) == YKPIV_OK) {
+      do_store_cert(data, len, &s->atst[sub_id]);
+    } else {
+      s->atst[sub_id] = X509_new();
+      X509_NAME_add_entry_by_txt(X509_get_issuer_name(s->atst[sub_id]), "CN", MBSTRING_ASC, (unsigned char*)ykpiv_strerror(rc), -1, -1, 0);
+      X509_NAME_add_entry_by_txt(X509_get_subject_name(s->atst[sub_id]), "CN", MBSTRING_ASC, (unsigned char*)ykpiv_strerror(rc), -1, -1, 0);
+    }
   }
   return _get_coa(s->atst, obj, template);
 }

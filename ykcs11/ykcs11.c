@@ -1485,6 +1485,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
   if (pTemplate == NULL || ulCount == 0)
     return CKR_ARGUMENTS_BAD;
 
+  locking.LockMutex(session->slot->mutex);
+
   rv_final = CKR_OK;
   for (i = 0; i < ulCount; i++) {
 
@@ -1496,6 +1498,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
       rv_final = rv;
     }
   }
+
+  locking.UnlockMutex(session->slot->mutex);
 
   DOUT;
   return rv_final;
@@ -1550,8 +1554,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
 
   DBG("Initialized search with %lu parameters", ulCount);
 
-  locking.LockMutex(session->slot->mutex);
-
   // Match parameters
   for (CK_ULONG i = 0; i < session->n_objects; i++) {
 
@@ -1562,6 +1564,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
         continue;
       }
 
+    locking.LockMutex(session->slot->mutex);
+  
     bool keep = true;
     for (CK_ULONG j = 0; j < ulCount; j++) {
       if (attribute_match(session, session->objects[i], pTemplate + j) == CK_FALSE) {
@@ -1571,13 +1575,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
       }
     }
 
+    locking.UnlockMutex(session->slot->mutex);
+
     if(keep) {
       DBG("Keeping object %u", session->objects[i]);
       session->find_obj.objects[session->find_obj.n_objects++] = session->objects[i];
     }
   }
-
-  locking.UnlockMutex(session->slot->mutex);
 
   DBG("%lu object(s) left after attribute matching", session->find_obj.n_objects);
 
