@@ -810,7 +810,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     piv_obj_id_t pvtk_id = find_pvtk_object(key_id);
     piv_obj_id_t atst_id = find_atst_object(key_id);
     CK_BYTE data[3072];  // Max cert value for ykpiv
-    CK_ULONG len;
+    size_t len;
     if(pvtk_id != (piv_obj_id_t)-1) {
       len = sizeof(data);
       if((rc = ykpiv_get_metadata(session->slot->piv_state, piv_2_ykpiv(pvtk_id), data, &len)) == YKPIV_OK) {
