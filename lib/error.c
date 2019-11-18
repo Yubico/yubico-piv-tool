@@ -50,7 +50,7 @@ static const err_t errors[] = {
   ERR (YKPIV_AUTHENTICATION_ERROR, "Error during authentication"),
   ERR (YKPIV_RANDOMNESS_ERROR, "Error getting randomness"),
   ERR (YKPIV_GENERIC_ERROR, "Something went wrong."),
-  ERR (YKPIV_KEY_ERROR, "Error in key"),
+  ERR (YKPIV_KEY_ERROR, "Key error"),
   ERR (YKPIV_PARSE_ERROR, "Parse error"),
   ERR (YKPIV_WRONG_PIN, "Wrong PIN code"),
   ERR (YKPIV_INVALID_OBJECT, "Object invalid"),

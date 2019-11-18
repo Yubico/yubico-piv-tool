@@ -654,6 +654,7 @@ extern "C"
 #define SW_ERR_SECURITY_STATUS 0x6982
 #define SW_ERR_AUTH_BLOCKED 0x6983
 #define SW_ERR_INCORRECT_PARAM 0x6a80
+#define SW_ERR_REFERENCE_NOT_FOUND 0x6a88
 /* this is a custom sw for yubikey */
 #define SW_ERR_INCORRECT_SLOT 0x6b00
 #define SW_ERR_NOT_SUPPORTED 0x6d00

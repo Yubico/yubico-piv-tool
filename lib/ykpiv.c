@@ -2019,6 +2019,9 @@ ykpiv_rc ykpiv_get_metadata(ykpiv_state *state, const unsigned char key, unsigne
     if (SW_ERR_NOT_SUPPORTED == sw) {
       res = YKPIV_NOT_SUPPORTED;
     }
+    if (SW_ERR_REFERENCE_NOT_FOUND == sw) {
+      res = YKPIV_KEY_ERROR;
+    }
     if (SW_ERR_INCORRECT_PARAM == sw) {
       res = YKPIV_ARGUMENT_ERROR;
     }
