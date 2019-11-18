@@ -285,6 +285,15 @@ extern "C"
   typedef struct _ykpiv_mgm {
     uint8_t data[24];
   } ykpiv_mgm;
+
+  typedef struct _ykpiv_metadata {
+    uint8_t algorithm;
+    uint8_t pin_policy;
+    uint8_t touch_policy;
+    uint8_t origin;
+    size_t pubkey_len;
+    uint8_t pubkey[1024];
+  } ykpiv_metadata;
 #pragma pack(pop)
 
   /**
@@ -551,7 +560,7 @@ extern "C"
   ykpiv_rc ykpiv_util_write_mscmap(ykpiv_state *state, ykpiv_container *containers, size_t n_containers);
   ykpiv_rc ykpiv_util_read_msroots(ykpiv_state  *state, uint8_t **data, size_t *data_len);
   ykpiv_rc ykpiv_util_write_msroots(ykpiv_state *state, uint8_t *data, size_t data_len);
-  ykpiv_rc ykpiv_util_parse_metadata(uint8_t *data, size_t cb_data);
+  ykpiv_rc ykpiv_util_parse_metadata(uint8_t *data, size_t data_len, ykpiv_metadata *metadata);
 
 
 ////////////////////////////////////////////////////////////////////////////////

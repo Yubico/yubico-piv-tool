@@ -1481,22 +1481,41 @@ static ykpiv_rc _get_metadata_item(uint8_t *data, size_t cb_data, uint8_t tag, u
   return YKPIV_GENERIC_ERROR;
 }
 
-ykpiv_rc ykpiv_util_parse_metadata(uint8_t *data, size_t cb_data) {
+ykpiv_rc ykpiv_util_parse_metadata(uint8_t *data, size_t data_len, ykpiv_metadata *metadata) {
   uint8_t *p;
   size_t cb;
-  if(_get_metadata_item(data, cb_data, YKPIV_METADATA_ALGORITHM_TAG, &p, &cb) == YKPIV_OK) {
-    printf("Algorithm = 0x%x\n", *p);
-  }
-  if(_get_metadata_item(data, cb_data, YKPIV_METADATA_POLICY_TAG, &p, &cb) == YKPIV_OK) {
-    printf("Pin policy = %d\n", p[0]);
-    printf("Touch policy = %d\n", p[1]);
-  }
-  if(_get_metadata_item(data, cb_data, YKPIV_METADATA_ORIGIN_TAG, &p, &cb) == YKPIV_OK) {
-    printf("Origin = %d\n", *p);
-  }
-  if(_get_metadata_item(data, cb_data, YKPIV_METADATA_PUBKEY_TAG, &p, &cb) == YKPIV_OK) {
-    printf("Public key %lu bytes at %p\n", cb, p);
-  }
+
+  ykpiv_rc rc = _get_metadata_item(data, data_len, YKPIV_METADATA_ALGORITHM_TAG, &p, &cb);
+  if(rc != YKPIV_OK)
+    return rc;
+  if(cb != 1)
+    return YKPIV_PARSE_ERROR;
+  metadata->algorithm = p[0];
+
+  rc = _get_metadata_item(data, data_len, YKPIV_METADATA_POLICY_TAG, &p, &cb);
+  if(rc != YKPIV_OK)
+    return rc;
+  if(cb != 2)
+    return YKPIV_PARSE_ERROR;
+  metadata->pin_policy = p[0];
+  metadata->touch_policy = p[1];
+
+  rc = _get_metadata_item(data, data_len, YKPIV_METADATA_ORIGIN_TAG, &p, &cb);
+  if(rc != YKPIV_OK)
+    return rc;
+  if(cb != 1)
+    return YKPIV_PARSE_ERROR;
+  metadata->origin = p[0];
+
+  rc = _get_metadata_item(data, data_len, YKPIV_METADATA_PUBKEY_TAG, &p, &cb);
+  if(rc != YKPIV_OK)
+    return rc;
+  metadata->pubkey_len = cb;
+
+  if(cb > sizeof(metadata->pubkey))
+    return YKPIV_SIZE_ERROR;
+  memcpy(metadata->pubkey, p, cb);
+
   return YKPIV_OK;
 } 
 
