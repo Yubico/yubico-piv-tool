@@ -1346,6 +1346,12 @@ CK_RV delete_cert(ykcs11_session_t *s, piv_obj_id_t cert_id) {
   if (rv != CKR_OK)
     return rv;
 
+  if(s->atst[piv_objects[cert_id].sub_id]) {
+    rv = do_delete_cert(&s->atst[piv_objects[cert_id].sub_id]);
+    if (rv != CKR_OK)
+      return rv;
+  }
+
   // Clear the object containing the public key
   rv = do_delete_pubk(&s->pkeys[piv_objects[cert_id].sub_id]);
   if (rv != CKR_OK)
