@@ -852,7 +852,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
       }
       if(cert_id != (piv_obj_id_t)-1) {
         session->objects[session->n_objects++] = cert_id;
-        rv = store_cert(session, cert_id, data, len);
+        rv = store_cert(session, cert_id, data, len, CK_FALSE);
         if (rv != CKR_OK) {
           session->slot = NULL;
           locking.UnlockMutex(session->slot->mutex);
@@ -1277,7 +1277,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       return CKR_FUNCTION_FAILED;
     }
 
-    rv = store_cert(session, cert_id, value, value_len);
+    rv = store_cert(session, cert_id, value, value_len, CK_TRUE);
     if (rv != CKR_OK) {
       DBG("Unable to store certificate in session");
       return CKR_FUNCTION_FAILED;
@@ -3062,7 +3062,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     return CKR_FUNCTION_FAILED;
   }
 
-  rv = store_cert(session, cert_id, cert_data, cert_len);
+  rv = store_cert(session, cert_id, cert_data, cert_len, CK_TRUE);
   if (rv != CKR_OK) {
     DBG("Unable to store certificate in session");
     return CKR_FUNCTION_FAILED;

@@ -51,7 +51,7 @@ void sort_objects(ykcs11_session_t *s);
 
 CK_RV    store_data(ykcs11_session_t *s, piv_obj_id_t obj, CK_BYTE_PTR data, CK_ULONG len);
 CK_RV    delete_data(ykcs11_session_t *s, piv_obj_id_t obj);
-CK_RV    store_cert(ykcs11_session_t *s, piv_obj_id_t obj, CK_BYTE_PTR data, CK_ULONG len);
+CK_RV    store_cert(ykcs11_session_t *s, piv_obj_id_t obj, CK_BYTE_PTR data, CK_ULONG len, CK_BBOOL force_pubkey);
 CK_RV    delete_cert(ykcs11_session_t *s, piv_obj_id_t obj);
 CK_RV    get_data_len(ykcs11_session_t *s, piv_obj_id_t obj, CK_ULONG_PTR len);
 

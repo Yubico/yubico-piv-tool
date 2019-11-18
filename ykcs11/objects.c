@@ -1321,7 +1321,7 @@ CK_RV get_data_len(ykcs11_session_t *s, piv_obj_id_t obj, CK_ULONG_PTR len) {
   return CKR_OK;
 }
 
-CK_RV store_cert(ykcs11_session_t *s, piv_obj_id_t cert_id, CK_BYTE_PTR data, CK_ULONG len) {
+CK_RV store_cert(ykcs11_session_t *s, piv_obj_id_t cert_id, CK_BYTE_PTR data, CK_ULONG len, CK_BBOOL force_pubkey) {
 
   CK_RV rv;
 
@@ -1330,10 +1330,12 @@ CK_RV store_cert(ykcs11_session_t *s, piv_obj_id_t cert_id, CK_BYTE_PTR data, CK
   if (rv != CKR_OK)
     return rv;
 
-  // Extract and store the public key as an object
-  rv = do_store_pubk(s->certs[piv_objects[cert_id].sub_id], &s->pkeys[piv_objects[cert_id].sub_id]);
-  if (rv != CKR_OK)
-    return rv;
+  // Extract and store the public key as an object (if forced or not already present)
+  if(force_pubkey || s->pkeys[piv_objects[cert_id].sub_id] == NULL) {
+    rv = do_store_pubk(s->certs[piv_objects[cert_id].sub_id], &s->pkeys[piv_objects[cert_id].sub_id]);
+    if (rv != CKR_OK)
+      return rv;
+  }
 
   return CKR_OK;
 }
