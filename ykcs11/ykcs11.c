@@ -38,6 +38,7 @@
 #include "utils.h"
 #include "mechanisms.h"
 #include "token.h"
+#include "openssl-compat.h"
 #include "openssl_types.h"
 #include "openssl_utils.h"
 #include <openssl/rand.h>
@@ -816,6 +817,24 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
         if((rc = ykpiv_util_parse_metadata(data, len, &md)) == YKPIV_OK) {
           session->objects[session->n_objects++] = pubk_id;
           session->objects[session->n_objects++] = pvtk_id;
+          session->pkeys[key_id] = EVP_PKEY_new();
+          if(YKPIV_IS_EC(md.algorithm)) {
+            int nid = get_curve_name(md.algorithm);
+            EC_GROUP *group = EC_GROUP_new_by_curve_name(nid);
+            EC_GROUP_set_asn1_flag(group, nid);
+            EC_KEY *eckey = EC_KEY_new();
+            EC_KEY_set_group(eckey, group);
+            EC_POINT *ecpoint = EC_POINT_new(group);
+            EC_POINT_oct2point(group, ecpoint, md.point, md.point_len, NULL);
+            EC_KEY_set_public_key(eckey, ecpoint);
+            EVP_PKEY_set1_EC_KEY(session->pkeys[key_id], eckey);
+          } else if(YKPIV_IS_RSA(md.algorithm)) {
+            RSA *rsa = RSA_new();
+            BIGNUM *n = BN_bin2bn(md.mod, md.mod_len, 0);
+            BIGNUM *e = BN_bin2bn(md.exp, md.exp_len, 0);
+            RSA_set0_key(rsa, n, e, NULL);
+            EVP_PKEY_set1_RSA(session->pkeys[key_id], rsa);
+          }
           if(atst_id != (piv_obj_id_t)-1) { // Attestation key doesn't have an attestation
             session->objects[session->n_objects++] = atst_id;
           }

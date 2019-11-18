@@ -291,8 +291,12 @@ extern "C"
     uint8_t pin_policy;
     uint8_t touch_policy;
     uint8_t origin;
-    size_t pubkey_len;
-    uint8_t pubkey[1024];
+    size_t point_len;
+    size_t mod_len;
+    size_t exp_len;
+    uint8_t point[128];
+    uint8_t mod[512];
+    uint8_t exp[512];
   } ykpiv_metadata;
 #pragma pack(pop)
 
@@ -561,8 +565,7 @@ extern "C"
   ykpiv_rc ykpiv_util_read_msroots(ykpiv_state  *state, uint8_t **data, size_t *data_len);
   ykpiv_rc ykpiv_util_write_msroots(ykpiv_state *state, uint8_t *data, size_t data_len);
   ykpiv_rc ykpiv_util_parse_metadata(uint8_t *data, size_t data_len, ykpiv_metadata *metadata);
-
-
+  
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
