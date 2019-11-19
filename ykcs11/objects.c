@@ -535,10 +535,25 @@ static CK_RV get_atst(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
     if((rc = ykpiv_attest(s->slot->piv_state, piv_2_ykpiv(find_pvtk_object(sub_id)), data, &len)) == YKPIV_OK) {
       do_store_cert(data, len, &s->atst[sub_id]);
     } else {
+      // Create a random EC key pair (much faster than RSA)
+      EC_GROUP *group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+      EC_GROUP_set_asn1_flag(group, NID_X9_62_prime256v1);
+      EC_KEY *eckey = EC_KEY_new();
+      EC_KEY_set_group(eckey, group);
+      EC_KEY_generate_key(eckey);
+      EVP_PKEY *pkey = EVP_PKEY_new();
+      EVP_PKEY_set1_EC_KEY(pkey, eckey);
+
+      // Create a bogus self-signed cert using the error code from ykpiv_attest as subject and issuer CN
       s->atst[sub_id] = X509_new();
+      X509_set_version(s->atst[sub_id], 2);
       X509_NAME_add_entry_by_txt(X509_get_issuer_name(s->atst[sub_id]), "CN", MBSTRING_ASC, (unsigned char*)ykpiv_strerror(rc), -1, -1, 0);
       X509_NAME_add_entry_by_txt(X509_get_subject_name(s->atst[sub_id]), "CN", MBSTRING_ASC, (unsigned char*)ykpiv_strerror(rc), -1, -1, 0);
       ASN1_INTEGER_set(X509_get_serialNumber(s->atst[sub_id]), 0);
+      X509_gmtime_adj(X509_get_notBefore(s->atst[sub_id]), 0);
+      X509_gmtime_adj(X509_get_notAfter(s->atst[sub_id]), 0);
+      X509_set_pubkey(s->atst[sub_id], pkey);
+      X509_sign(s->atst[sub_id], pkey, EVP_sha1());
     }
   }
   return _get_coa(s->atst, obj, template);
