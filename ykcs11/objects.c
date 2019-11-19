@@ -721,19 +721,7 @@ static CK_RV get_proa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
   case CKA_MODULUS_BITS:
     DBG("MODULUS BITS");
     len = sizeof(CK_ULONG);
-
-    // Make sure that this is an RSA key
-    ul_tmp = do_get_key_type(s->pkeys[piv_objects[obj].sub_id]); // Getting the info from the pubk
-    if (ul_tmp == CKK_VENDOR_DEFINED)
-      return CKR_FUNCTION_FAILED;
-    if (ul_tmp != CKK_RSA) {
-      template->ulValueLen = CK_UNAVAILABLE_INFORMATION;
-      return CKR_ATTRIBUTE_TYPE_INVALID;
-    }
-
-    ul_tmp = do_get_rsa_modulus_length(s->pkeys[piv_objects[obj].sub_id]); // Getting the info from the pubk
-    if (ul_tmp == 0)
-      return CKR_FUNCTION_FAILED;
+    ul_tmp = EVP_PKEY_bits(s->pkeys[piv_objects[obj].sub_id]);
     data = (CK_BYTE_PTR) &ul_tmp;
     break;
 
@@ -962,19 +950,7 @@ static CK_RV get_puoa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
   case CKA_MODULUS_BITS:
     DBG("MODULUS BITS");
     len = sizeof(CK_ULONG);
-
-    // Make sure that this is an RSA key
-    ul_tmp = do_get_key_type(s->pkeys[piv_objects[obj].sub_id]); // Getting the info from the pubk
-    if (ul_tmp == CKK_VENDOR_DEFINED)
-      return CKR_FUNCTION_FAILED;
-    if (ul_tmp != CKK_RSA) {
-      template->ulValueLen = CK_UNAVAILABLE_INFORMATION;
-      return CKR_ATTRIBUTE_TYPE_INVALID;
-    }
-
-    ul_tmp = do_get_rsa_modulus_length(s->pkeys[piv_objects[obj].sub_id]); // Getting the info from the pubk
-    if (ul_tmp == 0)
-      return CKR_FUNCTION_FAILED;
+    ul_tmp = EVP_PKEY_bits(s->pkeys[piv_objects[obj].sub_id]);
     data = (CK_BYTE_PTR) &ul_tmp;
     break;
 
