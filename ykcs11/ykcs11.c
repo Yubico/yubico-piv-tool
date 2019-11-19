@@ -810,13 +810,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     piv_obj_id_t pvtk_id = find_pvtk_object(key_id);
     piv_obj_id_t atst_id = find_atst_object(key_id);
     CK_BYTE data[3072];  // Max cert value for ykpiv
-    size_t len;
+    unsigned long len;
     if(pvtk_id != (piv_obj_id_t)-1) {
       len = sizeof(data);
       if((rc = ykpiv_get_metadata(session->slot->piv_state, piv_2_ykpiv(pvtk_id), data, &len)) == YKPIV_OK) {
         if((rc = ykpiv_util_parse_metadata(data, len, &md)) == YKPIV_OK) {
-          session->objects[session->n_objects++] = pubk_id;
-          session->objects[session->n_objects++] = pvtk_id;
           session->pkeys[key_id] = EVP_PKEY_new();
           int nid = get_curve_name(md.algorithm);
           if(nid) {
@@ -835,6 +833,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
             RSA_set0_key(rsa, n, e, NULL);
             EVP_PKEY_set1_RSA(session->pkeys[key_id], rsa);
           }
+          session->objects[session->n_objects++] = pubk_id;
+          session->objects[session->n_objects++] = pvtk_id;
           if(atst_id != (piv_obj_id_t)-1) { // Attestation key doesn't have an attestation
             session->objects[session->n_objects++] = atst_id;
           }

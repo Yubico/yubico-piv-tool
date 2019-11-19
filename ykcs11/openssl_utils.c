@@ -59,6 +59,9 @@ CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, X509 **cert) {
   if ((CK_ULONG)cert_len > len)
     return CKR_ARGUMENTS_BAD;
 
+  if(*cert)
+    X509_free(*cert);
+
   *cert = d2i_X509(NULL, &p, cert_len);
   if (*cert == NULL)
     return CKR_FUNCTION_FAILED;
@@ -352,6 +355,9 @@ CK_RV do_delete_cert(X509 **cert) {
 }
 
 CK_RV do_store_pubk(X509 *cert, EVP_PKEY **key) {
+
+  if(*key)
+    EVP_PKEY_free(*key);
 
   *key = X509_get_pubkey(cert);
 

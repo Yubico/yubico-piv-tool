@@ -1995,22 +1995,19 @@ Cleanup:
   return res;
 }
 
-ykpiv_rc ykpiv_get_metadata(ykpiv_state *state, const unsigned char key, unsigned char *data, size_t *data_len) {
+ykpiv_rc ykpiv_get_metadata(ykpiv_state *state, const unsigned char key, unsigned char *data, unsigned long *data_len) {
   ykpiv_rc res;
   unsigned char templ[] = {0, YKPIV_INS_GET_METADATA, 0, key};
   int sw;
-  unsigned long ul_data_len;
 
   if (state == NULL || data == NULL || data_len == NULL) {
     return YKPIV_ARGUMENT_ERROR;
   }
 
-  ul_data_len = (unsigned long)*data_len;
-
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
-  if ((res = _ykpiv_transfer_data(state, templ, NULL, 0, data, &ul_data_len, &sw)) != YKPIV_OK) {
+  if ((res = _ykpiv_transfer_data(state, templ, NULL, 0, data, data_len, &sw)) != YKPIV_OK) {
     goto Cleanup;
   }
 
@@ -2027,8 +2024,6 @@ ykpiv_rc ykpiv_get_metadata(ykpiv_state *state, const unsigned char key, unsigne
     }
     goto Cleanup;
   }
-
-  *data_len = (size_t)ul_data_len;
 
 Cleanup:
   _ykpiv_end_transaction(state);

@@ -132,7 +132,7 @@ extern "C"
                                     const unsigned char *ec_data, unsigned char ec_data_len,
                                     const unsigned char pin_policy, const unsigned char touch_policy);
   ykpiv_rc ykpiv_attest(ykpiv_state *state, const unsigned char key, unsigned char *data, size_t *data_len);
-  ykpiv_rc ykpiv_get_metadata(ykpiv_state *state, const unsigned char key, unsigned char *data, size_t *data_len);
+  ykpiv_rc ykpiv_get_metadata(ykpiv_state *state, const unsigned char key, unsigned char *data, unsigned long *data_len);
   ykpiv_rc ykpiv_clear_pin_cache(ykpiv_state *state);
   ykpiv_rc ykpiv_clear_mgm_key_cache(ykpiv_state *state);
 
