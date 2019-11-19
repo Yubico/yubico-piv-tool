@@ -533,8 +533,10 @@ static CK_RV get_atst(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
     size_t len = sizeof(data);
     ykpiv_rc rc;
     if((rc = ykpiv_attest(s->slot->piv_state, piv_2_ykpiv(find_pvtk_object(sub_id)), data, &len)) == YKPIV_OK) {
+      DBG("Created attestation for object %lu", obj);
       do_store_cert(data, len, &s->atst[sub_id]);
     } else {
+      DBG("Failed to create attestation for object %lu: %s", obj, ykpiv_strerror(rc));
       // Create a random EC key pair (much faster than RSA)
       EC_GROUP *group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
       EC_GROUP_set_asn1_flag(group, NID_X9_62_prime256v1);

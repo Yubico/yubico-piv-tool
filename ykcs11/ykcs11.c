@@ -814,6 +814,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     if(pvtk_id != (piv_obj_id_t)-1) {
       len = sizeof(data);
       if((rc = ykpiv_get_metadata(session->slot->piv_state, piv_2_ykpiv(pvtk_id), data, &len)) == YKPIV_OK) {
+        DBG("Read %lu bytes metadata for private key %u (slot %lx)", len, pvtk_id, piv_2_ykpiv(pvtk_id));
         if((rc = ykpiv_util_parse_metadata(data, len, &md)) == YKPIV_OK) {
           session->pkeys[key_id] = EVP_PKEY_new();
           int nid = get_curve_name(md.algorithm);
@@ -843,19 +844,22 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     }
     len = sizeof(data);
     if(ykpiv_fetch_object(session->slot->piv_state, piv_2_ykpiv(obj_ids[i]), data, &len) == YKPIV_OK) {
+      DBG("Read %lu bytes for data object %u (%lx)", len, obj_ids[i], piv_2_ykpiv(obj_ids[i]));
       session->objects[session->n_objects++] = obj_ids[i];
       CK_RV rv = store_data(session, obj_ids[i], data, len);
       if (rv != CKR_OK) {
-        session->slot = NULL;
+        DBG("Failed to store data object %u in session: %lu", obj_ids[i], rv);
         locking.UnlockMutex(session->slot->mutex);
+        session->slot = NULL;
         return rv;
       }
       if(cert_id != (piv_obj_id_t)-1) {
         session->objects[session->n_objects++] = cert_id;
         rv = store_cert(session, cert_id, data, len, CK_FALSE);
         if (rv != CKR_OK) {
-          session->slot = NULL;
+          DBG("Failed to store certificate object %u in session: %lu", cert_id, rv);
           locking.UnlockMutex(session->slot->mutex);
+          session->slot = NULL;
           return rv;
         }
         if(rc != YKPIV_OK) { // Failed to get metadata, fall back to assuming we have keys for cert objects
