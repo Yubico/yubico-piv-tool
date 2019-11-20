@@ -347,6 +347,7 @@ CK_RV token_generate_key(ykpiv_state *state, CK_BBOOL rsa, CK_BYTE key, CK_ULONG
   unsigned char *certptr;
   unsigned char key_algorithm;
   unsigned long recv_len = sizeof(data);
+  char label[32];
   int len_bytes;
   int sw;
 
@@ -419,9 +420,11 @@ CK_RV token_generate_key(ykpiv_state *state, CK_BBOOL rsa, CK_BYTE key, CK_ULONG
     return CKR_DEVICE_ERROR;
   }
 
+  snprintf(label, sizeof(label), "YubiKey PIV Slot %x", key);
+
   // Create a new empty certificate for the key
   recv_len = sizeof(data);
-  if ((rv = do_create_empty_cert(data, recv_len, rsa, key_algorithm, data, &recv_len)) != CKR_OK)
+  if ((rv = do_create_empty_cert(data, recv_len, rsa, key_algorithm, label, data, &recv_len)) != CKR_OK)
     return rv;
 
   if (recv_len < 0x80)

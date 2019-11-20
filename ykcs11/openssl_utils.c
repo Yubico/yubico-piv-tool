@@ -71,7 +71,7 @@ CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, X509 **cert) {
 }
 
 CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_ULONG key_algorithm,
-                           CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
+                          const char *label, CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
 
   X509      *cert = NULL;
   EVP_PKEY  *key = NULL;
@@ -83,7 +83,6 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_
   EC_KEY    *eck = NULL;
   EC_GROUP  *ecg = NULL;
   EC_POINT  *ecp = NULL;
-  ASN1_TIME *tm = NULL;
 
   unsigned char *data_ptr;
   unsigned char *p;
@@ -178,17 +177,14 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_
     if (EVP_PKEY_set1_EC_KEY(key, eck) == 0)
       goto create_empty_cert_cleanup;
   }
-
-  if (X509_set_pubkey(cert, key) == 0) // TODO: there is also X509_PUBKEY_set(X509_PUBKEY **x, EVP_PKEY *pkey);
-    goto create_empty_cert_cleanup;
-
-  tm = ASN1_TIME_new();
-  if (tm == NULL)
-    goto create_empty_cert_cleanup;
-
-  ASN1_TIME_set_string(tm, "000001010000Z");
-  X509_set_notBefore(cert, tm);
-  X509_set_notAfter(cert, tm);
+  
+  X509_set_version(cert, 2);
+  X509_NAME_add_entry_by_txt(X509_get_issuer_name(cert), "CN", MBSTRING_ASC, (unsigned char*)label, -1, -1, 0);
+  X509_NAME_add_entry_by_txt(X509_get_subject_name(cert), "CN", MBSTRING_ASC, (unsigned char*)label, -1, -1, 0);
+  ASN1_INTEGER_set(X509_get_serialNumber(cert), 0);
+  X509_gmtime_adj(X509_get_notBefore(cert), 0);
+  X509_gmtime_adj(X509_get_notAfter(cert), 0);
+  X509_set_pubkey(cert, key);
 
   // Write a bogus signature to make a valid certificate
   if (X509_sign(cert, key, EVP_sha1()) == 0)
@@ -218,11 +214,6 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_
   rv = CKR_OK;
 
 create_empty_cert_cleanup:
-
-  if (tm != NULL) {
-    ASN1_STRING_free(tm);
-    tm = NULL;
-  }
 
   if (bignum_n != NULL) {
     BN_free(bignum_n);
@@ -258,7 +249,7 @@ create_empty_cert_cleanup:
     EVP_PKEY_free(key);
     key = NULL;
   }
-
+  
   if (cert != NULL) {
     X509_free(cert);
     cert = NULL;
