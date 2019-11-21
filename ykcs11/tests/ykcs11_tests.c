@@ -443,11 +443,15 @@ static void test_generate_ec() {
 
       asrt(funcs->C_Login(session, CKU_USER, "123456", 6), CKR_OK, "Login USER");
       asrt(funcs->C_SignInit(session, &sign_mech, privkey[i]), CKR_OK, "SignInit");
-
       recv_len = sizeof(sig);
       asrt(funcs->C_Sign(session, some_data, sizeof(some_data), sig, &recv_len), CKR_OK, "Sign");
       asrt(funcs->C_VerifyInit(session, &sign_mech, pubkey[i]), CKR_OK, "VerifyInit");
       asrt(funcs->C_Verify(session, some_data, sizeof(some_data), sig, recv_len), CKR_OK, "Verify");
+
+      asrt(funcs->C_VerifyInit(session, &sign_mech, pubkey[i]), CKR_OK, "VerifyInit");
+      asrt(funcs->C_VerifyUpdate(session, some_data, 15), CKR_OK, "VerifyUpdate 1");
+      asrt(funcs->C_VerifyUpdate(session, some_data+15, 15), CKR_OK, "VerifyUpdate 2");
+      asrt(funcs->C_VerifyFinal(session, sig, recv_len), CKR_OK, "VerifyFinal");
     }
   }
 
@@ -530,11 +534,16 @@ static void test_generate_ec_P384() {
 
       asrt(funcs->C_Login(session, CKU_USER, "123456", 6), CKR_OK, "Login USER");
       asrt(funcs->C_SignInit(session, &sign_mech, privkey[i]), CKR_OK, "SignInit");
-
       recv_len = sizeof(sig);
       asrt(funcs->C_Sign(session, some_data, sizeof(some_data), sig, &recv_len), CKR_OK, "Sign");
+      
       asrt(funcs->C_VerifyInit(session, &sign_mech, pubkey[i]), CKR_OK, "VerifyInit");
       asrt(funcs->C_Verify(session, some_data, sizeof(some_data), sig, recv_len), CKR_OK, "Verify");
+
+      asrt(funcs->C_VerifyInit(session, &sign_mech, pubkey[i]), CKR_OK, "VerifyInit");
+      asrt(funcs->C_VerifyUpdate(session, some_data, 16), CKR_OK, "VerifyUpdate 1");
+      asrt(funcs->C_VerifyUpdate(session, some_data+16, 16), CKR_OK, "VerifyUpdate 2");
+      asrt(funcs->C_VerifyFinal(session, sig, recv_len), CKR_OK, "VerifyFinal");
     }
   }
 
@@ -619,11 +628,16 @@ static void test_generate_rsa() {
 
       asrt(funcs->C_Login(session, CKU_USER, "123456", 6), CKR_OK, "Login USER");
       asrt(funcs->C_SignInit(session, &sign_mech, privkey[i]), CKR_OK, "SignInit");
-
       recv_len = sizeof(sig);
       asrt(funcs->C_Sign(session, some_data, sizeof(some_data), sig, &recv_len), CKR_OK, "Sign");
+      
       asrt(funcs->C_VerifyInit(session, &sign_mech, pubkey[i]), CKR_OK, "VerifyInit");
       asrt(funcs->C_Verify(session, some_data, sizeof(some_data), sig, recv_len), CKR_OK, "Verify");
+
+      asrt(funcs->C_VerifyInit(session, &sign_mech, pubkey[i]), CKR_OK, "VerifyInit");
+      asrt(funcs->C_VerifyUpdate(session, some_data, 10), CKR_OK, "VerifyUpdate 1");
+      asrt(funcs->C_VerifyUpdate(session, some_data+10, 22), CKR_OK, "VerifyUpdate 2");
+      asrt(funcs->C_VerifyFinal(session, sig, recv_len), CKR_OK, "VerifyFinal");
     }
   }
 
@@ -732,7 +746,7 @@ static void test_sign_update_RSA() {
       asrt(recv_len_update, 128, "Signature Length CKM_RSA_PKCS");
       // Compare signatures
       asrt(memcmp(sig_full, sig_update, recv_len_full), 0, "Signature Compare CKM_RSA_PKCS");
-
+      
       // CKM_RSA_X_509
       // C_Sign
       asrt(funcs->C_SignInit(session, &sign_mech_X509, privkey[i]), CKR_OK, "SignInit CKM_RSA_X_509");

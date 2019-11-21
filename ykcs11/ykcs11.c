@@ -2729,6 +2729,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
     session->op_info.op.verify.padding = RSA_PKCS1_PADDING;
   }
 
+  session->op_info.buf_len = 0;
   session->op_info.type = YKCS11_VERIFY;
 
   DOUT;
@@ -2768,7 +2769,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Verify)(
   }
 
   if (session->op_info.type != YKCS11_VERIFY) {
-    DBG("Signature operation not initialized");
+    DBG("Signature verification operation not initialized");
     rv = CKR_OPERATION_NOT_INITIALIZED;
     goto verify_out;
   }
@@ -2820,10 +2821,54 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyUpdate)(
   CK_ULONG ulPartLen
 )
 {
+  CK_RV    rv;
+
   DIN;
-  DBG("TODO!!!");
+
+  if (mutex == NULL) {
+    DBG("libykpiv is not initialized or already finalized");
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  ykcs11_session_t* session = get_session(hSession);
+
+  if (session == NULL || session->slot == NULL) {
+    DBG("Session is not open");
+    rv = CKR_SESSION_HANDLE_INVALID;
+    goto verify_out;
+  }
+
+  if (session->op_info.type != YKCS11_VERIFY) {
+    DBG("Signature verification operation not initialized");
+    rv = CKR_OPERATION_NOT_INITIALIZED;
+    goto verify_out;
+  }
+
+  if (pPart == NULL) {
+    DBG("No data provided");
+    rv = CKR_ARGUMENTS_BAD;
+    goto verify_out;
+  }
+
+#if YKCS11_DBG == 1
+  dump_data(pPart, ulPartLen, stderr, CK_TRUE, format_arg_hex);
+#endif
+
+  if (apply_verify_mechanism_update(&session->op_info, pPart, ulPartLen) != CKR_OK) {
+    DBG("Unable to perform signature verification operation step");
+    rv = CKR_FUNCTION_FAILED;
+    goto verify_out;
+  }
+
+  rv = CKR_OK;
+
+  verify_out:
+  if(rv != CKR_OK) {
+    session->op_info.type = YKCS11_NOOP;
+    verify_mechanism_cleanup(&session->op_info);
+  }
   DOUT;
-  return CKR_FUNCTION_NOT_SUPPORTED;
+  return rv;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_VerifyFinal)(
@@ -2832,10 +2877,69 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyFinal)(
   CK_ULONG ulSignatureLen
 )
 {
+  CK_RV    rv;
+  CK_ULONG siglen;
+
   DIN;
-  DBG("TODO!!!");
+  
+  if (mutex == NULL) {
+    DBG("libykpiv is not initialized or already finalized");
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  ykcs11_session_t* session = get_session(hSession);
+
+  if (session == NULL || session->slot == NULL) {
+    DBG("Session is not open");
+    rv = CKR_SESSION_HANDLE_INVALID;
+    goto verify_out;
+  }
+
+  if (pSignature == NULL) {
+    DBG("Invalid parameters");
+    rv = CKR_ARGUMENTS_BAD;
+    goto verify_out;
+  }
+
+  if (session->op_info.type != YKCS11_VERIFY) {
+    DBG("Signature verification operation not initialized");
+    rv = CKR_OPERATION_NOT_INITIALIZED;
+    goto verify_out;
+  }
+
+  if (is_RSA_sign_mechanism(session->op_info.mechanism.mechanism)) {
+    siglen = (session->op_info.op.verify.key_len + 7) / 8;
+  } else if (is_EC_sign_mechanism(session->op_info.mechanism.mechanism)) {
+    siglen = ((session->op_info.op.verify.key_len + 7) / 8) * 2;
+  } else {
+    DBG("Mechanism %lu not supported", session->op_info.mechanism.mechanism);
+    rv = CKR_MECHANISM_INVALID;
+    goto verify_out;
+  }
+
+  if (ulSignatureLen != siglen) {
+    DBG("Wrong data length, expected %lu, got %lu", siglen, ulSignatureLen);
+    rv = CKR_SIGNATURE_LEN_RANGE;
+    goto verify_out;
+  }
+
+  DBG("Using key %x", session->op_info.op.verify.key_id);
+
+  rv = verify_signature(session, &session->op_info, pSignature, ulSignatureLen);
+  if (rv != CKR_OK) {
+    DBG("Unable to verify signature");
+    goto verify_out;
+  }
+
+  DBG("Signature successfully verified");
+  rv = CKR_OK;
+
+  verify_out:
+  session->op_info.type = YKCS11_NOOP;
+  verify_mechanism_cleanup(&session->op_info);
+
   DOUT;
-  return CKR_FUNCTION_NOT_SUPPORTED;
+  return rv;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_VerifyRecoverInit)(
