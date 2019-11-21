@@ -40,14 +40,18 @@
 #include "pkcs11y.h"
 
 CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, X509 **cert);
-CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_ULONG key_algorithm,
-                           const char *label, CK_BYTE_PTR out, CK_ULONG_PTR out_len);
+CK_RV do_generate_ec_key(int nid, EVP_PKEY **pkey);
+CK_RV do_create_ec_key(CK_BYTE_PTR point, CK_ULONG point_len, int nid, EVP_PKEY **pkey);
+CK_RV do_create_rsa_key(CK_BYTE_PTR mod, CK_ULONG mod_len, CK_BYTE_PTR exp, CK_ULONG exp_len, EVP_PKEY **pkey);
+CK_RV do_create_public_key(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm, EVP_PKEY **pkey);
+CK_RV do_sign_empty_cert(const char *cn, EVP_PKEY *pubkey, EVP_PKEY *pvtkey, X509 **cert);
+CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm,
+                           const char *cn, CK_BYTE_PTR out, CK_ULONG_PTR out_len);
 CK_RV do_check_cert(CK_BYTE_PTR in, CK_ULONG_PTR cert_len);
 CK_RV do_get_raw_cert(X509 *cert, CK_BYTE_PTR out, CK_ULONG_PTR out_len);
 CK_RV do_get_raw_name(X509_NAME *name, CK_BYTE_PTR out, CK_ULONG_PTR out_len);
 CK_RV do_get_raw_integer(ASN1_INTEGER *serial, CK_BYTE_PTR out, CK_ULONG_PTR out_len);
 CK_RV do_delete_cert(X509 **cert);
-//CK_RV free_cert(X509 *cert);
 
 CK_RV       do_store_pubk(X509 *cert, EVP_PKEY **key);
 CK_KEY_TYPE do_get_key_type(EVP_PKEY *key);
@@ -57,7 +61,6 @@ CK_RV       do_get_public_key(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len)
 CK_RV       do_get_modulus(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
 CK_RV       do_get_curve_parameters(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
 CK_RV       do_delete_pubk(EVP_PKEY **key);
-//CK_RV       free_key(EVP_PKEY *key);
 
 CK_RV do_encode_rsa_public_key(ykcs11_rsa_key_t **key, CK_BYTE_PTR modulus, CK_ULONG mlen, CK_BYTE_PTR exponent, CK_ULONG elen);
 CK_RV do_free_rsa_public_key(ykcs11_rsa_key_t *key);

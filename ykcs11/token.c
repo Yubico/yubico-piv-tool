@@ -346,7 +346,7 @@ CK_RV token_generate_key(ykpiv_state *state, CK_BBOOL rsa, CK_BYTE key, CK_ULONG
   unsigned char templ[] = {0, YKPIV_INS_GENERATE_ASYMMETRIC, 0, 0};
   unsigned char *certptr;
   unsigned char key_algorithm;
-  unsigned long recv_len = sizeof(data);
+  unsigned long len, offset, recv_len = sizeof(data);
   char label[32];
   int len_bytes;
   int sw;
@@ -378,33 +378,37 @@ CK_RV token_generate_key(ykpiv_state *state, CK_BBOOL rsa, CK_BYTE key, CK_ULONG
 
   switch(key_len) {
     case 2048:
-      if (rsa == CK_TRUE)
+      if (rsa == CK_TRUE) {
         key_algorithm = YKPIV_ALGO_RSA2048;
-      else
+        offset = 5;
+      } else
         return CKR_FUNCTION_FAILED;
 
       break;
 
     case 1024:
-      if (rsa == CK_TRUE)
+      if (rsa == CK_TRUE) {
         key_algorithm = YKPIV_ALGO_RSA1024;
-      else
+        offset = 5;
+      } else
         return CKR_FUNCTION_FAILED;
 
       break;
 
     case 256:
-      if (rsa == CK_FALSE)
+      if (rsa == CK_FALSE) {
         key_algorithm = YKPIV_ALGO_ECCP256;
-      else
+        offset = 3;
+      } else
         return CKR_FUNCTION_FAILED;
 
       break;
 
     case 384:
-      if (rsa == CK_FALSE)
+      if (rsa == CK_FALSE) {
         key_algorithm = YKPIV_ALGO_ECCP384;
-      else
+        offset = 3;
+      } else
         return CKR_FUNCTION_FAILED;
 
       break;
@@ -423,8 +427,9 @@ CK_RV token_generate_key(ykpiv_state *state, CK_BBOOL rsa, CK_BYTE key, CK_ULONG
   snprintf(label, sizeof(label), "YubiKey PIV Slot %x", key);
 
   // Create a new empty certificate for the key
+  len = recv_len;
   recv_len = sizeof(data);
-  if ((rv = do_create_empty_cert(data, recv_len, rsa, key_algorithm, label, data, &recv_len)) != CKR_OK)
+  if ((rv = do_create_empty_cert(data + offset, len - offset, key_algorithm, label, data, &recv_len)) != CKR_OK)
     return rv;
 
   if (recv_len < 0x80)

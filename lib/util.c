@@ -1513,36 +1513,8 @@ ykpiv_rc ykpiv_util_parse_metadata(uint8_t *data, size_t data_len, ykpiv_metadat
   if(cb > data_len)
     return YKPIV_PARSE_ERROR;
 
-  uint8_t *pubkey = p;
-  size_t pubkey_len = cb;
-
-  if(YKPIV_IS_EC(metadata->algorithm)) {
-    rc = _get_metadata_item(pubkey, pubkey_len, TAG_ECC_POINT, &p, &cb);
-    if(rc != YKPIV_OK)
-      return rc;
-    metadata->point_len = cb;
-    if(cb > sizeof(metadata->point))
-      return YKPIV_SIZE_ERROR;
-    memcpy(metadata->point, p, cb);
-  }
-
-  if(YKPIV_IS_RSA(metadata->algorithm)) {
-    rc = _get_metadata_item(pubkey, pubkey_len, TAG_RSA_MODULUS, &p, &cb);
-    if(rc != YKPIV_OK)
-      return rc;
-    metadata->mod_len = cb;
-    if(cb > sizeof(metadata->mod))
-      return YKPIV_SIZE_ERROR;
-    memcpy(metadata->mod, p, cb);
-
-    rc = _get_metadata_item(pubkey, pubkey_len, TAG_RSA_EXP, &p, &cb);
-    if(rc != YKPIV_OK)
-      return rc;
-    metadata->exp_len = cb;
-    if(cb > sizeof(metadata->exp))
-      return YKPIV_SIZE_ERROR;
-    memcpy(metadata->exp, p, cb);
-  }
+  metadata->pubkey_len = cb;
+  memcpy(metadata->pubkey, p, cb);
 
   return YKPIV_OK;
 }
