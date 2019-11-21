@@ -658,6 +658,199 @@ static void test_generate_rsa() {
   dprintf(0, "TEST END: test_generate_rsa()\n");
 }
 
+static void test_sign_update_RSA() {
+  dprintf(0, "TEST START: test_sign_update()\n");
+
+  CK_BYTE     i, j;
+  CK_BYTE     some_data[32];
+  CK_BYTE     sig_full[128];
+  CK_BYTE     sig_update[128];
+  CK_ULONG    recv_len_full;
+  CK_ULONG    recv_len_update;
+  CK_BYTE     e[] = {0x01, 0x00, 0x01};
+  CK_ULONG    class_k = CKO_PRIVATE_KEY;
+  CK_ULONG    class_c = CKO_PUBLIC_KEY;
+  CK_ULONG    kt = CKK_RSA;
+  CK_ULONG    key_size = 1024;
+  CK_BYTE     id = 0;
+
+  CK_ATTRIBUTE privateKeyTemplate[] = {
+    {CKA_CLASS, &class_k, sizeof(class_k)},
+    {CKA_KEY_TYPE, &kt, sizeof(kt)},
+    {CKA_ID, &id, sizeof(id)}
+  };
+
+  CK_ATTRIBUTE publicKeyTemplate[] = {
+    {CKA_CLASS, &class_c, sizeof(class_c)},
+    {CKA_ID, &id, sizeof(id)},
+    {CKA_MODULUS_BITS, &key_size, sizeof(key_size)},
+    {CKA_PUBLIC_EXPONENT, e, sizeof(e)}
+  };
+
+  CK_MECHANISM keygen_mech = {CKM_RSA_PKCS_KEY_PAIR_GEN, NULL};
+  CK_MECHANISM sign_mech_PKCS = {CKM_RSA_PKCS, NULL};
+  CK_MECHANISM sign_mech_X509 = {CKM_RSA_X_509, NULL};
+  CK_MECHANISM sign_mech_SHA1 = {CKM_SHA1_RSA_PKCS, NULL};
+  CK_MECHANISM sign_mech_SHA256 = {CKM_SHA256_RSA_PKCS, NULL};
+  CK_MECHANISM sign_mech_SHA384 = {CKM_SHA384_RSA_PKCS, NULL};
+  CK_MECHANISM sign_mech_SHA512 = {CKM_SHA512_RSA_PKCS, NULL};
+
+
+
+  CK_OBJECT_HANDLE privkey[24], pubkey[24];
+
+  CK_SESSION_HANDLE session;
+  init_connection();
+  asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
+  asrt(funcs->C_Login(session, CKU_SO, "010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
+
+  for (i = 0; i < 24; i++) {
+    id = i+1;
+    asrt(funcs->C_GenerateKeyPair(session, &keygen_mech, publicKeyTemplate, 4, privateKeyTemplate, 3, pubkey+i, privkey+i), CKR_OK, "GEN RSA KEYPAIR");
+  }
+  asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
+
+  for (i = 0; i < 24; i++) {
+    for (j = 0; j < 10; j++) {
+      if(RAND_bytes(some_data, sizeof(some_data)) == -1)
+        exit(EXIT_FAILURE);
+      asrt(funcs->C_Login(session, CKU_USER, "123456", 6), CKR_OK, "Login USER");
+
+      // CKM_RSA_PKCS
+      // C_Sign
+      asrt(funcs->C_SignInit(session, &sign_mech_PKCS, privkey[i]), CKR_OK, "SignInit CKM_RSA_PKCS");
+      recv_len_full = sizeof(sig_full);
+      asrt(funcs->C_Sign(session, some_data, sizeof(some_data), sig_full, &recv_len_full), CKR_OK, "Sign CKM_RSA_PKCS");
+      asrt(recv_len_full, 128, "Signature Length");
+      //C_SignUpdate
+      asrt(funcs->C_SignInit(session, &sign_mech_PKCS, privkey[i]), CKR_OK, "SignInit CKM_RSA_PKCS");
+      recv_len_update = sizeof(sig_update);
+      asrt(funcs->C_SignUpdate(session, some_data, 16), CKR_OK, "SignUpdate 1 CKM_RSA_PKCS");
+      asrt(funcs->C_SignUpdate(session, some_data + 16, 10), CKR_OK, "SignUpdate 2 CKM_RSA_PKCS");
+      asrt(funcs->C_SignUpdate(session, some_data + 26, 6), CKR_OK, "SignUpdate 3 CKM_RSA_PKCS");
+      asrt(funcs->C_SignFinal(session, sig_update, &recv_len_update), CKR_OK, "SignFinal CKM_RSA_PKCS");
+      asrt(recv_len_update, 128, "Signature Length CKM_RSA_PKCS");
+      // Compare signatures
+      asrt(memcmp(sig_full, sig_update, recv_len_full), 0, "Signature Compare CKM_RSA_PKCS");
+
+      // CKM_RSA_X_509
+      // C_Sign
+      asrt(funcs->C_SignInit(session, &sign_mech_X509, privkey[i]), CKR_OK, "SignInit CKM_RSA_X_509");
+      recv_len_full = sizeof(sig_full);
+      asrt(funcs->C_Sign(session, some_data, sizeof(some_data), sig_full, &recv_len_full), CKR_OK, "Sign CKM_RSA_X_509");
+      asrt(recv_len_full, 128, "Signature Length CKM_RSA_X_509");
+      //C_SignUpdate
+      asrt(funcs->C_SignInit(session, &sign_mech_X509, privkey[i]), CKR_OK, "SignInit CKM_RSA_X_509");
+      recv_len_update = sizeof(sig_update);
+      asrt(funcs->C_SignUpdate(session, some_data, 16), CKR_OK, "SignUpdate 1 CKM_RSA_X_509");
+      asrt(funcs->C_SignUpdate(session, some_data + 16, 10), CKR_OK, "SignUpdate 2 CKM_RSA_X_509");
+      asrt(funcs->C_SignUpdate(session, some_data + 26, 6), CKR_OK, "SignUpdate 3 CKM_RSA_X_509");
+      asrt(funcs->C_SignFinal(session, sig_update, &recv_len_update), CKR_OK, "SignFinal CKM_RSA_X_509");
+      asrt(recv_len_update, 128, "Signature Length CKM_RSA_X_509");
+      // Compare signatures
+      asrt(memcmp(sig_full, sig_update, recv_len_full), 0, "Signature Compare CKM_RSA_X_509");
+
+      // CKM_SHA1_RSA_PKCS
+      // C_Sign
+      asrt(funcs->C_SignInit(session, &sign_mech_SHA1, privkey[i]), CKR_OK, "SignInit CKM_SHA1_RSA_PKCS");
+      recv_len_full = sizeof(sig_full);
+      asrt(funcs->C_Sign(session, some_data, sizeof(some_data), sig_full, &recv_len_full), CKR_OK, "Sign CKM_SHA1_RSA_PKCS");
+      asrt(recv_len_full, 128, "Signature Length CKM_SHA1_RSA_PKCS");
+      //C_SignUpdate
+      asrt(funcs->C_SignInit(session, &sign_mech_SHA1, privkey[i]), CKR_OK, "SignInit CKM_SHA1_RSA_PKCS");
+      recv_len_update = sizeof(sig_update);
+      asrt(funcs->C_SignUpdate(session, some_data, 16), CKR_OK, "SignUpdate 1 CKM_SHA1_RSA_PKCS");
+      asrt(funcs->C_SignUpdate(session, some_data + 16, 10), CKR_OK, "SignUpdate 2 CKM_SHA1_RSA_PKCS");
+      asrt(funcs->C_SignUpdate(session, some_data + 26, 6), CKR_OK, "SignUpdate 3 CKM_SHA1_RSA_PKCS");
+      asrt(funcs->C_SignFinal(session, sig_update, &recv_len_update), CKR_OK, "SignFinal CKM_SHA1_RSA_PKCS");
+      asrt(recv_len_update, 128, "Signature Length CKM_SHA1_RSA_PKCS");
+      // Compare signatures
+      asrt(memcmp(sig_full, sig_update, recv_len_full), 0, "Signature Compare CKM_SHA1_RSA_PKCS");
+
+      // CKM_SHA256_RSA_PKCS
+      // C_Sign
+      asrt(funcs->C_SignInit(session, &sign_mech_SHA256, privkey[i]), CKR_OK, "SignInit CKM_SHA256_RSA_PKCS");
+      recv_len_full = sizeof(sig_full);
+      asrt(funcs->C_Sign(session, some_data, sizeof(some_data), sig_full, &recv_len_full), CKR_OK, "Sign CKM_SHA256_RSA_PKCS");
+      asrt(recv_len_full, 128, "Signature Length CKM_SHA256_RSA_PKCS");
+      //C_SignUpdate
+      asrt(funcs->C_SignInit(session, &sign_mech_SHA256, privkey[i]), CKR_OK, "SignInit CKM_SHA256_RSA_PKCS");
+      recv_len_update = sizeof(sig_update);
+      asrt(funcs->C_SignUpdate(session, some_data, 16), CKR_OK, "SignUpdate 1 CKM_SHA256_RSA_PKCS");
+      asrt(funcs->C_SignUpdate(session, some_data + 16, 10), CKR_OK, "SignUpdate 2 CKM_SHA256_RSA_PKCS");
+      asrt(funcs->C_SignUpdate(session, some_data + 26, 6), CKR_OK, "SignUpdate 3 CKM_SHA256_RSA_PKCS");
+      asrt(funcs->C_SignFinal(session, sig_update, &recv_len_update), CKR_OK, "SignFinal CKM_SHA256_RSA_PKCS");
+      asrt(recv_len_update, 128, "Signature Length CKM_SHA256_RSA_PKCS");
+      // Compare signatures
+      asrt(memcmp(sig_full, sig_update, recv_len_full), 0, "Signature Compare CKM_SHA256_RSA_PKCS");
+
+      // CKM_SHA384_RSA_PKCS
+      // C_Sign
+      asrt(funcs->C_SignInit(session, &sign_mech_SHA384, privkey[i]), CKR_OK, "SignInit CKM_SHA384_RSA_PKCS");
+      recv_len_full = sizeof(sig_full);
+      asrt(funcs->C_Sign(session, some_data, sizeof(some_data), sig_full, &recv_len_full), CKR_OK, "Sign CKM_SHA384_RSA_PKCS");
+      asrt(recv_len_full, 128, "Signature Length CKM_SHA384_RSA_PKCS");
+      //C_SignUpdate
+      asrt(funcs->C_SignInit(session, &sign_mech_SHA384, privkey[i]), CKR_OK, "SignInit CKM_SHA384_RSA_PKCS");
+      recv_len_update = sizeof(sig_update);
+      asrt(funcs->C_SignUpdate(session, some_data, 16), CKR_OK, "SignUpdate 1 CKM_SHA384_RSA_PKCS");
+      asrt(funcs->C_SignUpdate(session, some_data + 16, 10), CKR_OK, "SignUpdate 2 CKM_SHA384_RSA_PKCS");
+      asrt(funcs->C_SignUpdate(session, some_data + 26, 6), CKR_OK, "SignUpdate 3 CKM_SHA384_RSA_PKCS");
+      asrt(funcs->C_SignFinal(session, sig_update, &recv_len_update), CKR_OK, "SignFinal CKM_SHA384_RSA_PKCS");
+      asrt(recv_len_update, 128, "Signature Length CKM_SHA384_RSA_PKCS");
+      // Compare signatures
+      asrt(memcmp(sig_full, sig_update, recv_len_full), 0, "Signature Compare CKM_SHA384_RSA_PKCS");
+
+      // CKM_SHA512_RSA_PKCS
+      // C_Sign
+      asrt(funcs->C_SignInit(session, &sign_mech_SHA512, privkey[i]), CKR_OK, "SignInit CKM_SHA512_RSA_PKCS");
+      recv_len_full = sizeof(sig_full);
+      asrt(funcs->C_Sign(session, some_data, sizeof(some_data), sig_full, &recv_len_full), CKR_OK, "Sign CKM_SHA512_RSA_PKCS");
+      asrt(recv_len_full, 128, "Signature Length CKM_SHA512_RSA_PKCS");
+      //C_SignUpdate
+      asrt(funcs->C_SignInit(session, &sign_mech_SHA512, privkey[i]), CKR_OK, "SignInit CKM_SHA512_RSA_PKCS");
+      recv_len_update = sizeof(sig_update);
+      asrt(funcs->C_SignUpdate(session, some_data, 16), CKR_OK, "SignUpdate 1 CKM_SHA512_RSA_PKCS");
+      asrt(funcs->C_SignUpdate(session, some_data + 16, 10), CKR_OK, "SignUpdate 2 CKM_SHA512_RSA_PKCS");
+      asrt(funcs->C_SignUpdate(session, some_data + 26, 6), CKR_OK, "SignUpdate 3 CKM_SHA512_RSA_PKCS");
+      asrt(funcs->C_SignFinal(session, sig_update, &recv_len_update), CKR_OK, "SignFinal CKM_SHA512_RSA_PKCS");
+      asrt(recv_len_update, 128, "Signature Length CKM_SHA512_RSA_PKCS");
+      // Compare signatures
+      asrt(memcmp(sig_full, sig_update, recv_len_full), 0, "Signature Compare CKM_SHA512_RSA_PKCS");
+    }
+  }
+
+  asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
+
+
+  CK_OBJECT_HANDLE cert_handle;
+  CK_ULONG n_cert_handle;
+  CK_BYTE ckaid = 0;
+  CK_ULONG class_cert = CKO_CERTIFICATE;
+  CK_ATTRIBUTE idTemplate[] = {
+    {CKA_ID, &ckaid, sizeof(ckaid)}
+  };
+  CK_ATTRIBUTE idClassTemplate[] = {
+    {CKA_ID, &ckaid, sizeof(ckaid)},
+    {CKA_CLASS, &class_cert, sizeof(class_cert)}
+  };
+
+  asrt(funcs->C_Login(session, CKU_SO, "010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
+  for(i=0; i<24; i++) {
+    asrt(funcs->C_GetAttributeValue(session, privkey[i], idTemplate, 1), CKR_OK, "GET CKA_ID");
+    asrt(funcs->C_FindObjectsInit(session, idClassTemplate, 2), CKR_OK, "FIND INIT");
+    asrt(funcs->C_FindObjects(session, &cert_handle, 1, &n_cert_handle), CKR_OK, "FIND");
+    asrt(funcs->C_FindObjectsFinal(session), CKR_OK, "FIND FINAL");
+
+    asrt(funcs->C_DestroyObject(session, cert_handle), CKR_OK, "Destroy Object");
+  }
+  asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
+
+  asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
+  asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
+  dprintf(0, "TEST END: test_sign_update()\n");
+}
+
 static void test_find_objects() {
   dprintf(0, "TEST START: test_find_objects()\n");
 
@@ -1898,6 +2091,7 @@ int main(void) {
   test_decrypt_RSA();
   test_decrypt_RSA();
   test_login_order();
+  test_sign_update_RSA();
 #else
   fprintf(stderr, "HARDWARE TESTS DISABLED!, skipping...\n");
 #endif

@@ -2266,6 +2266,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     return CKR_ARGUMENTS_BAD;
   }
 
+  session->op_info.buf_len = 0;
   session->op_info.type = YKCS11_SIGN;
 
   // TODO: check mechanism parameters and key length and key supported parameters
@@ -2561,6 +2562,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
   *pulSignatureLen = cbSignatureLen = sizeof(session->op_info.buf);
 
   piv_rv = ykpiv_sign_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, session->op_info.buf, &cbSignatureLen, session->op_info.op.sign.algo, session->op_info.op.sign.key_id);
+
+  locking.LockMutex(session->slot->mutex);
 
   *pulSignatureLen = cbSignatureLen;
 

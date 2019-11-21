@@ -283,8 +283,9 @@ CK_RV apply_sign_mechanism_init(op_info_t *op_info) {
 CK_RV apply_sign_mechanism_update(op_info_t *op_info, CK_BYTE_PTR in, CK_ULONG in_len) {
   CK_RV rv;
 
-  if (op_info->type != YKCS11_SIGN)
+  if (op_info->type != YKCS11_SIGN) {
     return CKR_FUNCTION_FAILED;
+  }
 
   switch (op_info->mechanism.mechanism) {
   case CKM_RSA_PKCS:
@@ -329,8 +330,9 @@ CK_RV apply_sign_mechanism_update(op_info_t *op_info, CK_BYTE_PTR in, CK_ULONG i
   case CKM_ECDSA_SHA256:
   case CKM_ECDSA_SHA384:
     rv = do_md_update(op_info->op.sign.md_ctx, in, in_len);
-    if (rv != CKR_OK)
+    if (rv != CKR_OK) {
       return CKR_FUNCTION_FAILED;
+    }
 
     return CKR_OK;
 
@@ -369,6 +371,10 @@ CK_RV apply_sign_mechanism_finalize(op_info_t *op_info) {
     return rv;
 
   case CKM_RSA_X_509:
+    if (op_info->buf_len > (op_info->op.sign.key_len / 8)) {
+      DBG("Data must be shorter than key length (%lu bits)", op_info->op.sign.key_len);
+      return CKR_FUNCTION_FAILED;
+    }
     // Padding in this case consists of prepending zeroes
     len = (op_info->op.sign.key_len / 8) - op_info->buf_len;
     memmove(op_info->buf + len, op_info->buf, op_info->buf_len);
@@ -390,8 +396,10 @@ CK_RV apply_sign_mechanism_finalize(op_info_t *op_info) {
     // Add digest info if needed
     if (nid != NID_undef) {
       rv = do_pkcs_1_digest_info(op_info->buf, op_info->buf_len, nid, op_info->buf, &op_info->buf_len);
-      if (rv != CKR_OK)
+      if (rv != CKR_OK) {
+        DBG("Failed to add digest info. Error code %lu", rv);
         return CKR_FUNCTION_FAILED;
+      }
     }
 
     // Compute padding for all PKCS1 variants
@@ -409,6 +417,11 @@ CK_RV apply_sign_mechanism_finalize(op_info_t *op_info) {
       return CKR_FUNCTION_FAILED;
 
   case CKM_ECDSA:
+    if (op_info->buf_len > 128) {
+      // Specs say ECDSA only supports 128 bit
+      DBG("Maximum data length for ECDSA is 128 bytes");
+      return CKR_FUNCTION_FAILED;
+    }
     return CKR_OK;
 
   default:
@@ -422,6 +435,7 @@ CK_RV sign_mechanism_cleanup(op_info_t *op_info) {
     do_md_cleanup(op_info->op.sign.md_ctx);
     op_info->op.sign.md_ctx = NULL;
   }
+  op_info->buf_len = 0;
 
   return CKR_OK;
 }
@@ -432,6 +446,7 @@ CK_RV verify_mechanism_cleanup(op_info_t *op_info) {
     do_md_cleanup(op_info->op.verify.md_ctx);
     op_info->op.verify.md_ctx = NULL;
   }
+  op_info->buf_len = 0;
 
   return CKR_OK;
 }
