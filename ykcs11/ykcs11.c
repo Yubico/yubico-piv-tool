@@ -801,6 +801,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   // Save a list of all the available objects in the session
 
   for(CK_ULONG i = 0; i < num_ids; i++) {
+    CK_RV rv;
     ykpiv_rc rc = YKPIV_KEY_ERROR;
     ykpiv_metadata md = { 0 };
     CK_BYTE key_id = get_key_id(obj_ids[i]);
@@ -815,15 +816,18 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
       if((rc = ykpiv_get_metadata(session->slot->piv_state, piv_2_ykpiv(pvtk_id), data, &len)) == YKPIV_OK) {
         DBG("Read %lu bytes metadata for private key %u (slot %lx)", len, pvtk_id, piv_2_ykpiv(pvtk_id));
         if((rc = ykpiv_util_parse_metadata(data, len, &md)) == YKPIV_OK) {
-          if(do_create_public_key(md.pubkey, md.pubkey_len, md.algorithm, &session->pkeys[key_id]) == CKR_OK) {
+          if((rv = do_create_public_key(md.pubkey, md.pubkey_len, md.algorithm, &session->pkeys[key_id])) == CKR_OK) {
             session->objects[session->n_objects++] = pubk_id;
             session->objects[session->n_objects++] = pvtk_id;
             if(atst_id != (piv_obj_id_t)-1) { // Attestation key doesn't have an attestation
               session->objects[session->n_objects++] = atst_id;
             }
           } else {
+            DBG("Failed to create public key info for private key %u (slot %lx, algorithm %u) from metadata: %lu", pvtk_id, piv_2_ykpiv(pvtk_id), md.algorithm, rv);
             rc = YKPIV_KEY_ERROR; // Ensure we create the key from the certificate instead
           }
+        } else {
+          DBG("Failed to parse metadata for private key %u (slot %lx): %s", pvtk_id, piv_2_ykpiv(pvtk_id), ykpiv_strerror(rc));
         }
       }
     }
@@ -831,7 +835,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     if(ykpiv_fetch_object(session->slot->piv_state, piv_2_ykpiv(obj_ids[i]), data, &len) == YKPIV_OK) {
       DBG("Read %lu bytes for data object %u (%lx)", len, obj_ids[i], piv_2_ykpiv(obj_ids[i]));
       session->objects[session->n_objects++] = obj_ids[i];
-      CK_RV rv = store_data(session, obj_ids[i], data, len);
+      rv = store_data(session, obj_ids[i], data, len);
       if (rv != CKR_OK) {
         DBG("Failed to store data object %u in session: %lu", obj_ids[i], rv);
         locking.UnlockMutex(session->slot->mutex);
