@@ -176,7 +176,7 @@ CK_RV do_sign_empty_cert(const char *cn, EVP_PKEY *pubkey, EVP_PKEY *pvtkey, X50
   X509_gmtime_adj(X509_get_notBefore(*cert), 0);
   X509_gmtime_adj(X509_get_notAfter(*cert), 0);
   X509_set_pubkey(*cert, pubkey);
-  if (X509_sign(*cert, pvtkey, EVP_sha1()) <= 0)
+  if (X509_sign(*cert, pvtkey, EVP_sha256()) <= 0)
     return CKR_GENERAL_ERROR;
   return CKR_OK;
 }
