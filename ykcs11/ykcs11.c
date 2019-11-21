@@ -2005,6 +2005,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestInit)(
     return rv;
   }
 
+  session->op_info.buf_len = 0;
   session->op_info.type = YKCS11_HASH;
 
   DOUT;
@@ -2093,10 +2094,35 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestUpdate)(
   CK_ULONG ulPartLen
 )
 {
+  CK_RV rv;
+
   DIN;
-  DBG("TODO!!!");
+
+  if (mutex == NULL) {
+    DBG("libykpiv is not initialized or already finalized");
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  ykcs11_session_t* session = get_session(hSession);
+
+  if (session == NULL || session->slot == NULL) {
+    DBG("Session is not open");
+    return CKR_SESSION_HANDLE_INVALID;
+  }
+
+  if (session->op_info.type != YKCS11_HASH) {
+    DBG("Other operation in process");
+    return CKR_OPERATION_ACTIVE;
+  }
+
+  rv = apply_hash_mechanism_update(&session->op_info, pPart, ulPartLen);
+  if (rv != CKR_OK) {
+    DBG("Unable to perform digest operation step");
+    return rv;
+  }
+
   DOUT;
-  return CKR_FUNCTION_NOT_SUPPORTED;
+  return CKR_OK;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_DigestKey)(
@@ -2116,10 +2142,67 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestFinal)(
   CK_ULONG_PTR pulDigestLen
 )
 {
+  CK_RV rv;
+
   DIN;
-  DBG("TODO!!!");
+
+  if (mutex == NULL) {
+    DBG("libykpiv is not initialized or already finalized");
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  ykcs11_session_t* session = get_session(hSession);
+
+  if (session == NULL || session->slot == NULL) {
+    DBG("Session is not open");
+    return CKR_SESSION_HANDLE_INVALID;
+  }
+
+  if (session->op_info.type != YKCS11_HASH) {
+    DBG("Other operation in process");
+    return CKR_OPERATION_ACTIVE;
+  }
+
+  if (pulDigestLen == NULL) {
+    DBG("Wrong/missing parameter");
+    return CKR_ARGUMENTS_BAD;
+  }
+
+  if (pDigest == NULL) {
+    // Just return the size of the digest
+    DBG("The size of the digest will be %lu", session->op_info.op.hash.hash_len);
+
+    *pulDigestLen = session->op_info.op.hash.hash_len;
+
+    DOUT;
+    return CKR_OK;
+  }
+
+  if (*pulDigestLen < session->op_info.op.hash.hash_len) {
+    DBG("pulDigestLen too small, data will not fit, expected = %lu, got "
+            "%lu", session->op_info.op.hash.hash_len, *pulDigestLen);
+
+    *pulDigestLen = session->op_info.op.hash.hash_len;
+    return CKR_BUFFER_TOO_SMALL;
+  }
+
+  DBG("Sending %lu bytes to digest", sizeof(session->op_info.op.hash.md_ctx));
+
+  rv = apply_hash_mechanism_finalize(&session->op_info);
+  if (rv != CKR_OK) {
+    DBG("Unable to finalize digest operation");
+    return rv;
+  }
+
+  memcpy(pDigest, session->op_info.buf, session->op_info.buf_len);
+  *pulDigestLen = session->op_info.buf_len;
+
+  DBG("Got %lu bytes back", *pulDigestLen);
+
+  session->op_info.type = YKCS11_NOOP;
+
   DOUT;
-  return CKR_FUNCTION_NOT_SUPPORTED;
+  return CKR_OK;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(

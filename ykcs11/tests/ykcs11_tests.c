@@ -1935,7 +1935,9 @@ static void test_digest() {
   CK_BYTE     i;
   CK_BYTE     some_data[32];
   CK_BYTE     digest_data[128];
+  CK_BYTE     digest_data_update[128];
   CK_ULONG    digest_len;
+  CK_ULONG    digest_len_update;
   CK_BYTE     hashed_data[128];
   CK_ULONG    sha1_len = 20;
   CK_ULONG    sha256_len = 32;
@@ -1955,33 +1957,66 @@ static void test_digest() {
     if(RAND_bytes(some_data, sizeof(some_data)) == -1)
         exit(EXIT_FAILURE);
 
-    asrt(funcs->C_DigestInit(session, &mech_sha1), CKR_OK, "DIGEST INIT SHA1");  
-    digest_len = 128;
-    asrt(funcs->C_Digest(session, some_data, 32, digest_data, &digest_len), CKR_OK, "DIGEST SHA1");
-    asrt(digest_len, sha1_len, "SHA1 LEN");
+    // SHA1
     SHA1(some_data, sizeof(some_data), hashed_data);
+    asrt(funcs->C_DigestInit(session, &mech_sha1), CKR_OK, "DIGEST INIT SHA1");  
+    digest_len = sizeof(digest_data);
+    asrt(funcs->C_Digest(session, some_data, sizeof(some_data), digest_data, &digest_len), CKR_OK, "DIGEST SHA1");
+    asrt(digest_len, sha1_len, "SHA1 LEN");
     asrt(memcmp(hashed_data, digest_data, digest_len), 0, "SHA1");
+    digest_len_update = sizeof(digest_data_update);
+    asrt(funcs->C_DigestInit(session, &mech_sha1), CKR_OK, "DIGEST INIT SHA1");
+    asrt(funcs->C_DigestUpdate(session, some_data, 10), CKR_OK, "DIGEST UPDATE SHA1");
+    asrt(funcs->C_DigestUpdate(session, some_data+10, 22), CKR_OK, "DIGEST UPDATE SHA1");
+    asrt(funcs->C_DigestFinal(session, digest_data_update, &digest_len_update), CKR_OK, "DIGEST FINAL SHA1");
+    asrt(digest_len_update, sha1_len, "SHA1 LEN");
+    asrt(memcmp(hashed_data, digest_data_update, digest_len_update), 0, "SHA1");
 
+    // SHA256
+    SHA256(some_data, sizeof(some_data), hashed_data);
     asrt(funcs->C_DigestInit(session, &mech_sha256), CKR_OK, "DIGEST INIT SHA256");  
     digest_len = 128;
     asrt(funcs->C_Digest(session, some_data, 32, digest_data, &digest_len), CKR_OK, "DIGEST SHA256");
     asrt(digest_len, sha256_len, "SHA256 LEN");
-    SHA256(some_data, sizeof(some_data), hashed_data);
     asrt(memcmp(hashed_data, digest_data, digest_len), 0, "SHA256");
+    digest_len_update = sizeof(digest_data_update);
+    asrt(funcs->C_DigestInit(session, &mech_sha256), CKR_OK, "DIGEST INIT SHA256");
+    asrt(funcs->C_DigestUpdate(session, some_data, 10), CKR_OK, "DIGEST UPDATE SHA256");
+    asrt(funcs->C_DigestUpdate(session, some_data+10, 22), CKR_OK, "DIGEST UPDATE SHA256");
+    asrt(funcs->C_DigestFinal(session, digest_data_update, &digest_len_update), CKR_OK, "DIGEST FINAL SHA256");
+    asrt(digest_len_update, sha256_len, "SHA256 LEN");
+    asrt(memcmp(hashed_data, digest_data_update, digest_len_update), 0, "SHA256");
 
+    // SHA384
+    SHA384(some_data, sizeof(some_data), hashed_data);
     asrt(funcs->C_DigestInit(session, &mech_sha384), CKR_OK, "DIGEST INIT SHA384");  
     digest_len = 128;
     asrt(funcs->C_Digest(session, some_data, 32, digest_data, &digest_len), CKR_OK, "DIGEST SHA384");
     asrt(digest_len, sha384_len, "SHA384 LEN");
-    SHA384(some_data, sizeof(some_data), hashed_data);
     asrt(memcmp(hashed_data, digest_data, digest_len), 0, "SHA384");
+    digest_len_update = sizeof(digest_data_update);
+    asrt(funcs->C_DigestInit(session, &mech_sha384), CKR_OK, "DIGEST INIT SHA384");
+    asrt(funcs->C_DigestUpdate(session, some_data, 10), CKR_OK, "DIGEST UPDATE SHA384");
+    asrt(funcs->C_DigestUpdate(session, some_data+10, 22), CKR_OK, "DIGEST UPDATE SHA384");
+    asrt(funcs->C_DigestFinal(session, digest_data_update, &digest_len_update), CKR_OK, "DIGEST FINAL SHA384");
+    asrt(digest_len_update, sha384_len, "SHA384 LEN");
+    asrt(memcmp(hashed_data, digest_data_update, digest_len_update), 0, "SHA384");
 
+
+    // SHA512
+    SHA512(some_data, sizeof(some_data), hashed_data);
     asrt(funcs->C_DigestInit(session, &mech_sha512), CKR_OK, "DIGEST INIT SHA512");  
     digest_len = 128;
     asrt(funcs->C_Digest(session, some_data, 32, digest_data, &digest_len), CKR_OK, "DIGEST SHA512");
     asrt(digest_len, sha512_len, "SHA512 LEN");
-    SHA512(some_data, sizeof(some_data), hashed_data);
     asrt(memcmp(hashed_data, digest_data, digest_len), 0, "SHA512");
+    digest_len_update = sizeof(digest_data_update);
+    asrt(funcs->C_DigestInit(session, &mech_sha512), CKR_OK, "DIGEST INIT SHA512");
+    asrt(funcs->C_DigestUpdate(session, some_data, 10), CKR_OK, "DIGEST UPDATE SHA512");
+    asrt(funcs->C_DigestUpdate(session, some_data+10, 22), CKR_OK, "DIGEST UPDATE SHA512");
+    asrt(funcs->C_DigestFinal(session, digest_data_update, &digest_len_update), CKR_OK, "DIGEST FINAL SHA512");
+    asrt(digest_len_update, sha512_len, "SHA512 LEN");
+    asrt(memcmp(hashed_data, digest_data_update, digest_len_update), 0, "SHA512");
   }
 
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
