@@ -291,12 +291,8 @@ extern "C"
     uint8_t pin_policy;
     uint8_t touch_policy;
     uint8_t origin;
-    size_t point_len;
-    size_t mod_len;
-    size_t exp_len;
-    uint8_t point[128];
-    uint8_t mod[512];
-    uint8_t exp[512];
+    size_t pubkey_len;
+    uint8_t pubkey[512];
   } ykpiv_metadata;
 #pragma pack(pop)
 

@@ -38,7 +38,6 @@
 #include "utils.h"
 #include "mechanisms.h"
 #include "token.h"
-#include "openssl-compat.h"
 #include "openssl_types.h"
 #include "openssl_utils.h"
 #include <openssl/rand.h>
@@ -816,28 +815,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
       if((rc = ykpiv_get_metadata(session->slot->piv_state, piv_2_ykpiv(pvtk_id), data, &len)) == YKPIV_OK) {
         DBG("Read %lu bytes metadata for private key %u (slot %lx)", len, pvtk_id, piv_2_ykpiv(pvtk_id));
         if((rc = ykpiv_util_parse_metadata(data, len, &md)) == YKPIV_OK) {
-          session->pkeys[key_id] = EVP_PKEY_new();
-          int nid = get_curve_name(md.algorithm);
-          if(nid) {
-            EC_GROUP *group = EC_GROUP_new_by_curve_name(nid);
-            EC_GROUP_set_asn1_flag(group, nid);
-            EC_KEY *eckey = EC_KEY_new();
-            EC_KEY_set_group(eckey, group);
-            EC_POINT *ecpoint = EC_POINT_new(group);
-            EC_POINT_oct2point(group, ecpoint, md.point, md.point_len, NULL);
-            EC_KEY_set_public_key(eckey, ecpoint);
-            EVP_PKEY_set1_EC_KEY(session->pkeys[key_id], eckey);
+          if(do_create_public_key(md.pubkey, md.pubkey_len, md.algorithm, &session->pkeys[key_id]) == CKR_OK) {
+            session->objects[session->n_objects++] = pubk_id;
+            session->objects[session->n_objects++] = pvtk_id;
+            if(atst_id != (piv_obj_id_t)-1) { // Attestation key doesn't have an attestation
+              session->objects[session->n_objects++] = atst_id;
+            }
           } else {
-            RSA *rsa = RSA_new();
-            BIGNUM *n = BN_bin2bn(md.mod, md.mod_len, 0);
-            BIGNUM *e = BN_bin2bn(md.exp, md.exp_len, 0);
-            RSA_set0_key(rsa, n, e, NULL);
-            EVP_PKEY_set1_RSA(session->pkeys[key_id], rsa);
-          }
-          session->objects[session->n_objects++] = pubk_id;
-          session->objects[session->n_objects++] = pvtk_id;
-          if(atst_id != (piv_obj_id_t)-1) { // Attestation key doesn't have an attestation
-            session->objects[session->n_objects++] = atst_id;
+            rc = YKPIV_KEY_ERROR; // Ensure we create the key from the certificate instead
           }
         }
       }
