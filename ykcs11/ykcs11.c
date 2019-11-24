@@ -96,6 +96,18 @@ CK_STATE get_session_state(ykcs11_session_t *session) {
   }
 }
 
+static void cleanup_session(ykcs11_session_t *session) {
+  for(size_t i = 0; i < sizeof(session->data) / sizeof(session->data[0]); i++) {
+    free(session->data[i].data);
+  }
+  for(size_t i = 0; i < sizeof(session->certs) / sizeof(session->certs[0]); i++) {
+    do_delete_pubk(session->pkeys + i);
+    do_delete_cert(session->certs + i);
+    do_delete_cert(session->atst + i);
+  }
+  memset(session, 0, sizeof(*session));
+}
+
 /* General Purpose */
 
 CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
@@ -186,6 +198,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_Finalize)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
+  // Clean up all sessions
+  for(int i = 0; i < YKCS11_MAX_SESSIONS; i++) {
+    cleanup_session(sessions + i);
+  }
+
   // Close all slot states (will reset cards)
   for(int i = 0; i < YKCS11_MAX_SLOTS; i++) {
     if(slots[i].piv_state) {
@@ -195,7 +212,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Finalize)(
   }
 
   memset(&slots, 0, sizeof(slots));
-  memset(&sessions, 0, sizeof(sessions));
   n_slots = 0;
 
   locking.DestroyMutex(mutex);
@@ -882,9 +898,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  ykcs11_session_t *session = get_session(hSession);
-
   locking.LockMutex(mutex);
+  ykcs11_session_t *session = get_session(hSession);
 
   if (session == NULL || session->slot == NULL) {
     DBG("Trying to close a session, but there is no existing one");
@@ -892,19 +907,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  piv_obj_id_t *obj_ids;
-  CK_ULONG num_ids;
-  get_token_object_ids(&obj_ids, &num_ids);
-
-  for(CK_ULONG i = 0; i < num_ids; i++) {
-    if(is_present(session, obj_ids[i]))
-      delete_data(session, obj_ids[i]);
-    piv_obj_id_t cert_id = find_cert_object(get_key_id(obj_ids[i]));
-    if(is_present(session, cert_id))
-      delete_cert(session, cert_id);
-  }
-
-  memset(session, 0, sizeof(*session));
+  cleanup_session(session);
   locking.UnlockMutex(mutex);
 
   DOUT;
@@ -932,22 +935,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
     return CKR_SLOT_ID_INVALID;
   }
 
-  piv_obj_id_t *obj_ids;
-  CK_ULONG num_ids;
-  get_token_object_ids(&obj_ids, &num_ids);
-
   for(int i = 0; i < YKCS11_MAX_SESSIONS; i++) {
     ykcs11_session_t *session = sessions + i;
-    if(session->slot && session->info.slotID == slotID) {
-      for(CK_ULONG i = 0; i < num_ids; i++) {
-        if(is_present(session, obj_ids[i]))
-          delete_data(session, obj_ids[i]);
-        piv_obj_id_t cert_id = find_cert_object(get_key_id(obj_ids[i]));
-        if(is_present(session, cert_id))
-          delete_cert(session, cert_id);
-      }
-      memset(session, 0, sizeof(*session));
-    }
+    if(session->slot && session->info.slotID == slotID)
+      cleanup_session(session);
   }
 
   locking.UnlockMutex(mutex);
