@@ -130,7 +130,7 @@ void strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
 typedef struct {
 #ifdef __WIN32
-  CRITICAL_SECTION section;
+  CRITICAL_SECTION mutex;
 #else
   pthread_mutex_t mutex;
   pid_t pid;
