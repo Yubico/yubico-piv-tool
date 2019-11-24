@@ -35,6 +35,7 @@
 #include "debug.h"
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <pthread.h>
 
 #include "../tool/openssl-compat.h" // TODO: share this better?
@@ -127,8 +128,29 @@ void strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
 }
 
+typedef struct {
+#ifdef __WIN32
+  CRITICAL_SECTION section;
+#else
+  pthread_mutex_t mutex;
+  pid_t pid;
+#endif
+} native_mutex_t;
+
 CK_RV noop_create_mutex(void **mutex) {
-  *mutex = (void*)0xf00f;
+  native_mutex_t *mtx = calloc(1, sizeof(native_mutex_t));
+  if (mtx == NULL) {
+    return CKR_HOST_MEMORY;
+  }
+#ifndef __WIN32
+  mtx->pid = getpid();
+#endif
+  *mutex = mtx;
+  return CKR_OK;
+}
+
+CK_RV noop_destroy_mutex(void *mutex) {
+  free(mutex);
   return CKR_OK;
 }
 
@@ -137,22 +159,26 @@ CK_RV noop_mutex_fn(void *mutex) {
 }
 
 CK_RV native_create_mutex(void **mutex) {
-
+  native_mutex_t *mtx = calloc(1, sizeof(native_mutex_t));
+  if (mtx == NULL) {
+    return CKR_HOST_MEMORY;
+  }
 #ifdef __WIN32
-  CRITICAL_SECTION *mtx = calloc(1, sizeof(CRITICAL_SECTION));
-  if (mtx == NULL) {
-    return CKR_GENERAL_ERROR;
-  }
-  InitializeCriticalSection(mtx);
+  InitializeCriticalSection(&mtx->mutex);
 #else
-  pthread_mutex_t *mtx = calloc(1, sizeof(pthread_mutex_t));
-  if (mtx == NULL) {
-    return CKR_GENERAL_ERROR;
-  }
-
-  pthread_mutex_init(mtx, NULL);
+  pthread_mutexattr_t mattr;
+  if(pthread_mutexattr_init(&mattr))
+    return CKR_CANT_LOCK;
+  if(pthread_mutexattr_settype(&mattr, PTHREAD_MUTEX_ERRORCHECK))
+    return CKR_CANT_LOCK;
+  if(pthread_mutexattr_setpshared(&mattr, PTHREAD_PROCESS_SHARED))
+    return CKR_CANT_LOCK;
+  if(pthread_mutex_init(&mtx->mutex, &mattr))
+    return CKR_CANT_LOCK;
+  if(pthread_mutexattr_destroy(&mattr))
+    return CKR_CANT_LOCK;
+  mtx->pid = getpid();
 #endif
-
   *mutex = mtx;
   return CKR_OK;
 }
@@ -176,7 +202,7 @@ CK_RV native_lock_mutex(void *mutex) {
   EnterCriticalSection(mutex);
 #else
   if (pthread_mutex_lock(mutex) != 0) {
-    return CKR_GENERAL_ERROR;
+    return CKR_CANT_LOCK;
   }
 #endif
 
@@ -189,11 +215,22 @@ CK_RV native_unlock_mutex(void *mutex) {
   LeaveCriticalSection(mutex);
 #else
   if (pthread_mutex_unlock(mutex) != 0) {
-    return CKR_GENERAL_ERROR;
+    return CKR_CANT_LOCK;
   }
 #endif
 
   return CKR_OK;
+}
+
+CK_RV check_mutex(void *mutex) {
+  if(mutex == NULL)
+    return CKR_OK;
+#ifndef __WIN32
+  native_mutex_t *mtx = (native_mutex_t*)mutex;
+  if(mtx->pid == getppid()) // Inherited mutex from parent, ignore
+    return CKR_OK;
+#endif
+  return CKR_CRYPTOKI_ALREADY_INITIALIZED;
 }
 
 static CK_BBOOL apply_DER_encoding_to_ECSIG(CK_BYTE *signature,

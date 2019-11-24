@@ -118,11 +118,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
 
   DIN;
 
-  if (mutex != NULL)
-    return CKR_CRYPTOKI_ALREADY_INITIALIZED;
+  // Check for inherited global mutex, it means the parent process forked
+  if ((rv = check_mutex(mutex)) != CKR_OK) {
+    DBG("Library already initialized");
+    return rv;
+  }
 
   locking.CreateMutex = noop_create_mutex;
-  locking.DestroyMutex = noop_mutex_fn;
+  locking.DestroyMutex = noop_destroy_mutex;
   locking.LockMutex = noop_mutex_fn;
   locking.UnlockMutex = noop_mutex_fn;
 
@@ -160,19 +163,19 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
       return CKR_CANT_LOCK;
   }
 
+  // Overwrite global mutex even if inherited (global state is per-process)
   if((rv = locking.CreateMutex(&mutex)) != CKR_OK) {
     DBG("Unable to create global mutex");
     return rv;
   }
 
-  memset(&slots, 0, sizeof(slots));
-  memset(&sessions, 0, sizeof(sessions));
-  n_slots = 0;
-
+  // Re-use inherited per-slot mutex if available (slots are shared with parent)
   for(int i = 0; i < YKCS11_MAX_SLOTS; i++) {
-    if((rv = locking.CreateMutex(&slots[i].mutex)) != CKR_OK) {
-      DBG("Unable to create mutex for slot %d", i);
-      return rv;
+    if(slots[i].mutex == NULL) {
+      if((rv = locking.CreateMutex(&slots[i].mutex)) != CKR_OK) {
+        DBG("Unable to create mutex for slot %d", i);
+        return rv;
+      }
     }
   }
 
