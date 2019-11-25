@@ -123,10 +123,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
     return rv;
   }
 
-  locking.CreateMutex = noop_create_mutex;
-  locking.DestroyMutex = noop_destroy_mutex;
-  locking.LockMutex = noop_mutex_fn;
-  locking.UnlockMutex = noop_mutex_fn;
+  locking.pfnCreateMutex = noop_create_mutex;
+  locking.pfnDestroyMutex = noop_destroy_mutex;
+  locking.pfnLockMutex = noop_mutex_fn;
+  locking.pfnUnlockMutex = noop_mutex_fn;
 
   if(pInitArgs)
   {
@@ -134,36 +134,36 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
     if(pArgs->pReserved)
       return CKR_ARGUMENTS_BAD;
     bool os_locking = pArgs->flags & CKF_OS_LOCKING_OK;
-    if(os_locking || pArgs->CreateMutex)
-      locking.CreateMutex = pArgs->CreateMutex;
-    if(os_locking || pArgs->DestroyMutex)
-      locking.DestroyMutex = pArgs->DestroyMutex;
-    if(os_locking || pArgs->LockMutex)
-      locking.LockMutex = pArgs->LockMutex;
-    if(os_locking || pArgs->UnlockMutex)
-      locking.UnlockMutex = pArgs->UnlockMutex;
+    if(os_locking || pArgs->pfnCreateMutex)
+      locking.pfnCreateMutex = pArgs->pfnCreateMutex;
+    if(os_locking || pArgs->pfnDestroyMutex)
+      locking.pfnDestroyMutex = pArgs->pfnDestroyMutex;
+    if(os_locking || pArgs->pfnLockMutex)
+      locking.pfnLockMutex = pArgs->pfnLockMutex;
+    if(os_locking || pArgs->pfnUnlockMutex)
+      locking.pfnUnlockMutex = pArgs->pfnUnlockMutex;
     if(os_locking) {
-      if(locking.CreateMutex == 0)
-        locking.CreateMutex = native_create_mutex;
-      if(locking.DestroyMutex == 0)
-        locking.DestroyMutex = native_destroy_mutex;
-      if(locking.LockMutex == 0)
-        locking.LockMutex = native_lock_mutex;
-      if(locking.UnlockMutex == 0)
-        locking.UnlockMutex = native_unlock_mutex;
+      if(locking.pfnCreateMutex == 0)
+        locking.pfnCreateMutex = native_create_mutex;
+      if(locking.pfnDestroyMutex == 0)
+        locking.pfnDestroyMutex = native_destroy_mutex;
+      if(locking.pfnLockMutex == 0)
+        locking.pfnLockMutex = native_lock_mutex;
+      if(locking.pfnUnlockMutex == 0)
+        locking.pfnUnlockMutex = native_unlock_mutex;
     }
-    if(locking.CreateMutex == 0)
+    if(locking.pfnCreateMutex == 0)
       return CKR_CANT_LOCK;
-    if(locking.DestroyMutex == 0)
+    if(locking.pfnDestroyMutex == 0)
       return CKR_CANT_LOCK;
-    if(locking.LockMutex == 0)
+    if(locking.pfnLockMutex == 0)
       return CKR_CANT_LOCK;
-    if(locking.UnlockMutex == 0)
+    if(locking.pfnUnlockMutex == 0)
       return CKR_CANT_LOCK;
   }
 
   // Overwrite global mutex even if inherited (global state is per-process)
-  if((rv = locking.CreateMutex(&mutex)) != CKR_OK) {
+  if((rv = locking.pfnCreateMutex(&mutex)) != CKR_OK) {
     DBG("Unable to create global mutex");
     return rv;
   }
@@ -171,7 +171,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
   // Re-use inherited per-slot mutex if available (slots are shared with parent)
   for(int i = 0; i < YKCS11_MAX_SLOTS; i++) {
     if(slots[i].mutex == NULL) {
-      if((rv = locking.CreateMutex(&slots[i].mutex)) != CKR_OK) {
+      if((rv = locking.pfnCreateMutex(&slots[i].mutex)) != CKR_OK) {
         DBG("Unable to create mutex for slot %d", i);
         return rv;
       }
@@ -210,13 +210,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_Finalize)(
     if(slots[i].piv_state) {
       ykpiv_done(slots[i].piv_state);
     }
-    locking.DestroyMutex(slots[i].mutex);
+    locking.pfnDestroyMutex(slots[i].mutex);
   }
 
   memset(&slots, 0, sizeof(slots));
   n_slots = 0;
 
-  locking.DestroyMutex(mutex);
+  locking.pfnDestroyMutex(mutex);
   mutex = NULL;
 
   DOUT;
@@ -301,7 +301,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 
   ykpiv_done(piv_state);
 
-  locking.LockMutex(mutex);
+  locking.pfnLockMutex(mutex);
 
   // Mark existing slots as candidates for disconnect
   bool mark[YKCS11_MAX_SLOTS] = { false };
@@ -344,7 +344,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
         DBG("Initializing slot %lu for '%s'", slot-slots, reader);
         if(ykpiv_init(&slot->piv_state, YKCS11_DBG) != YKPIV_OK) {
           DBG("Unable to initialize libykpiv");
-          locking.UnlockMutex(mutex);
+          locking.pfnUnlockMutex(mutex);
           return CKR_FUNCTION_FAILED;
         }
         n_slots++;
@@ -404,7 +404,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
       if(pSlotList) {
         if(count >= *pulCount) {
           DBG("Buffer too small: needed %lu, provided %lu", count, *pulCount);
-          locking.UnlockMutex(mutex);
+          locking.pfnUnlockMutex(mutex);
           return CKR_BUFFER_TOO_SMALL;
         }
         pSlotList[count] = i;
@@ -415,7 +415,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 
   *pulCount = count;
 
-  locking.UnlockMutex(mutex);
+  locking.pfnUnlockMutex(mutex);
 
   DBG("token present is %d", tokenPresent);
   DBG("number of slots is %lu", *pulCount);
@@ -436,17 +436,17 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotInfo)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  locking.LockMutex(mutex);
+  locking.pfnLockMutex(mutex);
 
   if (slotID >= n_slots) {
     DBG("Invalid slot ID %lu", slotID);
-    locking.UnlockMutex(mutex);
+    locking.pfnUnlockMutex(mutex);
     return CKR_SLOT_ID_INVALID;
   }
 
   memcpy(pInfo, &slots[slotID].slot_info, sizeof(CK_SLOT_INFO));
 
-  locking.UnlockMutex(mutex);
+  locking.pfnUnlockMutex(mutex);
 
   DOUT;
   return CKR_OK;
@@ -464,17 +464,17 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  locking.LockMutex(mutex);
+  locking.pfnLockMutex(mutex);
 
   if (slotID >= n_slots) {
     DBG("Invalid slot ID %lu", slotID);
-    locking.UnlockMutex(mutex);
+    locking.pfnUnlockMutex(mutex);
     return CKR_SLOT_ID_INVALID;
   }
 
   if(!(slots[slotID].slot_info.flags & CKF_TOKEN_PRESENT)) {
     DBG("A token is not present in slot %lu", slotID);
-    locking.UnlockMutex(mutex);
+    locking.pfnUnlockMutex(mutex);
     return CKR_TOKEN_NOT_PRESENT;
   }
 
@@ -491,7 +491,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
     }
   }
 
-  locking.UnlockMutex(mutex);
+  locking.pfnUnlockMutex(mutex);
 
   DOUT;
   return CKR_OK;
@@ -529,21 +529,21 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
     return CKR_ARGUMENTS_BAD;
   }
 
-  locking.LockMutex(mutex);
+  locking.pfnLockMutex(mutex);
 
   if (slotID >= n_slots) {
     DBG("Invalid slot ID %lu", slotID);
-    locking.UnlockMutex(mutex);
+    locking.pfnUnlockMutex(mutex);
     return CKR_SLOT_ID_INVALID;
   }
 
   if(!(slots[slotID].slot_info.flags & CKF_TOKEN_PRESENT)) {
     DBG("A token is not present in slot %lu", slotID);
-    locking.UnlockMutex(mutex);
+    locking.pfnUnlockMutex(mutex);
     return CKR_TOKEN_NOT_PRESENT;
   }
 
-  locking.UnlockMutex(mutex);
+  locking.pfnUnlockMutex(mutex);
 
   // TODO: check more return values
 
@@ -589,21 +589,21 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismInfo)(
     return CKR_ARGUMENTS_BAD;
   }
 
-  locking.LockMutex(mutex);
+  locking.pfnLockMutex(mutex);
 
   if (slotID >= n_slots) {
     DBG("Invalid slot ID %lu", slotID);
-    locking.UnlockMutex(mutex);
+    locking.pfnUnlockMutex(mutex);
     return CKR_SLOT_ID_INVALID;
   }
 
   if(!(slots[slotID].slot_info.flags & CKF_TOKEN_PRESENT)) {
     DBG("A token is not present in slot %lu", slotID);
-    locking.UnlockMutex(mutex);
+    locking.pfnUnlockMutex(mutex);
     return CKR_TOKEN_NOT_PRESENT;
   }
 
-  locking.UnlockMutex(mutex);
+  locking.pfnUnlockMutex(mutex);
 
   if (get_token_mechanism_info(type, pInfo) != CKR_OK) {
     DBG("Unable to retrieve mechanism information");
@@ -628,29 +628,29 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  locking.LockMutex(mutex);
+  locking.pfnLockMutex(mutex);
 
   if (slotID >= n_slots) {
     DBG("Invalid slot ID %lu", slotID);
-    locking.UnlockMutex(mutex);
+    locking.pfnUnlockMutex(mutex);
     return CKR_SLOT_ID_INVALID;
   }
 
   if(!(slots[slotID].slot_info.flags & CKF_TOKEN_PRESENT)) {
     DBG("A token is not present in slot %lu", slotID);
-    locking.UnlockMutex(mutex);
+    locking.pfnUnlockMutex(mutex);
     return CKR_TOKEN_NOT_PRESENT;
   }
 
   for(int i = 0; i < YKCS11_MAX_SESSIONS; i++) {
     ykcs11_session_t *session = sessions + i;
     if(session->slot && session->info.slotID == slotID) {
-      locking.UnlockMutex(mutex);
+      locking.pfnUnlockMutex(mutex);
       return CKR_SESSION_EXISTS;
     }
   }
 
-  locking.UnlockMutex(mutex);
+  locking.pfnUnlockMutex(mutex);
 
   CK_BYTE mgm_key[24];
   size_t len = sizeof(mgm_key);
@@ -664,7 +664,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
   int tries;
   ykcs11_slot_t *slot = slots + slotID;
 
-  locking.LockMutex(slot->mutex);
+  locking.pfnLockMutex(slot->mutex);
 
   // Block PIN
   while((rc = ykpiv_verify(slot->piv_state, "", &tries)) == YKPIV_WRONG_PIN && tries > 0) {
@@ -679,25 +679,25 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
   // Reset PIV (requires PIN and PUK to be blocked)
   if((rc = ykpiv_util_reset(slot->piv_state)) != YKPIV_OK) {
     DBG("ykpiv_util_reset failed %d", rc);
-    locking.UnlockMutex(slot->mutex);
+    locking.pfnUnlockMutex(slot->mutex);
     return CKR_FUNCTION_FAILED;
   }
 
   // Authenticate with default mgm key (SO PIN)
   if((rc = ykpiv_authenticate(slot->piv_state, NULL)) != YKPIV_OK) {
     DBG("ykpiv_authenticate failed %d", rc);
-    locking.UnlockMutex(slot->mutex);
+    locking.pfnUnlockMutex(slot->mutex);
     return CKR_FUNCTION_FAILED;
   }
 
   // Set new mgm key (SO PIN)
   if((rc = ykpiv_set_mgmkey(slot->piv_state, mgm_key)) != YKPIV_OK) {
     DBG("ykpiv_set_mgmkey failed %d", rc);
-    locking.UnlockMutex(slot->mutex);
+    locking.pfnUnlockMutex(slot->mutex);
     return CKR_FUNCTION_FAILED;
   }
 
-  locking.UnlockMutex(slot->mutex);
+  locking.pfnUnlockMutex(slot->mutex);
 
   DOUT;
   return CKR_OK;
@@ -742,16 +742,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetPIN)(
     user_type = CKU_SO;
   }
 
-  locking.LockMutex(session->slot->mutex);
+  locking.pfnLockMutex(session->slot->mutex);
 
   CK_RV rv = token_change_pin(session->slot->piv_state, user_type, pOldPin, ulOldLen, pNewPin, ulNewLen);
   if (rv != CKR_OK) {
     DBG("Pin change failed %lx", rv);
-    locking.UnlockMutex(session->slot->mutex);
+    locking.pfnUnlockMutex(session->slot->mutex);
     return rv;
   }
 
-  locking.UnlockMutex(session->slot->mutex);
+  locking.pfnUnlockMutex(session->slot->mutex);
 
   DOUT;
   return CKR_OK;
@@ -782,24 +782,24 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     return CKR_SESSION_PARALLEL_NOT_SUPPORTED;
   }
 
-  locking.LockMutex(mutex);
+  locking.pfnLockMutex(mutex);
 
   if (slotID >= n_slots) {
     DBG("Invalid slot ID %lu", slotID);
-    locking.UnlockMutex(mutex);
+    locking.pfnUnlockMutex(mutex);
     return CKR_SLOT_ID_INVALID;
   }
 
   if(!(slots[slotID].slot_info.flags & CKF_TOKEN_PRESENT)) {
     DBG("A token is not present in slot %lu", slotID);
-    locking.UnlockMutex(mutex);
+    locking.pfnUnlockMutex(mutex);
     return CKR_TOKEN_NOT_PRESENT;
   }
 
   ykcs11_session_t* session = get_free_session();
   if (session == NULL) {
     DBG("The maximum number of open session have already been reached");
-    locking.UnlockMutex(mutex);
+    locking.pfnUnlockMutex(mutex);
     return CKR_SESSION_COUNT;
   }
 
@@ -808,13 +808,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   session->info.flags = flags;
   session->slot = slots + slotID;
 
-  locking.UnlockMutex(mutex);
+  locking.pfnUnlockMutex(mutex);
 
   piv_obj_id_t *obj_ids;
   CK_ULONG num_ids;
   get_token_object_ids(&obj_ids, &num_ids);
 
-  locking.LockMutex(session->slot->mutex);
+  locking.pfnLockMutex(session->slot->mutex);
 
   // Save a list of all the available objects in the session
 
@@ -856,7 +856,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
       rv = store_data(session, obj_ids[i], data, len);
       if (rv != CKR_OK) {
         DBG("Failed to store data object %u in session: %lu", obj_ids[i], rv);
-        locking.UnlockMutex(session->slot->mutex);
+        locking.pfnUnlockMutex(session->slot->mutex);
         session->slot = NULL;
         return rv;
       }
@@ -865,7 +865,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
         rv = store_cert(session, cert_id, data, len, CK_FALSE);
         if (rv != CKR_OK) {
           DBG("Failed to store certificate object %u in session: %lu", cert_id, rv);
-          locking.UnlockMutex(session->slot->mutex);
+          locking.pfnUnlockMutex(session->slot->mutex);
           session->slot = NULL;
           return rv;
         }
@@ -880,7 +880,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     }
   }
 
-  locking.UnlockMutex(session->slot->mutex);
+  locking.pfnUnlockMutex(session->slot->mutex);
 
   sort_objects(session);
   *phSession = get_session_handle(session);
@@ -900,17 +900,17 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  locking.LockMutex(mutex);
+  locking.pfnLockMutex(mutex);
   ykcs11_session_t *session = get_session(hSession);
 
   if (session == NULL || session->slot == NULL) {
     DBG("Trying to close a session, but there is no existing one");
-    locking.UnlockMutex(mutex);
+    locking.pfnUnlockMutex(mutex);
     return CKR_SESSION_HANDLE_INVALID;
   }
 
   cleanup_session(session);
-  locking.UnlockMutex(mutex);
+  locking.pfnUnlockMutex(mutex);
 
   DOUT;
   return CKR_OK;
@@ -929,11 +929,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  locking.LockMutex(mutex);
+  locking.pfnLockMutex(mutex);
 
   if (slotID >= n_slots) {
     DBG("Invalid slot ID %lu", slotID);
-    locking.UnlockMutex(mutex);
+    locking.pfnUnlockMutex(mutex);
     return CKR_SLOT_ID_INVALID;
   }
 
@@ -943,7 +943,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
       cleanup_session(session);
   }
 
-  locking.UnlockMutex(mutex);
+  locking.pfnUnlockMutex(mutex);
 
   DOUT;
   return CKR_OK;
@@ -1047,16 +1047,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
 
     // We allow multiple logins because some keys need it (we indicate so for the signing key)
 
-    locking.LockMutex(session->slot->mutex);
+    locking.pfnLockMutex(session->slot->mutex);
 
     rv = token_login(session->slot->piv_state, CKU_USER, pPin, ulPinLen);
     if (rv != CKR_OK) {
       DBG("Unable to login as regular user");
-      locking.UnlockMutex(session->slot->mutex);
+      locking.pfnUnlockMutex(session->slot->mutex);
       return rv;
     }
 
-    locking.UnlockMutex(session->slot->mutex);
+    locking.pfnUnlockMutex(session->slot->mutex);
     session->slot->login_state = YKCS11_USER;
     break;
 
@@ -1081,16 +1081,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
       }
     }
 
-    locking.LockMutex(session->slot->mutex);
+    locking.pfnLockMutex(session->slot->mutex);
 
     rv = token_login(session->slot->piv_state, CKU_SO, pPin, ulPinLen);
     if (rv != CKR_OK) {
       DBG("Unable to login as SO");
-      locking.UnlockMutex(session->slot->mutex);
+      locking.pfnUnlockMutex(session->slot->mutex);
       return rv;
     }
 
-    locking.UnlockMutex(session->slot->mutex);
+    locking.pfnUnlockMutex(session->slot->mutex);
     session->slot->login_state = YKCS11_SO;
     break;
 
@@ -1234,16 +1234,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     pubk_id = find_pubk_object(id);
     pvtk_id = find_pvtk_object(id);
 
-    locking.LockMutex(session->slot->mutex);
+    locking.pfnLockMutex(session->slot->mutex);
 
     rv = token_import_cert(session->slot->piv_state, piv_2_ykpiv(cert_id), value); // TODO: make function to get cert id
     if (rv != CKR_OK) {
       DBG("Unable to import certificate");
-      locking.UnlockMutex(session->slot->mutex);
+      locking.pfnUnlockMutex(session->slot->mutex);
       return rv;
     }
 
-    locking.UnlockMutex(session->slot->mutex);
+    locking.pfnUnlockMutex(session->slot->mutex);
 
     // Check whether we created a new object or updated an existing one
     if (!is_present(session, cert_id)) {
@@ -1297,7 +1297,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     pvtk_id = find_pvtk_object(id);
 
-    locking.LockMutex(session->slot->mutex);
+    locking.pfnLockMutex(session->slot->mutex);
 
     if (is_rsa == CK_TRUE) {
       DBG("Key is RSA");
@@ -1310,7 +1310,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
                                           NULL, 0);
       if (rv != CKR_OK) {
         DBG("Unable to import RSA private key");
-        locking.UnlockMutex(session->slot->mutex);
+        locking.pfnUnlockMutex(session->slot->mutex);
         return rv;
       }
     }
@@ -1325,12 +1325,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
                                           ec_data, ec_data_len);
       if (rv != CKR_OK) {
         DBG("Unable to import ECDSA private key");
-        locking.UnlockMutex(session->slot->mutex);
+        locking.pfnUnlockMutex(session->slot->mutex);
         return rv;
       }
     }
 
-    locking.UnlockMutex(session->slot->mutex);
+    locking.pfnUnlockMutex(session->slot->mutex);
     *phObject = pvtk_id;
     break;
 
@@ -1404,16 +1404,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
     return rv;
   }
 
-  locking.LockMutex(session->slot->mutex);
+  locking.pfnLockMutex(session->slot->mutex);
 
   rv = token_delete_cert(session->slot->piv_state, piv_2_ykpiv(hObject));
   if (rv != CKR_OK) {
     DBG("Unable to delete object %lu", hObject);
-    locking.UnlockMutex(session->slot->mutex);
+    locking.pfnUnlockMutex(session->slot->mutex);
     return rv;
   }
 
-  locking.UnlockMutex(session->slot->mutex);
+  locking.pfnUnlockMutex(session->slot->mutex);
 
   // Remove the related objects from the session
   dobj_id = find_data_object(id);
@@ -1508,7 +1508,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
   if (pTemplate == NULL || ulCount == 0)
     return CKR_ARGUMENTS_BAD;
 
-  locking.LockMutex(session->slot->mutex);
+  locking.pfnLockMutex(session->slot->mutex);
 
   rv_final = CKR_OK;
   for (i = 0; i < ulCount; i++) {
@@ -1522,7 +1522,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
     }
   }
 
-  locking.UnlockMutex(session->slot->mutex);
+  locking.pfnUnlockMutex(session->slot->mutex);
 
   DOUT;
   return rv_final;
@@ -1587,7 +1587,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
         continue;
       }
 
-    locking.LockMutex(session->slot->mutex);
+    locking.pfnLockMutex(session->slot->mutex);
   
     bool keep = true;
     for (CK_ULONG j = 0; j < ulCount; j++) {
@@ -1598,7 +1598,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
       }
     }
 
-    locking.UnlockMutex(session->slot->mutex);
+    locking.pfnUnlockMutex(session->slot->mutex);
 
     if(keep) {
       DBG("Keeping object %u", session->objects[i]);
@@ -1887,13 +1887,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
 
   *pulDataLen = cbDataLen = sizeof(session->op_info.buf);
 
-  locking.LockMutex(session->slot->mutex);
+  locking.pfnLockMutex(session->slot->mutex);
 
   piv_rv = ykpiv_decipher_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, 
                                session->op_info.buf, &cbDataLen, 
                                session->op_info.op.decrypt.algo, session->op_info.op.decrypt.key_id);
 
-  locking.UnlockMutex(session->slot->mutex);
+  locking.pfnUnlockMutex(session->slot->mutex);
 
   if (piv_rv != YKPIV_OK) {
     if (piv_rv == YKPIV_AUTHENTICATION_ERROR) {
@@ -2452,11 +2452,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   *pulSignatureLen = cbSignatureLen = sizeof(session->op_info.buf);
 
-  locking.LockMutex(session->slot->mutex);
+  locking.pfnLockMutex(session->slot->mutex);
 
   piv_rv = ykpiv_sign_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, session->op_info.buf, &cbSignatureLen, session->op_info.op.sign.algo, session->op_info.op.sign.key_id);
 
-  locking.UnlockMutex(session->slot->mutex);
+  locking.pfnUnlockMutex(session->slot->mutex);
 
   *pulSignatureLen = cbSignatureLen;
 
@@ -2628,7 +2628,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
 
   piv_rv = ykpiv_sign_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, session->op_info.buf, &cbSignatureLen, session->op_info.op.sign.algo, session->op_info.op.sign.key_id);
 
-  locking.LockMutex(session->slot->mutex);
+  locking.pfnLockMutex(session->slot->mutex);
 
   *pulSignatureLen = cbSignatureLen;
 
@@ -3207,16 +3207,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     DBG("Generating %lu bit EC key in object %lu (%lx)", gen.key_len, pvtk_id, piv_2_ykpiv(pvtk_id));
   }
 
-  locking.LockMutex(session->slot->mutex);
+  locking.pfnLockMutex(session->slot->mutex);
 
   cert_len = sizeof(cert_data);
   if ((rv = token_generate_key(session->slot->piv_state, gen.rsa, piv_2_ykpiv(pvtk_id), gen.key_len, cert_data, &cert_len)) != CKR_OK) {
     DBG("Unable to generate key pair");
-    locking.UnlockMutex(session->slot->mutex);
+    locking.pfnUnlockMutex(session->slot->mutex);
     return rv;
   }
 
-  locking.UnlockMutex(session->slot->mutex);
+  locking.pfnUnlockMutex(session->slot->mutex);
 
   // Check whether we created a new object or updated an existing one
   if (!is_present(session, pvtk_id)) {
