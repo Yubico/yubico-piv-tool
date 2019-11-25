@@ -1816,7 +1816,7 @@ static void test_decrypt_RSA() {
 
   CK_OBJECT_HANDLE obj_cert[24], obj_pvtkey[24];
   CK_SESSION_HANDLE session;
-  CK_MECHANISM mech = {CKM_RSA_X_509, NULL};
+  CK_MECHANISM mech = {CKM_RSA_PKCS, NULL};
 
   evp = EVP_PKEY_new();
 
@@ -2137,7 +2137,6 @@ int main(void) {
   test_import_and_sign_all_10_P384();
   test_import_and_sign_all_10_RSA();
   test_import_and_sign_RSA_SHA256();
-  test_decrypt_RSA();
   test_decrypt_RSA();
   test_login_order();
   test_sign_update_RSA();
