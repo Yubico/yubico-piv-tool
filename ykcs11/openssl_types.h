@@ -47,11 +47,13 @@ typedef enum {
   YKCS11_SHA512,
   //YKCS11_RIPEMD128_RSA_PKCS,
   //YKCS11_RIPEMD160
-} hash_t;
+} ykcs11_hash_t;
 
 typedef EVP_MD_CTX ykcs11_md_ctx_t;
-//typedef EVP_PKEY   ykcs11_evp_pkey_t;
-
+typedef EVP_PKEY ykcs11_evp_pkey_t;
 typedef RSA ykcs11_rsa_key_t;
+typedef X509 ykcs11_x509_t;
+typedef X509_NAME ykcs11_x509_name_t;
+typedef ASN1_INTEGER ykcs11_asn1_integer_t;
 
 #endif
