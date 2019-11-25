@@ -279,7 +279,7 @@ adete_out:
   return ret;
 }
 
-void parse_NID(uint8_t *data, uint16_t data_len, const EVP_MD **md_type,
+static void parse_NID(uint8_t *data, uint16_t data_len, const EVP_MD **md_type,
                int *digestinfo_len) {
   
   if (data_len >= sizeof(SHA1OID) &&

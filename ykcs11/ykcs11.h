@@ -78,7 +78,7 @@ typedef struct {
 
 typedef struct {
   ykcs11_md_ctx_t   *md_ctx;          // running hash
-  const EVP_MD      *md;              // digest used
+  const ykcs11_md_t *md;              // digest used
   CK_ULONG          padding;          // padding in the rsa case
   CK_BYTE           key_id;           // Key id
   CK_ULONG          key_len;          // Length in bits
@@ -128,9 +128,9 @@ typedef struct {
   piv_obj_id_t    objects[30 * 4]; // List of objects in the token
   CK_ULONG        n_objects;   // TOTAL number of objects in the token
   ykcs11_data_t   data[38];    // Raw data, stored by sub_id 1-37
-  X509            *certs[26];  // Certificates, stored by sub_id 1-25
-  X509            *atst[26];   // Attestations, stored by sub_id 1-25
-  EVP_PKEY        *pkeys[26];  // Public keys, stored by sub_id 1-25
+  ykcs11_x509_t   *certs[26];  // Certificates, stored by sub_id 1-25
+  ykcs11_x509_t   *atst[26];   // Attestations, stored by sub_id 1-25
+  ykcs11_evp_pkey_t *pkeys[26];  // Public keys, stored by sub_id 1-25
   ykcs11_find_t   find_obj;    // Active find operation (if any)
   op_info_t       op_info;
 } ykcs11_session_t;

@@ -385,7 +385,7 @@ static CK_RV get_doa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR
 }
 
 /* Get certificate object attribute */
-static CK_RV _get_coa(X509 **certs, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
+static CK_RV _get_coa(ykcs11_x509_t **certs, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
   CK_BYTE     b_tmp[3072]; // Max cert value for ykpiv
   CK_ULONG    ul_tmp;
