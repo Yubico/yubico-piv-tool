@@ -40,6 +40,16 @@
 # define X509_set_notAfter X509_set1_notAfter
 #endif
 
+CK_RV do_rand_seed(CK_BYTE_PTR data, CK_ULONG len) {
+  RAND_seed(data, len);
+  return CKR_OK;
+}
+
+CK_RV do_rand_bytes(CK_BYTE_PTR data, CK_ULONG len) {
+  RAND_bytes(data, len);
+  return CKR_OK;
+}
+
 CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, X509 **cert) {
 
   const unsigned char *p = data; // Mandatory temp variable required by OpenSSL
@@ -471,7 +481,7 @@ CK_RV do_get_public_key(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
 }
 
-CK_RV do_encode_rsa_public_key(ykcs11_rsa_key_t **key, CK_BYTE_PTR modulus,
+CK_RV do_decode_rsa_public_key(ykcs11_rsa_key_t **key, CK_BYTE_PTR modulus,
           CK_ULONG mlen, CK_BYTE_PTR exponent, CK_ULONG elen) {
   ykcs11_rsa_key_t *k;
   BIGNUM *k_n = NULL, *k_e = NULL;

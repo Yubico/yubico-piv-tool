@@ -40,7 +40,6 @@
 #include "token.h"
 #include "openssl_types.h"
 #include "openssl_utils.h"
-#include <openssl/rand.h>
 #include "debug.h"
 
 #include <stdbool.h>
@@ -2288,7 +2287,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
         return CKR_KEY_HANDLE_INVALID;
       }
 
-      if (do_encode_rsa_public_key(&session->op_info.op.sign.key, buf, (key_len + 7) / 8, exp, sizeof(exp)) != CKR_OK) {
+      if (do_decode_rsa_public_key(&session->op_info.op.sign.key, buf, (key_len + 7) / 8, exp, sizeof(exp)) != CKR_OK) {
         return CKR_FUNCTION_FAILED;
       }
     }
@@ -3327,7 +3326,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SeedRandom)(
   }
 
   if(ulSeedLen != 0) {
-    RAND_seed(pSeed, ulSeedLen);
+    do_rand_seed(pSeed, ulSeedLen);
   }
 
   DOUT;
@@ -3361,7 +3360,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateRandom)(
 
   // the OpenSC pkcs11 test calls with 0 and expects CKR_OK, do that..
   if (ulRandomLen != 0) {
-    if (RAND_bytes(pRandomData, ulRandomLen) == -1) {
+    if (do_rand_bytes(pRandomData, ulRandomLen) == -1) {
       return CKR_GENERAL_ERROR;
     }
   }

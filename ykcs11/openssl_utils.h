@@ -39,6 +39,8 @@
 #include "openssl_types.h"
 #include "pkcs11y.h"
 
+CK_RV do_rand_seed(CK_BYTE_PTR data, CK_ULONG len);
+CK_RV do_rand_bytes(CK_BYTE_PTR data, CK_ULONG len);
 CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, X509 **cert);
 CK_RV do_generate_ec_key(int nid, EVP_PKEY **pkey);
 CK_RV do_create_ec_key(CK_BYTE_PTR point, CK_ULONG point_len, int nid, EVP_PKEY **pkey);
@@ -62,7 +64,7 @@ CK_RV       do_get_modulus(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
 CK_RV       do_get_curve_parameters(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
 CK_RV       do_delete_pubk(EVP_PKEY **key);
 
-CK_RV do_encode_rsa_public_key(ykcs11_rsa_key_t **key, CK_BYTE_PTR modulus, CK_ULONG mlen, CK_BYTE_PTR exponent, CK_ULONG elen);
+CK_RV do_decode_rsa_public_key(ykcs11_rsa_key_t **key, CK_BYTE_PTR modulus, CK_ULONG mlen, CK_BYTE_PTR exponent, CK_ULONG elen);
 CK_RV do_free_rsa_public_key(ykcs11_rsa_key_t *key);
 
 CK_RV do_pkcs_1_t1(CK_BYTE_PTR in, CK_ULONG in_len, CK_BYTE_PTR out, CK_ULONG_PTR out_len, CK_ULONG key_len);

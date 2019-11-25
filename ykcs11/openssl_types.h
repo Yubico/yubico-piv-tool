@@ -36,6 +36,7 @@
 #include <openssl/evp.h>
 #include <openssl/rsa.h>
 #include <openssl/ec.h>
+#include <openssl/rand.h>
 
 typedef enum {
   YKCS11_NO_HASH,
