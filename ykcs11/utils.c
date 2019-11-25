@@ -320,9 +320,9 @@ CK_RV verify_signature(ykcs11_session_t *session, op_info_t *op_info,
     goto pv_failure;
   }
 
-  //key = session->pkeys[op_info->op.verify.key_id];
-  X509 *cert = session->certs[op_info->op.verify.key_id];
-  key = X509_get_pubkey(cert);
+  key = session->pkeys[op_info->op.verify.key_id];
+  //X509 *cert = session->certs[op_info->op.verify.key_id];
+  //key = X509_get_pubkey(cert);
 
   ctx = EVP_PKEY_CTX_new(key, NULL);
   if (ctx == NULL) {
@@ -401,11 +401,6 @@ pv_failure:
   if (ctx != NULL) {
     EVP_PKEY_CTX_free(ctx);
     ctx = NULL;
-  }
-
-  if (key != NULL) {
-    EVP_PKEY_free(key);
-    key = NULL;
   }
 
   return rv;
