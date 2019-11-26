@@ -62,7 +62,7 @@ static const CK_MECHANISM_TYPE sign_mechanisms[] = {
 // Supported mechanisms for RSA decryption
 static const CK_MECHANISM_TYPE decrypt_rsa_mechanisms[] = {
   CKM_RSA_PKCS,
-//  CKM_RSA_X_509
+  CKM_RSA_X_509
 };
 
 // Supported mechanisms for key pair generation

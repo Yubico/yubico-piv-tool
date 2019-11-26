@@ -1833,8 +1833,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
   ykpiv_rc piv_rv;
   CK_RV    rv;
   size_t   cbDataLen = 0;
-  CK_BYTE  dec_unwrap[1024];
-  CK_ULONG dec_unwrap_len;
+  CK_BYTE  dec[1024];
   
   DIN;
 
@@ -1907,14 +1906,23 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
     }
   }
 
-  *pulDataLen = RSA_padding_check_PKCS1_type_2(dec_unwrap, sizeof(dec_unwrap), session->op_info.buf + 1, cbDataLen - 1, session->op_info.op.decrypt.key_len/8);
+  if(session->op_info.mechanism.mechanism == CKM_RSA_PKCS) {
+    *pulDataLen = RSA_padding_check_PKCS1_type_2(dec, sizeof(dec), session->op_info.buf + 1, cbDataLen - 1, session->op_info.op.decrypt.key_len/8);
+  } else if(session->op_info.mechanism.mechanism == CKM_RSA_X_509) {
+    memcpy(dec, session->op_info.buf, ulEncryptedDataLen);
+    *pulDataLen = ulEncryptedDataLen;
+  } else {
+    DBG("Unknown mechanism");
+    rv = CKR_FUNCTION_FAILED;
+    goto decrypt_out;
+  }
 
   DBG("Got %lu bytes back", *pulDataLen);
 #if YKCS11_DBG
   dump_data(session->op_info.buf, *pulDataLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
-  memcpy(pData, dec_unwrap, *pulDataLen);
+  memcpy(pData, dec, *pulDataLen);
   rv = CKR_OK;
 
   decrypt_out:

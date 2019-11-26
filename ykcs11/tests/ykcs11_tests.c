@@ -1816,7 +1816,8 @@ static void test_decrypt_RSA() {
 
   CK_OBJECT_HANDLE obj_cert[24], obj_pvtkey[24];
   CK_SESSION_HANDLE session;
-  CK_MECHANISM mech = {CKM_RSA_PKCS, NULL};
+  CK_MECHANISM mech_PKCS = {CKM_RSA_PKCS, NULL};
+  CK_MECHANISM mech_X509 = {CKM_RSA_X_509, NULL};
 
   evp = EVP_PKEY_new();
 
@@ -1908,12 +1909,18 @@ static void test_decrypt_RSA() {
       asrt(funcs->C_Login(session, CKU_USER, "123456", 6), CKR_OK, "Login USER");
 
       enc_len = RSA_public_encrypt(32, some_data, enc, rsak, RSA_PKCS1_PADDING);
-  
-      asrt(funcs->C_DecryptInit(session, &mech, obj_pvtkey[i]), CKR_OK, "DECRYPT INIT");
-      asrt(funcs->C_Decrypt(session, enc, enc_len, dec, &dec_len), CKR_OK, "DECRYPT");
 
-      asrt(dec_len, 32, "DECRYPTED DATA LEN");
-      asrt(memcmp(some_data, dec, dec_len), 0, "DECRYPTED DATA");
+      // Decryption using CKM_RSA_PKCS
+      asrt(funcs->C_DecryptInit(session, &mech_PKCS, obj_pvtkey[i]), CKR_OK, "DECRYPT INIT CKM_RSA_PKCS");
+      asrt(funcs->C_Decrypt(session, enc, enc_len, dec, &dec_len), CKR_OK, "DECRYPT CKM_RSA_PKCS");
+      asrt(dec_len, 32, "DECRYPTED DATA LEN CKM_RSA_PKCS");
+      asrt(memcmp(some_data, dec, dec_len), 0, "DECRYPTED DATA CKM_RSA_PKCS");
+
+      // Decryption using CKM_RSA_X_509
+      asrt(funcs->C_DecryptInit(session, &mech_X509, obj_pvtkey[i]), CKR_OK, "DECRYPT INIT CKM_RSA_X_509");
+      asrt(funcs->C_Decrypt(session, enc, enc_len, dec, &dec_len), CKR_OK, "DECRYPT CKM_RSA_X_509");
+      asrt(dec_len, 128, "DECRYPTED DATA LEN CKM_RSA_X_509");
+      asrt(memcmp(some_data, dec+128-32, 32), 0, "DECRYPTED DATA CKM_RSA_X_509");
     }
   }
 
