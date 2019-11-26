@@ -1916,9 +1916,25 @@ static void test_decrypt_RSA() {
       asrt(dec_len, 32, "DECRYPTED DATA LEN CKM_RSA_PKCS");
       asrt(memcmp(some_data, dec, dec_len), 0, "DECRYPTED DATA CKM_RSA_PKCS");
 
+      asrt(funcs->C_DecryptInit(session, &mech_PKCS, obj_pvtkey[i]), CKR_OK, "DECRYPT INIT CKM_RSA_PKCS");
+      asrt(funcs->C_DecryptUpdate(session, enc, 100, NULL, NULL), CKR_OK, "DECRYPT UPDATE CKM_RSA_PKCS");
+      asrt(funcs->C_DecryptUpdate(session, enc+100, 8, NULL, NULL), CKR_OK, "DECRYPT UPDATE CKM_RSA_PKCS");
+      asrt(funcs->C_DecryptUpdate(session, enc+108, 20, NULL, NULL), CKR_OK, "DECRYPT UPDATE CKM_RSA_PKCS");
+      asrt(funcs->C_DecryptFinal(session, dec, &dec_len), CKR_OK, "DECRYPT FINAL CKM_RSA_PKCS");
+      asrt(dec_len, 32, "DECRYPTED DATA LEN CKM_RSA_PKCS");
+      asrt(memcmp(some_data, dec, dec_len), 0, "DECRYPTED DATA CKM_RSA_PKCS");
+
       // Decryption using CKM_RSA_X_509
       asrt(funcs->C_DecryptInit(session, &mech_X509, obj_pvtkey[i]), CKR_OK, "DECRYPT INIT CKM_RSA_X_509");
       asrt(funcs->C_Decrypt(session, enc, enc_len, dec, &dec_len), CKR_OK, "DECRYPT CKM_RSA_X_509");
+      asrt(dec_len, 128, "DECRYPTED DATA LEN CKM_RSA_X_509");
+      asrt(memcmp(some_data, dec+128-32, 32), 0, "DECRYPTED DATA CKM_RSA_X_509");
+
+      asrt(funcs->C_DecryptInit(session, &mech_X509, obj_pvtkey[i]), CKR_OK, "DECRYPT INIT CKM_RSA_X_509");
+      asrt(funcs->C_DecryptUpdate(session, enc, 8, NULL, NULL), CKR_OK, "DECRYPT UPDATE CKM_RSA_X_509");
+      asrt(funcs->C_DecryptUpdate(session, enc+8, 20, NULL, NULL), CKR_OK, "DECRYPT UPDATE CKM_RSA_X_509");
+      asrt(funcs->C_DecryptUpdate(session, enc+28, 100, NULL, NULL), CKR_OK, "DECRYPT UPDATE CKM_RSA_X_509");
+      asrt(funcs->C_DecryptFinal(session, dec, &dec_len), CKR_OK, "DECRYPT FINAL CKM_RSA_X_509");
       asrt(dec_len, 128, "DECRYPTED DATA LEN CKM_RSA_X_509");
       asrt(memcmp(some_data, dec+128-32, 32), 0, "DECRYPTED DATA CKM_RSA_X_509");
     }
