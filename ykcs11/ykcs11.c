@@ -1960,7 +1960,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptUpdate)(
     goto decrypt_out;
   }
 
-  DBG("Adding %lu bytes to be decrypted", ulEncryptedDataLen);
+  DBG("Adding %lu bytes to be decrypted", ulEncryptedPartLen);
 #if YKCS11_DBG
   dump_data(pEncryptedPart, ulEncryptedPartLen, stderr, CK_TRUE, format_arg_hex);
 #endif
