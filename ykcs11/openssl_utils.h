@@ -52,6 +52,8 @@ CK_RV do_delete_cert(ykcs11_x509_t **cert);
 
 CK_RV       do_store_pubk(ykcs11_x509_t *cert, ykcs11_evp_pkey_t **key);
 CK_KEY_TYPE do_get_key_type(ykcs11_evp_pkey_t *key);
+CK_ULONG    do_get_key_size(ykcs11_evp_pkey_t *key);
+CK_BYTE     do_get_key_algorithm(ykcs11_evp_pkey_t *key);
 CK_RV       do_get_public_exponent(ykcs11_evp_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
 CK_RV       do_get_public_key(ykcs11_evp_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
 CK_RV       do_get_modulus(ykcs11_evp_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len);

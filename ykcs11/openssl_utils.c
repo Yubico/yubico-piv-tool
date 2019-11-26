@@ -30,6 +30,7 @@
 
 #include "openssl_utils.h"
 #include <stdbool.h>
+#include <ykpiv.h>
 #include "../tool/util.h" // TODO: share this better?
 #include "../tool/openssl-compat.h" // TODO: share this better?
 #include "debug.h"
@@ -186,7 +187,7 @@ CK_RV do_sign_empty_cert(const char *cn, ykcs11_evp_pkey_t *pubkey, ykcs11_evp_p
   X509_gmtime_adj(X509_get_notBefore(*cert), 0);
   X509_gmtime_adj(X509_get_notAfter(*cert), 0);
   X509_set_pubkey(*cert, pubkey);
-  if (X509_sign(*cert, pvtkey, EVP_sha256()) <= 0)
+  if (X509_sign(*cert, pvtkey, EVP_sha1()) <= 0)
     return CKR_GENERAL_ERROR;
   return CKR_OK;
 }
@@ -326,9 +327,8 @@ CK_RV do_store_pubk(ykcs11_x509_t *cert, ykcs11_evp_pkey_t **key) {
 
 CK_KEY_TYPE do_get_key_type(ykcs11_evp_pkey_t *key) {
 
-  switch (EVP_PKEY_id(key)) {
+  switch (EVP_PKEY_base_id(key)) {
   case EVP_PKEY_RSA:
-  case EVP_PKEY_RSA2:
     return CKK_RSA;
 
   case EVP_PKEY_EC:
@@ -337,6 +337,31 @@ CK_KEY_TYPE do_get_key_type(ykcs11_evp_pkey_t *key) {
   default:
     return CKK_VENDOR_DEFINED; // Actually an error
   }
+}
+
+CK_ULONG do_get_key_size(ykcs11_evp_pkey_t *key) {
+  return EVP_PKEY_bits(key);
+}
+
+CK_BYTE do_get_key_algorithm(ykcs11_evp_pkey_t *key) {
+
+  switch (EVP_PKEY_base_id(key)) {
+  case EVP_PKEY_RSA:
+    switch(EVP_PKEY_bits(key)) {
+    case 1024:
+      return YKPIV_ALGO_RSA1024;
+    case 2048:
+      return YKPIV_ALGO_RSA2048;
+    }
+  case EVP_PKEY_EC:
+    switch(EVP_PKEY_bits(key)) {
+    case 256:
+      return YKPIV_ALGO_ECCP256;
+    case 384:
+      return YKPIV_ALGO_ECCP384;
+    }
+  }
+  return 0; // Actually an error
 }
 
 CK_RV do_get_modulus(ykcs11_evp_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
@@ -402,9 +427,8 @@ CK_RV do_get_public_key(ykcs11_evp_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR l
   const EC_POINT *ecp;
   point_conversion_form_t pcf = POINT_CONVERSION_UNCOMPRESSED;
 
-  switch(EVP_PKEY_id(key)) {
+  switch(EVP_PKEY_base_id(key)) {
   case EVP_PKEY_RSA:
-  case EVP_PKEY_RSA2:
 
     rsa = EVP_PKEY_get1_RSA(key);
 

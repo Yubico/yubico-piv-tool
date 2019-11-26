@@ -82,32 +82,28 @@ FILE *open_file(const char *file_name, enum file_mode mode) {
 }
 
 unsigned char get_algorithm(EVP_PKEY *key) {
-  int type = EVP_PKEY_type(EVP_PKEY_id(key));
+  int type = EVP_PKEY_base_id(key);
+  int size = EVP_PKEY_bits(key);
   switch(type) {
     case EVP_PKEY_RSA:
       {
-        RSA *rsa = EVP_PKEY_get1_RSA(key);
-        int size = RSA_size(rsa);
-        if(size == 256) {
+        if(size == 2048) {
           return YKPIV_ALGO_RSA2048;
-        } else if(size == 128) {
+        } else if(size == 1024) {
           return YKPIV_ALGO_RSA1024;
         } else {
-          fprintf(stderr, "Unusable key of %d bits, only 1024 and 2048 are supported.\n", size * 8);
+          fprintf(stderr, "Unusable RSA key of %d bits, only 1024 and 2048 are supported.\n", size);
           return 0;
         }
       }
     case EVP_PKEY_EC:
       {
-        EC_KEY *ec = EVP_PKEY_get1_EC_KEY(key);
-        const EC_GROUP *group = EC_KEY_get0_group(ec);
-        int curve = EC_GROUP_get_curve_name(group);
-        if(curve == NID_X9_62_prime256v1) {
+        if(size == 256) {
           return YKPIV_ALGO_ECCP256;
-        } else if(curve == NID_secp384r1) {
+        } else if(size == 384) {
           return YKPIV_ALGO_ECCP384;
         } else {
-          fprintf(stderr, "Unknown EC curve %d\n", curve);
+          fprintf(stderr, "Unusable EC key of %d bits, only 256 and 384 are supported.\n", size);
           return 0;
         }
       }
@@ -540,9 +536,8 @@ int SSH_write_X509(FILE *fp, X509 *x) {
     return ret;
   }
 
-  switch (EVP_PKEY_id(pkey)) {
-  case EVP_PKEY_RSA:
-  case EVP_PKEY_RSA2: {
+  switch (EVP_PKEY_base_id(pkey)) {
+  case EVP_PKEY_RSA: {
     RSA *rsa;
     unsigned char n[256];
     const BIGNUM *bn_n;

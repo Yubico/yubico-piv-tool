@@ -711,7 +711,7 @@ static CK_RV get_proa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
   case CKA_MODULUS_BITS:
     DBG("MODULUS BITS");
     len = sizeof(CK_ULONG);
-    ul_tmp = EVP_PKEY_bits(s->pkeys[piv_objects[obj].sub_id]);
+    ul_tmp = do_get_key_size(s->pkeys[piv_objects[obj].sub_id]);
     data = (CK_BYTE_PTR) &ul_tmp;
     break;
 
@@ -940,7 +940,7 @@ static CK_RV get_puoa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
   case CKA_MODULUS_BITS:
     DBG("MODULUS BITS");
     len = sizeof(CK_ULONG);
-    ul_tmp = EVP_PKEY_bits(s->pkeys[piv_objects[obj].sub_id]);
+    ul_tmp = do_get_key_size(s->pkeys[piv_objects[obj].sub_id]);
     data = (CK_BYTE_PTR) &ul_tmp;
     break;
 
