@@ -1294,6 +1294,8 @@ CK_RV store_data(ykcs11_session_t *s, piv_obj_id_t obj, CK_BYTE_PTR data, CK_ULO
 
 CK_RV delete_data(ykcs11_session_t *s, piv_obj_id_t obj) {
   free(s->data[piv_objects[obj].sub_id].data);
+  s->data[piv_objects[obj].sub_id].data = NULL;
+  s->data[piv_objects[obj].sub_id].len = 0;
   return CKR_OK;
 }
 
@@ -1584,16 +1586,6 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
   if (*q_len != *p_len || *dp_len > *p_len ||
       *dq_len > *p_len || *qinv_len > *p_len)
     return CKR_ATTRIBUTE_VALUE_INVALID;
-
-  return CKR_OK;
-}
-
-CK_RV check_delete_cert(CK_OBJECT_HANDLE hObject, CK_BYTE_PTR id) {
-
-  if (hObject < PIV_CERT_OBJ_X509_PIV_AUTH || hObject > PIV_CERT_OBJ_X509_RETIRED20)
-    return CKR_ARGUMENTS_BAD;
-
-  *id = get_key_id(hObject);
 
   return CKR_OK;
 }

@@ -1168,10 +1168,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
   CK_BYTE_PTR      ec_data;
   CK_ULONG         ec_data_len;
   CK_BBOOL         is_rsa;
-  CK_ULONG         dobj_id;
-  CK_ULONG         cert_id;
-  CK_ULONG         pubk_id;
-  CK_ULONG         pvtk_id;
+  piv_obj_id_t     dobj_id;
+  piv_obj_id_t     cert_id;
+  piv_obj_id_t     pubk_id;
+  piv_obj_id_t     pvtk_id;
+  piv_obj_id_t     atst_id;
   piv_obj_id_t     *obj_ptr;
 
   DIN;
@@ -1233,6 +1234,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     cert_id = find_cert_object(id);
     pubk_id = find_pubk_object(id);
     pvtk_id = find_pvtk_object(id);
+    atst_id = find_atst_object(id);
 
     locking.pfnLockMutex(session->slot->mutex);
 
@@ -1253,6 +1255,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       *obj_ptr++ = cert_id;
       *obj_ptr++ = pvtk_id;
       *obj_ptr++ = pubk_id;
+      if(atst_id != (piv_obj_id_t)-1)
+        *obj_ptr ++ = atst_id;
       session->n_objects = obj_ptr - session->objects;
       sort_objects(session);
     }
@@ -1362,14 +1366,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
   CK_OBJECT_HANDLE hObject
 )
 {
-  CK_RV          rv;
-  CK_ULONG       i;
-  CK_ULONG       j;
-  CK_BYTE        id;
-  CK_ULONG       dobj_id;
-  CK_ULONG       pvtk_id;
-  CK_ULONG       pubk_id;
-
   DIN;
 
   DBG("Deleting object %lu", hObject);
@@ -1398,17 +1394,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
     return CKR_USER_TYPE_INVALID;
   }
 
-  rv = check_delete_cert(hObject, &id);
-  if (rv != CKR_OK) {
-    DBG("Object %lu can not be deleted", hObject);
-    return rv;
-  }
+  CK_BYTE id = get_key_id(hObject);
 
   locking.pfnLockMutex(session->slot->mutex);
 
-  rv = token_delete_cert(session->slot->piv_state, piv_2_ykpiv(hObject));
+  CK_RV rv = token_delete_cert(session->slot->piv_state, piv_2_ykpiv(find_data_object(id)));
   if (rv != CKR_OK) {
-    DBG("Unable to delete object %lu", hObject);
+    DBG("Unable to delete object %lx from token", piv_2_ykpiv(find_data_object(id)));
     locking.pfnUnlockMutex(session->slot->mutex);
     return rv;
   }
@@ -1416,25 +1408,23 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
   locking.pfnUnlockMutex(session->slot->mutex);
 
   // Remove the related objects from the session
-  dobj_id = find_data_object(id);
-  pvtk_id = find_pvtk_object(id);
-  pubk_id = find_pubk_object(id);
 
-  j = 0;
-  for (i = 0; i < session->n_objects; i++) {
-    if (session->objects[i] == hObject ||
-        session->objects[i] == dobj_id ||
-        session->objects[i] == pvtk_id ||
-        session->objects[i] == pubk_id) {
-      continue;
-    }
-    session->objects[j++] = session->objects[i];
+  CK_ULONG j = 0;
+  for (CK_ULONG i = 0; i < session->n_objects; i++) {
+    if(get_key_id(session->objects[i]) != id)
+      session->objects[j++] = session->objects[i];
   }
   session->n_objects = j;
 
+  rv = delete_data(session, hObject);
+  if (rv != CKR_OK) {
+    DBG("Unable to delete data from session");
+    return CKR_FUNCTION_FAILED;
+  }
+
   rv = delete_cert(session, hObject);
   if (rv != CKR_OK) {
-    DBG("Unable to delete certificate data");
+    DBG("Unable to delete certificate from session");
     return CKR_FUNCTION_FAILED;
   }
 
@@ -3260,10 +3250,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 {
   CK_RV          rv;
   CK_ULONG       i;
-  CK_ULONG       dobj_id;
-  CK_ULONG       cert_id;
-  CK_ULONG       pvtk_id;
-  CK_ULONG       pubk_id;
+  piv_obj_id_t   dobj_id;
+  piv_obj_id_t   cert_id;
+  piv_obj_id_t   pvtk_id;
+  piv_obj_id_t   pubk_id;
+  piv_obj_id_t   atst_id;
   piv_obj_id_t   *obj_ptr;
   CK_BYTE        cert_data[3072];
   CK_ULONG       cert_len;
@@ -3343,12 +3334,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   cert_id = find_cert_object(gen.key_id);
   pubk_id = find_pubk_object(gen.key_id);
   pvtk_id = find_pvtk_object(gen.key_id);
+  atst_id = find_atst_object(gen.key_id);
 
   if (gen.rsa) {
-    DBG("Generating %lu bit RSA key in object %lu (%lx)", gen.key_len, pvtk_id, piv_2_ykpiv(pvtk_id));
+    DBG("Generating %lu bit RSA key in object %u and %u (%lx)", gen.key_len, pvtk_id, pubk_id, piv_2_ykpiv(pvtk_id));
   }
   else {
-    DBG("Generating %lu bit EC key in object %lu (%lx)", gen.key_len, pvtk_id, piv_2_ykpiv(pvtk_id));
+    DBG("Generating %lu bit EC key in object %u and %u(%lx)", gen.key_len, pvtk_id, pubk_id, piv_2_ykpiv(pvtk_id));
   }
 
   locking.pfnLockMutex(session->slot->mutex);
@@ -3370,6 +3362,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     *obj_ptr++ = cert_id;
     *obj_ptr++ = pvtk_id;
     *obj_ptr++ = pubk_id;
+    if(atst_id != (piv_obj_id_t)-1)
+      *obj_ptr++ = atst_id;
     session->n_objects = obj_ptr - session->objects;
     sort_objects(session);
   }
