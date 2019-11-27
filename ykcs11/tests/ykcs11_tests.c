@@ -940,10 +940,10 @@ static void test_find_objects() {
   asrt(funcs->C_GetAttributeValue(session, privkey, idTemplate, 1), CKR_OK, "GET CKA_ID");
   asrt(funcs->C_FindObjectsInit(session, idTemplate, 1), CKR_OK, "FIND INIT");
   asrt(funcs->C_FindObjects(session, found_obj, 10, &n_found_obj), CKR_OK, "FIND");
-  asrt(n_found_obj, 4, "N FOUND OBJS");
+  asrt(n_found_obj, 5, "N FOUND OBJS");
   asrt(funcs->C_FindObjectsFinal(session), CKR_OK, "FIND FINAL");
 
-  for(i=0; i<4; i++) {
+  for(i=0; i<5; i++) {
     asrt(funcs->C_GetAttributeValue(session, found_obj[i], classTemplate, 1), CKR_OK, "GET CKA_CLASS");
     if(object_class == CKO_PRIVATE_KEY) {
       private_key = CK_TRUE;
@@ -985,7 +985,7 @@ static void test_find_objects() {
   object_class = CKO_CERTIFICATE;
   asrt(funcs->C_FindObjectsInit(session, idClassTemplate, 2), CKR_OK, "FIND INIT");
   asrt(funcs->C_FindObjects(session, found_obj, 10, &n_found_obj), CKR_OK, "FIND");
-  asrt(n_found_obj, 1, "N FOUND OBJS");
+  asrt(n_found_obj, 2, "N FOUND OBJS");
   asrt(funcs->C_FindObjectsFinal(session), CKR_OK, "FIND FINAL");
 
   asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
