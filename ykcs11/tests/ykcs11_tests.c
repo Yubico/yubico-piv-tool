@@ -1953,6 +1953,223 @@ static void test_decrypt_RSA() {
   dprintf(0, "TEST END: test_decrypt_RSA()\n");
 }
 
+static void test_encrypt_RSA() {
+  dprintf(0, "TEST START: test_encrypt_RSA()\n");
+
+  EVP_PKEY    *evp;
+  RSA         *rsak;
+  X509        *cert;
+  ASN1_TIME   *tm;
+  CK_BYTE     i, j;
+  CK_BYTE     some_data[32];
+  CK_BYTE     e[] = {0x01, 0x00, 0x01};
+  CK_BYTE     p[64];
+  CK_BYTE     q[64];
+  CK_BYTE     dp[64];
+  CK_BYTE     dq[64];
+  CK_BYTE     qinv[64];
+  BIGNUM      *e_bn;
+  CK_ULONG    class_k = CKO_PRIVATE_KEY;
+  CK_ULONG    class_c = CKO_CERTIFICATE;
+  CK_ULONG    kt = CKK_RSA;
+  CK_BYTE     id = 0;
+  CK_BYTE     sig[2048];
+  CK_ULONG    recv_len;
+  CK_BYTE     value_c[3100];
+  CK_ULONG    cert_len;
+  CK_BYTE     der_encoded[80];
+  CK_BYTE_PTR der_ptr;
+  CK_BYTE_PTR r_ptr;
+  CK_BYTE_PTR s_ptr;
+  CK_ULONG    r_len;
+  CK_ULONG    s_len;
+  const BIGNUM *bp, *bq, *biqmp, *bdmp1, *bdmq1;
+   
+  unsigned char  *px;
+
+  CK_ATTRIBUTE privateKeyTemplate[] = {
+    {CKA_CLASS, &class_k, sizeof(class_k)},
+    {CKA_KEY_TYPE, &kt, sizeof(kt)},
+    {CKA_ID, &id, sizeof(id)},
+    {CKA_PUBLIC_EXPONENT, e, sizeof(e)},
+    {CKA_PRIME_1, p, sizeof(p)},
+    {CKA_PRIME_2, q, sizeof(q)},
+    {CKA_EXPONENT_1, dp, sizeof(dp)},
+    {CKA_EXPONENT_2, dq, sizeof(dq)},
+    {CKA_COEFFICIENT, qinv, sizeof(qinv)}
+  };
+
+  CK_ATTRIBUTE publicKeyTemplate[] = {
+    {CKA_CLASS, &class_c, sizeof(class_c)},
+    {CKA_ID, &id, sizeof(id)},
+    {CKA_VALUE, value_c, sizeof(value_c)}
+  };
+
+  CK_OBJECT_HANDLE obj_cert[24], obj_pvtkey[24];
+  CK_SESSION_HANDLE session;
+  CK_MECHANISM mech_PKCS = {CKM_RSA_PKCS, NULL};
+  CK_MECHANISM mech_X509 = {CKM_RSA_X_509, NULL};
+
+  evp = EVP_PKEY_new();
+
+  if (evp == NULL)
+    exit(EXIT_FAILURE);
+
+  rsak = RSA_new();
+
+  if (rsak == NULL)
+    exit(EXIT_FAILURE);
+
+  e_bn = BN_bin2bn(e, 3, NULL);
+
+  if (e_bn == NULL)
+    exit(EXIT_FAILURE);
+
+  asrt(RSA_generate_key_ex(rsak, 1024, e_bn, NULL), 1, "GENERATE RSAK");
+
+  RSA_get0_factors(rsak, &bp, &bq);
+  RSA_get0_crt_params(rsak, &bdmp1, &bdmq1, &biqmp);
+  asrt(BN_bn2bin(bp, p), 64, "GET P");
+  asrt(BN_bn2bin(bq, q), 64, "GET Q");
+  asrt(BN_bn2bin(bdmp1, dp), 64, "GET DP");
+  asrt(BN_bn2bin(bdmq1, dp), 64, "GET DQ");
+  asrt(BN_bn2bin(biqmp, qinv), 64, "GET QINV");
+
+
+
+  if (EVP_PKEY_set1_RSA(evp, rsak) == 0)
+    exit(EXIT_FAILURE);
+
+  cert = X509_new();
+
+  if (cert == NULL)
+    exit(EXIT_FAILURE);
+
+  if (X509_set_pubkey(cert, evp) == 0)
+    exit(EXIT_FAILURE);
+
+  tm = ASN1_TIME_new();
+  if (tm == NULL)
+    exit(EXIT_FAILURE);
+
+  ASN1_TIME_set_string(tm, "000001010000Z");
+  X509_set_notBefore(cert, tm);
+  X509_set_notAfter(cert, tm);
+
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
+  /* putting bogus data to signature to make some checks happy */
+  cert->sig_alg->algorithm = OBJ_nid2obj(8);
+  cert->cert_info->signature->algorithm = OBJ_nid2obj(8);
+
+  ASN1_BIT_STRING_set_bit(cert->signature, 8, 1);
+  ASN1_BIT_STRING_set(cert->signature, "\x00", 1);
+#else
+  bogus_sign_cert(cert);
+#endif
+
+  px = value_c;
+  if ((cert_len = (CK_ULONG) i2d_X509(cert, &px)) == 0 || cert_len > sizeof(value_c))
+    exit(EXIT_FAILURE);
+
+  publicKeyTemplate[2].ulValueLen = cert_len;
+
+  init_connection();
+  asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
+  asrt(funcs->C_Login(session, CKU_SO, "010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
+
+  for (i = 0; i < 24; i++) {
+    id = i+1;
+    asrt(funcs->C_CreateObject(session, publicKeyTemplate, 3, obj_cert + i), CKR_OK, "IMPORT CERT");
+    asrt(funcs->C_CreateObject(session, privateKeyTemplate, 9, obj_pvtkey + i), CKR_OK, "IMPORT KEY");
+  }
+
+
+  asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
+
+  CK_BYTE   enc[512];
+  CK_ULONG  enc_len;
+  CK_BYTE   dec[512];
+  CK_ULONG  dec_len;
+
+  for (i = 0; i < 24; i++) {
+    for (j = 0; j < 10; j++) {
+    
+      if(RAND_bytes(some_data, sizeof(some_data)) == -1)
+        exit(EXIT_FAILURE);
+      asrt(funcs->C_Login(session, CKU_USER, "123456", 6), CKR_OK, "Login USER");
+
+      // CKM_RSA_PKCS
+      asrt(funcs->C_EncryptInit(session, &mech_PKCS, get_public_key_handle(session, obj_pvtkey[i])), CKR_OK, "ENCRYPT INIT CKM_RSA_PKCS");
+      asrt(funcs->C_Encrypt(session, some_data, 32, enc, &enc_len), CKR_OK, "ENCRYPT CKM_RSA_PKCS");
+      asrt(enc_len, 128, "ENCRYPTED DATA LEN");
+
+      dec_len = RSA_private_decrypt(enc_len, enc, dec, rsak, RSA_PKCS1_PADDING);
+      asrt(dec_len, 32, "DECRYPTED DATA LEN CKM_RSA_PKCS");
+      asrt(memcmp(some_data, dec, dec_len), 0, "DECRYPTED DATA CKM_RSA_PKCS");
+
+      asrt(funcs->C_EncryptInit(session, &mech_PKCS, get_public_key_handle(session, obj_pvtkey[i])), CKR_OK, "ENCRYPT INIT CKM_RSA_PKCS");
+      asrt(funcs->C_EncryptUpdate(session, some_data, 10, NULL, NULL), CKR_OK, "ENCRYPT UPDATE CKM_RSA_PKCS");
+      asrt(funcs->C_EncryptUpdate(session, some_data+10, 22, NULL, NULL), CKR_OK, "ENCRYPT UPDATE CKM_RSA_PKCS");
+      asrt(funcs->C_EncryptFinal(session, enc, &enc_len), CKR_OK, "ENCRYPT FINAL CKM_RSA_PKCS");
+      asrt(enc_len, 128, "ENCRYPTED DATA LEN");
+
+      dec_len = RSA_private_decrypt(enc_len, enc, dec, rsak, RSA_PKCS1_PADDING);
+      asrt(dec_len, 32, "DECRYPTED DATA LEN CKM_RSA_PKCS");
+      asrt(memcmp(some_data, dec, dec_len), 0, "DECRYPTED DATA CKM_RSA_PKCS");
+
+      // CKM_RSA_X_509 PKCS1_PADDING
+      asrt(funcs->C_EncryptInit(session, &mech_X509, get_public_key_handle(session, obj_pvtkey[i])), CKR_OK, "ENCRYPT INIT CKM_RSA_X_509");
+      asrt(funcs->C_Encrypt(session, some_data, 32, enc, &enc_len), CKR_OK, "ENCRYPT CKM_RSA_X_509");
+      asrt(enc_len, 128, "ENCRYPTED DATA LEN");
+
+      dec_len = RSA_private_decrypt(enc_len, enc, dec, rsak, RSA_PKCS1_PADDING);
+      asrt(dec_len, 32, "DECRYPTED DATA LEN CKM_RSA_X_509");
+      asrt(memcmp(some_data, dec, dec_len), 0, "DECRYPTED DATA CKM_RSA_X_509");
+
+      asrt(funcs->C_EncryptInit(session, &mech_X509, get_public_key_handle(session, obj_pvtkey[i])), CKR_OK, "ENCRYPT INIT CKM_RSA_X_509");
+      asrt(funcs->C_EncryptUpdate(session, some_data, 10, NULL, NULL), CKR_OK, "ENCRYPT UPDATE CKM_RSA_X_509");
+      asrt(funcs->C_EncryptUpdate(session, some_data+10, 22, NULL, NULL), CKR_OK, "ENCRYPT UPDATE CKM_RSA_X_509");
+      asrt(funcs->C_EncryptFinal(session, enc, &enc_len), CKR_OK, "ENCRYPT FINAL CKM_RSA_X_509");
+      asrt(enc_len, 128, "ENCRYPTED DATA LEN");
+
+      dec_len = RSA_private_decrypt(enc_len, enc, dec, rsak, RSA_PKCS1_PADDING);
+      asrt(dec_len, 32, "DECRYPTED DATA LEN CKM_RSA_X_509");
+      asrt(memcmp(some_data, dec, dec_len), 0, "DECRYPTED DATA CKM_RSA_X_509");
+
+      // CKM_RSA_X_509 NO_PADDING
+      asrt(funcs->C_EncryptInit(session, &mech_X509, get_public_key_handle(session, obj_pvtkey[i])), CKR_OK, "ENCRYPT INIT CKM_RSA_X_509");
+      asrt(funcs->C_Encrypt(session, some_data, 32, enc, &enc_len), CKR_OK, "ENCRYPT CKM_RSA_X_509");
+      asrt(enc_len, 128, "ENCRYPTED DATA LEN");
+
+      dec_len = RSA_private_decrypt(enc_len, enc, dec, rsak, RSA_NO_PADDING);
+      asrt(dec_len, 128, "DECRYPTED DATA LEN CKM_RSA_X_509");
+      asrt(memcmp(some_data, dec+128-32, 32), 0, "DECRYPTED DATA CKM_RSA_X_509");
+
+      asrt(funcs->C_EncryptInit(session, &mech_X509, get_public_key_handle(session, obj_pvtkey[i])), CKR_OK, "ENCRYPT INIT CKM_RSA_X_509");
+      asrt(funcs->C_EncryptUpdate(session, some_data, 10, NULL, NULL), CKR_OK, "ENCRYPT UPDATE CKM_RSA_X_509");
+      asrt(funcs->C_EncryptUpdate(session, some_data+10, 22, NULL, NULL), CKR_OK, "ENCRYPT UPDATE CKM_RSA_X_509");
+      asrt(funcs->C_EncryptFinal(session, enc, &enc_len), CKR_OK, "ENCRYPT INIT CKM_RSA_X_509");
+      asrt(enc_len, 128, "ENCRYPTED DATA LEN");
+
+      dec_len = RSA_private_decrypt(enc_len, enc, dec, rsak, RSA_NO_PADDING);
+      asrt(dec_len, 128, "DECRYPTED DATA LEN CKM_RSA_X_509");
+      asrt(memcmp(some_data, dec+128-32, 32), 0, "DECRYPTED DATA CKM_RSA_X_509");
+    }
+  }
+
+  asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
+
+  asrt(funcs->C_Login(session, CKU_SO, "010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
+  for(i=0; i<24; i++) {
+    asrt(funcs->C_DestroyObject(session, obj_cert[i]), CKR_OK, "Destroy Object");
+  }
+  asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
+
+  asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
+  asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
+  dprintf(0, "TEST END: test_encrypt_RSA()\n");
+}
+
 static void test_digest() {
   dprintf(0, "TEST START: test_digest()\n");
   CK_BYTE     i;
@@ -2161,6 +2378,7 @@ int main(void) {
   test_import_and_sign_all_10_RSA();
   test_import_and_sign_RSA_SHA256();
   test_decrypt_RSA();
+  test_encrypt_RSA();
   test_login_order();
   test_sign_update_RSA();
 #else

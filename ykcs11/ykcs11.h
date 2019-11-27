@@ -57,7 +57,8 @@ typedef enum {
   YKCS11_SIGN,
   YKCS11_VERIFY,
   YKCS11_HASH,
-  YKCS11_DECRYPT
+  YKCS11_DECRYPT,
+  YKCS11_ENCRYPT
 } ykcs11_op_type_t;
 
 typedef struct {
@@ -95,11 +96,18 @@ typedef struct {
   CK_BYTE  algo;    // Algo for ykpiv // TODO: infer this from the key length?
 } decrypt_info_t;
 
+typedef struct {
+  CK_BYTE  key_id;
+  CK_ULONG key_len; // Length in bits
+  CK_ULONG padding; // padding in the rsa case
+} encrypt_info_t;
+
 typedef union {
   sign_info_t    sign;
   verify_info_t  verify;
   hash_info_t    hash;
   decrypt_info_t decrypt;
+  encrypt_info_t encrypt;
 } op_t;
 
 typedef struct {
