@@ -1631,7 +1631,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
   if (!session->find_obj.active)
     return CKR_OPERATION_NOT_INITIALIZED;
 
-  DBG("Can return %lu object(s)", ulMaxObjectCount);
+  DBG("Can return %lu object(s), %lu remaining", ulMaxObjectCount, session->find_obj.n_objects - session->find_obj.idx);
   *pulObjectCount = 0;
 
   // Return the next object, if any
@@ -1640,7 +1640,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
     (*pulObjectCount)++;
   }
 
-  DBG("Returning %lu objects", *pulObjectCount);
+  DBG("Returning %lu objects, %lu remaining", *pulObjectCount, session->find_obj.n_objects - session->find_obj.idx);
   return CKR_OK;
 }
 
