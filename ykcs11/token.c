@@ -168,8 +168,11 @@ CK_RV get_token_version(ykpiv_state *state, CK_VERSION_PTR version) {
   if (version == NULL)
     return CKR_ARGUMENTS_BAD;
 
-  if (ykpiv_get_version(state, buf, sizeof(buf)) != YKPIV_OK)
+  if (ykpiv_get_version(state, buf, sizeof(buf)) != YKPIV_OK) {
+    version->major = 0;
+    version->minor = 0;
     return CKR_FUNCTION_FAILED;
+  }
 
   version->major = (buf[0] - '0');
   version->minor = (buf[2] - '0') * 100 + (buf[4] - '0');
@@ -180,13 +183,15 @@ CK_RV get_token_version(ykpiv_state *state, CK_VERSION_PTR version) {
 CK_RV get_token_serial(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
 
   uint32_t serial;
-  char buf[len];
+  char buf[64];
   int actual;
 
-  if(ykpiv_get_serial(state, &serial) != YKPIV_OK)
-    return CKR_FUNCTION_FAILED;
+  CK_RV rv = ykpiv_get_serial(state, &serial);
 
   actual = snprintf(buf, sizeof(buf), "%u", serial);
+
+  if(actual < 0)
+    return CKR_FUNCTION_FAILED;
 
   if(actual >= len)
     return CKR_BUFFER_TOO_SMALL;
@@ -194,19 +199,21 @@ CK_RV get_token_serial(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
   memset(str, ' ', len);
   memstrcpy(str, buf);
 
-  return CKR_OK;
+  return rv;
 }
 
 CK_RV get_token_label(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
 
   uint32_t serial;
-  char buf[len];
+  char buf[64];
   int actual;
 
-  if(ykpiv_get_serial(state, &serial) != YKPIV_OK)
-    return CKR_FUNCTION_FAILED;
+  CK_RV rv = ykpiv_get_serial(state, &serial);
 
   actual = snprintf(buf, sizeof(buf), "YubiKey PIV #%u", serial);
+
+  if(actual < 0)
+    return CKR_FUNCTION_FAILED;
 
   if(actual >= len)
     return CKR_BUFFER_TOO_SMALL;
@@ -214,7 +221,7 @@ CK_RV get_token_label(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
   memset(str, ' ', len);
   memstrcpy(str, buf);
 
-  return CKR_OK;
+  return rv;
 }
 
 CK_RV get_token_mechanisms_num(CK_ULONG_PTR num) {

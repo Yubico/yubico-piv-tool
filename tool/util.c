@@ -380,7 +380,7 @@ bool read_pw(const char *name, char *pwbuf, size_t pwbuflen, int verify, int std
   }
 
   ret = snprintf(prompt, sizeof(prompt), READ_PW_PROMPT_BASE, name);
-  if (ret < 0 || ((unsigned int) ret) > (sizeof(prompt)-1)) {
+  if (ret < 0 || ret >= sizeof(prompt)) {
     fprintf(stderr, "Failed to read %s: snprintf failed.\n", name);
     return false;
   }

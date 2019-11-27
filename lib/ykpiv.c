@@ -1215,12 +1215,12 @@ static ykpiv_rc _ykpiv_get_version(ykpiv_state *state) {
 
 ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len) {
   ykpiv_rc res;
-  int result = 0;
+  int result;
 
   /* get version from state if already from device */
   if (state->ver.major || state->ver.minor || state->ver.patch) {
     result = snprintf(version, len, "%d.%d.%d", state->ver.major, state->ver.minor, state->ver.patch);
-    if(result < 0) {
+    if(result < 0 || result >= len) {
       res = YKPIV_SIZE_ERROR;
     }
     return YKPIV_OK;
@@ -1231,7 +1231,7 @@ ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len) {
 
   if ((res = _ykpiv_get_version(state)) >= YKPIV_OK) {
     result = snprintf(version, len, "%d.%d.%d", state->ver.major, state->ver.minor, state->ver.patch);
-    if(result < 0) {
+    if(result < 0 || result >= len) {
       res = YKPIV_SIZE_ERROR;
     }
   }
