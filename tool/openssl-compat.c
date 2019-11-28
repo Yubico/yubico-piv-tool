@@ -13,7 +13,6 @@
 #include <string.h>
 #include <openssl/engine.h>
 
-
 int RSA_set0_key(RSA *r, BIGNUM *n, BIGNUM *e, BIGNUM *d)
 {
     /* If the fields n and e in r are NULL, the corresponding input
@@ -36,7 +35,6 @@ int RSA_set0_key(RSA *r, BIGNUM *n, BIGNUM *e, BIGNUM *d)
         BN_free(r->d);
         r->d = d;
     }
-
     return 1;
 }
 
@@ -89,6 +87,20 @@ int ECDSA_SIG_set0(ECDSA_SIG *sig, BIGNUM *r, BIGNUM *s)
     sig->r = r;
     sig->s = s;
     return 1;
+}
+
+RSA *EVP_PKEY_get0_RSA(const EVP_PKEY *pkey) {
+  if (pkey->type != EVP_PKEY_RSA) {
+    return NULL;
+  }
+  return pkey->pkey.rsa;
+}
+
+EC_KEY *EVP_PKEY_get0_EC_KEY(const EVP_PKEY *pkey) {
+  if (pkey->type != EVP_PKEY_EC) {
+    return NULL;
+  }
+  return pkey->pkey.ec;
 }
 
 #endif /* OPENSSL_VERSION_NUMBER || LIBRESSL_VERSION_NUMBER */

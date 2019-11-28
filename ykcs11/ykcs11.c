@@ -1677,13 +1677,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptInit)(
   CK_OBJECT_HANDLE hKey
 )
 {
-  CK_KEY_TYPE  type = 0;
-  CK_ULONG     key_len = 0;
-  CK_ATTRIBUTE template[] = {
-    {CKA_KEY_TYPE, &type, sizeof(type)},
-    {CKA_MODULUS_BITS, &key_len, sizeof(key_len)}
-  };
-
   DIN;
 
   if (mutex == NULL) {
@@ -1711,8 +1704,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptInit)(
   if (pMechanism == NULL)
     return CKR_ARGUMENTS_BAD;
 
-  DBG("Trying to encrypt data with mechanism %lu and key %lu", pMechanism->mechanism, hKey);
-
   // Check if mechanism is supported
   if (check_rsa_decrypt_mechanism(session, pMechanism) != CKR_OK) {
     DBG("Mechanism %lu is not supported either by the token or the module", pMechanism->mechanism);
@@ -1720,36 +1711,24 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptInit)(
   }
   memcpy(&session->op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
 
-  //  Get key algorithm
-  if (get_attribute(session, hKey, template) != CKR_OK) {
-    DBG("Unable to get key type");
+  CK_BYTE id = get_key_id(hKey);
+  if (id == 0) {
+    DBG("Invalid key handle %lu", hKey);
     return CKR_KEY_HANDLE_INVALID;
   }
 
-  if (type == CKK_RSA) {
-    // RSA key
-    if (get_attribute(session, hKey, template + 1) != CKR_OK) {
-      DBG("Unable to get key length");
-      return CKR_KEY_HANDLE_INVALID;
-    }
-
-    session->op_info.op.encrypt.key_len = key_len;
-  } else {
+  if (do_get_key_type(session->pkeys[id]) != CKK_RSA) {
     DBG("Key %lu is not an RSA key", hKey);
-    return CKR_FUNCTION_FAILED;
-  }
-  DBG("Key length is %lu bit", session->op_info.op.encrypt.key_len);
-  
-  session->op_info.op.encrypt.key_id = get_key_id(hKey);
-  if (session->op_info.op.encrypt.key_id == 0) {
-    DBG("Incorrect key %lu", hKey);
-    return CKR_KEY_HANDLE_INVALID;
+    return CKR_KEY_TYPE_INCONSISTENT;
   }
 
+  session->op_info.op.encrypt.key_id = id;
+  session->op_info.op.encrypt.key_len = do_get_key_size(session->pkeys[id]);
   session->op_info.op.encrypt.padding = RSA_PKCS1_PADDING;
-
   session->op_info.buf_len = 0;
   session->op_info.type = YKCS11_ENCRYPT;
+
+  DBG("Trying to encrypt data with mechanism %lu and key %lu", pMechanism->mechanism, hKey);
 
   DOUT;
   return CKR_OK;
@@ -1763,11 +1742,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Encrypt)(
   CK_ULONG_PTR pulEncryptedDataLen
 )
 {
-  CK_RV    rv;
-  size_t   cbEncLen = 0;
-  EVP_PKEY *key = EVP_PKEY_new();
-  RSA      *rsa = RSA_new();
-
   DIN;
   
   if (mutex == NULL) {
@@ -1779,38 +1753,31 @@ CK_DEFINE_FUNCTION(CK_RV, C_Encrypt)(
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
-    rv = CKR_SESSION_HANDLE_INVALID;
-    goto encrypt_out;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (pData == NULL || pEncryptedData == NULL) {
     DBG("Invalid parameters");
-    rv = CKR_ARGUMENTS_BAD;
-    goto encrypt_out;
+    return CKR_ARGUMENTS_BAD;
   }
 
   if (session->op_info.type != YKCS11_ENCRYPT) {
     DBG("Encryption operation not initialized");
-    rv = CKR_OPERATION_NOT_INITIALIZED;
-    goto encrypt_out;
+    return CKR_OPERATION_NOT_INITIALIZED;
   }
 
-  DBG("Using key %x", session->op_info.op.encrypt.key_id);
+  DBG("Using key id %x", session->op_info.op.encrypt.key_id);
 #if YKCS11_DBG
   dump_data(pData, ulDataLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
-  key = session->pkeys[session->op_info.op.encrypt.key_id];
-  rsa = EVP_PKEY_get1_RSA(key);
-
-  *pulEncryptedDataLen = cbEncLen = sizeof(session->op_info.buf);
-  cbEncLen = RSA_public_encrypt(ulDataLen, (unsigned char*)pData, (unsigned char*)session->op_info.buf, rsa, session->op_info.op.encrypt.padding);
-
-  *pulEncryptedDataLen = cbEncLen;
-  if(cbEncLen == -1) {
-    DBG("Failed to encrypt the message");
-    rv = CKR_FUNCTION_FAILED;
-    goto encrypt_out;
+  CK_RV rv = do_rsa_encrypt(session->pkeys[session->op_info.op.encrypt.key_id],
+                            session->op_info.op.encrypt.padding,
+                            pData, ulDataLen,
+                            pEncryptedData, pulEncryptedDataLen);
+  if(rv != CKR_OK) {
+    DBG("Encryption operation failed");
+    return rv;
   }
 
   DBG("Got %lu encrypted bytes back", *pulEncryptedDataLen);
@@ -1818,20 +1785,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_Encrypt)(
   dump_data(session->op_info.buf, *pulEncryptedDataLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
-  memcpy(pEncryptedData, session->op_info.buf, *pulEncryptedDataLen);
-
-  DBG("Message successfully encrypted");
-  rv = CKR_OK;
-
-  encrypt_out:
-  if(rsa != NULL) {
-    RSA_free(rsa);
-  }
   session->op_info.type = YKCS11_NOOP;
   session->op_info.buf_len = 0;
 
   DOUT;
-  return rv;
+  return CKR_OK;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_EncryptUpdate)(
@@ -1842,8 +1800,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptUpdate)(
   CK_ULONG_PTR pulEncryptedPartLen
 )
 {
-  CK_RV    rv;
-  
   DIN;
   
   if (mutex == NULL) {
@@ -1855,34 +1811,24 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptUpdate)(
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
-    rv = CKR_SESSION_HANDLE_INVALID;
-    goto encrypt_out;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (pPart == NULL) {
     DBG("Invalid parameters");
-    rv = CKR_ARGUMENTS_BAD;
-    goto encrypt_out;
+    return CKR_ARGUMENTS_BAD;
   }
 
   if (session->op_info.type != YKCS11_ENCRYPT) {
     DBG("Encryption operation not initialized");
-    rv = CKR_OPERATION_NOT_INITIALIZED;
-    goto encrypt_out;
+    return CKR_OPERATION_NOT_INITIALIZED;
   }
 
   memcpy(session->op_info.buf + session->op_info.buf_len, pPart, ulPartLen);
   session->op_info.buf_len += ulPartLen;
-  rv = CKR_OK;
-
-  encrypt_out:
-  if(rv != CKR_OK) {
-    session->op_info.type = YKCS11_NOOP;
-    session->op_info.buf_len = 0;
-  }
 
   DOUT;
-  return rv;
+  return CKR_OK;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_EncryptFinal)(
@@ -1891,11 +1837,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptFinal)(
   CK_ULONG_PTR pulLastEncryptedPartLen
 )
 {
-  CK_RV    rv;
-  size_t   cbEncLen = 0;
-  EVP_PKEY *key = EVP_PKEY_new();
-  RSA      *rsa;
-
   DIN;
   
   if (mutex == NULL) {
@@ -1907,20 +1848,17 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptFinal)(
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
-    rv = CKR_SESSION_HANDLE_INVALID;
-    goto encrypt_out;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (pLastEncryptedPart == NULL) {
     DBG("Invalid parameters");
-    rv = CKR_ARGUMENTS_BAD;
-    goto encrypt_out;
+    return CKR_ARGUMENTS_BAD;
   }
 
   if (session->op_info.type != YKCS11_ENCRYPT) {
     DBG("Encryption operation not initialized");
-    rv = CKR_OPERATION_NOT_INITIALIZED;
-    goto encrypt_out;
+    return CKR_OPERATION_NOT_INITIALIZED;
   }
 
   DBG("Using key %x", session->op_info.op.encrypt.key_id);
@@ -1928,18 +1866,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptFinal)(
   dump_data(session->op_info.buf, session->op_info.buf_len, stderr, CK_TRUE, format_arg_hex);
 #endif
 
-  key = session->pkeys[session->op_info.op.encrypt.key_id];
-  rsa = RSA_new();
-  rsa = EVP_PKEY_get1_RSA(key);
-
-  *pulLastEncryptedPartLen = cbEncLen = sizeof(session->op_info.buf);
-  cbEncLen = RSA_public_encrypt(session->op_info.buf_len, (unsigned char*)session->op_info.buf, (unsigned char*)session->op_info.buf, rsa, RSA_PKCS1_PADDING);
-
-  *pulLastEncryptedPartLen = cbEncLen;
-  if(cbEncLen == -1) {
-    DBG("Failed to encrypt the message");
-    rv = CKR_FUNCTION_FAILED;
-    goto encrypt_out;
+  CK_RV rv = do_rsa_encrypt(session->pkeys[session->op_info.op.encrypt.key_id],
+                            session->op_info.op.encrypt.padding,
+                            session->op_info.buf,
+                            session->op_info.buf_len,
+                            pLastEncryptedPart,
+                            pulLastEncryptedPartLen);
+  if(rv != CKR_OK) {
+    DBG("Encryption operation failed");
+    return rv;
   }
 
   DBG("Got %lu encrypted bytes back", *pulLastEncryptedPartLen);
@@ -1947,20 +1882,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptFinal)(
   dump_data(session->op_info.buf, *pulLastEncryptedPartLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
-  memcpy(pLastEncryptedPart, session->op_info.buf, *pulLastEncryptedPartLen);
-
-  DBG("Message successfully encrypted");
-  rv = CKR_OK;
-
-  encrypt_out:
-  if(rsa != NULL) {
-    RSA_free(rsa);
-  }
   session->op_info.type = YKCS11_NOOP;
   session->op_info.buf_len = 0;
 
   DOUT;
-  return rv;
+  return CKR_OK;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
@@ -1969,13 +1895,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
   CK_OBJECT_HANDLE hKey
 )
 {
-  CK_KEY_TYPE  type = 0;
-  CK_ULONG     key_len = 0;
-  CK_ATTRIBUTE template[] = {
-    {CKA_KEY_TYPE, &type, sizeof(type)},
-    {CKA_MODULUS_BITS, &key_len, sizeof(key_len)},
-  };
-
   DIN;
   
   if (mutex == NULL) {
@@ -2012,39 +1931,27 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
   }
   memcpy(&session->op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
 
-  //  Get key algorithm
-  if (get_attribute(session, hKey, template) != CKR_OK) {
-    DBG("Unable to get key type");
+  CK_BYTE id = get_key_id(hKey);
+  if (id == 0) {
+    DBG("Invalid key handle %lu", hKey);
     return CKR_KEY_HANDLE_INVALID;
   }
 
-  if(type == CKK_RSA) {
-    if (get_attribute(session, hKey, template + 1) != CKR_OK) {
-      DBG("Unable to get key length");
-      return CKR_KEY_HANDLE_INVALID;
-    }
-
-    session->op_info.op.decrypt.key_len = key_len;
-
-    if (key_len == 1024) {
-      session->op_info.op.decrypt.algo = YKPIV_ALGO_RSA1024;
-    } else {
-      session->op_info.op.decrypt.algo = YKPIV_ALGO_RSA2048;
-    }
-
-  } else {
-    DBG("Referenced key is not an RSA key. Only RSA decryption is supported");
-    return CKR_KEY_TYPE_INCONSISTENT;
-  }
-
-  DBG("Key length is %lu bit", session->op_info.op.decrypt.key_len);
-  
   session->op_info.op.decrypt.key_id = piv_2_ykpiv(hKey);
   if (session->op_info.op.decrypt.key_id == 0) {
     DBG("Incorrect key %lu", hKey);
     return CKR_KEY_HANDLE_INVALID;
   }
 
+  session->op_info.op.decrypt.key_len = do_get_key_size(session->pkeys[id]);
+  session->op_info.op.decrypt.algo = do_get_key_algorithm(session->pkeys[id]);
+  if (session->op_info.op.decrypt.algo != YKPIV_ALGO_RSA1024 && session->op_info.op.decrypt.algo != YKPIV_ALGO_RSA2048) {
+    DBG("Key %lu is not an RSA key", hKey);
+    return CKR_KEY_TYPE_INCONSISTENT;
+  }
+
+  DBG("Key algo is %u, length is %lu bit", session->op_info.op.decrypt.algo, session->op_info.op.decrypt.key_len);
+  
   session->op_info.buf_len = 0;
   session->op_info.type = YKCS11_DECRYPT;
 

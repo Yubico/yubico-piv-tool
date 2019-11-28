@@ -51,6 +51,17 @@ CK_RV do_rand_bytes(CK_BYTE_PTR data, CK_ULONG len) {
   return CKR_OK;
 }
 
+CK_RV do_rsa_encrypt(EVP_PKEY *key, int padding, CK_BYTE_PTR src, CK_ULONG src_len, CK_BYTE_PTR dst, CK_ULONG_PTR dst_len) {
+  RSA *rsa = EVP_PKEY_get0_RSA(key);
+  if(rsa == NULL)
+    return CKR_ARGUMENTS_BAD;
+  int cbLen = RSA_public_encrypt(src_len, src, dst, rsa, padding);
+  if(cbLen <= 0)
+    return CKR_FUNCTION_FAILED;
+  *dst_len = cbLen;
+  return CKR_OK;
+}
+
 CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, ykcs11_x509_t **cert) {
 
   const unsigned char *p = data; // Mandatory temp variable required by OpenSSL
