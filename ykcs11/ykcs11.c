@@ -882,6 +882,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
 
   locking.pfnUnlockMutex(session->slot->mutex);
 
+  DBG("Found %lu session objects", session->n_objects);
+
   sort_objects(session);
   *phSession = get_session_handle(session);
 
@@ -1247,6 +1249,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     locking.pfnUnlockMutex(session->slot->mutex);
 
+    DBG("%lu session objects before cert import", session->n_objects);
+
     // Check whether we created a new object or updated an existing one
     if (!is_present(session, cert_id)) {
       // New object created, add it to the object list
@@ -1260,6 +1264,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       session->n_objects = obj_ptr - session->objects;
       sort_objects(session);
     }
+
+    DBG("%lu session objects after cert import", session->n_objects);
 
     rv = store_data(session, dobj_id, value, value_len);
     if (rv != CKR_OK) {
@@ -1409,12 +1415,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
 
   // Remove the related objects from the session
 
+  DBG("%lu session objects before destroying object %lu", session->n_objects, hObject);
+
   CK_ULONG j = 0;
   for (CK_ULONG i = 0; i < session->n_objects; i++) {
     if(get_key_id(session->objects[i]) != id)
       session->objects[j++] = session->objects[i];
   }
   session->n_objects = j;
+
+  DBG("%lu session objects after destroying object %lu", session->n_objects, hObject);
 
   rv = delete_data(session, hObject);
   if (rv != CKR_OK) {
@@ -1781,7 +1791,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Encrypt)(
 
   DBG("Got %lu encrypted bytes back", *pulEncryptedDataLen);
 #if YKCS11_DBG
-  dump_data(session->op_info.buf, *pulEncryptedDataLen, stderr, CK_TRUE, format_arg_hex);
+  dump_data(pEncryptedData, *pulEncryptedDataLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
   session->op_info.type = YKCS11_NOOP;
@@ -1880,7 +1890,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptFinal)(
 
   DBG("Got %lu encrypted bytes back", *pulLastEncryptedPartLen);
 #if YKCS11_DBG
-  dump_data(session->op_info.buf, *pulLastEncryptedPartLen, stderr, CK_TRUE, format_arg_hex);
+  dump_data(pLastEncryptedPart, *pulLastEncryptedPartLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
   session->op_info.type = YKCS11_NOOP;
@@ -3502,6 +3512,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 
   locking.pfnUnlockMutex(session->slot->mutex);
 
+  DBG("%lu session objects before key generation", session->n_objects);
+
   // Check whether we created a new object or updated an existing one
   if (!is_present(session, pvtk_id)) {
     // New object created, add it to the object list
@@ -3515,6 +3527,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     session->n_objects = obj_ptr - session->objects;
     sort_objects(session);
   }
+
+  DBG("%lu session objects after key generation", session->n_objects);
 
   // Write/Update the object
 

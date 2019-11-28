@@ -2100,6 +2100,7 @@ static void test_encrypt_RSA() {
 
       // CKM_RSA_PKCS
       asrt(funcs->C_EncryptInit(session, &mech_PKCS, get_public_key_handle(session, obj_pvtkey[i])), CKR_OK, "ENCRYPT INIT CKM_RSA_PKCS");
+      enc_len = sizeof(enc);
       asrt(funcs->C_Encrypt(session, some_data, 32, enc, &enc_len), CKR_OK, "ENCRYPT CKM_RSA_PKCS");
       asrt(enc_len, 128, "ENCRYPTED DATA LEN");
 
@@ -2108,8 +2109,11 @@ static void test_encrypt_RSA() {
       asrt(memcmp(some_data, dec, dec_len), 0, "DECRYPTED DATA CKM_RSA_PKCS");
 
       asrt(funcs->C_EncryptInit(session, &mech_PKCS, get_public_key_handle(session, obj_pvtkey[i])), CKR_OK, "ENCRYPT INIT CKM_RSA_PKCS");
-      asrt(funcs->C_EncryptUpdate(session, some_data, 10, NULL, NULL), CKR_OK, "ENCRYPT UPDATE CKM_RSA_PKCS");
-      asrt(funcs->C_EncryptUpdate(session, some_data+10, 22, NULL, NULL), CKR_OK, "ENCRYPT UPDATE CKM_RSA_PKCS");
+      enc_len = sizeof(enc);
+      asrt(funcs->C_EncryptUpdate(session, some_data, 10, enc, &enc_len), CKR_OK, "ENCRYPT UPDATE CKM_RSA_PKCS");
+      enc_len = sizeof(enc);
+      asrt(funcs->C_EncryptUpdate(session, some_data+10, 22, enc, &enc_len), CKR_OK, "ENCRYPT UPDATE CKM_RSA_PKCS");
+      enc_len = sizeof(enc);
       asrt(funcs->C_EncryptFinal(session, enc, &enc_len), CKR_OK, "ENCRYPT FINAL CKM_RSA_PKCS");
       asrt(enc_len, 128, "ENCRYPTED DATA LEN");
 
@@ -2119,6 +2123,7 @@ static void test_encrypt_RSA() {
 
       // CKM_RSA_X_509 PKCS1_PADDING
       asrt(funcs->C_EncryptInit(session, &mech_X509, get_public_key_handle(session, obj_pvtkey[i])), CKR_OK, "ENCRYPT INIT CKM_RSA_X_509");
+      enc_len = sizeof(enc);
       asrt(funcs->C_Encrypt(session, some_data, 32, enc, &enc_len), CKR_OK, "ENCRYPT CKM_RSA_X_509");
       asrt(enc_len, 128, "ENCRYPTED DATA LEN");
 
@@ -2127,8 +2132,11 @@ static void test_encrypt_RSA() {
       asrt(memcmp(some_data, dec, dec_len), 0, "DECRYPTED DATA CKM_RSA_X_509");
 
       asrt(funcs->C_EncryptInit(session, &mech_X509, get_public_key_handle(session, obj_pvtkey[i])), CKR_OK, "ENCRYPT INIT CKM_RSA_X_509");
-      asrt(funcs->C_EncryptUpdate(session, some_data, 10, NULL, NULL), CKR_OK, "ENCRYPT UPDATE CKM_RSA_X_509");
-      asrt(funcs->C_EncryptUpdate(session, some_data+10, 22, NULL, NULL), CKR_OK, "ENCRYPT UPDATE CKM_RSA_X_509");
+      enc_len = sizeof(enc);
+      asrt(funcs->C_EncryptUpdate(session, some_data, 10, enc, &enc_len), CKR_OK, "ENCRYPT UPDATE CKM_RSA_X_509");
+      enc_len = sizeof(enc);
+      asrt(funcs->C_EncryptUpdate(session, some_data+10, 22, enc, &enc_len), CKR_OK, "ENCRYPT UPDATE CKM_RSA_X_509");
+      enc_len = sizeof(enc);
       asrt(funcs->C_EncryptFinal(session, enc, &enc_len), CKR_OK, "ENCRYPT FINAL CKM_RSA_X_509");
       asrt(enc_len, 128, "ENCRYPTED DATA LEN");
 
@@ -2138,6 +2146,7 @@ static void test_encrypt_RSA() {
 
       // CKM_RSA_X_509 NO_PADDING
       asrt(funcs->C_EncryptInit(session, &mech_X509, get_public_key_handle(session, obj_pvtkey[i])), CKR_OK, "ENCRYPT INIT CKM_RSA_X_509");
+      enc_len = sizeof(enc);
       asrt(funcs->C_Encrypt(session, some_data, 32, enc, &enc_len), CKR_OK, "ENCRYPT CKM_RSA_X_509");
       asrt(enc_len, 128, "ENCRYPTED DATA LEN");
 
@@ -2146,8 +2155,11 @@ static void test_encrypt_RSA() {
       asrt(memcmp(some_data, dec+128-32, 32), 0, "DECRYPTED DATA CKM_RSA_X_509");
 
       asrt(funcs->C_EncryptInit(session, &mech_X509, get_public_key_handle(session, obj_pvtkey[i])), CKR_OK, "ENCRYPT INIT CKM_RSA_X_509");
-      asrt(funcs->C_EncryptUpdate(session, some_data, 10, NULL, NULL), CKR_OK, "ENCRYPT UPDATE CKM_RSA_X_509");
-      asrt(funcs->C_EncryptUpdate(session, some_data+10, 22, NULL, NULL), CKR_OK, "ENCRYPT UPDATE CKM_RSA_X_509");
+      enc_len = sizeof(enc);
+      asrt(funcs->C_EncryptUpdate(session, some_data, 10, enc, &enc_len), CKR_OK, "ENCRYPT UPDATE CKM_RSA_X_509");
+      enc_len = sizeof(enc);
+      asrt(funcs->C_EncryptUpdate(session, some_data+10, 22, enc, &enc_len), CKR_OK, "ENCRYPT UPDATE CKM_RSA_X_509");
+      enc_len = sizeof(enc);
       asrt(funcs->C_EncryptFinal(session, enc, &enc_len), CKR_OK, "ENCRYPT INIT CKM_RSA_X_509");
       asrt(enc_len, 128, "ENCRYPTED DATA LEN");
 

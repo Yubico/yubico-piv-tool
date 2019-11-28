@@ -52,13 +52,34 @@ CK_RV do_rand_bytes(CK_BYTE_PTR data, CK_ULONG len) {
 }
 
 CK_RV do_rsa_encrypt(EVP_PKEY *key, int padding, CK_BYTE_PTR src, CK_ULONG src_len, CK_BYTE_PTR dst, CK_ULONG_PTR dst_len) {
-  RSA *rsa = EVP_PKEY_get0_RSA(key);
-  if(rsa == NULL)
-    return CKR_ARGUMENTS_BAD;
-  int cbLen = RSA_public_encrypt(src_len, src, dst, rsa, padding);
-  if(cbLen <= 0)
+
+  if (EVP_PKEY_base_id(key) != EVP_PKEY_RSA) {
+    return CKR_KEY_TYPE_INCONSISTENT;
+  }
+
+  EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(key, NULL);
+  if(ctx == NULL) {
     return CKR_FUNCTION_FAILED;
+  }
+
+  if(EVP_PKEY_encrypt_init(ctx) <= 0) {
+    EVP_PKEY_CTX_free(ctx);
+    return CKR_FUNCTION_FAILED;
+  }
+
+  if(EVP_PKEY_CTX_set_rsa_padding(ctx, padding) <= 0) {
+    EVP_PKEY_CTX_free(ctx);
+    return CKR_FUNCTION_FAILED;
+  }
+
+  size_t cbLen = *dst_len;
+  if(EVP_PKEY_encrypt(ctx, dst, &cbLen, src, src_len) <= 0) {
+    EVP_PKEY_CTX_free(ctx);
+    return CKR_FUNCTION_FAILED;
+  }
+
   *dst_len = cbLen;
+  EVP_PKEY_CTX_free(ctx);
   return CKR_OK;
 }
 
