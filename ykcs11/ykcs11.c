@@ -1826,6 +1826,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptUpdate)(
   memcpy(session->op_info.buf + session->op_info.buf_len, pPart, ulPartLen);
   session->op_info.buf_len += ulPartLen;
 
+  *pulEncryptedPartLen = 0;
+
   DOUT;
   return CKR_OK;
 }
