@@ -98,7 +98,6 @@ typedef struct {
 
 typedef struct {
   CK_BYTE  key_id;
-  CK_ULONG key_len; // Length in bits
   CK_ULONG padding; // padding in the rsa case
 } encrypt_info_t;
 

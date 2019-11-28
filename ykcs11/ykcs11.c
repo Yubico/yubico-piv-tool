@@ -1723,7 +1723,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptInit)(
   }
 
   session->op_info.op.encrypt.key_id = id;
-  session->op_info.op.encrypt.key_len = do_get_key_size(session->pkeys[id]);
   session->op_info.op.encrypt.padding = RSA_PKCS1_PADDING;
   session->op_info.buf_len = 0;
   session->op_info.type = YKCS11_ENCRYPT;
