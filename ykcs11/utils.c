@@ -318,8 +318,6 @@ CK_RV verify_signature(ykcs11_session_t *session, CK_BYTE_PTR signature, CK_ULON
     goto pv_failure;
   }
 
-  puts("DOGGO");
-
   CK_BYTE *md, md_data[EVP_MAX_MD_SIZE];
   unsigned int md_len;
   const EVP_MD *md_type;
