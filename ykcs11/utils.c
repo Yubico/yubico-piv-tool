@@ -280,7 +280,7 @@ adete_out:
 }
 
 static void parse_NID(uint8_t *data, uint16_t data_len, const EVP_MD **md_type,
-               int *digestinfo_len) {
+               unsigned int *digestinfo_len) {
   
   if (data_len >= sizeof(SHA1OID) &&
       memcmp(SHA1OID, data, sizeof(SHA1OID)) == 0) {
@@ -304,81 +304,70 @@ static void parse_NID(uint8_t *data, uint16_t data_len, const EVP_MD **md_type,
   }
 }
 
-CK_RV verify_signature(ykcs11_session_t *session, op_info_t *op_info, 
-                  CK_BYTE_PTR signature, CK_ULONG signature_len) {
-
+CK_RV verify_signature(ykcs11_session_t *session, CK_BYTE_PTR signature, CK_ULONG signature_len) {
   CK_RV rv = CKR_OK;
-  EVP_PKEY *key = EVP_PKEY_new();
-  CK_BYTE md_data[EVP_MAX_MD_SIZE];
-  CK_BYTE *md = md_data;
-  unsigned int md_len = sizeof(md_data);
-  EVP_PKEY_CTX *ctx = NULL;
-  CK_ULONG i;
+  EVP_PKEY *key = session->pkeys[session->op_info.op.verify.key_id];
 
-  if (key == NULL) {
-    rv = CKR_FUNCTION_FAILED;
-    goto pv_failure;
-  }
-
-  key = session->pkeys[op_info->op.verify.key_id];
-  //X509 *cert = session->certs[op_info->op.verify.key_id];
-  //key = X509_get_pubkey(cert);
-
-  ctx = EVP_PKEY_CTX_new(key, NULL);
+  EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(key, NULL);
   if (ctx == NULL) {
-    rv = CKR_FUNCTION_FAILED;
-    goto pv_failure;
+    return CKR_FUNCTION_FAILED;
   }
+
   if (EVP_PKEY_verify_init(ctx) <= 0) {
     rv = CKR_FUNCTION_FAILED;
     goto pv_failure;
   }
 
-  int res;
-  unsigned char data[2048];
-  if (is_hashed_mechanism(op_info->mechanism.mechanism)) {
-    if (EVP_DigestFinal_ex(op_info->op.verify.md_ctx, md,  &md_len) <= 0) {
+  puts("DOGGO");
+
+  CK_BYTE *md, md_data[EVP_MAX_MD_SIZE];
+  unsigned int md_len;
+  const EVP_MD *md_type;
+
+  if (is_hashed_mechanism(session->op_info.mechanism.mechanism)) {
+    md = md_data;
+    md_type = EVP_MD_CTX_md(session->op_info.op.verify.md_ctx);
+    if (EVP_DigestFinal_ex(session->op_info.op.verify.md_ctx, md,  &md_len) <= 0) {
       rv = CKR_FUNCTION_FAILED;
       goto pv_failure;
     }
   } else if (EVP_PKEY_base_id(key) == EVP_PKEY_RSA) {
-    const EVP_MD *md_type;
-    int di_len;
-
-    parse_NID(op_info->buf, op_info->buf_len, &md_type, &di_len);
-    op_info->op.verify.md = md_type;
-    md = op_info->buf + di_len;
-    md_len = op_info->buf_len - di_len;
+    unsigned int di_len;
+    parse_NID(session->op_info.buf, session->op_info.buf_len, &md_type, &di_len);
+    md = session->op_info.buf + di_len;
+    md_len = session->op_info.buf_len - di_len;
       
   } else if (EVP_PKEY_base_id(key) == EVP_PKEY_EC) {
     
-    md = op_info->buf;
-    md_len = op_info->buf_len;
+    md = session->op_info.buf;
+    md_len = session->op_info.buf_len;
     if (md_len == 20) {
-      op_info->op.verify.md = EVP_sha1();
+      md_type = EVP_sha1();
     } else if (md_len == 32) {
-      op_info->op.verify.md = EVP_sha256();
+      md_type = EVP_sha256();
     } else if (md_len == 48) {
-      op_info->op.verify.md = EVP_sha384();
+      md_type = EVP_sha384();
     } else {
-      op_info->op.verify.md = EVP_sha256();
+      md_type = EVP_sha256();
     }
   } else {
     rv = CKR_FUNCTION_FAILED;
     goto pv_failure;
   }
   
-  if (EVP_PKEY_CTX_set_signature_md(ctx, op_info->op.verify.md) <= 0) {
+  if (EVP_PKEY_CTX_set_signature_md(ctx, md_type) <= 0) {
     rv = CKR_FUNCTION_FAILED;
     goto pv_failure;
   }
-  if (op_info->op.verify.padding) {
-    if (EVP_PKEY_CTX_set_rsa_padding(ctx, op_info->op.verify.padding) <= 0) {
+  if (session->op_info.op.verify.padding) {
+    if (EVP_PKEY_CTX_set_rsa_padding(ctx, session->op_info.op.verify.padding) <= 0) {
       rv = CKR_FUNCTION_FAILED;
       goto pv_failure;
     }
   }
-  if (is_EC_sign_mechanism(op_info->mechanism.mechanism)) {
+
+  CK_BYTE data[2048];
+  if (is_EC_sign_mechanism(session->op_info.mechanism.mechanism)) {
     memcpy(data, signature, signature_len);
     signature = data;
     if (apply_DER_encoding_to_ECSIG(signature, &signature_len) == CK_FALSE) {
@@ -387,8 +376,8 @@ CK_RV verify_signature(ykcs11_session_t *session, op_info_t *op_info,
       goto pv_failure;
     }
   }
-  res = EVP_PKEY_verify(ctx, signature, signature_len, md, md_len);
-  
+
+  int res = EVP_PKEY_verify(ctx, signature, signature_len, md, md_len);
   if (res == 1) {
     rv = CKR_OK;
   } else if (res == 0) {
@@ -398,10 +387,7 @@ CK_RV verify_signature(ykcs11_session_t *session, op_info_t *op_info,
   }
 
 pv_failure:
-  if (ctx != NULL) {
-    EVP_PKEY_CTX_free(ctx);
-    ctx = NULL;
-  }
+  EVP_PKEY_CTX_free(ctx);
 
   return rv;
 }

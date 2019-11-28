@@ -65,35 +65,28 @@ typedef struct {
   CK_BBOOL rsa;            // RSA or EC key
   CK_BYTE  key_id;         // Key id
   CK_ULONG key_len;        // Length in bits
-  CK_ULONG vendor_defined; // Additional parameters (touch and PIN policy)
 } gen_info_t;
 
 typedef struct {
-  ykcs11_md_ctx_t   *md_ctx; // Digest context
-  ykcs11_rsa_key_t  *key;    // Raw public key (needed for PSS)
-  CK_BYTE           algo;    // Algo for ykpiv // TODO: infer this from the key length?
-  CK_BYTE           key_id;  // Key id for ykpiv // TODO: make this a BYTE and store the key_id {0, 1, 2, 3}
+  CK_BYTE           key_id;  // Key id
   CK_ULONG          key_len; // Length in bits
-  CK_ULONG          sig_len; // Length of the signature in bytes
+  CK_ULONG          padding; // padding in the rsa case
+  ykcs11_md_ctx_t   *md_ctx; // Digest context
 } sign_info_t;
 
 typedef struct {
-  ykcs11_md_ctx_t   *md_ctx;          // running hash
-  const ykcs11_md_t *md;              // digest used
-  CK_ULONG          padding;          // padding in the rsa case
-  CK_BYTE           key_id;           // Key id
-  CK_ULONG          key_len;          // Length in bits
+  CK_BYTE           key_id;  // Key id
+  CK_ULONG          padding; // padding in the rsa case
+  ykcs11_md_ctx_t   *md_ctx; // running hash
 } verify_info_t;
 
 typedef struct {
-  ykcs11_md_ctx_t   *md_ctx; // Digest context
   CK_ULONG          hash_len; // Length in bits
+  ykcs11_md_ctx_t   *md_ctx;  // Digest context
 } hash_info_t;
 
 typedef struct {
   CK_BYTE  key_id;
-  CK_ULONG key_len; // Length in bits
-  CK_BYTE  algo;    // Algo for ykpiv // TODO: infer this from the key length?
 } decrypt_info_t;
 
 typedef struct {
@@ -120,8 +113,8 @@ typedef struct {
 typedef struct {
   CK_BBOOL        active;     
   CK_ULONG        idx;
-  piv_obj_id_t    objects[PIV_OBJ_COUNT];
   CK_ULONG        n_objects;
+  piv_obj_id_t    objects[PIV_OBJ_COUNT];
 } ykcs11_find_t;
 
 typedef struct {
@@ -132,8 +125,8 @@ typedef struct {
 typedef struct {
   CK_SESSION_INFO info;        // slotid, state, flags, deviceerror
   ykcs11_slot_t   *slot;       // slot for open session, or NULL 
-  piv_obj_id_t    objects[PIV_OBJ_COUNT]; // List of objects in the token
   CK_ULONG        n_objects;   // TOTAL number of objects in the token
+  piv_obj_id_t    objects[PIV_OBJ_COUNT]; // List of objects in the token
   ykcs11_data_t   data[38];    // Raw data, stored by sub_id 1-37
   ykcs11_x509_t   *certs[26];  // Certificates, stored by sub_id 1-25
   ykcs11_x509_t   *atst[26];   // Attestations, stored by sub_id 1-25

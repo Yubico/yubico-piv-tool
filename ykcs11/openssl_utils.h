@@ -67,7 +67,7 @@ CK_RV do_free_rsa_public_key(ykcs11_rsa_key_t *key);
 CK_RV do_pkcs_1_t1(CK_BYTE_PTR in, CK_ULONG in_len, CK_BYTE_PTR out, CK_ULONG_PTR out_len, CK_ULONG key_len);
 CK_RV do_pkcs_1_digest_info(CK_BYTE_PTR in, CK_ULONG in_len, int nid, CK_BYTE_PTR out, CK_ULONG_PTR out_len);
 
-CK_RV do_pkcs_pss(ykcs11_rsa_key_t *key, CK_BYTE_PTR in, CK_ULONG in_len, int nid,
+CK_RV do_pkcs_pss(ykcs11_evp_pkey_t *key, CK_BYTE_PTR in, CK_ULONG in_len, int nid,
                   CK_BYTE_PTR out, CK_ULONG_PTR out_len);
 
 CK_RV do_md_init(ykcs11_hash_t hash, ykcs11_md_ctx_t **ctx);

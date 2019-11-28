@@ -342,7 +342,7 @@ CK_RV apply_sign_mechanism_update(op_info_t *op_info, CK_BYTE_PTR in, CK_ULONG i
 
 }
 
-CK_RV apply_sign_mechanism_finalize(op_info_t *op_info) {
+CK_RV apply_sign_mechanism_finalize(ykcs11_evp_pkey_t *key, op_info_t *op_info) {
 
   CK_RV    rv;
   int      nid = NID_undef;
@@ -365,8 +365,7 @@ CK_RV apply_sign_mechanism_finalize(op_info_t *op_info) {
   case CKM_RSA_PKCS_PSS:
     // Compute padding for all PSS variants
     // TODO: digestinfo/paraminfo ?
-    rv = do_pkcs_pss(op_info->op.sign.key, op_info->buf, op_info->buf_len, nid, op_info->buf, &op_info->buf_len);
-    do_free_rsa_public_key(op_info->op.sign.key);
+    rv = do_pkcs_pss(key, op_info->buf, op_info->buf_len, nid, op_info->buf, &op_info->buf_len);
 
     return rv;
 
@@ -456,7 +455,6 @@ CK_RV apply_verify_mechanism_init(op_info_t *op_info) {
 
   op_info->buf_len = 0;
   op_info->op.verify.padding = 0;
-  op_info->op.verify.md = NULL;
   op_info->op.verify.md_ctx = NULL;
 
   switch (op_info->mechanism.mechanism) {
@@ -494,7 +492,6 @@ CK_RV apply_verify_mechanism_init(op_info_t *op_info) {
       return CKR_MECHANISM_INVALID;
   }
 
-  op_info->op.verify.md = md;
   op_info->op.verify.md_ctx = EVP_MD_CTX_create();
   if (op_info->op.verify.md_ctx == NULL) {
     return CKR_FUNCTION_FAILED;

@@ -1948,21 +1948,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
     return CKR_KEY_HANDLE_INVALID;
   }
 
-  session->op_info.op.decrypt.key_id = piv_2_ykpiv(hKey);
-  if (session->op_info.op.decrypt.key_id == 0) {
-    DBG("Incorrect key %lu", hKey);
-    return CKR_KEY_HANDLE_INVALID;
-  }
-
-  session->op_info.op.decrypt.key_len = do_get_key_size(session->pkeys[id]);
-  session->op_info.op.decrypt.algo = do_get_key_algorithm(session->pkeys[id]);
-  if (session->op_info.op.decrypt.algo != YKPIV_ALGO_RSA1024 && session->op_info.op.decrypt.algo != YKPIV_ALGO_RSA2048) {
+  if (do_get_key_type(session->pkeys[id]) != CKK_RSA) {
     DBG("Key %lu is not an RSA key", hKey);
     return CKR_KEY_TYPE_INCONSISTENT;
   }
-
-  DBG("Key algo is %u, length is %lu bit", session->op_info.op.decrypt.algo, session->op_info.op.decrypt.key_len);
   
+  session->op_info.op.decrypt.key_id = id;
   session->op_info.buf_len = 0;
   session->op_info.type = YKCS11_DECRYPT;
 
@@ -2011,7 +2002,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
     goto decrypt_out;
   }
 
-  CK_ULONG datalen = (session->op_info.op.decrypt.key_len + 7) / 8 - 11;
+  CK_ULONG key_len = do_get_key_size(session->pkeys[session->op_info.op.decrypt.key_id]);
+  CK_BYTE algo = do_get_key_algorithm(session->pkeys[session->op_info.op.decrypt.key_id]);
+  CK_ULONG datalen = (key_len + 7) / 8 - 11;
   DBG("The size of the data will be %lu", datalen);
 
   if (pData == NULL) {
@@ -2030,15 +2023,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
   session->op_info.buf_len = ulEncryptedDataLen;
   memcpy(session->op_info.buf, pEncryptedData, ulEncryptedDataLen);
 
-  DBG("Using key %x for decryption", session->op_info.op.decrypt.key_id);
+  CK_ULONG pivkey = piv_2_ykpiv(find_pvtk_object(session->op_info.op.decrypt.key_id));
+
+  DBG("Using key %lx for decryption", pivkey);
 
   *pulDataLen = cbDataLen = sizeof(session->op_info.buf);
 
   locking.pfnLockMutex(session->slot->mutex);
 
   piv_rv = ykpiv_decipher_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, 
-                               session->op_info.buf, &cbDataLen, 
-                               session->op_info.op.decrypt.algo, session->op_info.op.decrypt.key_id);
+                               session->op_info.buf, &cbDataLen, algo, pivkey);
 
   locking.pfnUnlockMutex(session->slot->mutex);
 
@@ -2055,7 +2049,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
   }
 
   if(session->op_info.mechanism.mechanism == CKM_RSA_PKCS) {
-    *pulDataLen = RSA_padding_check_PKCS1_type_2(dec, sizeof(dec), session->op_info.buf + 1, cbDataLen - 1, session->op_info.op.decrypt.key_len/8);
+    *pulDataLen = RSA_padding_check_PKCS1_type_2(dec, sizeof(dec), session->op_info.buf + 1, cbDataLen - 1, key_len/8);
   } else if(session->op_info.mechanism.mechanism == CKM_RSA_X_509) {
     memcpy(dec, session->op_info.buf, ulEncryptedDataLen);
     *pulDataLen = ulEncryptedDataLen;
@@ -2176,7 +2170,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
     goto decrypt_out;
   }
 
-  CK_ULONG datalen = (session->op_info.op.decrypt.key_len + 7) / 8 - 11;
+  CK_ULONG key_len = do_get_key_size(session->pkeys[session->op_info.op.decrypt.key_id]);
+  CK_BYTE algo = do_get_key_algorithm(session->pkeys[session->op_info.op.decrypt.key_id]);
+  CK_ULONG datalen = (key_len + 7) / 8 - 11;
   DBG("The size of the data will be %lu", datalen);
 
   if (pLastPart == NULL) {
@@ -2192,15 +2188,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
   dump_data(session->op_info.buf, session->op_info.buf_len, stderr, CK_TRUE, format_arg_hex);
 #endif
 
-  DBG("Using key %x for decryption", session->op_info.op.decrypt.key_id);
+  CK_ULONG pivkey = piv_2_ykpiv(find_pvtk_object(session->op_info.op.decrypt.key_id));
+
+  DBG("Using key %lx for decryption", pivkey);
 
   *pulLastPartLen = cbDataLen = sizeof(session->op_info.buf);
 
   locking.pfnLockMutex(session->slot->mutex);
 
   piv_rv = ykpiv_decipher_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, 
-                               session->op_info.buf, &cbDataLen, 
-                               session->op_info.op.decrypt.algo, session->op_info.op.decrypt.key_id);
+                               session->op_info.buf, &cbDataLen, algo, pivkey);
 
   locking.pfnUnlockMutex(session->slot->mutex);
 
@@ -2217,7 +2214,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
   }
 
   if(session->op_info.mechanism.mechanism == CKM_RSA_PKCS) {
-    *pulLastPartLen = RSA_padding_check_PKCS1_type_2(dec, sizeof(dec), session->op_info.buf + 1, cbDataLen - 1, session->op_info.op.decrypt.key_len/8);
+    *pulLastPartLen = RSA_padding_check_PKCS1_type_2(dec, sizeof(dec), session->op_info.buf + 1, cbDataLen - 1, key_len/8);
   } else if(session->op_info.mechanism.mechanism == CKM_RSA_X_509) {
     memcpy(dec, session->op_info.buf, session->op_info.buf_len);
     *pulLastPartLen = session->op_info.buf_len;
@@ -2496,18 +2493,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
   CK_OBJECT_HANDLE hKey
 )
 {
-  CK_KEY_TYPE  type = 0;
-  CK_ULONG     key_len = 0;
-  CK_BYTE      exp[3];
-  CK_BYTE      buf[1024] = {0};
-  CK_ATTRIBUTE template[] = {
-    {CKA_KEY_TYPE, &type, sizeof(type)},
-    {CKA_MODULUS_BITS, &key_len, sizeof(key_len)},
-    {CKA_MODULUS, buf, sizeof(buf)},
-    {CKA_PUBLIC_EXPONENT, exp, sizeof(exp)},
-    {CKA_EC_POINT, buf, sizeof(buf)},
-  };
-
   DIN;
 
   if (mutex == NULL) {
@@ -2544,83 +2529,22 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
   }
   memcpy(&session->op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
 
-  //  Get key algorithm
-  if (get_attribute(session, hKey, template) != CKR_OK) {
-    DBG("Unable to get key type");
-    return CKR_KEY_HANDLE_INVALID;
-  }
-
-  // Get key length and algorithm type
-  if (type == CKK_RSA) {
-    // RSA key
-    if (get_attribute(session, hKey, template + 1) != CKR_OK) {
-      DBG("Unable to get key length");
-      return CKR_KEY_HANDLE_INVALID;
-    }
-
-    session->op_info.op.sign.key_len = key_len;
-    session->op_info.op.sign.sig_len = (key_len + 7) / 8;
-
-    if (key_len == 1024)
-      session->op_info.op.sign.algo = YKPIV_ALGO_RSA1024;
-    else
-      session->op_info.op.sign.algo = YKPIV_ALGO_RSA2048;
-
-    // Also store the raw public key if the mechanism is PSS
-    if (is_PSS_mechanism(pMechanism->mechanism)) {
-
-      if (get_attribute(session, hKey, template + 2) != CKR_OK) {
-        DBG("Unable to get public key");
-        return CKR_KEY_HANDLE_INVALID;
-      }
-
-      if (get_attribute(session, hKey, template + 3) != CKR_OK) {
-        DBG("Unable to get public exponent");
-        return CKR_KEY_HANDLE_INVALID;
-      }
-
-      if (do_decode_rsa_public_key(&session->op_info.op.sign.key, buf, (key_len + 7) / 8, exp, sizeof(exp)) != CKR_OK) {
-        return CKR_FUNCTION_FAILED;
-      }
-    }
-    else {
-      session->op_info.op.sign.key = NULL;
-    }
-
-  }
-  else {
-    // ECDSA key
-    if (get_attribute(session, hKey, template + 4) != CKR_OK) {
-      DBG("Unable to get key length");
-      return CKR_KEY_HANDLE_INVALID;
-    }
-
-    // The buffer contains an uncompressed point of the form 04, len, 04, x, y
-    // Where len is |x| + |y| + 1 bytes
-
-    session->op_info.op.sign.key_len = (CK_ULONG) (((buf[1] - 1) / 2) * 8);
-    session->op_info.op.sign.sig_len = ((session->op_info.op.sign.key_len + 7) / 8) * 2;
-
-    if (session->op_info.op.sign.key_len == 256)
-      session->op_info.op.sign.algo = YKPIV_ALGO_ECCP256;
-    else if(session->op_info.op.sign.key_len == 384)
-      session->op_info.op.sign.algo = YKPIV_ALGO_ECCP384;
-  }
-
-  DBG("Key length is %lu bit", session->op_info.op.sign.key_len);
-
-  session->op_info.op.sign.key_id = piv_2_ykpiv(hKey);
-  if (session->op_info.op.sign.key_id == 0) {
+  CK_BYTE id = get_key_id(hKey);
+  if (id == 0) {
     DBG("Incorrect key %lu", hKey);
     return CKR_KEY_HANDLE_INVALID;
   }
 
-  DBG("Algorithm is %d", session->op_info.op.sign.algo);
+  session->op_info.op.sign.key_id = id;
+  session->op_info.op.sign.key_len = do_get_key_size(session->pkeys[id]);
+
+  CK_KEY_TYPE key_type = do_get_key_type(session->pkeys[id]);
+  DBG("Key type is %lu", key_type);
   // Make sure that both mechanism and key have the same algorithm
-  if (!(is_RSA_mechanism(pMechanism->mechanism) && is_rsa_key_algorithm(session->op_info.op.sign.algo)) &&
-      !(is_EC_mechanism(pMechanism->mechanism) && is_ec_key_algorithm(session->op_info.op.sign.algo))) {
+  if (!(is_RSA_mechanism(pMechanism->mechanism) && key_type == CKK_RSA) &&
+      !(is_EC_mechanism(pMechanism->mechanism) && key_type == CKK_ECDSA)) {
     DBG("Key and mechanism algorithm do not match");
-    return CKR_ARGUMENTS_BAD;
+    return CKR_KEY_TYPE_INCONSISTENT;
   }
 
   session->op_info.buf_len = 0;
@@ -2677,19 +2601,23 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     goto sign_out;
   }
 
+  ykcs11_evp_pkey_t *key = session->pkeys[session->op_info.op.sign.key_id];
+  CK_BYTE algo = do_get_key_algorithm(key);
+  CK_ULONG key_len = do_get_key_size(key);
+  CK_ULONG sig_len = (key_len + 7) / 8;
+
   if (pSignature == NULL) {
     // Just return the size of the signature
-    *pulSignatureLen = session->op_info.op.sign.sig_len;
+    *pulSignatureLen = sig_len;
     DBG("The size of the signature will be %lu", *pulSignatureLen);
 
     DOUT;
     return CKR_OK;
   }
 
-  if (*pulSignatureLen < session->op_info.op.sign.sig_len) {
-    DBG("pulSignatureLen too small, signature will not fit, expected %lu, got %lu", 
-            session->op_info.op.sign.sig_len, *pulSignatureLen);
-    *pulSignatureLen = session->op_info.op.sign.sig_len;
+  if (*pulSignatureLen < sig_len) {
+    DBG("pulSignatureLen too small, signature will not fit, expected %lu, got %lu", sig_len, *pulSignatureLen);
+    *pulSignatureLen = sig_len;
     return CKR_BUFFER_TOO_SMALL;
   }
 
@@ -2708,7 +2636,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   else {
     if (is_RSA_mechanism(session->op_info.mechanism.mechanism)) {
       // RSA_X_509
-      if (ulDataLen > (session->op_info.op.sign.key_len / 8)) {
+      if (ulDataLen > (key_len / 8)) {
           DBG("Data must be shorter than key length (%lu bits)", session->op_info.op.sign.key_len);
           rv = CKR_FUNCTION_FAILED;
           goto sign_out;
@@ -2730,7 +2658,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     memcpy(session->op_info.buf, pData, ulDataLen);
   }
 
-  if (apply_sign_mechanism_finalize(&session->op_info) != CKR_OK) {
+  if (apply_sign_mechanism_finalize(key, &session->op_info) != CKR_OK) {
     DBG("Unable to finalize signing operation");
     rv = CKR_FUNCTION_FAILED;
     goto sign_out;
@@ -2744,9 +2672,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   *pulSignatureLen = cbSignatureLen = sizeof(session->op_info.buf);
 
+  CK_ULONG pivkey = piv_2_ykpiv(find_pvtk_object(session->op_info.op.sign.key_id));
+
   locking.pfnLockMutex(session->slot->mutex);
 
-  piv_rv = ykpiv_sign_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, session->op_info.buf, &cbSignatureLen, session->op_info.op.sign.algo, session->op_info.op.sign.key_id);
+  piv_rv = ykpiv_sign_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, session->op_info.buf, &cbSignatureLen, algo, pivkey);
 
   locking.pfnUnlockMutex(session->slot->mutex);
 
@@ -2887,24 +2817,28 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
     goto sign_out;
   }
 
+  ykcs11_evp_pkey_t *key = session->pkeys[session->op_info.op.sign.key_id];
+  CK_BYTE algo = do_get_key_algorithm(key);
+  CK_ULONG key_len = do_get_key_size(key);
+  CK_ULONG sig_len = (key_len + 7) / 8;
+
   if (pSignature == NULL) {
     // Just return the size of the signature
-    *pulSignatureLen = session->op_info.op.sign.sig_len;
+    *pulSignatureLen = sig_len;
     DBG("The size of the signature will be %lu", *pulSignatureLen);
 
     DOUT;
     return CKR_OK;
   }
 
-  if (*pulSignatureLen < session->op_info.op.sign.sig_len) {
+  if (*pulSignatureLen < sig_len) {
     DBG("pulSignatureLen too small, signature will not fit, expected %lu, got %lu", 
-            session->op_info.op.sign.sig_len, *pulSignatureLen);
-    *pulSignatureLen = session->op_info.op.sign.sig_len;
+            sig_len, *pulSignatureLen);
+    *pulSignatureLen = sig_len;
     return CKR_BUFFER_TOO_SMALL;
   }
 
-
-  if (apply_sign_mechanism_finalize(&session->op_info) != CKR_OK) {
+  if (apply_sign_mechanism_finalize(key, &session->op_info) != CKR_OK) {
     DBG("Unable to finalize signing operation");
     rv = CKR_FUNCTION_FAILED;
     goto sign_out;
@@ -2918,9 +2852,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
 
   *pulSignatureLen = cbSignatureLen = sizeof(session->op_info.buf);
 
-  piv_rv = ykpiv_sign_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, session->op_info.buf, &cbSignatureLen, session->op_info.op.sign.algo, session->op_info.op.sign.key_id);
+  CK_ULONG pivkey = piv_2_ykpiv(find_pvtk_object(session->op_info.op.sign.key_id));
 
   locking.pfnLockMutex(session->slot->mutex);
+
+  piv_rv = ykpiv_sign_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, session->op_info.buf, &cbSignatureLen, algo, pivkey);
+
+  locking.pfnUnlockMutex(session->slot->mutex);
 
   *pulSignatureLen = cbSignatureLen;
 
@@ -2997,16 +2935,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
   CK_OBJECT_HANDLE hKey
 )
 {
-  CK_KEY_TYPE  type = 0;
-  CK_ULONG     key_len = 0;
-  CK_BYTE      exp[3];
-  CK_BYTE      buf[1024] = {0};
-  CK_ATTRIBUTE template[] = {
-    {CKA_KEY_TYPE, &type, sizeof(type)},
-    {CKA_MODULUS_BITS, &key_len, sizeof(key_len)},
-    {CKA_EC_POINT, buf, sizeof(buf)},
-  };
-  
   DIN;
 
   if (mutex == NULL) {
@@ -3043,45 +2971,19 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
   }
   memcpy(&session->op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
   
-  //  Get key algorithm
-  if (get_attribute(session, hKey, template) != CKR_OK) {
-    DBG("Unable to get key type");
-    return CKR_KEY_HANDLE_INVALID;
-  }
-  
-  // Get key length and algorithm type
-  if (type == CKK_RSA) {
-    // RSA key
-    if (get_attribute(session, hKey, template + 1) != CKR_OK) {
-      DBG("Unable to get key length");
-      return CKR_KEY_HANDLE_INVALID;
-    }
-
-    session->op_info.op.verify.key_len = key_len;
-  } else {
-    // ECDSA key
-    if (get_attribute(session, hKey, template + 2) != CKR_OK) {
-      DBG("Unable to get key length");
-      return CKR_KEY_HANDLE_INVALID;
-    }
-
-    // The buffer contains an uncompressed point of the form 04, len, 04, x, y
-    // Where len is |x| + |y| + 1 bytes
-    session->op_info.op.verify.key_len = (CK_ULONG) (((buf[1] - 1) / 2) * 8);    
-  }
-
-  DBG("Key length is %lu bit", session->op_info.op.verify.key_len);
-  session->op_info.op.verify.key_id = get_key_id(hKey);
-  if (session->op_info.op.verify.key_id == 0) {
+  CK_BYTE id = get_key_id(hKey);
+  if (id == 0) {
     DBG("Incorrect key %lu", hKey);
     return CKR_KEY_HANDLE_INVALID;
   }
-  
+  session->op_info.op.verify.key_id = id;
+
   if (apply_verify_mechanism_init(&session->op_info) != CKR_OK) {
     DBG("Unable to initialize verification operation");
     return CKR_FUNCTION_FAILED;
   }
 
+  CK_KEY_TYPE type = do_get_key_type(session->pkeys[id]);
   if (type == CKK_RSA && is_RSA_sign_mechanism(session->op_info.mechanism.mechanism) ) {
     session->op_info.op.verify.padding = RSA_PKCS1_PADDING;
   }
@@ -3102,7 +3004,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Verify)(
 )
 {
   CK_RV    rv;
-  CK_ULONG siglen;
 
   DIN;
   
@@ -3131,18 +3032,20 @@ CK_DEFINE_FUNCTION(CK_RV, C_Verify)(
     goto verify_out;
   }
 
+  CK_ULONG sig_len, key_len = do_get_key_size(session->pkeys[session->op_info.op.verify.key_id]);
+
   if (is_RSA_sign_mechanism(session->op_info.mechanism.mechanism)) {
-    siglen = (session->op_info.op.verify.key_len + 7) / 8;
+    sig_len = (key_len + 7) / 8;
   } else if (is_EC_sign_mechanism(session->op_info.mechanism.mechanism)) {
-    siglen = ((session->op_info.op.verify.key_len + 7) / 8) * 2;
+    sig_len = ((key_len + 7) / 8) * 2;
   } else {
     DBG("Mechanism %lu not supported", session->op_info.mechanism.mechanism);
     rv = CKR_MECHANISM_INVALID;
     goto verify_out;
   }
 
-  if (ulSignatureLen != siglen) {
-    DBG("Wrong data length, expected %lu, got %lu", siglen, ulSignatureLen);
+  if (ulSignatureLen != sig_len) {
+    DBG("Wrong data length, expected %lu, got %lu", sig_len, ulSignatureLen);
     rv = CKR_SIGNATURE_LEN_RANGE;
     goto verify_out;
   }
@@ -3155,7 +3058,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Verify)(
 
   DBG("Using key %x", session->op_info.op.verify.key_id);
 
-  rv = verify_signature(session, &session->op_info, pSignature, ulSignatureLen);
+  rv = verify_signature(session, pSignature, ulSignatureLen);
   if (rv != CKR_OK) {
     DBG("Unable to verify signature");
     goto verify_out;
@@ -3235,7 +3138,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyFinal)(
 )
 {
   CK_RV    rv;
-  CK_ULONG siglen;
 
   DIN;
   
@@ -3264,25 +3166,27 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyFinal)(
     goto verify_out;
   }
 
+  CK_ULONG sig_len, key_len = do_get_key_size(session->pkeys[session->op_info.op.verify.key_id]);
+
   if (is_RSA_sign_mechanism(session->op_info.mechanism.mechanism)) {
-    siglen = (session->op_info.op.verify.key_len + 7) / 8;
+    sig_len = (key_len + 7) / 8;
   } else if (is_EC_sign_mechanism(session->op_info.mechanism.mechanism)) {
-    siglen = ((session->op_info.op.verify.key_len + 7) / 8) * 2;
+    sig_len = ((key_len + 7) / 8) * 2;
   } else {
     DBG("Mechanism %lu not supported", session->op_info.mechanism.mechanism);
     rv = CKR_MECHANISM_INVALID;
     goto verify_out;
   }
 
-  if (ulSignatureLen != siglen) {
-    DBG("Wrong data length, expected %lu, got %lu", siglen, ulSignatureLen);
+  if (ulSignatureLen != sig_len) {
+    DBG("Wrong data length, expected %lu, got %lu", sig_len, ulSignatureLen);
     rv = CKR_SIGNATURE_LEN_RANGE;
     goto verify_out;
   }
 
   DBG("Using key %x", session->op_info.op.verify.key_id);
 
-  rv = verify_signature(session, &session->op_info, pSignature, ulSignatureLen);
+  rv = verify_signature(session, pSignature, ulSignatureLen);
   if (rv != CKR_OK) {
     DBG("Unable to verify signature");
     goto verify_out;

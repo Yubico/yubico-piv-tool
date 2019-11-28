@@ -43,7 +43,7 @@ CK_BBOOL is_hashed_mechanism(CK_MECHANISM_TYPE m);
 
 CK_RV apply_sign_mechanism_init(op_info_t *op_info);
 CK_RV apply_sign_mechanism_update(op_info_t *op_info, CK_BYTE_PTR in, CK_ULONG in_len);
-CK_RV apply_sign_mechanism_finalize(op_info_t *op_info);
+CK_RV apply_sign_mechanism_finalize(ykcs11_evp_pkey_t *key, op_info_t *op_info);
 CK_RV sign_mechanism_cleanup(op_info_t *op_info);
 
 CK_RV apply_verify_mechanism_init(op_info_t *op_info);

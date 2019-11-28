@@ -400,21 +400,16 @@ CK_RV do_get_modulus(ykcs11_evp_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len)
   RSA *rsa;
   const BIGNUM *n;
 
-  rsa = EVP_PKEY_get1_RSA(key);
+  rsa = EVP_PKEY_get0_RSA(key);
   if (rsa == NULL)
     return CKR_FUNCTION_FAILED;
 
   RSA_get0_key(rsa, &n, NULL, NULL);
   if ((CK_ULONG)BN_num_bytes(n) > *len) {
-    RSA_free(rsa);
-    rsa = NULL;
     return CKR_BUFFER_TOO_SMALL;
   }
 
   *len = (CK_ULONG)BN_bn2bin(n, data);
-
-  RSA_free(rsa);
-  rsa = NULL;
 
   return CKR_OK;
 }
@@ -425,22 +420,16 @@ CK_RV do_get_public_exponent(ykcs11_evp_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_
   RSA *rsa;
   const BIGNUM *bn_e;
 
-  rsa = EVP_PKEY_get1_RSA(key);
+  rsa = EVP_PKEY_get0_RSA(key);
   if (rsa == NULL)
     return CKR_FUNCTION_FAILED;
 
   RSA_get0_key(rsa, NULL, &bn_e, NULL);
   if ((CK_ULONG)BN_num_bytes(bn_e) > *len) {
-    RSA_free(rsa);
-    rsa = NULL;
     return CKR_BUFFER_TOO_SMALL;
   }
 
   *len = (CK_ULONG)BN_bn2bin(bn_e, data);
-
-  RSA_free(rsa);
-  rsa = NULL;
-
   return e;
 }
 
@@ -462,19 +451,15 @@ CK_RV do_get_public_key(ykcs11_evp_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR l
   switch(EVP_PKEY_base_id(key)) {
   case EVP_PKEY_RSA:
 
-    rsa = EVP_PKEY_get1_RSA(key);
+    rsa = EVP_PKEY_get0_RSA(key);
 
     if ((CK_ULONG)RSA_size(rsa) > *len) {
-      RSA_free(rsa);
-      rsa = NULL;
       return CKR_BUFFER_TOO_SMALL;
     }
 
     p = data;
 
     if ((*len = (CK_ULONG) i2d_RSAPublicKey(rsa, &p)) == 0) {
-      RSA_free(rsa);
-      rsa = NULL;
       return CKR_FUNCTION_FAILED;
     }
 
@@ -489,7 +474,7 @@ CK_RV do_get_public_key(ykcs11_evp_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR l
     break;
 
   case EVP_PKEY_EC:
-    eck = EVP_PKEY_get1_EC_KEY(key);
+    eck = EVP_PKEY_get0_EC_KEY(key);
     ecg = EC_KEY_get0_group(eck);
     ecp = EC_KEY_get0_public_key(eck);
 
@@ -497,17 +482,11 @@ CK_RV do_get_public_key(ykcs11_evp_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR l
     data[0] = 0x04;
 
     if ((*len = EC_POINT_point2oct(ecg, ecp, pcf, data + 2, *len - 2, NULL)) == 0) {
-      EC_KEY_free(eck);
-      eck = NULL;
       return CKR_FUNCTION_FAILED;
     }
 
     data[1] = *len;
-
     *len += 2;
-
-    EC_KEY_free(eck);
-    eck = NULL;
 
     break;
 
@@ -553,19 +532,14 @@ CK_RV do_get_curve_parameters(ykcs11_evp_pkey_t *key, CK_BYTE_PTR data, CK_ULONG
   const EC_GROUP *ecg;
   unsigned char *p;
 
-  eck = EVP_PKEY_get1_EC_KEY(key);
+  eck = EVP_PKEY_get0_EC_KEY(key);
   ecg = EC_KEY_get0_group(eck);
 
   p = data;
 
   if ((*len = (CK_ULONG) i2d_ECPKParameters(ecg, &p)) == 0) {
-    EC_KEY_free(eck);
-    eck = NULL;
     return CKR_FUNCTION_FAILED;
   }
-
-  EC_KEY_free(eck);
-  eck = NULL;
 
   return CKR_OK;
 }
@@ -613,22 +587,23 @@ CK_RV do_pkcs_1_digest_info(CK_BYTE_PTR in, CK_ULONG in_len, int nid, CK_BYTE_PT
 
 }
 
-CK_RV do_pkcs_pss(ykcs11_rsa_key_t *key, CK_BYTE_PTR in, CK_ULONG in_len,
+CK_RV do_pkcs_pss(ykcs11_evp_pkey_t *key, CK_BYTE_PTR in, CK_ULONG in_len,
           int nid, CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
-  unsigned char em[RSA_size(key)];
+  ykcs11_rsa_key_t *rsa = EVP_PKEY_get0_RSA(key);
+  unsigned char em[RSA_size(rsa) / 8];
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-  OpenSSL_add_all_digests();
+  //OpenSSL_add_all_digests();
 #endif
 
-  DBG("Apply PSS padding to %lu bytes and get %d", in_len, RSA_size(key));
+  DBG("Apply PSS padding to %lu bytes and get %d", in_len, RSA_size(rsa));
 
   // TODO: rand must be seeded first (should be automatic)
   if (out != in)
     memcpy(out, in, in_len);
 
   // In case of raw PSS (no hash) this function will fail because OpenSSL requires an MD
-  if (RSA_padding_add_PKCS1_PSS(key, em, out, EVP_get_digestbynid(nid), -2) == 0) {
+  if (RSA_padding_add_PKCS1_PSS(rsa, em, out, EVP_get_digestbynid(nid), -2) == 0) {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     EVP_cleanup();
 #endif
