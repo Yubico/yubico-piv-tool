@@ -1087,6 +1087,9 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
       fprintf(stderr, "Sign command failed with code %x.\n", sw);
     }
     if (sw == SW_ERR_SECURITY_STATUS && state->pin) {
+      if(state->verbose) {
+        fprintf(stderr, "Verifying PIN and retrying sign command.\n");
+      }
       int tries;
       if((res = _ykpiv_verify(state, state->pin, strlen(state->pin), &tries)) != YKPIV_OK) {
         if(state->verbose) {

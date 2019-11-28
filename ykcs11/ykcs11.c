@@ -1775,8 +1775,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Encrypt)(
     return CKR_OPERATION_NOT_INITIALIZED;
   }
 
-  DBG("Using key id %x", session->op_info.op.encrypt.key_id);
-#if YKCS11_DBG
+  DBG("Using key id %x for encryption", session->op_info.op.encrypt.key_id);
+#if YKCS11_DBG > 1
   dump_data(pData, ulDataLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
@@ -1790,7 +1790,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Encrypt)(
   }
 
   DBG("Got %lu encrypted bytes back", *pulEncryptedDataLen);
-#if YKCS11_DBG
+#if YKCS11_DBG > 1
   dump_data(pEncryptedData, *pulEncryptedDataLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
@@ -1872,8 +1872,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptFinal)(
     return CKR_OPERATION_NOT_INITIALIZED;
   }
 
-  DBG("Using key %x", session->op_info.op.encrypt.key_id);
-#if YKCS11_DBG
+  DBG("Using key id %x for encryption", session->op_info.op.encrypt.key_id);
+#if YKCS11_DBG > 1
   dump_data(session->op_info.buf, session->op_info.buf_len, stderr, CK_TRUE, format_arg_hex);
 #endif
 
@@ -1889,7 +1889,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptFinal)(
   }
 
   DBG("Got %lu encrypted bytes back", *pulLastEncryptedPartLen);
-#if YKCS11_DBG
+#if YKCS11_DBG > 1
   dump_data(pLastEncryptedPart, *pulLastEncryptedPartLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
@@ -2016,7 +2016,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
   }
 
   DBG("Sending %lu bytes to be decrypted", ulEncryptedDataLen);
-#if YKCS11_DBG
+#if YKCS11_DBG > 1
   dump_data(pEncryptedData, ulEncryptedDataLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
@@ -2060,7 +2060,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
   }
 
   DBG("Got %lu bytes back", *pulDataLen);
-#if YKCS11_DBG
+#if YKCS11_DBG > 1
   dump_data(session->op_info.buf, *pulDataLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
@@ -2113,7 +2113,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptUpdate)(
   }
 
   DBG("Adding %lu bytes to be decrypted", ulEncryptedPartLen);
-#if YKCS11_DBG
+#if YKCS11_DBG > 1
   dump_data(pEncryptedPart, ulEncryptedPartLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
@@ -2184,7 +2184,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
   }
 
   DBG("Sending %lu bytes to be decrypted", session->op_info.buf_len);
-#if YKCS11_DBG
+#if YKCS11_DBG > 1
   dump_data(session->op_info.buf, session->op_info.buf_len, stderr, CK_TRUE, format_arg_hex);
 #endif
 
@@ -2225,7 +2225,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
   }
 
   DBG("Got %lu bytes back", *pulLastPartLen);
-#if YKCS11_DBG
+#if YKCS11_DBG > 1
   dump_data(session->op_info.buf, *pulLastPartLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
@@ -2622,7 +2622,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   }
 
   DBG("Sending %lu bytes to sign", ulDataLen);
-#if YKCS11_DBG
+#if YKCS11_DBG > 1
   dump_data(pData, ulDataLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
@@ -2664,15 +2664,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     goto sign_out;
   }
 
-  DBG("Using key %x", session->op_info.op.sign.key_id);
   DBG("After padding and transformation there are %lu bytes", session->op_info.buf_len);
-#if YKCS11_DBG
+#if YKCS11_DBG > 1
   dump_data(session->op_info.buf, session->op_info.buf_len, stderr, CK_TRUE, format_arg_hex);
 #endif
 
   *pulSignatureLen = cbSignatureLen = sizeof(session->op_info.buf);
 
   CK_ULONG pivkey = piv_2_ykpiv(find_pvtk_object(session->op_info.op.sign.key_id));
+
+  DBG("Using key %lx for signing", pivkey);
 
   locking.pfnLockMutex(session->slot->mutex);
 
@@ -2696,7 +2697,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   }
 
   DBG("Got %lu bytes back", *pulSignatureLen);
-#if YKCS11_DBG
+#if YKCS11_DBG > 1
   dump_data(session->op_info.buf, *pulSignatureLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
@@ -2706,8 +2707,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     strip_DER_encoding_from_ECSIG(session->op_info.buf, pulSignatureLen);
 
     DBG("After removing DER encoding %lu", *pulSignatureLen);
-#if YKCS11_DBG
-    dump_data(pSignature, *pulSignatureLen, stderr, CK_TRUE, format_arg_hex);
+#if YKCS11_DBG > 1
+    dump_data(session->op_info.buf, *pulSignatureLen, stderr, CK_TRUE, format_arg_hex);
 #endif
   }
 
@@ -2758,7 +2759,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignUpdate)(
     goto sign_out;
   }
 
-#if YKCS11_DBG == 1
+#if YKCS11_DBG > 1
   dump_data(pPart, ulPartLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
@@ -2844,15 +2845,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
     goto sign_out;
   }
 
-  DBG("Using key %x", session->op_info.op.sign.key_id);
   DBG("After padding and transformation there are %lu bytes", session->op_info.buf_len);
-#if YKCS11_DBG == 1
+#if YKCS11_DBG > 1
   dump_data(session->op_info.buf, session->op_info.buf_len, stderr, CK_TRUE, format_arg_hex);
 #endif
 
   *pulSignatureLen = cbSignatureLen = sizeof(session->op_info.buf);
 
   CK_ULONG pivkey = piv_2_ykpiv(find_pvtk_object(session->op_info.op.sign.key_id));
+
+  DBG("Using key %lx for signing", pivkey);
 
   locking.pfnLockMutex(session->slot->mutex);
 
@@ -2876,7 +2878,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
   }
 
   DBG("Got %lu bytes back", *pulSignatureLen);
-#if YKCS11_DBG == 1
+#if YKCS11_DBG > 1
   dump_data(session->op_info.buf, *pulSignatureLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
@@ -2886,8 +2888,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
     strip_DER_encoding_from_ECSIG(session->op_info.buf, pulSignatureLen);
 
     DBG("After removing DER encoding %lu", *pulSignatureLen);
-#if YKCS11_DBG == 1
-    dump_data(pSignature, *pulSignatureLen, stderr, CK_TRUE, format_arg_hex);
+#if YKCS11_DBG > 1
+    dump_data(session->op_info.buf, *pulSignatureLen, stderr, CK_TRUE, format_arg_hex);
 #endif
   }
 
@@ -3056,7 +3058,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Verify)(
     goto verify_out;
   }
 
-  DBG("Using key %x", session->op_info.op.verify.key_id);
+  DBG("Using key id %x for verifying", session->op_info.op.verify.key_id);
 
   rv = verify_signature(session, pSignature, ulSignatureLen);
   if (rv != CKR_OK) {
@@ -3110,7 +3112,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyUpdate)(
     goto verify_out;
   }
 
-#if YKCS11_DBG == 1
+#if YKCS11_DBG > 1
   dump_data(pPart, ulPartLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
@@ -3184,7 +3186,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyFinal)(
     goto verify_out;
   }
 
-  DBG("Using key %x", session->op_info.op.verify.key_id);
+  DBG("Using key id %x for verifying", session->op_info.op.verify.key_id);
 
   rv = verify_signature(session, pSignature, ulSignatureLen);
   if (rv != CKR_OK) {
