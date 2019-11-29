@@ -128,7 +128,7 @@ CK_RV do_generate_ec_key(int nid, ykcs11_evp_pkey_t **pkey) {
   *pkey = EVP_PKEY_new();
   if(*pkey == NULL)
     return CKR_HOST_MEMORY;
-  if(EVP_PKEY_set1_EC_KEY(*pkey, eckey) <= 0)
+  if(EVP_PKEY_assign_EC_KEY(*pkey, eckey) <= 0)
     return CKR_GENERAL_ERROR;
   return CKR_OK;
 }
@@ -153,7 +153,7 @@ CK_RV do_create_ec_key(CK_BYTE_PTR point, CK_ULONG point_len, int nid, ykcs11_ev
   *pkey = EVP_PKEY_new();
   if(*pkey == NULL)
     return CKR_HOST_MEMORY;
-  EVP_PKEY_set1_EC_KEY(*pkey, eckey);
+  EVP_PKEY_assign_EC_KEY(*pkey, eckey);
   return CKR_OK;
 }
 
@@ -172,7 +172,7 @@ CK_RV do_create_rsa_key(CK_BYTE_PTR mod, CK_ULONG mod_len, CK_BYTE_PTR exp, CK_U
   *pkey = EVP_PKEY_new();
   if(*pkey == NULL)
     return CKR_HOST_MEMORY;
-  if(EVP_PKEY_set1_RSA(*pkey, rsa) <= 0)
+  if(EVP_PKEY_assign_RSA(*pkey, rsa) <= 0)
       return CKR_GENERAL_ERROR;
   return CKR_OK;
 }
