@@ -2508,8 +2508,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
   }
 
   if (!is_present(session, hKey)) {
-    DBG("Key handle is invalid");
+    DBG("Key handle %lu is invalid", hKey);
     return CKR_OBJECT_HANDLE_INVALID;
+  }
+
+  if (hKey < PIV_PVTK_OBJ_PIV_AUTH || hKey > PIV_PVTK_OBJ_ATTESTATION) {
+    DBG("Key handle %lu is not a private key", hKey);
+    return CKR_KEY_HANDLE_INVALID;
   }
 
   if (session->op_info.type != YKCS11_NOOP) {
@@ -2959,8 +2964,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
   }
 
   if (!is_present(session, hKey)) {
-    DBG("Object handle %lu is invalid", hKey);
+    DBG("Key handle %lu is invalid", hKey);
     return CKR_OBJECT_HANDLE_INVALID;
+  }
+
+  if (hKey < PIV_PUBK_OBJ_PIV_AUTH || hKey > PIV_PUBK_OBJ_ATTESTATION) {
+    DBG("Key handle %lu is not a public key", hKey);
+    return CKR_KEY_HANDLE_INVALID;
   }
 
   if (session->op_info.type != YKCS11_NOOP) {
@@ -2971,17 +2981,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
   if (pMechanism == NULL)
     return CKR_ARGUMENTS_BAD;
 
-  CK_BYTE id = get_key_id(hKey);
-  if (id == 0) {
-    DBG("Key handle %lu is invalid", hKey);
-    return CKR_KEY_HANDLE_INVALID;
-  }
-  
   memcpy(&session->op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
+  CK_BYTE id = get_key_id(hKey);
   
-  if (apply_verify_mechanism_init(&session->op_info, session->pkeys[id]) != CKR_OK) {
+  CK_RV rv = apply_verify_mechanism_init(&session->op_info, session->pkeys[id]);
+  if (rv != CKR_OK) {
     DBG("Unable to initialize verification operation");
-    return CKR_FUNCTION_FAILED;
+    return rv;
   }
 
   DOUT;

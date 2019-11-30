@@ -494,6 +494,7 @@ CK_RV apply_verify_mechanism_init(op_info_t *op_info, ykcs11_evp_pkey_t *key) {
       return CKR_MECHANISM_INVALID;
   }
 
+  CK_KEY_TYPE key_type = do_get_key_type(key);
   CK_ULONG padding = 0;
 
   switch (op_info->mechanism.mechanism) {
@@ -502,6 +503,10 @@ CK_RV apply_verify_mechanism_init(op_info_t *op_info, ykcs11_evp_pkey_t *key) {
     case CKM_SHA256_RSA_PKCS:
     case CKM_SHA384_RSA_PKCS:
     case CKM_SHA512_RSA_PKCS:
+      if(key_type != CKK_RSA) {
+        DBG("Mechanism %lu requires an RSA key", op_info->mechanism.mechanism);
+        return CKR_KEY_TYPE_INCONSISTENT;
+      }
       padding = RSA_PKCS1_PADDING;
     break;
 
@@ -510,8 +515,18 @@ CK_RV apply_verify_mechanism_init(op_info_t *op_info, ykcs11_evp_pkey_t *key) {
     case CKM_SHA256_RSA_PKCS_PSS:
     case CKM_SHA384_RSA_PKCS_PSS:
     case CKM_SHA512_RSA_PKCS_PSS:
+      if(key_type != CKK_RSA) {
+        DBG("Mechanism %lu requires an RSA key", op_info->mechanism.mechanism);
+        return CKR_KEY_TYPE_INCONSISTENT;
+      }
       padding = RSA_PKCS1_PSS_PADDING;
       break;
+
+    default:
+      if(key_type != CKK_ECDSA) {
+        DBG("Mechanism %lu requires an ECDSA key", op_info->mechanism.mechanism);
+        return CKR_KEY_TYPE_INCONSISTENT;
+      }
   }
 
   if(md) {
@@ -520,21 +535,25 @@ CK_RV apply_verify_mechanism_init(op_info_t *op_info, ykcs11_evp_pkey_t *key) {
       return CKR_FUNCTION_FAILED;
     }
     if (EVP_DigestVerifyInit(op_info->op.verify.md_ctx, &op_info->op.verify.pkey_ctx, md, NULL, key) <= 0) {
+      DBG("EVP_DigestVerifyInit failed");
       return CKR_FUNCTION_FAILED;
     }
   } else {
     op_info->op.verify.md_ctx = NULL;
     op_info->op.verify.pkey_ctx = EVP_PKEY_CTX_new(key, NULL);
     if (op_info->op.verify.pkey_ctx == NULL) {
+      DBG("EVP_PKEY_CTX_new failed");
       return CKR_FUNCTION_FAILED;
     }
     if(EVP_PKEY_verify_init(op_info->op.verify.pkey_ctx) <= 0) {
+      DBG("EVP_PKEY_verify_init failed");
       return CKR_FUNCTION_FAILED;
     }
   }
 
   if (padding) {
     if (EVP_PKEY_CTX_set_rsa_padding(op_info->op.verify.pkey_ctx, padding) <= 0) {
+      DBG("EVP_PKEY_CTX_set_rsa_padding failed");
       return CKR_FUNCTION_FAILED;
     }
   }
