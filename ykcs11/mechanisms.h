@@ -46,8 +46,9 @@ CK_RV apply_sign_mechanism_update(op_info_t *op_info, CK_BYTE_PTR in, CK_ULONG i
 CK_RV apply_sign_mechanism_finalize(ykcs11_evp_pkey_t *key, op_info_t *op_info);
 CK_RV sign_mechanism_cleanup(op_info_t *op_info);
 
-CK_RV apply_verify_mechanism_init(op_info_t *op_info);
+CK_RV apply_verify_mechanism_init(op_info_t *op_info, ykcs11_evp_pkey_t *key);
 CK_RV apply_verify_mechanism_update(op_info_t *op_info, CK_BYTE_PTR in, CK_ULONG in_len);
+CK_RV apply_verify_mechanism_final(op_info_t *op_info, CK_BYTE_PTR sig, CK_ULONG sig_len);
 CK_RV verify_mechanism_cleanup(op_info_t *op_info);
 
 CK_RV check_generation_mechanism(CK_MECHANISM_PTR m);

@@ -75,9 +75,8 @@ typedef struct {
 } sign_info_t;
 
 typedef struct {
-  CK_BYTE           key_id;  // Key id
-  CK_ULONG          padding; // padding in the rsa case
-  ykcs11_md_ctx_t   *md_ctx; // running hash
+  ykcs11_evp_pkey_ctx_t *pkey_ctx; // Signature context
+  ykcs11_md_ctx_t   *md_ctx; // Digest context (null for non-hashed signatures)
 } verify_info_t;
 
 typedef struct {

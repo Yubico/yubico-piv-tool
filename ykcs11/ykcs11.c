@@ -2606,9 +2606,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   CK_ULONG key_len = do_get_key_size(key);
   CK_ULONG sig_len = (key_len + 7) / 8;
 
+  if(is_EC_sign_mechanism(session->op_info.mechanism.mechanism))
+    sig_len *= 2;
+
   if (pSignature == NULL) {
     // Just return the size of the signature
     *pulSignatureLen = sig_len;
+    
     DBG("The size of the signature will be %lu", *pulSignatureLen);
 
     DOUT;
@@ -2669,11 +2673,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   dump_data(session->op_info.buf, session->op_info.buf_len, stderr, CK_TRUE, format_arg_hex);
 #endif
 
-  *pulSignatureLen = cbSignatureLen = sizeof(session->op_info.buf);
-
   CK_ULONG pivkey = piv_2_ykpiv(find_pvtk_object(session->op_info.op.sign.key_id));
 
   DBG("Using key %lx for signing", pivkey);
+
+  cbSignatureLen = sizeof(session->op_info.buf);
 
   locking.pfnLockMutex(session->slot->mutex);
 
@@ -2704,7 +2708,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   if (is_EC_mechanism(session->op_info.mechanism.mechanism)) {
     // ECDSA, we must remove the DER encoding and only return R,S
     // as required by the specs
-    strip_DER_encoding_from_ECSIG(session->op_info.buf, pulSignatureLen);
+    do_strip_DER_encoding_from_ECSIG(session->op_info.buf, pulSignatureLen, sig_len);
 
     DBG("After removing DER encoding %lu", *pulSignatureLen);
 #if YKCS11_DBG > 1
@@ -2823,9 +2827,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
   CK_ULONG key_len = do_get_key_size(key);
   CK_ULONG sig_len = (key_len + 7) / 8;
 
+  if(is_EC_sign_mechanism(session->op_info.mechanism.mechanism))
+    sig_len *= 2;
+
   if (pSignature == NULL) {
     // Just return the size of the signature
     *pulSignatureLen = sig_len;
+
     DBG("The size of the signature will be %lu", *pulSignatureLen);
 
     DOUT;
@@ -2833,8 +2841,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
   }
 
   if (*pulSignatureLen < sig_len) {
-    DBG("pulSignatureLen too small, signature will not fit, expected %lu, got %lu", 
-            sig_len, *pulSignatureLen);
+    DBG("pulSignatureLen too small, signature will not fit, expected %lu, got %lu", sig_len, *pulSignatureLen);
     *pulSignatureLen = sig_len;
     return CKR_BUFFER_TOO_SMALL;
   }
@@ -2850,11 +2857,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
   dump_data(session->op_info.buf, session->op_info.buf_len, stderr, CK_TRUE, format_arg_hex);
 #endif
 
-  *pulSignatureLen = cbSignatureLen = sizeof(session->op_info.buf);
-
   CK_ULONG pivkey = piv_2_ykpiv(find_pvtk_object(session->op_info.op.sign.key_id));
 
   DBG("Using key %lx for signing", pivkey);
+
+  cbSignatureLen = sizeof(session->op_info.buf);
 
   locking.pfnLockMutex(session->slot->mutex);
 
@@ -2885,7 +2892,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
   if (is_EC_mechanism(session->op_info.mechanism.mechanism)) {
     // ECDSA, we must remove the DER encoding and only return R,S
     // as required by the specs
-    strip_DER_encoding_from_ECSIG(session->op_info.buf, pulSignatureLen);
+    do_strip_DER_encoding_from_ECSIG(session->op_info.buf, pulSignatureLen, sig_len);
 
     DBG("After removing DER encoding %lu", *pulSignatureLen);
 #if YKCS11_DBG > 1
@@ -2952,7 +2959,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
   }
 
   if (!is_present(session, hKey)) {
-    DBG("Key handle is invalid");
+    DBG("Object handle %lu is invalid", hKey);
     return CKR_OBJECT_HANDLE_INVALID;
   }
 
@@ -2964,34 +2971,18 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
   if (pMechanism == NULL)
     return CKR_ARGUMENTS_BAD;
 
-  DBG("Trying to verify data with mechanism %lu and key %lu", pMechanism->mechanism, hKey);
-  
-  // Check if mechanism is supported
-  if (check_sign_mechanism(session, pMechanism) != CKR_OK) {
-    DBG("Mechanism %lu is not supported either by the token or the module", pMechanism->mechanism);
-    return CKR_MECHANISM_INVALID; // TODO: also the key has a list of allowed mechanisms, check that
-  }
-  memcpy(&session->op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
-  
   CK_BYTE id = get_key_id(hKey);
   if (id == 0) {
-    DBG("Incorrect key %lu", hKey);
+    DBG("Key handle %lu is invalid", hKey);
     return CKR_KEY_HANDLE_INVALID;
   }
-  session->op_info.op.verify.key_id = id;
-
-  if (apply_verify_mechanism_init(&session->op_info) != CKR_OK) {
+  
+  memcpy(&session->op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
+  
+  if (apply_verify_mechanism_init(&session->op_info, session->pkeys[id]) != CKR_OK) {
     DBG("Unable to initialize verification operation");
     return CKR_FUNCTION_FAILED;
   }
-
-  CK_KEY_TYPE type = do_get_key_type(session->pkeys[id]);
-  if (type == CKK_RSA && is_RSA_sign_mechanism(session->op_info.mechanism.mechanism) ) {
-    session->op_info.op.verify.padding = RSA_PKCS1_PADDING;
-  }
-
-  session->op_info.buf_len = 0;
-  session->op_info.type = YKCS11_VERIFY;
 
   DOUT;
   return CKR_OK;
@@ -3034,33 +3025,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_Verify)(
     goto verify_out;
   }
 
-  CK_ULONG sig_len, key_len = do_get_key_size(session->pkeys[session->op_info.op.verify.key_id]);
-
-  if (is_RSA_sign_mechanism(session->op_info.mechanism.mechanism)) {
-    sig_len = (key_len + 7) / 8;
-  } else if (is_EC_sign_mechanism(session->op_info.mechanism.mechanism)) {
-    sig_len = ((key_len + 7) / 8) * 2;
-  } else {
-    DBG("Mechanism %lu not supported", session->op_info.mechanism.mechanism);
-    rv = CKR_MECHANISM_INVALID;
-    goto verify_out;
-  }
-
-  if (ulSignatureLen != sig_len) {
-    DBG("Wrong data length, expected %lu, got %lu", sig_len, ulSignatureLen);
-    rv = CKR_SIGNATURE_LEN_RANGE;
-    goto verify_out;
-  }
-
   rv = apply_verify_mechanism_update(&session->op_info, pData, ulDataLen);
   if (rv != CKR_OK) {
     DBG("Unable to perform verification operation step");
     goto verify_out;
   }
 
-  DBG("Using key id %x for verifying", session->op_info.op.verify.key_id);
-
-  rv = verify_signature(session, pSignature, ulSignatureLen);
+  rv = apply_verify_mechanism_final(&session->op_info, pSignature, ulSignatureLen);
   if (rv != CKR_OK) {
     DBG("Unable to verify signature");
     goto verify_out;
@@ -3100,21 +3071,17 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyUpdate)(
     goto verify_out;
   }
 
-  if (session->op_info.type != YKCS11_VERIFY) {
-    DBG("Signature verification operation not initialized");
-    rv = CKR_OPERATION_NOT_INITIALIZED;
-    goto verify_out;
-  }
-
   if (pPart == NULL) {
     DBG("No data provided");
     rv = CKR_ARGUMENTS_BAD;
     goto verify_out;
   }
 
-#if YKCS11_DBG > 1
-  dump_data(pPart, ulPartLen, stderr, CK_TRUE, format_arg_hex);
-#endif
+  if (session->op_info.type != YKCS11_VERIFY) {
+    DBG("Signature verification operation not initialized");
+    rv = CKR_OPERATION_NOT_INITIALIZED;
+    goto verify_out;
+  }
 
   if (apply_verify_mechanism_update(&session->op_info, pPart, ulPartLen) != CKR_OK) {
     DBG("Unable to perform signature verification operation step");
@@ -3168,27 +3135,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyFinal)(
     goto verify_out;
   }
 
-  CK_ULONG sig_len, key_len = do_get_key_size(session->pkeys[session->op_info.op.verify.key_id]);
-
-  if (is_RSA_sign_mechanism(session->op_info.mechanism.mechanism)) {
-    sig_len = (key_len + 7) / 8;
-  } else if (is_EC_sign_mechanism(session->op_info.mechanism.mechanism)) {
-    sig_len = ((key_len + 7) / 8) * 2;
-  } else {
-    DBG("Mechanism %lu not supported", session->op_info.mechanism.mechanism);
-    rv = CKR_MECHANISM_INVALID;
-    goto verify_out;
-  }
-
-  if (ulSignatureLen != sig_len) {
-    DBG("Wrong data length, expected %lu, got %lu", sig_len, ulSignatureLen);
-    rv = CKR_SIGNATURE_LEN_RANGE;
-    goto verify_out;
-  }
-
-  DBG("Using key id %x for verifying", session->op_info.op.verify.key_id);
-
-  rv = verify_signature(session, pSignature, ulSignatureLen);
+  rv = apply_verify_mechanism_final(&session->op_info, pSignature, ulSignatureLen);
   if (rv != CKR_OK) {
     DBG("Unable to verify signature");
     goto verify_out;

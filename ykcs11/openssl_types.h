@@ -54,6 +54,7 @@ typedef enum {
 typedef EVP_MD ykcs11_md_t;
 typedef EVP_MD_CTX ykcs11_md_ctx_t;
 typedef EVP_PKEY ykcs11_evp_pkey_t;
+typedef EVP_PKEY_CTX ykcs11_evp_pkey_ctx_t;
 typedef RSA ykcs11_rsa_key_t;
 typedef X509 ykcs11_x509_t;
 typedef X509_NAME ykcs11_x509_name_t;

@@ -56,7 +56,8 @@ static const CK_MECHANISM_TYPE sign_mechanisms[] = {
   CKM_ECDSA,
   CKM_ECDSA_SHA1,
   CKM_ECDSA_SHA256,
-  CKM_ECDSA_SHA384
+  CKM_ECDSA_SHA384,
+  CKM_ECDSA_SHA512
 };
 
 // Supported mechanisms for RSA decryption
@@ -186,7 +187,7 @@ CK_BBOOL is_EC_mechanism(CK_MECHANISM_TYPE m) {
   case CKM_ECDSA_SHA1:
   case CKM_ECDSA_SHA256:
   case CKM_ECDSA_SHA384:
-  //case CKM_ECDSA_SHA512:
+  case CKM_ECDSA_SHA512:
     return CK_TRUE;
   default:
     return CK_FALSE;
@@ -202,6 +203,7 @@ CK_BBOOL is_EC_sign_mechanism(CK_MECHANISM_TYPE m) {
     case CKM_ECDSA_SHA1:
     case CKM_ECDSA_SHA256:
     case CKM_ECDSA_SHA384:
+    case CKM_ECDSA_SHA512:
       return CK_TRUE;
     default:
       return CK_FALSE;
@@ -225,6 +227,7 @@ CK_BBOOL is_hashed_mechanism(CK_MECHANISM_TYPE m) {
   case CKM_ECDSA_SHA1:
   case CKM_ECDSA_SHA256:
   case CKM_ECDSA_SHA384:
+  case CKM_ECDSA_SHA512:
   case CKM_SHA_1:
   case CKM_SHA256:
   case CKM_SHA384:
@@ -256,21 +259,21 @@ CK_RV apply_sign_mechanism_init(op_info_t *op_info) {
     case CKM_SHA1_RSA_PKCS:
     case CKM_SHA1_RSA_PKCS_PSS:
     case CKM_ECDSA_SHA1:
-      return do_md_init(YKCS11_SHA1, &op_info->op.sign.md_ctx);
+      return do_md_init(EVP_sha1(), &op_info->op.sign.md_ctx);
 
     case CKM_SHA256_RSA_PKCS:
     case CKM_SHA256_RSA_PKCS_PSS:
     case CKM_ECDSA_SHA256:
-      return do_md_init(YKCS11_SHA256, &op_info->op.sign.md_ctx);
+      return do_md_init(EVP_sha256(), &op_info->op.sign.md_ctx);
 
     case CKM_SHA384_RSA_PKCS:
     case CKM_SHA384_RSA_PKCS_PSS:
     case CKM_ECDSA_SHA384:
-      return do_md_init(YKCS11_SHA384, &op_info->op.sign.md_ctx);
+      return do_md_init(EVP_sha384(), &op_info->op.sign.md_ctx);
 
     case CKM_SHA512_RSA_PKCS:
     case CKM_SHA512_RSA_PKCS_PSS:
-      return do_md_init(YKCS11_SHA512, &op_info->op.sign.md_ctx);
+      return do_md_init(EVP_sha512(), &op_info->op.sign.md_ctx);
 
     default:
       return CKR_FUNCTION_FAILED;
@@ -339,7 +342,6 @@ CK_RV apply_sign_mechanism_update(op_info_t *op_info, CK_BYTE_PTR in, CK_ULONG i
   default:
     return CKR_FUNCTION_FAILED;
   }
-
 }
 
 CK_RV apply_sign_mechanism_finalize(ykcs11_evp_pkey_t *key, op_info_t *op_info) {
@@ -431,7 +433,7 @@ CK_RV apply_sign_mechanism_finalize(ykcs11_evp_pkey_t *key, op_info_t *op_info) 
 CK_RV sign_mechanism_cleanup(op_info_t *op_info) {
 
   if (op_info->op.sign.md_ctx != NULL) {
-    do_md_cleanup(op_info->op.sign.md_ctx);
+    EVP_MD_CTX_destroy(op_info->op.sign.md_ctx);
     op_info->op.sign.md_ctx = NULL;
   }
   op_info->buf_len = 0;
@@ -442,27 +444,26 @@ CK_RV sign_mechanism_cleanup(op_info_t *op_info) {
 CK_RV verify_mechanism_cleanup(op_info_t *op_info) {
 
   if (op_info->op.verify.md_ctx != NULL) {
-    do_md_cleanup(op_info->op.verify.md_ctx);
+    EVP_MD_CTX_destroy(op_info->op.verify.md_ctx);
     op_info->op.verify.md_ctx = NULL;
+  } else if(op_info->op.verify.pkey_ctx != NULL) {
+    EVP_PKEY_CTX_free(op_info->op.verify.pkey_ctx);
   }
   op_info->buf_len = 0;
 
   return CKR_OK;
 }
 
-CK_RV apply_verify_mechanism_init(op_info_t *op_info) {
-  const EVP_MD *md = NULL;
+CK_RV apply_verify_mechanism_init(op_info_t *op_info, ykcs11_evp_pkey_t *key) {
 
-  op_info->buf_len = 0;
-  op_info->op.verify.padding = 0;
-  op_info->op.verify.md_ctx = NULL;
+  const EVP_MD *md = NULL;
 
   switch (op_info->mechanism.mechanism) {
     case CKM_RSA_PKCS:
     case CKM_RSA_PKCS_PSS:
     case CKM_ECDSA:
       // No hash required for these mechanisms
-      return CKR_OK;
+      break;
 
     case CKM_SHA1_RSA_PKCS:
     case CKM_SHA1_RSA_PKCS_PSS:
@@ -484,62 +485,104 @@ CK_RV apply_verify_mechanism_init(op_info_t *op_info) {
 
     case CKM_SHA512_RSA_PKCS:
     case CKM_SHA512_RSA_PKCS_PSS:
+    case CKM_ECDSA_SHA512:
       md = EVP_sha512();
       break;
 
     default:
-      DBG("Mechanism %lu not supported", op_info->mechanism.mechanism);
+      DBG("Mechanism %lu not supported by the module", op_info->mechanism.mechanism);
       return CKR_MECHANISM_INVALID;
   }
 
-  op_info->op.verify.md_ctx = EVP_MD_CTX_create();
-  if (op_info->op.verify.md_ctx == NULL) {
-    return CKR_FUNCTION_FAILED;
+  CK_ULONG padding = 0;
+
+  switch (op_info->mechanism.mechanism) {
+    case CKM_RSA_PKCS:
+    case CKM_SHA1_RSA_PKCS:
+    case CKM_SHA256_RSA_PKCS:
+    case CKM_SHA384_RSA_PKCS:
+    case CKM_SHA512_RSA_PKCS:
+      padding = RSA_PKCS1_PADDING;
+    break;
+
+    case CKM_RSA_PKCS_PSS:
+    case CKM_SHA1_RSA_PKCS_PSS:
+    case CKM_SHA256_RSA_PKCS_PSS:
+    case CKM_SHA384_RSA_PKCS_PSS:
+    case CKM_SHA512_RSA_PKCS_PSS:
+      padding = RSA_PKCS1_PSS_PADDING;
+      break;
   }
-  if (EVP_DigestInit(op_info->op.verify.md_ctx, md) == 0) {
-    return CKR_FUNCTION_FAILED;
+
+  if(md) {
+    op_info->op.verify.md_ctx = EVP_MD_CTX_create();
+    if (op_info->op.verify.md_ctx == NULL) {
+      return CKR_FUNCTION_FAILED;
+    }
+    if (EVP_DigestVerifyInit(op_info->op.verify.md_ctx, &op_info->op.verify.pkey_ctx, md, NULL, key) <= 0) {
+      return CKR_FUNCTION_FAILED;
+    }
+  } else {
+    op_info->op.verify.md_ctx = NULL;
+    op_info->op.verify.pkey_ctx = EVP_PKEY_CTX_new(key, NULL);
+    if (op_info->op.verify.pkey_ctx == NULL) {
+      return CKR_FUNCTION_FAILED;
+    }
+    if(EVP_PKEY_verify_init(op_info->op.verify.pkey_ctx) <= 0) {
+      return CKR_FUNCTION_FAILED;
+    }
   }
+
+  if (padding) {
+    if (EVP_PKEY_CTX_set_rsa_padding(op_info->op.verify.pkey_ctx, padding) <= 0) {
+      return CKR_FUNCTION_FAILED;
+    }
+  }
+
+  op_info->type = YKCS11_VERIFY;
+  op_info->buf_len = 0;
 
   return CKR_OK;
 }
 
 CK_RV apply_verify_mechanism_update(op_info_t *op_info, CK_BYTE_PTR in, CK_ULONG in_len) {
-  switch (op_info->mechanism.mechanism) {
-    case CKM_RSA_PKCS:
-    //case CKM_RSA_PKCS_PSS:
-    case CKM_ECDSA:
-      // No hash required for these mechanisms
-      if (op_info->buf_len + in_len > sizeof(op_info->buf)) {
-        return CKR_DATA_LEN_RANGE;
-      }
 
-      memcpy(op_info->buf + op_info->buf_len, in, in_len);
-      op_info->buf_len += in_len;
-      break;
-
-    case CKM_SHA1_RSA_PKCS:
-    //case CKM_SHA1_RSA_PKCS_PSS:
-    case CKM_ECDSA_SHA1:
-    case CKM_SHA256_RSA_PKCS:
-    //case CKM_SHA256_RSA_PKCS_PSS:
-    case CKM_ECDSA_SHA256:
-    case CKM_SHA384_RSA_PKCS:
-    //case CKM_SHA384_RSA_PKCS_PSS:
-    case CKM_ECDSA_SHA384:
-    case CKM_SHA512_RSA_PKCS:
-    //case CKM_SHA512_RSA_PKCS_PSS:
-    case CKM_ECDSA_SHA512:
-      if (EVP_DigestUpdate(op_info->op.verify.md_ctx, in, in_len) != 1) {
-        EVP_MD_CTX_destroy(op_info->op.verify.md_ctx);
-        op_info->op.sign.md_ctx = NULL;
-        return CKR_FUNCTION_FAILED;
-      }
-      break;
-
-    default:
+  if(op_info->op.verify.md_ctx) {
+    if (EVP_DigestVerifyUpdate(op_info->op.verify.md_ctx, in, in_len) <= 0) {
       return CKR_FUNCTION_FAILED;
+    }
+  } else {
+    if(op_info->buf_len + in_len > sizeof(op_info->buf)) {
+      return CKR_DATA_LEN_RANGE;
+    }
+    memcpy(op_info->buf + op_info->buf_len, in, in_len);
+    op_info->buf_len += in_len;
   }
 
+  return CKR_OK;
+}
+
+CK_RV apply_verify_mechanism_final(op_info_t *op_info, CK_BYTE_PTR sig, CK_ULONG sig_len) {
+
+  int rc;
+
+  CK_BYTE der[sig_len + 32]; // Add some space for the DER encoding
+  if(is_EC_sign_mechanism(op_info->mechanism.mechanism)) {
+    memcpy(der, sig, sig_len);
+    sig = der;
+    do_apply_DER_encoding_to_ECSIG(sig, &sig_len);
+  }
+
+  if(op_info->op.verify.md_ctx) {
+    rc = EVP_DigestVerifyFinal(op_info->op.verify.md_ctx, sig, sig_len);
+  } else {
+    rc = EVP_PKEY_verify(op_info->op.verify.pkey_ctx, sig, sig_len, op_info->buf, op_info->buf_len);
+  }
+
+  if(rc < 0)
+    return CKR_DATA_INVALID;
+  if(rc == 0)
+    return CKR_SIGNATURE_INVALID;
   return CKR_OK;
 }
 

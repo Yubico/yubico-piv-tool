@@ -38,8 +38,6 @@ CK_BBOOL is_yubico_reader(const char* reader_name);
 size_t memstrcpy(void *dst, const char *src);
 size_t lastnon(unsigned const char *src, size_t len, unsigned char c);
 
-void strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG_PTR len);
-
 CK_RV noop_create_mutex(void **mutex);
 CK_RV noop_destroy_mutex(void *mutex);
 CK_RV noop_mutex_fn(void *mutex);
@@ -50,7 +48,5 @@ CK_RV native_lock_mutex(void *mutex);
 CK_RV native_unlock_mutex(void *mutex);
 
 CK_RV check_mutex(void *mutex);
-
-CK_RV verify_signature(ykcs11_session_t *session, CK_BYTE_PTR signature, CK_ULONG signature_len);
 
 #endif

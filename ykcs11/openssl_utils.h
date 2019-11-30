@@ -70,9 +70,11 @@ CK_RV do_pkcs_1_digest_info(CK_BYTE_PTR in, CK_ULONG in_len, int nid, CK_BYTE_PT
 CK_RV do_pkcs_pss(ykcs11_evp_pkey_t *key, CK_BYTE_PTR in, CK_ULONG in_len, int nid,
                   CK_BYTE_PTR out, CK_ULONG_PTR out_len);
 
-CK_RV do_md_init(ykcs11_hash_t hash, ykcs11_md_ctx_t **ctx);
+CK_RV do_md_init(const ykcs11_md_t *md, ykcs11_md_ctx_t **ctx);
 CK_RV do_md_update(ykcs11_md_ctx_t *ctx, CK_BYTE_PTR in, CK_ULONG in_len);
 CK_RV do_md_finalize(ykcs11_md_ctx_t *ctx, CK_BYTE_PTR out, CK_ULONG_PTR out_len, int *nid);
-CK_RV do_md_cleanup(ykcs11_md_ctx_t *ctx);
+
+CK_RV do_apply_DER_encoding_to_ECSIG(CK_BYTE_PTR signature, CK_ULONG_PTR len);
+CK_RV do_strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG_PTR len, CK_ULONG sig_len);
 
 #endif

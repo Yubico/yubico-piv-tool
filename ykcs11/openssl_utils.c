@@ -620,38 +620,7 @@ CK_RV do_pkcs_pss(ykcs11_evp_pkey_t *key, CK_BYTE_PTR in, CK_ULONG in_len,
   return CKR_OK;
 }
 
-CK_RV do_md_init(ykcs11_hash_t hash, ykcs11_md_ctx_t **ctx) {
-
-  const EVP_MD *md;
-
-  switch (hash) {
-  case YKCS11_NO_HASH:
-    return CKR_FUNCTION_FAILED;
-
-  case YKCS11_SHA1:
-    md = EVP_sha1();
-    break;
-
-    //case YKCS11_SHA224:
-
-  case YKCS11_SHA256:
-    md = EVP_sha256();
-    break;
-
-  case YKCS11_SHA384:
-    md = EVP_sha384();
-    break;
-
-  case YKCS11_SHA512:
-    md = EVP_sha512();
-    break;
-
-  //case YKCS11_RIPEMD128_RSA_PKCS_HASH:
-  //case YKCS11_RIPEMD160_HASH:
-
-  default:
-    return CKR_FUNCTION_FAILED;
-  }
+CK_RV do_md_init(const ykcs11_md_t *md, ykcs11_md_ctx_t **ctx) {
 
   *ctx = EVP_MD_CTX_create();
 
@@ -699,9 +668,90 @@ CK_RV do_md_finalize(ykcs11_md_ctx_t *ctx, CK_BYTE_PTR out, CK_ULONG_PTR out_len
   return CKR_OK;
 }
 
-CK_RV do_md_cleanup(ykcs11_md_ctx_t *ctx) {
 
-  EVP_MD_CTX_destroy(ctx);
+CK_RV do_apply_DER_encoding_to_ECSIG(CK_BYTE_PTR signature, CK_ULONG_PTR signature_len) {
+
+  ECDSA_SIG *sig = ECDSA_SIG_new();
+  CK_RV rv = CKR_FUNCTION_FAILED;
+
+  if (sig == NULL) {
+    return rv;
+  }
+
+  BIGNUM *r = BN_bin2bn(signature, *signature_len / 2, NULL);
+  BIGNUM *s = BN_bin2bn(signature + *signature_len / 2, *signature_len / 2, NULL);
+  if (r == NULL || s == NULL) {
+    goto adete_out;
+  }
+
+  if (ECDSA_SIG_set0(sig, r, s) == 0) {
+    goto adete_out;
+  }
+
+  r = s = NULL;
+
+  CK_BYTE_PTR p = signature;
+
+  int len = i2d_ECDSA_SIG(sig, &signature);
+
+  if (len <= 0) {
+    goto adete_out;
+  } else {
+    *signature_len = len;
+    rv = CKR_OK;
+  }
+
+adete_out:
+  if (sig != NULL) {
+    ECDSA_SIG_free(sig);
+  }
+  if (r != NULL) {
+    BN_free(r);
+  }
+  if (s != NULL) {
+    BN_free(s);
+  }
+
+  return rv;
+}
+
+static int BN_bn2bin_fixed(const BIGNUM *bn, CK_BYTE_PTR out, CK_ULONG len) {
+
+  CK_BYTE buf[BN_num_bytes(bn)];
+  int actual = BN_bn2bin(bn, buf);
+  if(actual <= 0)
+    return actual;
+  if(actual < len) {
+    memset(out,  0, len - actual);
+    memcpy(out + len - actual, buf, actual);
+  } else {
+    for(CK_ULONG i = 0; i < actual - len; i++) {
+      if(buf[i])
+        return -1; // Non-zero byte would have been lost
+    }
+    memcpy(out, buf + actual - len, len);
+  }
+  return len;
+}
+
+CK_RV do_strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG_PTR len, CK_ULONG sig_len) {
+
+  const CK_BYTE *p = data;
+
+  ECDSA_SIG *sig = d2i_ECDSA_SIG(NULL, &p, *len);
+  if(sig == NULL)
+    return CKR_DATA_INVALID;
+
+  const BIGNUM *x, *y;
+  ECDSA_SIG_get0(sig, &x, &y);
+
+  if(BN_bn2bin_fixed(x, data, sig_len / 2) <= 0)
+    return CKR_DATA_INVALID;
+
+  if(BN_bn2bin_fixed(y, data + sig_len / 2, sig_len / 2) <= 0)
+    return CKR_DATA_INVALID;
+
+  *len = sig_len;
 
   return CKR_OK;
 }
