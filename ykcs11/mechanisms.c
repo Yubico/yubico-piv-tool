@@ -579,10 +579,9 @@ CK_RV apply_verify_mechanism_final(op_info_t *op_info, CK_BYTE_PTR sig, CK_ULONG
     rc = EVP_PKEY_verify(op_info->op.verify.pkey_ctx, sig, sig_len, op_info->buf, op_info->buf_len);
   }
 
-  if(rc < 0)
-    return CKR_DATA_INVALID;
-  if(rc == 0)
+  if(rc <= 0)
     return CKR_SIGNATURE_INVALID;
+
   return CKR_OK;
 }
 
