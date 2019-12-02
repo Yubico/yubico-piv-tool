@@ -80,11 +80,6 @@ typedef struct {
 } verify_info_t;
 
 typedef struct {
-  CK_ULONG          hash_len; // Length in bits
-  ykcs11_md_ctx_t   *md_ctx;  // Digest context
-} hash_info_t;
-
-typedef struct {
   CK_BYTE  key_id;
 } decrypt_info_t;
 
@@ -93,12 +88,17 @@ typedef struct {
   CK_ULONG padding; // padding in the rsa case
 } encrypt_info_t;
 
+typedef struct {
+  CK_ULONG          length; // Length in bits
+  ykcs11_md_ctx_t   *md_ctx;  // Digest context
+} digest_info_t;
+
 typedef union {
   sign_info_t    sign;
   verify_info_t  verify;
-  hash_info_t    hash;
   decrypt_info_t decrypt;
   encrypt_info_t encrypt;
+  digest_info_t  digest;
 } op_t;
 
 typedef struct {

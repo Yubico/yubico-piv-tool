@@ -2277,8 +2277,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestInit)(
   }
   memcpy(&session->op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
 
-  CK_ULONG hash_length = get_hash_length(pMechanism->mechanism);
-  session->op_info.op.hash.hash_len = hash_length;
+  CK_ULONG digest_len = get_hash_length(pMechanism->mechanism);
+  session->op_info.op.digest.length = digest_len;
 
   CK_RV rv;
   rv = apply_hash_mechanism_init(&session->op_info);
@@ -2330,17 +2330,17 @@ CK_DEFINE_FUNCTION(CK_RV, C_Digest)(
     // Just return the size of the digest
     DBG("The size of the digest will be %lu", session->op_info.op.hash.hash_len);
 
-    *pulDigestLen = session->op_info.op.hash.hash_len;
+    *pulDigestLen = session->op_info.op.digest.length;
 
     DOUT;
     return CKR_OK;
   }
 
-  if (*pulDigestLen < session->op_info.op.hash.hash_len) {
+  if (*pulDigestLen < session->op_info.op.digest.length) {
     DBG("pulDigestLen too small, data will not fit, expected = %lu, got "
-            "%lu", session->op_info.op.hash.hash_len, *pulDigestLen);
+            "%lu", session->op_info.op.hash.length, *pulDigestLen);
 
-    *pulDigestLen = session->op_info.op.hash.hash_len;
+    *pulDigestLen = session->op_info.op.digest.length;
     return CKR_BUFFER_TOO_SMALL;
   }
 
@@ -2452,19 +2452,19 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestFinal)(
 
   if (pDigest == NULL) {
     // Just return the size of the digest
-    DBG("The size of the digest will be %lu", session->op_info.op.hash.hash_len);
+    DBG("The size of the digest will be %lu", session->op_info.op.digest.length);
 
-    *pulDigestLen = session->op_info.op.hash.hash_len;
+    *pulDigestLen = session->op_info.op.digest.length;
 
     DOUT;
     return CKR_OK;
   }
 
-  if (*pulDigestLen < session->op_info.op.hash.hash_len) {
+  if (*pulDigestLen < session->op_info.op.digest.length) {
     DBG("pulDigestLen too small, data will not fit, expected = %lu, got "
-            "%lu", session->op_info.op.hash.hash_len, *pulDigestLen);
+            "%lu", session->op_info.op.digest.length, *pulDigestLen);
 
-    *pulDigestLen = session->op_info.op.hash.hash_len;
+    *pulDigestLen = session->op_info.op.digest.length;
     return CKR_BUFFER_TOO_SMALL;
   }
 
