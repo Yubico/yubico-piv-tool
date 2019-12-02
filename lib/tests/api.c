@@ -755,7 +755,7 @@ START_TEST(test_reset) {
   ck_assert_int_eq(tries_until_blocked, 3);
 
   // Authenticate and increase PIN retries
-  test_authenticate(0);
+  test_authenticate->fn(0);
   res = ykpiv_verify(g_state, "123456", NULL);
   ck_assert_int_eq(res, YKPIV_OK);
   res = ykpiv_set_pin_retries(g_state, 8, 3);
@@ -863,7 +863,7 @@ START_TEST(test_allocator) {
   // Verify we can communicate with device and make some allocations
   res = ykpiv_connect(g_state, NULL);
   ck_assert_int_eq(res, YKPIV_OK);
-  test_authenticate(0);
+  test_authenticate->fn(0);
   cert1 = alloc_auth_cert();
   cert2 = alloc_auth_cert();
 
