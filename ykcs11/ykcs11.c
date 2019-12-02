@@ -2270,15 +2270,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestInit)(
 
   DBG("Trying to hash some data with mechanism %lu", pMechanism->mechanism);
 
-  // Check if mechanism is supported
-  if (check_hash_mechanism(session, pMechanism) != CKR_OK) {
-    DBG("Mechanism %lu is not supported either by the token or the module", pMechanism->mechanism);
-    return CKR_MECHANISM_INVALID;
-  }
   memcpy(&session->op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
-
-  CK_ULONG digest_len = get_hash_length(pMechanism->mechanism);
-  session->op_info.op.digest.length = digest_len;
 
   CK_RV rv;
   rv = apply_hash_mechanism_init(&session->op_info);
@@ -2287,7 +2279,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestInit)(
     return rv;
   }
 
-  session->op_info.buf_len = 0;
   session->op_info.type = YKCS11_HASH;
 
   DOUT;
@@ -2317,7 +2308,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Digest)(
   }
 
   if (session->op_info.type != YKCS11_HASH) {
-    DBG("Other operation in process");
+    DBG("Digest operation not in process");
     return CKR_OPERATION_ACTIVE;
   }
 
@@ -2328,23 +2319,17 @@ CK_DEFINE_FUNCTION(CK_RV, C_Digest)(
 
   if (pDigest == NULL) {
     // Just return the size of the digest
-    DBG("The size of the digest will be %lu", session->op_info.op.hash.hash_len);
-
+    DBG("The size of the digest will be %lu", session->op_info.op.digest.length);
     *pulDigestLen = session->op_info.op.digest.length;
-
-    DOUT;
     return CKR_OK;
   }
 
   if (*pulDigestLen < session->op_info.op.digest.length) {
     DBG("pulDigestLen too small, data will not fit, expected = %lu, got "
-            "%lu", session->op_info.op.hash.length, *pulDigestLen);
-
+            "%lu", session->op_info.op.digest.length, *pulDigestLen);
     *pulDigestLen = session->op_info.op.digest.length;
     return CKR_BUFFER_TOO_SMALL;
   }
-
-  DBG("Sending %lu bytes to digest", ulDataLen);
 
   CK_RV rv;
   rv = apply_hash_mechanism_update(&session->op_info, pData, ulDataLen);
@@ -2353,14 +2338,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_Digest)(
     return rv;
   }
 
-  rv = apply_hash_mechanism_finalize(&session->op_info);
+  rv = apply_hash_mechanism_finalize(&session->op_info, pDigest, pulDigestLen);
   if (rv != CKR_OK) {
     DBG("Unable to finalize digest operation");
     return rv;
   }
-
-  memcpy(pDigest, session->op_info.buf, session->op_info.buf_len);
-  *pulDigestLen = session->op_info.buf_len;
 
   DBG("Got %lu bytes back", *pulDigestLen);
 
@@ -2393,7 +2375,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestUpdate)(
   }
 
   if (session->op_info.type != YKCS11_HASH) {
-    DBG("Other operation in process");
+    DBG("Digest operation not in process");
     return CKR_OPERATION_ACTIVE;
   }
 
@@ -2441,7 +2423,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestFinal)(
   }
 
   if (session->op_info.type != YKCS11_HASH) {
-    DBG("Other operation in process");
+    DBG("Digest operation not in process");
     return CKR_OPERATION_ACTIVE;
   }
 
@@ -2463,23 +2445,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestFinal)(
   if (*pulDigestLen < session->op_info.op.digest.length) {
     DBG("pulDigestLen too small, data will not fit, expected = %lu, got "
             "%lu", session->op_info.op.digest.length, *pulDigestLen);
-
     *pulDigestLen = session->op_info.op.digest.length;
     return CKR_BUFFER_TOO_SMALL;
   }
 
-  DBG("Sending %lu bytes to digest", sizeof(session->op_info.op.hash.md_ctx));
-
-  rv = apply_hash_mechanism_finalize(&session->op_info);
+  rv = apply_hash_mechanism_finalize(&session->op_info, pDigest, pulDigestLen);
   if (rv != CKR_OK) {
     DBG("Unable to finalize digest operation");
     return rv;
   }
-
-  memcpy(pDigest, session->op_info.buf, session->op_info.buf_len);
-  *pulDigestLen = session->op_info.buf_len;
-
-  DBG("Got %lu bytes back", *pulDigestLen);
 
   session->op_info.type = YKCS11_NOOP;
 
@@ -2667,7 +2641,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     memcpy(session->op_info.buf, pData, ulDataLen);
   }
 
-  if (apply_sign_mechanism_finalize(key, &session->op_info) != CKR_OK) {
+  if (apply_sign_mechanism_finalize(&session->op_info, key) != CKR_OK) {
     DBG("Unable to finalize signing operation");
     rv = CKR_FUNCTION_FAILED;
     goto sign_out;
@@ -2851,7 +2825,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
     return CKR_BUFFER_TOO_SMALL;
   }
 
-  if (apply_sign_mechanism_finalize(key, &session->op_info) != CKR_OK) {
+  if (apply_sign_mechanism_finalize(&session->op_info, key) != CKR_OK) {
     DBG("Unable to finalize signing operation");
     rv = CKR_FUNCTION_FAILED;
     goto sign_out;

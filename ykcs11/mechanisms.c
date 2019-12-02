@@ -344,7 +344,7 @@ CK_RV apply_sign_mechanism_update(op_info_t *op_info, CK_BYTE_PTR in, CK_ULONG i
   }
 }
 
-CK_RV apply_sign_mechanism_finalize(ykcs11_evp_pkey_t *key, op_info_t *op_info) {
+CK_RV apply_sign_mechanism_finalize(op_info_t *op_info, ykcs11_evp_pkey_t *key) {
 
   CK_RV    rv;
   int      nid = NID_undef;
@@ -777,59 +777,9 @@ CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
 
 }
 
-CK_RV check_hash_mechanism(const ykcs11_session_t *s, CK_MECHANISM_PTR m) {
-
-  CK_ULONG          i;
-  CK_BBOOL          supported = CK_FALSE;
-  CK_MECHANISM_INFO info;
-
-  // Check if the mechanism is supported by the module
-  for (i = 0; i < sizeof(hash_mechanisms) / sizeof(CK_MECHANISM_TYPE); i++) {
-    if (m->mechanism == hash_mechanisms[i]) {
-      supported = CK_TRUE;
-      break;
-    }
-  }
-  if (supported == CK_FALSE)
-    return CKR_MECHANISM_INVALID;
-
-  // Check if the mechanism is supported by the token
-  if (get_token_mechanism_info(m->mechanism, &info) != CKR_OK)
-    return CKR_MECHANISM_INVALID;
-
-  // TODO: also check that parametes make sense if any? And key size is in [min max]
-
-  return CKR_OK;
-
-}
-
-CK_ULONG get_hash_length(CK_MECHANISM_TYPE m) {
-
-  switch (m) {
-    case CKM_SHA_1:
-      return 20;
-
-    case CKM_SHA256:
-      return 32;
-
-    case CKM_SHA384:
-      return 48;
-
-    case CKM_SHA512:
-      return 64;
-
-    default:
-      break;
-  }
-
-  return 0;
-}
-
 CK_RV apply_hash_mechanism_init(op_info_t *op_info) {
 
   const EVP_MD *md = NULL;
-
-  op_info->buf_len = 0;
 
   switch (op_info->mechanism.mechanism) {
     case CKM_SHA_1:
@@ -853,51 +803,46 @@ CK_RV apply_hash_mechanism_init(op_info_t *op_info) {
       return CKR_MECHANISM_INVALID;
   }
 
-  op_info->op.hash.md_ctx = EVP_MD_CTX_create();
+  op_info->op.digest.length = EVP_MD_size(md);
+  op_info->op.digest.md_ctx = EVP_MD_CTX_create();
 
-  if (EVP_DigestInit_ex(op_info->op.hash.md_ctx, md, NULL) == 0) {
-    EVP_MD_CTX_destroy(op_info->op.hash.md_ctx);
-    op_info->op.hash.md_ctx = NULL;
+  if (EVP_DigestInit_ex(op_info->op.digest.md_ctx, md, NULL) <= 0) {
+    EVP_MD_CTX_destroy(op_info->op.digest.md_ctx);
+    op_info->op.digest.md_ctx = NULL;
     return CKR_FUNCTION_FAILED;
   }
 
+  DBG("Initialized %s digest of length %lu", EVP_MD_name(md), op_info->op.digest.length);
   return CKR_OK;
 }
 
 CK_RV apply_hash_mechanism_update(op_info_t *op_info,
                                     CK_BYTE_PTR in, CK_ULONG in_len) {
 
-  switch (op_info->mechanism.mechanism) {
-    case CKM_SHA_1:
-    case CKM_SHA256:
-    case CKM_SHA384:
-    case CKM_SHA512:
-      if (EVP_DigestUpdate(op_info->op.hash.md_ctx, in, in_len) != 1) {
-        EVP_MD_CTX_destroy(op_info->op.hash.md_ctx);
-        op_info->op.hash.md_ctx = NULL;
-        return CKR_FUNCTION_FAILED;
-      }
-      break;
-
-    default:
-      return CKR_FUNCTION_FAILED;
-  }
-
-  return CKR_OK;
-}
-
-CK_RV apply_hash_mechanism_finalize(op_info_t *op_info) {
-
-  int ret;
-  ret = EVP_DigestFinal_ex(op_info->op.hash.md_ctx, op_info->buf, (unsigned int *) &op_info->buf_len);
-
-  EVP_MD_CTX_destroy(op_info->op.hash.md_ctx);
-  op_info->op.hash.md_ctx = NULL;
-
-  if (ret != 1) {
+  if (EVP_DigestUpdate(op_info->op.digest.md_ctx, in, in_len) <= 0) {
+    EVP_MD_CTX_destroy(op_info->op.digest.md_ctx);
+    op_info->op.digest.md_ctx = NULL;
     return CKR_FUNCTION_FAILED;
   }
 
+  DBG("Updated digest with %lu bytes of data", in_len);
+  return CKR_OK;
+}
+
+CK_RV apply_hash_mechanism_finalize(op_info_t *op_info, CK_BYTE_PTR pDigest, CK_ULONG_PTR pDigestLength) {
+
+  unsigned int cbLength = *pDigestLength;
+  int ret = EVP_DigestFinal_ex(op_info->op.digest.md_ctx, pDigest, &cbLength);
+
+  EVP_MD_CTX_destroy(op_info->op.digest.md_ctx);
+  op_info->op.digest.md_ctx = NULL;
+
+  if (ret <= 0) {
+    return CKR_FUNCTION_FAILED;
+  }
+
+  DBG("Finalized digest with %u bytes of data", cbLength);
+  *pDigestLength = cbLength;
   return CKR_OK;
 }
 
