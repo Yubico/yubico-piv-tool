@@ -30,7 +30,7 @@ static CK_BYTE SHA512_DIGEST[] = {0x30, 0x51, 0x30, 0x0D, 0x06,
 
 #define asrt(c, e, m) _asrt(__LINE__, c, e, m);
 
-static void _asrt(int line, CK_ULONG check, CK_ULONG expected, CK_CHAR_PTR msg) {
+static void _asrt(int line, CK_ULONG check, CK_ULONG expected, const char *msg) {
 
   if (check == expected)
     return;
