@@ -2990,6 +2990,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
     return rv;
   }
 
+  session->op_info.type = YKCS11_VERIFY;
+
   DOUT;
   return CKR_OK;
 }

@@ -558,7 +558,6 @@ CK_RV apply_verify_mechanism_init(op_info_t *op_info, ykcs11_evp_pkey_t *key) {
     }
   }
 
-  op_info->type = YKCS11_VERIFY;
   op_info->buf_len = 0;
 
   return CKR_OK;
