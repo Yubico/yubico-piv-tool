@@ -449,6 +449,7 @@ CK_RV verify_mechanism_cleanup(op_info_t *op_info) {
   } else if(op_info->op.verify.pkey_ctx != NULL) {
     EVP_PKEY_CTX_free(op_info->op.verify.pkey_ctx);
   }
+  op_info->op.verify.pkey_ctx = NULL;
   op_info->buf_len = 0;
 
   return CKR_OK;
@@ -494,7 +495,7 @@ CK_RV apply_verify_mechanism_init(op_info_t *op_info, ykcs11_evp_pkey_t *key) {
       return CKR_MECHANISM_INVALID;
   }
 
-  CK_KEY_TYPE key_type = do_get_key_type(key);
+  int key_type = EVP_PKEY_base_id(key);
   CK_ULONG padding = 0;
 
   switch (op_info->mechanism.mechanism) {
@@ -503,7 +504,7 @@ CK_RV apply_verify_mechanism_init(op_info_t *op_info, ykcs11_evp_pkey_t *key) {
     case CKM_SHA256_RSA_PKCS:
     case CKM_SHA384_RSA_PKCS:
     case CKM_SHA512_RSA_PKCS:
-      if(key_type != CKK_RSA) {
+      if(key_type != EVP_PKEY_RSA) {
         DBG("Mechanism %lu requires an RSA key", op_info->mechanism.mechanism);
         return CKR_KEY_TYPE_INCONSISTENT;
       }
@@ -515,7 +516,7 @@ CK_RV apply_verify_mechanism_init(op_info_t *op_info, ykcs11_evp_pkey_t *key) {
     case CKM_SHA256_RSA_PKCS_PSS:
     case CKM_SHA384_RSA_PKCS_PSS:
     case CKM_SHA512_RSA_PKCS_PSS:
-      if(key_type != CKK_RSA) {
+      if(key_type != EVP_PKEY_RSA) {
         DBG("Mechanism %lu requires an RSA key", op_info->mechanism.mechanism);
         return CKR_KEY_TYPE_INCONSISTENT;
       }
@@ -523,7 +524,7 @@ CK_RV apply_verify_mechanism_init(op_info_t *op_info, ykcs11_evp_pkey_t *key) {
       break;
 
     default:
-      if(key_type != CKK_ECDSA) {
+      if(key_type != EVP_PKEY_EC) {
         DBG("Mechanism %lu requires an ECDSA key", op_info->mechanism.mechanism);
         return CKR_KEY_TYPE_INCONSISTENT;
       }
