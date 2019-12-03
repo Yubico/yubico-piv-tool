@@ -3,6 +3,8 @@
 
 void dump_hex(const unsigned char *buf, unsigned int len, FILE *output, int space);
 
+void test_digest_func(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_MECHANISM_TYPE mech_type);
+
 EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
                       int curve, CK_ULONG key_len, CK_BYTE* ec_params, CK_ULONG ec_params_len, 
                       CK_OBJECT_HANDLE_PTR obj_cert, CK_OBJECT_HANDLE_PTR obj_pvtkey);
@@ -17,8 +19,7 @@ void generate_rsa_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
                       CK_OBJECT_HANDLE_PTR obj_pubkey, CK_OBJECT_HANDLE_PTR obj_pvtkey);
 
 void test_ec_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
-                   EC_KEY *eck, CK_MECHANISM_TYPE mech_type, CK_ULONG key_len, CK_ULONG sig_len, 
-                   CK_ULONG der_encoded_len);
+                   EC_KEY *eck, CK_MECHANISM_TYPE mech_type, CK_ULONG key_len);
 
 void test_rsa_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
                     EVP_PKEY* evp, CK_MECHANISM_TYPE mech_type);

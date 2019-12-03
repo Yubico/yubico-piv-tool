@@ -134,6 +134,142 @@ void destroy_test_objects_by_privkey(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HAND
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
 }
 
+static CK_RV get_hash(CK_MECHANISM_TYPE mech, 
+                    CK_BYTE* data, CK_ULONG data_len, 
+                    CK_BYTE* hdata, CK_ULONG* hdata_len) {
+  if(data == NULL || hdata == NULL || hdata_len == NULL) {
+    return CKR_FUNCTION_FAILED;
+  }
+
+  CK_BYTE hashed_data[512];
+  switch(mech) {
+    case CKM_SHA_1:
+      SHA1(data, data_len, hashed_data);
+      memcpy(hdata, hashed_data, 20);
+      *hdata_len = 20;
+      break;
+    case CKM_SHA256:
+      SHA256(data, data_len, hashed_data);
+      memcpy(hdata, hashed_data, 32);
+      *hdata_len = 32;
+      break;
+    case CKM_SHA384:
+      SHA384(data, data_len, hashed_data);
+      memcpy(hdata, hashed_data, 48);
+      *hdata_len = 48;
+      break;
+    case CKM_SHA512:
+      SHA512(data, data_len, hashed_data);
+      memcpy(hdata, hashed_data, 64);
+      *hdata_len = 64;
+      break;
+    default:
+      break;
+  }
+  return CKR_OK;
+}
+
+static CK_RV get_digest(CK_MECHANISM_TYPE mech, 
+                       CK_BYTE* data, CK_ULONG data_len, 
+                       CK_BYTE* hdata, CK_ULONG* hdata_len) {
+  if(data == NULL || hdata == NULL || hdata_len == NULL) {
+    return CKR_FUNCTION_FAILED;
+  }
+
+  CK_BYTE hashed_data[512];
+  switch(mech) {
+    case CKM_ECDSA:
+    case CKM_RSA_PKCS:
+      memcpy(hdata, data, data_len);
+      *hdata_len = data_len;
+      break;
+    case CKM_ECDSA_SHA1:
+    case CKM_SHA1_RSA_PKCS:
+      SHA1(data, data_len, hashed_data);
+      memcpy(hdata, SHA1_DIGEST, sizeof(SHA1_DIGEST));
+      memcpy(hdata + sizeof(SHA1_DIGEST), hashed_data, 20);
+      *hdata_len = sizeof(SHA1_DIGEST) + 20;
+      break;
+    case CKM_ECDSA_SHA256:
+    case CKM_SHA256_RSA_PKCS:
+      SHA256(data, data_len, hashed_data);
+      memcpy(hdata, SHA256_DIGEST, sizeof(SHA256_DIGEST));
+      memcpy(hdata + sizeof(SHA256_DIGEST), hashed_data, 32);
+      *hdata_len = sizeof(SHA256_DIGEST) + 32;
+      break;
+    case CKM_ECDSA_SHA384:
+    case CKM_SHA384_RSA_PKCS:
+      SHA384(data, data_len, hashed_data);
+      memcpy(hdata, SHA384_DIGEST, sizeof(SHA384_DIGEST));
+      memcpy(hdata + sizeof(SHA384_DIGEST), hashed_data, 48);
+      *hdata_len = sizeof(SHA384_DIGEST) + 48;
+      break;
+    case CKM_ECDSA_SHA512:
+    case  CKM_SHA512_RSA_PKCS:
+      SHA512(data, data_len, hashed_data);
+      memcpy(hdata, SHA512_DIGEST, sizeof(SHA512_DIGEST));
+      memcpy(hdata + sizeof(SHA512_DIGEST), hashed_data, 64);
+      *hdata_len = sizeof(SHA512_DIGEST) + 64;
+      break;
+    default:
+      break;
+  }
+  return CKR_OK;
+}
+
+const EVP_MD* get_md_type(CK_MECHANISM_TYPE mech) {
+  switch(mech) {
+    case CKM_ECDSA_SHA1:
+    case CKM_SHA1_RSA_PKCS:
+      return EVP_sha1();
+    case CKM_ECDSA_SHA256:
+    case CKM_SHA256_RSA_PKCS:
+      return EVP_sha256();
+    case CKM_ECDSA_SHA384:
+    case CKM_SHA384_RSA_PKCS:
+      return EVP_sha384();
+    case CKM_ECDSA_SHA512:
+    case  CKM_SHA512_RSA_PKCS:
+      return EVP_sha512();
+    default:
+      return NULL;
+  }
+}
+
+void test_digest_func(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_MECHANISM_TYPE mech_type) {
+  CK_BYTE     i;
+  CK_BYTE     data[32];
+  CK_ULONG    data_len = sizeof(data);
+  CK_BYTE     digest[128];
+  CK_ULONG    digest_len;
+  CK_BYTE     digest_update[128];
+  CK_ULONG    digest_update_len;
+  CK_BYTE     hdata[128];
+  CK_ULONG    hdata_len;
+
+  CK_MECHANISM mech = {mech_type, NULL};
+
+  for(i=0; i<10; i++) {
+    if(RAND_bytes(data, data_len) == -1)
+        exit(EXIT_FAILURE);
+
+    asrt(get_hash(mech_type, data, data_len, hdata, &hdata_len), CKR_OK, "GET HASH");
+
+    asrt(funcs->C_DigestInit(session, &mech), CKR_OK, "DIGEST INIT");  
+    digest_len = sizeof(digest);
+    asrt(funcs->C_Digest(session, data, data_len, digest, &digest_len), CKR_OK, "DIGEST");
+    asrt(digest_len, hdata_len, "DIGEST LEN");
+    asrt(memcmp(hdata, digest, digest_len), 0, "DIGEST VALUE");
+
+    digest_update_len = sizeof(digest_update);
+    asrt(funcs->C_DigestInit(session, &mech), CKR_OK, "DIGEST INIT");
+    asrt(funcs->C_DigestUpdate(session, data, 10), CKR_OK, "DIGEST UPDATE");
+    asrt(funcs->C_DigestUpdate(session, data+10, 22), CKR_OK, "DIGEST UPDATE");
+    asrt(funcs->C_DigestFinal(session, digest_update, &digest_update_len), CKR_OK, "DIGEST FINAL");
+    asrt(digest_update_len, hdata_len, "DIGEST LEN");
+    asrt(memcmp(hdata, digest_update, digest_update_len), 0, "DIGEST VALUE");
+  }
+}
 
 EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int curve, CK_ULONG key_len, 
                       CK_BYTE* ec_params, CK_ULONG ec_params_len, CK_OBJECT_HANDLE_PTR obj_cert, CK_OBJECT_HANDLE_PTR obj_pvtkey) {
@@ -401,59 +537,6 @@ void generate_rsa_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
 }
 
-const EVP_MD *get_hash(CK_MECHANISM_TYPE mech, 
-                       CK_BYTE* data, CK_ULONG data_len, 
-                       CK_BYTE* hdata, CK_ULONG* hdata_len) {
-  CK_BYTE hashed_data[512];
-  switch(mech) {
-    case CKM_ECDSA:
-    case CKM_RSA_PKCS:
-      if(hdata != NULL) {
-        memcpy(hdata, data, data_len);
-        *hdata_len = data_len;
-      }
-      return NULL;
-    case CKM_ECDSA_SHA1:
-    case CKM_SHA1_RSA_PKCS:
-      if(hdata != NULL) {
-        SHA1(data, data_len, hashed_data);
-        memcpy(hdata, SHA1_DIGEST, sizeof(SHA1_DIGEST));
-        memcpy(hdata + sizeof(SHA1_DIGEST), hashed_data, 20);
-        *hdata_len = sizeof(SHA1_DIGEST) + 20;
-      }
-      return EVP_sha1();
-    case CKM_ECDSA_SHA256:
-    case CKM_SHA256_RSA_PKCS:
-      if(hdata != NULL) {
-        SHA256(data, data_len, hashed_data);
-        memcpy(hdata, SHA256_DIGEST, sizeof(SHA256_DIGEST));
-        memcpy(hdata + sizeof(SHA256_DIGEST), hashed_data, 32);
-        *hdata_len = sizeof(SHA256_DIGEST) + 32;
-      }
-      return EVP_sha256();
-    case CKM_ECDSA_SHA384:
-    case CKM_SHA384_RSA_PKCS:
-      if(hdata != NULL) {
-        SHA384(data, data_len, hashed_data);
-        memcpy(hdata, SHA384_DIGEST, sizeof(SHA384_DIGEST));
-        memcpy(hdata + sizeof(SHA384_DIGEST), hashed_data, 48);
-        *hdata_len = sizeof(SHA384_DIGEST) + 48;
-      }
-      return EVP_sha384();
-    case CKM_ECDSA_SHA512:
-    case  CKM_SHA512_RSA_PKCS:
-      if(hdata != NULL) {
-        SHA384(data, data_len, hashed_data);
-        memcpy(hdata, SHA512_DIGEST, sizeof(SHA512_DIGEST));
-        memcpy(hdata + sizeof(SHA512_DIGEST), hashed_data, 64);
-        *hdata_len = sizeof(SHA512_DIGEST) + 64;
-      }
-      return EVP_sha512();
-    default:
-      return NULL;
-  }
-}
-
 static CK_BBOOL construct_der_encoded_sig(CK_BYTE sig[], CK_BYTE_PTR der_encoded, CK_ULONG key_len) {
     CK_ULONG    der_encoded_len;
     CK_BYTE_PTR der_ptr;
@@ -507,18 +590,17 @@ static CK_BBOOL construct_der_encoded_sig(CK_BYTE sig[], CK_BYTE_PTR der_encoded
 }
 
 void test_ec_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
-                   EC_KEY *eck, CK_MECHANISM_TYPE mech_type, CK_ULONG key_len, CK_ULONG sig_len, 
-                   CK_ULONG der_encoded_len) {
+                   EC_KEY *eck, CK_MECHANISM_TYPE mech_type, CK_ULONG key_len) {
                     
   CK_BYTE     i, j;
   CK_BYTE     data[32];
   CK_ULONG    data_len;
   CK_BYTE     hdata[64];
   unsigned int    hdata_len;  
-  CK_BYTE     sig[sig_len];
+  CK_BYTE     sig[100];
   CK_ULONG    recv_len;
 
-  CK_BYTE     der_encoded[der_encoded_len];
+  CK_BYTE     der_encoded[116];
   const EVP_MD *md;
   EVP_MD_CTX *mdctx;
 
@@ -548,7 +630,7 @@ void test_ec_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJE
           SHA384(data, data_len, hdata);
           hdata_len = 48;
         } else {
-          md = get_hash(mech_type, NULL, 0, NULL, NULL);
+          md = get_md_type(mech_type);
           mdctx = EVP_MD_CTX_create();
           EVP_DigestInit_ex(mdctx, md, NULL);
           EVP_DigestUpdate(mdctx, data, data_len);
@@ -617,7 +699,7 @@ void test_rsa_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJ
 
       // External verification
       if(evp != NULL) {
-        get_hash(mech_type, data, sizeof(data), hdata, &hdata_len);
+        asrt(get_digest(mech_type, data, sizeof(data), hdata, &hdata_len), CKR_OK, "GET DIGEST");
         ctx = EVP_PKEY_CTX_new(evp, NULL);
         asrt(ctx != NULL, 1, "EVP_KEY_CTX_new");
         asrt(EVP_PKEY_verify_init(ctx) > 0, 1, "EVP_KEY_verify_init");
