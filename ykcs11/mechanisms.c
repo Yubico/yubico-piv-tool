@@ -262,9 +262,9 @@ static int rsa_priv_enc(int flen, const unsigned char *from, unsigned char *to, 
       DBG("Unknown padding type %d", padding);
       return -1;
   }
-  if(ret < 0) {
-    DBG("Failed to apply padding type %d: %d", padding, ret);
-    return ret;
+  if(ret <= 0) {
+    DBG("Failed to apply padding type %d", padding);
+    return -1;
   }
   ykpiv_rc rc = ykpiv_sign_data(session->slot->piv_state, buf, siglen, to, &siglen, session->op_info.op.sign.algorithm, session->op_info.op.sign.key);
   if(rc == YKPIV_OK) {
@@ -472,7 +472,7 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
   }
 
   if(rc <= 0) {
-    return CKR_SIGNATURE_INVALID;
+    return CKR_DATA_LEN_RANGE;
   }
   
   switch(session->op_info.op.sign.algorithm) {
@@ -521,10 +521,19 @@ CK_RV verify_mechanism_init(op_info_t *op_info, ykcs11_pkey_t *key) {
   op_info->op.verify.pkey_ctx = NULL;
 
   switch (op_info->mechanism.mechanism) {
+    case CKM_RSA_X_509:
     case CKM_RSA_PKCS:
     case CKM_RSA_PKCS_PSS:
     case CKM_ECDSA:
       // No hash required for these mechanisms
+      break;
+
+    case CKM_MD5_RSA_PKCS:
+      md = EVP_md5();
+      break;
+
+    case CKM_RIPEMD160_RSA_PKCS:
+      md = EVP_ripemd160();
       break;
 
     case CKM_SHA1_RSA_PKCS:
@@ -560,8 +569,18 @@ CK_RV verify_mechanism_init(op_info_t *op_info, ykcs11_pkey_t *key) {
   CK_ULONG padding = 0;
 
   switch (op_info->mechanism.mechanism) {
+    case CKM_RSA_X_509:
+      if(key_type != CKK_RSA) {
+        DBG("Mechanism %lu requires an RSA key", op_info->mechanism.mechanism);
+        return CKR_KEY_TYPE_INCONSISTENT;
+      }
+      padding = RSA_NO_PADDING;
+    break;
+
     case CKM_RSA_PKCS:
+    case CKM_MD5_RSA_PKCS:
     case CKM_SHA1_RSA_PKCS:
+    case CKM_RIPEMD160_RSA_PKCS:
     case CKM_SHA256_RSA_PKCS:
     case CKM_SHA384_RSA_PKCS:
     case CKM_SHA512_RSA_PKCS:
