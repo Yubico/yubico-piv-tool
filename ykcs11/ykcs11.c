@@ -1719,7 +1719,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptInit)(
     DBG("Mechanism %lu is not supported either by the token or the module", pMechanism->mechanism);
     return CKR_MECHANISM_INVALID; // TODO: also the key has a list of allowed mechanisms, check that
   }
-  memcpy(&session->op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
+  session->op_info.mechanism = pMechanism->mechanism;
 
   CK_BYTE id = get_key_id(hKey);
   if (id == 0) {
@@ -1940,7 +1940,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
     DBG("Mechanism %lu is not supported either by the token or the module", pMechanism->mechanism);
     return CKR_MECHANISM_INVALID; // TODO: also the key has a list of allowed mechanisms, check that
   }
-  memcpy(&session->op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
+  session->op_info.mechanism = pMechanism->mechanism;
 
   CK_BYTE id = get_key_id(hKey);
   if (id == 0) {
@@ -2048,9 +2048,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
     }
   }
 
-  if(session->op_info.mechanism.mechanism == CKM_RSA_PKCS) {
+  if(session->op_info.mechanism == CKM_RSA_PKCS) {
     *pulDataLen = RSA_padding_check_PKCS1_type_2(dec, sizeof(dec), session->op_info.buf + 1, cbDataLen - 1, key_len/8);
-  } else if(session->op_info.mechanism.mechanism == CKM_RSA_X_509) {
+  } else if(session->op_info.mechanism == CKM_RSA_X_509) {
     memcpy(dec, session->op_info.buf, ulEncryptedDataLen);
     *pulDataLen = ulEncryptedDataLen;
   } else {
@@ -2213,9 +2213,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
     }
   }
 
-  if(session->op_info.mechanism.mechanism == CKM_RSA_PKCS) {
+  if(session->op_info.mechanism == CKM_RSA_PKCS) {
     *pulLastPartLen = RSA_padding_check_PKCS1_type_2(dec, sizeof(dec), session->op_info.buf + 1, cbDataLen - 1, key_len/8);
-  } else if(session->op_info.mechanism.mechanism == CKM_RSA_X_509) {
+  } else if(session->op_info.mechanism == CKM_RSA_X_509) {
     memcpy(dec, session->op_info.buf, session->op_info.buf_len);
     *pulLastPartLen = session->op_info.buf_len;
   } else {
@@ -2270,7 +2270,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestInit)(
 
   DBG("Trying to hash some data with mechanism %lu", pMechanism->mechanism);
 
-  memcpy(&session->op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
+  session->op_info.mechanism = pMechanism->mechanism;
 
   CK_RV rv;
   rv = hash_mechanism_init(&session->op_info);
@@ -2508,7 +2508,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
   }
 
   session->op_info.op.sign.key = piv_2_ykpiv(hKey);
-  memcpy(&session->op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
+  session->op_info.mechanism = pMechanism->mechanism;
   CK_BYTE id = get_key_id(hKey);
 
   if (sign_mechanism_init(session, session->pkeys[id]) != CKR_OK) {
@@ -2792,7 +2792,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
     return CKR_ARGUMENTS_BAD;
   }
 
-  memcpy(&session->op_info.mechanism, pMechanism, sizeof(CK_MECHANISM));
+  session->op_info.mechanism = pMechanism->mechanism;
   CK_BYTE id = get_key_id(hKey);
   
   CK_RV rv = verify_mechanism_init(&session->op_info, session->pkeys[id]);

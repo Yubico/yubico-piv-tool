@@ -33,13 +33,8 @@
 
 #include "ykcs11.h"
 
-CK_RV    check_sign_mechanism(const ykcs11_session_t *s, CK_MECHANISM_PTR m);
 CK_BBOOL is_RSA_mechanism(CK_MECHANISM_TYPE m);
-CK_BBOOL is_RSA_sign_mechanism(CK_MECHANISM_TYPE m);
-CK_BBOOL is_PSS_mechanism(CK_MECHANISM_TYPE m);
-CK_BBOOL is_EC_mechanism(CK_MECHANISM_TYPE m);
 CK_BBOOL is_EC_sign_mechanism(CK_MECHANISM_TYPE m);
-CK_BBOOL is_hashed_mechanism(CK_MECHANISM_TYPE m);
 
 CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key);
 CK_RV sign_mechanism_update(ykcs11_session_t *session, CK_BYTE_PTR in, CK_ULONG in_len);

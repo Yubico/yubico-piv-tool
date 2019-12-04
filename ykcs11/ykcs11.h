@@ -104,7 +104,7 @@ typedef union {
 
 typedef struct {
   ykcs11_op_type_t type;
-  CK_MECHANISM     mechanism;
+  CK_MECHANISM_TYPE mechanism;
   op_t             op;
   CK_BYTE          buf[YKCS11_OP_BUFSIZE];
   CK_ULONG         buf_len;
