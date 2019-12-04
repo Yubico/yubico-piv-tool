@@ -36,8 +36,6 @@
 #include "obj_types.h"
 #include "openssl_types.h"
 
-#define YKCS11_OP_BUFSIZE  4096
-
 typedef enum {
   YKCS11_PUBLIC,
   YKCS11_USER,
@@ -76,6 +74,7 @@ typedef struct {
 } sign_info_t;
 
 typedef struct {
+  CK_KEY_TYPE       key_type; // Key type
   ykcs11_pkey_ctx_t *pkey_ctx; // Signature context
   ykcs11_md_ctx_t   *md_ctx; // Digest context (null for non-hashed signatures)
 } verify_info_t;
@@ -106,7 +105,7 @@ typedef struct {
   ykcs11_op_type_t type;
   CK_MECHANISM_TYPE mechanism;
   op_t             op;
-  CK_BYTE          buf[YKCS11_OP_BUFSIZE];
+  CK_BYTE          buf[4096];
   CK_ULONG         buf_len;
 } op_info_t;
 

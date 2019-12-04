@@ -2511,9 +2511,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
   session->op_info.mechanism = pMechanism->mechanism;
   CK_BYTE id = get_key_id(hKey);
 
-  if (sign_mechanism_init(session, session->pkeys[id]) != CKR_OK) {
+  CK_RV rv = sign_mechanism_init(session, session->pkeys[id]);
+  if (rv != CKR_OK) {
     DBG("Unable to initialize signing operation");
-    return CKR_FUNCTION_FAILED;
+    sign_mechanism_cleanup(session);
+    return rv;
   }
 
   session->op_info.type = YKCS11_SIGN;
