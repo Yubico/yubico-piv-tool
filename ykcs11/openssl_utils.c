@@ -113,7 +113,7 @@ CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, ykcs11_x509_t **cert) {
 
 }
 
-CK_RV do_generate_ec_key(int nid, ykcs11_evp_pkey_t **pkey) {
+CK_RV do_generate_ec_key(int nid, ykcs11_pkey_t **pkey) {
   EC_GROUP *group = EC_GROUP_new_by_curve_name(nid);
   if(group == NULL)
     return CKR_HOST_MEMORY;
@@ -133,7 +133,7 @@ CK_RV do_generate_ec_key(int nid, ykcs11_evp_pkey_t **pkey) {
   return CKR_OK;
 }
 
-CK_RV do_create_ec_key(CK_BYTE_PTR point, CK_ULONG point_len, int nid, ykcs11_evp_pkey_t **pkey) {
+CK_RV do_create_ec_key(CK_BYTE_PTR point, CK_ULONG point_len, int nid, ykcs11_pkey_t **pkey) {
   EC_GROUP *group = EC_GROUP_new_by_curve_name(nid);
   if(group == NULL)
     return CKR_HOST_MEMORY;
@@ -157,7 +157,7 @@ CK_RV do_create_ec_key(CK_BYTE_PTR point, CK_ULONG point_len, int nid, ykcs11_ev
   return CKR_OK;
 }
 
-CK_RV do_create_rsa_key(CK_BYTE_PTR mod, CK_ULONG mod_len, CK_BYTE_PTR exp, CK_ULONG exp_len, ykcs11_evp_pkey_t **pkey) {
+CK_RV do_create_rsa_key(CK_BYTE_PTR mod, CK_ULONG mod_len, CK_BYTE_PTR exp, CK_ULONG exp_len, ykcs11_pkey_t **pkey) {
   BIGNUM *n = BN_bin2bn(mod, mod_len, 0);
   if(n == NULL)
     return CKR_HOST_MEMORY;
@@ -177,7 +177,7 @@ CK_RV do_create_rsa_key(CK_BYTE_PTR mod, CK_ULONG mod_len, CK_BYTE_PTR exp, CK_U
   return CKR_OK;
 }
 
-CK_RV do_create_public_key(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm, ykcs11_evp_pkey_t **pkey) {
+CK_RV do_create_public_key(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm, ykcs11_pkey_t **pkey) {
   int len, nid = get_curve_name(algorithm);
 
   if (nid == 0) {
@@ -208,7 +208,7 @@ CK_RV do_create_public_key(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm, 
   }
 }
 
-CK_RV do_sign_empty_cert(const char *cn, ykcs11_evp_pkey_t *pubkey, ykcs11_evp_pkey_t *pvtkey, ykcs11_x509_t **cert) {
+CK_RV do_sign_empty_cert(const char *cn, ykcs11_pkey_t *pubkey, ykcs11_pkey_t *pvtkey, ykcs11_x509_t **cert) {
   *cert = X509_new();
   if (*cert == NULL)
     return CKR_HOST_MEMORY;
@@ -343,7 +343,7 @@ CK_RV do_delete_cert(ykcs11_x509_t **cert) {
 
 }
 
-CK_RV do_store_pubk(ykcs11_x509_t *cert, ykcs11_evp_pkey_t **key) {
+CK_RV do_store_pubk(ykcs11_x509_t *cert, ykcs11_pkey_t **key) {
 
   if(*key)
     EVP_PKEY_free(*key);
@@ -357,7 +357,7 @@ CK_RV do_store_pubk(ykcs11_x509_t *cert, ykcs11_evp_pkey_t **key) {
 
 }
 
-CK_KEY_TYPE do_get_key_type(ykcs11_evp_pkey_t *key) {
+CK_KEY_TYPE do_get_key_type(ykcs11_pkey_t *key) {
 
   switch (EVP_PKEY_base_id(key)) {
   case EVP_PKEY_RSA:
@@ -371,11 +371,11 @@ CK_KEY_TYPE do_get_key_type(ykcs11_evp_pkey_t *key) {
   }
 }
 
-CK_ULONG do_get_key_size(ykcs11_evp_pkey_t *key) {
+CK_ULONG do_get_key_size(ykcs11_pkey_t *key) {
   return EVP_PKEY_bits(key);
 }
 
-CK_BYTE do_get_key_algorithm(ykcs11_evp_pkey_t *key) {
+CK_BYTE do_get_key_algorithm(ykcs11_pkey_t *key) {
 
   switch (EVP_PKEY_base_id(key)) {
   case EVP_PKEY_RSA:
@@ -396,7 +396,7 @@ CK_BYTE do_get_key_algorithm(ykcs11_evp_pkey_t *key) {
   return 0; // Actually an error
 }
 
-CK_RV do_get_modulus(ykcs11_evp_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
+CK_RV do_get_modulus(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
   RSA *rsa;
   const BIGNUM *n;
 
@@ -414,7 +414,7 @@ CK_RV do_get_modulus(ykcs11_evp_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len)
   return CKR_OK;
 }
 
-CK_RV do_get_public_exponent(ykcs11_evp_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
+CK_RV do_get_public_exponent(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
   CK_ULONG e = 0;
   RSA *rsa;
@@ -438,7 +438,7 @@ CK_RV do_get_public_exponent(ykcs11_evp_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_
 /*   ERR_load_crypto_strings(); */
 /* //SSL_load_error_strings(); */
 /*   fprintf(stderr, "ERROR %s\n", ERR_error_string(ERR_get_error(), NULL)); */
-CK_RV do_get_public_key(ykcs11_evp_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
+CK_RV do_get_public_key(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
   RSA *rsa;
   unsigned char *p;
@@ -526,7 +526,7 @@ CK_RV do_free_rsa_public_key(ykcs11_rsa_key_t *key) {
   return CKR_OK;
 }
 
-CK_RV do_get_curve_parameters(ykcs11_evp_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
+CK_RV do_get_curve_parameters(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
   EC_KEY *eck;
   const EC_GROUP *ecg;
@@ -587,7 +587,7 @@ CK_RV do_pkcs_1_digest_info(CK_BYTE_PTR in, CK_ULONG in_len, int nid, CK_BYTE_PT
 
 }
 
-CK_RV do_pkcs_pss(ykcs11_evp_pkey_t *key, CK_BYTE_PTR in, CK_ULONG in_len,
+CK_RV do_pkcs_pss(ykcs11_pkey_t *key, CK_BYTE_PTR in, CK_ULONG in_len,
           int nid, CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
   ykcs11_rsa_key_t *rsa = EVP_PKEY_get0_RSA(key);
   unsigned char em[RSA_size(rsa) / 8];
@@ -715,25 +715,6 @@ adete_out:
   return rv;
 }
 
-static int BN_bn2bin_fixed(const BIGNUM *bn, CK_BYTE_PTR out, CK_ULONG len) {
-
-  CK_BYTE buf[BN_num_bytes(bn)];
-  int actual = BN_bn2bin(bn, buf);
-  if(actual <= 0)
-    return actual;
-  if(actual < len) {
-    memset(out,  0, len - actual);
-    memcpy(out + len - actual, buf, actual);
-  } else {
-    for(CK_ULONG i = 0; i < actual - len; i++) {
-      if(buf[i])
-        return -1; // Non-zero byte would have been lost
-    }
-    memcpy(out, buf + actual - len, len);
-  }
-  return len;
-}
-
 CK_RV do_strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG_PTR len, CK_ULONG sig_len) {
 
   const CK_BYTE *p = data;
@@ -745,10 +726,10 @@ CK_RV do_strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG_PTR len, CK_UL
   const BIGNUM *x, *y;
   ECDSA_SIG_get0(sig, &x, &y);
 
-  if(BN_bn2bin_fixed(x, data, sig_len / 2) <= 0)
+  if(BN_bn2binpad(x, data, sig_len / 2) <= 0)
     return CKR_DATA_INVALID;
 
-  if(BN_bn2bin_fixed(y, data + sig_len / 2, sig_len / 2) <= 0)
+  if(BN_bn2binpad(y, data + sig_len / 2, sig_len / 2) <= 0)
     return CKR_DATA_INVALID;
 
   *len = sig_len;

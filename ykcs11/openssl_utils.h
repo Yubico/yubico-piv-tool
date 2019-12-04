@@ -38,11 +38,11 @@ CK_RV do_rand_seed(CK_BYTE_PTR data, CK_ULONG len);
 CK_RV do_rand_bytes(CK_BYTE_PTR data, CK_ULONG len);
 CK_RV do_rsa_encrypt(EVP_PKEY *key, int padding, CK_BYTE_PTR src, CK_ULONG src_len, CK_BYTE_PTR dst, CK_ULONG_PTR dst_len);
 CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, ykcs11_x509_t **cert);
-CK_RV do_generate_ec_key(int nid, ykcs11_evp_pkey_t **pkey);
-CK_RV do_create_ec_key(CK_BYTE_PTR point, CK_ULONG point_len, int nid, ykcs11_evp_pkey_t **pkey);
-CK_RV do_create_rsa_key(CK_BYTE_PTR mod, CK_ULONG mod_len, CK_BYTE_PTR exp, CK_ULONG exp_len, ykcs11_evp_pkey_t **pkey);
-CK_RV do_create_public_key(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm, ykcs11_evp_pkey_t **pkey);
-CK_RV do_sign_empty_cert(const char *cn, ykcs11_evp_pkey_t *pubkey, ykcs11_evp_pkey_t *pvtkey, ykcs11_x509_t **cert);
+CK_RV do_generate_ec_key(int nid, ykcs11_pkey_t **pkey);
+CK_RV do_create_ec_key(CK_BYTE_PTR point, CK_ULONG point_len, int nid, ykcs11_pkey_t **pkey);
+CK_RV do_create_rsa_key(CK_BYTE_PTR mod, CK_ULONG mod_len, CK_BYTE_PTR exp, CK_ULONG exp_len, ykcs11_pkey_t **pkey);
+CK_RV do_create_public_key(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm, ykcs11_pkey_t **pkey);
+CK_RV do_sign_empty_cert(const char *cn, ykcs11_pkey_t *pubkey, ykcs11_pkey_t *pvtkey, ykcs11_x509_t **cert);
 CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm,
                            const char *cn, CK_BYTE_PTR out, CK_ULONG_PTR out_len);
 CK_RV do_check_cert(CK_BYTE_PTR in, CK_ULONG_PTR cert_len);
@@ -51,15 +51,15 @@ CK_RV do_get_raw_name(ykcs11_x509_name_t *name, CK_BYTE_PTR out, CK_ULONG_PTR ou
 CK_RV do_get_raw_integer(ykcs11_asn1_integer_t *serial, CK_BYTE_PTR out, CK_ULONG_PTR out_len);
 CK_RV do_delete_cert(ykcs11_x509_t **cert);
 
-CK_RV       do_store_pubk(ykcs11_x509_t *cert, ykcs11_evp_pkey_t **key);
-CK_KEY_TYPE do_get_key_type(ykcs11_evp_pkey_t *key);
-CK_ULONG    do_get_key_size(ykcs11_evp_pkey_t *key);
-CK_BYTE     do_get_key_algorithm(ykcs11_evp_pkey_t *key);
-CK_RV       do_get_public_exponent(ykcs11_evp_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
-CK_RV       do_get_public_key(ykcs11_evp_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
-CK_RV       do_get_modulus(ykcs11_evp_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
-CK_RV       do_get_curve_parameters(ykcs11_evp_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
-CK_RV       do_delete_pubk(ykcs11_evp_pkey_t **key);
+CK_RV       do_store_pubk(ykcs11_x509_t *cert, ykcs11_pkey_t **key);
+CK_KEY_TYPE do_get_key_type(ykcs11_pkey_t *key);
+CK_ULONG    do_get_key_size(ykcs11_pkey_t *key);
+CK_BYTE     do_get_key_algorithm(ykcs11_pkey_t *key);
+CK_RV       do_get_public_exponent(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
+CK_RV       do_get_public_key(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
+CK_RV       do_get_modulus(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
+CK_RV       do_get_curve_parameters(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
+CK_RV       do_delete_pubk(ykcs11_pkey_t **key);
 
 CK_RV do_decode_rsa_public_key(ykcs11_rsa_key_t **key, CK_BYTE_PTR modulus, CK_ULONG mlen, CK_BYTE_PTR exponent, CK_ULONG elen);
 CK_RV do_free_rsa_public_key(ykcs11_rsa_key_t *key);
@@ -67,7 +67,7 @@ CK_RV do_free_rsa_public_key(ykcs11_rsa_key_t *key);
 CK_RV do_pkcs_1_t1(CK_BYTE_PTR in, CK_ULONG in_len, CK_BYTE_PTR out, CK_ULONG_PTR out_len, CK_ULONG key_len);
 CK_RV do_pkcs_1_digest_info(CK_BYTE_PTR in, CK_ULONG in_len, int nid, CK_BYTE_PTR out, CK_ULONG_PTR out_len);
 
-CK_RV do_pkcs_pss(ykcs11_evp_pkey_t *key, CK_BYTE_PTR in, CK_ULONG in_len, int nid,
+CK_RV do_pkcs_pss(ykcs11_pkey_t *key, CK_BYTE_PTR in, CK_ULONG in_len, int nid,
                   CK_BYTE_PTR out, CK_ULONG_PTR out_len);
 
 CK_RV do_md_init(const ykcs11_md_t *md, ykcs11_md_ctx_t **ctx);

@@ -68,14 +68,15 @@ typedef struct {
 } gen_info_t;
 
 typedef struct {
-  CK_BYTE           key_id;  // Key id
-  CK_ULONG          key_len; // Length in bits
-  CK_ULONG          padding; // padding in the rsa case
-  ykcs11_md_ctx_t   *md_ctx; // Digest context
+  CK_BYTE           key;     // PIV Key id
+  CK_BYTE           algorithm; // PIV Key algorithm
+  CK_ULONG          sig_len; // Signature length in bytes
+  ykcs11_pkey_ctx_t *pkey_ctx; // Signature context
+  ykcs11_md_ctx_t   *md_ctx; // Digest context (null for non-hashed signatures)
 } sign_info_t;
 
 typedef struct {
-  ykcs11_evp_pkey_ctx_t *pkey_ctx; // Signature context
+  ykcs11_pkey_ctx_t *pkey_ctx; // Signature context
   ykcs11_md_ctx_t   *md_ctx; // Digest context (null for non-hashed signatures)
 } verify_info_t;
 
@@ -129,7 +130,7 @@ typedef struct {
   ykcs11_data_t   data[38];    // Raw data, stored by sub_id 1-37
   ykcs11_x509_t   *certs[26];  // Certificates, stored by sub_id 1-25
   ykcs11_x509_t   *atst[26];   // Attestations, stored by sub_id 1-25
-  ykcs11_evp_pkey_t *pkeys[26];  // Public keys, stored by sub_id 1-25
+  ykcs11_pkey_t   *pkeys[26];  // Public keys, stored by sub_id 1-25
   ykcs11_find_t   find_obj;    // Active find operation (if any)
   op_info_t       op_info;
 } ykcs11_session_t;
