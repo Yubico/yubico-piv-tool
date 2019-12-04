@@ -428,6 +428,37 @@ static void test_generate_rsa1024() {
   dprintf(0, "TEST END: test_generate_rsa1024()\n");
 }
 
+static void test_key_attributes() {
+  dprintf(0, "TEST START: test_key_attributes()\n");
+  CK_BYTE     e[] = {0x01, 0x00, 0x01};
+  CK_BYTE     params_eccp256[] = {0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07};
+  CK_BYTE     params_eccp384[] = {0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x22};
+  CK_OBJECT_HANDLE privkey, pubkey;
+  CK_SESSION_HANDLE session;
+
+  init_connection();
+  asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
+
+  generate_ec_keys(funcs, session, 1, params_eccp256, sizeof(params_eccp256), &pubkey, &privkey);
+  test_pubkey_attributes_ec(funcs, session, pubkey, 256, "Public key for PIV Authentication", 67, params_eccp256, sizeof(params_eccp256));
+  test_privkey_attributes_ec(funcs, session, privkey, 256, "Private key for PIV Authentication", 67, params_eccp256, sizeof(params_eccp256), CK_FALSE);
+
+
+  generate_ec_keys(funcs, session, 1, params_eccp384, sizeof(params_eccp384), &pubkey, &privkey);
+  test_pubkey_attributes_ec(funcs, session, pubkey, 384, "Public key for PIV Authentication", 99, params_eccp384, sizeof(params_eccp384));
+  test_privkey_attributes_ec(funcs, session, privkey, 384, "Private key for PIV Authentication", 99, params_eccp384, sizeof(params_eccp384), CK_FALSE);
+
+  generate_rsa_keys(funcs, session, 1, &pubkey, &privkey);
+  test_pubkey_attributes_rsa(funcs, session, pubkey, 1024, "Public key for PIV Authentication", 128, e, sizeof(e));
+  test_privkey_attributes_rsa(funcs, session, privkey, 1024, "Private key for PIV Authentication", 128, e, sizeof(e), CK_FALSE);
+
+  destroy_test_objects_by_privkey(funcs, session, &privkey, 1);
+  asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
+  asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
+
+  dprintf(0, "TEST END: test_key_attributes()\n");
+}
+
 static void test_find_objects() {
   dprintf(0, "TEST START: test_find_objects()\n");
 
@@ -456,10 +487,6 @@ static void test_find_objects() {
   CK_ATTRIBUTE classTemplate[] = {
     {CKA_CLASS, &object_class, sizeof(CK_ULONG)}
   };
-  CK_ATTRIBUTE idClassTemplate[] = {
-    {CKA_ID, &ckaid, sizeof(ckaid)},
-    {CKA_CLASS, &object_class, sizeof(CK_ULONG)}
-  };
 
   asrt(funcs->C_GetAttributeValue(session, privkey, idTemplate, 1), CKR_OK, "GET CKA_ID");
   asrt(funcs->C_FindObjectsInit(session, idTemplate, 1), CKR_OK, "FIND INIT");
@@ -470,9 +497,11 @@ static void test_find_objects() {
   for(i=0; i<5; i++) {
     asrt(funcs->C_GetAttributeValue(session, found_obj[i], classTemplate, 1), CKR_OK, "GET CKA_CLASS");
     if(object_class == CKO_PRIVATE_KEY) {
-      n_privkey_obj++;;
+      n_privkey_obj++;
+      asrt(found_obj[i], privkey, "Wrong private key");
     } else if(object_class == CKO_PUBLIC_KEY) {
       n_pubkey_obj++;
+      asrt(found_obj[i], pubkey, "Wrong public key");
     }  else if(object_class == CKO_CERTIFICATE) {
       n_cert_obj++;
     } else if(object_class == CKO_DATA) {
@@ -484,36 +513,15 @@ static void test_find_objects() {
   asrt(n_cert_obj, 2, "NUMBER OF CERTIFICATES");
   asrt(n_data_obj, 1, "NO DATA");
 
-  object_class = CKO_PRIVATE_KEY;
-  asrt(funcs->C_FindObjectsInit(session, idClassTemplate, 2), CKR_OK, "FIND INIT");
-  asrt(funcs->C_FindObjects(session, found_obj, 10, &n_found_obj), CKR_OK, "FIND");
-  asrt(n_found_obj, 1, "N FOUND OBJS");
-  asrt(funcs->C_FindObjectsFinal(session), CKR_OK, "FIND FINAL");
-
-  object_class = CKO_PUBLIC_KEY;
-  asrt(funcs->C_FindObjectsInit(session, idClassTemplate, 2), CKR_OK, "FIND INIT");
-  asrt(funcs->C_FindObjects(session, found_obj, 10, &n_found_obj), CKR_OK, "FIND");
-  asrt(n_found_obj, 1, "N FOUND OBJS");
-  asrt(funcs->C_FindObjectsFinal(session), CKR_OK, "FIND FINAL");
-
-  object_class = CKO_DATA;
-  asrt(funcs->C_FindObjectsInit(session, idClassTemplate, 2), CKR_OK, "FIND INIT");
-  asrt(funcs->C_FindObjects(session, found_obj, 10, &n_found_obj), CKR_OK, "FIND");
-  asrt(n_found_obj, 1, "N FOUND OBJS");
-  asrt(funcs->C_FindObjectsFinal(session), CKR_OK, "FIND FINAL");
-
-  object_class = CKO_CERTIFICATE;
-  asrt(funcs->C_FindObjectsInit(session, idClassTemplate, 2), CKR_OK, "FIND INIT");
-  asrt(funcs->C_FindObjects(session, found_obj, 10, &n_found_obj), CKR_OK, "FIND");
-  asrt(n_found_obj, 2, "N FOUND OBJS");
-  asrt(funcs->C_FindObjectsFinal(session), CKR_OK, "FIND FINAL");
+  test_find_objects_by_class(funcs, session, CKO_PRIVATE_KEY, ckaid, 1, 86);
+  test_find_objects_by_class(funcs, session, CKO_PUBLIC_KEY, ckaid, 1, 111);
+  test_find_objects_by_class(funcs, session, CKO_DATA, ckaid, 1, 0);
+  test_find_objects_by_class(funcs, session, CKO_CERTIFICATE, ckaid, 2, 37);
+  test_find_objects_by_class(funcs, session, CKO_CERTIFICATE, ckaid, 2, 62);
 
   asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
 
-  asrt(funcs->C_Login(session, CKU_SO, "010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
-  asrt(funcs->C_DestroyObject(session, found_obj[0]), CKR_OK, "Destroy Object");
-  asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
-
+  destroy_test_objects_by_privkey(funcs, session, &privkey, 1);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
   dprintf(0, "TEST END: test_find_objects()\n");
@@ -747,7 +755,6 @@ int main(void) {
   test_max_multiple_sessions();
   test_login_order();
   test_digest();
-  test_find_objects();
   test_generate_eccp256();
   test_generate_eccp384();
   test_generate_rsa1024();
@@ -756,6 +763,8 @@ int main(void) {
   test_import_rsa1024();
   test_decrypt_RSA();
   test_encrypt_RSA();
+  test_key_attributes();
+  test_find_objects();
 #else
   fprintf(stderr, "HARDWARE TESTS DISABLED!, skipping...\n");
 #endif

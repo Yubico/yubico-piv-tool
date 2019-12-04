@@ -360,7 +360,9 @@ EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int
   for (i = 0; i < 24; i++) {
     id = i+1;
     asrt(funcs->C_CreateObject(session, publicKeyTemplate, 3, obj_cert + i), CKR_OK, "IMPORT CERT");
+    asrt(obj_cert[i], 37+i, "CERTIFICATE HANDLE");
     asrt(funcs->C_CreateObject(session, privateKeyTemplate, 5, obj_pvtkey + i), CKR_OK, "IMPORT KEY");
+    asrt(obj_pvtkey[i], 86+i, "PRIVATE KEY HANDLE");
   }
 
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
@@ -464,7 +466,9 @@ void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, EVP_P
   for (i = 0; i < 24; i++) {
     id = i+1;
     asrt(funcs->C_CreateObject(session, publicKeyTemplate, 3, obj_cert + i), CKR_OK, "IMPORT CERT");
+    asrt(obj_cert[i], 37+i, "CERTIFICATE HANDLE");
     asrt(funcs->C_CreateObject(session, privateKeyTemplate, 9, obj_pvtkey + i), CKR_OK, "IMPORT KEY");
+    asrt(obj_pvtkey[i], 86+i, "PRIVATE KEY HANDLE");
   }
 
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
@@ -500,6 +504,8 @@ void generate_ec_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   for (i = 0; i < n_keys; i++) {
     id = i+1;
     asrt(funcs->C_GenerateKeyPair(session, &mech, publicKeyTemplate, 3, privateKeyTemplate, 3, obj_pubkey+i, obj_pvtkey+i), CKR_OK, "GEN RSA KEYPAIR");
+    asrt(obj_pubkey[i], 111+i, "PUBLIC KEY HANDLE");
+    asrt(obj_pvtkey[i], 86+i, "PRIVATE KEY HANDLE");
   }
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
 }
@@ -533,6 +539,8 @@ void generate_rsa_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
   for (i = 0; i < n_keys; i++) {
     id = i+1;
     asrt(funcs->C_GenerateKeyPair(session, &mech, publicKeyTemplate, 4, privateKeyTemplate, 3, obj_pubkey+i, obj_pvtkey+i), CKR_OK, "GEN RSA KEYPAIR");
+    asrt(obj_pubkey[i], 111+i, "PUBLIC KEY HANDLE");
+    asrt(obj_pvtkey[i], 86+i, "PRIVATE KEY HANDLE");
   }
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
 }
@@ -821,5 +829,233 @@ void test_rsa_encrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
     }
   }
   asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
+}
 
+static void test_pubkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
+                                         CK_OBJECT_HANDLE pubkey, CK_ULONG key_type, CK_ULONG key_size,
+                                         const unsigned char* label) {
+  CK_ULONG obj_class;
+  CK_BBOOL obj_token;
+  CK_BBOOL obj_private;
+  CK_ULONG obj_key_type;
+  CK_BBOOL obj_sensitive;
+  CK_BBOOL obj_local;
+  CK_BBOOL obj_encrypt;
+  CK_BBOOL obj_verify;
+  CK_BBOOL obj_wrap;
+  CK_BBOOL obj_derive;
+  CK_ULONG obj_modulus_bits;
+  CK_BBOOL obj_modifiable;
+  unsigned char obj_label[1024];
+  CK_ULONG obj_label_len;
+
+  CK_ATTRIBUTE template[] = {
+    {CKA_CLASS, &obj_class, sizeof(CK_ULONG)},
+    {CKA_TOKEN, &obj_token, sizeof(CK_BBOOL)},
+    {CKA_PRIVATE, &obj_private, sizeof(CK_BBOOL)},
+    {CKA_KEY_TYPE, &obj_key_type, sizeof(CK_ULONG)},
+    {CKA_SENSITIVE, &obj_sensitive, sizeof(CK_BBOOL)},
+    {CKA_LOCAL, &obj_local, sizeof(CK_BBOOL)},
+    {CKA_ENCRYPT, &obj_encrypt, sizeof(CK_BBOOL)},
+    {CKA_VERIFY, &obj_verify, sizeof(CK_BBOOL)},
+    {CKA_WRAP, &obj_wrap, sizeof(CK_BBOOL)},
+    {CKA_DERIVE, &obj_derive, sizeof(CK_BBOOL)},
+    {CKA_MODULUS_BITS, &obj_modulus_bits, sizeof(CK_ULONG)},
+    {CKA_MODIFIABLE, &obj_modifiable, sizeof(CK_BBOOL)}
+  };
+
+  CK_ATTRIBUTE template_label[] = {
+    {CKA_LABEL, obj_label, sizeof(obj_label)}
+  };
+
+  asrt(funcs->C_GetAttributeValue(session, pubkey, template, 12), CKR_OK, "GET BASIC ATTRIBUTES");
+  asrt(obj_class, CKO_PUBLIC_KEY, "CLASS");
+  asrt(obj_token, CK_TRUE, "TOKEN");
+  asrt(obj_private, CK_FALSE, "PRIVATE");
+  asrt(obj_key_type, key_type, "KEY_TYPE");
+  asrt(obj_sensitive, CK_FALSE, "SENSITIVE");
+  asrt(obj_local, CK_FALSE, "LOCAL");
+  asrt(obj_encrypt, CK_TRUE, "ENCRYPT");
+  asrt(obj_verify, CK_TRUE, "VERIFY");
+  asrt(obj_wrap, CK_FALSE, "WRAP");
+  asrt(obj_derive, CK_FALSE, "DERIVE");
+  asrt(obj_modulus_bits, key_size, "MODULUS BITS");
+  asrt(obj_modifiable, CK_FALSE, "MODIFIABLE");
+
+  asrt(funcs->C_GetAttributeValue(session, pubkey, template_label, 1), CKR_OK, "GET LABEL");
+  obj_label_len = template_label[0].ulValueLen;
+  asrt(obj_label_len, strlen(label), "LABEL LEN");
+  asrt(strncmp(obj_label, label, obj_label_len), 0, "LABEL");
+}
+
+void test_pubkey_attributes_rsa(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
+                                CK_OBJECT_HANDLE pubkey, CK_ULONG key_size, 
+                                const unsigned char* label, CK_ULONG modulus_len,
+                                CK_BYTE_PTR pubexp, CK_ULONG pubexp_len) {
+
+  CK_BYTE obj_pubexp[1024];
+  CK_BYTE obj_modulus[1024];
+
+  CK_ATTRIBUTE template[] = {
+    {CKA_MODULUS, obj_modulus, sizeof(obj_modulus)},
+    {CKA_PUBLIC_EXPONENT, &obj_pubexp, sizeof(obj_pubexp)},
+  };
+
+  test_pubkey_basic_attributes(funcs, session, pubkey, CKK_RSA, key_size, label);
+
+  asrt(funcs->C_GetAttributeValue(session, pubkey, template, 2), CKR_OK, "GET RSA ATTRIBUTES");
+  asrt(template[0].ulValueLen, modulus_len, "MODULUS LEN");
+  asrt(template[1].ulValueLen, pubexp_len, "PUBLIC EXPONEN LEN");
+  asrt(memcmp(obj_pubexp, pubexp, pubexp_len), 0, "PUBLIC EXPONENT");
+}
+
+void test_pubkey_attributes_ec(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
+                                CK_OBJECT_HANDLE pubkey, CK_ULONG key_size, 
+                                const unsigned char* label, CK_ULONG ec_point_len,
+                                CK_BYTE_PTR ec_params, CK_ULONG ec_params_len) {
+  CK_BYTE obj_ec_point[1024];
+  CK_BYTE obj_ec_param[1024];
+
+  CK_ATTRIBUTE template[] = {
+    {CKA_EC_POINT, obj_ec_point, sizeof(obj_ec_point)},
+    {CKA_EC_PARAMS, obj_ec_param, sizeof(obj_ec_param)}
+  };
+
+  test_pubkey_basic_attributes(funcs, session, pubkey, CKK_EC, key_size, label);
+
+  asrt(funcs->C_GetAttributeValue(session, pubkey, template, 2), CKR_OK, "GET EC ATTRIBUTES");
+  asrt(template[0].ulValueLen, ec_point_len, "EC POINT LEN");
+  asrt(template[1].ulValueLen, ec_params_len, "EC PARAMS LEN");
+  asrt(memcmp(obj_ec_param, ec_params, ec_params_len), 0, "EC PARAMS");
+}
+
+static void test_privkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
+                                          CK_OBJECT_HANDLE privkey, CK_ULONG key_type, CK_ULONG key_size,
+                                         const unsigned char* label, CK_BBOOL always_authenticate) {
+  CK_ULONG obj_class;
+  CK_BBOOL obj_token;
+  CK_BBOOL obj_private;
+  CK_ULONG obj_key_type;
+  CK_BBOOL obj_sensitive;
+  CK_BBOOL obj_extractable;
+  CK_BBOOL obj_local;
+  CK_BBOOL obj_decrypt;
+  CK_BBOOL obj_unwrap;
+  CK_BBOOL obj_sign;
+  CK_BBOOL obj_derive;
+  CK_ULONG obj_modulus_bits;
+  CK_BBOOL obj_always_authenticate;
+  CK_BBOOL obj_modifiable;
+  unsigned char obj_label[1024];
+  CK_ULONG obj_label_len;
+
+  CK_ATTRIBUTE template[] = {
+    {CKA_CLASS, &obj_class, sizeof(CK_ULONG)},
+    {CKA_TOKEN, &obj_token, sizeof(CK_BBOOL)},
+    {CKA_PRIVATE, &obj_private, sizeof(CK_BBOOL)},
+    {CKA_KEY_TYPE, &obj_key_type, sizeof(CK_ULONG)},
+    {CKA_SENSITIVE, &obj_sensitive, sizeof(CK_BBOOL)},
+    {CKA_EXTRACTABLE, &obj_extractable, sizeof(CK_BBOOL)},
+    {CKA_LOCAL, &obj_local, sizeof(CK_BBOOL)},
+    {CKA_DECRYPT, &obj_decrypt, sizeof(CK_BBOOL)},
+    {CKA_UNWRAP, &obj_unwrap, sizeof(CK_BBOOL)},
+    {CKA_SIGN, &obj_sign, sizeof(CK_BBOOL)},
+    {CKA_DERIVE, &obj_derive, sizeof(CK_BBOOL)},
+    {CKA_MODULUS_BITS, &obj_modulus_bits, sizeof(CK_ULONG)},
+    {CKA_ALWAYS_AUTHENTICATE, &obj_always_authenticate, sizeof(CK_BBOOL)},
+    {CKA_MODIFIABLE, &obj_modifiable, sizeof(CK_BBOOL)}
+  };
+
+  CK_ATTRIBUTE template_label[] = {
+    {CKA_LABEL, obj_label, sizeof(obj_label)}
+  };
+
+  asrt(funcs->C_GetAttributeValue(session, privkey, template, 14), CKR_OK, "GET BASIC ATTRIBUTES");
+  asrt(obj_class, CKO_PRIVATE_KEY, "CLASS");
+  asrt(obj_token, CK_TRUE, "TOKEN");
+  asrt(obj_private, CK_TRUE, "PRIVATE");
+  asrt(obj_key_type, key_type, "KEY_TYPE");
+  asrt(obj_sensitive, CK_TRUE, "SENSITIVE");
+  asrt(obj_extractable, CK_FALSE, "EXTRACTABLE");
+  asrt(obj_local, CK_TRUE, "LOCAL");
+  asrt(obj_decrypt, CK_TRUE, "DECRYPT");
+  asrt(obj_unwrap, CK_FALSE, "UNWRAP");
+  asrt(obj_sign, CK_TRUE, "SIGN");
+  asrt(obj_derive, CK_FALSE, "DERIVE");
+  asrt(obj_modulus_bits, key_size, "MODULUS BITS");
+  asrt(obj_always_authenticate, always_authenticate, "ALWAYS AUTHENTICATE");
+  asrt(obj_modifiable, CK_FALSE, "MODIFIABLE");
+
+  asrt(funcs->C_GetAttributeValue(session, privkey, template_label, 1), CKR_OK, "GET LABEL");
+  obj_label_len = template_label[0].ulValueLen;
+  asrt(obj_label_len, strlen(label), "LABEL LEN");
+  asrt(strncmp(obj_label, label, obj_label_len), 0, "LABEL");
+}
+
+void test_privkey_attributes_rsa(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
+                                CK_OBJECT_HANDLE pubkey, CK_ULONG key_size, 
+                                const unsigned char* label, CK_ULONG modulus_len,
+                                CK_BYTE_PTR pubexp, CK_ULONG pubexp_len, 
+                                CK_BBOOL always_authenticate) {
+
+  CK_BYTE obj_pubexp[1024];
+  CK_BYTE obj_modulus[1024];
+
+  CK_ATTRIBUTE template[] = {
+    {CKA_MODULUS, obj_modulus, sizeof(obj_modulus)},
+    {CKA_PUBLIC_EXPONENT, &obj_pubexp, sizeof(obj_pubexp)},
+  };
+
+  test_privkey_basic_attributes(funcs, session, pubkey, CKK_RSA, key_size, label, always_authenticate);
+
+  asrt(funcs->C_GetAttributeValue(session, pubkey, template, 2), CKR_OK, "GET RSA ATTRIBUTES");
+  asrt(template[0].ulValueLen, modulus_len, "MODULUS LEN");
+  asrt(template[1].ulValueLen, pubexp_len, "PUBLIC EXPONEN LEN");
+  asrt(memcmp(obj_pubexp, pubexp, pubexp_len), 0, "PUBLIC EXPONENT");
+}
+
+void test_privkey_attributes_ec(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
+                                CK_OBJECT_HANDLE pubkey, CK_ULONG key_size, 
+                                const unsigned char* label, CK_ULONG ec_point_len,
+                                CK_BYTE_PTR ec_params, CK_ULONG ec_params_len, 
+                                CK_BBOOL always_authenticate) {
+  CK_BYTE obj_ec_point[1024];
+  CK_BYTE obj_ec_param[1024];
+
+  CK_ATTRIBUTE template[] = {
+    {CKA_EC_POINT, obj_ec_point, sizeof(obj_ec_point)},
+    {CKA_EC_PARAMS, obj_ec_param, sizeof(obj_ec_param)}
+  };
+
+  test_privkey_basic_attributes(funcs, session, pubkey, CKK_EC, key_size, label, always_authenticate);
+
+  asrt(funcs->C_GetAttributeValue(session, pubkey, template, 2), CKR_OK, "GET EC ATTRIBUTES");
+  asrt(template[0].ulValueLen, ec_point_len, "EC POINT LEN");
+  asrt(template[1].ulValueLen, ec_params_len, "EC PARAMS LEN");
+  asrt(memcmp(obj_ec_param, ec_params, ec_params_len), 0, "EC PARAMS");
+}
+
+void test_find_objects_by_class(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
+                                CK_ULONG class, CK_BYTE ckaid,
+                                CK_ULONG n_expected, CK_OBJECT_HANDLE obj_expected) {
+  CK_BYTE i;
+  CK_OBJECT_HANDLE obj[10];
+  CK_ULONG n = 0;
+  CK_BBOOL found = CK_FALSE;
+
+  CK_ATTRIBUTE idClassTemplate[] = {
+    {CKA_ID, &ckaid, sizeof(ckaid)},
+    {CKA_CLASS, &class, sizeof(CK_ULONG)}
+  };
+
+  asrt(funcs->C_FindObjectsInit(session, idClassTemplate, 2), CKR_OK, "FIND INIT");
+  asrt(funcs->C_FindObjects(session, obj, 10, &n), CKR_OK, "FIND");
+  asrt(n, n_expected, "N FOUND OBJS");
+  asrt(funcs->C_FindObjectsFinal(session), CKR_OK, "FIND FINAL");
+  for(i=0; i<n; i++) {
+    if(obj[i] == obj_expected) {
+      found = CK_TRUE;
+    }
+  }
+  asrt(found, CK_TRUE, "EXPECTED OBJECT FOUND");
 }
