@@ -715,6 +715,25 @@ adete_out:
   return rv;
 }
 
+static int BN_bn2bin_fixed(const BIGNUM *bn, CK_BYTE_PTR out, CK_ULONG len) {
+
+  CK_BYTE buf[BN_num_bytes(bn)];
+  int actual = BN_bn2bin(bn, buf);
+  if(actual <= 0)
+    return actual;
+  if(actual < len) {
+    memset(out,  0, len - actual);
+    memcpy(out + len - actual, buf, actual);
+  } else {
+    for(CK_ULONG i = 0; i < actual - len; i++) {
+      if(buf[i])
+        return -1; // Non-zero byte would have been lost
+    }
+    memcpy(out, buf + actual - len, len);
+  }
+  return len;
+}
+
 CK_RV do_strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG_PTR len, CK_ULONG sig_len) {
 
   const CK_BYTE *p = data;
@@ -726,10 +745,10 @@ CK_RV do_strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG_PTR len, CK_UL
   const BIGNUM *x, *y;
   ECDSA_SIG_get0(sig, &x, &y);
 
-  if(BN_bn2binpad(x, data, sig_len / 2) <= 0)
+  if(BN_bn2bin_fixed(x, data, sig_len / 2) <= 0)
     return CKR_DATA_INVALID;
 
-  if(BN_bn2binpad(y, data + sig_len / 2, sig_len / 2) <= 0)
+  if(BN_bn2bin_fixed(y, data + sig_len / 2, sig_len / 2) <= 0)
     return CKR_DATA_INVALID;
 
   *len = sig_len;
