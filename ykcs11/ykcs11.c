@@ -2572,6 +2572,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     return CKR_OK;
   }
 
+  if (*pulSignatureLen  < session->op_info.op.sign.sig_len) {
+    DBG("The signature requires %lu bytes, got %lu", session->op_info.op.sign.sig_len, *pulSignatureLen);
+    return CKR_BUFFER_TOO_SMALL;
+  }
+
 #if YKCS11_DBG > 1
   dump_data(pData, ulDataLen, stderr, CK_TRUE, format_arg_hex);
 #endif
@@ -2699,6 +2704,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
     return CKR_OK;
   }
 
+  if (*pulSignatureLen  < session->op_info.op.sign.sig_len) {
+    DBG("The signature requires %lu bytes, got %lu", session->op_info.op.sign.sig_len, *pulSignatureLen);
+    return CKR_BUFFER_TOO_SMALL;
+  }
+
   if((rv = sign_mechanism_final(session, pSignature, pulSignatureLen)) != CKR_OK) {
     DBG("Unable to perform sign final step");
     goto sign_out;
@@ -2708,11 +2718,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
 
   rv = CKR_OK;
 
-  sign_out:
-  if(rv != CKR_OK) {
-    session->op_info.type = YKCS11_NOOP;
-    sign_mechanism_cleanup(session);
-  }
+sign_out:
+  session->op_info.type = YKCS11_NOOP;
+  sign_mechanism_cleanup(session);
+
   DOUT;
   return rv;
 }
