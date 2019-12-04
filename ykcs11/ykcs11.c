@@ -2273,7 +2273,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestInit)(
   session->op_info.mechanism = pMechanism->mechanism;
 
   CK_RV rv;
-  rv = hash_mechanism_init(&session->op_info);
+  rv = hash_mechanism_init(session);
   if(rv != CKR_OK) {
     DBG("Unable to initialize digest operation");
     return rv;
@@ -2332,13 +2332,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_Digest)(
   }
 
   CK_RV rv;
-  rv = hash_mechanism_update(&session->op_info, pData, ulDataLen);
+  rv = hash_mechanism_update(session, pData, ulDataLen);
   if (rv != CKR_OK) {
     DBG("Unable to perform digest operation step");
     return rv;
   }
 
-  rv = hash_mechanism_final(&session->op_info, pDigest, pulDigestLen);
+  rv = hash_mechanism_final(session, pDigest, pulDigestLen);
   if (rv != CKR_OK) {
     DBG("Unable to finalize digest operation");
     return rv;
@@ -2379,7 +2379,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestUpdate)(
     return CKR_OPERATION_ACTIVE;
   }
 
-  rv = hash_mechanism_update(&session->op_info, pPart, ulPartLen);
+  rv = hash_mechanism_update(session, pPart, ulPartLen);
   if (rv != CKR_OK) {
     DBG("Unable to perform digest operation step");
     return rv;
@@ -2449,7 +2449,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestFinal)(
     return CKR_BUFFER_TOO_SMALL;
   }
 
-  rv = hash_mechanism_final(&session->op_info, pDigest, pulDigestLen);
+  rv = hash_mechanism_final(session, pDigest, pulDigestLen);
   if (rv != CKR_OK) {
     DBG("Unable to finalize digest operation");
     return rv;
@@ -2795,10 +2795,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
   session->op_info.mechanism = pMechanism->mechanism;
   CK_BYTE id = get_key_id(hKey);
   
-  CK_RV rv = verify_mechanism_init(&session->op_info, session->pkeys[id]);
+  CK_RV rv = verify_mechanism_init(session, session->pkeys[id]);
   if (rv != CKR_OK) {
     DBG("Unable to initialize verification operation");
-    verify_mechanism_cleanup(&session->op_info);
+    verify_mechanism_cleanup(session);
     return rv;
   }
 
@@ -2845,13 +2845,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_Verify)(
     goto verify_out;
   }
 
-  rv = verify_mechanism_update(&session->op_info, pData, ulDataLen);
+  rv = verify_mechanism_update(session, pData, ulDataLen);
   if (rv != CKR_OK) {
     DBG("Unable to perform verification operation step");
     goto verify_out;
   }
 
-  rv = verify_mechanism_final(&session->op_info, pSignature, ulSignatureLen);
+  rv = verify_mechanism_final(session, pSignature, ulSignatureLen);
   if (rv != CKR_OK) {
     DBG("Unable to verify signature");
     goto verify_out;
@@ -2862,7 +2862,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Verify)(
 
   verify_out:
   session->op_info.type = YKCS11_NOOP;
-  verify_mechanism_cleanup(&session->op_info);
+  verify_mechanism_cleanup(session);
 
   DOUT;
   return rv;
@@ -2903,7 +2903,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyUpdate)(
     goto verify_out;
   }
 
-  if (verify_mechanism_update(&session->op_info, pPart, ulPartLen) != CKR_OK) {
+  if (verify_mechanism_update(session, pPart, ulPartLen) != CKR_OK) {
     DBG("Unable to perform signature verification operation step");
     rv = CKR_FUNCTION_FAILED;
     goto verify_out;
@@ -2914,7 +2914,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyUpdate)(
   verify_out:
   if(rv != CKR_OK) {
     session->op_info.type = YKCS11_NOOP;
-    verify_mechanism_cleanup(&session->op_info);
+    verify_mechanism_cleanup(session);
   }
   DOUT;
   return rv;
@@ -2955,7 +2955,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyFinal)(
     goto verify_out;
   }
 
-  rv = verify_mechanism_final(&session->op_info, pSignature, ulSignatureLen);
+  rv = verify_mechanism_final(session, pSignature, ulSignatureLen);
   if (rv != CKR_OK) {
     DBG("Unable to verify signature");
     goto verify_out;
@@ -2966,7 +2966,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyFinal)(
 
   verify_out:
   session->op_info.type = YKCS11_NOOP;
-  verify_mechanism_cleanup(&session->op_info);
+  verify_mechanism_cleanup(session);
 
   DOUT;
   return rv;

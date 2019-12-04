@@ -364,27 +364,27 @@ CK_RV sign_mechanism_cleanup(ykcs11_session_t *session) {
   return CKR_OK;
 }
 
-CK_RV verify_mechanism_cleanup(op_info_t *op_info) {
+CK_RV verify_mechanism_cleanup(ykcs11_session_t *session) {
 
-  if (op_info->op.verify.md_ctx != NULL) {
-    EVP_MD_CTX_destroy(op_info->op.verify.md_ctx);
-    op_info->op.verify.md_ctx = NULL;
-  } else if(op_info->op.verify.pkey_ctx != NULL) {
-    EVP_PKEY_CTX_free(op_info->op.verify.pkey_ctx);
+  if (session->op_info.op.verify.md_ctx != NULL) {
+    EVP_MD_CTX_destroy(session->op_info.op.verify.md_ctx);
+    session->op_info.op.verify.md_ctx = NULL;
+  } else if(session->op_info.op.verify.pkey_ctx != NULL) {
+    EVP_PKEY_CTX_free(session->op_info.op.verify.pkey_ctx);
   }
-  op_info->op.verify.pkey_ctx = NULL;
-  op_info->buf_len = 0;
+  session->op_info.op.verify.pkey_ctx = NULL;
+  session->op_info.buf_len = 0;
   return CKR_OK;
 }
 
-CK_RV verify_mechanism_init(op_info_t *op_info, ykcs11_pkey_t *key) {
+CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
 
   const EVP_MD *md = NULL;
 
-  op_info->op.verify.md_ctx = NULL;
-  op_info->op.verify.pkey_ctx = NULL;
+  session->op_info.op.verify.md_ctx = NULL;
+  session->op_info.op.verify.pkey_ctx = NULL;
 
-  switch (op_info->mechanism) {
+  switch (session->op_info.mechanism) {
     case CKM_RSA_X_509:
     case CKM_RSA_PKCS:
     case CKM_RSA_PKCS_PSS:
@@ -432,7 +432,7 @@ CK_RV verify_mechanism_init(op_info_t *op_info, ykcs11_pkey_t *key) {
   CK_KEY_TYPE key_type = do_get_key_type(key);
   CK_ULONG padding = 0;
 
-  switch (op_info->mechanism) {
+  switch (session->op_info.mechanism) {
     case CKM_RSA_X_509:
       if(key_type != CKK_RSA) {
         DBG("Mechanism %lu requires an RSA key", op_info->mechanism.mechanism);
@@ -449,7 +449,7 @@ CK_RV verify_mechanism_init(op_info_t *op_info, ykcs11_pkey_t *key) {
     case CKM_SHA384_RSA_PKCS:
     case CKM_SHA512_RSA_PKCS:
       if(key_type != CKK_RSA) {
-        DBG("Mechanism %lu requires an RSA key", op_info->mechanism.mechanism);
+        DBG("Mechanism %lu requires an RSA key", session->op_info.mechanism.mechanism);
         return CKR_KEY_TYPE_INCONSISTENT;
       }
       padding = RSA_PKCS1_PADDING;
@@ -461,7 +461,7 @@ CK_RV verify_mechanism_init(op_info_t *op_info, ykcs11_pkey_t *key) {
     case CKM_SHA384_RSA_PKCS_PSS:
     case CKM_SHA512_RSA_PKCS_PSS:
       if(key_type != CKK_RSA) {
-        DBG("Mechanism %lu requires an RSA key", op_info->mechanism.mechanism);
+        DBG("Mechanism %lu requires an RSA key", session->op_info.mechanism.mechanism);
         return CKR_KEY_TYPE_INCONSISTENT;
       }
       padding = RSA_PKCS1_PSS_PADDING;
@@ -469,77 +469,77 @@ CK_RV verify_mechanism_init(op_info_t *op_info, ykcs11_pkey_t *key) {
 
     default:
       if(key_type != CKK_ECDSA) {
-        DBG("Mechanism %lu requires an ECDSA key", op_info->mechanism.mechanism);
+        DBG("Mechanism %lu requires an ECDSA key", session->op_info.mechanism.mechanism);
         return CKR_KEY_TYPE_INCONSISTENT;
       }
   }
 
   if(md) {
-    op_info->op.verify.md_ctx = EVP_MD_CTX_create();
-    if (op_info->op.verify.md_ctx == NULL) {
+    session->op_info.op.verify.md_ctx = EVP_MD_CTX_create();
+    if (session->op_info.op.verify.md_ctx == NULL) {
       return CKR_FUNCTION_FAILED;
     }
-    if (EVP_DigestVerifyInit(op_info->op.verify.md_ctx, &op_info->op.verify.pkey_ctx, md, NULL, key) <= 0) {
+    if (EVP_DigestVerifyInit(session->op_info.op.verify.md_ctx, &session->op_info.op.verify.pkey_ctx, md, NULL, key) <= 0) {
       DBG("EVP_DigestVerifyInit failed");
       return CKR_FUNCTION_FAILED;
     }
   } else {
-    op_info->op.verify.md_ctx = NULL;
-    op_info->op.verify.pkey_ctx = EVP_PKEY_CTX_new(key, NULL);
-    if (op_info->op.verify.pkey_ctx == NULL) {
+    session->op_info.op.verify.md_ctx = NULL;
+    session->op_info.op.verify.pkey_ctx = EVP_PKEY_CTX_new(key, NULL);
+    if (session->op_info.op.verify.pkey_ctx == NULL) {
       DBG("EVP_PKEY_CTX_new failed");
       return CKR_FUNCTION_FAILED;
     }
-    if(EVP_PKEY_verify_init(op_info->op.verify.pkey_ctx) <= 0) {
+    if(EVP_PKEY_verify_init(session->op_info.op.verify.pkey_ctx) <= 0) {
       DBG("EVP_PKEY_verify_init failed");
       return CKR_FUNCTION_FAILED;
     }
   }
 
   if (padding) {
-    if (EVP_PKEY_CTX_set_rsa_padding(op_info->op.verify.pkey_ctx, padding) <= 0) {
+    if (EVP_PKEY_CTX_set_rsa_padding(session->op_info.op.verify.pkey_ctx, padding) <= 0) {
       DBG("EVP_PKEY_CTX_set_rsa_padding failed");
       return CKR_FUNCTION_FAILED;
     }
   }
 
-  op_info->buf_len = 0;
+  session->op_info.buf_len = 0;
 
   return CKR_OK;
 }
 
-CK_RV verify_mechanism_update(op_info_t *op_info, CK_BYTE_PTR in, CK_ULONG in_len) {
+CK_RV verify_mechanism_update(ykcs11_session_t *session, CK_BYTE_PTR in, CK_ULONG in_len) {
 
-  if(op_info->op.verify.md_ctx) {
-    if (EVP_DigestVerifyUpdate(op_info->op.verify.md_ctx, in, in_len) <= 0) {
+  if(session->op_info.op.verify.md_ctx) {
+    if (EVP_DigestVerifyUpdate(session->op_info.op.verify.md_ctx, in, in_len) <= 0) {
       return CKR_FUNCTION_FAILED;
     }
   } else {
-    if(op_info->buf_len + in_len > sizeof(op_info->buf)) {
+    if(session->op_info.buf_len + in_len > sizeof(session->op_info.buf)) {
       return CKR_DATA_LEN_RANGE;
     }
-    memcpy(op_info->buf + op_info->buf_len, in, in_len);
-    op_info->buf_len += in_len;
+    memcpy(session->op_info.buf + session->op_info.buf_len, in, in_len);
+    session->op_info.buf_len += in_len;
   }
 
   return CKR_OK;
 }
 
-CK_RV verify_mechanism_final(op_info_t *op_info, CK_BYTE_PTR sig, CK_ULONG sig_len) {
+CK_RV verify_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG sig_len) {
 
   int rc;
 
   CK_BYTE der[sig_len + 32]; // Add some space for the DER encoding
-  if(is_EC_sign_mechanism(op_info->mechanism)) {
+  if(is_EC_sign_mechanism(session->op_info.mechanism)) {
     memcpy(der, sig, sig_len);
     sig = der;
     do_apply_DER_encoding_to_ECSIG(sig, &sig_len);
   }
 
-  if(op_info->op.verify.md_ctx) {
-    rc = EVP_DigestVerifyFinal(op_info->op.verify.md_ctx, sig, sig_len);
+  if(session->op_info.op.verify.md_ctx) {
+    rc = EVP_DigestVerifyFinal(session->op_info.op.verify.md_ctx, sig, sig_len);
   } else {
-    rc = EVP_PKEY_verify(op_info->op.verify.pkey_ctx, sig, sig_len, op_info->buf, op_info->buf_len);
+    rc = EVP_PKEY_verify(session->op_info.op.verify.pkey_ctx, sig, sig_len, session->op_info.buf, session->op_info.buf_len);
   }
 
   if(rc <= 0)
@@ -721,11 +721,11 @@ CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
 
 }
 
-CK_RV hash_mechanism_init(op_info_t *op_info) {
+CK_RV hash_mechanism_init(ykcs11_session_t *session) {
 
   const EVP_MD *md = NULL;
 
-  switch (op_info->mechanism) {
+  switch (session->op_info.mechanism) {
     case CKM_SHA_1:
       md = EVP_sha1();
       break;
@@ -747,12 +747,12 @@ CK_RV hash_mechanism_init(op_info_t *op_info) {
       return CKR_MECHANISM_INVALID;
   }
 
-  op_info->op.digest.length = EVP_MD_size(md);
-  op_info->op.digest.md_ctx = EVP_MD_CTX_create();
+  session->op_info.op.digest.length = EVP_MD_size(md);
+  session->op_info.op.digest.md_ctx = EVP_MD_CTX_create();
 
-  if (EVP_DigestInit_ex(op_info->op.digest.md_ctx, md, NULL) <= 0) {
-    EVP_MD_CTX_destroy(op_info->op.digest.md_ctx);
-    op_info->op.digest.md_ctx = NULL;
+  if (EVP_DigestInit_ex(session->op_info.op.digest.md_ctx, md, NULL) <= 0) {
+    EVP_MD_CTX_destroy(session->op_info.op.digest.md_ctx);
+    session->op_info.op.digest.md_ctx = NULL;
     return CKR_FUNCTION_FAILED;
   }
 
@@ -760,12 +760,11 @@ CK_RV hash_mechanism_init(op_info_t *op_info) {
   return CKR_OK;
 }
 
-CK_RV hash_mechanism_update(op_info_t *op_info,
-                                    CK_BYTE_PTR in, CK_ULONG in_len) {
+CK_RV hash_mechanism_update(ykcs11_session_t *session, CK_BYTE_PTR in, CK_ULONG in_len) {
 
-  if (EVP_DigestUpdate(op_info->op.digest.md_ctx, in, in_len) <= 0) {
-    EVP_MD_CTX_destroy(op_info->op.digest.md_ctx);
-    op_info->op.digest.md_ctx = NULL;
+  if (EVP_DigestUpdate(session->op_info.op.digest.md_ctx, in, in_len) <= 0) {
+    EVP_MD_CTX_destroy(session->op_info.op.digest.md_ctx);
+    session->op_info.op.digest.md_ctx = NULL;
     return CKR_FUNCTION_FAILED;
   }
 
@@ -773,13 +772,13 @@ CK_RV hash_mechanism_update(op_info_t *op_info,
   return CKR_OK;
 }
 
-CK_RV hash_mechanism_final(op_info_t *op_info, CK_BYTE_PTR pDigest, CK_ULONG_PTR pDigestLength) {
+CK_RV hash_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR pDigest, CK_ULONG_PTR pDigestLength) {
 
   unsigned int cbLength = *pDigestLength;
-  int ret = EVP_DigestFinal_ex(op_info->op.digest.md_ctx, pDigest, &cbLength);
+  int ret = EVP_DigestFinal_ex(session->op_info.op.digest.md_ctx, pDigest, &cbLength);
 
-  EVP_MD_CTX_destroy(op_info->op.digest.md_ctx);
-  op_info->op.digest.md_ctx = NULL;
+  EVP_MD_CTX_destroy(session->op_info.op.digest.md_ctx);
+  session->op_info.op.digest.md_ctx = NULL;
 
   if (ret <= 0) {
     return CKR_FUNCTION_FAILED;
@@ -790,7 +789,7 @@ CK_RV hash_mechanism_final(op_info_t *op_info, CK_BYTE_PTR pDigest, CK_ULONG_PTR
   return CKR_OK;
 }
 
-CK_RV check_rsa_decrypt_mechanism(const ykcs11_session_t *s, CK_MECHANISM_PTR m) {
+CK_RV check_rsa_decrypt_mechanism(ykcs11_session_t *s, CK_MECHANISM_PTR m) {
 
   CK_ULONG          i;
   CK_BBOOL          supported = CK_FALSE;
