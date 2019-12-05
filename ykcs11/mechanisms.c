@@ -90,9 +90,10 @@ CK_BBOOL is_RSA_mechanism(CK_MECHANISM_TYPE m) {
   return CK_FALSE;
 }
 
+static int rsa_key_ex_data_idx = -1;
+
 static int rsa_priv_enc(int flen, const unsigned char *from, unsigned char *to, RSA *rsa, int padding) {
-  const RSA_METHOD *meth = RSA_get_method(rsa);
-  ykcs11_session_t *session = RSA_meth_get0_app_data(meth);
+  ykcs11_session_t *session = RSA_get_ex_data(rsa, rsa_key_ex_data_idx);
   size_t siglen = session->op_info.op.sign.sig_len;
   CK_BYTE buf[siglen];
   int ret;
@@ -270,17 +271,20 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
       return CKR_FUNCTION_FAILED;
     }
     RSA *rsa = EVP_PKEY_get0_RSA(key);
-    RSA_METHOD *meth = RSA_meth_dup(RSA_get_default_method());
-    RSA_meth_set0_app_data(meth, session);
+    if (rsa_key_ex_data_idx == -1)
+      rsa_key_ex_data_idx = RSA_get_ex_new_index(0, NULL, NULL, NULL, 0);
+    RSA_set_ex_data(rsa, rsa_key_ex_data_idx, session);
+    RSA_METHOD *meth = RSA_meth_dup(RSA_get_method(rsa));
     RSA_meth_set_priv_enc(meth, rsa_priv_enc);
+    RSA_meth_set_finish(meth, 0);
     RSA_set_method(rsa, meth);
     session->op_info.op.sign.sig_len = RSA_size(rsa);
   } else {
     EC_KEY *ec = EVP_PKEY_get0_EC_KEY(key);
-    EC_KEY_METHOD *meth = EC_KEY_METHOD_new(EC_KEY_get_method(ec));
     if (ec_key_ex_data_idx == -1)
       ec_key_ex_data_idx = EC_KEY_get_ex_new_index(0, NULL, NULL, NULL, 0);
     EC_KEY_set_ex_data(ec, ec_key_ex_data_idx, session);
+    EC_KEY_METHOD *meth = EC_KEY_METHOD_new(EC_KEY_get_method(ec));
     EC_KEY_METHOD_set_sign(meth, ec_sign, NULL, NULL);
     EC_KEY_set_method(ec, meth);
     session->op_info.op.sign.sig_len = ECDSA_size(ec);

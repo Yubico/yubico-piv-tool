@@ -2471,6 +2471,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
 
   if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
+    DOUT;
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
@@ -2478,43 +2479,50 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
+    DOUT;
     return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (get_session_state(session) == CKS_RO_PUBLIC_SESSION ||
       get_session_state(session) == CKS_RW_PUBLIC_SESSION) {
     DBG("User is not logged in");
+    DOUT;
     return CKR_USER_NOT_LOGGED_IN;
   }
 
   if (session->op_info.type != YKCS11_NOOP) {
     DBG("Other operation in process");
+    DOUT;
     return CKR_OPERATION_ACTIVE;
   }
 
   if (pMechanism == NULL) {
     DBG("Mechanism not specified");
+    DOUT;
     return CKR_ARGUMENTS_BAD;
   }
 
   if (!is_present(session, hKey)) {
     DBG("Key handle %lu is invalid", hKey);
+    DOUT;
     return CKR_OBJECT_HANDLE_INVALID;
   }
 
   if (hKey < PIV_PVTK_OBJ_PIV_AUTH || hKey > PIV_PVTK_OBJ_ATTESTATION) {
     DBG("Key handle %lu is not a private key", hKey);
+    DOUT;
     return CKR_KEY_HANDLE_INVALID;
   }
 
-  session->op_info.op.sign.key = piv_2_ykpiv(hKey);
   session->op_info.mechanism = pMechanism->mechanism;
+  session->op_info.op.sign.key = piv_2_ykpiv(hKey);
   CK_BYTE id = get_key_id(hKey);
 
   CK_RV rv = sign_mechanism_init(session, session->pkeys[id]);
   if (rv != CKR_OK) {
     DBG("Unable to initialize signing operation");
     sign_mechanism_cleanup(session);
+    DOUT;
     return rv;
   }
 
@@ -2538,6 +2546,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
+    DOUT;
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
@@ -2545,16 +2554,19 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
+    DOUT;
     return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (session->op_info.type != YKCS11_SIGN) {
     DBG("Signature operation not initialized");
+    DOUT;
     return CKR_OPERATION_NOT_INITIALIZED;
   }
 
   if (pData == NULL) {
     DBG("No data provided");
+    DOUT;
     return CKR_ARGUMENTS_BAD;
   }
 
@@ -2569,13 +2581,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     // Just return the size of the signature
     *pulSignatureLen = session->op_info.op.sign.sig_len;
     DBG("The signature requires %lu bytes", *pulSignatureLen);
-
     DOUT;
     return CKR_OK;
   }
 
-  if (*pulSignatureLen  < session->op_info.op.sign.sig_len) {
+  if (*pulSignatureLen < session->op_info.op.sign.sig_len) {
     DBG("The signature requires %lu bytes, got %lu", session->op_info.op.sign.sig_len, *pulSignatureLen);
+    DOUT;
     return CKR_BUFFER_TOO_SMALL;
   }
 
@@ -2616,6 +2628,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignUpdate)(
 
   if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
+    DOUT;
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
@@ -2623,16 +2636,19 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignUpdate)(
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
+    DOUT;
     return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (session->op_info.type != YKCS11_SIGN) {
     DBG("Signature operation not initialized");
+    DOUT;
     return CKR_OPERATION_NOT_INITIALIZED;
   }
 
   if (pPart == NULL) {
     DBG("No data provided");
+    DOUT;
     return CKR_ARGUMENTS_BAD;
   }
 
@@ -2675,6 +2691,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
 
   if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
+    DOUT;
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
@@ -2682,11 +2699,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
+    DOUT;
     return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (session->op_info.type != YKCS11_SIGN) {
     DBG("Signature operation not initialized");
+    DOUT;
     return CKR_OPERATION_NOT_INITIALIZED;
   }
 
@@ -2701,13 +2720,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
     // Just return the size of the signature
     *pulSignatureLen = session->op_info.op.sign.sig_len;
     DBG("The signature requires %lu bytes", *pulSignatureLen);
-
     DOUT;
     return CKR_OK;
   }
 
-  if (*pulSignatureLen  < session->op_info.op.sign.sig_len) {
+  if (*pulSignatureLen < session->op_info.op.sign.sig_len) {
     DBG("The signature requires %lu bytes, got %lu", session->op_info.op.sign.sig_len, *pulSignatureLen);
+    DOUT;
     return CKR_BUFFER_TOO_SMALL;
   }
 
@@ -2717,13 +2736,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
   }
 
   DBG("The signature is %lu bytes", *pulSignatureLen);
-
   rv = CKR_OK;
 
 sign_out:
   session->op_info.type = YKCS11_NOOP;
   sign_mechanism_cleanup(session);
-
   DOUT;
   return rv;
 }
@@ -2764,6 +2781,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
 
   if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
+    DOUT;
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
@@ -2771,26 +2789,31 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
+    DOUT;
     return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (!is_present(session, hKey)) {
     DBG("Key handle %lu is invalid", hKey);
+    DOUT;
     return CKR_OBJECT_HANDLE_INVALID;
   }
 
   if (hKey < PIV_PUBK_OBJ_PIV_AUTH || hKey > PIV_PUBK_OBJ_ATTESTATION) {
     DBG("Key handle %lu is not a public key", hKey);
+    DOUT;
     return CKR_KEY_HANDLE_INVALID;
   }
 
   if (session->op_info.type != YKCS11_NOOP) {
     DBG("Other operation in process");
+    DOUT;
     return CKR_OPERATION_ACTIVE;
   }
 
   if (pMechanism == NULL) {
     DBG("Mechanism not specified");
+    DOUT;
     return CKR_ARGUMENTS_BAD;
   }
 
@@ -2801,6 +2824,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
   if (rv != CKR_OK) {
     DBG("Unable to initialize verification operation");
     verify_mechanism_cleanup(session);
+    DOUT;
     return rv;
   }
 
@@ -2824,6 +2848,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Verify)(
   
   if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
+    DOUT;
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
@@ -2831,20 +2856,20 @@ CK_DEFINE_FUNCTION(CK_RV, C_Verify)(
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
-    rv = CKR_SESSION_HANDLE_INVALID;
-    goto verify_out;
+    DOUT;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (pData == NULL || pSignature == NULL) {
     DBG("Invalid parameters");
-    rv = CKR_ARGUMENTS_BAD;
-    goto verify_out;
+    DOUT;
+    return CKR_ARGUMENTS_BAD;
   }
 
   if (session->op_info.type != YKCS11_VERIFY) {
     DBG("Signature verification operation not initialized");
-    rv = CKR_OPERATION_NOT_INITIALIZED;
-    goto verify_out;
+    DOUT;
+    return CKR_OPERATION_NOT_INITIALIZED;
   }
 
   rv = verify_mechanism_update(session, pData, ulDataLen);
@@ -2862,7 +2887,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Verify)(
   DBG("Signature successfully verified");
   rv = CKR_OK;
 
-  verify_out:
+verify_out:
   session->op_info.type = YKCS11_NOOP;
   verify_mechanism_cleanup(session);
 
@@ -2882,6 +2907,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyUpdate)(
 
   if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
+    DOUT;
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
@@ -2889,20 +2915,20 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyUpdate)(
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
-    rv = CKR_SESSION_HANDLE_INVALID;
-    goto verify_out;
+    DOUT;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (pPart == NULL) {
     DBG("No data provided");
-    rv = CKR_ARGUMENTS_BAD;
-    goto verify_out;
+    DOUT;
+    return CKR_ARGUMENTS_BAD;
   }
 
   if (session->op_info.type != YKCS11_VERIFY) {
     DBG("Signature verification operation not initialized");
-    rv = CKR_OPERATION_NOT_INITIALIZED;
-    goto verify_out;
+    DOUT;
+    return CKR_OPERATION_NOT_INITIALIZED;
   }
 
   if (verify_mechanism_update(session, pPart, ulPartLen) != CKR_OK) {
@@ -2913,7 +2939,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyUpdate)(
 
   rv = CKR_OK;
 
-  verify_out:
+verify_out:
   if(rv != CKR_OK) {
     session->op_info.type = YKCS11_NOOP;
     verify_mechanism_cleanup(session);
@@ -2934,6 +2960,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyFinal)(
   
   if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
+    DOUT;
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
@@ -2941,20 +2968,20 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyFinal)(
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
-    rv = CKR_SESSION_HANDLE_INVALID;
-    goto verify_out;
+    DOUT;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (pSignature == NULL) {
     DBG("Invalid parameters");
-    rv = CKR_ARGUMENTS_BAD;
-    goto verify_out;
+    DOUT;
+    return CKR_ARGUMENTS_BAD;
   }
 
   if (session->op_info.type != YKCS11_VERIFY) {
     DBG("Signature verification operation not initialized");
-    rv = CKR_OPERATION_NOT_INITIALIZED;
-    goto verify_out;
+    DOUT;
+    return CKR_OPERATION_NOT_INITIALIZED;
   }
 
   rv = verify_mechanism_final(session, pSignature, ulSignatureLen);
@@ -2966,7 +2993,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyFinal)(
   DBG("Signature successfully verified");
   rv = CKR_OK;
 
-  verify_out:
+verify_out:
   session->op_info.type = YKCS11_NOOP;
   verify_mechanism_cleanup(session);
 
