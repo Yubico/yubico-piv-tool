@@ -694,7 +694,7 @@ static void test_login_order() {
   dprintf(0, "TEST START: test_login_order()\n");
   CK_BYTE     params[] = {0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07};
   CK_BYTE     data[32];
-  CK_BYTE     sig[64];
+  CK_BYTE     sig[128];
   CK_ULONG    recv_len = sizeof(sig);
   CK_OBJECT_HANDLE privkey, pubkey, cert;
   CK_SESSION_HANDLE session1, session2;

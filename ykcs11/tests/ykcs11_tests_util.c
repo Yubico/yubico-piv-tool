@@ -605,7 +605,7 @@ void test_ec_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJE
   CK_ULONG    data_len;
   CK_BYTE     hdata[64];
   unsigned int    hdata_len;  
-  CK_BYTE     sig[100];
+  CK_BYTE     sig[256];
   CK_ULONG    recv_len;
 
   CK_BYTE     der_encoded[116];
@@ -659,8 +659,8 @@ void test_rsa_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJ
                     EVP_PKEY* evp, CK_MECHANISM_TYPE mech_type) {
   CK_BYTE     i, j;
   CK_BYTE     data[32];
-  CK_BYTE     sig[2048];
-  CK_BYTE     sig_update[2048];
+  CK_BYTE     sig[256];
+  CK_BYTE     sig_update[256];
   CK_ULONG    sig_len;
   CK_ULONG    sig_update_len;
   EVP_PKEY_CTX *ctx = NULL;
@@ -672,7 +672,7 @@ void test_rsa_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJ
   CK_MECHANISM mech = {mech_type, NULL};
 
   for (i = 0; i < 24; i++) {
-    obj_pubkey = get_public_key_handle(funcs, session, obj_pvtkey[i]);
+    obj_pubkey = get_public_key_handle(funcs, session, obj_pvtkey[i]);    
     for (j = 0; j < 10; j++) {
 
       if(RAND_bytes(data, sizeof(data)) == -1)
@@ -683,6 +683,16 @@ void test_rsa_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJ
       asrt(funcs->C_SignInit(session, &mech, obj_pvtkey[i]), CKR_OK, "SIGN INIT");
       sig_len = sizeof(sig);
       asrt(funcs->C_Sign(session, data, sizeof(data), sig, &sig_len), CKR_OK, "SIGN");
+
+      // External verification
+      if(evp != NULL) {
+        asrt(get_digest(mech_type, data, sizeof(data), hdata, &hdata_len), CKR_OK, "GET DIGEST");
+        ctx = EVP_PKEY_CTX_new(evp, NULL);
+        asrt(ctx != NULL, 1, "EVP_KEY_CTX_new");
+        asrt(EVP_PKEY_verify_init(ctx) > 0, 1, "EVP_KEY_verify_init");
+        asrt(EVP_PKEY_CTX_set_signature_md(ctx, NULL) > 0, 1, "EVP_PKEY_CTX_set_signature_md");
+        asrt(EVP_PKEY_verify(ctx, sig, sig_len, hdata, hdata_len), 1, "EVP_PKEY_verify");
+      }
       
       // Internal verification: Verify
       asrt(funcs->C_VerifyInit(session, &mech, obj_pubkey), CKR_OK, "VERIFY INIT");
@@ -703,17 +713,7 @@ void test_rsa_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJ
       asrt(funcs->C_VerifyInit(session, &mech, obj_pubkey), CKR_OK, "VERIFY INIT");
       asrt(funcs->C_VerifyUpdate(session, data, 10), CKR_OK, "VERIFY UPDATE 1");
       asrt(funcs->C_VerifyUpdate(session, data+10, 22), CKR_OK, "VERIFY UPDATE 2");
-      asrt(funcs->C_VerifyFinal(session, sig_update, sig_update_len), CKR_OK, "VERIFY FINAL");
-
-      // External verification
-      if(evp != NULL) {
-        asrt(get_digest(mech_type, data, sizeof(data), hdata, &hdata_len), CKR_OK, "GET DIGEST");
-        ctx = EVP_PKEY_CTX_new(evp, NULL);
-        asrt(ctx != NULL, 1, "EVP_KEY_CTX_new");
-        asrt(EVP_PKEY_verify_init(ctx) > 0, 1, "EVP_KEY_verify_init");
-        asrt(EVP_PKEY_CTX_set_signature_md(ctx, NULL) > 0, 1, "EVP_PKEY_CTX_set_signature_md");
-        asrt(EVP_PKEY_verify(ctx, sig, sig_len, hdata, hdata_len), 1, "EVP_PKEY_verify");
-      }
+      asrt(funcs->C_VerifyFinal(session, sig_update, sig_update_len), CKR_OK, "VERIFY FINAL");     
     }
   }
 
