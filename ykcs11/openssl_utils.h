@@ -61,19 +61,6 @@ CK_RV       do_get_modulus(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR le
 CK_RV       do_get_curve_parameters(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
 CK_RV       do_delete_pubk(ykcs11_pkey_t **key);
 
-CK_RV do_decode_rsa_public_key(ykcs11_rsa_key_t **key, CK_BYTE_PTR modulus, CK_ULONG mlen, CK_BYTE_PTR exponent, CK_ULONG elen);
-CK_RV do_free_rsa_public_key(ykcs11_rsa_key_t *key);
-
-CK_RV do_pkcs_1_t1(CK_BYTE_PTR in, CK_ULONG in_len, CK_BYTE_PTR out, CK_ULONG_PTR out_len, CK_ULONG key_len);
-CK_RV do_pkcs_1_digest_info(CK_BYTE_PTR in, CK_ULONG in_len, int nid, CK_BYTE_PTR out, CK_ULONG_PTR out_len);
-
-CK_RV do_pkcs_pss(ykcs11_pkey_t *key, CK_BYTE_PTR in, CK_ULONG in_len, int nid,
-                  CK_BYTE_PTR out, CK_ULONG_PTR out_len);
-
-CK_RV do_md_init(const ykcs11_md_t *md, ykcs11_md_ctx_t **ctx);
-CK_RV do_md_update(ykcs11_md_ctx_t *ctx, CK_BYTE_PTR in, CK_ULONG in_len);
-CK_RV do_md_finalize(ykcs11_md_ctx_t *ctx, CK_BYTE_PTR out, CK_ULONG_PTR out_len, int *nid);
-
 CK_RV do_apply_DER_encoding_to_ECSIG(CK_BYTE_PTR signature, CK_ULONG_PTR len);
 CK_RV do_strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG_PTR len, CK_ULONG sig_len);
 

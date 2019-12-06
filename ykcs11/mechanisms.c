@@ -90,15 +90,20 @@ CK_BBOOL is_RSA_mechanism(CK_MECHANISM_TYPE m) {
   return CK_FALSE;
 }
 
+static int (*default_rsa_priv_enc)(int flen, const unsigned char *from, unsigned char *to, RSA *rsa, int padding);
 static int rsa_key_ex_data_idx = -1;
 
 static int rsa_priv_enc(int flen, const unsigned char *from, unsigned char *to, RSA *rsa, int padding) {
   ykcs11_session_t *session = RSA_get_ex_data(rsa, rsa_key_ex_data_idx);
+
+  DBG("RSA sign flen=%d padding=%d session=%p", flen, padding, session);
+
+  if(session == NULL) // Use default sign method for soft keys
+    return default_rsa_priv_enc(flen, from, to, rsa, padding);
+
   size_t siglen = session->op_info.op.sign.sig_len;
   CK_BYTE buf[siglen];
   int ret;
-
-  DBG("RSA sign %d bytes with padding %d", flen, padding);
 
   switch(padding) {
     case RSA_PKCS1_PADDING:
@@ -115,6 +120,7 @@ static int rsa_priv_enc(int flen, const unsigned char *from, unsigned char *to, 
     DBG("Failed to apply padding type %d", padding);
     return -1;
   }
+
   ykpiv_rc rc = ykpiv_sign_data(session->slot->piv_state, buf, siglen, to, &siglen, session->op_info.op.sign.algorithm, session->op_info.op.sign.key);
   if(rc == YKPIV_OK) {
     DBG("ykpiv_sign_data with key %x returned %lu bytes", session->op_info.op.sign.key, siglen);    
@@ -125,14 +131,18 @@ static int rsa_priv_enc(int flen, const unsigned char *from, unsigned char *to, 
   }
 }
 
+static int (*default_ec_sign)(int type, const unsigned char *m, int m_len, unsigned char *sig, unsigned int *sig_len, const BIGNUM *kinv, const BIGNUM *r, EC_KEY *ec);
 static int ec_key_ex_data_idx = -1;
 
 static int ec_sign(int type, const unsigned char *m, int m_len, unsigned char *sig, unsigned int *sig_len, const BIGNUM *kinv, const BIGNUM *r, EC_KEY *ec) {
   ykcs11_session_t *session = EC_KEY_get_ex_data(ec, ec_key_ex_data_idx);
+
+  DBG("ECDSA sign m_len=%d sig_len=%u kinv=%p r=%p session=%p", m_len, *sig_len, kinv, r, session);
+
+  if(session == NULL) // Use default sign method for soft keys
+    return default_ec_sign(type, m, m_len, sig, sig_len, kinv, r, ec);
+
   size_t siglen = session->op_info.op.sign.sig_len;
-
-  DBG("ECDSA sign %d bytes", m_len);
-
   ykpiv_rc rc = ykpiv_sign_data(session->slot->piv_state, m, m_len, sig, &siglen, session->op_info.op.sign.algorithm, session->op_info.op.sign.key);
   if(rc == YKPIV_OK) {
     DBG("ykpiv_sign_data with key %x returned %lu bytes data", session->op_info.op.sign.key, siglen);
@@ -145,17 +155,20 @@ static int ec_sign(int type, const unsigned char *m, int m_len, unsigned char *s
 }
 
 CK_RV sign_method_init() {
-
   if (rsa_key_ex_data_idx == -1) {
     rsa_key_ex_data_idx = RSA_get_ex_new_index(0, NULL, NULL, NULL, 0);
     RSA_METHOD *rsa_meth = RSA_meth_dup(RSA_get_default_method());
+    default_rsa_priv_enc = RSA_meth_get_priv_enc(rsa_meth);
     RSA_meth_set_priv_enc(rsa_meth, rsa_priv_enc);
     RSA_set_default_method(rsa_meth);
   }
   if (ec_key_ex_data_idx == -1) {
     ec_key_ex_data_idx = EC_KEY_get_ex_new_index(0, NULL, NULL, NULL, 0);
     EC_KEY_METHOD *ec_meth = EC_KEY_METHOD_new(EC_KEY_get_default_method());
-    EC_KEY_METHOD_set_sign(ec_meth, ec_sign, NULL, NULL);
+    int (*default_ec_sign_setup)(EC_KEY *eckey, BN_CTX *ctx, BIGNUM **kinv, BIGNUM **rp);
+    ECDSA_SIG *(*default_ec_sign_sig)(const unsigned char *dgst, int dgstlen, const BIGNUM *kinv, const BIGNUM *rp, EC_KEY *eckey);
+    EC_KEY_METHOD_get_sign(ec_meth, &default_ec_sign, &default_ec_sign_setup, &default_ec_sign_sig);
+    EC_KEY_METHOD_set_sign(ec_meth, ec_sign, default_ec_sign_setup, default_ec_sign_sig);
     EC_KEY_set_default_method(ec_meth);
   }
   return CKR_OK;
@@ -720,6 +733,14 @@ CK_RV hash_mechanism_init(ykcs11_session_t *session) {
   const EVP_MD *md = NULL;
 
   switch (session->op_info.mechanism) {
+    case CKM_MD5:
+      md = EVP_md5();
+      break;
+
+    case CKM_RIPEMD160:
+      md = EVP_ripemd160();
+      break;
+
     case CKM_SHA_1:
       md = EVP_sha1();
       break;
