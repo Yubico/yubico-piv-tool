@@ -336,11 +336,14 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
 
   int rc;
 
+  size_t siglen = *sig_len;
   if(session->op_info.op.sign.md_ctx) {
-    rc = EVP_DigestSignFinal(session->op_info.op.sign.md_ctx, sig, sig_len);
+    rc = EVP_DigestSignFinal(session->op_info.op.sign.md_ctx, sig, &siglen);
   } else {
-    rc = EVP_PKEY_sign(session->op_info.op.sign.pkey_ctx, sig, sig_len, session->op_info.buf, session->op_info.buf_len);
+    rc = EVP_PKEY_sign(session->op_info.op.sign.pkey_ctx, sig, &siglen, session->op_info.buf, session->op_info.buf_len);
   }
+
+  *sig_len = siglen;
 
   if(rc <= 0) {
     return CKR_DATA_LEN_RANGE;
