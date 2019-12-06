@@ -144,6 +144,23 @@ static int ec_sign(int type, const unsigned char *m, int m_len, unsigned char *s
   }
 }
 
+CK_RV sign_method_init() {
+
+  if (rsa_key_ex_data_idx == -1) {
+    rsa_key_ex_data_idx = RSA_get_ex_new_index(0, NULL, NULL, NULL, 0);
+    RSA_METHOD *rsa_meth = RSA_meth_dup(RSA_get_default_method());
+    RSA_meth_set_priv_enc(rsa_meth, rsa_priv_enc);
+    RSA_set_default_method(rsa_meth);
+  }
+  if (ec_key_ex_data_idx == -1) {
+    ec_key_ex_data_idx = EC_KEY_get_ex_new_index(0, NULL, NULL, NULL, 0);
+    EC_KEY_METHOD *ec_meth = EC_KEY_METHOD_new(EC_KEY_get_default_method());
+    EC_KEY_METHOD_set_sign(ec_meth, ec_sign, NULL, NULL);
+    EC_KEY_set_default_method(ec_meth);
+  }
+  return CKR_OK;
+}
+
 CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
 
   const EVP_MD *md = NULL;
@@ -271,22 +288,11 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
       return CKR_FUNCTION_FAILED;
     }
     RSA *rsa = EVP_PKEY_get0_RSA(key);
-    if (rsa_key_ex_data_idx == -1)
-      rsa_key_ex_data_idx = RSA_get_ex_new_index(0, NULL, NULL, NULL, 0);
     RSA_set_ex_data(rsa, rsa_key_ex_data_idx, session);
-    RSA_METHOD *meth = RSA_meth_dup(RSA_get_method(rsa));
-    RSA_meth_set_priv_enc(meth, rsa_priv_enc);
-    RSA_meth_set_finish(meth, 0);
-    RSA_set_method(rsa, meth);
     session->op_info.op.sign.sig_len = RSA_size(rsa);
   } else {
     EC_KEY *ec = EVP_PKEY_get0_EC_KEY(key);
-    if (ec_key_ex_data_idx == -1)
-      ec_key_ex_data_idx = EC_KEY_get_ex_new_index(0, NULL, NULL, NULL, 0);
     EC_KEY_set_ex_data(ec, ec_key_ex_data_idx, session);
-    EC_KEY_METHOD *meth = EC_KEY_METHOD_new(EC_KEY_get_method(ec));
-    EC_KEY_METHOD_set_sign(meth, ec_sign, NULL, NULL);
-    EC_KEY_set_method(ec, meth);
     session->op_info.op.sign.sig_len = ECDSA_size(ec);
   }
 

@@ -178,6 +178,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
     }
   }
 
+  sign_method_init();
+
   DOUT;
   return CKR_OK;
 }

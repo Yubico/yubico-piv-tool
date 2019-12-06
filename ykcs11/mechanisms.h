@@ -35,6 +35,7 @@
 
 CK_BBOOL is_RSA_mechanism(CK_MECHANISM_TYPE m);
 
+CK_RV sign_method_init();
 CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key);
 CK_RV sign_mechanism_update(ykcs11_session_t *session, CK_BYTE_PTR in, CK_ULONG in_len);
 CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_PTR sig_len);
