@@ -43,7 +43,6 @@
 #include "debug.h"
 
 #include <stdbool.h>
-#include "../tool/util.h"
 
 #define YKCS11_MANUFACTURER "Yubico (www.yubico.com)"
 #define YKCS11_LIBDESC      "PKCS#11 PIV Library (SP-800-73)"
@@ -178,10 +177,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
     }
   }
 
-  sign_method_init();
+  rv = sign_method_init();
 
   DOUT;
-  return CKR_OK;
+  return rv;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_Finalize)(
@@ -2275,13 +2274,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestInit)(
   session->op_info.mechanism = pMechanism->mechanism;
 
   CK_RV rv;
-  rv = hash_mechanism_init(session);
+  rv = digest_mechanism_init(session);
   if(rv != CKR_OK) {
     DBG("Unable to initialize digest operation");
     return rv;
   }
 
-  session->op_info.type = YKCS11_HASH;
+  session->op_info.type = YKCS11_DIGEST;
 
   DOUT;
   return CKR_OK;
@@ -2309,7 +2308,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Digest)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (session->op_info.type != YKCS11_HASH) {
+  if (session->op_info.type != YKCS11_DIGEST) {
     DBG("Digest operation not in process");
     return CKR_OPERATION_ACTIVE;
   }
@@ -2321,26 +2320,26 @@ CK_DEFINE_FUNCTION(CK_RV, C_Digest)(
 
   if (pDigest == NULL) {
     // Just return the size of the digest
-    DBG("The size of the digest will be %lu", session->op_info.op.digest.length);
-    *pulDigestLen = session->op_info.op.digest.length;
+    DBG("The size of the digest will be %lu", session->op_info.md_len);
+    *pulDigestLen = session->op_info.md_len;
     return CKR_OK;
   }
 
-  if (*pulDigestLen < session->op_info.op.digest.length) {
+  if (*pulDigestLen < session->op_info.md_len) {
     DBG("pulDigestLen too small, data will not fit, expected = %lu, got %lu",
-      session->op_info.op.digest.length, *pulDigestLen);
-    *pulDigestLen = session->op_info.op.digest.length;
+      session->op_info.md_len, *pulDigestLen);
+    *pulDigestLen = session->op_info.md_len;
     return CKR_BUFFER_TOO_SMALL;
   }
 
   CK_RV rv;
-  rv = hash_mechanism_update(session, pData, ulDataLen);
+  rv = digest_mechanism_update(session, pData, ulDataLen);
   if (rv != CKR_OK) {
     DBG("Unable to perform digest operation step");
     return rv;
   }
 
-  rv = hash_mechanism_final(session, pDigest, pulDigestLen);
+  rv = digest_mechanism_final(session, pDigest, pulDigestLen);
   if (rv != CKR_OK) {
     DBG("Unable to finalize digest operation");
     return rv;
@@ -2376,12 +2375,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestUpdate)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (session->op_info.type != YKCS11_HASH) {
+  if (session->op_info.type != YKCS11_DIGEST) {
     DBG("Digest operation not in process");
     return CKR_OPERATION_ACTIVE;
   }
 
-  rv = hash_mechanism_update(session, pPart, ulPartLen);
+  rv = digest_mechanism_update(session, pPart, ulPartLen);
   if (rv != CKR_OK) {
     DBG("Unable to perform digest operation step");
     return rv;
@@ -2424,7 +2423,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestFinal)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (session->op_info.type != YKCS11_HASH) {
+  if (session->op_info.type != YKCS11_DIGEST) {
     DBG("Digest operation not in process");
     return CKR_OPERATION_ACTIVE;
   }
@@ -2436,22 +2435,22 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestFinal)(
 
   if (pDigest == NULL) {
     // Just return the size of the digest
-    DBG("The size of the digest will be %lu", session->op_info.op.digest.length);
+    DBG("The size of the digest will be %lu", session->op_info.md_len);
 
-    *pulDigestLen = session->op_info.op.digest.length;
+    *pulDigestLen = session->op_info.md_len;
 
     DOUT;
     return CKR_OK;
   }
 
-  if (*pulDigestLen < session->op_info.op.digest.length) {
+  if (*pulDigestLen < session->op_info.md_len) {
     DBG("pulDigestLen too small, data will not fit, expected = %lu, got %lu",
-      session->op_info.op.digest.length, *pulDigestLen);
-    *pulDigestLen = session->op_info.op.digest.length;
+      session->op_info.md_len, *pulDigestLen);
+    *pulDigestLen = session->op_info.md_len;
     return CKR_BUFFER_TOO_SMALL;
   }
 
-  rv = hash_mechanism_final(session, pDigest, pulDigestLen);
+  rv = digest_mechanism_final(session, pDigest, pulDigestLen);
   if (rv != CKR_OK) {
     DBG("Unable to finalize digest operation");
     return rv;
@@ -2517,7 +2516,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
   }
 
   session->op_info.mechanism = pMechanism->mechanism;
-  session->op_info.op.sign.key = piv_2_ykpiv(hKey);
+  session->op_info.op.sign.piv_key = piv_2_ykpiv(hKey);
   CK_BYTE id = get_key_id(hKey);
 
   CK_RV rv = sign_mechanism_init(session, session->pkeys[id]);
@@ -2597,7 +2596,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   dump_data(pData, ulDataLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
-  if ((rv = sign_mechanism_update(session, pData, ulDataLen)) != CKR_OK) {
+  if ((rv = digest_mechanism_update(session, pData, ulDataLen)) != CKR_OK) {
     DBG("Unable to perform sign update step");
     goto sign_out;
   }
@@ -2665,7 +2664,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignUpdate)(
   dump_data(pPart, ulPartLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
-  if ((rv = sign_mechanism_update(session, pPart, ulPartLen)) != CKR_OK) {
+  if ((rv = digest_mechanism_update(session, pPart, ulPartLen)) != CKR_OK) {
     DBG("Unable to perform signing operation step");
     goto sign_out;
   }
@@ -2874,7 +2873,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Verify)(
     return CKR_OPERATION_NOT_INITIALIZED;
   }
 
-  rv = verify_mechanism_update(session, pData, ulDataLen);
+  rv = digest_mechanism_update(session, pData, ulDataLen);
   if (rv != CKR_OK) {
     DBG("Unable to perform verification operation step");
     goto verify_out;
@@ -2933,7 +2932,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyUpdate)(
     return CKR_OPERATION_NOT_INITIALIZED;
   }
 
-  if (verify_mechanism_update(session, pPart, ulPartLen) != CKR_OK) {
+  if (digest_mechanism_update(session, pPart, ulPartLen) != CKR_OK) {
     DBG("Unable to perform signature verification operation step");
     rv = CKR_FUNCTION_FAILED;
     goto verify_out;

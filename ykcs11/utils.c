@@ -38,8 +38,6 @@
 #include <unistd.h>
 #include <pthread.h>
 
-#include "../tool/openssl-compat.h" // TODO: share this better?
-
 CK_BBOOL is_yubico_reader(const char* reader_name) {
   return !strncmp(reader_name, "Yubico", 6);
 }

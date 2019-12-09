@@ -52,11 +52,11 @@ typedef struct {
 
 typedef enum {
   YKCS11_NOOP,
+  YKCS11_DIGEST,
   YKCS11_SIGN,
   YKCS11_VERIFY,
-  YKCS11_HASH,
-  YKCS11_DECRYPT,
-  YKCS11_ENCRYPT
+  YKCS11_ENCRYPT,
+  YKCS11_DECRYPT
 } ykcs11_op_type_t;
 
 typedef struct {
@@ -66,22 +66,16 @@ typedef struct {
 } gen_info_t;
 
 typedef struct {
-  CK_BYTE           key;     // PIV Key id
+  CK_BYTE           piv_key;   // PIV Key id
   CK_BYTE           algorithm; // PIV Key algorithm
   CK_ULONG          sig_len; // Signature length in bytes
   ykcs11_pkey_ctx_t *pkey_ctx; // Signature context
-  ykcs11_md_ctx_t   *md_ctx; // Digest context (null for non-hashed signatures)
 } sign_info_t;
 
 typedef struct {
   CK_KEY_TYPE       key_type; // Key type
   ykcs11_pkey_ctx_t *pkey_ctx; // Signature context
-  ykcs11_md_ctx_t   *md_ctx; // Digest context (null for non-hashed signatures)
 } verify_info_t;
-
-typedef struct {
-  CK_BYTE  key_id;
-} decrypt_info_t;
 
 typedef struct {
   CK_BYTE  key_id;
@@ -89,24 +83,24 @@ typedef struct {
 } encrypt_info_t;
 
 typedef struct {
-  CK_ULONG          length; // Length in bits
-  ykcs11_md_ctx_t   *md_ctx;  // Digest context
-} digest_info_t;
+  CK_BYTE  key_id;
+} decrypt_info_t;
 
 typedef union {
   sign_info_t    sign;
   verify_info_t  verify;
-  decrypt_info_t decrypt;
   encrypt_info_t encrypt;
-  digest_info_t  digest;
+  decrypt_info_t decrypt;
 } op_t;
 
 typedef struct {
-  ykcs11_op_type_t type;
   CK_MECHANISM_TYPE mechanism;
+  ykcs11_op_type_t type;
   op_t             op;
-  CK_BYTE          buf[4096];
+  CK_ULONG         md_len; // Length in bits
+  ykcs11_md_ctx_t  *md_ctx;  // Digest context
   CK_ULONG         buf_len;
+  CK_BYTE          buf[4096];
 } op_info_t;
 
 typedef struct {
