@@ -103,7 +103,7 @@ static int rsa_priv_enc(int flen, const unsigned char *from, unsigned char *to, 
   if(session == NULL) // Use default sign method for soft keys
     return default_rsa_priv_enc(flen, from, to, rsa, padding);
 
-  size_t siglen = session->op_info.op.sign.sig_len;
+  size_t siglen = session->op_info.out_len;
   CK_BYTE buf[siglen];
   int ret;
 
@@ -144,7 +144,7 @@ static int ec_sign(int type, const unsigned char *m, int m_len, unsigned char *s
   if(session == NULL) // Use default sign method for soft keys
     return default_ec_sign(type, m, m_len, sig, sig_len, kinv, r, ec);
 
-  size_t siglen = session->op_info.op.sign.sig_len;
+  size_t siglen = session->op_info.out_len;
   ykpiv_rc rc = ykpiv_sign_data(session->slot->piv_state, m, m_len, sig, &siglen, session->op_info.op.sign.algorithm, session->op_info.op.sign.piv_key);
   if(rc == YKPIV_OK) {
     DBG("ykpiv_sign_data with key %x returned %lu bytes data", session->op_info.op.sign.piv_key, siglen);
@@ -276,7 +276,6 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
   }
 
   if(md) {
-    session->op_info.md_len = EVP_MD_size(md);
     session->op_info.md_ctx = EVP_MD_CTX_create();
     if (session->op_info.md_ctx == NULL) {
       return CKR_FUNCTION_FAILED;
@@ -305,11 +304,11 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
     }
     RSA *rsa = EVP_PKEY_get0_RSA(key);
     RSA_set_ex_data(rsa, rsa_key_ex_data_idx, session);
-    session->op_info.op.sign.sig_len = RSA_size(rsa);
+    session->op_info.out_len = RSA_size(rsa);
   } else {
     EC_KEY *ec = EVP_PKEY_get0_EC_KEY(key);
     EC_KEY_set_ex_data(ec, ec_key_ex_data_idx, session);
-    session->op_info.op.sign.sig_len = ECDSA_size(ec);
+    session->op_info.out_len = ECDSA_size(ec);
   }
 
   session->op_info.buf_len = 0;
@@ -473,7 +472,6 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
   }
 
   if(md) {
-    session->op_info.md_len = EVP_MD_size(md);
     session->op_info.md_ctx = EVP_MD_CTX_create();
     if (session->op_info.md_ctx == NULL) {
       return CKR_FUNCTION_FAILED;
@@ -502,6 +500,7 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
     }
   }
 
+  session->op_info.out_len = 0;
   session->op_info.buf_len = 0;
 
   return CKR_OK;
@@ -737,9 +736,7 @@ CK_RV digest_mechanism_init(ykcs11_session_t *session) {
       return CKR_MECHANISM_INVALID;
   }
 
-  session->op_info.md_len = EVP_MD_size(md);
   session->op_info.md_ctx = EVP_MD_CTX_create();
-
   if (session->op_info.md_ctx == NULL) {
     return CKR_FUNCTION_FAILED;
   }
@@ -750,7 +747,10 @@ CK_RV digest_mechanism_init(ykcs11_session_t *session) {
     return CKR_FUNCTION_FAILED;
   }
 
-  DBG("Initialized %s digest of length %lu", EVP_MD_name(md), session->op_info.md_len);
+  session->op_info.out_len = EVP_MD_size(md);
+  session->op_info.buf_len = 0;
+
+  DBG("Initialized %s digest of length %lu", EVP_MD_name(md), session->op_info.out_len);
   return CKR_OK;
 }
 
@@ -769,7 +769,6 @@ CK_RV digest_mechanism_update(ykcs11_session_t *session, CK_BYTE_PTR in, CK_ULON
   }
   return CKR_OK;
 }
-
 
 CK_RV digest_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR pDigest, CK_ULONG_PTR pDigestLength) {
 

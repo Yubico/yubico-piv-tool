@@ -68,7 +68,6 @@ typedef struct {
 typedef struct {
   CK_BYTE           piv_key;   // PIV Key id
   CK_BYTE           algorithm; // PIV Key algorithm
-  CK_ULONG          sig_len; // Signature length in bytes
   ykcs11_pkey_ctx_t *pkey_ctx; // Signature context
 } sign_info_t;
 
@@ -94,12 +93,12 @@ typedef union {
 } op_t;
 
 typedef struct {
-  CK_MECHANISM_TYPE mechanism;
-  ykcs11_op_type_t type;
-  op_t             op;
-  CK_ULONG         md_len; // Length in bits
+  CK_MECHANISM_TYPE mechanism; // Active mechanism, if any
+  ykcs11_op_type_t type;     // Active operation, if any
+  op_t             op;       // Operation specific data,if any
   ykcs11_md_ctx_t  *md_ctx;  // Digest context
-  CK_ULONG         buf_len;
+  CK_ULONG         out_len;  // Required out length in bytes
+  CK_ULONG         buf_len;  // Current buf length in bytes
   CK_BYTE          buf[4096];
 } op_info_t;
 

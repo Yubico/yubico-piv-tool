@@ -2320,15 +2320,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_Digest)(
 
   if (pDigest == NULL) {
     // Just return the size of the digest
-    DBG("The size of the digest will be %lu", session->op_info.md_len);
-    *pulDigestLen = session->op_info.md_len;
+    DBG("The size of the digest will be %lu", session->op_info.out_len);
+    *pulDigestLen = session->op_info.out_len;
     return CKR_OK;
   }
 
-  if (*pulDigestLen < session->op_info.md_len) {
+  if (*pulDigestLen < session->op_info.out_len) {
     DBG("pulDigestLen too small, data will not fit, expected = %lu, got %lu",
-      session->op_info.md_len, *pulDigestLen);
-    *pulDigestLen = session->op_info.md_len;
+      session->op_info.out_len, *pulDigestLen);
+    *pulDigestLen = session->op_info.out_len;
     return CKR_BUFFER_TOO_SMALL;
   }
 
@@ -2435,18 +2435,18 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestFinal)(
 
   if (pDigest == NULL) {
     // Just return the size of the digest
-    DBG("The size of the digest will be %lu", session->op_info.md_len);
+    DBG("The size of the digest will be %lu", session->op_info.out_len);
 
-    *pulDigestLen = session->op_info.md_len;
+    *pulDigestLen = session->op_info.out_len;
 
     DOUT;
     return CKR_OK;
   }
 
-  if (*pulDigestLen < session->op_info.md_len) {
+  if (*pulDigestLen < session->op_info.out_len) {
     DBG("pulDigestLen too small, data will not fit, expected = %lu, got %lu",
-      session->op_info.md_len, *pulDigestLen);
-    *pulDigestLen = session->op_info.md_len;
+      session->op_info.out_len, *pulDigestLen);
+    *pulDigestLen = session->op_info.out_len;
     return CKR_BUFFER_TOO_SMALL;
   }
 
@@ -2580,14 +2580,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   if (pSignature == NULL) {
     // Just return the size of the signature
-    *pulSignatureLen = session->op_info.op.sign.sig_len;
+    *pulSignatureLen = session->op_info.out_len;
     DBG("The signature requires %lu bytes", *pulSignatureLen);
     DOUT;
     return CKR_OK;
   }
 
-  if (*pulSignatureLen < session->op_info.op.sign.sig_len) {
-    DBG("The signature requires %lu bytes, got %lu", session->op_info.op.sign.sig_len, *pulSignatureLen);
+  if (*pulSignatureLen < session->op_info.out_len) {
+    DBG("The signature requires %lu bytes, got %lu", session->op_info.out_len, *pulSignatureLen);
     DOUT;
     return CKR_BUFFER_TOO_SMALL;
   }
@@ -2719,14 +2719,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
 
   if (pSignature == NULL) {
     // Just return the size of the signature
-    *pulSignatureLen = session->op_info.op.sign.sig_len;
+    *pulSignatureLen = session->op_info.out_len;
     DBG("The signature requires %lu bytes", *pulSignatureLen);
     DOUT;
     return CKR_OK;
   }
 
-  if (*pulSignatureLen < session->op_info.op.sign.sig_len) {
-    DBG("The signature requires %lu bytes, got %lu", session->op_info.op.sign.sig_len, *pulSignatureLen);
+  if (*pulSignatureLen < session->op_info.out_len) {
+    DBG("The signature requires %lu bytes, got %lu", session->op_info.out_len, *pulSignatureLen);
     DOUT;
     return CKR_BUFFER_TOO_SMALL;
   }
