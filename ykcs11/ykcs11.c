@@ -177,10 +177,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
     }
   }
 
-  rv = sign_method_init();
-
   DOUT;
-  return rv;
+  return CKR_OK;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_Finalize)(
@@ -3163,11 +3161,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     return rv;
   }
 
-  gen_info_t gen;
-
-  // Clear values
-  gen.key_len = 0;
-  gen.key_id = 0;
+  gen_info_t gen = {0};
 
   // Check the template for the public key
   if ((rv = check_pubkey_template(&gen, pMechanism, pPublicKeyTemplate, ulPublicKeyAttributeCount)) != CKR_OK) {

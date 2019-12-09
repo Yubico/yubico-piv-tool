@@ -66,9 +66,10 @@ typedef struct {
 } gen_info_t;
 
 typedef struct {
+  ykcs11_rsa_t      *rsa;      // RSA key, if any (needed for PSS padding) 
   CK_BYTE           piv_key;   // PIV Key id
   CK_BYTE           algorithm; // PIV Key algorithm
-  ykcs11_pkey_ctx_t *pkey_ctx; // Signature context
+  CK_ULONG          padding;
 } sign_info_t;
 
 typedef struct {

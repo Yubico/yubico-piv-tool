@@ -32,6 +32,7 @@
 #include "objects.h"
 #include "token.h"
 #include "../tool/openssl-compat.h" // TODO: share this better?
+#include "../tool/util.h" // TODO: share this better?
 #include "openssl_utils.h"
 #include "utils.h"
 #include "debug.h"
@@ -92,96 +93,9 @@ CK_BBOOL is_RSA_mechanism(CK_MECHANISM_TYPE m) {
   return CK_FALSE;
 }
 
-static int (*default_rsa_priv_enc)(int flen, const unsigned char *from, unsigned char *to, RSA *rsa, int padding);
-static int rsa_key_ex_data_idx = -1;
-
-static int rsa_priv_enc(int flen, const unsigned char *from, unsigned char *to, RSA *rsa, int padding) {
-  ykcs11_session_t *session = RSA_get_ex_data(rsa, rsa_key_ex_data_idx);
-
-  DBG("RSA sign flen=%d padding=%d session=%p", flen, padding, session);
-
-  if(session == NULL) // Use default sign method for soft keys
-    return default_rsa_priv_enc(flen, from, to, rsa, padding);
-
-  size_t siglen = session->op_info.out_len;
-  CK_BYTE buf[siglen];
-  int ret;
-
-  switch(padding) {
-    case RSA_PKCS1_PADDING:
-      ret = RSA_padding_add_PKCS1_type_1(buf, siglen, from, flen);
-      break;
-    case RSA_NO_PADDING:
-      ret = RSA_padding_add_none(buf, siglen, from, flen);
-      break;
-    default:
-      DBG("Unknown padding type %d", padding);
-      return -1;
-  }
-  if(ret <= 0) {
-    DBG("Failed to apply padding type %d", padding);
-    return -1;
-  }
-
-  ykpiv_rc rc = ykpiv_sign_data(session->slot->piv_state, buf, siglen, to, &siglen, session->op_info.op.sign.algorithm, session->op_info.op.sign.piv_key);
-  if(rc == YKPIV_OK) {
-    DBG("ykpiv_sign_data with key %x returned %lu bytes", session->op_info.op.sign.piv_key, siglen);    
-    return siglen;
-  } else {
-    DBG("ykpiv_sign_data with key %x failed: %s", session->op_info.op.sign.piv_key, ykpiv_strerror(rc));
-    return -1;
-  }
-}
-
-static int (*default_ec_sign)(int type, const unsigned char *m, int m_len, unsigned char *sig, unsigned int *sig_len, const BIGNUM *kinv, const BIGNUM *r, EC_KEY *ec);
-static int ec_key_ex_data_idx = -1;
-
-static int ec_sign(int type, const unsigned char *m, int m_len, unsigned char *sig, unsigned int *sig_len, const BIGNUM *kinv, const BIGNUM *r, EC_KEY *ec) {
-  ykcs11_session_t *session = EC_KEY_get_ex_data(ec, ec_key_ex_data_idx);
-
-  DBG("ECDSA sign m_len=%d sig_len=%u kinv=%p r=%p session=%p", m_len, *sig_len, kinv, r, session);
-
-  if(session == NULL) // Use default sign method for soft keys
-    return default_ec_sign(type, m, m_len, sig, sig_len, kinv, r, ec);
-
-  size_t siglen = session->op_info.out_len;
-  ykpiv_rc rc = ykpiv_sign_data(session->slot->piv_state, m, m_len, sig, &siglen, session->op_info.op.sign.algorithm, session->op_info.op.sign.piv_key);
-  if(rc == YKPIV_OK) {
-    DBG("ykpiv_sign_data with key %x returned %lu bytes data", session->op_info.op.sign.piv_key, siglen);
-    *sig_len = siglen;
-    return 1;
-  } else {
-    DBG("ykpiv_sign_data with key %x failed: %s", session->op_info.op.sign.piv_key, ykpiv_strerror(rc));
-    return 0;
-  }
-}
-
-CK_RV sign_method_init() {
-  if (rsa_key_ex_data_idx == -1) {
-    rsa_key_ex_data_idx = RSA_get_ex_new_index(0, NULL, NULL, NULL, 0);
-    RSA_METHOD *rsa_meth = RSA_meth_dup(RSA_get_default_method());
-    default_rsa_priv_enc = RSA_meth_get_priv_enc(rsa_meth);
-    RSA_meth_set_priv_enc(rsa_meth, rsa_priv_enc);
-    RSA_set_default_method(rsa_meth);
-  }
-  if (ec_key_ex_data_idx == -1) {
-    ec_key_ex_data_idx = EC_KEY_get_ex_new_index(0, NULL, NULL, NULL, 0);
-    EC_KEY_METHOD *ec_meth = EC_KEY_METHOD_new(EC_KEY_get_default_method());
-    int (*default_ec_sign_setup)(EC_KEY *eckey, BN_CTX *ctx, BIGNUM **kinv, BIGNUM **rp);
-    ECDSA_SIG *(*default_ec_sign_sig)(const unsigned char *dgst, int dgstlen, const BIGNUM *kinv, const BIGNUM *rp, EC_KEY *eckey);
-    EC_KEY_METHOD_get_sign(ec_meth, &default_ec_sign, &default_ec_sign_setup, &default_ec_sign_sig);
-    EC_KEY_METHOD_set_sign(ec_meth, ec_sign, default_ec_sign_setup, default_ec_sign_sig);
-    EC_KEY_set_default_method(ec_meth);
-  }
-  return CKR_OK;
-}
-
 CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
 
   const EVP_MD *md = NULL;
-
-  session->op_info.md_ctx = NULL;
-  session->op_info.op.sign.pkey_ctx = NULL;
 
   switch (session->op_info.mechanism) {
     case CKM_RSA_X_509:
@@ -228,13 +142,14 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
       return CKR_MECHANISM_INVALID;
   }
 
+  session->op_info.out_len = EVP_PKEY_size(key);
+  session->op_info.op.sign.rsa = EVP_PKEY_get0_RSA(key);
   session->op_info.op.sign.algorithm = do_get_key_algorithm(key);
-  CK_KEY_TYPE key_type = do_get_key_type(key);
   CK_ULONG padding = 0;
 
   switch (session->op_info.mechanism) {
     case CKM_RSA_X_509:
-      if(key_type != CKK_RSA) {
+      if(!session->op_info.op.sign.rsa) {
         DBG("Mechanism %lu requires an RSA key", session->op_info.mechanism);
         return CKR_KEY_TYPE_INCONSISTENT;
       }
@@ -248,7 +163,7 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
     case CKM_SHA256_RSA_PKCS:
     case CKM_SHA384_RSA_PKCS:
     case CKM_SHA512_RSA_PKCS:
-      if(key_type != CKK_RSA) {
+      if(!session->op_info.op.sign.rsa) {
         DBG("Mechanism %lu requires an RSA key", session->op_info.mechanism);
         return CKR_KEY_TYPE_INCONSISTENT;
       }
@@ -260,7 +175,7 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
     case CKM_SHA256_RSA_PKCS_PSS:
     case CKM_SHA384_RSA_PKCS_PSS:
     case CKM_SHA512_RSA_PKCS_PSS:
-      if(key_type != CKK_RSA) {
+      if(!session->op_info.op.sign.rsa) {
         DBG("Mechanism %lu requires an RSA key", session->op_info.mechanism);
         return CKR_KEY_TYPE_INCONSISTENT;
       }
@@ -268,47 +183,27 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
       break;
 
     default:
-      if(key_type != CKK_ECDSA) {
+      if(session->op_info.op.sign.rsa) {
         DBG("Mechanism %lu requires an ECDSA key", session->op_info.mechanism);
         return CKR_KEY_TYPE_INCONSISTENT;
       }
       break;
   }
 
+  session->op_info.op.sign.padding = padding;
+
   if(md) {
     session->op_info.md_ctx = EVP_MD_CTX_create();
     if (session->op_info.md_ctx == NULL) {
+      DBG("EVP_MD_CTX_create failed");
       return CKR_FUNCTION_FAILED;
     }
-    if (EVP_DigestSignInit(session->op_info.md_ctx, &session->op_info.op.sign.pkey_ctx, md, NULL, key) <= 0) {
+    if (EVP_DigestInit_ex(session->op_info.md_ctx, md, NULL) <= 0) {
       DBG("EVP_DigestSignInit failed");
       return CKR_FUNCTION_FAILED;
     }
   } else {
     session->op_info.md_ctx = NULL;
-    session->op_info.op.sign.pkey_ctx = EVP_PKEY_CTX_new(key, NULL);
-    if (session->op_info.op.sign.pkey_ctx == NULL) {
-      DBG("EVP_PKEY_CTX_new failed");
-      return CKR_FUNCTION_FAILED;
-    }
-    if(EVP_PKEY_sign_init(session->op_info.op.sign.pkey_ctx) <= 0) {
-      DBG("EVP_PKEY_sign_init failed");
-      return CKR_FUNCTION_FAILED;
-    }
-  }
-
-  if (padding) {
-    if (EVP_PKEY_CTX_set_rsa_padding(session->op_info.op.sign.pkey_ctx, padding) <= 0) {
-      DBG("EVP_PKEY_CTX_set_rsa_padding failed");
-      return CKR_FUNCTION_FAILED;
-    }
-    RSA *rsa = EVP_PKEY_get0_RSA(key);
-    RSA_set_ex_data(rsa, rsa_key_ex_data_idx, session);
-    session->op_info.out_len = RSA_size(rsa);
-  } else {
-    EC_KEY *ec = EVP_PKEY_get0_EC_KEY(key);
-    EC_KEY_set_ex_data(ec, ec_key_ex_data_idx, session);
-    session->op_info.out_len = ECDSA_size(ec);
   }
 
   session->op_info.buf_len = 0;
@@ -318,16 +213,49 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
 
 CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_PTR sig_len) {
 
-  int rc;
+  int rc = 1;
+  unsigned int cbLength;
+  const EVP_MD *pss_md = EVP_sha1();
 
-  size_t siglen = *sig_len;
   if(session->op_info.md_ctx) {
-    rc = EVP_DigestSignFinal(session->op_info.md_ctx, sig, &siglen);
-  } else {
-    rc = EVP_PKEY_sign(session->op_info.op.sign.pkey_ctx, sig, &siglen, session->op_info.buf, session->op_info.buf_len);
+    pss_md = EVP_MD_CTX_md(session->op_info.md_ctx);
+    // Compute the digest
+    cbLength = EVP_MAX_MD_SIZE;
+    rc = EVP_DigestFinal_ex(session->op_info.md_ctx, session->op_info.buf, &cbLength);
+    if(rc <= 0) {
+#if YKCS11_DBG
+      ERR_print_errors_fp(stderr);
+#endif
+      return CKR_FUNCTION_FAILED;
+    }
+    if(session->op_info.op.sign.padding == RSA_PKCS1_PADDING) {
+      // Wrap in an X509_SIG
+      prepare_rsa_signature(session->op_info.buf, cbLength, session->op_info.buf, &cbLength, EVP_MD_type(pss_md));
+    }
+    session->op_info.buf_len = cbLength;
   }
 
-  *sig_len = siglen;
+  int padlen = session->op_info.out_len;
+  unsigned char buf[padlen];
+
+  // Apply padding
+  switch(session->op_info.op.sign.padding) {
+    case RSA_PKCS1_PADDING:
+      rc = RSA_padding_add_PKCS1_type_1(buf, padlen, session->op_info.buf, session->op_info.buf_len);
+      memcpy(session->op_info.buf, buf, padlen);
+      session->op_info.buf_len = padlen;
+      break;
+    case RSA_PKCS1_PSS_PADDING:
+      rc = RSA_padding_add_PKCS1_PSS(session->op_info.op.sign.rsa, buf, session->op_info.buf, pss_md, -1);
+      memcpy(session->op_info.buf, buf, padlen);
+      session->op_info.buf_len = padlen;
+      break;
+    case RSA_NO_PADDING:
+      rc = RSA_padding_add_none(buf, padlen, session->op_info.buf, session->op_info.buf_len);
+      memcpy(session->op_info.buf, buf, padlen);
+      session->op_info.buf_len = padlen;
+      break;
+  }
 
   if(rc <= 0) {
 #if YKCS11_DBG
@@ -335,7 +263,19 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
 #endif
     return CKR_FUNCTION_FAILED;
   }
+
+  // Sign with PIV
+  size_t siglen = *sig_len;
+  ykpiv_rc rcc = ykpiv_sign_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, sig, &siglen, session->op_info.op.sign.algorithm, session->op_info.op.sign.piv_key);
+  if(rcc == YKPIV_OK) {
+    DBG("ykpiv_sign_data %lu bytes with key %x returned %lu bytes data", session->op_info.buf_len, session->op_info.op.sign.piv_key, siglen);
+    *sig_len = siglen;
+  } else {
+    DBG("ykpiv_sign_data with key %x failed: %s", session->op_info.op.sign.piv_key, ykpiv_strerror(rcc));
+    return CKR_FUNCTION_FAILED;
+  }
   
+  // Strip DER encoding on EC signatures
   switch(session->op_info.op.sign.algorithm) {
     case YKPIV_ALGO_ECCP256:
       do_strip_DER_encoding_from_ECSIG(sig, sig_len, 64);
@@ -353,10 +293,7 @@ CK_RV sign_mechanism_cleanup(ykcs11_session_t *session) {
   if (session->op_info.md_ctx != NULL) {
     EVP_MD_CTX_destroy(session->op_info.md_ctx);
     session->op_info.md_ctx = NULL;
-  } else if(session->op_info.op.sign.pkey_ctx != NULL) {
-    EVP_PKEY_CTX_free(session->op_info.op.sign.pkey_ctx);
   }
-  session->op_info.op.sign.pkey_ctx = NULL;
   session->op_info.buf_len = 0;
   return CKR_OK;
 }
