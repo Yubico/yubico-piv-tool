@@ -456,7 +456,11 @@ CK_RV verify_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULON
     memcpy(der, sig, sig_len);
     sig = der;
     DBG("Applying DER encoding to signature of %lu bytes", sig_len);
-    do_apply_DER_encoding_to_ECSIG(sig, &sig_len);
+    CK_RV rv = do_apply_DER_encoding_to_ECSIG(sig, &sig_len);
+    if(rv != CKR_OK) {
+      DBG("do_apply_DER_encoding_to_ECSIG failed");
+      return CKR_SIGNATURE_INVALID;
+    }
   }
 
   if(session->op_info.md_ctx) {
