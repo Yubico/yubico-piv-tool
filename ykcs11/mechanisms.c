@@ -213,19 +213,14 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
 
 CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_PTR sig_len) {
 
-  int rc = 1;
-  unsigned int cbLength;
   const EVP_MD *pss_md = EVP_sha1();
 
   if(session->op_info.md_ctx) {
     pss_md = EVP_MD_CTX_md(session->op_info.md_ctx);
     // Compute the digest
-    cbLength = EVP_MAX_MD_SIZE;
-    rc = EVP_DigestFinal_ex(session->op_info.md_ctx, session->op_info.buf, &cbLength);
-    if(rc <= 0) {
-#if YKCS11_DBG
-      ERR_print_errors_fp(stderr);
-#endif
+    unsigned int cbLength;
+    if(EVP_DigestFinal_ex(session->op_info.md_ctx, session->op_info.buf, &cbLength) <= 0) {
+      DBG("EVP_DigestFinal_ex failed");
       return CKR_FUNCTION_FAILED;
     }
     if(session->op_info.op.sign.padding == RSA_PKCS1_PADDING) {
@@ -236,32 +231,34 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
   }
 
   int padlen = session->op_info.out_len;
-  unsigned char buf[padlen];
+  CK_BYTE buf[padlen];
 
   // Apply padding
   switch(session->op_info.op.sign.padding) {
     case RSA_PKCS1_PADDING:
-      rc = RSA_padding_add_PKCS1_type_1(buf, padlen, session->op_info.buf, session->op_info.buf_len);
+      if(RSA_padding_add_PKCS1_type_1(buf, padlen, session->op_info.buf, session->op_info.buf_len) <= 0) {
+        DBG("RSA_padding_add_PKCS1_type_1 failed");
+        return CKR_FUNCTION_FAILED;
+      }
       memcpy(session->op_info.buf, buf, padlen);
       session->op_info.buf_len = padlen;
       break;
     case RSA_PKCS1_PSS_PADDING:
-      rc = RSA_padding_add_PKCS1_PSS(session->op_info.op.sign.rsa, buf, session->op_info.buf, pss_md, -1);
+      if(RSA_padding_add_PKCS1_PSS(session->op_info.op.sign.rsa, buf, session->op_info.buf, pss_md, -1) <= 0) {
+        DBG("RSA_padding_add_PKCS1_PSS failed");
+        return CKR_FUNCTION_FAILED;
+      }
       memcpy(session->op_info.buf, buf, padlen);
       session->op_info.buf_len = padlen;
       break;
     case RSA_NO_PADDING:
-      rc = RSA_padding_add_none(buf, padlen, session->op_info.buf, session->op_info.buf_len);
+      if(RSA_padding_add_none(buf, padlen, session->op_info.buf, session->op_info.buf_len) <= 0) {
+        DBG("RSA_padding_add_none failed");
+        return CKR_FUNCTION_FAILED;
+      }
       memcpy(session->op_info.buf, buf, padlen);
       session->op_info.buf_len = padlen;
       break;
-  }
-
-  if(rc <= 0) {
-#if YKCS11_DBG
-    ERR_print_errors_fp(stderr);
-#endif
-    return CKR_FUNCTION_FAILED;
   }
 
   // Sign with PIV
@@ -274,20 +271,22 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
     DBG("ykpiv_sign_data with key %x failed: %s", session->op_info.op.sign.piv_key, ykpiv_strerror(rcc));
     return CKR_FUNCTION_FAILED;
   }
+
+  CK_RV rv = CKR_OK;
   
   // Strip DER encoding on EC signatures
   switch(session->op_info.op.sign.algorithm) {
     case YKPIV_ALGO_ECCP256:
       DBG("Stripping DER encoding from %lu bytes, returning 64", *sig_len);
-      do_strip_DER_encoding_from_ECSIG(sig, sig_len, 64);
+      rv = do_strip_DER_encoding_from_ECSIG(sig, sig_len, 64);
       break;
     case YKPIV_ALGO_ECCP384:
       DBG("Stripping DER encoding from %lu bytes, returning 96", *sig_len);
-      do_strip_DER_encoding_from_ECSIG(sig, sig_len, 96);
+      rv = do_strip_DER_encoding_from_ECSIG(sig, sig_len, 96);
       break;
   }
 
-  return CKR_OK;
+  return rv;
 }
 
 CK_RV sign_mechanism_cleanup(ykcs11_session_t *session) {
