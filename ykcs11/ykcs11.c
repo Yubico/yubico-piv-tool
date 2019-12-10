@@ -2333,13 +2333,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_Digest)(
   CK_RV rv;
   rv = digest_mechanism_update(session, pData, ulDataLen);
   if (rv != CKR_OK) {
-    DBG("Unable to perform digest operation step");
     return rv;
   }
 
   rv = digest_mechanism_final(session, pDigest, pulDigestLen);
   if (rv != CKR_OK) {
-    DBG("Unable to finalize digest operation");
     return rv;
   }
 
@@ -2380,7 +2378,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestUpdate)(
 
   rv = digest_mechanism_update(session, pPart, ulPartLen);
   if (rv != CKR_OK) {
-    DBG("Unable to perform digest operation step");
     return rv;
   }
 
@@ -2595,12 +2592,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 #endif
 
   if ((rv = digest_mechanism_update(session, pData, ulDataLen)) != CKR_OK) {
-    DBG("Unable to perform sign update step");
     goto sign_out;
   }
 
   if((rv = sign_mechanism_final(session, pSignature, pulSignatureLen)) != CKR_OK) {
-    DBG("Unable to perform sign final step");
     goto sign_out;
   }
 
@@ -2663,7 +2658,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignUpdate)(
 #endif
 
   if ((rv = digest_mechanism_update(session, pPart, ulPartLen)) != CKR_OK) {
-    DBG("Unable to perform signing operation step");
     goto sign_out;
   }
 
@@ -2873,7 +2867,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Verify)(
 
   rv = digest_mechanism_update(session, pData, ulDataLen);
   if (rv != CKR_OK) {
-    DBG("Unable to perform verification operation step");
     goto verify_out;
   }
 
@@ -2931,7 +2924,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyUpdate)(
   }
 
   if (digest_mechanism_update(session, pPart, ulPartLen) != CKR_OK) {
-    DBG("Unable to perform signature verification operation step");
     rv = CKR_FUNCTION_FAILED;
     goto verify_out;
   }

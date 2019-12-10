@@ -199,7 +199,7 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
       return CKR_FUNCTION_FAILED;
     }
     if (EVP_DigestInit_ex(session->op_info.md_ctx, md, NULL) <= 0) {
-      DBG("EVP_DigestSignInit failed");
+      DBG("EVP_DigestInit_ex failed");
       return CKR_FUNCTION_FAILED;
     }
   } else {
@@ -278,9 +278,11 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
   // Strip DER encoding on EC signatures
   switch(session->op_info.op.sign.algorithm) {
     case YKPIV_ALGO_ECCP256:
+      DBG("Stripping DER encoding from %lu bytes, returning 64", *sig_len);
       do_strip_DER_encoding_from_ECSIG(sig, sig_len, 64);
       break;
     case YKPIV_ALGO_ECCP384:
+      DBG("Stripping DER encoding from %lu bytes, returning 96", *sig_len);
       do_strip_DER_encoding_from_ECSIG(sig, sig_len, 96);
       break;
   }
@@ -291,6 +293,7 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
 CK_RV sign_mechanism_cleanup(ykcs11_session_t *session) {
 
   if (session->op_info.md_ctx != NULL) {
+    DBG("EVP_MD_CTX_destroy");
     EVP_MD_CTX_destroy(session->op_info.md_ctx);
     session->op_info.md_ctx = NULL;
   }
@@ -301,9 +304,11 @@ CK_RV sign_mechanism_cleanup(ykcs11_session_t *session) {
 CK_RV verify_mechanism_cleanup(ykcs11_session_t *session) {
 
   if (session->op_info.md_ctx != NULL) {
+    DBG("EVP_MD_CTX_destroy");
     EVP_MD_CTX_destroy(session->op_info.md_ctx);
     session->op_info.md_ctx = NULL;
   } else if(session->op_info.op.verify.pkey_ctx != NULL) {
+    DBG("EVP_PKEY_CTX_free");
     EVP_PKEY_CTX_free(session->op_info.op.verify.pkey_ctx);
   }
   session->op_info.op.verify.pkey_ctx = NULL;
@@ -451,17 +456,23 @@ CK_RV verify_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULON
   if(session->op_info.op.verify.key_type == CKK_ECDSA) {
     memcpy(der, sig, sig_len);
     sig = der;
+    DBG("Applying DER encoding to signature of %lu bytes", sig_len);
     do_apply_DER_encoding_to_ECSIG(sig, &sig_len);
   }
 
   if(session->op_info.md_ctx) {
     rc = EVP_DigestVerifyFinal(session->op_info.md_ctx, sig, sig_len);
+    if(rc <= 0) {
+      DBG("EVP_DigestVerifyFinal failed");
+      return CKR_SIGNATURE_INVALID;
+    }
   } else {
     rc = EVP_PKEY_verify(session->op_info.op.verify.pkey_ctx, sig, sig_len, session->op_info.buf, session->op_info.buf_len);
+    if(rc <= 0) {
+      DBG("EVP_PKEY_verify failed");
+      return CKR_SIGNATURE_INVALID;
+    }
   }
-
-  if(rc <= 0)
-    return CKR_SIGNATURE_INVALID;
 
   return CKR_OK;
 }
@@ -675,10 +686,12 @@ CK_RV digest_mechanism_init(ykcs11_session_t *session) {
 
   session->op_info.md_ctx = EVP_MD_CTX_create();
   if (session->op_info.md_ctx == NULL) {
+    DBG("EVP_MD_CTX_create failed");
     return CKR_FUNCTION_FAILED;
   }
 
   if (EVP_DigestInit_ex(session->op_info.md_ctx, md, NULL) <= 0) {
+    DBG("EVP_DigestInit_ex failed");
     EVP_MD_CTX_destroy(session->op_info.md_ctx);
     session->op_info.md_ctx = NULL;
     return CKR_FUNCTION_FAILED;
@@ -695,10 +708,12 @@ CK_RV digest_mechanism_update(ykcs11_session_t *session, CK_BYTE_PTR in, CK_ULON
 
   if(session->op_info.md_ctx) {
     if (EVP_DigestUpdate(session->op_info.md_ctx, in, in_len) <= 0) {
+      DBG("EVP_DigestUpdate failed");
       return CKR_FUNCTION_FAILED;
     }
   } else {
     if(session->op_info.buf_len + in_len > sizeof(session->op_info.buf)) {
+      DBG("Too much data added to operation buffer, max is %lu bytes", sizeof(session->op_info.buf));
       return CKR_DATA_LEN_RANGE;
     }
     memcpy(session->op_info.buf + session->op_info.buf_len, in, in_len);
@@ -712,14 +727,16 @@ CK_RV digest_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR pDigest, CK_
   unsigned int cbLength = *pDigestLength;
   int ret = EVP_DigestFinal_ex(session->op_info.md_ctx, pDigest, &cbLength);
 
+  DBG("EVP_MD_CTX_destroy");
   EVP_MD_CTX_destroy(session->op_info.md_ctx);
   session->op_info.md_ctx = NULL;
 
   if (ret <= 0) {
+    DBG("EVP_DigestFinal_ex with %lu bytes of data at %p failed", *pDigestLength, pDigest);
     return CKR_FUNCTION_FAILED;
   }
 
-  DBG("Finalized digest with %u bytes of data", cbLength);
+  DBG("EVP_DigestFinal_ex returned %u bytes of data", cbLength);
   *pDigestLength = cbLength;
   return CKR_OK;
 }
