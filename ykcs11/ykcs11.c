@@ -834,9 +834,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
         DBG("Read %lu bytes metadata for private key %u (slot %lx)", len, pvtk_id, piv_2_ykpiv(pvtk_id));
         if((rc = ykpiv_util_parse_metadata(data, len, &md)) == YKPIV_OK) {
           if((rv = do_create_public_key(md.pubkey, md.pubkey_len, md.algorithm, &session->pkeys[key_id])) == CKR_OK) {
+            DBG("Adding key object %u and %u (metadata)", pubk_id, pvtk_id);
             session->objects[session->n_objects++] = pubk_id;
             session->objects[session->n_objects++] = pvtk_id;
             if(md.origin == YKPIV_METADATA_ORIGIN_GENERATED) {
+              DBG("Adding attestation cert object %u (metadata)", atst_id);
               session->objects[session->n_objects++] = atst_id;
             }
           } else {
@@ -851,6 +853,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     len = sizeof(data);
     if(ykpiv_fetch_object(session->slot->piv_state, piv_2_ykpiv(obj_ids[i]), data, &len) == YKPIV_OK) {
       DBG("Read %lu bytes for data object %u (%lx)", len, obj_ids[i], piv_2_ykpiv(obj_ids[i]));
+      DBG("Adding data object %u", obj_ids[i]);
       session->objects[session->n_objects++] = obj_ids[i];
       rv = store_data(session, obj_ids[i], data, len);
       if (rv != CKR_OK) {
@@ -860,6 +863,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
         return rv;
       }
       if(cert_id != (piv_obj_id_t)-1) {
+        DBG("Adding cert object %u", cert_id);
         session->objects[session->n_objects++] = cert_id;
         rv = store_cert(session, cert_id, data, len, CK_FALSE);
         if (rv != CKR_OK) {
@@ -869,9 +873,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
           return rv;
         }
         if(rc != YKPIV_OK) { // Failed to get metadata, fall back to assuming we have keys for cert objects
+          DBG("Adding key object %u and %u", pubk_id, pvtk_id);
           session->objects[session->n_objects++] = pubk_id;
           session->objects[session->n_objects++] = pvtk_id;
           if(atst_id != (piv_obj_id_t)-1) { // Attestation key doesn't have an attestation
+            DBG("Adding attestation cert object %u", atst_id);
             session->objects[session->n_objects++] = atst_id;
           }
         }
@@ -1250,19 +1256,22 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     DBG("%lu session objects before cert import", session->n_objects);
 
-    // Check whether we created a new object or updated an existing one
-    if (!is_present(session, cert_id)) {
-      // New object created, add it to the object list
-      obj_ptr = session->objects + session->n_objects;
+    // Add objects that were not already present
+    obj_ptr = session->objects + session->n_objects;
+
+    if(!is_present(session, dobj_id))
       *obj_ptr++ = dobj_id;
+    if(!is_present(session, cert_id))
       *obj_ptr++ = cert_id;
+    if(!is_present(session, pvtk_id))
       *obj_ptr++ = pvtk_id;
+    if(!is_present(session, pubk_id))
       *obj_ptr++ = pubk_id;
-      if(atst_id != (piv_obj_id_t)-1)
-        *obj_ptr ++ = atst_id;
-      session->n_objects = obj_ptr - session->objects;
-      sort_objects(session);
-    }
+    if(atst_id != (piv_obj_id_t)-1 && !is_present(session, atst_id))
+      *obj_ptr ++ = atst_id;
+
+    session->n_objects = obj_ptr - session->objects;
+    sort_objects(session);
 
     DBG("%lu session objects after cert import", session->n_objects);
 
@@ -3203,19 +3212,22 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 
   DBG("%lu session objects before key generation", session->n_objects);
 
-  // Check whether we created a new object or updated an existing one
-  if (!is_present(session, pvtk_id)) {
-    // New object created, add it to the object list
-    obj_ptr = session->objects + session->n_objects;
+  // Add objects that were not already present
+  obj_ptr = session->objects + session->n_objects;
+
+  if(!is_present(session, dobj_id))
     *obj_ptr++ = dobj_id;
+  if(!is_present(session, cert_id))
     *obj_ptr++ = cert_id;
+  if(!is_present(session, pvtk_id))
     *obj_ptr++ = pvtk_id;
+  if(!is_present(session, pubk_id))
     *obj_ptr++ = pubk_id;
-    if(atst_id != (piv_obj_id_t)-1)
-      *obj_ptr++ = atst_id;
-    session->n_objects = obj_ptr - session->objects;
-    sort_objects(session);
-  }
+  if(atst_id != (piv_obj_id_t)-1 && !is_present(session, atst_id))
+    *obj_ptr++ = atst_id;
+
+  session->n_objects = obj_ptr - session->objects;
+  sort_objects(session);
 
   DBG("%lu session objects after key generation", session->n_objects);
 
