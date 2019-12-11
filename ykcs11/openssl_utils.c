@@ -113,11 +113,11 @@ CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, ykcs11_x509_t **cert) {
 
 }
 
-CK_RV do_generate_ec_key(int nid, ykcs11_pkey_t **pkey) {
-  EC_GROUP *group = EC_GROUP_new_by_curve_name(nid);
+CK_RV do_generate_ec_key(int curve_name, ykcs11_pkey_t **pkey) {
+  EC_GROUP *group = EC_GROUP_new_by_curve_name(curve_name);
   if(group == NULL)
     return CKR_HOST_MEMORY;
-  EC_GROUP_set_asn1_flag(group, nid);
+  EC_GROUP_set_asn1_flag(group, curve_name);
   EC_KEY *eckey = EC_KEY_new();
   if(eckey == NULL)
     return CKR_HOST_MEMORY;
@@ -133,11 +133,11 @@ CK_RV do_generate_ec_key(int nid, ykcs11_pkey_t **pkey) {
   return CKR_OK;
 }
 
-CK_RV do_create_ec_key(CK_BYTE_PTR point, CK_ULONG point_len, int nid, ykcs11_pkey_t **pkey) {
-  EC_GROUP *group = EC_GROUP_new_by_curve_name(nid);
+CK_RV do_create_ec_key(CK_BYTE_PTR point, CK_ULONG point_len, int curve_name, ykcs11_pkey_t **pkey) {
+  EC_GROUP *group = EC_GROUP_new_by_curve_name(curve_name);
   if(group == NULL)
     return CKR_HOST_MEMORY;
-  EC_GROUP_set_asn1_flag(group, nid);
+  EC_GROUP_set_asn1_flag(group, curve_name);
   EC_KEY *eckey = EC_KEY_new();
   if(eckey == NULL)
     return CKR_HOST_MEMORY;
@@ -178,9 +178,9 @@ CK_RV do_create_rsa_key(CK_BYTE_PTR mod, CK_ULONG mod_len, CK_BYTE_PTR exp, CK_U
 }
 
 CK_RV do_create_public_key(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm, ykcs11_pkey_t **pkey) {
-  int len, nid = get_curve_name(algorithm);
+  int len, curve_name = get_curve_name(algorithm);
 
-  if (nid == 0) {
+  if (curve_name == 0) {
     if (*in++ != 0x81)
       return CKR_GENERAL_ERROR;
 
@@ -204,7 +204,7 @@ CK_RV do_create_public_key(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm, 
 
     in += get_length(in, &len);
 
-    return do_create_ec_key(in, len, nid, pkey);
+    return do_create_ec_key(in, len, curve_name, pkey);
   }
 }
 

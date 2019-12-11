@@ -51,15 +51,15 @@
 
 CK_FUNCTION_LIST_PTR funcs;
 
-#define asrt(c, e, m) _asrt(__LINE__, c, e, m);
+#define asrt(c, e, m) _asrt(__FILE__, __LINE__, c, e, m);
 
-static void _asrt(int line, CK_ULONG check, CK_ULONG expected, CK_CHAR_PTR msg) {
+static void _asrt(const char *file, int line, CK_ULONG check, CK_ULONG expected, const char *msg) {
 
   if (check == expected)
     return;
 
-  fprintf(stderr, "<%s>:%d check failed with value %lu (0x%lx), expected %lu (0x%lx)\n",
-          msg, line, check, check, expected, expected);
+  fprintf(stderr, "%s.%d: <%s> check failed with value %lu (0x%lx), expected %lu (0x%lx)\n",
+          file, line, msg, check, check, expected, expected);
 
   exit(EXIT_FAILURE);
 
@@ -421,7 +421,7 @@ static void test_generate_rsa1024() {
   test_rsa_sign(funcs, session, obj_pvtkey, NULL, CKM_SHA384_RSA_PKCS);
   test_rsa_sign(funcs, session, obj_pvtkey, NULL, CKM_SHA512_RSA_PKCS);
 
-
+  
   destroy_test_objects_by_privkey(funcs, session, obj_pvtkey, 24);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");

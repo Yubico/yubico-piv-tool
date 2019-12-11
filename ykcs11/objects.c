@@ -529,20 +529,23 @@ static CK_BBOOL is_relevant_attribute(CK_ATTRIBUTE_PTR template) {
 static CK_RV get_atst(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE sub_id = piv_objects[obj].sub_id;
   if(s->atst[sub_id] == NULL && is_relevant_attribute(template)) {
+    CK_ULONG slot = piv_2_ykpiv(find_pvtk_object(sub_id));
     unsigned char data[3072];
     size_t len = sizeof(data);
     ykpiv_rc rc;
     CK_RV rv;
-    if((rc = ykpiv_attest(s->slot->piv_state, piv_2_ykpiv(find_pvtk_object(sub_id)), data, &len)) == YKPIV_OK) {
-      DBG("Created attestation for object %lu", obj);
+    if((rc = ykpiv_attest(s->slot->piv_state, slot, data, &len)) == YKPIV_OK) {
+      DBG("Created attestation for slot %lx", slot);
       if((rv = do_store_cert(data, len, &s->atst[sub_id])) != CKR_OK)
         return rv;
     } else {
-      DBG("Failed to create attestation for object %lu: %s", obj, ykpiv_strerror(rc));
+      DBG("Failed to create attestation for slot %lx: %s", slot, ykpiv_strerror(rc));
       EVP_PKEY *pkey;
       if((rv = do_generate_ec_key(NID_X9_62_prime256v1, &pkey)) != CKR_OK)
         return rv;
-      if((rv = do_sign_empty_cert(ykpiv_strerror(rc), pkey, pkey, &s->atst[sub_id])) != CKR_OK)
+      char cn[128];
+      snprintf(cn, sizeof(cn), "YubiKey PIV Attestation %lx failed: %s", slot, ykpiv_strerror(rc)); 
+      if((rv = do_sign_empty_cert(cn, s->pkeys[sub_id], pkey, &s->atst[sub_id])) != CKR_OK)
         return rv;
     }
   }

@@ -30,15 +30,15 @@ static CK_BYTE SHA512_DIGEST[] = {0x30, 0x51, 0x30, 0x0D, 0x06,
                                   0x65, 0x03, 0x04, 0x02, 0x03,
                                   0x05, 0x00, 0x04, 0x40};
 
-#define asrt(c, e, m) _asrt(__LINE__, c, e, m);
+#define asrt(c, e, m) _asrt(__FILE__, __LINE__, c, e, m);
 
-static void _asrt(int line, CK_ULONG check, CK_ULONG expected, const char *msg) {
+static void _asrt(const char *file, int line, CK_ULONG check, CK_ULONG expected, const char *msg) {
 
   if (check == expected)
     return;
 
-  fprintf(stderr, "<%s>:%d check failed with value %lu (0x%lx), expected %lu (0x%lx)\n",
-          msg, line, check, check, expected, expected);
+  fprintf(stderr, "%s.%d: <%s> check failed with value %lu (0x%lx), expected %lu (0x%lx)\n",
+          file, line, msg, check, check, expected, expected);
 
   exit(EXIT_FAILURE);
 
@@ -56,7 +56,7 @@ void dump_hex(const unsigned char *buf, unsigned int len, FILE *output, int spac
 static int bogus_sign(int dtype, const unsigned char *m, unsigned int m_length,
                unsigned char *sigret, unsigned int *siglen, const RSA *rsa) {
   sigret = malloc(1);
-  sigret = "";
+  sigret = (unsigned char*)"";
   *siglen = 1;
   return 0;
 }
@@ -102,7 +102,7 @@ static CK_OBJECT_HANDLE get_public_key_handle(CK_FUNCTION_LIST_PTR funcs, CK_SES
 
 void destroy_test_objects(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_cert) {
   CK_ULONG i;
-  asrt(funcs->C_Login(session, CKU_SO, "010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
+  asrt(funcs->C_Login(session, CKU_SO, (CK_CHAR_PTR)"010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
   for(i=0; i<24; i++) {
     asrt(funcs->C_DestroyObject(session, obj_cert[i]), CKR_OK, "Destroy Object");
   }
@@ -124,7 +124,7 @@ void destroy_test_objects_by_privkey(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HAND
     {CKA_CLASS, &class_cert, sizeof(class_cert)}
   };
 
-  asrt(funcs->C_Login(session, CKU_SO, "010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
+  asrt(funcs->C_Login(session, CKU_SO, (CK_CHAR_PTR)"010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
   for(i=0; i<n_obj; i++) {
     asrt(funcs->C_GetAttributeValue(session, obj_pvtkey[i], idTemplate, 1), CKR_OK, "GET CKA_ID");
     asrt(funcs->C_FindObjectsInit(session, idClassTemplate, 2), CKR_OK, "FIND INIT");
@@ -278,7 +278,7 @@ EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int
   EVP_PKEY       *evp;
   EC_KEY         *eck;
   const BIGNUM   *bn;
-  char           pvt[key_len];
+  CK_CHAR        pvt[key_len];
   X509           *cert;
   ASN1_TIME      *tm;
   CK_BYTE        i, j;
@@ -330,16 +330,15 @@ EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int
   if (cert == NULL)
     exit(EXIT_FAILURE);
 
+  X509_set_version(cert, 2); // Version 3
+  X509_NAME_add_entry_by_txt(X509_get_issuer_name(cert), "CN", MBSTRING_ASC, (unsigned char*)"Test Issuer", -1, -1, 0);
+  X509_NAME_add_entry_by_txt(X509_get_subject_name(cert), "CN", MBSTRING_ASC, (unsigned char*)"Test Subject", -1, -1, 0);
+  ASN1_INTEGER_set(X509_get_serialNumber(cert), 0);
+  X509_gmtime_adj(X509_get_notBefore(cert), 0);
+  X509_gmtime_adj(X509_get_notAfter(cert), 0);
+
   if (X509_set_pubkey(cert, evp) == 0)
     exit(EXIT_FAILURE);
-
-  tm = ASN1_TIME_new();
-  if (tm == NULL)
-    exit(EXIT_FAILURE);
-
-  ASN1_TIME_set_string(tm, "000001010000Z");
-  X509_set_notBefore(cert, tm);
-  X509_set_notAfter(cert, tm);
 
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
   cert->sig_alg->algorithm = OBJ_nid2obj(8);
@@ -357,7 +356,7 @@ EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int
 
   publicKeyTemplate[2].ulValueLen = cert_len;
 
-  asrt(funcs->C_Login(session, CKU_SO, "010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
+  asrt(funcs->C_Login(session, CKU_SO, (CK_CHAR_PTR)"010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
 
   for (i = 0; i < 24; i++) {
     id = i+1;
@@ -435,16 +434,15 @@ void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, EVP_P
   if (cert == NULL)
     exit(EXIT_FAILURE);
 
+  X509_set_version(cert, 2); // Version 3
+  X509_NAME_add_entry_by_txt(X509_get_issuer_name(cert), "CN", MBSTRING_ASC, (unsigned char*)"Test Issuer", -1, -1, 0);
+  X509_NAME_add_entry_by_txt(X509_get_subject_name(cert), "CN", MBSTRING_ASC, (unsigned char*)"Test Subject", -1, -1, 0);
+  ASN1_INTEGER_set(X509_get_serialNumber(cert), 0);
+  X509_gmtime_adj(X509_get_notBefore(cert), 0);
+  X509_gmtime_adj(X509_get_notAfter(cert), 0);
+
   if (X509_set_pubkey(cert, evp) == 0)
     exit(EXIT_FAILURE);
-
-  tm = ASN1_TIME_new();
-  if (tm == NULL)
-    exit(EXIT_FAILURE);
-
-  ASN1_TIME_set_string(tm, "000001010000Z");
-  X509_set_notBefore(cert, tm);
-  X509_set_notAfter(cert, tm);
 
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
   /* putting bogus data to signature to make some checks happy */
@@ -463,7 +461,7 @@ void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, EVP_P
 
   publicKeyTemplate[2].ulValueLen = cert_len;
 
-  asrt(funcs->C_Login(session, CKU_SO, "010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
+  asrt(funcs->C_Login(session, CKU_SO, (CK_CHAR_PTR)"010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
 
   for (i = 0; i < 24; i++) {
     id = i+1;
@@ -501,7 +499,7 @@ void generate_ec_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
 
   CK_MECHANISM mech = {CKM_EC_KEY_PAIR_GEN, NULL};
 
-  asrt(funcs->C_Login(session, CKU_SO, "010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
+  asrt(funcs->C_Login(session, CKU_SO, (CK_CHAR_PTR)"010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
 
   for (i = 0; i < n_keys; i++) {
     id = i+1;
@@ -537,7 +535,7 @@ void generate_rsa_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
 
   CK_MECHANISM mech = {CKM_RSA_PKCS_KEY_PAIR_GEN, NULL};
 
-  asrt(funcs->C_Login(session, CKU_SO, "010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
+  asrt(funcs->C_Login(session, CKU_SO, (CK_CHAR_PTR)"010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
   for (i = 0; i < n_keys; i++) {
     id = i+1;
     asrt(funcs->C_GenerateKeyPair(session, &mech, publicKeyTemplate, 4, privateKeyTemplate, 3, obj_pubkey+i, obj_pvtkey+i), CKR_OK, "GEN RSA KEYPAIR");
@@ -547,7 +545,7 @@ void generate_rsa_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
 }
 
-static CK_BBOOL construct_der_encoded_sig(CK_BYTE sig[], CK_BYTE_PTR der_encoded, CK_ULONG key_len) {
+static void construct_der_encoded_sig(CK_BYTE sig[], CK_BYTE_PTR der_encoded, CK_ULONG key_len) {
     CK_ULONG    der_encoded_len;
     CK_BYTE_PTR der_ptr;
     CK_BYTE_PTR r_ptr;
@@ -617,12 +615,12 @@ void test_ec_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJE
   CK_MECHANISM mech = {mech_type, NULL};
 
   for (i = 0; i < 24; i++) {
-    for (j = 0; j < 10; j++) {
+    for (j = 0; j < 3; j++) {
       if(RAND_bytes(data, sizeof(data)) == -1)
         exit(EXIT_FAILURE);
       data_len = sizeof(data);
 
-      asrt(funcs->C_Login(session, CKU_USER, "123456", 6), CKR_OK, "Login USER");
+      asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Login USER");
       asrt(funcs->C_SignInit(session, &mech, obj_pvtkey[i]), CKR_OK, "SignInit");
       recv_len = sizeof(sig);
       asrt(funcs->C_Sign(session, data, sizeof(data), sig, &recv_len), CKR_OK, "Sign");
@@ -675,13 +673,13 @@ void test_rsa_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJ
 
   for (i = 0; i < 24; i++) {
     obj_pubkey = get_public_key_handle(funcs, session, obj_pvtkey[i]);    
-    for (j = 0; j < 10; j++) {
+    for (j = 0; j < 3; j++) {
 
       if(RAND_bytes(data, sizeof(data)) == -1)
         exit(EXIT_FAILURE);
 
       // Sign
-      asrt(funcs->C_Login(session, CKU_USER, "123456", 6), CKR_OK, "LOGIN USER");
+      asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "LOGIN USER");
       asrt(funcs->C_SignInit(session, &mech, obj_pvtkey[i]), CKR_OK, "SIGN INIT");
       sig_len = sizeof(sig);
       asrt(funcs->C_Sign(session, data, sizeof(data), sig, &sig_len), CKR_OK, "SIGN");
@@ -740,7 +738,7 @@ void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
       if(RAND_bytes(data, sizeof(data)) == -1)
         exit(EXIT_FAILURE);
 
-      asrt(funcs->C_Login(session, CKU_USER, "123456", 6), CKR_OK, "Login USER");
+      asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Login USER");
 
       enc_len = RSA_public_encrypt(32, data, enc, rsak, RSA_PKCS1_PADDING);
 
@@ -793,7 +791,7 @@ void test_rsa_encrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
       if(RAND_bytes(data, data_len) == -1)
         exit(EXIT_FAILURE);
 
-      asrt(funcs->C_Login(session, CKU_USER, "123456", 6), CKR_OK, "Login USER");
+      asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Login USER");
 
       // Encrypt
       asrt(funcs->C_EncryptInit(session, &mech, pubkey), CKR_OK, "ENCRYPT INIT CKM_RSA_PKCS");
@@ -848,7 +846,7 @@ static void test_pubkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_
   CK_BBOOL obj_derive;
   CK_ULONG obj_modulus_bits;
   CK_BBOOL obj_modifiable;
-  unsigned char obj_label[1024];
+  char obj_label[1024];
   CK_ULONG obj_label_len;
 
   CK_ATTRIBUTE template[] = {
@@ -886,8 +884,8 @@ static void test_pubkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_
 
   asrt(funcs->C_GetAttributeValue(session, pubkey, template_label, 1), CKR_OK, "GET LABEL");
   obj_label_len = template_label[0].ulValueLen;
-  asrt(obj_label_len, strlen(label), "LABEL LEN");
-  asrt(strncmp(obj_label, label, obj_label_len), 0, "LABEL");
+  asrt(obj_label_len, strlen((char*)label), "LABEL LEN");
+  asrt(strncmp(obj_label, (char*)label, obj_label_len), 0, "LABEL");
 }
 
 void test_pubkey_attributes_rsa(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
@@ -948,7 +946,7 @@ static void test_privkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION
   CK_ULONG obj_modulus_bits;
   CK_BBOOL obj_always_authenticate;
   CK_BBOOL obj_modifiable;
-  unsigned char obj_label[1024];
+  char obj_label[1024];
   CK_ULONG obj_label_len;
 
   CK_ATTRIBUTE template[] = {
@@ -990,8 +988,8 @@ static void test_privkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION
 
   asrt(funcs->C_GetAttributeValue(session, privkey, template_label, 1), CKR_OK, "GET LABEL");
   obj_label_len = template_label[0].ulValueLen;
-  asrt(obj_label_len, strlen(label), "LABEL LEN");
-  asrt(strncmp(obj_label, label, obj_label_len), 0, "LABEL");
+  asrt(obj_label_len, strlen((char*)label), "LABEL LEN");
+  asrt(strncmp(obj_label, (char*)label, obj_label_len), 0, "LABEL");
 }
 
 void test_privkey_attributes_rsa(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
