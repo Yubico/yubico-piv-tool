@@ -836,7 +836,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
           if((rv = do_create_public_key(md.pubkey, md.pubkey_len, md.algorithm, &session->pkeys[key_id])) == CKR_OK) {
             session->objects[session->n_objects++] = pubk_id;
             session->objects[session->n_objects++] = pvtk_id;
-            if(atst_id != (piv_obj_id_t)-1) { // Attestation key doesn't have an attestation
+            if(md.origin == YKPIV_METADATA_ORIGIN_GENERATED) {
               session->objects[session->n_objects++] = atst_id;
             }
           } else {
