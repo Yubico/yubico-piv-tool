@@ -203,12 +203,7 @@ typedef struct {
 
 typedef struct {
   piv_obj_id_t piv_id; // TODO: technically redundant
-  CK_BBOOL     token; // TODO: not used yet
-  CK_BBOOL     private;
-  CK_BBOOL     modifiable;
   const char   *label;
-  CK_BBOOL     copyable; // TODO: Optional, not used so far (default TRUE)
-  CK_BBOOL     destroyable; // TODO: Optional, not used so far (default TRUE)
   CK_RV        (*get_attribute)();
   CK_BYTE      sub_id; // Sub-object id
 } piv_obj_t;
