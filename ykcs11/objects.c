@@ -310,7 +310,6 @@ static CK_RV get_doa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR
     break;
 
   case CKA_TOKEN:
-    // Technically all these objects are token objects
     DBG("TOKEN");
     len = sizeof(CK_BBOOL);
     tmp = CK_TRUE;
@@ -363,7 +362,7 @@ static CK_RV get_doa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR
     break;
 
   default:
-    DBG("UNKNOWN ATTRIBUTE %lx", template[0].type);
+    DBG("UNKNOWN ATTRIBUTE %lx (%lu)", template[0].type, template[0].type);
     template->ulValueLen = CK_UNAVAILABLE_INFORMATION;
     return CKR_ATTRIBUTE_TYPE_INVALID;
   }
@@ -402,7 +401,6 @@ static CK_RV _get_coa(ykcs11_x509_t **certs, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_
     break;
 
   case CKA_TOKEN:
-    // Technically all these objects are token objects
     DBG("TOKEN");
     len = sizeof(CK_BBOOL);
     b_tmp[0] = token;
@@ -482,10 +480,8 @@ static CK_RV _get_coa(ykcs11_x509_t **certs, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_
     data = b_tmp;
     break;
 
-  /* case CKA_START_DATE: */
-  /* case CKA_END_DATE: */
   default: // TODO: there are other attributes for a (x509) certificate
-    DBG("UNKNOWN ATTRIBUTE %lx", template[0].type);
+    DBG("UNKNOWN ATTRIBUTE %lx (%lu)", template[0].type, template[0].type);
     template->ulValueLen = CK_UNAVAILABLE_INFORMATION;
     return CKR_ATTRIBUTE_TYPE_INVALID;
   }
@@ -570,7 +566,6 @@ static CK_RV get_proa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
     break;
 
   case CKA_TOKEN:
-    // Technically all these objects are token objects
     DBG("TOKEN");
     len = sizeof(CK_BBOOL);
     b_tmp[0] = CK_TRUE;
@@ -613,10 +608,24 @@ static CK_RV get_proa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
     data = b_tmp;
     break;
 
+  case CKA_ALWAYS_SENSITIVE:
+    DBG("ALWAYS_SENSITIVE"); // Always true
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = CK_TRUE;
+    data = b_tmp;
+    break;
+
   case CKA_EXTRACTABLE:
     DBG("EXTRACTABLE"); // Always false
     len = sizeof(CK_BBOOL);
     b_tmp[0] = CK_FALSE;
+    data = b_tmp;
+    break;
+
+  case CKA_NEVER_EXTRACTABLE:
+    DBG("NEVER_EXTRACTABLE"); // Always true
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = CK_TRUE;
     data = b_tmp;
     break;
 
@@ -750,25 +759,8 @@ static CK_RV get_proa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
     data = b_tmp;
     break;
 
-  /* case CKA_SIGN_RECOVER: */
-  /* case CKA_VENDOR_DEFINED: */
-  /* case CKA_PRIVATE_EXPONENT: */
-  /* case CKA_PRIME_1: */
-  /* case CKA_PRIME_2: */
-  /* case CKA_EXPONENT_1: */
-  /* case CKA_EXPONENT_2: */
-  /* case CKA_COEFFICIENT: */
-  /* case CKA_PRIME: */
-  /* case CKA_SUBPRIME: */
-  /* case CKA_BASE: */
-  /* case CKA_VALUE_BITS: */
-  /* case CKA_VALUE_LEN: */
-  /* case CKA_NEVER_EXTRACTABLE: */
-  /* case CKA_ALWAYS_SENSITIVE:*/
-  /* case CKA_START_DATE:  */
-  /* case CKA_END_DATE: */
   default:
-    DBG("UNKNOWN ATTRIBUTE %lx", template[0].type); // TODO: there are other parameters for public keys, plus there is more if the key is RSA
+    DBG("UNKNOWN ATTRIBUTE %lx (%lu)", template[0].type, template[0].type);
     template->ulValueLen = CK_UNAVAILABLE_INFORMATION;
     return CKR_ATTRIBUTE_TYPE_INVALID;
   }
@@ -806,7 +798,6 @@ static CK_RV get_puoa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
     break;
 
   case CKA_TOKEN:
-    // Technically all these objects are token objects
     DBG("TOKEN");
     len = sizeof(CK_BBOOL);
     b_tmp[0] = CK_TRUE;
@@ -842,17 +833,17 @@ static CK_RV get_puoa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
     data = b_tmp;
     break;
 
-  case CKA_SENSITIVE:
-    DBG("SENSITIVE"); // Always false
+  case CKA_TRUSTED:
+    DBG("TRUSTED");
     len = sizeof(CK_BBOOL);
     b_tmp[0] = CK_FALSE;
     data = b_tmp;
     break;
 
   case CKA_LOCAL:
-    DBG("LOCAL"); // Always false
+    DBG("LOCAL"); // Always true
     len = sizeof(CK_BBOOL);
-    b_tmp[0] = CK_FALSE;
+    b_tmp[0] = CK_TRUE;
     data = b_tmp;
     break;
 
@@ -972,10 +963,8 @@ static CK_RV get_puoa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
     data = b_tmp;
     break;
 
-  /* case CKA_START_DATE: */
-  /* case CKA_END_DATE: */
   default:
-    DBG("UNKNOWN ATTRIBUTE %lx", template[0].type); // TODO: there are other parameters for public keys
+    DBG("UNKNOWN ATTRIBUTE %lx (%lu)", template[0].type, template[0].type);
     template->ulValueLen = CK_UNAVAILABLE_INFORMATION;
     return CKR_ATTRIBUTE_TYPE_INVALID;
   }
