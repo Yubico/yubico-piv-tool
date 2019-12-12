@@ -630,9 +630,9 @@ static CK_RV get_proa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
     break;
 
   case CKA_LOCAL:
-    DBG("LOCAL"); // Always true
+    DBG("LOCAL"); // We have added attestation objects for local keys only (if we have metadata)
     len = sizeof(CK_BBOOL);
-    b_tmp[0] = CK_TRUE;
+    b_tmp[0] = is_present(s, find_atst_object(piv_objects[obj].sub_id)) ? CK_TRUE : CK_FALSE;
     data = b_tmp;
     break;
 
@@ -841,9 +841,9 @@ static CK_RV get_puoa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
     break;
 
   case CKA_LOCAL:
-    DBG("LOCAL"); // Always true
+    DBG("LOCAL"); // We have added attestation objects for local keys only (if we have metadata)
     len = sizeof(CK_BBOOL);
-    b_tmp[0] = CK_TRUE;
+    b_tmp[0] = is_present(s, find_atst_object(piv_objects[obj].sub_id)) ? CK_TRUE : CK_FALSE;
     data = b_tmp;
     break;
 

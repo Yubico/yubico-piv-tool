@@ -837,7 +837,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
             DBG("Adding key object %u and %u (metadata)", pubk_id, pvtk_id);
             session->objects[session->n_objects++] = pubk_id;
             session->objects[session->n_objects++] = pvtk_id;
-            if(md.origin == YKPIV_METADATA_ORIGIN_GENERATED) {
+            if(md.origin == YKPIV_METADATA_ORIGIN_GENERATED && atst_id != (piv_obj_id_t)-1) { // Attestation key doesn't have an attestation
               DBG("Adding attestation cert object %u (metadata)", atst_id);
               session->objects[session->n_objects++] = atst_id;
             }
@@ -877,7 +877,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
           session->objects[session->n_objects++] = pubk_id;
           session->objects[session->n_objects++] = pvtk_id;
           if(atst_id != (piv_obj_id_t)-1) { // Attestation key doesn't have an attestation
-            DBG("Adding attestation cert object %u", atst_id);
+            DBG("Adding attestation cert object (blindly) %u", atst_id);
             session->objects[session->n_objects++] = atst_id;
           }
         }
