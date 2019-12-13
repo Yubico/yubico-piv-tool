@@ -203,7 +203,7 @@ static CK_RV get_digest(CK_MECHANISM_TYPE mech,
   return CKR_OK;
 }
 
-const EVP_MD* get_md_type(CK_MECHANISM_TYPE mech) {
+static const EVP_MD* get_md_type(CK_MECHANISM_TYPE mech) {
   switch(mech) {
     case CKM_ECDSA_SHA1:
     case CKM_SHA1_RSA_PKCS:
@@ -226,6 +226,22 @@ const EVP_MD* get_md_type(CK_MECHANISM_TYPE mech) {
     default:
       return NULL;
   }
+}
+
+static const EVP_MD *EVP_MD_by_size(int size) {
+  switch(size) {
+    case 16:
+      return EVP_md5();
+    case 28:
+      return EVP_sha224();
+    case 32:
+      return EVP_sha256();
+    case 48:
+      return EVP_sha384();
+    case 64:
+      return EVP_sha512();
+  }
+  return EVP_sha1();
 }
 
 void test_digest_func(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_MECHANISM_TYPE mech_type) {
@@ -733,7 +749,7 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
         asrt(RSA_public_decrypt(sig_len, sig, pss_buf, rsak, RSA_NO_PADDING), sig_len, "DECRYPT PSS SIGNATURE");
 
         if(mech_type == CKM_RSA_PKCS_PSS) {
-          asrt(RSA_verify_PKCS1_PSS(rsak, data, EVP_sha1(), pss_buf, -1), 1, "VERIFY PSS SIGNATURE");  
+          asrt(RSA_verify_PKCS1_PSS(rsak, data, EVP_MD_by_size(data_len), pss_buf, -1), 1, "VERIFY PSS SIGNATURE");  
         } else {
           md_ctx = EVP_MD_CTX_create();
           asrt(EVP_DigestInit_ex(md_ctx, get_md_type(mech_type), NULL), 1, "DIGEST INIT");
@@ -763,7 +779,7 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
         asrt(RSA_public_decrypt(sig_update_len, sig_update, pss_buf, rsak, RSA_NO_PADDING), sig_update_len, "DECRYPT PSS SIGNATURE");
 
         if(mech_type == CKM_RSA_PKCS_PSS) {
-          asrt(RSA_verify_PKCS1_PSS(rsak, data, EVP_sha1(), pss_buf, -1), 1, "VERIFY PSS SIGNATURE");  
+          asrt(RSA_verify_PKCS1_PSS(rsak, data, EVP_MD_by_size(data_len), pss_buf, -1), 1, "VERIFY PSS SIGNATURE");  
         } else {
           md_ctx = EVP_MD_CTX_create();
           asrt(EVP_DigestInit_ex(md_ctx, get_md_type(mech_type), NULL), 1, "DIGEST INIT");

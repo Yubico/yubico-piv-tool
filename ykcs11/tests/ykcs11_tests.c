@@ -282,7 +282,7 @@ static void test_multiple_sessions() {
   dprintf(0, "TEST START: test_multiple_sessions()\n");
   CK_SESSION_INFO info;
   CK_SESSION_HANDLE session1, session2, session3, session4;
-  
+
   init_connection();
 
   // Open first session as a public session (no logging in)
@@ -320,7 +320,7 @@ static void test_multiple_sessions() {
   // Close the second session
   asrt(funcs->C_CloseSession(session2), CKR_OK, "MultipleSessions_CloseSession2");
   asrt(funcs->C_GetSessionInfo(session2, &info), CKR_SESSION_HANDLE_INVALID, "MultipleSessions_closedSession2Info");
-  
+
   // Open a fourth session; should get the same handle as the previously closed session and it should be an SO session
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session4), CKR_OK, "MultipleSessions_OpenSession4");
   asrt(session4, session2, "MultipleSessions_session4Handle");
@@ -350,9 +350,9 @@ static void test_max_multiple_sessions() {
     asrt(session, i, "MaxMultipleSession_sessionHandle");
     asrt(funcs->C_GetSessionInfo(i, &info), CKR_OK, "MaxMultipleSessions_closedSessionsInfo");
   }
-  
+
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_SESSION_COUNT, "MaxMultipleSession_OpenSession_TooMany");
-  
+
   asrt(funcs->C_CloseAllSessions(0), CKR_OK, "MaxMultipleSessions_CloseAllSessions");
   for(int i=1; i<=17; i++) {
     asrt(funcs->C_GetSessionInfo(i, &info), CKR_SESSION_HANDLE_INVALID, "MaxMultipleSessions_closedSessionsInfo");
@@ -420,8 +420,8 @@ static void test_generate_rsa1024() {
   test_rsa_sign(funcs, session, obj_pvtkey, NULL, CKM_SHA256_RSA_PKCS);
   test_rsa_sign(funcs, session, obj_pvtkey, NULL, CKM_SHA384_RSA_PKCS);
   test_rsa_sign(funcs, session, obj_pvtkey, NULL, CKM_SHA512_RSA_PKCS);
-  
-  test_rsa_sign_pss(funcs, session, obj_pvtkey, NULL, CKM_RSA_PKCS_PSS, 20);
+
+  test_rsa_sign_pss(funcs, session, obj_pvtkey, NULL, CKM_RSA_PKCS_PSS, 32);
   test_rsa_sign_pss(funcs, session, obj_pvtkey, NULL, CKM_SHA1_RSA_PKCS_PSS, 32);
   test_rsa_sign_pss(funcs, session, obj_pvtkey, NULL, CKM_SHA256_RSA_PKCS_PSS, 30);
   test_rsa_sign_pss(funcs, session, obj_pvtkey, NULL, CKM_SHA384_RSA_PKCS_PSS, 32);
@@ -561,7 +561,7 @@ static void test_import_eccp256() {
 
   init_connection();
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
-  
+
   eck = import_ec_key(funcs, session, NID_X9_62_prime256v1, 32, params, sizeof(params), obj_cert, obj_pvtkey);
   if (eck == NULL)
   exit(EXIT_FAILURE);
@@ -571,7 +571,7 @@ static void test_import_eccp256() {
   test_ec_sign(funcs, session, obj_pvtkey, eck, CKM_ECDSA_SHA256, 32);
 
   destroy_test_objects(funcs, session, obj_cert);
-  
+
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
   dprintf(0, "TEST END: test_import_eccp256()\n");
@@ -611,8 +611,8 @@ static void test_import_rsa1024() {
   CK_SESSION_HANDLE session;
 
   init_connection();
-  asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1"); 
- 
+  asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
+
   import_rsa_key(funcs, session, 1024, evp, rsak, obj_cert, obj_pvtkey);
   if (evp == NULL || rsak == NULL)
     exit(EXIT_FAILURE);
@@ -622,7 +622,7 @@ static void test_import_rsa1024() {
   test_rsa_sign(funcs, session, obj_pvtkey, evp, CKM_SHA256_RSA_PKCS);
   test_rsa_sign(funcs, session, obj_pvtkey, evp, CKM_SHA384_RSA_PKCS);
 
-  test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_RSA_PKCS_PSS, 20);
+  test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_RSA_PKCS_PSS, 32);
   test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_SHA1_RSA_PKCS_PSS, 32);
   test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_SHA256_RSA_PKCS_PSS, 30);
   test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_SHA384_RSA_PKCS_PSS, 32);
@@ -641,8 +641,8 @@ static void test_import_rsa2048() {
   CK_SESSION_HANDLE session;
 
   init_connection();
-  asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1"); 
- 
+  asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
+
   import_rsa_key(funcs, session, 2048, evp, rsak, obj_cert, obj_pvtkey);
   if (evp == NULL || rsak == NULL)
     exit(EXIT_FAILURE);
@@ -652,7 +652,7 @@ static void test_import_rsa2048() {
   test_rsa_sign(funcs, session, obj_pvtkey, evp, CKM_SHA256_RSA_PKCS);
   test_rsa_sign(funcs, session, obj_pvtkey, evp, CKM_SHA384_RSA_PKCS);
 
-  test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_RSA_PKCS_PSS, 20);
+  test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_RSA_PKCS_PSS, 32);
   test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_SHA1_RSA_PKCS_PSS, 32);
   test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_SHA256_RSA_PKCS_PSS, 30);
   test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_SHA384_RSA_PKCS_PSS, 32);
@@ -724,7 +724,7 @@ static void test_digest() {
   test_digest_func(funcs, session, CKM_SHA512);
 
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
-  asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");  
+  asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
   dprintf(0, "TEST END: test_digest()\n");
 }
 
@@ -741,8 +741,8 @@ static void test_login_order() {
 
   init_connection();
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session1), CKR_OK, "OpenSession1");
-  
-  generate_ec_keys(funcs, session1, 1, params, sizeof(params), &pubkey, &privkey);  
+
+  generate_ec_keys(funcs, session1, 1, params, sizeof(params), &pubkey, &privkey);
 
   asrt(funcs->C_Login(session1, CKU_USER, "123456", 6), CKR_OK, "Login USER");
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session2), CKR_OK, "OpenSession2");
