@@ -478,7 +478,7 @@ CK_RV verify_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULON
     CK_RV rv = do_apply_DER_encoding_to_ECSIG(sig, &sig_len);
     if(rv != CKR_OK) {
       DBG("do_apply_DER_encoding_to_ECSIG failed");
-      return CKR_SIGNATURE_INVALID;
+      return CKR_FUNCTION_FAILED;
     }
   }
 
@@ -486,13 +486,18 @@ CK_RV verify_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULON
     rc = EVP_DigestVerifyFinal(session->op_info.md_ctx, sig, sig_len);
     if(rc <= 0) {
       DBG("EVP_DigestVerifyFinal failed");
-      return CKR_SIGNATURE_INVALID;
+      return rc < 0 ? CKR_FUNCTION_FAILED : CKR_SIGNATURE_INVALID;
     }
   } else {
+    int padding;
+    EVP_PKEY_CTX_get_rsa_padding(session->op_info.op.verify.pkey_ctx, &padding);
+    if(padding == RSA_PKCS1_PSS_PADDING) {
+      EVP_PKEY_CTX_set_signature_md(session->op_info.op.verify.pkey_ctx, EVP_MD_by_size(session->op_info.buf_len));
+    }
     rc = EVP_PKEY_verify(session->op_info.op.verify.pkey_ctx, sig, sig_len, session->op_info.buf, session->op_info.buf_len);
     if(rc <= 0) {
       DBG("EVP_PKEY_verify failed");
-      return CKR_SIGNATURE_INVALID;
+      return rc < 0 ? CKR_FUNCTION_FAILED : CKR_SIGNATURE_INVALID;
     }
   }
 
