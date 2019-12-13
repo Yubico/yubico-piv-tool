@@ -420,8 +420,12 @@ static void test_generate_rsa1024() {
   test_rsa_sign(funcs, session, obj_pvtkey, NULL, CKM_SHA256_RSA_PKCS);
   test_rsa_sign(funcs, session, obj_pvtkey, NULL, CKM_SHA384_RSA_PKCS);
   test_rsa_sign(funcs, session, obj_pvtkey, NULL, CKM_SHA512_RSA_PKCS);
-
   
+  test_rsa_sign_pss(funcs, session, obj_pvtkey, NULL, CKM_RSA_PKCS_PSS, 20);
+  test_rsa_sign_pss(funcs, session, obj_pvtkey, NULL, CKM_SHA1_RSA_PKCS_PSS, 32);
+  test_rsa_sign_pss(funcs, session, obj_pvtkey, NULL, CKM_SHA256_RSA_PKCS_PSS, 30);
+  test_rsa_sign_pss(funcs, session, obj_pvtkey, NULL, CKM_SHA384_RSA_PKCS_PSS, 32);
+
   destroy_test_objects_by_privkey(funcs, session, obj_pvtkey, 24);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
@@ -442,7 +446,6 @@ static void test_key_attributes() {
   generate_ec_keys(funcs, session, 1, params_eccp256, sizeof(params_eccp256), &pubkey, &privkey);
   test_pubkey_attributes_ec(funcs, session, pubkey, 256, "Public key for PIV Authentication", 67, params_eccp256, sizeof(params_eccp256));
   test_privkey_attributes_ec(funcs, session, privkey, 256, "Private key for PIV Authentication", 67, params_eccp256, sizeof(params_eccp256), CK_FALSE);
-
 
   generate_ec_keys(funcs, session, 1, params_eccp384, sizeof(params_eccp384), &pubkey, &privkey);
   test_pubkey_attributes_ec(funcs, session, pubkey, 384, "Public key for PIV Authentication", 99, params_eccp384, sizeof(params_eccp384));
@@ -619,6 +622,11 @@ static void test_import_rsa1024() {
   test_rsa_sign(funcs, session, obj_pvtkey, evp, CKM_SHA256_RSA_PKCS);
   test_rsa_sign(funcs, session, obj_pvtkey, evp, CKM_SHA384_RSA_PKCS);
 
+  test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_RSA_PKCS_PSS, 20);
+  test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_SHA1_RSA_PKCS_PSS, 32);
+  test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_SHA256_RSA_PKCS_PSS, 30);
+  test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_SHA384_RSA_PKCS_PSS, 32);
+
   destroy_test_objects(funcs, session, obj_cert);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
@@ -770,7 +778,6 @@ int main(void) {
 #endif
 
   return EXIT_SUCCESS;
-
 }
 
 #pragma clang diagnostic pop

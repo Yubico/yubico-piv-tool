@@ -146,21 +146,26 @@ static CK_RV get_hash(CK_MECHANISM_TYPE mech,
   CK_BYTE hashed_data[512];
   switch(mech) {
     case CKM_SHA_1:
+    case CKM_RSA_PKCS_PSS:
+    case CKM_SHA1_RSA_PKCS_PSS:
       SHA1(data, data_len, hashed_data);
       memcpy(hdata, hashed_data, 20);
       *hdata_len = 20;
       break;
     case CKM_SHA256:
+    case CKM_SHA256_RSA_PKCS_PSS:
       SHA256(data, data_len, hashed_data);
       memcpy(hdata, hashed_data, 32);
       *hdata_len = 32;
       break;
     case CKM_SHA384:
+    case CKM_SHA384_RSA_PKCS_PSS:
       SHA384(data, data_len, hashed_data);
       memcpy(hdata, hashed_data, 48);
       *hdata_len = 48;
       break;
     case CKM_SHA512:
+    case CKM_SHA512_RSA_PKCS_PSS:
       SHA512(data, data_len, hashed_data);
       memcpy(hdata, hashed_data, 64);
       *hdata_len = 64;
@@ -223,15 +228,20 @@ const EVP_MD* get_md_type(CK_MECHANISM_TYPE mech) {
   switch(mech) {
     case CKM_ECDSA_SHA1:
     case CKM_SHA1_RSA_PKCS:
+    case CKM_RSA_PKCS_PSS:
+    case CKM_SHA1_RSA_PKCS_PSS:
       return EVP_sha1();
     case CKM_ECDSA_SHA256:
     case CKM_SHA256_RSA_PKCS:
+    case CKM_SHA256_RSA_PKCS_PSS:
       return EVP_sha256();
     case CKM_ECDSA_SHA384:
     case CKM_SHA384_RSA_PKCS:
+    case CKM_SHA384_RSA_PKCS_PSS:
       return EVP_sha384();
     case CKM_ECDSA_SHA512:
     case  CKM_SHA512_RSA_PKCS:
+    case CKM_SHA512_RSA_PKCS_PSS:
       return EVP_sha512();
     default:
       return NULL;
@@ -720,6 +730,97 @@ void test_rsa_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJ
   asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
 }
 
+void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
+                    RSA* rsak, CK_MECHANISM_TYPE mech_type, CK_ULONG data_len) {
+  CK_BYTE     i, j;
+  CK_BYTE*    data;
+  CK_BYTE     sig[256];
+  CK_BYTE     sig_update[256];
+  CK_ULONG    sig_len;
+  CK_ULONG    sig_update_len;
+
+  CK_BYTE*     pss_buf;
+  CK_BYTE      digest_data[256];
+  unsigned int digest_data_len = sizeof(digest_data);
+  EVP_MD_CTX   *md_ctx;
+
+  CK_OBJECT_HANDLE obj_pubkey;
+  CK_MECHANISM mech = {mech_type, NULL};
+
+  data = malloc(data_len);
+
+  for (i = 0; i < 24; i++) {
+    obj_pubkey = get_public_key_handle(funcs, session, obj_pvtkey[i]);    
+    for (j = 0; j < 10; j++) {
+
+      if(RAND_bytes(data, data_len) == -1)
+        exit(EXIT_FAILURE);
+
+      // Sign
+      asrt(funcs->C_Login(session, CKU_USER, "123456", 6), CKR_OK, "LOGIN USER");
+      asrt(funcs->C_SignInit(session, &mech, obj_pvtkey[i]), CKR_OK, "SIGN INIT");
+      sig_len = sizeof(sig);
+      asrt(funcs->C_Sign(session, data, data_len, sig, &sig_len), CKR_OK, "SIGN");
+
+      // External verification
+      if(rsak != NULL) {
+        pss_buf = malloc(sig_len);
+        asrt(RSA_public_decrypt(sig_len, sig, pss_buf, rsak, RSA_NO_PADDING), sig_len, "DECRYPT PSS SIGNATURE");
+
+        if(mech_type == CKM_RSA_PKCS_PSS) {
+          asrt(RSA_verify_PKCS1_PSS(rsak, data, EVP_sha1(), pss_buf, -1), 1, "VERIFY PSS SIGNATURE");  
+        } else {
+          md_ctx = EVP_MD_CTX_create();
+          asrt(EVP_DigestInit_ex(md_ctx, get_md_type(mech_type), NULL), 1, "DIGEST INIT");
+          asrt(EVP_DigestUpdate(md_ctx, data, data_len), 1, "DIGEST UPDATE");
+          asrt(EVP_DigestFinal_ex(md_ctx, digest_data, &digest_data_len), 1, "DIGEST FINAL");
+
+          asrt(RSA_verify_PKCS1_PSS(rsak, digest_data, get_md_type(mech_type), pss_buf, -1), 1, "VERIFY PSS SIGNATURE");
+        }
+      }
+      
+      // Internal verification: Verify
+      asrt(funcs->C_VerifyInit(session, &mech, obj_pubkey), CKR_OK, "VERIFY INIT");
+      asrt(funcs->C_Verify(session, data, data_len, sig, sig_len), CKR_OK, "VERIFY");
+
+      // Sign Update
+      asrt(funcs->C_SignInit(session, &mech, obj_pvtkey[i]), CKR_OK, "SIGN INIT");
+      sig_update_len = sizeof(sig_update);
+      asrt(funcs->C_SignUpdate(session, data, 10), CKR_OK, "SIGN UPDATE 1");
+      asrt(funcs->C_SignUpdate(session, data + 10, data_len - 10), CKR_OK, "SIGN UPDATE 2");
+      asrt(funcs->C_SignFinal(session, sig_update, &sig_update_len), CKR_OK, "SIGN FINAL");
+      asrt(sig_update_len, sig_len, "SIGNATURE LENGTH");
+
+
+      // External verification
+      if(rsak != NULL) {
+        //pss_buf = malloc(sig_update_len);
+        asrt(RSA_public_decrypt(sig_update_len, sig_update, pss_buf, rsak, RSA_NO_PADDING), sig_update_len, "DECRYPT PSS SIGNATURE");
+
+        if(mech_type == CKM_RSA_PKCS_PSS) {
+          asrt(RSA_verify_PKCS1_PSS(rsak, data, EVP_sha1(), pss_buf, -1), 1, "VERIFY PSS SIGNATURE");  
+        } else {
+          md_ctx = EVP_MD_CTX_create();
+          asrt(EVP_DigestInit_ex(md_ctx, get_md_type(mech_type), NULL), 1, "DIGEST INIT");
+          asrt(EVP_DigestUpdate(md_ctx, data, data_len), 1, "DIGEST UPDATE");
+          asrt(EVP_DigestFinal_ex(md_ctx, digest_data, &digest_data_len), 1, "DIGEST FINAL");
+
+          asrt(RSA_verify_PKCS1_PSS(rsak, digest_data, get_md_type(mech_type), pss_buf, -1), 1, "VERIFY PSS SIGNATURE");
+        }
+      }
+
+      // Internal verification: Verify Update
+      asrt(funcs->C_VerifyInit(session, &mech, obj_pubkey), CKR_OK, "VERIFY INIT");
+      asrt(funcs->C_VerifyUpdate(session, data, 5), CKR_OK, "VERIFY UPDATE 1");
+      asrt(funcs->C_VerifyUpdate(session, data+5, data_len-5), CKR_OK, "VERIFY UPDATE 2");
+      asrt(funcs->C_VerifyFinal(session, sig_update, sig_update_len), CKR_OK, "VERIFY FINAL");     
+    
+    }
+  }
+
+  asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
+}
+
 void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
                     RSA* rsak, CK_MECHANISM_TYPE mech_type) {
   CK_ULONG  i, j;
@@ -838,7 +939,7 @@ static void test_pubkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_
   CK_BBOOL obj_token;
   CK_BBOOL obj_private;
   CK_ULONG obj_key_type;
-  CK_BBOOL obj_sensitive;
+  CK_BBOOL obj_trusted;
   CK_BBOOL obj_local;
   CK_BBOOL obj_encrypt;
   CK_BBOOL obj_verify;
@@ -854,7 +955,7 @@ static void test_pubkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_
     {CKA_TOKEN, &obj_token, sizeof(CK_BBOOL)},
     {CKA_PRIVATE, &obj_private, sizeof(CK_BBOOL)},
     {CKA_KEY_TYPE, &obj_key_type, sizeof(CK_ULONG)},
-    {CKA_SENSITIVE, &obj_sensitive, sizeof(CK_BBOOL)},
+    {CKA_TRUSTED, &obj_trusted, sizeof(CK_BBOOL)},
     {CKA_LOCAL, &obj_local, sizeof(CK_BBOOL)},
     {CKA_ENCRYPT, &obj_encrypt, sizeof(CK_BBOOL)},
     {CKA_VERIFY, &obj_verify, sizeof(CK_BBOOL)},
@@ -873,8 +974,8 @@ static void test_pubkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_
   asrt(obj_token, CK_TRUE, "TOKEN");
   asrt(obj_private, CK_FALSE, "PRIVATE");
   asrt(obj_key_type, key_type, "KEY_TYPE");
-  asrt(obj_sensitive, CK_FALSE, "SENSITIVE");
-  asrt(obj_local, CK_FALSE, "LOCAL");
+  asrt(obj_trusted, CK_FALSE, "TRUSTED");
+  asrt(obj_local, CK_TRUE, "LOCAL");
   asrt(obj_encrypt, CK_TRUE, "ENCRYPT");
   asrt(obj_verify, CK_TRUE, "VERIFY");
   asrt(obj_wrap, CK_FALSE, "WRAP");
