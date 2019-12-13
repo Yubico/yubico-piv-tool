@@ -245,7 +245,7 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
     }
     session->op_info.buf_len = cbLength;
   } else {
-    pss_md = EVP_MD_by_size(*sig_len);
+    pss_md = EVP_MD_by_size(session->op_info.buf_len);
   }
 
   int padlen = session->op_info.out_len;
