@@ -347,35 +347,44 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
   return CKR_OK;
 }
 
-CK_RV token_generate_key(ykpiv_state *state, CK_BBOOL rsa, CK_BYTE key, CK_ULONG key_len, CK_BYTE_PTR cert_data, CK_ULONG_PTR cert_len) {
+CK_RV token_generate_key(ykpiv_state *state, CK_BYTE algorithm, CK_BYTE key, CK_BYTE_PTR cert_data, CK_ULONG_PTR cert_len) {
   // TODO: make a function in ykpiv for this
   unsigned char in_data[11];
   unsigned char *in_ptr = in_data;
   unsigned char data[1024];
   unsigned char templ[] = {0, YKPIV_INS_GENERATE_ASYMMETRIC, 0, 0};
   unsigned char *certptr;
-  unsigned char key_algorithm;
   unsigned long len, offset, recv_len = sizeof(data);
+  char version[7];
   char label[32];
   int len_bytes;
   int sw;
 
-  CK_RV rv;
-
-  if(rsa) {
-    char version[7];
-    if(ykpiv_get_version(state, version, sizeof(version)) == YKPIV_OK) {
-      int major, minor, build;
-      int match = sscanf(version, "%d.%d.%d", &major, &minor, &build);
-      if(match == 3 && major == 4 && (minor < 3 || (minor == 3 && build < 5))) {
-        DBG("On-chip RSA key generation on this YubiKey has been blocked.");
-        DBG("Please see https://yubi.co/ysa201701/ for details.");
-        return CKR_FUNCTION_FAILED;
+  switch(algorithm) {
+    case YKPIV_ALGO_RSA1024:
+    case YKPIV_ALGO_RSA2048:
+      if(ykpiv_get_version(state, version, sizeof(version)) == YKPIV_OK) {
+        int major, minor, build;
+        int match = sscanf(version, "%d.%d.%d", &major, &minor, &build);
+        if(match == 3 && major == 4 && (minor < 3 || (minor == 3 && build < 5))) {
+          DBG("On-chip RSA key generation on this YubiKey has been blocked.");
+          DBG("Please see https://yubi.co/ysa201701/ for details.");
+          return CKR_FUNCTION_FAILED;
+        }
+      } else {
+        DBG("Failed to communicate.");
+        return CKR_DEVICE_ERROR;
       }
-    } else {
-      DBG("Failed to communicate.");
-      return CKR_DEVICE_ERROR;
-    }
+      offset = 5;
+      break;
+
+    case YKPIV_ALGO_ECCP256:
+    case YKPIV_ALGO_ECCP384:
+      offset = 3;
+      break;
+
+    default:
+      return CKR_FUNCTION_FAILED;
   }
 
   templ[3] = key;
@@ -384,49 +393,7 @@ CK_RV token_generate_key(ykpiv_state *state, CK_BBOOL rsa, CK_BYTE key, CK_ULONG
   *in_ptr++ = 3;
   *in_ptr++ = YKPIV_ALGO_TAG;
   *in_ptr++ = 1;
-
-  switch(key_len) {
-    case 2048:
-      if (rsa == CK_TRUE) {
-        key_algorithm = YKPIV_ALGO_RSA2048;
-        offset = 5;
-      } else
-        return CKR_FUNCTION_FAILED;
-
-      break;
-
-    case 1024:
-      if (rsa == CK_TRUE) {
-        key_algorithm = YKPIV_ALGO_RSA1024;
-        offset = 5;
-      } else
-        return CKR_FUNCTION_FAILED;
-
-      break;
-
-    case 256:
-      if (rsa == CK_FALSE) {
-        key_algorithm = YKPIV_ALGO_ECCP256;
-        offset = 3;
-      } else
-        return CKR_FUNCTION_FAILED;
-
-      break;
-
-    case 384:
-      if (rsa == CK_FALSE) {
-        key_algorithm = YKPIV_ALGO_ECCP384;
-        offset = 3;
-      } else
-        return CKR_FUNCTION_FAILED;
-
-      break;
-
-    default:
-      return CKR_FUNCTION_FAILED;
-  }
-
-  *in_ptr++ = key_algorithm;
+  *in_ptr++ = algorithm;
 
   if(ykpiv_transfer_data(state, templ, in_data, in_ptr - in_data, data, &recv_len, &sw) != YKPIV_OK || sw != 0x9000) {
     DBG("Failed to generate key, sw = %04x.", sw);
@@ -438,7 +405,8 @@ CK_RV token_generate_key(ykpiv_state *state, CK_BBOOL rsa, CK_BYTE key, CK_ULONG
   // Create a new empty certificate for the key
   len = recv_len;
   recv_len = sizeof(data);
-  if ((rv = do_create_empty_cert(data + offset, len - offset, key_algorithm, label, data, &recv_len)) != CKR_OK)
+  CK_RV rv = do_create_empty_cert(data + offset, len - offset, algorithm, label, data, &recv_len);
+  if(rv != CKR_OK)
     return rv;
 
   if (recv_len < 0x80)
@@ -550,8 +518,10 @@ CK_RV token_import_private_key(ykpiv_state *state, CK_BYTE key_id,
                                 ec_data, ec_data_len,
                                 pin_policy, touch_policy);
 
-  if (rc != YKPIV_OK)
+  if (rc != YKPIV_OK) {
+    DBG("ykpiv_import_private_key failed: %s", ykpiv_strerror(rc));
     return CKR_FUNCTION_FAILED;
+  }
 
   return CKR_OK;
 }

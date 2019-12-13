@@ -52,31 +52,6 @@ void dump_hex(const unsigned char *buf, unsigned int len, FILE *output, int spac
   fprintf(output, "\n");
 }
 
-#if !((OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER))
-static int bogus_sign(int dtype, const unsigned char *m, unsigned int m_length,
-               unsigned char *sigret, unsigned int *siglen, const RSA *rsa) {
-  sigret = malloc(1);
-  sigret = (unsigned char*)"";
-  *siglen = 1;
-  return 0;
-}
-
-static void bogus_sign_cert(X509 *cert) {
-  EVP_PKEY *pkey = EVP_PKEY_new();
-  RSA *rsa = RSA_new();
-  RSA_METHOD *meth = RSA_meth_dup(RSA_get_default_method());
-  BIGNUM *e = BN_new();
-
-  BN_set_word(e, 65537);
-  RSA_generate_key_ex(rsa, 1024, e, NULL);
-  RSA_meth_set_sign(meth, bogus_sign);
-  RSA_set_method(rsa, meth);
-  EVP_PKEY_set1_RSA(pkey, rsa);
-  X509_sign(cert, pkey, EVP_md5());
-  EVP_PKEY_free(pkey);
-}
-#endif
-
 static CK_OBJECT_HANDLE get_public_key_handle(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
                         CK_OBJECT_HANDLE privkey) {
   CK_OBJECT_HANDLE found_obj[10];
@@ -192,6 +167,7 @@ static CK_RV get_digest(CK_MECHANISM_TYPE mech,
       break;
     case CKM_ECDSA_SHA1:
     case CKM_SHA1_RSA_PKCS:
+    case CKM_SHA1_RSA_PKCS_PSS:
       SHA1(data, data_len, hashed_data);
       memcpy(hdata, SHA1_DIGEST, sizeof(SHA1_DIGEST));
       memcpy(hdata + sizeof(SHA1_DIGEST), hashed_data, 20);
@@ -199,6 +175,7 @@ static CK_RV get_digest(CK_MECHANISM_TYPE mech,
       break;
     case CKM_ECDSA_SHA256:
     case CKM_SHA256_RSA_PKCS:
+    case CKM_SHA256_RSA_PKCS_PSS:
       SHA256(data, data_len, hashed_data);
       memcpy(hdata, SHA256_DIGEST, sizeof(SHA256_DIGEST));
       memcpy(hdata + sizeof(SHA256_DIGEST), hashed_data, 32);
@@ -206,13 +183,15 @@ static CK_RV get_digest(CK_MECHANISM_TYPE mech,
       break;
     case CKM_ECDSA_SHA384:
     case CKM_SHA384_RSA_PKCS:
+    case CKM_SHA384_RSA_PKCS_PSS:
       SHA384(data, data_len, hashed_data);
       memcpy(hdata, SHA384_DIGEST, sizeof(SHA384_DIGEST));
       memcpy(hdata + sizeof(SHA384_DIGEST), hashed_data, 48);
       *hdata_len = sizeof(SHA384_DIGEST) + 48;
       break;
     case CKM_ECDSA_SHA512:
-    case  CKM_SHA512_RSA_PKCS:
+    case CKM_SHA512_RSA_PKCS:
+    case CKM_SHA512_RSA_PKCS_PSS:
       SHA512(data, data_len, hashed_data);
       memcpy(hdata, SHA512_DIGEST, sizeof(SHA512_DIGEST));
       memcpy(hdata + sizeof(SHA512_DIGEST), hashed_data, 64);
@@ -228,9 +207,10 @@ const EVP_MD* get_md_type(CK_MECHANISM_TYPE mech) {
   switch(mech) {
     case CKM_ECDSA_SHA1:
     case CKM_SHA1_RSA_PKCS:
-    case CKM_RSA_PKCS_PSS:
     case CKM_SHA1_RSA_PKCS_PSS:
       return EVP_sha1();
+    case CKM_ECDSA_SHA224:
+      return EVP_sha224();
     case CKM_ECDSA_SHA256:
     case CKM_SHA256_RSA_PKCS:
     case CKM_SHA256_RSA_PKCS_PSS:
@@ -240,7 +220,7 @@ const EVP_MD* get_md_type(CK_MECHANISM_TYPE mech) {
     case CKM_SHA384_RSA_PKCS_PSS:
       return EVP_sha384();
     case CKM_ECDSA_SHA512:
-    case  CKM_SHA512_RSA_PKCS:
+    case CKM_SHA512_RSA_PKCS:
     case CKM_SHA512_RSA_PKCS_PSS:
       return EVP_sha512();
     default:
@@ -350,15 +330,8 @@ EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int
   if (X509_set_pubkey(cert, evp) == 0)
     exit(EXIT_FAILURE);
 
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
-  cert->sig_alg->algorithm = OBJ_nid2obj(8);
-  cert->cert_info->signature->algorithm = OBJ_nid2obj(8);
-
-  ASN1_BIT_STRING_set_bit(cert->signature, 8, 1);
-  ASN1_BIT_STRING_set(cert->signature, "\x00", 1);
-#else
-  bogus_sign_cert(cert);
-#endif
+  if (X509_sign(cert, evp, EVP_sha1()) == 0)
+    exit(EXIT_FAILURE);
 
   p = value_c;
   if ((cert_len = (CK_ULONG) i2d_X509(cert, &p)) == 0 || cert_len > sizeof(value_c))
@@ -381,17 +354,17 @@ EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int
   return eck;
 }
 
-void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, EVP_PKEY* evp, RSA* rsak,
+void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int keylen, EVP_PKEY* evp, RSA* rsak,
                       CK_OBJECT_HANDLE_PTR obj_cert, CK_OBJECT_HANDLE_PTR obj_pvtkey) {
   X509        *cert;
   ASN1_TIME   *tm;
   CK_BYTE     i, j;
   CK_BYTE     e[] = {0x01, 0x00, 0x01};
-  CK_BYTE     p[64];
-  CK_BYTE     q[64];
-  CK_BYTE     dp[64];
-  CK_BYTE     dq[64];
-  CK_BYTE     qinv[64];
+  CK_BYTE     p[keylen / 16];
+  CK_BYTE     q[keylen / 16];
+  CK_BYTE     dp[keylen / 16];
+  CK_BYTE     dq[keylen / 16];
+  CK_BYTE     qinv[keylen / 16];
   BIGNUM      *e_bn;
   CK_ULONG    class_k = CKO_PRIVATE_KEY;
   CK_ULONG    class_c = CKO_CERTIFICATE;
@@ -426,15 +399,15 @@ void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, EVP_P
   if (e_bn == NULL)
     exit(EXIT_FAILURE);
 
-  asrt(RSA_generate_key_ex(rsak, 1024, e_bn, NULL), 1, "GENERATE RSAK");
+  asrt(RSA_generate_key_ex(rsak, keylen, e_bn, NULL), 1, "GENERATE RSAK");
 
   RSA_get0_factors(rsak, &bp, &bq);
   RSA_get0_crt_params(rsak, &bdmp1, &bdmq1, &biqmp);
-  asrt(BN_bn2bin(bp, p), 64, "GET P");
-  asrt(BN_bn2bin(bq, q), 64, "GET Q");
-  asrt(BN_bn2bin(bdmp1, dp), 64, "GET DP");
-  asrt(BN_bn2bin(bdmq1, dp), 64, "GET DQ");
-  asrt(BN_bn2bin(biqmp, qinv), 64, "GET QINV");
+  asrt(BN_bn2bin(bp, p), sizeof(p), "GET P");
+  asrt(BN_bn2bin(bq, q), sizeof(q), "GET Q");
+  asrt(BN_bn2bin(bdmp1, dp), sizeof(dp), "GET DP");
+  asrt(BN_bn2bin(bdmq1, dq), sizeof(dq), "GET DQ");
+  asrt(BN_bn2bin(biqmp, qinv), sizeof(qinv), "GET QINV");
 
   if (EVP_PKEY_set1_RSA(evp, rsak) == 0)
     exit(EXIT_FAILURE);
@@ -454,16 +427,8 @@ void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, EVP_P
   if (X509_set_pubkey(cert, evp) == 0)
     exit(EXIT_FAILURE);
 
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
-  /* putting bogus data to signature to make some checks happy */
-  cert->sig_alg->algorithm = OBJ_nid2obj(8);
-  cert->cert_info->signature->algorithm = OBJ_nid2obj(8);
-
-  ASN1_BIT_STRING_set_bit(cert->signature, 8, 1);
-  ASN1_BIT_STRING_set(cert->signature, "\x00", 1);
-#else
-  bogus_sign_cert(cert);
-#endif
+  if (X509_sign(cert, evp, EVP_sha1()) == 0)
+    exit(EXIT_FAILURE);
 
   px = value_c;
   if ((cert_len = (CK_ULONG) i2d_X509(cert, &px)) == 0 || cert_len > sizeof(value_c))
@@ -751,13 +716,13 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
 
   for (i = 0; i < 24; i++) {
     obj_pubkey = get_public_key_handle(funcs, session, obj_pvtkey[i]);    
-    for (j = 0; j < 10; j++) {
+    for (j = 0; j < 3; j++) {
 
       if(RAND_bytes(data, data_len) == -1)
         exit(EXIT_FAILURE);
 
       // Sign
-      asrt(funcs->C_Login(session, CKU_USER, "123456", 6), CKR_OK, "LOGIN USER");
+      asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "LOGIN USER");
       asrt(funcs->C_SignInit(session, &mech, obj_pvtkey[i]), CKR_OK, "SIGN INIT");
       sig_len = sizeof(sig);
       asrt(funcs->C_Sign(session, data, data_len, sig, &sig_len), CKR_OK, "SIGN");
@@ -834,7 +799,7 @@ void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   CK_MECHANISM mech = {mech_type, NULL};
 
   for (i = 0; i < 24; i++) {
-    for (j = 0; j < 10; j++) {
+    for (j = 0; j < 3; j++) {
     
       if(RAND_bytes(data, sizeof(data)) == -1)
         exit(EXIT_FAILURE);
@@ -887,7 +852,7 @@ void test_rsa_encrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
 
   for (i = 0; i < 24; i++) {
     pubkey = get_public_key_handle(funcs, session, obj_pvtkey[i]);
-    for (j = 0; j < 10; j++) {
+    for (j = 0; j < 3; j++) {
     
       if(RAND_bytes(data, data_len) == -1)
         exit(EXIT_FAILURE);
@@ -962,7 +927,7 @@ static void test_pubkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_
     {CKA_WRAP, &obj_wrap, sizeof(CK_BBOOL)},
     {CKA_DERIVE, &obj_derive, sizeof(CK_BBOOL)},
     {CKA_MODULUS_BITS, &obj_modulus_bits, sizeof(CK_ULONG)},
-    {CKA_MODIFIABLE, &obj_modifiable, sizeof(CK_BBOOL)}
+    {CKA_MODIFIABLE, &obj_modifiable, sizeof(CK_BBOOL)},
   };
 
   CK_ATTRIBUTE template_label[] = {
@@ -982,6 +947,7 @@ static void test_pubkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_
   asrt(obj_derive, CK_FALSE, "DERIVE");
   asrt(obj_modulus_bits, key_size, "MODULUS BITS");
   asrt(obj_modifiable, CK_FALSE, "MODIFIABLE");
+  asrt(obj_trusted, CK_FALSE, "TRUSTED");
 
   asrt(funcs->C_GetAttributeValue(session, pubkey, template_label, 1), CKR_OK, "GET LABEL");
   obj_label_len = template_label[0].ulValueLen;
@@ -1038,7 +1004,9 @@ static void test_privkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION
   CK_BBOOL obj_private;
   CK_ULONG obj_key_type;
   CK_BBOOL obj_sensitive;
+  CK_BBOOL obj_always_sensitive;
   CK_BBOOL obj_extractable;
+  CK_BBOOL obj_never_extractable;
   CK_BBOOL obj_local;
   CK_BBOOL obj_decrypt;
   CK_BBOOL obj_unwrap;
@@ -1056,7 +1024,9 @@ static void test_privkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION
     {CKA_PRIVATE, &obj_private, sizeof(CK_BBOOL)},
     {CKA_KEY_TYPE, &obj_key_type, sizeof(CK_ULONG)},
     {CKA_SENSITIVE, &obj_sensitive, sizeof(CK_BBOOL)},
+    {CKA_ALWAYS_SENSITIVE, &obj_always_sensitive, sizeof(CK_BBOOL)},
     {CKA_EXTRACTABLE, &obj_extractable, sizeof(CK_BBOOL)},
+    {CKA_NEVER_EXTRACTABLE, &obj_never_extractable, sizeof(CK_BBOOL)},
     {CKA_LOCAL, &obj_local, sizeof(CK_BBOOL)},
     {CKA_DECRYPT, &obj_decrypt, sizeof(CK_BBOOL)},
     {CKA_UNWRAP, &obj_unwrap, sizeof(CK_BBOOL)},
@@ -1071,13 +1041,15 @@ static void test_privkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION
     {CKA_LABEL, obj_label, sizeof(obj_label)}
   };
 
-  asrt(funcs->C_GetAttributeValue(session, privkey, template, 14), CKR_OK, "GET BASIC ATTRIBUTES");
+  asrt(funcs->C_GetAttributeValue(session, privkey, template, 16), CKR_OK, "GET BASIC ATTRIBUTES");
   asrt(obj_class, CKO_PRIVATE_KEY, "CLASS");
   asrt(obj_token, CK_TRUE, "TOKEN");
   asrt(obj_private, CK_TRUE, "PRIVATE");
   asrt(obj_key_type, key_type, "KEY_TYPE");
   asrt(obj_sensitive, CK_TRUE, "SENSITIVE");
+  asrt(obj_always_sensitive, CK_TRUE, "ALWAYS_SENSITIVE");
   asrt(obj_extractable, CK_FALSE, "EXTRACTABLE");
+  asrt(obj_never_extractable, CK_TRUE, "NEVER_EXTRACTABLE");
   asrt(obj_local, CK_TRUE, "LOCAL");
   asrt(obj_decrypt, CK_TRUE, "DECRYPT");
   asrt(obj_unwrap, CK_FALSE, "UNWRAP");

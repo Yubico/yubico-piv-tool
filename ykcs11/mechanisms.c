@@ -61,28 +61,24 @@ CK_BBOOL is_RSA_mechanism(CK_MECHANISM_TYPE m) {
   switch (m) {
   case CKM_RSA_PKCS_KEY_PAIR_GEN:
   case CKM_RSA_PKCS:
-  case CKM_RSA_9796:
+//  case CKM_RSA_9796:
   case CKM_RSA_X_509:
+  case CKM_MD5_RSA_PKCS:
   case CKM_SHA1_RSA_PKCS:
-//  case CKM_SHA224_RSA_PKCS:
   case CKM_SHA256_RSA_PKCS:
   case CKM_SHA384_RSA_PKCS:
   case CKM_SHA512_RSA_PKCS:
 //  case CKM_RIPEMD128_RSA_PKCS:
-//  case CKM_RIPEMD160_RSA_PKCS:
+  case CKM_RIPEMD160_RSA_PKCS:
 //  case CKM_RSA_PKCS_OAEP:
 //  case CKM_RSA_X9_31_KEY_PAIR_GEN:
 //  case CKM_RSA_X9_31:
 //  case CKM_SHA1_RSA_X9_31:
   case CKM_RSA_PKCS_PSS:
   case CKM_SHA1_RSA_PKCS_PSS:
-//  case CKM_SHA224_RSA_PKCS_PSS:
   case CKM_SHA256_RSA_PKCS_PSS:
   case CKM_SHA512_RSA_PKCS_PSS:
   case CKM_SHA384_RSA_PKCS_PSS:
-//  case CKM_RSA_PKCS_TPM_1_1:
-//  case CKM_RSA_PKCS_OAEP_TPM_1_1:
-//  case CKM_RSA_AES_KEY_WRAP:
     return CK_TRUE;
 
   default:
@@ -117,6 +113,10 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
     case CKM_SHA1_RSA_PKCS_PSS:
     case CKM_ECDSA_SHA1:
       md = EVP_sha1();
+      break;
+
+    case CKM_ECDSA_SHA224:
+      md = EVP_sha224();
       break;
 
     case CKM_SHA256_RSA_PKCS:
@@ -211,9 +211,25 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
   return CKR_OK;
 }
 
+static const EVP_MD *EVP_MD_by_size(int size) {
+  switch(size) {
+    case 16:
+      return EVP_md5();
+    case 28:
+      return EVP_sha224();
+    case 32:
+      return EVP_sha256();
+    case 48:
+      return EVP_sha384();
+    case 64:
+      return EVP_sha512();
+  }
+  return EVP_sha1();
+}
+
 CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_PTR sig_len) {
 
-  const EVP_MD *pss_md = EVP_sha1();
+  const EVP_MD *pss_md;
 
   if(session->op_info.md_ctx) {
     pss_md = EVP_MD_CTX_md(session->op_info.md_ctx);
@@ -228,6 +244,8 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
       prepare_rsa_signature(session->op_info.buf, cbLength, session->op_info.buf, &cbLength, EVP_MD_type(pss_md));
     }
     session->op_info.buf_len = cbLength;
+  } else {
+    pss_md = EVP_MD_by_size(*sig_len);
   }
 
   int padlen = session->op_info.out_len;
@@ -292,7 +310,6 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
 CK_RV sign_mechanism_cleanup(ykcs11_session_t *session) {
 
   if (session->op_info.md_ctx != NULL) {
-    DBG("EVP_MD_CTX_destroy");
     EVP_MD_CTX_destroy(session->op_info.md_ctx);
     session->op_info.md_ctx = NULL;
   }
@@ -303,11 +320,9 @@ CK_RV sign_mechanism_cleanup(ykcs11_session_t *session) {
 CK_RV verify_mechanism_cleanup(ykcs11_session_t *session) {
 
   if (session->op_info.md_ctx != NULL) {
-    DBG("EVP_MD_CTX_destroy");
     EVP_MD_CTX_destroy(session->op_info.md_ctx);
     session->op_info.md_ctx = NULL;
   } else if(session->op_info.op.verify.pkey_ctx != NULL) {
-    DBG("EVP_PKEY_CTX_free");
     EVP_PKEY_CTX_free(session->op_info.op.verify.pkey_ctx);
   }
   session->op_info.op.verify.pkey_ctx = NULL;
@@ -342,6 +357,10 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
     case CKM_SHA1_RSA_PKCS_PSS:
     case CKM_ECDSA_SHA1:
       md = EVP_sha1();
+      break;
+
+    case CKM_ECDSA_SHA224:
+      md = EVP_sha224();
       break;
 
     case CKM_SHA256_RSA_PKCS:
@@ -508,11 +527,9 @@ CK_RV check_generation_mechanism(CK_MECHANISM_PTR m) {
 
 CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTRIBUTE_PTR templ, CK_ULONG n) {
 
-  CK_ULONG i;
+  CK_BBOOL rsa = is_RSA_mechanism(mechanism->mechanism);
 
-  gen->rsa = is_RSA_mechanism(mechanism->mechanism);
-
-  for (i = 0; i < n; i++) {
+  for (CK_ULONG i = 0; i < n; i++) {
     switch (templ[i].type) {
     case CKA_CLASS:
       if (*((CK_ULONG_PTR) templ[i].pValue) != CKO_PUBLIC_KEY)
@@ -521,14 +538,14 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
       break;
 
     case CKA_KEY_TYPE:
-      if ((gen->rsa == CK_TRUE  && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_RSA) ||
-          (gen->rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_ECDSA))
+      if ((rsa == CK_TRUE  && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_RSA) ||
+          (rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_ECDSA))
         return CKR_TEMPLATE_INCONSISTENT;
 
       break;
 
     case CKA_PUBLIC_EXPONENT:
-      if (gen->rsa == CK_FALSE)
+      if (rsa == CK_FALSE)
         return CKR_ATTRIBUTE_VALUE_INVALID;
 
       // Only support F4
@@ -540,24 +557,28 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
       break;
 
     case CKA_MODULUS_BITS:
-      if (gen->rsa == CK_FALSE)
+      if (rsa == CK_FALSE)
         return CKR_ATTRIBUTE_VALUE_INVALID;
 
-      if (*((CK_ULONG_PTR) templ[i].pValue) != 1024 &&
-          *((CK_ULONG_PTR) templ[i].pValue) != 2048) { // TODO: make define?
-        DBG("Unsupported MODULUS_BITS (key length)");
-        return CKR_ATTRIBUTE_VALUE_INVALID;
+      switch(*(CK_ULONG_PTR)templ[i].pValue) {
+        case 1024:
+          gen->algorithm = YKPIV_ALGO_RSA1024;
+          break;
+        case 2048:
+          gen->algorithm = YKPIV_ALGO_RSA2048; 
+          break;
+        default:
+          DBG("Unsupported MODULUS_BITS (key length)");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
       }
-
-      gen->key_len = *((CK_ULONG_PTR) templ[i].pValue);
       break;
 
     case CKA_EC_PARAMS:
       // Support PRIME256V1 and SECP384R1
       if (templ[i].ulValueLen == 10 && memcmp((CK_BYTE_PTR)templ[i].pValue, PRIME256V1, 10) == 0)
-        gen->key_len = 256;
+        gen->algorithm = YKPIV_ALGO_ECCP256;
       else if(templ[i].ulValueLen == 7 && memcmp((CK_BYTE_PTR)templ[i].pValue, SECP384R1, 7) == 0)
-        gen->key_len = 384;
+        gen->algorithm = YKPIV_ALGO_ECCP384;
       else
         return CKR_FUNCTION_FAILED;
       break;
@@ -591,11 +612,9 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
 
 CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTRIBUTE_PTR templ, CK_ULONG n) {
 
-  CK_ULONG i;
+  CK_BBOOL rsa = is_RSA_mechanism(mechanism->mechanism);
 
-  gen->rsa = is_RSA_mechanism(mechanism->mechanism);
-
-  for (i = 0; i < n; i++) {
+  for (CK_ULONG i = 0; i < n; i++) {
     switch (templ[i].type) {
     case CKA_CLASS:
       if (*((CK_ULONG_PTR)templ[i].pValue) != CKO_PRIVATE_KEY)
@@ -604,8 +623,8 @@ CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
       break;
 
     case CKA_KEY_TYPE:
-      if ((gen->rsa == CK_TRUE  && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_RSA) ||
-          (gen->rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_ECDSA))
+      if ((rsa == CK_TRUE  && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_RSA) ||
+          (rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_ECDSA))
         return CKR_TEMPLATE_INCONSISTENT;
 
       break;
@@ -668,6 +687,10 @@ CK_RV digest_mechanism_init(ykcs11_session_t *session) {
 
     case CKM_SHA_1:
       md = EVP_sha1();
+      break;
+
+    case CKM_ECDSA_SHA224:
+      md = EVP_sha224();
       break;
 
     case CKM_SHA256:

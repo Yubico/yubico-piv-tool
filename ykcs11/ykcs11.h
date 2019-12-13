@@ -60,14 +60,13 @@ typedef enum {
 } ykcs11_op_type_t;
 
 typedef struct {
-  CK_BBOOL rsa;            // RSA or EC key
+  CK_BYTE  algorithm;      // PIV Key algorithm
   CK_BYTE  key_id;         // Key id
-  CK_ULONG key_len;        // Length in bits
 } gen_info_t;
 
 typedef struct {
-  ykcs11_rsa_t      *rsa;      // RSA key (needed for PSS padding), NULL for ECDSA
-  CK_ULONG          padding;   // RSA padding, 0 for ECDSA
+  ykcs11_rsa_t      *rsa;      // RSA key (needed for PSS padding), NULL for EC
+  CK_ULONG          padding;   // RSA padding, 0 for EC
   CK_BYTE           piv_key;   // PIV Key id
   CK_BYTE           algorithm; // PIV Key algorithm
 } sign_info_t;
@@ -127,5 +126,12 @@ typedef struct {
   ykcs11_find_t   find_obj;    // Active find operation (if any)
   op_info_t       op_info;
 } ykcs11_session_t;
+
+typedef struct {
+  piv_obj_id_t piv_id; // TODO: technically redundant
+  const char   *label;
+  CK_RV        (*get_attribute)(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
+  CK_BYTE      sub_id; // Sub-object id
+} piv_obj_t;
 
 #endif

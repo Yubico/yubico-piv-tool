@@ -613,7 +613,7 @@ static void test_import_rsa1024() {
   init_connection();
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1"); 
  
-  import_rsa_key(funcs, session, evp, rsak, obj_cert, obj_pvtkey);
+  import_rsa_key(funcs, session, 1024, evp, rsak, obj_cert, obj_pvtkey);
   if (evp == NULL || rsak == NULL)
     exit(EXIT_FAILURE);
 
@@ -633,6 +633,31 @@ static void test_import_rsa1024() {
   dprintf(0, "TEST END: test_import_rsa1024()\n");
 }
 
+static void test_import_rsa2048() {
+  dprintf(0, "TEST START: test_import_rsa2048()\n");
+  EVP_PKEY    *evp = EVP_PKEY_new();
+  RSA         *rsak = RSA_new();
+  CK_OBJECT_HANDLE obj_cert[24], obj_pvtkey[24];
+  CK_SESSION_HANDLE session;
+
+  init_connection();
+  asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1"); 
+ 
+  import_rsa_key(funcs, session, 2048, evp, rsak, obj_cert, obj_pvtkey);
+  if (evp == NULL || rsak == NULL)
+    exit(EXIT_FAILURE);
+
+  test_rsa_sign(funcs, session, obj_pvtkey, evp, CKM_RSA_PKCS);
+  test_rsa_sign(funcs, session, obj_pvtkey, evp, CKM_SHA1_RSA_PKCS);
+  test_rsa_sign(funcs, session, obj_pvtkey, evp, CKM_SHA256_RSA_PKCS);
+  test_rsa_sign(funcs, session, obj_pvtkey, evp, CKM_SHA384_RSA_PKCS);
+
+  destroy_test_objects(funcs, session, obj_cert);
+  asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
+  asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
+  dprintf(0, "TEST END: test_import_rsa2048()\n");
+}
+
 static void test_decrypt_RSA() {
   dprintf(0, "TEST START: test_decrypt_RSA()\n");
   EVP_PKEY    *evp = EVP_PKEY_new();
@@ -643,7 +668,7 @@ static void test_decrypt_RSA() {
   init_connection();
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
 
-  import_rsa_key(funcs, session, evp, rsak, obj_cert, obj_pvtkey);
+  import_rsa_key(funcs, session, 1024, evp, rsak, obj_cert, obj_pvtkey);
   if (evp == NULL ||  rsak == NULL)
     exit(EXIT_FAILURE);
 
@@ -667,7 +692,7 @@ static void test_encrypt_RSA() {
   init_connection();
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
 
-  import_rsa_key(funcs, session, evp, rsak, obj_cert, obj_pvtkey);
+  import_rsa_key(funcs, session, 1024, evp, rsak, obj_cert, obj_pvtkey);
   if (evp == NULL ||  rsak == NULL)
     exit(EXIT_FAILURE);
 
@@ -769,6 +794,7 @@ int main(void) {
   test_import_eccp256();
   test_import_eccp384();
   test_import_rsa1024();
+  test_import_rsa2048();
   test_decrypt_RSA();
   test_encrypt_RSA();
   test_key_attributes();

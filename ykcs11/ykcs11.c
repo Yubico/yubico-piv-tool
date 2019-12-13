@@ -1235,6 +1235,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       DBG("Certificate template not valid");
       return rv;
     }
+
     DBG("Certificate id is %u", id);
 
     dobj_id = find_data_object(id);
@@ -3176,7 +3177,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     return rv;
   }
 
-  if (gen.key_len == 0) {
+  if (gen.algorithm == 0) {
     DBG("Key length not specified");
     return CKR_TEMPLATE_INCOMPLETE;
   }
@@ -3192,17 +3193,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   pvtk_id = find_pvtk_object(gen.key_id);
   atst_id = find_atst_object(gen.key_id);
 
-  if (gen.rsa) {
-    DBG("Generating %lu bit RSA key in object %u and %u (%lx)", gen.key_len, pvtk_id, pubk_id, piv_2_ykpiv(pvtk_id));
-  }
-  else {
-    DBG("Generating %lu bit EC key in object %u and %u(%lx)", gen.key_len, pvtk_id, pubk_id, piv_2_ykpiv(pvtk_id));
-  }
+  DBG("Generating key with algorithm %u in object %u and %u (slot %lx)", gen.algorithm, pvtk_id, pubk_id, piv_2_ykpiv(pvtk_id));
 
   locking.pfnLockMutex(session->slot->mutex);
 
   cert_len = sizeof(cert_data);
-  if ((rv = token_generate_key(session->slot->piv_state, gen.rsa, piv_2_ykpiv(pvtk_id), gen.key_len, cert_data, &cert_len)) != CKR_OK) {
+  if ((rv = token_generate_key(session->slot->piv_state, gen.algorithm, piv_2_ykpiv(pvtk_id), cert_data, &cert_len)) != CKR_OK) {
     DBG("Unable to generate key pair");
     locking.pfnUnlockMutex(session->slot->mutex);
     return rv;

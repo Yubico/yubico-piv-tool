@@ -33,8 +33,6 @@
 
 #include "pkcs11y.h"
 
-#include <openssl/x509.h>
-
 // TODO: this is mostly from OpenSC, how to give credit?
 typedef enum {
   PIV_DATA_OBJ_X509_PIV_AUTH,     // PIV authentication
@@ -200,12 +198,5 @@ typedef struct {
   CK_BBOOL wrap;
   CK_BBOOL derive;
 } piv_pubk_obj_t;
-
-typedef struct {
-  piv_obj_id_t piv_id; // TODO: technically redundant
-  const char   *label;
-  CK_RV        (*get_attribute)();
-  CK_BYTE      sub_id; // Sub-object id
-} piv_obj_t;
 
 #endif
