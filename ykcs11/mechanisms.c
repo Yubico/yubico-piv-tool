@@ -89,7 +89,32 @@ CK_BBOOL is_RSA_mechanism(CK_MECHANISM_TYPE m) {
   return CK_FALSE;
 }
 
-CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
+static const EVP_MD* EVP_MD_by_mechanism(CK_MECHANISM_TYPE m) {
+  switch (m) {
+  case CKM_MD5:
+    return EVP_md5();
+  case CKM_SHA_1:
+  case CKG_MGF1_SHA1:
+    return EVP_sha1();
+  case CKM_RIPEMD160:
+    return EVP_ripemd160();
+  case CKG_MGF1_SHA224:
+    return EVP_sha224();
+  case CKM_SHA256:
+  case CKG_MGF1_SHA256:
+    return EVP_sha256();
+  case CKM_SHA384:
+  case CKG_MGF1_SHA384:
+    return EVP_sha384();
+  case CKM_SHA512:
+  case CKG_MGF1_SHA512:
+    return EVP_sha512();
+  default:
+    return EVP_sha1();
+  }
+}
+
+CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_RSA_PKCS_PSS_PARAMS_PTR pss) {
 
   const EVP_MD *md = NULL;
 
@@ -145,7 +170,6 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
   session->op_info.out_len = EVP_PKEY_size(key);
   session->op_info.op.sign.rsa = EVP_PKEY_get0_RSA(key);
   session->op_info.op.sign.algorithm = do_get_key_algorithm(key);
-  CK_ULONG padding = 0;
 
   switch (session->op_info.mechanism) {
     case CKM_RSA_X_509:
@@ -153,7 +177,7 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
         DBG("Mechanism %lu requires an RSA key", session->op_info.mechanism);
         return CKR_KEY_TYPE_INCONSISTENT;
       }
-      padding = RSA_NO_PADDING;
+      session->op_info.op.sign.padding = RSA_NO_PADDING;
     break;
 
     case CKM_RSA_PKCS:
@@ -167,7 +191,7 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
         DBG("Mechanism %lu requires an RSA key", session->op_info.mechanism);
         return CKR_KEY_TYPE_INCONSISTENT;
       }
-      padding = RSA_PKCS1_PADDING;
+      session->op_info.op.sign.padding = RSA_PKCS1_PADDING;
     break;
 
     case CKM_RSA_PKCS_PSS:
@@ -179,7 +203,14 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
         DBG("Mechanism %lu requires an RSA key", session->op_info.mechanism);
         return CKR_KEY_TYPE_INCONSISTENT;
       }
-      padding = RSA_PKCS1_PSS_PADDING;
+      if(!pss) {
+        DBG("Mechanism %lu requires PSS parameters", session->op_info.mechanism);
+        return CKR_ARGUMENTS_BAD;
+      }
+      session->op_info.op.sign.padding = RSA_PKCS1_PSS_PADDING;
+      session->op_info.op.sign.pss_md = EVP_MD_by_mechanism(pss->hashAlg);
+      session->op_info.op.sign.mgf1_md = EVP_MD_by_mechanism(pss->mgf);
+      session->op_info.op.sign.pss_slen = pss->sLen;
       break;
 
     default:
@@ -187,10 +218,9 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
         DBG("Mechanism %lu requires an ECDSA key", session->op_info.mechanism);
         return CKR_KEY_TYPE_INCONSISTENT;
       }
+      session->op_info.op.sign.padding = 0;
       break;
   }
-
-  session->op_info.op.sign.padding = padding;
 
   if(md) {
     session->op_info.md_ctx = EVP_MD_CTX_create();
@@ -211,28 +241,9 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
   return CKR_OK;
 }
 
-static const EVP_MD *EVP_MD_by_size(int size) {
-  switch(size) {
-    case 16:
-      return EVP_md5();
-    case 28:
-      return EVP_sha224();
-    case 32:
-      return EVP_sha256();
-    case 48:
-      return EVP_sha384();
-    case 64:
-      return EVP_sha512();
-  }
-  return EVP_sha1();
-}
-
 CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_PTR sig_len) {
 
-  const EVP_MD *pss_md;
-
   if(session->op_info.md_ctx) {
-    pss_md = EVP_MD_CTX_md(session->op_info.md_ctx);
     // Compute the digest
     unsigned int cbLength;
     if(EVP_DigestFinal_ex(session->op_info.md_ctx, session->op_info.buf, &cbLength) <= 0) {
@@ -241,11 +252,10 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
     }
     if(session->op_info.op.sign.padding == RSA_PKCS1_PADDING) {
       // Wrap in an X509_SIG
-      prepare_rsa_signature(session->op_info.buf, cbLength, session->op_info.buf, &cbLength, EVP_MD_type(pss_md));
+      prepare_rsa_signature(session->op_info.buf, cbLength, session->op_info.buf, &cbLength,
+                            EVP_MD_type(EVP_MD_CTX_md(session->op_info.md_ctx)));
     }
     session->op_info.buf_len = cbLength;
-  } else {
-    pss_md = EVP_MD_by_size(session->op_info.buf_len);
   }
 
   int padlen = session->op_info.out_len;
@@ -262,8 +272,10 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
       session->op_info.buf_len = padlen;
       break;
     case RSA_PKCS1_PSS_PADDING:
-      if(RSA_padding_add_PKCS1_PSS(session->op_info.op.sign.rsa, buf, session->op_info.buf, pss_md, -1) <= 0) {
-        DBG("RSA_padding_add_PKCS1_PSS failed");
+      DBG("RSA_padding_add_PKCS1_PSS_mgf1(%s, %s, %lu)", EVP_MD_name(session->op_info.op.sign.pss_md), EVP_MD_name(session->op_info.op.sign.mgf1_md), session->op_info.op.sign.pss_slen);
+      if(RSA_padding_add_PKCS1_PSS_mgf1(session->op_info.op.sign.rsa, buf, session->op_info.buf, session->op_info.op.sign.pss_md,
+                                        session->op_info.op.sign.mgf1_md, session->op_info.op.sign.pss_slen) <= 0) {
+        DBG("RSA_padding_add_PKCS1_PSS_mgf1 failed");
         return CKR_FUNCTION_FAILED;
       }
       memcpy(session->op_info.buf, buf, padlen);
@@ -330,7 +342,7 @@ CK_RV verify_mechanism_cleanup(ykcs11_session_t *session) {
   return CKR_OK;
 }
 
-CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
+CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_RSA_PKCS_PSS_PARAMS_PTR pss) {
 
   const EVP_MD *md = NULL;
 
@@ -387,7 +399,7 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
   }
 
   CK_KEY_TYPE key_type = session->op_info.op.verify.key_type = do_get_key_type(key);
-  CK_ULONG padding = 0;
+  CK_ULONG padding;
 
   switch (session->op_info.mechanism) {
     case CKM_RSA_X_509:
@@ -421,6 +433,10 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
         DBG("Mechanism %lu requires an RSA key", session->op_info.mechanism);
         return CKR_KEY_TYPE_INCONSISTENT;
       }
+      if(!pss) {
+        DBG("Mechanism %lu requires PSS parameters", session->op_info.mechanism);
+        return CKR_ARGUMENTS_BAD;
+      }
       padding = RSA_PKCS1_PSS_PADDING;
       break;
 
@@ -429,6 +445,7 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
         DBG("Mechanism %lu requires an ECDSA key", session->op_info.mechanism);
         return CKR_KEY_TYPE_INCONSISTENT;
       }
+      padding = 0;
   }
 
   if(md) {
@@ -457,6 +474,13 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key) {
     if (EVP_PKEY_CTX_set_rsa_padding(session->op_info.op.verify.pkey_ctx, padding) <= 0) {
       DBG("EVP_PKEY_CTX_set_rsa_padding failed");
       return CKR_FUNCTION_FAILED;
+    }
+    if (padding == RSA_PKCS1_PSS_PADDING) {
+      DBG("Set PSS(%s, %s, %lu)", EVP_MD_name(EVP_MD_by_mechanism(pss->hashAlg)), EVP_MD_name(EVP_MD_by_mechanism(pss->mgf)), pss->sLen);
+
+      EVP_PKEY_CTX_set_signature_md(session->op_info.op.verify.pkey_ctx, EVP_MD_by_mechanism(pss->hashAlg));
+      EVP_PKEY_CTX_set_rsa_mgf1_md(session->op_info.op.verify.pkey_ctx, EVP_MD_by_mechanism(pss->mgf));
+      EVP_PKEY_CTX_set_rsa_pss_saltlen(session->op_info.op.verify.pkey_ctx, pss->sLen);
     }
   }
 
@@ -489,11 +513,6 @@ CK_RV verify_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULON
       return rc < 0 ? CKR_FUNCTION_FAILED : CKR_SIGNATURE_INVALID;
     }
   } else {
-    int padding;
-    EVP_PKEY_CTX_get_rsa_padding(session->op_info.op.verify.pkey_ctx, &padding);
-    if(padding == RSA_PKCS1_PSS_PADDING) {
-      EVP_PKEY_CTX_set_signature_md(session->op_info.op.verify.pkey_ctx, EVP_MD_by_size(session->op_info.buf_len));
-    }
     rc = EVP_PKEY_verify(session->op_info.op.verify.pkey_ctx, sig, sig_len, session->op_info.buf, session->op_info.buf_len);
     if(rc <= 0) {
       DBG("EVP_PKEY_verify failed");

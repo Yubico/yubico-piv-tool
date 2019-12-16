@@ -9,6 +9,7 @@
 #include <openssl/x509.h>
 #include <openssl/rand.h>
 #include "pkcs11.h"
+#include "ykcs11.h"
 #include "ykcs11_tests_util.h"
 
 static CK_BYTE SHA1_DIGEST[] = {0x30, 0x21, 0x30, 0x09, 0x06,
@@ -205,43 +206,67 @@ static CK_RV get_digest(CK_MECHANISM_TYPE mech,
 
 static const EVP_MD* get_md_type(CK_MECHANISM_TYPE mech) {
   switch(mech) {
-    case CKM_ECDSA_SHA1:
+    case CKM_SHA_1:
     case CKM_SHA1_RSA_PKCS:
     case CKM_SHA1_RSA_PKCS_PSS:
+    case CKM_ECDSA_SHA1:
+    case CKG_MGF1_SHA1:
       return EVP_sha1();
     case CKM_ECDSA_SHA224:
+    case CKG_MGF1_SHA224:
       return EVP_sha224();
-    case CKM_ECDSA_SHA256:
+    case CKM_SHA256:
     case CKM_SHA256_RSA_PKCS:
     case CKM_SHA256_RSA_PKCS_PSS:
+    case CKM_ECDSA_SHA256:
+    case CKG_MGF1_SHA256:
       return EVP_sha256();
-    case CKM_ECDSA_SHA384:
+    case CKM_SHA384:
     case CKM_SHA384_RSA_PKCS:
     case CKM_SHA384_RSA_PKCS_PSS:
+    case CKM_ECDSA_SHA384:
+    case CKG_MGF1_SHA384:
       return EVP_sha384();
-    case CKM_ECDSA_SHA512:
+    case CKM_SHA512:
     case CKM_SHA512_RSA_PKCS:
     case CKM_SHA512_RSA_PKCS_PSS:
+    case CKM_ECDSA_SHA512:
+    case CKG_MGF1_SHA512:
       return EVP_sha512();
     default:
       return NULL;
   }
 }
 
-static const EVP_MD *EVP_MD_by_size(int size) {
-  switch(size) {
-    case 16:
-      return EVP_md5();
-    case 28:
-      return EVP_sha224();
-    case 32:
-      return EVP_sha256();
-    case 48:
-      return EVP_sha384();
-    case 64:
-      return EVP_sha512();
+static CK_MECHANISM_TYPE get_md_of(CK_MECHANISM_TYPE mech) {
+  switch(mech) {
+    case CKM_SHA_1:
+    case CKM_SHA1_RSA_PKCS:
+    case CKM_SHA1_RSA_PKCS_PSS:
+    case CKM_ECDSA_SHA1:
+    case CKG_MGF1_SHA1:
+      return CKM_SHA_1;
+    case CKM_SHA256:
+    case CKM_SHA256_RSA_PKCS:
+    case CKM_SHA256_RSA_PKCS_PSS:
+    case CKM_ECDSA_SHA256:
+    case CKG_MGF1_SHA256:
+      return CKM_SHA256;
+    case CKM_SHA384:
+    case CKM_SHA384_RSA_PKCS:
+    case CKM_SHA384_RSA_PKCS_PSS:
+    case CKM_ECDSA_SHA384:
+    case CKG_MGF1_SHA384:
+      return CKM_SHA384;
+    case CKM_SHA512:
+    case CKM_SHA512_RSA_PKCS:
+    case CKM_SHA512_RSA_PKCS_PSS:
+    case CKM_ECDSA_SHA512:
+    case CKG_MGF1_SHA512:
+      return CKM_SHA512;
+    default:
+      return CKM_SHA256;
   }
-  return EVP_sha1();
 }
 
 void test_digest_func(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_MECHANISM_TYPE mech_type) {
@@ -712,7 +737,7 @@ void test_rsa_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJ
 }
 
 void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
-                    RSA* rsak, CK_MECHANISM_TYPE mech_type, CK_ULONG data_len) {
+                    RSA* rsak, CK_MECHANISM_TYPE mech_type) {
   CK_BYTE     i, j;
   CK_BYTE*    data;
   CK_BYTE     sig[256];
@@ -726,22 +751,24 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
   EVP_MD_CTX   *md_ctx;
 
   CK_OBJECT_HANDLE obj_pubkey;
-  CK_MECHANISM mech = {mech_type, NULL};
 
-  data = malloc(data_len);
+  CK_RSA_PKCS_PSS_PARAMS pss_params = {get_md_of(mech_type), get_md_of(mech_type), EVP_MD_size(get_md_type(get_md_of(mech_type)))};
+  CK_MECHANISM mech = {mech_type, &pss_params};
+
+  data = malloc(pss_params.sLen);
 
   for (i = 0; i < 24; i++) {
     obj_pubkey = get_public_key_handle(funcs, session, obj_pvtkey[i]);    
     for (j = 0; j < 3; j++) {
 
-      if(RAND_bytes(data, data_len) == -1)
+      if(RAND_bytes(data, pss_params.sLen) == -1)
         exit(EXIT_FAILURE);
 
       // Sign
       asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "LOGIN USER");
       asrt(funcs->C_SignInit(session, &mech, obj_pvtkey[i]), CKR_OK, "SIGN INIT");
       sig_len = sizeof(sig);
-      asrt(funcs->C_Sign(session, data, data_len, sig, &sig_len), CKR_OK, "SIGN");
+      asrt(funcs->C_Sign(session, data, pss_params.sLen, sig, &sig_len), CKR_OK, "SIGN");
 
       // External verification
       if(rsak != NULL) {
@@ -749,26 +776,26 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
         asrt(RSA_public_decrypt(sig_len, sig, pss_buf, rsak, RSA_NO_PADDING), sig_len, "DECRYPT PSS SIGNATURE");
 
         if(mech_type == CKM_RSA_PKCS_PSS) {
-          asrt(RSA_verify_PKCS1_PSS(rsak, data, EVP_MD_by_size(data_len), pss_buf, -1), 1, "VERIFY PSS SIGNATURE");  
+          asrt(RSA_verify_PKCS1_PSS_mgf1(rsak, data, get_md_type(pss_params.hashAlg), get_md_type(pss_params.mgf), pss_buf, pss_params.sLen), 1, "VERIFY PSS SIGNATURE");  
         } else {
           md_ctx = EVP_MD_CTX_create();
           asrt(EVP_DigestInit_ex(md_ctx, get_md_type(mech_type), NULL), 1, "DIGEST INIT");
-          asrt(EVP_DigestUpdate(md_ctx, data, data_len), 1, "DIGEST UPDATE");
+          asrt(EVP_DigestUpdate(md_ctx, data, pss_params.sLen), 1, "DIGEST UPDATE");
           asrt(EVP_DigestFinal_ex(md_ctx, digest_data, &digest_data_len), 1, "DIGEST FINAL");
 
-          asrt(RSA_verify_PKCS1_PSS(rsak, digest_data, get_md_type(mech_type), pss_buf, -1), 1, "VERIFY PSS SIGNATURE");
+          asrt(RSA_verify_PKCS1_PSS_mgf1(rsak, digest_data, get_md_type(pss_params.hashAlg), get_md_type(pss_params.mgf), pss_buf, pss_params.sLen), 1, "VERIFY PSS SIGNATURE");
         }
       }
       
       // Internal verification: Verify
       asrt(funcs->C_VerifyInit(session, &mech, obj_pubkey), CKR_OK, "VERIFY INIT");
-      asrt(funcs->C_Verify(session, data, data_len, sig, sig_len), CKR_OK, "VERIFY");
+      asrt(funcs->C_Verify(session, data, pss_params.sLen, sig, sig_len), CKR_OK, "VERIFY");
 
       // Sign Update
       asrt(funcs->C_SignInit(session, &mech, obj_pvtkey[i]), CKR_OK, "SIGN INIT");
       sig_update_len = sizeof(sig_update);
       asrt(funcs->C_SignUpdate(session, data, 10), CKR_OK, "SIGN UPDATE 1");
-      asrt(funcs->C_SignUpdate(session, data + 10, data_len - 10), CKR_OK, "SIGN UPDATE 2");
+      asrt(funcs->C_SignUpdate(session, data + 10, pss_params.sLen - 10), CKR_OK, "SIGN UPDATE 2");
       asrt(funcs->C_SignFinal(session, sig_update, &sig_update_len), CKR_OK, "SIGN FINAL");
       asrt(sig_update_len, sig_len, "SIGNATURE LENGTH");
 
@@ -779,21 +806,21 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
         asrt(RSA_public_decrypt(sig_update_len, sig_update, pss_buf, rsak, RSA_NO_PADDING), sig_update_len, "DECRYPT PSS SIGNATURE");
 
         if(mech_type == CKM_RSA_PKCS_PSS) {
-          asrt(RSA_verify_PKCS1_PSS(rsak, data, EVP_MD_by_size(data_len), pss_buf, -1), 1, "VERIFY PSS SIGNATURE");  
+          asrt(RSA_verify_PKCS1_PSS_mgf1(rsak, data, get_md_type(pss_params.hashAlg), get_md_type(pss_params.mgf), pss_buf, pss_params.sLen), 1, "VERIFY PSS SIGNATURE");  
         } else {
           md_ctx = EVP_MD_CTX_create();
           asrt(EVP_DigestInit_ex(md_ctx, get_md_type(mech_type), NULL), 1, "DIGEST INIT");
-          asrt(EVP_DigestUpdate(md_ctx, data, data_len), 1, "DIGEST UPDATE");
+          asrt(EVP_DigestUpdate(md_ctx, data, pss_params.sLen), 1, "DIGEST UPDATE");
           asrt(EVP_DigestFinal_ex(md_ctx, digest_data, &digest_data_len), 1, "DIGEST FINAL");
 
-          asrt(RSA_verify_PKCS1_PSS(rsak, digest_data, get_md_type(mech_type), pss_buf, -1), 1, "VERIFY PSS SIGNATURE");
+          asrt(RSA_verify_PKCS1_PSS_mgf1(rsak, digest_data, get_md_type(pss_params.hashAlg), get_md_type(pss_params.mgf), pss_buf, pss_params.sLen), 1, "VERIFY PSS SIGNATURE");
         }
       }
 
       // Internal verification: Verify Update
       asrt(funcs->C_VerifyInit(session, &mech, obj_pubkey), CKR_OK, "VERIFY INIT");
       asrt(funcs->C_VerifyUpdate(session, data, 5), CKR_OK, "VERIFY UPDATE 1");
-      asrt(funcs->C_VerifyUpdate(session, data+5, data_len-5), CKR_OK, "VERIFY UPDATE 2");
+      asrt(funcs->C_VerifyUpdate(session, data+5, pss_params.sLen-5), CKR_OK, "VERIFY UPDATE 2");
       asrt(funcs->C_VerifyFinal(session, sig_update, sig_update_len), CKR_OK, "VERIFY FINAL");     
     
     }

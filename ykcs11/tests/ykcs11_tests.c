@@ -421,10 +421,10 @@ static void test_generate_rsa1024() {
   test_rsa_sign(funcs, session, obj_pvtkey, NULL, CKM_SHA384_RSA_PKCS);
   test_rsa_sign(funcs, session, obj_pvtkey, NULL, CKM_SHA512_RSA_PKCS);
 
-  test_rsa_sign_pss(funcs, session, obj_pvtkey, NULL, CKM_RSA_PKCS_PSS, 32);
-  test_rsa_sign_pss(funcs, session, obj_pvtkey, NULL, CKM_SHA1_RSA_PKCS_PSS, 32);
-  test_rsa_sign_pss(funcs, session, obj_pvtkey, NULL, CKM_SHA256_RSA_PKCS_PSS, 30);
-  test_rsa_sign_pss(funcs, session, obj_pvtkey, NULL, CKM_SHA384_RSA_PKCS_PSS, 32);
+  test_rsa_sign_pss(funcs, session, obj_pvtkey, NULL, CKM_RSA_PKCS_PSS);
+  test_rsa_sign_pss(funcs, session, obj_pvtkey, NULL, CKM_SHA1_RSA_PKCS_PSS);
+  test_rsa_sign_pss(funcs, session, obj_pvtkey, NULL, CKM_SHA256_RSA_PKCS_PSS);
+  test_rsa_sign_pss(funcs, session, obj_pvtkey, NULL, CKM_SHA384_RSA_PKCS_PSS);
 
   destroy_test_objects_by_privkey(funcs, session, obj_pvtkey, 24);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
@@ -622,10 +622,10 @@ static void test_import_rsa1024() {
   test_rsa_sign(funcs, session, obj_pvtkey, evp, CKM_SHA256_RSA_PKCS);
   test_rsa_sign(funcs, session, obj_pvtkey, evp, CKM_SHA384_RSA_PKCS);
 
-  test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_RSA_PKCS_PSS, 32);
-  test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_SHA1_RSA_PKCS_PSS, 32);
-  test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_SHA256_RSA_PKCS_PSS, 30);
-  test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_SHA384_RSA_PKCS_PSS, 32);
+  test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_RSA_PKCS_PSS);
+  test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_SHA1_RSA_PKCS_PSS);
+  test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_SHA256_RSA_PKCS_PSS);
+  test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_SHA384_RSA_PKCS_PSS);
 
   destroy_test_objects(funcs, session, obj_cert);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
@@ -652,10 +652,10 @@ static void test_import_rsa2048() {
   test_rsa_sign(funcs, session, obj_pvtkey, evp, CKM_SHA256_RSA_PKCS);
   test_rsa_sign(funcs, session, obj_pvtkey, evp, CKM_SHA384_RSA_PKCS);
 
-  test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_RSA_PKCS_PSS, 32);
-  test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_SHA1_RSA_PKCS_PSS, 32);
-  test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_SHA256_RSA_PKCS_PSS, 30);
-  test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_SHA384_RSA_PKCS_PSS, 32);
+  test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_RSA_PKCS_PSS);
+  test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_SHA1_RSA_PKCS_PSS);
+  test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_SHA256_RSA_PKCS_PSS);
+  test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_SHA384_RSA_PKCS_PSS);
 
   destroy_test_objects(funcs, session, obj_cert);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");

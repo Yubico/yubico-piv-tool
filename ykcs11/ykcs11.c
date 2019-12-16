@@ -2524,7 +2524,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
   session->op_info.op.sign.piv_key = piv_2_ykpiv(hKey);
   CK_BYTE id = get_key_id(hKey);
 
-  CK_RV rv = sign_mechanism_init(session, session->pkeys[id]);
+  CK_RV rv = sign_mechanism_init(session, session->pkeys[id], (CK_RSA_PKCS_PSS_PARAMS_PTR)pMechanism->pParameter);
   if (rv != CKR_OK) {
     DBG("Unable to initialize signing operation");
     sign_mechanism_cleanup(session);
@@ -2823,7 +2823,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
   session->op_info.mechanism = pMechanism->mechanism;
   CK_BYTE id = get_key_id(hKey);
   
-  CK_RV rv = verify_mechanism_init(session, session->pkeys[id]);
+  CK_RV rv = verify_mechanism_init(session, session->pkeys[id], (CK_RSA_PKCS_PSS_PARAMS_PTR)pMechanism->pParameter);
   if (rv != CKR_OK) {
     DBG("Unable to initialize verification operation");
     verify_mechanism_cleanup(session);

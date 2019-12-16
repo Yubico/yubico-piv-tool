@@ -36,6 +36,20 @@
 #include "obj_types.h"
 #include "openssl_types.h"
 
+#define CKG_MGF1_SHA1			  (0x1UL)
+#define CKG_MGF1_SHA256			(0x2UL)
+#define CKG_MGF1_SHA384			(0x3UL)
+#define CKG_MGF1_SHA512			(0x4UL)
+#define CKG_MGF1_SHA224			(0x5UL)
+
+typedef unsigned long CK_RSA_PKCS_MGF_TYPE;
+
+typedef struct {
+  CK_MECHANISM_TYPE hashAlg;
+  CK_RSA_PKCS_MGF_TYPE mgf;
+  CK_ULONG sLen;
+} CK_RSA_PKCS_PSS_PARAMS, *CK_RSA_PKCS_PSS_PARAMS_PTR;
+
 typedef enum {
   YKCS11_PUBLIC,
   YKCS11_USER,
@@ -65,8 +79,11 @@ typedef struct {
 } gen_info_t;
 
 typedef struct {
-  ykcs11_rsa_t      *rsa;      // RSA key (needed for PSS padding), NULL for EC
   CK_ULONG          padding;   // RSA padding, 0 for EC
+  ykcs11_rsa_t      *rsa;      // RSA key (needed for PSS padding), NULL for EC
+  const EVP_MD      *pss_md;
+  const EVP_MD      *mgf1_md;
+  CK_ULONG          pss_slen;
   CK_BYTE           piv_key;   // PIV Key id
   CK_BYTE           algorithm; // PIV Key algorithm
 } sign_info_t;

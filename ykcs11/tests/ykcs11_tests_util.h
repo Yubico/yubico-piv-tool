@@ -27,7 +27,7 @@ void test_ec_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJE
 void test_rsa_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
                     EVP_PKEY* evp, CK_MECHANISM_TYPE mech_type);
 void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
-                    RSA* rsak, CK_MECHANISM_TYPE mech_type, CK_ULONG data_len);
+                    RSA* rsak, CK_MECHANISM_TYPE mech_type);
 
 void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
                     RSA* rsak, CK_MECHANISM_TYPE mech_type); 
