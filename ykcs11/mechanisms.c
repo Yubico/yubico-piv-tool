@@ -272,7 +272,7 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
       session->op_info.buf_len = padlen;
       break;
     case RSA_PKCS1_PSS_PADDING:
-      DBG("RSA_padding_add_PKCS1_PSS_mgf1(%s, %s, %lu)", EVP_MD_name(session->op_info.op.sign.pss_md), EVP_MD_name(session->op_info.op.sign.mgf1_md), session->op_info.op.sign.pss_slen);
+      //DBG("RSA_padding_add_PKCS1_PSS_mgf1(%s, %s, %lu)", EVP_MD_name(session->op_info.op.sign.pss_md), EVP_MD_name(session->op_info.op.sign.mgf1_md), session->op_info.op.sign.pss_slen);
       if(RSA_padding_add_PKCS1_PSS_mgf1(session->op_info.op.sign.rsa, buf, session->op_info.buf, session->op_info.op.sign.pss_md,
                                         session->op_info.op.sign.mgf1_md, session->op_info.op.sign.pss_slen) <= 0) {
         DBG("RSA_padding_add_PKCS1_PSS_mgf1 failed");
@@ -476,8 +476,7 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_RS
       return CKR_FUNCTION_FAILED;
     }
     if (padding == RSA_PKCS1_PSS_PADDING) {
-      DBG("Set PSS(%s, %s, %lu)", EVP_MD_name(EVP_MD_by_mechanism(pss->hashAlg)), EVP_MD_name(EVP_MD_by_mechanism(pss->mgf)), pss->sLen);
-
+      //DBG("Set PSS(%s, %s, %lu)", EVP_MD_name(EVP_MD_by_mechanism(pss->hashAlg)), EVP_MD_name(EVP_MD_by_mechanism(pss->mgf)), pss->sLen);
       EVP_PKEY_CTX_set_signature_md(session->op_info.op.verify.pkey_ctx, EVP_MD_by_mechanism(pss->hashAlg));
       EVP_PKEY_CTX_set_rsa_mgf1_md(session->op_info.op.verify.pkey_ctx, EVP_MD_by_mechanism(pss->mgf));
       EVP_PKEY_CTX_set_rsa_pss_saltlen(session->op_info.op.verify.pkey_ctx, pss->sLen);
