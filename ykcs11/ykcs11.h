@@ -36,20 +36,6 @@
 #include "obj_types.h"
 #include "openssl_types.h"
 
-#define CKG_MGF1_SHA1			  (0x1UL)
-#define CKG_MGF1_SHA256			(0x2UL)
-#define CKG_MGF1_SHA384			(0x3UL)
-#define CKG_MGF1_SHA512			(0x4UL)
-#define CKG_MGF1_SHA224			(0x5UL)
-
-typedef unsigned long CK_RSA_PKCS_MGF_TYPE;
-
-typedef struct {
-  CK_MECHANISM_TYPE hashAlg;
-  CK_RSA_PKCS_MGF_TYPE mgf;
-  CK_ULONG sLen;
-} CK_RSA_PKCS_PSS_PARAMS, *CK_RSA_PKCS_PSS_PARAMS_PTR;
-
 typedef enum {
   YKCS11_PUBLIC,
   YKCS11_USER,

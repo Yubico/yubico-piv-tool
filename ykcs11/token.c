@@ -28,10 +28,9 @@
  *
  */
 
+#include <string.h>
 #include "utils.h"
 #include "token.h"
-#include "pkcs11.h"
-#include <string.h>
 #include "debug.h"
 #include "objects.h"
 #include "openssl_utils.h"

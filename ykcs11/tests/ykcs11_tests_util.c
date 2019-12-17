@@ -8,8 +8,7 @@
 #include <openssl/bn.h>
 #include <openssl/x509.h>
 #include <openssl/rand.h>
-#include "pkcs11.h"
-#include "ykcs11.h"
+#include "pkcs11y.h"
 #include "ykcs11_tests_util.h"
 
 static CK_BYTE SHA1_DIGEST[] = {0x30, 0x21, 0x30, 0x09, 0x06,

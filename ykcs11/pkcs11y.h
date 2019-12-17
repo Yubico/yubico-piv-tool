@@ -43,4 +43,20 @@ typedef CK_FLAGS * CK_FLAGS_PTR;
 #define CKA_PIN_NEVER         0x00000008U
 #define CKA_TOUCH_NEVER       0x00000016U
 
+// Standard stuff that we use but is not in pkcs11.h
+
+#define CKG_MGF1_SHA1			(0x1UL)
+#define CKG_MGF1_SHA256			(0x2UL)
+#define CKG_MGF1_SHA384			(0x3UL)
+#define CKG_MGF1_SHA512			(0x4UL)
+#define CKG_MGF1_SHA224			(0x5UL)
+
+typedef unsigned long CK_RSA_PKCS_MGF_TYPE;
+
+typedef struct {
+  CK_MECHANISM_TYPE hashAlg;
+  CK_RSA_PKCS_MGF_TYPE mgf;
+  CK_ULONG sLen;
+} CK_RSA_PKCS_PSS_PARAMS, *CK_RSA_PKCS_PSS_PARAMS_PTR;
+
 #endif

@@ -30,7 +30,7 @@
 #ifndef YUBICO_PIV_TOOL_TOKEN_H
 #define YUBICO_PIV_TOOL_TOKEN_H
 
-#include "pkcs11.h"
+#include "pkcs11y.h"
 #include "obj_types.h"
 #include <ykpiv.h>
 

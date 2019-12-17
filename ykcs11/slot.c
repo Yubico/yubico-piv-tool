@@ -28,9 +28,8 @@
  *
  */
 
-#include "slot.h"
-#include "pkcs11.h"
 #include <string.h>
+#include "slot.h"
 
 CK_RV get_slot_version(CK_VERSION_PTR version) {
 
