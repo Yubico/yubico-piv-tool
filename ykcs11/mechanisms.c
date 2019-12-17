@@ -28,15 +28,14 @@
  *
  */
 
+#include <string.h>
 #include "mechanisms.h"
 #include "objects.h"
-#include "token.h"
 #include "../tool/openssl-compat.h" // TODO: share this better?
 #include "../tool/util.h" // TODO: share this better?
 #include "openssl_utils.h"
 #include "utils.h"
 #include "debug.h"
-#include <string.h>
 
 #define F4 "\x01\x00\x01"
 #define PRIME256V1 "\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07"
@@ -56,7 +55,7 @@ static const CK_MECHANISM_TYPE generation_mechanisms[] = {
   CKM_EC_KEY_PAIR_GEN
 };
 
-CK_BBOOL is_RSA_mechanism(CK_MECHANISM_TYPE m) {
+static CK_BBOOL is_RSA_mechanism(CK_MECHANISM_TYPE m) {
 
   switch (m) {
   case CKM_RSA_PKCS_KEY_PAIR_GEN:
@@ -284,7 +283,6 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
       session->op_info.buf_len = padlen;
       break;
     case RSA_PKCS1_PSS_PADDING:
-      //DBG("RSA_padding_add_PKCS1_PSS_mgf1(%s, %s, %lu)", EVP_MD_name(session->op_info.op.sign.pss_md), EVP_MD_name(session->op_info.op.sign.mgf1_md), session->op_info.op.sign.pss_slen);
       if(RSA_padding_add_PKCS1_PSS_mgf1(session->op_info.op.sign.rsa, buf, session->op_info.buf, session->op_info.op.sign.pss_md,
                                         session->op_info.op.sign.mgf1_md, session->op_info.op.sign.pss_slen) <= 0) {
         DBG("RSA_padding_add_PKCS1_PSS_mgf1 failed");
@@ -674,15 +672,6 @@ CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
         return CKR_TEMPLATE_INCONSISTENT;
 
       break;
-
-/*    case CKA_MODULUS_BITS:
-      if (op_info->op.gen.rsa == CK_FALSE)
-        return CKR_MECHANISM_PARAM_INVALID;
-      if (*((CK_ULONG_PTR)templ[i].pValue) != 1024 &&
-          *((CK_ULONG_PTR) templ[i].pValue) != 2048) // TODO: make define?
-        return CKR_MECHANISM_PARAM_INVALID;
-      op_info->op.gen.key_len = *((CK_ULONG_PTR) templ[i].pValue); // TODO: check length?
-      break;*/
 
     case CKA_ID:
       if (find_pvtk_object(*((CK_BYTE_PTR)templ[i].pValue)) == (piv_obj_id_t)-1)
