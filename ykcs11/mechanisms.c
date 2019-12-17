@@ -110,7 +110,7 @@ static const EVP_MD* EVP_MD_by_mechanism(CK_MECHANISM_TYPE m) {
   case CKG_MGF1_SHA512:
     return EVP_sha512();
   default:
-    return EVP_sha1();
+    return NULL;
   }
 }
 
@@ -211,6 +211,18 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_RSA_
       session->op_info.op.sign.pss_md = EVP_MD_by_mechanism(pss->hashAlg);
       session->op_info.op.sign.mgf1_md = EVP_MD_by_mechanism(pss->mgf);
       session->op_info.op.sign.pss_slen = pss->sLen;
+      if(!session->op_info.op.sign.pss_md) {
+        DBG("Invalid PSS parameters: hashAlg mechanism %lu unknown", pss->hashAlg);
+        return CKR_ARGUMENTS_BAD;
+      }
+      if(!session->op_info.op.sign.mgf1_md) {
+        DBG("Invalid PSS parameters: mgf mechanism %lu unknown", pss->mgf);
+        return CKR_ARGUMENTS_BAD;
+      }
+      if(md && md != session->op_info.op.sign.pss_md) {
+        DBG("Mechanism %lu requires PSS parameters to specify hashAlg %s", session->op_info.mechanism, EVP_MD_name(md));
+        return CKR_ARGUMENTS_BAD;
+      }
       break;
 
     default:
@@ -476,7 +488,18 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_RS
       return CKR_FUNCTION_FAILED;
     }
     if (padding == RSA_PKCS1_PSS_PADDING) {
-      //DBG("Set PSS(%s, %s, %lu)", EVP_MD_name(EVP_MD_by_mechanism(pss->hashAlg)), EVP_MD_name(EVP_MD_by_mechanism(pss->mgf)), pss->sLen);
+      if(!EVP_MD_by_mechanism(pss->hashAlg)) {
+        DBG("Invalid PSS parameters: hashAlg mechanism %lu unknown", pss->hashAlg);
+        return CKR_ARGUMENTS_BAD;
+      }
+      if(!EVP_MD_by_mechanism(pss->mgf)) {
+        DBG("Invalid PSS parameters: mgf mechanism %lu unknown", pss->mgf);
+        return CKR_ARGUMENTS_BAD;
+      }
+      if(md && md != EVP_MD_by_mechanism(pss->hashAlg)) {
+        DBG("Mechanism %lu requires PSS parameters to specify hashAlg %s", session->op_info.mechanism, EVP_MD_name(md));
+        return CKR_ARGUMENTS_BAD;
+      }
       EVP_PKEY_CTX_set_signature_md(session->op_info.op.verify.pkey_ctx, EVP_MD_by_mechanism(pss->hashAlg));
       EVP_PKEY_CTX_set_rsa_mgf1_md(session->op_info.op.verify.pkey_ctx, EVP_MD_by_mechanism(pss->mgf));
       EVP_PKEY_CTX_set_rsa_pss_saltlen(session->op_info.op.verify.pkey_ctx, pss->sLen);
