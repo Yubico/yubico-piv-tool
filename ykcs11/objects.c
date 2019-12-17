@@ -480,7 +480,7 @@ static CK_RV _get_coa(ykcs11_x509_t **certs, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_
     data = b_tmp;
     break;
 
-  default: // TODO: there are other attributes for a (x509) certificate
+  default:
     DBG("UNKNOWN ATTRIBUTE %lx (%lu)", template[0].type, template[0].type);
     template->ulValueLen = CK_UNAVAILABLE_INFORMATION;
     return CKR_ATTRIBUTE_TYPE_INVALID;
@@ -552,7 +552,7 @@ static CK_RV get_atst(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
 static CK_RV get_proa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
   CK_BYTE     b_tmp[1024];
-  CK_ULONG    ul_tmp; // TODO: fix elsewhere too
+  CK_ULONG    ul_tmp;
   CK_ULONG    len = 0;
   CK_RV       rv;
   DBG("For private key object %lu, get ", obj);

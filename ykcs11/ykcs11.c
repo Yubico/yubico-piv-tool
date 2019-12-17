@@ -1246,7 +1246,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     locking.pfnLockMutex(session->slot->mutex);
 
-    rv = token_import_cert(session->slot->piv_state, piv_2_ykpiv(cert_id), value); // TODO: make function to get cert id
+    rv = token_import_cert(session->slot->piv_state, piv_2_ykpiv(cert_id), value);
     if (rv != CKR_OK) {
       DBG("Unable to import certificate");
       locking.pfnUnlockMutex(session->slot->mutex);
@@ -1742,7 +1742,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptInit)(
   }
 
   session->op_info.op.encrypt.key_id = id;
-  session->op_info.op.encrypt.padding = RSA_PKCS1_PADDING;
+  if(session->op_info.mechanism == CKM_RSA_PKCS_OAEP) {
+    session->op_info.op.encrypt.padding = RSA_PKCS1_OAEP_PADDING;  
+  } else {
+    session->op_info.op.encrypt.padding = RSA_PKCS1_PADDING;
+  }
   session->op_info.buf_len = 0;
   session->op_info.type = YKCS11_ENCRYPT;
 
@@ -2059,6 +2063,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
 
   if(session->op_info.mechanism == CKM_RSA_PKCS) {
     *pulDataLen = RSA_padding_check_PKCS1_type_2(dec, sizeof(dec), session->op_info.buf + 1, cbDataLen - 1, key_len/8);
+  } else if(session->op_info.mechanism == CKM_RSA_PKCS_OAEP) {
+    *pulDataLen = RSA_padding_check_PKCS1_OAEP(dec, sizeof(dec), session->op_info.buf + 1, cbDataLen - 1, key_len/8, NULL, 0);
   } else if(session->op_info.mechanism == CKM_RSA_X_509) {
     memcpy(dec, session->op_info.buf, ulEncryptedDataLen);
     *pulDataLen = ulEncryptedDataLen;
@@ -2224,6 +2230,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
 
   if(session->op_info.mechanism == CKM_RSA_PKCS) {
     *pulLastPartLen = RSA_padding_check_PKCS1_type_2(dec, sizeof(dec), session->op_info.buf + 1, cbDataLen - 1, key_len/8);
+  } else if(session->op_info.mechanism == CKM_RSA_PKCS_OAEP) {
+    *pulLastPartLen = RSA_padding_check_PKCS1_OAEP(dec, sizeof(dec), session->op_info.buf + 1, cbDataLen - 1, key_len/8, NULL, 0);
   } else if(session->op_info.mechanism == CKM_RSA_X_509) {
     memcpy(dec, session->op_info.buf, session->op_info.buf_len);
     *pulLastPartLen = session->op_info.buf_len;

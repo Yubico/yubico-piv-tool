@@ -76,38 +76,11 @@ static CK_OBJECT_HANDLE get_public_key_handle(CK_FUNCTION_LIST_PTR funcs, CK_SES
   return found_obj[0];
 }
 
-void destroy_test_objects(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_cert) {
+void destroy_test_objects(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_cert, CK_ULONG n) {
   CK_ULONG i;
   asrt(funcs->C_Login(session, CKU_SO, (CK_CHAR_PTR)"010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
-  for(i=0; i<24; i++) {
+  for(i=0; i<n; i++) {
     asrt(funcs->C_DestroyObject(session, obj_cert[i]), CKR_OK, "Destroy Object");
-  }
-  asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
-}
-
-void destroy_test_objects_by_privkey(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, CK_BYTE n_obj){
-  CK_ULONG  i;
-  CK_OBJECT_HANDLE obj_cert;
-  CK_ULONG n_obj_cert;
-  CK_BYTE id = 0;
-  CK_ULONG class_cert = CKO_CERTIFICATE;
-  
-  CK_ATTRIBUTE idTemplate[] = {
-    {CKA_ID, &id, sizeof(id)}
-  };
-  CK_ATTRIBUTE idClassTemplate[] = {
-    {CKA_ID, &id, sizeof(id)},
-    {CKA_CLASS, &class_cert, sizeof(class_cert)}
-  };
-
-  asrt(funcs->C_Login(session, CKU_SO, (CK_CHAR_PTR)"010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
-  for(i=0; i<n_obj; i++) {
-    asrt(funcs->C_GetAttributeValue(session, obj_pvtkey[i], idTemplate, 1), CKR_OK, "GET CKA_ID");
-    asrt(funcs->C_FindObjectsInit(session, idClassTemplate, 2), CKR_OK, "FIND INIT");
-    asrt(funcs->C_FindObjects(session, &obj_cert, 1, &n_obj_cert), CKR_OK, "FIND");
-    asrt(funcs->C_FindObjectsFinal(session), CKR_OK, "FIND FINAL");
-
-    asrt(funcs->C_DestroyObject(session, obj_cert), CKR_OK, "Destroy Object");
   }
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
 }
@@ -830,7 +803,7 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
 }
 
 void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
-                    RSA* rsak, CK_MECHANISM_TYPE mech_type) {
+                    RSA* rsak, CK_MECHANISM_TYPE mech_type, CK_ULONG padding) {
   CK_ULONG  i, j;
   CK_BYTE   data[32];
   CK_ULONG  data_len = sizeof(data);
@@ -849,12 +822,12 @@ void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
 
       asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Login USER");
 
-      enc_len = RSA_public_encrypt(32, data, enc, rsak, RSA_PKCS1_PADDING);
+      enc_len = RSA_public_encrypt(32, data, enc, rsak, padding);
 
       // Decrypt
       asrt(funcs->C_DecryptInit(session, &mech, obj_pvtkey[i]), CKR_OK, "DECRYPT INIT CKM_RSA_PKCS");
       asrt(funcs->C_Decrypt(session, enc, enc_len, dec, &dec_len), CKR_OK, "DECRYPT CKM_RSA_PKCS");
-      if(mech_type == CKM_RSA_PKCS) {
+      if(mech_type == CKM_RSA_PKCS || mech_type == CKM_RSA_PKCS_OAEP) {
         asrt(dec_len, data_len, "DECRYPTED DATA LEN CKM_RSA_PKCS");
         asrt(memcmp(data, dec, dec_len), 0, "DECRYPTED DATA CKM_RSA_PKCS");
       } else if(mech_type == CKM_RSA_X_509) {
@@ -868,7 +841,7 @@ void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
       asrt(funcs->C_DecryptUpdate(session, enc+100, 8, NULL, NULL), CKR_OK, "DECRYPT UPDATE CKM_RSA_PKCS");
       asrt(funcs->C_DecryptUpdate(session, enc+108, 20, NULL, NULL), CKR_OK, "DECRYPT UPDATE CKM_RSA_PKCS");
       asrt(funcs->C_DecryptFinal(session, dec, &dec_len), CKR_OK, "DECRYPT FINAL CKM_RSA_PKCS");
-      if(mech_type == CKM_RSA_PKCS) {
+      if(mech_type == CKM_RSA_PKCS || mech_type == CKM_RSA_PKCS_OAEP) {
         asrt(dec_len, data_len, "DECRYPTED DATA LEN CKM_RSA_PKCS");
         asrt(memcmp(data, dec, dec_len), 0, "DECRYPTED DATA CKM_RSA_PKCS");
       } else if(mech_type == CKM_RSA_X_509) {

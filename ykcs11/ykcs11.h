@@ -145,7 +145,7 @@ typedef struct {
 } ykcs11_session_t;
 
 typedef struct {
-  piv_obj_id_t piv_id; // TODO: technically redundant
+  piv_obj_id_t piv_id;
   const char   *label;
   CK_RV        (*get_attribute)(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
   CK_BYTE      sub_id; // Sub-object id

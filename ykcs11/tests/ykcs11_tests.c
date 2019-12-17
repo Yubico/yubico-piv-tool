@@ -170,6 +170,7 @@ static void test_mechanism_list_and_info() {
     CKM_RSA_PKCS_KEY_PAIR_GEN,
     CKM_RSA_PKCS,
     CKM_RSA_PKCS_PSS,
+    CKM_RSA_PKCS_OAEP,
     CKM_RSA_X_509,
     CKM_SHA1_RSA_PKCS,
     CKM_SHA256_RSA_PKCS,
@@ -194,6 +195,7 @@ static void test_mechanism_list_and_info() {
     {1024, 2048, CKF_HW | CKF_GENERATE_KEY_PAIR},
     {1024, 2048, CKF_HW | CKF_DECRYPT | CKF_SIGN},
     {1024, 2048, CKF_HW | CKF_SIGN},
+    {1024, 2048, CKF_HW | CKF_DECRYPT},
     {1024, 2048, CKF_HW | CKF_DECRYPT | CKF_SIGN},
     {1024, 2048, CKF_HW | CKF_SIGN},
     {1024, 2048, CKF_HW | CKF_SIGN},
@@ -377,7 +379,7 @@ static void test_generate_eccp256() {
   test_ec_sign(funcs, session, obj_pvtkey, NULL, CKM_ECDSA_SHA1, 32);
   test_ec_sign(funcs, session, obj_pvtkey, NULL, CKM_ECDSA_SHA256, 32);
 
-  destroy_test_objects_by_privkey(funcs, session, obj_pvtkey, 24);
+  destroy_test_objects(funcs, session, obj_pvtkey, 24);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
   dprintf(0, "TEST END: test_generate_eccp256()\n");
@@ -399,7 +401,7 @@ static void test_generate_eccp384() {
   test_ec_sign(funcs, session, obj_pvtkey, NULL, CKM_ECDSA_SHA256, 48);
   test_ec_sign(funcs, session, obj_pvtkey, NULL, CKM_ECDSA_SHA384, 48);
 
-  destroy_test_objects_by_privkey(funcs, session, obj_pvtkey, 24);
+  destroy_test_objects(funcs, session, obj_pvtkey, 24);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
   dprintf(0, "TEST END: test_generate_eccp384()\n");
@@ -426,7 +428,7 @@ static void test_generate_rsa1024() {
   test_rsa_sign_pss(funcs, session, obj_pvtkey, NULL, CKM_SHA256_RSA_PKCS_PSS);
   test_rsa_sign_pss(funcs, session, obj_pvtkey, NULL, CKM_SHA384_RSA_PKCS_PSS);
 
-  destroy_test_objects_by_privkey(funcs, session, obj_pvtkey, 24);
+  destroy_test_objects(funcs, session, obj_pvtkey, 24);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
   dprintf(0, "TEST END: test_generate_rsa1024()\n");
@@ -455,7 +457,7 @@ static void test_key_attributes() {
   test_pubkey_attributes_rsa(funcs, session, pubkey, 1024, "Public key for PIV Authentication", 128, e, sizeof(e));
   test_privkey_attributes_rsa(funcs, session, privkey, 1024, "Private key for PIV Authentication", 128, e, sizeof(e), CK_FALSE);
 
-  destroy_test_objects_by_privkey(funcs, session, &privkey, 1);
+  destroy_test_objects(funcs, session, &privkey, 1);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
 
@@ -524,7 +526,7 @@ static void test_find_objects() {
 
   asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
 
-  destroy_test_objects_by_privkey(funcs, session, &privkey, 1);
+  destroy_test_objects(funcs, session, &privkey, 1);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
   dprintf(0, "TEST END: test_find_objects()\n");
@@ -570,7 +572,7 @@ static void test_import_eccp256() {
   test_ec_sign(funcs, session, obj_pvtkey, eck, CKM_ECDSA_SHA1, 32);
   test_ec_sign(funcs, session, obj_pvtkey, eck, CKM_ECDSA_SHA256, 32);
 
-  destroy_test_objects(funcs, session, obj_cert);
+  destroy_test_objects(funcs, session, obj_cert, 24);
 
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
@@ -596,7 +598,7 @@ static void test_import_eccp384() {
   test_ec_sign(funcs, session, obj_pvtkey, eck, CKM_ECDSA_SHA256, 48);
   test_ec_sign(funcs, session, obj_pvtkey, eck, CKM_ECDSA_SHA384, 48);
 
-  destroy_test_objects(funcs, session, obj_cert);
+  destroy_test_objects(funcs, session, obj_cert, 24);
 
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
@@ -627,7 +629,7 @@ static void test_import_rsa1024() {
   test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_SHA256_RSA_PKCS_PSS);
   test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_SHA384_RSA_PKCS_PSS);
 
-  destroy_test_objects(funcs, session, obj_cert);
+  destroy_test_objects(funcs, session, obj_cert, 24);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
   dprintf(0, "TEST END: test_import_rsa1024()\n");
@@ -657,7 +659,7 @@ static void test_import_rsa2048() {
   test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_SHA256_RSA_PKCS_PSS);
   test_rsa_sign_pss(funcs, session, obj_pvtkey, rsak, CKM_SHA384_RSA_PKCS_PSS);
 
-  destroy_test_objects(funcs, session, obj_cert);
+  destroy_test_objects(funcs, session, obj_cert, 24);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
   dprintf(0, "TEST END: test_import_rsa2048()\n");
@@ -677,10 +679,11 @@ static void test_decrypt_RSA() {
   if (evp == NULL ||  rsak == NULL)
     exit(EXIT_FAILURE);
 
-  test_rsa_decrypt(funcs, session, obj_pvtkey, rsak, CKM_RSA_PKCS);
-  test_rsa_decrypt(funcs, session, obj_pvtkey, rsak, CKM_RSA_X_509);
+  test_rsa_decrypt(funcs, session, obj_pvtkey, rsak, CKM_RSA_PKCS, RSA_PKCS1_PADDING);
+  test_rsa_decrypt(funcs, session, obj_pvtkey, rsak, CKM_RSA_X_509, RSA_PKCS1_PADDING);
+  test_rsa_decrypt(funcs, session, obj_pvtkey, rsak, CKM_RSA_PKCS_OAEP, RSA_PKCS1_OAEP_PADDING);
 
-  destroy_test_objects(funcs, session, obj_cert);
+  destroy_test_objects(funcs, session, obj_cert, 24);
 
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
@@ -705,8 +708,9 @@ static void test_encrypt_RSA() {
   test_rsa_encrypt(funcs, session, obj_pvtkey, rsak, CKM_RSA_PKCS, RSA_NO_PADDING);
   test_rsa_encrypt(funcs, session, obj_pvtkey, rsak, CKM_RSA_X_509, RSA_PKCS1_PADDING);
   test_rsa_encrypt(funcs, session, obj_pvtkey, rsak, CKM_RSA_X_509, RSA_NO_PADDING);
+  test_rsa_encrypt(funcs, session, obj_pvtkey, rsak, CKM_RSA_PKCS_OAEP, RSA_PKCS1_OAEP_PADDING);
 
-  destroy_test_objects(funcs, session, obj_cert);
+  destroy_test_objects(funcs, session, obj_cert, 24);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
   dprintf(0, "TEST END: test_encrypt_RSA()\n");
@@ -751,7 +755,7 @@ static void test_login_order() {
   asrt(funcs->C_Sign(session1, data, sizeof(data), sig, &recv_len), CKR_OK, "Sign");
   asrt(funcs->C_Logout(session1), CKR_OK, "Logout USER");
 
-  destroy_test_objects_by_privkey(funcs, session1, &privkey, 1);
+  destroy_test_objects(funcs, session1, &privkey, 1);
 
   asrt(funcs->C_CloseSession(session1), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");

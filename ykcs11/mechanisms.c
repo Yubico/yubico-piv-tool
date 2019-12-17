@@ -45,7 +45,7 @@
 // Supported mechanisms for RSA decryption
 static const CK_MECHANISM_TYPE decrypt_rsa_mechanisms[] = {
   CKM_RSA_PKCS,
-  //CKM_RSA_PKCS_OAEP,
+  CKM_RSA_PKCS_OAEP,
   CKM_RSA_X_509
 };
 
