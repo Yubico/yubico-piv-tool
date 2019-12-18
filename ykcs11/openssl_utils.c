@@ -51,13 +51,13 @@ CK_RV do_rand_bytes(CK_BYTE_PTR data, CK_ULONG len) {
   return CKR_OK;
 }
 
-CK_RV do_rsa_encrypt(EVP_PKEY *key, int padding, CK_BYTE_PTR src, CK_ULONG src_len, CK_BYTE_PTR dst, CK_ULONG_PTR dst_len) {
+CK_RV do_rsa_encrypt(ykcs11_pkey_t *key, int padding, CK_BYTE_PTR src, CK_ULONG src_len, CK_BYTE_PTR dst, CK_ULONG_PTR dst_len) {
 
   if (EVP_PKEY_base_id(key) != EVP_PKEY_RSA) {
     return CKR_KEY_TYPE_INCONSISTENT;
   }
 
-  EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(key, NULL);
+  ykcs11_pkey_ctx_t *ctx = EVP_PKEY_CTX_new(key, NULL);
   if(ctx == NULL) {
     return CKR_FUNCTION_FAILED;
   }

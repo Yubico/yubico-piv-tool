@@ -536,7 +536,7 @@ static CK_RV get_atst(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
         return rv;
     } else {
       DBG("Failed to create attestation for slot %lx: %s", slot, ykpiv_strerror(rc));
-      EVP_PKEY *pkey;
+      ykcs11_pkey_t *pkey;
       if((rv = do_generate_ec_key(NID_X9_62_prime256v1, &pkey)) != CKR_OK)
         return rv;
       char cn[128];

@@ -88,7 +88,7 @@ static CK_BBOOL is_RSA_mechanism(CK_MECHANISM_TYPE m) {
   return CK_FALSE;
 }
 
-static const EVP_MD* EVP_MD_by_mechanism(CK_MECHANISM_TYPE m) {
+static const ykcs11_md_t* EVP_MD_by_mechanism(CK_MECHANISM_TYPE m) {
   switch (m) {
   case CKM_MD5:
     return EVP_md5();
@@ -115,7 +115,7 @@ static const EVP_MD* EVP_MD_by_mechanism(CK_MECHANISM_TYPE m) {
 
 CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_RSA_PKCS_PSS_PARAMS_PTR pss) {
 
-  const EVP_MD *md = NULL;
+  const ykcs11_md_t *md = NULL;
 
   session->op_info.md_ctx = NULL;
 
@@ -356,7 +356,7 @@ CK_RV verify_mechanism_cleanup(ykcs11_session_t *session) {
 
 CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_RSA_PKCS_PSS_PARAMS_PTR pss) {
 
-  const EVP_MD *md = NULL;
+  const ykcs11_md_t *md = NULL;
 
   session->op_info.md_ctx = NULL;
   session->op_info.op.verify.pkey_ctx = NULL;
@@ -710,7 +710,7 @@ CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
 
 CK_RV digest_mechanism_init(ykcs11_session_t *session) {
 
-  const EVP_MD *md = NULL;
+  const ykcs11_md_t *md = NULL;
 
   switch (session->op_info.mechanism) {
     case CKM_MD5:
