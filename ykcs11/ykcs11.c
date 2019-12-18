@@ -821,11 +821,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     CK_RV rv;
     ykpiv_rc rc = YKPIV_KEY_ERROR;
     ykpiv_metadata md = { 0 };
-    CK_BYTE key_id = get_key_id(obj_ids[i]);
-    piv_obj_id_t cert_id = find_cert_object(key_id);
-    piv_obj_id_t pubk_id = find_pubk_object(key_id);
-    piv_obj_id_t pvtk_id = find_pvtk_object(key_id);
-    piv_obj_id_t atst_id = find_atst_object(key_id);
+    CK_BYTE sub_id = get_sub_id(obj_ids[i]);
+    piv_obj_id_t cert_id = find_cert_object(sub_id);
+    piv_obj_id_t pubk_id = find_pubk_object(sub_id);
+    piv_obj_id_t pvtk_id = find_pvtk_object(sub_id);
+    piv_obj_id_t atst_id = find_atst_object(sub_id);
     CK_BYTE data[3072];  // Max cert value for ykpiv
     unsigned long len;
     if(pvtk_id != (piv_obj_id_t)-1) {
@@ -833,7 +833,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
       if((rc = ykpiv_get_metadata(session->slot->piv_state, piv_2_ykpiv(pvtk_id), data, &len)) == YKPIV_OK) {
         DBG("Read %lu bytes metadata for private key %u (slot %lx)", len, pvtk_id, piv_2_ykpiv(pvtk_id));
         if((rc = ykpiv_util_parse_metadata(data, len, &md)) == YKPIV_OK) {
-          if((rv = do_create_public_key(md.pubkey, md.pubkey_len, md.algorithm, &session->pkeys[key_id])) == CKR_OK) {
+          if((rv = do_create_public_key(md.pubkey, md.pubkey_len, md.algorithm, &session->pkeys[sub_id])) == CKR_OK) {
             DBG("Adding key object %u and %u (metadata)", pubk_id, pvtk_id);
             session->objects[session->n_objects++] = pubk_id;
             session->objects[session->n_objects++] = pvtk_id;
@@ -855,7 +855,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
       DBG("Read %lu bytes for data object %u (%lx)", len, obj_ids[i], piv_2_ykpiv(obj_ids[i]));
       DBG("Adding data object %u", obj_ids[i]);
       session->objects[session->n_objects++] = obj_ids[i];
-      rv = store_data(session, obj_ids[i], data, len);
+      rv = store_data(session, sub_id, data, len);
       if (rv != CKR_OK) {
         DBG("Failed to store data object %u in session: %lu", obj_ids[i], rv);
         locking.pfnUnlockMutex(session->slot->mutex);
@@ -865,7 +865,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
       if(cert_id != (piv_obj_id_t)-1) {
         DBG("Adding cert object %u", cert_id);
         session->objects[session->n_objects++] = cert_id;
-        rv = store_cert(session, cert_id, data, len, CK_FALSE);
+        rv = store_cert(session, sub_id, data, len, CK_FALSE);
         if (rv != CKR_OK) {
           DBG("Failed to store certificate object %u in session: %lu", cert_id, rv);
           locking.pfnUnlockMutex(session->slot->mutex);
@@ -1276,13 +1276,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     DBG("%lu session objects after cert import", session->n_objects);
 
-    rv = store_data(session, dobj_id, value, value_len);
+    rv = store_data(session, id, value, value_len);
     if (rv != CKR_OK) {
       DBG("Unable to store data in session");
       return CKR_FUNCTION_FAILED;
     }
 
-    rv = store_cert(session, cert_id, value, value_len, CK_TRUE);
+    rv = store_cert(session, id, value, value_len, CK_TRUE);
     if (rv != CKR_OK) {
       DBG("Unable to store certificate in session");
       return CKR_FUNCTION_FAILED;
@@ -1409,7 +1409,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
     return CKR_USER_TYPE_INVALID;
   }
 
-  CK_BYTE id = get_key_id(hObject);
+  CK_BYTE id = get_sub_id(hObject);
 
   locking.pfnLockMutex(session->slot->mutex);
 
@@ -1428,20 +1428,20 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
 
   CK_ULONG j = 0;
   for (CK_ULONG i = 0; i < session->n_objects; i++) {
-    if(get_key_id(session->objects[i]) != id)
+    if(get_sub_id(session->objects[i]) != id)
       session->objects[j++] = session->objects[i];
   }
   session->n_objects = j;
 
   DBG("%lu session objects after destroying object %lu", session->n_objects, hObject);
 
-  rv = delete_data(session, hObject);
+  rv = delete_data(session, id);
   if (rv != CKR_OK) {
     DBG("Unable to delete data from session");
     return CKR_FUNCTION_FAILED;
   }
 
-  rv = delete_cert(session, hObject);
+  rv = delete_cert(session, id);
   if (rv != CKR_OK) {
     DBG("Unable to delete certificate from session");
     return CKR_FUNCTION_FAILED;
@@ -1479,7 +1479,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetObjectSize)(
   if (pulSize == NULL)
     return CKR_ARGUMENTS_BAD;
 
-  CK_RV rv = get_data_len(session, hObject, pulSize);
+  CK_RV rv = get_data_len(session, get_sub_id(hObject), pulSize);
 
   DOUT;
   return rv;
@@ -1730,7 +1730,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptInit)(
   }
   session->op_info.mechanism = pMechanism->mechanism;
 
-  CK_BYTE id = get_key_id(hKey);
+  CK_BYTE id = get_sub_id(hKey);
   if (id == 0) {
     DBG("Invalid key handle %lu", hKey);
     return CKR_KEY_HANDLE_INVALID;
@@ -1955,7 +1955,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
   }
   session->op_info.mechanism = pMechanism->mechanism;
 
-  CK_BYTE id = get_key_id(hKey);
+  CK_BYTE id = get_sub_id(hKey);
   if (id == 0) {
     DBG("Invalid key handle %lu", hKey);
     return CKR_KEY_HANDLE_INVALID;
@@ -2530,7 +2530,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
 
   session->op_info.mechanism = pMechanism->mechanism;
   session->op_info.op.sign.piv_key = piv_2_ykpiv(hKey);
-  CK_BYTE id = get_key_id(hKey);
+  CK_BYTE id = get_sub_id(hKey);
 
   CK_RV rv = sign_mechanism_init(session, session->pkeys[id], (CK_RSA_PKCS_PSS_PARAMS_PTR)pMechanism->pParameter);
   if (rv != CKR_OK) {
@@ -2829,7 +2829,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
   }
 
   session->op_info.mechanism = pMechanism->mechanism;
-  CK_BYTE id = get_key_id(hKey);
+  CK_BYTE id = get_sub_id(hKey);
   
   CK_RV rv = verify_mechanism_init(session, session->pkeys[id], (CK_RSA_PKCS_PSS_PARAMS_PTR)pMechanism->pParameter);
   if (rv != CKR_OK) {
@@ -3237,13 +3237,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 
   // Write/Update the object
 
-  rv = store_data(session, dobj_id, cert_data, cert_len);
+  rv = store_data(session, gen.key_id, cert_data, cert_len);
   if (rv != CKR_OK) {
     DBG("Unable to store data in session");
     return CKR_FUNCTION_FAILED;
   }
 
-  rv = store_cert(session, cert_id, cert_data, cert_len, CK_TRUE);
+  rv = store_cert(session, gen.key_id, cert_data, cert_len, CK_TRUE);
   if (rv != CKR_OK) {
     DBG("Unable to store certificate in session");
     return CKR_FUNCTION_FAILED;

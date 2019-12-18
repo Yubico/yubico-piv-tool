@@ -1230,7 +1230,7 @@ CK_BBOOL is_private_object(ykcs11_session_t *s, CK_OBJECT_HANDLE obj) {
   return (obj < PIV_PVTK_OBJ_PIV_AUTH || obj > PIV_PVTK_OBJ_ATTESTATION) ? CK_FALSE : CK_TRUE;
 }
 
-CK_BYTE get_key_id(piv_obj_id_t obj) {
+CK_BYTE get_sub_id(piv_obj_id_t obj) {
   return (obj < PIV_DATA_OBJ_X509_PIV_AUTH || obj > PIV_PUBK_OBJ_ATTESTATION) ? 0 : piv_objects[obj].sub_id;
 }
 
@@ -1274,40 +1274,40 @@ piv_obj_id_t find_atst_object(CK_BYTE sub_id) {
   return -1;
 }
 
-CK_RV store_data(ykcs11_session_t *s, piv_obj_id_t obj, CK_BYTE_PTR data, CK_ULONG len) {
-  s->data[piv_objects[obj].sub_id].data = realloc(s->data[piv_objects[obj].sub_id].data, len);
-  if(s->data[piv_objects[obj].sub_id].data == NULL) {
+CK_RV store_data(ykcs11_session_t *s, CK_BYTE sub_id, CK_BYTE_PTR data, CK_ULONG len) {
+  s->data[sub_id].data = realloc(s->data[sub_id].data, len);
+  if(s->data[sub_id].data == NULL) {
     return CKR_HOST_MEMORY;
   }
-  memcpy(s->data[piv_objects[obj].sub_id].data, data, len);
-  s->data[piv_objects[obj].sub_id].len = len;
+  memcpy(s->data[sub_id].data, data, len);
+  s->data[sub_id].len = len;
   return CKR_OK;
 }
 
-CK_RV delete_data(ykcs11_session_t *s, piv_obj_id_t obj) {
-  free(s->data[piv_objects[obj].sub_id].data);
-  s->data[piv_objects[obj].sub_id].data = NULL;
-  s->data[piv_objects[obj].sub_id].len = 0;
+CK_RV delete_data(ykcs11_session_t *s, CK_BYTE sub_id) {
+  free(s->data[sub_id].data);
+  s->data[sub_id].data = NULL;
+  s->data[sub_id].len = 0;
   return CKR_OK;
 }
 
-CK_RV get_data_len(ykcs11_session_t *s, piv_obj_id_t obj, CK_ULONG_PTR len) {
-  *len = s->data[piv_objects[obj].sub_id].len;
+CK_RV get_data_len(ykcs11_session_t *s, CK_BYTE sub_id, CK_ULONG_PTR len) {
+  *len = s->data[sub_id].len;
   return CKR_OK;
 }
 
-CK_RV store_cert(ykcs11_session_t *s, piv_obj_id_t cert_id, CK_BYTE_PTR data, CK_ULONG len, CK_BBOOL force_pubkey) {
+CK_RV store_cert(ykcs11_session_t *s, CK_BYTE sub_id, CK_BYTE_PTR data, CK_ULONG len, CK_BBOOL force_pubkey) {
 
   CK_RV rv;
 
   // Store the certificate as an object
-  rv = do_store_cert(data, len, &s->certs[piv_objects[cert_id].sub_id]);
+  rv = do_store_cert(data, len, &s->certs[sub_id]);
   if (rv != CKR_OK)
     return rv;
 
   // Extract and store the public key as an object (if forced or not already present)
-  if(force_pubkey || s->pkeys[piv_objects[cert_id].sub_id] == NULL) {
-    rv = do_store_pubk(s->certs[piv_objects[cert_id].sub_id], &s->pkeys[piv_objects[cert_id].sub_id]);
+  if(force_pubkey || s->pkeys[sub_id] == NULL) {
+    rv = do_store_pubk(s->certs[sub_id], &s->pkeys[sub_id]);
     if (rv != CKR_OK)
       return rv;
   }
@@ -1315,20 +1315,21 @@ CK_RV store_cert(ykcs11_session_t *s, piv_obj_id_t cert_id, CK_BYTE_PTR data, CK
   return CKR_OK;
 }
 
-CK_RV delete_cert(ykcs11_session_t *s, piv_obj_id_t cert_id) {
+CK_RV delete_cert(ykcs11_session_t *s, CK_BYTE sub_id) {
   CK_RV rv;
 
   // Clear the object containing the certificate
-  rv = do_delete_cert(&s->certs[piv_objects[cert_id].sub_id]);
+  rv = do_delete_cert(&s->certs[sub_id]);
   if (rv != CKR_OK)
     return rv;
 
-  rv = do_delete_cert(&s->atst[piv_objects[cert_id].sub_id]);
+  // Clear the object containing the attestation certificate
+  rv = do_delete_cert(&s->atst[sub_id]);
   if (rv != CKR_OK)
     return rv;
 
   // Clear the object containing the public key
-  rv = do_delete_pubk(&s->pkeys[piv_objects[cert_id].sub_id]);
+  rv = do_delete_pubk(&s->pkeys[sub_id]);
   if (rv != CKR_OK)
     return rv;
 

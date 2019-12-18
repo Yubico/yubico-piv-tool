@@ -117,6 +117,8 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_RSA_
 
   const EVP_MD *md = NULL;
 
+  session->op_info.md_ctx = NULL;
+
   switch (session->op_info.mechanism) {
     case CKM_RSA_X_509:
     case CKM_RSA_PKCS:
@@ -408,16 +410,15 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_RS
       return CKR_MECHANISM_INVALID;
   }
 
-  CK_KEY_TYPE key_type = session->op_info.op.verify.key_type = do_get_key_type(key);
-  CK_ULONG padding;
+  ykcs11_rsa_t *rsa = EVP_PKEY_get0_RSA(key);
 
   switch (session->op_info.mechanism) {
     case CKM_RSA_X_509:
-      if(key_type != CKK_RSA) {
+      if(!rsa) {
         DBG("Mechanism %lu requires an RSA key", session->op_info.mechanism);
         return CKR_KEY_TYPE_INCONSISTENT;
       }
-      padding = RSA_NO_PADDING;
+      session->op_info.op.verify.padding = RSA_NO_PADDING;
     break;
 
     case CKM_RSA_PKCS:
@@ -427,11 +428,11 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_RS
     case CKM_SHA256_RSA_PKCS:
     case CKM_SHA384_RSA_PKCS:
     case CKM_SHA512_RSA_PKCS:
-      if(key_type != CKK_RSA) {
+      if(!rsa) {
         DBG("Mechanism %lu requires an RSA key", session->op_info.mechanism);
         return CKR_KEY_TYPE_INCONSISTENT;
       }
-      padding = RSA_PKCS1_PADDING;
+      session->op_info.op.verify.padding = RSA_PKCS1_PADDING;
     break;
 
     case CKM_RSA_PKCS_PSS:
@@ -439,7 +440,7 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_RS
     case CKM_SHA256_RSA_PKCS_PSS:
     case CKM_SHA384_RSA_PKCS_PSS:
     case CKM_SHA512_RSA_PKCS_PSS:
-      if(key_type != CKK_RSA) {
+      if(!rsa) {
         DBG("Mechanism %lu requires an RSA key", session->op_info.mechanism);
         return CKR_KEY_TYPE_INCONSISTENT;
       }
@@ -447,15 +448,15 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_RS
         DBG("Mechanism %lu requires PSS parameters", session->op_info.mechanism);
         return CKR_ARGUMENTS_BAD;
       }
-      padding = RSA_PKCS1_PSS_PADDING;
+      session->op_info.op.verify.padding = RSA_PKCS1_PSS_PADDING;
       break;
 
     default:
-      if(key_type != CKK_ECDSA) {
+      if(rsa) {
         DBG("Mechanism %lu requires an ECDSA key", session->op_info.mechanism);
         return CKR_KEY_TYPE_INCONSISTENT;
       }
-      padding = 0;
+      session->op_info.op.verify.padding = 0;
   }
 
   if(md) {
@@ -480,12 +481,12 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_RS
     }
   }
 
-  if (padding) {
-    if (EVP_PKEY_CTX_set_rsa_padding(session->op_info.op.verify.pkey_ctx, padding) <= 0) {
+  if (session->op_info.op.verify.padding) {
+    if (EVP_PKEY_CTX_set_rsa_padding(session->op_info.op.verify.pkey_ctx, session->op_info.op.verify.padding) <= 0) {
       DBG("EVP_PKEY_CTX_set_rsa_padding failed");
       return CKR_FUNCTION_FAILED;
     }
-    if (padding == RSA_PKCS1_PSS_PADDING) {
+    if (session->op_info.op.verify.padding == RSA_PKCS1_PSS_PADDING) {
       if(!EVP_MD_by_mechanism(pss->hashAlg)) {
         DBG("Invalid PSS parameters: hashAlg mechanism %lu unknown", pss->hashAlg);
         return CKR_ARGUMENTS_BAD;
@@ -515,7 +516,7 @@ CK_RV verify_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULON
   int rc;
 
   CK_BYTE der[sig_len + 32]; // Add some space for the DER encoding
-  if(session->op_info.op.verify.key_type == CKK_ECDSA) {
+  if(!session->op_info.op.verify.padding) {
     memcpy(der, sig, sig_len);
     sig = der;
     DBG("Applying DER encoding to signature of %lu bytes", sig_len);

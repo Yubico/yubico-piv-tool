@@ -67,15 +67,15 @@ typedef struct {
 typedef struct {
   CK_ULONG          padding;   // RSA padding, 0 for EC
   ykcs11_rsa_t      *rsa;      // RSA key (needed for PSS padding), NULL for EC
-  const EVP_MD      *pss_md;
-  const EVP_MD      *mgf1_md;
+  const ykcs11_md_t *pss_md;
+  const ykcs11_md_t *mgf1_md;
   CK_ULONG          pss_slen;
   CK_BYTE           piv_key;   // PIV Key id
   CK_BYTE           algorithm; // PIV Key algorithm
 } sign_info_t;
 
 typedef struct {
-  CK_KEY_TYPE       key_type; // Key type
+  CK_ULONG          padding;   // RSA padding, 0 for EC
   ykcs11_pkey_ctx_t *pkey_ctx; // Signature context
 } verify_info_t;
 
