@@ -1044,14 +1044,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
     if (ulPinLen < PIV_MIN_PIN_LEN || ulPinLen > PIV_MAX_PIN_LEN)
       return CKR_ARGUMENTS_BAD;
 
+    locking.pfnLockMutex(session->slot->mutex);
+
     if (session->slot->login_state == YKCS11_SO) {
       DBG("Tried to log-in USER to a SO session");
+      locking.pfnUnlockMutex(session->slot->mutex);
       return CKR_USER_ANOTHER_ALREADY_LOGGED_IN;
     }
 
     // We allow multiple logins because some keys need it (we indicate so for the signing key)
-
-    locking.pfnLockMutex(session->slot->mutex);
 
     rv = token_login(session->slot->piv_state, CKU_USER, pPin, ulPinLen);
     if (rv != CKR_OK) {
@@ -1060,32 +1061,35 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
       return rv;
     }
 
-    locking.pfnUnlockMutex(session->slot->mutex);
     session->slot->login_state = YKCS11_USER;
+    locking.pfnUnlockMutex(session->slot->mutex);
     break;
 
   case CKU_SO:
     if (ulPinLen != PIV_MGM_KEY_LEN)
       return CKR_ARGUMENTS_BAD;
 
+    locking.pfnLockMutex(session->slot->mutex);
+
     if (session->slot->login_state == YKCS11_USER) {
       DBG("Tried to log-in SO to a USER session");
+      locking.pfnUnlockMutex(session->slot->mutex);
       return CKR_USER_ANOTHER_ALREADY_LOGGED_IN;
     }
 
     if (session->slot->login_state == YKCS11_SO) {
       DBG("Tried to log-in SO to a SO session");
+      locking.pfnUnlockMutex(session->slot->mutex);
       return CKR_USER_ALREADY_LOGGED_IN;
     }
 
     for(CK_ULONG i = 0; i < YKCS11_MAX_SESSIONS; i++) {
       if (sessions[i].slot == session->slot && !(sessions[i].info.flags & CKF_RW_SESSION)) {
         DBG("Tried to log-in SO with existing RO sessions");
+        locking.pfnUnlockMutex(session->slot->mutex);
         return CKR_SESSION_READ_ONLY_EXISTS;
       }
     }
-
-    locking.pfnLockMutex(session->slot->mutex);
 
     rv = token_login(session->slot->piv_state, CKU_SO, pPin, ulPinLen);
     if (rv != CKR_OK) {
@@ -1094,8 +1098,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
       return rv;
     }
 
-    locking.pfnUnlockMutex(session->slot->mutex);
     session->slot->login_state = YKCS11_SO;
+    locking.pfnUnlockMutex(session->slot->mutex);
     break;
 
   case CKU_CONTEXT_SPECIFIC:
@@ -1137,10 +1141,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_Logout)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (session->slot->login_state == YKCS11_PUBLIC)
+  locking.pfnLockMutex(session->slot->mutex);
+
+  if (session->slot->login_state == YKCS11_PUBLIC) {
+    locking.pfnUnlockMutex(session->slot->mutex);
     return CKR_USER_NOT_LOGGED_IN;
+  }
 
   session->slot->login_state = YKCS11_PUBLIC;
+  locking.pfnUnlockMutex(session->slot->mutex);
 
   DOUT;
   return CKR_OK;
@@ -1583,17 +1592,18 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
 
   DBG("Initialized search with %lu parameters", ulCount);
 
+  locking.pfnLockMutex(session->slot->mutex);
+
   // Match parameters
   for (CK_ULONG i = 0; i < session->n_objects; i++) {
 
     // Strip away private objects if needed
-    if (session->slot->login_state == YKCS11_PUBLIC)
+    if (session->slot->login_state == YKCS11_PUBLIC) {
       if (is_private_object(session, session->objects[i]) == CK_TRUE) {
         DBG("Removing private object %u", session->objects[i]);
         continue;
       }
-
-    locking.pfnLockMutex(session->slot->mutex);
+    }
   
     bool keep = true;
     for (CK_ULONG j = 0; j < ulCount; j++) {
@@ -1604,13 +1614,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
       }
     }
 
-    locking.pfnUnlockMutex(session->slot->mutex);
-
     if(keep) {
       DBG("Keeping object %u", session->objects[i]);
       session->find_obj.objects[session->find_obj.n_objects++] = session->objects[i];
     }
   }
+
+  locking.pfnUnlockMutex(session->slot->mutex);
 
   DBG("%lu object(s) left after attribute matching", session->find_obj.n_objects);
 
@@ -2539,12 +2549,19 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 #endif
 
   if ((rv = digest_mechanism_update(session, pData, ulDataLen)) != CKR_OK) {
+    DBG("digest_mechanism_update failed");
     goto sign_out;
   }
 
+  locking.pfnLockMutex(session->slot->mutex);
+
   if((rv = sign_mechanism_final(session, pSignature, pulSignatureLen)) != CKR_OK) {
+    DBG("sign_mechanism_final failed");
+    locking.pfnUnlockMutex(session->slot->mutex);
     goto sign_out;
   }
+
+  locking.pfnUnlockMutex(session->slot->mutex);
 
   DBG("The signature is %lu bytes", *pulSignatureLen);
   rv = CKR_OK;
@@ -2605,6 +2622,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignUpdate)(
 #endif
 
   if ((rv = digest_mechanism_update(session, pPart, ulPartLen)) != CKR_OK) {
+    DBG("digest_mechanism_update failed");
     goto sign_out;
   }
 
@@ -2670,10 +2688,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
     return CKR_BUFFER_TOO_SMALL;
   }
 
+  locking.pfnLockMutex(session->slot->mutex);
+
   if((rv = sign_mechanism_final(session, pSignature, pulSignatureLen)) != CKR_OK) {
     DBG("Unable to perform sign final step");
+    locking.pfnUnlockMutex(session->slot->mutex);
     goto sign_out;
   }
+
+  locking.pfnUnlockMutex(session->slot->mutex);
 
   DBG("The signature is %lu bytes", *pulSignatureLen);
   rv = CKR_OK;
@@ -2870,8 +2893,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyUpdate)(
     return CKR_OPERATION_NOT_INITIALIZED;
   }
 
-  if (digest_mechanism_update(session, pPart, ulPartLen) != CKR_OK) {
-    rv = CKR_FUNCTION_FAILED;
+  if ((rv = digest_mechanism_update(session, pPart, ulPartLen)) != CKR_OK) {
+    DBG("Failed to update verification operation");
     goto verify_out;
   }
 
