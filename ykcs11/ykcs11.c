@@ -817,8 +817,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   for(CK_ULONG i = 0; i < num_ids; i++) {
     CK_RV rv;
     ykpiv_rc rc = YKPIV_KEY_ERROR;
-    ykpiv_metadata md = { 0 };
     CK_BYTE sub_id = get_sub_id(obj_ids[i]);
+    ykpiv_metadata *md = session->meta + sub_id;
     piv_obj_id_t cert_id = find_cert_object(sub_id);
     piv_obj_id_t pubk_id = find_pubk_object(sub_id);
     piv_obj_id_t pvtk_id = find_pvtk_object(sub_id);
@@ -829,12 +829,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
       len = sizeof(data);
       if((rc = ykpiv_get_metadata(session->slot->piv_state, piv_2_ykpiv(pvtk_id), data, &len)) == YKPIV_OK) {
         DBG("Read %lu bytes metadata for private key %u (slot %lx)", len, pvtk_id, piv_2_ykpiv(pvtk_id));
-        if((rc = ykpiv_util_parse_metadata(data, len, &md)) == YKPIV_OK) {
-          if((rv = do_create_public_key(md.pubkey, md.pubkey_len, md.algorithm, &session->pkeys[sub_id])) == CKR_OK) {
+        if((rc = ykpiv_util_parse_metadata(data, len, md)) == YKPIV_OK) {
+          if((rv = do_create_public_key(md->pubkey, md->pubkey_len, md->algorithm, &session->pkeys[sub_id])) == CKR_OK) {
             DBG("Adding key object %u and %u (metadata)", pubk_id, pvtk_id);
             session->objects[session->n_objects++] = pubk_id;
             session->objects[session->n_objects++] = pvtk_id;
-            if(md.origin == YKPIV_METADATA_ORIGIN_GENERATED && atst_id != (piv_obj_id_t)-1) { // Attestation key doesn't have an attestation
+            if(md->origin == YKPIV_METADATA_ORIGIN_GENERATED && atst_id != (piv_obj_id_t)-1) { // Attestation key doesn't have an attestation
               DBG("Adding attestation cert object %u (metadata)", atst_id);
               session->objects[session->n_objects++] = atst_id;
             }

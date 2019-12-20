@@ -632,7 +632,7 @@ static CK_RV get_proa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
   case CKA_LOCAL:
     DBG("LOCAL"); // We have added attestation objects for local keys only (if we have metadata)
     len = sizeof(CK_BBOOL);
-    b_tmp[0] = is_present(s, find_atst_object(piv_objects[obj].sub_id)) ? CK_TRUE : CK_FALSE;
+    b_tmp[0] = s->meta[piv_objects[obj].sub_id].origin == YKPIV_METADATA_ORIGIN_GENERATED ? CK_TRUE : is_local_key(s, obj);
     data = b_tmp;
     break;
 
@@ -843,7 +843,7 @@ static CK_RV get_puoa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
   case CKA_LOCAL:
     DBG("LOCAL"); // We have added attestation objects for local keys only (if we have metadata)
     len = sizeof(CK_BBOOL);
-    b_tmp[0] = is_present(s, find_atst_object(piv_objects[obj].sub_id)) ? CK_TRUE : CK_FALSE;
+    b_tmp[0] = s->meta[piv_objects[obj].sub_id].origin == YKPIV_METADATA_ORIGIN_GENERATED ? CK_TRUE : is_local_key(s, obj);
     data = b_tmp;
     break;
 
@@ -1201,6 +1201,25 @@ void sort_objects(ykcs11_session_t *s) {
 
 CK_BBOOL is_present(ykcs11_session_t *s, piv_obj_id_t id) {
   return bsearch(&id, s->objects, s->n_objects, sizeof(piv_obj_id_t), compare_piv_obj_id) ? CK_TRUE : CK_FALSE;
+}
+
+CK_BBOOL is_local_key(ykcs11_session_t *s, piv_obj_id_t id) {
+  CK_BYTE sub_id = piv_objects[id].sub_id;
+  piv_obj_id_t atst_id = find_atst_object(sub_id);
+  if(is_present(s, atst_id) && s->pkeys[25]) { // We have an attestation, and the attestation public key is available
+    CK_ATTRIBUTE attr = {CKA_VALUE, NULL, 0};
+    if(get_attribute(s, atst_id, &attr) == CKR_OK) { // Trigger attestation, if not already done
+      if(X509_verify(s->atst[sub_id], s->pkeys[25]) > 0) { // Only indicate CKA_LOCAL for real attestations
+        DBG("Certificate verification succeeded");
+        return CK_TRUE;
+      } else {
+        DBG("Certificate verification failed");
+      }
+    } else {
+      DBG("Failed to get value attribute of attestation certificate %u", atst_id);
+    }
+  }
+  return CK_FALSE;
 }
 
 CK_RV get_attribute(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
