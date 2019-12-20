@@ -51,7 +51,7 @@ CK_RV do_rand_bytes(CK_BYTE_PTR data, CK_ULONG len) {
   return CKR_OK;
 }
 
-CK_RV do_rsa_encrypt(ykcs11_pkey_t *key, int padding, EVP_MD* oaep_md, EVP_MD* oaep_mgf1, CK_BYTE_PTR src, CK_ULONG src_len, CK_BYTE_PTR dst, CK_ULONG_PTR dst_len) {
+CK_RV do_rsa_encrypt(ykcs11_pkey_t *key, int padding, const ykcs11_md_t* oaep_md, const ykcs11_md_t* oaep_mgf1, CK_BYTE_PTR src, CK_ULONG src_len, CK_BYTE_PTR dst, CK_ULONG_PTR dst_len) {
 
   if (EVP_PKEY_base_id(key) != EVP_PKEY_RSA) {
     return CKR_KEY_TYPE_INCONSISTENT;

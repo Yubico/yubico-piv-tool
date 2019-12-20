@@ -36,7 +36,7 @@
 
 CK_RV do_rand_seed(CK_BYTE_PTR data, CK_ULONG len);
 CK_RV do_rand_bytes(CK_BYTE_PTR data, CK_ULONG len);
-CK_RV do_rsa_encrypt(ykcs11_pkey_t *key, int padding, EVP_MD* oaep_md, EVP_MD* oaep_mgf1, CK_BYTE_PTR src, CK_ULONG src_len, CK_BYTE_PTR dst, CK_ULONG_PTR dst_len);
+CK_RV do_rsa_encrypt(ykcs11_pkey_t *key, int padding, const ykcs11_md_t* oaep_md, const ykcs11_md_t* oaep_mgf1, CK_BYTE_PTR src, CK_ULONG src_len, CK_BYTE_PTR dst, CK_ULONG_PTR dst_len);
 CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, ykcs11_x509_t **cert);
 CK_RV do_generate_ec_key(int curve_name, ykcs11_pkey_t **pkey);
 CK_RV do_create_ec_key(CK_BYTE_PTR point, CK_ULONG point_len, int curve_name, ykcs11_pkey_t **pkey);
