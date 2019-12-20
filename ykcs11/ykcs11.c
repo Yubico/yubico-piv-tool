@@ -1950,7 +1950,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
     DBG("Mechanism %lu is not supported either by the token or the module", pMechanism->mechanism);
     return CKR_MECHANISM_INVALID; // TODO: also the key has a list of allowed mechanisms, check that
   }
-  session->op_info.mechanism = pMechanism->mechanism;
+
+  if (decrypt_mechanism_init(session, pMechanism) != CKR_OK) {
+    DBG("Unable to initialize decryption operation");
+    return CKR_FUNCTION_FAILED;
+  }
 
   CK_BYTE id = get_sub_id(hKey);
   if (id == 0) {
@@ -2013,7 +2017,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
   }
 
   CK_ULONG key_len = do_get_key_size(session->pkeys[session->op_info.op.decrypt.key_id]);
-  CK_BYTE algo = do_get_key_algorithm(session->pkeys[session->op_info.op.decrypt.key_id]);
   CK_ULONG datalen = (key_len + 7) / 8 - 11;
   DBG("The size of the data will be %lu", datalen);
 
@@ -2033,51 +2036,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
   session->op_info.buf_len = ulEncryptedDataLen;
   memcpy(session->op_info.buf, pEncryptedData, ulEncryptedDataLen);
 
-  CK_ULONG pivkey = piv_2_ykpiv(find_pvtk_object(session->op_info.op.decrypt.key_id));
-
-  DBG("Using key %lx for decryption", pivkey);
-
-  *pulDataLen = cbDataLen = sizeof(session->op_info.buf);
-
   locking.pfnLockMutex(session->slot->mutex);
 
-  piv_rv = ykpiv_decipher_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, 
-                               session->op_info.buf, &cbDataLen, algo, pivkey);
+  rv = decrypt_mechanism_final(session, pData, pulDataLen, ulEncryptedDataLen, key_len);
 
   locking.pfnUnlockMutex(session->slot->mutex);
 
-  if (piv_rv != YKPIV_OK) {
-    if (piv_rv == YKPIV_AUTHENTICATION_ERROR) {
-      DBG("Operation requires authentication or touch");
-      rv = CKR_USER_NOT_LOGGED_IN;
-      goto decrypt_out;
-    } else {
-      DBG("Decrypt error, %s", ykpiv_strerror(piv_rv));
-      rv = CKR_FUNCTION_FAILED;
-      goto decrypt_out;
-    }
-  }
-
-  if(session->op_info.mechanism == CKM_RSA_PKCS) {
-    *pulDataLen = RSA_padding_check_PKCS1_type_2(dec, sizeof(dec), session->op_info.buf + 1, cbDataLen - 1, key_len/8);
-  } else if(session->op_info.mechanism == CKM_RSA_PKCS_OAEP) {
-    *pulDataLen = RSA_padding_check_PKCS1_OAEP(dec, sizeof(dec), session->op_info.buf + 1, cbDataLen - 1, key_len/8, NULL, 0);
-  } else if(session->op_info.mechanism == CKM_RSA_X_509) {
-    memcpy(dec, session->op_info.buf, ulEncryptedDataLen);
-    *pulDataLen = ulEncryptedDataLen;
-  } else {
-    DBG("Unknown mechanism");
-    rv = CKR_FUNCTION_FAILED;
-    goto decrypt_out;
-  }
-
   DBG("Got %lu bytes back", *pulDataLen);
 #if YKCS11_DBG > 1
-  dump_data(session->op_info.buf, *pulDataLen, stderr, CK_TRUE, format_arg_hex);
+  dump_data(pData, *pulDataLen, stderr, CK_TRUE, format_arg_hex);
 #endif
-
-  memcpy(pData, dec, *pulDataLen);
-  rv = CKR_OK;
 
   decrypt_out:
   session->op_info.type = YKCS11_NOOP;
@@ -2183,7 +2151,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
   }
 
   CK_ULONG key_len = do_get_key_size(session->pkeys[session->op_info.op.decrypt.key_id]);
-  CK_BYTE algo = do_get_key_algorithm(session->pkeys[session->op_info.op.decrypt.key_id]);
   CK_ULONG datalen = (key_len + 7) / 8 - 11;
   DBG("The size of the data will be %lu", datalen);
 
@@ -2200,51 +2167,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
   dump_data(session->op_info.buf, session->op_info.buf_len, stderr, CK_TRUE, format_arg_hex);
 #endif
 
-  CK_ULONG pivkey = piv_2_ykpiv(find_pvtk_object(session->op_info.op.decrypt.key_id));
-
-  DBG("Using key %lx for decryption", pivkey);
-
-  *pulLastPartLen = cbDataLen = sizeof(session->op_info.buf);
-
   locking.pfnLockMutex(session->slot->mutex);
 
-  piv_rv = ykpiv_decipher_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, 
-                               session->op_info.buf, &cbDataLen, algo, pivkey);
+  rv = decrypt_mechanism_final(session, pLastPart, pulLastPartLen, session->op_info.buf_len, key_len);
 
   locking.pfnUnlockMutex(session->slot->mutex);
-
-  if (piv_rv != YKPIV_OK) {
-    if (piv_rv == YKPIV_AUTHENTICATION_ERROR) {
-      DBG("Operation requires authentication or touch");
-      rv = CKR_USER_NOT_LOGGED_IN;
-      goto decrypt_out;
-    } else {
-      DBG("Decrypt error, %s", ykpiv_strerror(piv_rv));
-      rv = CKR_FUNCTION_FAILED;
-      goto decrypt_out;
-    }
-  }
-
-  if(session->op_info.mechanism == CKM_RSA_PKCS) {
-    *pulLastPartLen = RSA_padding_check_PKCS1_type_2(dec, sizeof(dec), session->op_info.buf + 1, cbDataLen - 1, key_len/8);
-  } else if(session->op_info.mechanism == CKM_RSA_PKCS_OAEP) {
-    *pulLastPartLen = RSA_padding_check_PKCS1_OAEP(dec, sizeof(dec), session->op_info.buf + 1, cbDataLen - 1, key_len/8, NULL, 0);
-  } else if(session->op_info.mechanism == CKM_RSA_X_509) {
-    memcpy(dec, session->op_info.buf, session->op_info.buf_len);
-    *pulLastPartLen = session->op_info.buf_len;
-  } else {
-    DBG("Unknown mechanism");
-    rv = CKR_FUNCTION_FAILED;
-    goto decrypt_out;
-  }
 
   DBG("Got %lu bytes back", *pulLastPartLen);
 #if YKCS11_DBG > 1
   dump_data(session->op_info.buf, *pulLastPartLen, stderr, CK_TRUE, format_arg_hex);
 #endif
-
-  memcpy(pLastPart, dec, *pulLastPartLen);
-  rv = CKR_OK;
 
   decrypt_out:
   session->op_info.type = YKCS11_NOOP;

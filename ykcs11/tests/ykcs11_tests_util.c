@@ -634,7 +634,6 @@ void test_ec_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJE
         }
 
         construct_der_encoded_sig(sig, der_encoded, key_len);
-        dump_hex(der_encoded, der_encoded[1] + 2, stderr, 1);
 
         asrt(ECDSA_verify(0, hdata, hdata_len, der_encoded, der_encoded[1] + 2, eck), 1, "ECDSA VERIFICATION");
       }

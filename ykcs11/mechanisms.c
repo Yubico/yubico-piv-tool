@@ -803,7 +803,7 @@ CK_RV digest_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR pDigest, CK_
   return CKR_OK;
 }
 
-CK_RV check_rsa_decrypt_mechanism(ykcs11_session_t *s, CK_MECHANISM_PTR m) {
+CK_RV check_rsa_decrypt_mechanism(ykcs11_session_t *session, CK_MECHANISM_PTR mech) {
 
   CK_ULONG          i;
   CK_BBOOL          supported = CK_FALSE;
@@ -811,7 +811,7 @@ CK_RV check_rsa_decrypt_mechanism(ykcs11_session_t *s, CK_MECHANISM_PTR m) {
 
   // Check if the mechanism is supported by the module
   for (i = 0; i < sizeof(decrypt_rsa_mechanisms) / sizeof(CK_MECHANISM_TYPE); i++) {
-    if (m->mechanism == decrypt_rsa_mechanisms[i]) {
+    if (mech->mechanism == decrypt_rsa_mechanisms[i]) {
       supported = CK_TRUE;
       break;
     }
@@ -820,10 +820,84 @@ CK_RV check_rsa_decrypt_mechanism(ykcs11_session_t *s, CK_MECHANISM_PTR m) {
     return CKR_MECHANISM_INVALID;
 
   // Check if the mechanism is supported by the token
-  if (get_token_mechanism_info(m->mechanism, &info) != CKR_OK)
+  if (get_token_mechanism_info(mech->mechanism, &info) != CKR_OK)
     return CKR_MECHANISM_INVALID;
 
   // TODO: also check that parametes make sense if any? And key size is in [min max]
 
+  return CKR_OK;
+}
+
+CK_RV decrypt_mechanism_init(ykcs11_session_t *session, CK_MECHANISM_PTR mech) {
+
+  session->op_info.mechanism = mech->mechanism;
+  switch (session->op_info.mechanism) {
+  case CKM_RSA_X_509:
+    session->op_info.op.decrypt.padding = RSA_NO_PADDING;
+    break;
+  case CKM_RSA_PKCS:
+    session->op_info.op.decrypt.padding = RSA_PKCS1_PADDING;
+    break;
+  case CKM_RSA_PKCS_OAEP:
+    session->op_info.op.decrypt.padding = RSA_PKCS1_OAEP_PADDING;
+    
+    if(mech->pParameter != NULL) {
+      CK_RSA_PKCS_OAEP_PARAMS_PTR oaep = (CK_RSA_PKCS_OAEP_PARAMS_PTR) mech->pParameter;
+      session->op_info.op.decrypt.oaep_md = EVP_MD_by_mechanism(oaep->hashAlg);
+      session->op_info.op.decrypt.mgf1_md = EVP_MD_by_mechanism(oaep->mgf);
+      session->op_info.op.decrypt.oaep_encparam = oaep->pSourceData;
+      session->op_info.op.decrypt.oaep_encparam_len = oaep->ulSourceDataLen;
+    } else {
+      session->op_info.op.decrypt.oaep_md = NULL;
+      session->op_info.op.decrypt.mgf1_md = NULL;
+      session->op_info.op.decrypt.oaep_encparam = NULL;
+      session->op_info.op.decrypt.oaep_encparam_len = 0;
+    }
+    
+    break;
+  default:
+    session->op_info.op.decrypt.padding = RSA_NO_PADDING;
+    break;
+  }
+
+  return CKR_OK;
+}
+
+CK_RV decrypt_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR data, CK_ULONG_PTR data_len, CK_ULONG enc_len, CK_ULONG key_len) {
+  ykpiv_rc piv_rv;
+  CK_BYTE  dec[1024];
+  size_t   cbDataLen = sizeof(dec);
+
+  CK_BYTE algo = do_get_key_algorithm(session->pkeys[session->op_info.op.decrypt.key_id]);
+  CK_ULONG pivkey = piv_2_ykpiv(find_pvtk_object(session->op_info.op.decrypt.key_id));
+  DBG("Using key %lx for decryption", pivkey);
+
+  piv_rv = ykpiv_decipher_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, 
+                               session->op_info.buf, &cbDataLen, algo, pivkey);
+  if (piv_rv != YKPIV_OK) {
+    if (piv_rv == YKPIV_AUTHENTICATION_ERROR) {
+      DBG("Operation requires authentication or touch");
+      return CKR_USER_NOT_LOGGED_IN;
+    } else {
+      DBG("Decrypt error, %s", ykpiv_strerror(piv_rv));
+      return CKR_FUNCTION_FAILED;
+    }
+  }
+
+  if(session->op_info.op.decrypt.padding == RSA_PKCS1_PADDING) {
+    *data_len = RSA_padding_check_PKCS1_type_2(dec, sizeof(dec), session->op_info.buf + 1, cbDataLen - 1, key_len/8);
+  } else if(session->op_info.op.decrypt.padding == RSA_PKCS1_OAEP_PADDING) {
+    *data_len = RSA_padding_check_PKCS1_OAEP_mgf1(dec, sizeof(dec), session->op_info.buf + 1, cbDataLen - 1, key_len/8, 
+                                                    session->op_info.op.decrypt.oaep_encparam, session->op_info.op.decrypt.oaep_encparam_len, 
+                                                    session->op_info.op.decrypt.oaep_md, session->op_info.op.decrypt.mgf1_md);
+  } else if(session->op_info.op.decrypt.padding == RSA_NO_PADDING) {
+    memcpy(dec, session->op_info.buf, enc_len);
+    *data_len = enc_len;
+  } else {
+    DBG("Unknown padding");
+    return CKR_FUNCTION_FAILED;
+  }
+
+  memcpy(data, dec, *data_len);
   return CKR_OK;
 }

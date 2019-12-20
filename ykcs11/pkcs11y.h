@@ -45,18 +45,29 @@ typedef CK_FLAGS * CK_FLAGS_PTR;
 
 // Standard stuff that we use but is not in pkcs11.h
 
-#define CKG_MGF1_SHA1			(0x1UL)
+#define CKG_MGF1_SHA1			  (0x1UL)
 #define CKG_MGF1_SHA256			(0x2UL)
 #define CKG_MGF1_SHA384			(0x3UL)
 #define CKG_MGF1_SHA512			(0x4UL)
 #define CKG_MGF1_SHA224			(0x5UL)
 
+#define CKZ_DATA_SPECIFIED  (0x1UL) // The only supported option for CK_RSA_PKCS_OAEP_SOURCE_TYPE
+
 typedef unsigned long CK_RSA_PKCS_MGF_TYPE;
+typedef unsigned long CK_RSA_PKCS_OAEP_SOURCE_TYPE;
 
 typedef struct {
-  CK_MECHANISM_TYPE hashAlg;
-  CK_RSA_PKCS_MGF_TYPE mgf;
-  CK_ULONG sLen;
+  CK_MECHANISM_TYPE       hashAlg;
+  CK_RSA_PKCS_MGF_TYPE    mgf;
+  CK_ULONG                sLen;
 } CK_RSA_PKCS_PSS_PARAMS, *CK_RSA_PKCS_PSS_PARAMS_PTR;
+
+typedef struct {
+  CK_MECHANISM_TYPE             hashAlg;
+  CK_RSA_PKCS_MGF_TYPE          mgf;
+  CK_RSA_PKCS_OAEP_SOURCE_TYPE  source;
+  CK_VOID_PTR                   pSourceData;
+  CK_ULONG                      ulSourceDataLen;
+} CK_RSA_PKCS_OAEP_PARAMS, *CK_RSA_PKCS_OAEP_PARAMS_PTR;
 
 #endif
