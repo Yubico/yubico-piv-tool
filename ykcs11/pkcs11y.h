@@ -51,7 +51,7 @@ typedef CK_FLAGS * CK_FLAGS_PTR;
 #define CKG_MGF1_SHA512			(0x4UL)
 #define CKG_MGF1_SHA224			(0x5UL)
 
-#define CKZ_DATA_SPECIFIED  (0x1UL) // The only supported option for CK_RSA_PKCS_OAEP_SOURCE_TYPE
+#define CKZ_DATA_SPECIFIED  (0x1UL) // = CK_BYTE. The only supported option for CK_RSA_PKCS_OAEP_SOURCE_TYPE
 
 typedef unsigned long CK_RSA_PKCS_MGF_TYPE;
 typedef unsigned long CK_RSA_PKCS_OAEP_SOURCE_TYPE;

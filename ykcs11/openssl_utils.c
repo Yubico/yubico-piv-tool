@@ -51,7 +51,7 @@ CK_RV do_rand_bytes(CK_BYTE_PTR data, CK_ULONG len) {
   return CKR_OK;
 }
 
-CK_RV do_rsa_encrypt(ykcs11_pkey_t *key, int padding, CK_BYTE_PTR src, CK_ULONG src_len, CK_BYTE_PTR dst, CK_ULONG_PTR dst_len) {
+CK_RV do_rsa_encrypt(ykcs11_pkey_t *key, int padding, EVP_MD* oaep_md, EVP_MD* oaep_mgf1, CK_BYTE_PTR src, CK_ULONG src_len, CK_BYTE_PTR dst, CK_ULONG_PTR dst_len) {
 
   if (EVP_PKEY_base_id(key) != EVP_PKEY_RSA) {
     return CKR_KEY_TYPE_INCONSISTENT;
@@ -72,6 +72,18 @@ CK_RV do_rsa_encrypt(ykcs11_pkey_t *key, int padding, CK_BYTE_PTR src, CK_ULONG 
     return CKR_FUNCTION_FAILED;
   }
 
+  if(oaep_md != NULL && oaep_mgf1 != NULL) {
+    if(EVP_PKEY_CTX_set_rsa_oaep_md(ctx, oaep_md) >= 0) {
+      EVP_PKEY_CTX_free(ctx);
+      return CKR_FUNCTION_FAILED;
+    }
+    
+    if(EVP_PKEY_CTX_set_rsa_mgf1_md(ctx, oaep_mgf1) >= 0) {
+      EVP_PKEY_CTX_free(ctx);
+      return CKR_FUNCTION_FAILED;
+    }
+  }
+ 
   size_t cbLen = *dst_len;
   if(EVP_PKEY_encrypt(ctx, dst, &cbLen, src, src_len) <= 0) {
     EVP_PKEY_CTX_free(ctx);

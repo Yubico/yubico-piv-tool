@@ -843,21 +843,26 @@ CK_RV decrypt_mechanism_init(ykcs11_session_t *session, CK_MECHANISM_PTR mech) {
     
     if(mech->pParameter != NULL) {
       CK_RSA_PKCS_OAEP_PARAMS_PTR oaep = (CK_RSA_PKCS_OAEP_PARAMS_PTR) mech->pParameter;
-      session->op_info.op.decrypt.oaep_md = EVP_MD_by_mechanism(oaep->hashAlg);
-      session->op_info.op.decrypt.mgf1_md = EVP_MD_by_mechanism(oaep->mgf);
-      session->op_info.op.decrypt.oaep_encparam = oaep->pSourceData;
-      session->op_info.op.decrypt.oaep_encparam_len = oaep->ulSourceDataLen;
+      if(oaep->source != CKZ_DATA_SPECIFIED) { // CKZ_DATA_SPECIFIED => type is CK_BYTE
+        DBG("Unknown type of OAEP encoding parameter");
+        return CKR_FUNCTION_FAILED;
+      }
+      session->op_info.op.decrypt.oaep.oaep_md = EVP_MD_by_mechanism(oaep->hashAlg);
+      session->op_info.op.decrypt.oaep.mgf1_md = EVP_MD_by_mechanism(oaep->mgf);
+      session->op_info.op.decrypt.oaep.oaep_encparam = malloc(oaep->ulSourceDataLen);
+      memcpy(session->op_info.op.decrypt.oaep.oaep_encparam, oaep->pSourceData, oaep->ulSourceDataLen);
+      session->op_info.op.decrypt.oaep.oaep_encparam_len = oaep->ulSourceDataLen;
     } else {
-      session->op_info.op.decrypt.oaep_md = NULL;
-      session->op_info.op.decrypt.mgf1_md = NULL;
-      session->op_info.op.decrypt.oaep_encparam = NULL;
-      session->op_info.op.decrypt.oaep_encparam_len = 0;
+      session->op_info.op.decrypt.oaep.oaep_md = NULL;
+      session->op_info.op.decrypt.oaep.mgf1_md = NULL;
+      session->op_info.op.decrypt.oaep.oaep_encparam = NULL;
+      session->op_info.op.decrypt.oaep.oaep_encparam_len = 0;
     }
     
     break;
   default:
-    session->op_info.op.decrypt.padding = RSA_NO_PADDING;
-    break;
+    DBG("Unsupported mechanism");
+    return CKR_FUNCTION_FAILED;
   }
 
   return CKR_OK;
@@ -888,8 +893,8 @@ CK_RV decrypt_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR data, CK_UL
     *data_len = RSA_padding_check_PKCS1_type_2(dec, sizeof(dec), session->op_info.buf + 1, cbDataLen - 1, key_len/8);
   } else if(session->op_info.op.decrypt.padding == RSA_PKCS1_OAEP_PADDING) {
     *data_len = RSA_padding_check_PKCS1_OAEP_mgf1(dec, sizeof(dec), session->op_info.buf + 1, cbDataLen - 1, key_len/8, 
-                                                    session->op_info.op.decrypt.oaep_encparam, session->op_info.op.decrypt.oaep_encparam_len, 
-                                                    session->op_info.op.decrypt.oaep_md, session->op_info.op.decrypt.mgf1_md);
+                                                  session->op_info.op.decrypt.oaep.oaep_encparam, session->op_info.op.decrypt.oaep.oaep_encparam_len, 
+                                                  session->op_info.op.decrypt.oaep.oaep_md, session->op_info.op.decrypt.oaep.mgf1_md);
   } else if(session->op_info.op.decrypt.padding == RSA_NO_PADDING) {
     memcpy(dec, session->op_info.buf, enc_len);
     *data_len = enc_len;
@@ -899,5 +904,41 @@ CK_RV decrypt_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR data, CK_UL
   }
 
   memcpy(data, dec, *data_len);
+  return CKR_OK;
+}
+
+CK_RV encrypt_mechanism_init(ykcs11_session_t *session, CK_MECHANISM_PTR mech) {
+
+  session->op_info.mechanism = mech->mechanism;
+  switch (session->op_info.mechanism) {
+  case CKM_RSA_PKCS:
+  case CKM_RSA_X_509:
+    session->op_info.op.encrypt.padding = RSA_PKCS1_PADDING;
+    break;
+  case CKM_RSA_PKCS_OAEP:
+    session->op_info.op.encrypt.padding = RSA_PKCS1_OAEP_PADDING;
+    
+    if(mech->pParameter != NULL) {
+      CK_RSA_PKCS_OAEP_PARAMS_PTR oaep = (CK_RSA_PKCS_OAEP_PARAMS_PTR) mech->pParameter;
+      if(oaep->source != CKZ_DATA_SPECIFIED) { // CKZ_DATA_SPECIFIED => type is CK_BYTE
+        DBG("Unknown type of OAEP encoding parameter");
+        return CKR_FUNCTION_FAILED;
+      }
+      session->op_info.op.encrypt.oaep.oaep_md = EVP_MD_by_mechanism(oaep->hashAlg);
+      session->op_info.op.encrypt.oaep.mgf1_md = EVP_MD_by_mechanism(oaep->mgf);
+    } else {
+      session->op_info.op.encrypt.oaep.oaep_md = NULL;
+      session->op_info.op.encrypt.oaep.mgf1_md = NULL;
+    }
+    session->op_info.op.encrypt.oaep.oaep_encparam = NULL;
+    session->op_info.op.encrypt.oaep.oaep_encparam_len = 0;
+
+    
+    break;
+  default:
+    DBG("Unsupported mechanism");
+    return CKR_FUNCTION_FAILED;
+  }
+
   return CKR_OK;
 }

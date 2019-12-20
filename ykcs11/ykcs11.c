@@ -1749,11 +1749,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptInit)(
   }
 
   session->op_info.op.encrypt.key_id = id;
-  if(session->op_info.mechanism == CKM_RSA_PKCS_OAEP) {
-    session->op_info.op.encrypt.padding = RSA_PKCS1_OAEP_PADDING;  
-  } else {
-    session->op_info.op.encrypt.padding = RSA_PKCS1_PADDING;
-  }
+
+  if(encrypt_mechanism_init(session, pMechanism) != CKR_OK) {
+    DBG("Failed to initialize encryption operation");
+    return CKR_FUNCTION_FAILED;
+  } 
+
   session->op_info.buf_len = 0;
   session->op_info.type = YKCS11_ENCRYPT;
 
@@ -1771,6 +1772,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Encrypt)(
   CK_ULONG_PTR pulEncryptedDataLen
 )
 {
+  CK_RV rv;
+
   DIN;
   
   if (mutex == NULL) {
@@ -1800,10 +1803,20 @@ CK_DEFINE_FUNCTION(CK_RV, C_Encrypt)(
   dump_data(pData, ulDataLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
-  CK_RV rv = do_rsa_encrypt(session->pkeys[session->op_info.op.encrypt.key_id],
-                            session->op_info.op.encrypt.padding,
-                            pData, ulDataLen,
-                            pEncryptedData, pulEncryptedDataLen);
+  if(session->op_info.op.encrypt.padding == RSA_PKCS1_OAEP_PADDING && 
+     session->op_info.op.encrypt.oaep.oaep_md != NULL && 
+     session->op_info.op.encrypt.oaep.mgf1_md != NULL) {
+    rv = do_rsa_encrypt(session->pkeys[session->op_info.op.encrypt.key_id],
+                        session->op_info.op.encrypt.padding,
+                        session->op_info.op.encrypt.oaep.oaep_md, session->op_info.op.encrypt.oaep.mgf1_md,
+                        pData, ulDataLen,
+                        pEncryptedData, pulEncryptedDataLen);
+  } else {
+    rv = do_rsa_encrypt(session->pkeys[session->op_info.op.encrypt.key_id],
+                        session->op_info.op.encrypt.padding, NULL, NULL,
+                        pData, ulDataLen,
+                        pEncryptedData, pulEncryptedDataLen);
+  }
   if(rv != CKR_OK) {
     DBG("Encryption operation failed");
     return rv;
@@ -1868,6 +1881,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptFinal)(
   CK_ULONG_PTR pulLastEncryptedPartLen
 )
 {
+  CK_RV rv;
+
   DIN;
   
   if (mutex == NULL) {
@@ -1897,12 +1912,24 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptFinal)(
   dump_data(session->op_info.buf, session->op_info.buf_len, stderr, CK_TRUE, format_arg_hex);
 #endif
 
-  CK_RV rv = do_rsa_encrypt(session->pkeys[session->op_info.op.encrypt.key_id],
-                            session->op_info.op.encrypt.padding,
-                            session->op_info.buf,
-                            session->op_info.buf_len,
-                            pLastEncryptedPart,
-                            pulLastEncryptedPartLen);
+  if(session->op_info.op.encrypt.padding == RSA_PKCS1_OAEP_PADDING && 
+     session->op_info.op.encrypt.oaep.oaep_md != NULL &&
+     session->op_info.op.encrypt.oaep.mgf1_md != NULL) {
+    rv = do_rsa_encrypt(session->pkeys[session->op_info.op.encrypt.key_id],
+                        session->op_info.op.encrypt.padding,
+                        session->op_info.op.encrypt.oaep.oaep_md, session->op_info.op.encrypt.oaep.mgf1_md,
+                        session->op_info.buf,
+                        session->op_info.buf_len,
+                        pLastEncryptedPart,
+                        pulLastEncryptedPartLen);
+  } else {
+    rv = do_rsa_encrypt(session->pkeys[session->op_info.op.encrypt.key_id],
+                        session->op_info.op.encrypt.padding, NULL, NULL,
+                        session->op_info.buf,
+                        session->op_info.buf_len,
+                        pLastEncryptedPart,
+                        pulLastEncryptedPartLen);
+  }
   if(rv != CKR_OK) {
     DBG("Encryption operation failed");
     return rv;
@@ -1961,11 +1988,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
     return CKR_MECHANISM_INVALID; // TODO: also the key has a list of allowed mechanisms, check that
   }
 
-  if (decrypt_mechanism_init(session, pMechanism) != CKR_OK) {
-    DBG("Unable to initialize decryption operation");
-    return CKR_FUNCTION_FAILED;
-  }
-
   CK_BYTE id = get_sub_id(hKey);
   if (id == 0) {
     DBG("Invalid key handle %lu", hKey);
@@ -1975,6 +1997,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
   if (do_get_key_type(session->pkeys[id]) != CKK_RSA) {
     DBG("Key %lu is not an RSA key", hKey);
     return CKR_KEY_TYPE_INCONSISTENT;
+  }
+
+  if (decrypt_mechanism_init(session, pMechanism) != CKR_OK) {
+    DBG("Unable to initialize decryption operation");
+    return CKR_FUNCTION_FAILED;
   }
   
   session->op_info.op.decrypt.key_id = id;
