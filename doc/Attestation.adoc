@@ -37,5 +37,5 @@ Now we're ready to verify the attestation:
 
 [NOTE]
 ====
-The above OpenSSL command doesn't work with OpenSSL 1.1.0 and newer with YubiKey 4 or YubiKey NEO. To verify certificate chains for such devices, see link:https://support.yubico.com/support/solutions/articles/15000013406-piv-attestation-verification-fails-with-openssl-1-1-0[PIV Attestation Verification Fails with OpenSSL 1.1.0].
+The above OpenSSL command doesn't work with OpenSSL 1.1.0 and newer with YubiKey 4. To verify certificate chains for such devices, see link:https://support.yubico.com/support/solutions/articles/15000013406-piv-attestation-verification-fails-with-openssl-1-1-0[PIV Attestation Verification Fails with OpenSSL 1.1.0].
 ====
