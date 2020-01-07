@@ -80,29 +80,18 @@ typedef struct {
 } verify_info_t;
 
 typedef struct {
+  CK_BYTE     key_id;
+  CK_ULONG    padding; // padding in the rsa case
   const ykcs11_md_t   *oaep_md;
   const ykcs11_md_t   *mgf1_md;
   unsigned char       *oaep_encparam;
   CK_ULONG            oaep_encparam_len;
-} oaep_info_t;
-
-typedef struct {
-  CK_BYTE     key_id;
-  CK_ULONG    padding; // padding in the rsa case
-  oaep_info_t oaep;
 } encrypt_info_t;
-
-typedef struct {
-  CK_BYTE             key_id;
-  CK_ULONG            padding;
-  oaep_info_t         oaep;
-} decrypt_info_t;
 
 typedef union {
   sign_info_t    sign;
   verify_info_t  verify;
-  encrypt_info_t encrypt;
-  decrypt_info_t decrypt;
+  encrypt_info_t encrypt; // Used for both encrypt and decrypt
 } op_t;
 
 typedef struct {

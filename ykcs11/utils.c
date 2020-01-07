@@ -95,16 +95,23 @@ CK_RV native_create_mutex(void **mutex) {
   InitializeCriticalSection(&mtx->mutex);
 #else
   pthread_mutexattr_t mattr;
-  if(pthread_mutexattr_init(&mattr))
+  if(pthread_mutexattr_init(&mattr)) {
+    free(mtx);
     return CKR_CANT_LOCK;
-  if(pthread_mutexattr_settype(&mattr, PTHREAD_MUTEX_ERRORCHECK))
+  }
+  if(pthread_mutexattr_settype(&mattr, PTHREAD_MUTEX_ERRORCHECK)) {
+    free(mtx);
     return CKR_CANT_LOCK;
-  if(pthread_mutexattr_setpshared(&mattr, PTHREAD_PROCESS_SHARED))
+  }
+  if(pthread_mutexattr_setpshared(&mattr, PTHREAD_PROCESS_SHARED)) {
+    free(mtx);
     return CKR_CANT_LOCK;
-  if(pthread_mutex_init(&mtx->mutex, &mattr))
+  }
+  if(pthread_mutex_init(&mtx->mutex, &mattr)) {
+    free(mtx);
     return CKR_CANT_LOCK;
-  if(pthread_mutexattr_destroy(&mattr))
-    return CKR_CANT_LOCK;
+  }
+  pthread_mutexattr_destroy(&mattr);
   mtx->pid = getpid();
 #endif
   *mutex = mtx;

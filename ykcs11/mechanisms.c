@@ -41,13 +41,6 @@
 #define PRIME256V1 "\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07"
 #define SECP384R1 "\x06\x05\x2b\x81\x04\x00\x22"
 
-// Supported mechanisms for RSA decryption
-static const CK_MECHANISM_TYPE decrypt_rsa_mechanisms[] = {
-  CKM_RSA_PKCS,
-  CKM_RSA_PKCS_OAEP,
-  CKM_RSA_X_509
-};
-
 // Supported mechanisms for key pair generation
 static const CK_MECHANISM_TYPE generation_mechanisms[] = {
   CKM_RSA_PKCS_KEY_PAIR_GEN,
@@ -803,43 +796,18 @@ CK_RV digest_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR pDigest, CK_
   return CKR_OK;
 }
 
-CK_RV check_rsa_decrypt_mechanism(ykcs11_session_t *session, CK_MECHANISM_PTR mech) {
-
-  CK_ULONG          i;
-  CK_BBOOL          supported = CK_FALSE;
-  CK_MECHANISM_INFO info;
-
-  // Check if the mechanism is supported by the module
-  for (i = 0; i < sizeof(decrypt_rsa_mechanisms) / sizeof(CK_MECHANISM_TYPE); i++) {
-    if (mech->mechanism == decrypt_rsa_mechanisms[i]) {
-      supported = CK_TRUE;
-      break;
-    }
-  }
-  if (supported == CK_FALSE)
-    return CKR_MECHANISM_INVALID;
-
-  // Check if the mechanism is supported by the token
-  if (get_token_mechanism_info(mech->mechanism, &info) != CKR_OK)
-    return CKR_MECHANISM_INVALID;
-
-  // TODO: also check that parametes make sense if any? And key size is in [min max]
-
-  return CKR_OK;
-}
-
 CK_RV decrypt_mechanism_init(ykcs11_session_t *session, CK_MECHANISM_PTR mech) {
 
   session->op_info.mechanism = mech->mechanism;
   switch (session->op_info.mechanism) {
   case CKM_RSA_X_509:
-    session->op_info.op.decrypt.padding = RSA_NO_PADDING;
+    session->op_info.op.encrypt.padding = RSA_NO_PADDING;
     break;
   case CKM_RSA_PKCS:
-    session->op_info.op.decrypt.padding = RSA_PKCS1_PADDING;
+    session->op_info.op.encrypt.padding = RSA_PKCS1_PADDING;
     break;
   case CKM_RSA_PKCS_OAEP:
-    session->op_info.op.decrypt.padding = RSA_PKCS1_OAEP_PADDING;
+    session->op_info.op.encrypt.padding = RSA_PKCS1_OAEP_PADDING;
     
     if(mech->pParameter != NULL) {
       CK_RSA_PKCS_OAEP_PARAMS_PTR oaep = (CK_RSA_PKCS_OAEP_PARAMS_PTR) mech->pParameter;
@@ -847,16 +815,16 @@ CK_RV decrypt_mechanism_init(ykcs11_session_t *session, CK_MECHANISM_PTR mech) {
         DBG("Unknown type of OAEP encoding parameter");
         return CKR_FUNCTION_FAILED;
       }
-      session->op_info.op.decrypt.oaep.oaep_md = EVP_MD_by_mechanism(oaep->hashAlg);
-      session->op_info.op.decrypt.oaep.mgf1_md = EVP_MD_by_mechanism(oaep->mgf);
-      session->op_info.op.decrypt.oaep.oaep_encparam = malloc(oaep->ulSourceDataLen);
-      memcpy(session->op_info.op.decrypt.oaep.oaep_encparam, oaep->pSourceData, oaep->ulSourceDataLen);
-      session->op_info.op.decrypt.oaep.oaep_encparam_len = oaep->ulSourceDataLen;
+      session->op_info.op.encrypt.oaep_md = EVP_MD_by_mechanism(oaep->hashAlg);
+      session->op_info.op.encrypt.mgf1_md = EVP_MD_by_mechanism(oaep->mgf);
+      session->op_info.op.encrypt.oaep_encparam = malloc(oaep->ulSourceDataLen);
+      memcpy(session->op_info.op.encrypt.oaep_encparam, oaep->pSourceData, oaep->ulSourceDataLen);
+      session->op_info.op.encrypt.oaep_encparam_len = oaep->ulSourceDataLen;
     } else {
-      session->op_info.op.decrypt.oaep.oaep_md = NULL;
-      session->op_info.op.decrypt.oaep.mgf1_md = NULL;
-      session->op_info.op.decrypt.oaep.oaep_encparam = NULL;
-      session->op_info.op.decrypt.oaep.oaep_encparam_len = 0;
+      session->op_info.op.encrypt.oaep_md = NULL;
+      session->op_info.op.encrypt.mgf1_md = NULL;
+      session->op_info.op.encrypt.oaep_encparam = NULL;
+      session->op_info.op.encrypt.oaep_encparam_len = 0;
     }
     
     break;
@@ -873,8 +841,8 @@ CK_RV decrypt_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR data, CK_UL
   CK_BYTE  dec[1024];
   size_t   cbDataLen = sizeof(dec);
 
-  CK_BYTE algo = do_get_key_algorithm(session->pkeys[session->op_info.op.decrypt.key_id]);
-  CK_ULONG pivkey = piv_2_ykpiv(find_pvtk_object(session->op_info.op.decrypt.key_id));
+  CK_BYTE algo = do_get_key_algorithm(session->pkeys[session->op_info.op.encrypt.key_id]);
+  CK_ULONG pivkey = piv_2_ykpiv(find_pvtk_object(session->op_info.op.encrypt.key_id));
   DBG("Using key %lx for decryption", pivkey);
 
   piv_rv = ykpiv_decipher_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, 
@@ -889,13 +857,13 @@ CK_RV decrypt_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR data, CK_UL
     }
   }
 
-  if(session->op_info.op.decrypt.padding == RSA_PKCS1_PADDING) {
+  if(session->op_info.op.encrypt.padding == RSA_PKCS1_PADDING) {
     *data_len = RSA_padding_check_PKCS1_type_2(dec, sizeof(dec), session->op_info.buf + 1, cbDataLen - 1, key_len/8);
-  } else if(session->op_info.op.decrypt.padding == RSA_PKCS1_OAEP_PADDING) {
+  } else if(session->op_info.op.encrypt.padding == RSA_PKCS1_OAEP_PADDING) {
     *data_len = RSA_padding_check_PKCS1_OAEP_mgf1(dec, sizeof(dec), session->op_info.buf + 1, cbDataLen - 1, key_len/8, 
-                                                  session->op_info.op.decrypt.oaep.oaep_encparam, session->op_info.op.decrypt.oaep.oaep_encparam_len, 
-                                                  session->op_info.op.decrypt.oaep.oaep_md, session->op_info.op.decrypt.oaep.mgf1_md);
-  } else if(session->op_info.op.decrypt.padding == RSA_NO_PADDING) {
+                                                  session->op_info.op.encrypt.oaep_encparam, session->op_info.op.encrypt.oaep_encparam_len, 
+                                                  session->op_info.op.encrypt.oaep_md, session->op_info.op.encrypt.mgf1_md);
+  } else if(session->op_info.op.encrypt.padding == RSA_NO_PADDING) {
     memcpy(dec, session->op_info.buf, enc_len);
     *data_len = enc_len;
   } else {
@@ -924,14 +892,14 @@ CK_RV encrypt_mechanism_init(ykcs11_session_t *session, CK_MECHANISM_PTR mech) {
         DBG("Unknown type of OAEP encoding parameter");
         return CKR_FUNCTION_FAILED;
       }
-      session->op_info.op.encrypt.oaep.oaep_md = EVP_MD_by_mechanism(oaep->hashAlg);
-      session->op_info.op.encrypt.oaep.mgf1_md = EVP_MD_by_mechanism(oaep->mgf);
+      session->op_info.op.encrypt.oaep_md = EVP_MD_by_mechanism(oaep->hashAlg);
+      session->op_info.op.encrypt.mgf1_md = EVP_MD_by_mechanism(oaep->mgf);
     } else {
-      session->op_info.op.encrypt.oaep.oaep_md = NULL;
-      session->op_info.op.encrypt.oaep.mgf1_md = NULL;
+      session->op_info.op.encrypt.oaep_md = NULL;
+      session->op_info.op.encrypt.mgf1_md = NULL;
     }
-    session->op_info.op.encrypt.oaep.oaep_encparam = NULL;
-    session->op_info.op.encrypt.oaep.oaep_encparam_len = 0;
+    session->op_info.op.encrypt.oaep_encparam = NULL;
+    session->op_info.op.encrypt.oaep_encparam_len = 0;
 
     
     break;

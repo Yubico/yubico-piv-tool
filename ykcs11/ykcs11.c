@@ -839,7 +839,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
               session->objects[session->n_objects++] = atst_id;
             }
           } else {
-            DBG("Failed to create public key info for private key %u (slot %lx, algorithm %u) from metadata: %lu", pvtk_id, piv_2_ykpiv(pvtk_id), md.algorithm, rv);
+            DBG("Failed to create public key info for private key %u (slot %lx, algorithm %u) from metadata: %lu", pvtk_id, piv_2_ykpiv(pvtk_id), md->algorithm, rv);
             rc = YKPIV_KEY_ERROR; // Ensure we create the key from the certificate instead
           }
         } else {
@@ -1730,13 +1730,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptInit)(
   if (pMechanism == NULL)
     return CKR_ARGUMENTS_BAD;
 
-  // Check if mechanism is supported
-  if (check_rsa_decrypt_mechanism(session, pMechanism) != CKR_OK) {
-    DBG("Mechanism %lu is not supported either by the token or the module", pMechanism->mechanism);
-    return CKR_MECHANISM_INVALID; // TODO: also the key has a list of allowed mechanisms, check that
-  }
-  session->op_info.mechanism = pMechanism->mechanism;
-
   CK_BYTE id = get_sub_id(hKey);
   if (id == 0) {
     DBG("Invalid key handle %lu", hKey);
@@ -1803,20 +1796,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_Encrypt)(
   dump_data(pData, ulDataLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
-  if(session->op_info.op.encrypt.padding == RSA_PKCS1_OAEP_PADDING && 
-     session->op_info.op.encrypt.oaep.oaep_md != NULL && 
-     session->op_info.op.encrypt.oaep.mgf1_md != NULL) {
-    rv = do_rsa_encrypt(session->pkeys[session->op_info.op.encrypt.key_id],
-                        session->op_info.op.encrypt.padding,
-                        session->op_info.op.encrypt.oaep.oaep_md, session->op_info.op.encrypt.oaep.mgf1_md,
-                        pData, ulDataLen,
-                        pEncryptedData, pulEncryptedDataLen);
-  } else {
-    rv = do_rsa_encrypt(session->pkeys[session->op_info.op.encrypt.key_id],
-                        session->op_info.op.encrypt.padding, NULL, NULL,
-                        pData, ulDataLen,
-                        pEncryptedData, pulEncryptedDataLen);
-  }
+  rv = do_rsa_encrypt(session->pkeys[session->op_info.op.encrypt.key_id],
+                      session->op_info.op.encrypt.padding,
+                      session->op_info.op.encrypt.oaep_md, session->op_info.op.encrypt.mgf1_md,
+                      pData, ulDataLen,
+                      pEncryptedData, pulEncryptedDataLen);
   if(rv != CKR_OK) {
     DBG("Encryption operation failed");
     return rv;
@@ -1866,6 +1850,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptUpdate)(
     return CKR_OPERATION_NOT_INITIALIZED;
   }
 
+  if(session->op_info.buf_len + ulPartLen > sizeof(session->op_info.buf)) {
+    DBG("Too much data added to operation buffer, max is %lu bytes", sizeof(session->op_info.buf));
+    return CKR_DATA_LEN_RANGE;
+  }
+
   memcpy(session->op_info.buf + session->op_info.buf_len, pPart, ulPartLen);
   session->op_info.buf_len += ulPartLen;
 
@@ -1912,24 +1901,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptFinal)(
   dump_data(session->op_info.buf, session->op_info.buf_len, stderr, CK_TRUE, format_arg_hex);
 #endif
 
-  if(session->op_info.op.encrypt.padding == RSA_PKCS1_OAEP_PADDING && 
-     session->op_info.op.encrypt.oaep.oaep_md != NULL &&
-     session->op_info.op.encrypt.oaep.mgf1_md != NULL) {
-    rv = do_rsa_encrypt(session->pkeys[session->op_info.op.encrypt.key_id],
-                        session->op_info.op.encrypt.padding,
-                        session->op_info.op.encrypt.oaep.oaep_md, session->op_info.op.encrypt.oaep.mgf1_md,
-                        session->op_info.buf,
-                        session->op_info.buf_len,
-                        pLastEncryptedPart,
-                        pulLastEncryptedPartLen);
-  } else {
-    rv = do_rsa_encrypt(session->pkeys[session->op_info.op.encrypt.key_id],
-                        session->op_info.op.encrypt.padding, NULL, NULL,
-                        session->op_info.buf,
-                        session->op_info.buf_len,
-                        pLastEncryptedPart,
-                        pulLastEncryptedPartLen);
-  }
+  rv = do_rsa_encrypt(session->pkeys[session->op_info.op.encrypt.key_id],
+                      session->op_info.op.encrypt.padding,
+                      session->op_info.op.encrypt.oaep_md, session->op_info.op.encrypt.mgf1_md,
+                      session->op_info.buf,
+                      session->op_info.buf_len,
+                      pLastEncryptedPart,
+                      pulLastEncryptedPartLen);
   if(rv != CKR_OK) {
     DBG("Encryption operation failed");
     return rv;
@@ -1982,12 +1960,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
 
   DBG("Trying to decrypt some data with mechanism %lu and key %lu", pMechanism->mechanism, hKey);
 
-  // Check if mechanism is supported
-  if (check_rsa_decrypt_mechanism(session, pMechanism) != CKR_OK) {
-    DBG("Mechanism %lu is not supported either by the token or the module", pMechanism->mechanism);
-    return CKR_MECHANISM_INVALID; // TODO: also the key has a list of allowed mechanisms, check that
-  }
-
   CK_BYTE id = get_sub_id(hKey);
   if (id == 0) {
     DBG("Invalid key handle %lu", hKey);
@@ -2004,7 +1976,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
     return CKR_FUNCTION_FAILED;
   }
   
-  session->op_info.op.decrypt.key_id = id;
+  session->op_info.op.encrypt.key_id = id;
   session->op_info.buf_len = 0;
   session->op_info.type = YKCS11_DECRYPT;
 
@@ -2053,7 +2025,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
     goto decrypt_out;
   }
 
-  CK_ULONG key_len = do_get_key_size(session->pkeys[session->op_info.op.decrypt.key_id]);
+  CK_ULONG key_len = do_get_key_size(session->pkeys[session->op_info.op.encrypt.key_id]);
   CK_ULONG datalen = (key_len + 7) / 8 - 11;
   DBG("The size of the data will be %lu", datalen);
 
@@ -2069,6 +2041,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
 #if YKCS11_DBG > 1
   dump_data(pEncryptedData, ulEncryptedDataLen, stderr, CK_TRUE, format_arg_hex);
 #endif
+
+  if(ulEncryptedDataLen > sizeof(session->op_info.buf)) {
+    DBG("Too much data added to operation buffer, max is %lu bytes", sizeof(session->op_info.buf));
+    return CKR_DATA_LEN_RANGE;
+  }
 
   session->op_info.buf_len = ulEncryptedDataLen;
   memcpy(session->op_info.buf, pEncryptedData, ulEncryptedDataLen);
@@ -2134,6 +2111,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptUpdate)(
   dump_data(pEncryptedPart, ulEncryptedPartLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
+  if(session->op_info.buf_len + ulEncryptedPartLen > sizeof(session->op_info.buf)) {
+    DBG("Too much data added to operation buffer, max is %lu bytes", sizeof(session->op_info.buf));
+    return CKR_DATA_LEN_RANGE;
+  }
+
   memcpy(session->op_info.buf + session->op_info.buf_len, pEncryptedPart, ulEncryptedPartLen);
   session->op_info.buf_len += ulEncryptedPartLen;
   rv = CKR_OK;
@@ -2187,7 +2169,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
     goto decrypt_out;
   }
 
-  CK_ULONG key_len = do_get_key_size(session->pkeys[session->op_info.op.decrypt.key_id]);
+  CK_ULONG key_len = do_get_key_size(session->pkeys[session->op_info.op.encrypt.key_id]);
   CK_ULONG datalen = (key_len + 7) / 8 - 11;
   DBG("The size of the data will be %lu", datalen);
 

@@ -797,13 +797,13 @@ int main(void) {
   test_max_multiple_sessions();
   test_login_order();
   test_digest();
-  test_generate_eccp256();
+  /*test_generate_eccp256();
   test_generate_eccp384();
   test_generate_rsa1024();
   test_import_eccp256();
   test_import_eccp384();
   test_import_rsa1024();
-  test_import_rsa2048();
+  test_import_rsa2048();*/
   test_decrypt_RSA();
   test_encrypt_RSA();
   test_key_attributes();

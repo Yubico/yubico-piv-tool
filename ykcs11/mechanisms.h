@@ -49,7 +49,6 @@ CK_RV digest_mechanism_init(ykcs11_session_t *session);
 CK_RV digest_mechanism_update(ykcs11_session_t *session, CK_BYTE_PTR in, CK_ULONG in_len);
 CK_RV digest_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR pDigest, CK_ULONG_PTR pDigestLength);
 
-CK_RV check_rsa_decrypt_mechanism(ykcs11_session_t *session, CK_MECHANISM_PTR mech);
 CK_RV decrypt_mechanism_init(ykcs11_session_t *session, CK_MECHANISM_PTR mech);
 CK_RV decrypt_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR dec, CK_ULONG_PTR dec_len, CK_ULONG enc_len, CK_ULONG key_len);
 
