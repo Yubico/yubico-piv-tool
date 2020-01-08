@@ -680,7 +680,7 @@ static void test_decrypt_RSA() {
     exit(EXIT_FAILURE);
 
   test_rsa_decrypt(funcs, session, obj_pvtkey, rsak, CKM_RSA_PKCS, RSA_PKCS1_PADDING);
-  test_rsa_decrypt(funcs, session, obj_pvtkey, rsak, CKM_RSA_X_509, RSA_PKCS1_PADDING);
+  test_rsa_decrypt(funcs, session, obj_pvtkey, rsak, CKM_RSA_X_509, RSA_NO_PADDING);
   test_rsa_decrypt(funcs, session, obj_pvtkey, rsak, CKM_RSA_PKCS_OAEP, RSA_PKCS1_OAEP_PADDING);
 
   destroy_test_objects(funcs, session, obj_cert, 24);
@@ -705,8 +705,6 @@ static void test_encrypt_RSA() {
     exit(EXIT_FAILURE);
 
   test_rsa_encrypt(funcs, session, obj_pvtkey, rsak, CKM_RSA_PKCS, RSA_PKCS1_PADDING);
-  test_rsa_encrypt(funcs, session, obj_pvtkey, rsak, CKM_RSA_PKCS, RSA_NO_PADDING);
-  test_rsa_encrypt(funcs, session, obj_pvtkey, rsak, CKM_RSA_X_509, RSA_PKCS1_PADDING);
   test_rsa_encrypt(funcs, session, obj_pvtkey, rsak, CKM_RSA_X_509, RSA_NO_PADDING);
   test_rsa_encrypt(funcs, session, obj_pvtkey, rsak, CKM_RSA_PKCS_OAEP, RSA_PKCS1_OAEP_PADDING);
 

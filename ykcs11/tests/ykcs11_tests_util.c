@@ -8,6 +8,7 @@
 #include <openssl/bn.h>
 #include <openssl/x509.h>
 #include <openssl/rand.h>
+#include <openssl/err.h>
 #include "pkcs11y.h"
 #include "ykcs11_tests_util.h"
 
@@ -800,54 +801,72 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
   asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
 }
 
+static int is_data_too_large(int enc_ret) {
+  if(enc_ret != -1) {
+    return 0;
+  }
+
+  unsigned long err;
+  ERR_load_crypto_strings();
+  err = ERR_get_error();
+  //char err_str[128];  
+  //ERR_error_string_n(err, err_str, 128);
+  //printf("%ld    %s\n", err, err_str);
+  if(err == 67534980) { // Error code for "data too large for modulus"
+    return 1;
+  }
+  return 0;
+}
+
 void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
                     RSA* rsak, CK_MECHANISM_TYPE mech_type, CK_ULONG padding) {
   CK_ULONG  i, j;
-  CK_BYTE   data[32];
-  CK_ULONG  data_len = sizeof(data);
+  int       data_len, enc_len;
+  CK_BYTE*  data;
   CK_BYTE   enc[512];
-  CK_ULONG  enc_len;
   CK_BYTE   dec[512];
   CK_ULONG  dec_len;
+
+  if(padding == RSA_NO_PADDING) {
+    data_len = RSA_size(rsak);
+  } else {
+    data_len = 32;
+  }
+  data = malloc(data_len);
 
   CK_MECHANISM mech = {mech_type, NULL};
 
   for (i = 0; i < 24; i++) {
     for (j = 0; j < 3; j++) {
-    
-      if(RAND_bytes(data, sizeof(data)) == -1)
-        exit(EXIT_FAILURE);
 
       asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Login USER");
 
-      enc_len = RSA_public_encrypt(32, data, enc, rsak, padding);
+      // This is because the numerical value of the clear data cannot be larger than the numerical value of the RSA key modulus
+      // Adding a padding takes care of this, but with RSA_NO_PADDING, we need to deal with that manually
+      do {
+        if(RAND_bytes(data, data_len) == -1)
+          exit(EXIT_FAILURE);
+
+        enc_len = RSA_public_encrypt(data_len, data, enc, rsak, padding);
+      } while(is_data_too_large(enc_len) == 1);
 
       // Decrypt
-      asrt(funcs->C_DecryptInit(session, &mech, obj_pvtkey[i]), CKR_OK, "DECRYPT INIT CKM_RSA_PKCS");
-      asrt(funcs->C_Decrypt(session, enc, enc_len, dec, &dec_len), CKR_OK, "DECRYPT CKM_RSA_PKCS");
-      if(mech_type == CKM_RSA_PKCS || mech_type == CKM_RSA_PKCS_OAEP) {
-        asrt(dec_len, data_len, "DECRYPTED DATA LEN CKM_RSA_PKCS");
-        asrt(memcmp(data, dec, dec_len), 0, "DECRYPTED DATA CKM_RSA_PKCS");
-      } else if(mech_type == CKM_RSA_X_509) {
-        asrt(dec_len, 128, "DECRYPTED DATA LEN CKM_RSA_X_509");
-        asrt(memcmp(data, dec+128-data_len, data_len), 0, "DECRYPTED DATA CKM_RSA_X_509");
-      }
+      asrt(funcs->C_DecryptInit(session, &mech, obj_pvtkey[i]), CKR_OK, "DECRYPT INIT");
+      asrt(funcs->C_Decrypt(session, enc, enc_len, dec, &dec_len), CKR_OK, "DECRYPT");
+      asrt(dec_len, data_len, "DECRYPTED DATA LEN");
+      asrt(memcmp(data, dec, dec_len), 0, "DECRYPTED DATA");
 
       // Decrypt Update
-      asrt(funcs->C_DecryptInit(session, &mech, obj_pvtkey[i]), CKR_OK, "DECRYPT INIT CKM_RSA_PKCS");
-      asrt(funcs->C_DecryptUpdate(session, enc, 100, NULL, NULL), CKR_OK, "DECRYPT UPDATE CKM_RSA_PKCS");
-      asrt(funcs->C_DecryptUpdate(session, enc+100, 8, NULL, NULL), CKR_OK, "DECRYPT UPDATE CKM_RSA_PKCS");
-      asrt(funcs->C_DecryptUpdate(session, enc+108, 20, NULL, NULL), CKR_OK, "DECRYPT UPDATE CKM_RSA_PKCS");
-      asrt(funcs->C_DecryptFinal(session, dec, &dec_len), CKR_OK, "DECRYPT FINAL CKM_RSA_PKCS");
-      if(mech_type == CKM_RSA_PKCS || mech_type == CKM_RSA_PKCS_OAEP) {
-        asrt(dec_len, data_len, "DECRYPTED DATA LEN CKM_RSA_PKCS");
-        asrt(memcmp(data, dec, dec_len), 0, "DECRYPTED DATA CKM_RSA_PKCS");
-      } else if(mech_type == CKM_RSA_X_509) {
-        asrt(dec_len, 128, "DECRYPTED DATA LEN CKM_RSA_X_509");
-        asrt(memcmp(data, dec+128-data_len, data_len), 0, "DECRYPTED DATA CKM_RSA_X_509");
-      }
+      asrt(funcs->C_DecryptInit(session, &mech, obj_pvtkey[i]), CKR_OK, "DECRYPT INIT");
+      asrt(funcs->C_DecryptUpdate(session, enc, 100, NULL, NULL), CKR_OK, "DECRYPT UPDATE");
+      asrt(funcs->C_DecryptUpdate(session, enc+100, 8, NULL, NULL), CKR_OK, "DECRYPT UPDATE");
+      asrt(funcs->C_DecryptUpdate(session, enc+108, 20, NULL, NULL), CKR_OK, "DECRYPT UPDATE");
+      asrt(funcs->C_DecryptFinal(session, dec, &dec_len), CKR_OK, "DECRYPT FINAL");
+      asrt(dec_len, data_len, "DECRYPTED DATA LEN");
+      asrt(memcmp(data, dec, dec_len), 0, "DECRYPTED DATA");
     }
   }
+  free(data);
   asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
 }
 

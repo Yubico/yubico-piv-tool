@@ -51,9 +51,11 @@ CK_RV do_rand_bytes(CK_BYTE_PTR data, CK_ULONG len) {
   return CKR_OK;
 }
 
-CK_RV do_rsa_encrypt(ykcs11_pkey_t *key, int padding, const ykcs11_md_t* oaep_md, const ykcs11_md_t* oaep_mgf1, CK_BYTE_PTR src, CK_ULONG src_len, CK_BYTE_PTR dst, CK_ULONG_PTR dst_len) {
+CK_RV do_rsa_encrypt(ykcs11_pkey_t *key, int padding, const ykcs11_md_t* oaep_md, const ykcs11_md_t* oaep_mgf1, 
+                     unsigned char *oaep_label, CK_ULONG oaep_label_len,
+                     CK_BYTE_PTR data, CK_ULONG data_len, CK_BYTE_PTR enc, CK_ULONG_PTR enc_len) {
 
-  if (EVP_PKEY_base_id(key) != EVP_PKEY_RSA) {
+    if (EVP_PKEY_base_id(key) != EVP_PKEY_RSA) {
     return CKR_KEY_TYPE_INCONSISTENT;
   }
 
@@ -67,30 +69,41 @@ CK_RV do_rsa_encrypt(ykcs11_pkey_t *key, int padding, const ykcs11_md_t* oaep_md
     return CKR_FUNCTION_FAILED;
   }
 
-  if(EVP_PKEY_CTX_set_rsa_padding(ctx, padding) <= 0) {
-    EVP_PKEY_CTX_free(ctx);
-    return CKR_FUNCTION_FAILED;
+  if(padding != RSA_NO_PADDING) {
+    if(EVP_PKEY_CTX_set_rsa_padding(ctx, padding) <= 0) {
+      EVP_PKEY_CTX_free(ctx);
+      return CKR_FUNCTION_FAILED;
+    }
   }
 
-  if(oaep_md != NULL && oaep_mgf1 != NULL) {
+  if(oaep_md != NULL && oaep_mgf1 != NULL && oaep_label != NULL) {
     if(EVP_PKEY_CTX_set_rsa_oaep_md(ctx, oaep_md) >= 0) {
+      free(oaep_label);
       EVP_PKEY_CTX_free(ctx);
       return CKR_FUNCTION_FAILED;
     }
     
     if(EVP_PKEY_CTX_set_rsa_mgf1_md(ctx, oaep_mgf1) >= 0) {
+      free(oaep_label);
       EVP_PKEY_CTX_free(ctx);
       return CKR_FUNCTION_FAILED;
     }
+
+    if(EVP_PKEY_CTX_set0_rsa_oaep_label(ctx, oaep_label, oaep_label_len) >= 0) {
+      free(oaep_label);
+      EVP_PKEY_CTX_free(ctx);
+      return CKR_FUNCTION_FAILED;
+    }
+
   }
  
-  size_t cbLen = *dst_len;
-  if(EVP_PKEY_encrypt(ctx, dst, &cbLen, src, src_len) <= 0) {
+  size_t cbLen = *enc_len;
+  if(EVP_PKEY_encrypt(ctx, enc, &cbLen, data, data_len) <= 0) {
     EVP_PKEY_CTX_free(ctx);
     return CKR_FUNCTION_FAILED;
   }
 
-  *dst_len = cbLen;
+  *enc_len = cbLen;
   EVP_PKEY_CTX_free(ctx);
   return CKR_OK;
 }
