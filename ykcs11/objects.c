@@ -1294,9 +1294,12 @@ piv_obj_id_t find_atst_object(CK_BYTE sub_id) {
 }
 
 CK_RV store_data(ykcs11_session_t *s, CK_BYTE sub_id, CK_BYTE_PTR data, CK_ULONG len) {
-  s->data[sub_id].data = realloc(s->data[sub_id].data, len);
-  if(s->data[sub_id].data == NULL) {
-    return CKR_HOST_MEMORY;
+  if(s->data[sub_id].data == NULL || s->data[sub_id].len < len) {
+    free(s->data[sub_id].data);
+    s->data[sub_id].data = malloc(len);
+    if(s->data[sub_id].data == NULL) {
+      return CKR_HOST_MEMORY;
+    }
   }
   memcpy(s->data[sub_id].data, data, len);
   s->data[sub_id].len = len;
