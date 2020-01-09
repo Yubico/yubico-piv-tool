@@ -1391,7 +1391,7 @@ ykpiv_rc ykpiv_clear_pin_cache(ykpiv_state *state) {
 }
 
 static ykpiv_rc _cache_mgm_key(ykpiv_state *state, unsigned const char *key) {
-#ifdef DISABLE_MGM_KEY_CACHE
+#if DISABLE_MGM_KEY_CACHE
   // Some embedded applications of this library may not want to keep the MGM_KEY
   // data in RAM for security reasons.
   return YKPIV_OK;
