@@ -603,13 +603,14 @@ void test_ec_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJE
 
   CK_MECHANISM mech = {mech_type, NULL};
 
+  asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Login USER");
+
   for (i = 0; i < 24; i++) {
     for (j = 0; j < 3; j++) {
       if(RAND_bytes(data, sizeof(data)) == -1)
         exit(EXIT_FAILURE);
       data_len = sizeof(data);
 
-      asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Login USER");
       asrt(funcs->C_SignInit(session, &mech, obj_pvtkey[i]), CKR_OK, "SignInit");
       recv_len = sizeof(sig);
       asrt(funcs->C_Sign(session, data, sizeof(data), sig, &recv_len), CKR_OK, "Sign");
@@ -659,6 +660,8 @@ void test_rsa_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJ
   CK_OBJECT_HANDLE obj_pubkey;
   CK_MECHANISM mech = {mech_type, NULL};
 
+  asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "LOGIN USER");
+
   for (i = 0; i < 24; i++) {
     obj_pubkey = get_public_key_handle(funcs, session, obj_pvtkey[i]);    
     for (j = 0; j < 3; j++) {
@@ -667,7 +670,6 @@ void test_rsa_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJ
         exit(EXIT_FAILURE);
 
       // Sign
-      asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "LOGIN USER");
       asrt(funcs->C_SignInit(session, &mech, obj_pvtkey[i]), CKR_OK, "SIGN INIT");
       sig_len = sizeof(sig);
       asrt(funcs->C_Sign(session, data, sizeof(data), sig, &sig_len), CKR_OK, "SIGN");
@@ -729,6 +731,8 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
 
   data = malloc(pss_params.sLen);
 
+  asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "LOGIN USER");
+
   for (i = 0; i < 24; i++) {
     obj_pubkey = get_public_key_handle(funcs, session, obj_pvtkey[i]);    
     for (j = 0; j < 3; j++) {
@@ -737,7 +741,6 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
         exit(EXIT_FAILURE);
 
       // Sign
-      asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "LOGIN USER");
       asrt(funcs->C_SignInit(session, &mech, obj_pvtkey[i]), CKR_OK, "SIGN INIT");
       sig_len = sizeof(sig);
       asrt(funcs->C_Sign(session, data, pss_params.sLen, sig, &sig_len), CKR_OK, "SIGN");
@@ -757,6 +760,7 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
 
           asrt(RSA_verify_PKCS1_PSS_mgf1(rsak, digest_data, get_md_type(pss_params.hashAlg), get_md_type(pss_params.mgf), pss_buf, pss_params.sLen), 1, "VERIFY PSS SIGNATURE");
         }
+        free(pss_buf);
       }
       
       // Internal verification: Verify
@@ -774,7 +778,7 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
 
       // External verification
       if(rsak != NULL) {
-        //pss_buf = malloc(sig_update_len);
+        pss_buf = malloc(sig_update_len);
         asrt(RSA_public_decrypt(sig_update_len, sig_update, pss_buf, rsak, RSA_NO_PADDING), sig_update_len, "DECRYPT PSS SIGNATURE");
 
         if(mech_type == CKM_RSA_PKCS_PSS) {
@@ -787,6 +791,7 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
 
           asrt(RSA_verify_PKCS1_PSS_mgf1(rsak, digest_data, get_md_type(pss_params.hashAlg), get_md_type(pss_params.mgf), pss_buf, pss_params.sLen), 1, "VERIFY PSS SIGNATURE");
         }
+        free(pss_buf);
       }
 
       // Internal verification: Verify Update
@@ -797,7 +802,7 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
     
     }
   }
-
+  free(data);
   asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
 }
 
@@ -835,12 +840,10 @@ void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   data = malloc(data_len);
 
   CK_MECHANISM mech = {mech_type, NULL};
+  asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Login USER");
 
   for (i = 0; i < 24; i++) {
     for (j = 0; j < 3; j++) {
-
-      asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Login USER");
-
       // This is because the numerical value of the clear data cannot be larger than the numerical value of the RSA key modulus
       // Adding a padding takes care of this, but with RSA_NO_PADDING, we need to deal with that manually
       do {
@@ -883,14 +886,14 @@ void test_rsa_encrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   CK_MECHANISM mech = {mech_type, NULL};
   CK_OBJECT_HANDLE pubkey;
 
+  asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Login USER");
+
   for (i = 0; i < 24; i++) {
     pubkey = get_public_key_handle(funcs, session, obj_pvtkey[i]);
     for (j = 0; j < 3; j++) {
     
       if(RAND_bytes(data, data_len) == -1)
         exit(EXIT_FAILURE);
-
-      asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Login USER");
 
       // Encrypt
       asrt(funcs->C_EncryptInit(session, &mech, pubkey), CKR_OK, "ENCRYPT INIT CKM_RSA_PKCS");

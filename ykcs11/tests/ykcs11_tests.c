@@ -228,7 +228,7 @@ static void test_mechanism_list_and_info() {
     asrt(funcs->C_GetMechanismInfo(0, mechs[i], &info), CKR_OK, "GET MECH INFO");
     asrt(memcmp(token_mechanism_infos + i, &info, sizeof(CK_MECHANISM_INFO)), 0, "CHECK MECH INFO");
   }
-
+  free(mechs);
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
   dprintf(0, "TEST END: test_mechanism_list_and_info()\n");
 }
