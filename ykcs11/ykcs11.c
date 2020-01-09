@@ -825,7 +825,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     piv_obj_id_t atst_id = find_atst_object(sub_id);
     CK_BYTE data[3072];  // Max cert value for ykpiv
     unsigned long len;
-    if(pvtk_id != (piv_obj_id_t)-1) {
+    if(pvtk_id != PIV_INVALID_OBJ) {
       len = sizeof(data);
       if((rc = ykpiv_get_metadata(session->slot->piv_state, piv_2_ykpiv(pvtk_id), data, &len)) == YKPIV_OK) {
         DBG("Read %lu bytes metadata for private key %u (slot %lx)", len, pvtk_id, piv_2_ykpiv(pvtk_id));
@@ -834,7 +834,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
             DBG("Adding key object %u and %u (metadata)", pubk_id, pvtk_id);
             session->objects[session->n_objects++] = pubk_id;
             session->objects[session->n_objects++] = pvtk_id;
-            if(md->origin == YKPIV_METADATA_ORIGIN_GENERATED && atst_id != (piv_obj_id_t)-1) { // Attestation key doesn't have an attestation
+            if(md->origin == YKPIV_METADATA_ORIGIN_GENERATED && atst_id != PIV_INVALID_OBJ) { // Attestation key doesn't have an attestation
               DBG("Adding attestation cert object %u (metadata)", atst_id);
               session->objects[session->n_objects++] = atst_id;
             }
@@ -859,7 +859,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
         session->slot = NULL;
         return rv;
       }
-      if(cert_id != (piv_obj_id_t)-1) {
+      if(cert_id != PIV_INVALID_OBJ) {
         DBG("Adding cert object %u", cert_id);
         session->objects[session->n_objects++] = cert_id;
         rv = store_cert(session, sub_id, data, len, CK_FALSE);
@@ -873,7 +873,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
           DBG("Adding key object %u and %u", pubk_id, pvtk_id);
           session->objects[session->n_objects++] = pubk_id;
           session->objects[session->n_objects++] = pvtk_id;
-          if(atst_id != (piv_obj_id_t)-1) { // Attestation key doesn't have an attestation
+          if(atst_id != PIV_INVALID_OBJ) { // Attestation key doesn't have an attestation
             DBG("Adding attestation cert object (blindly) %u", atst_id);
             session->objects[session->n_objects++] = atst_id;
           }
@@ -1290,7 +1290,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       *obj_ptr++ = pvtk_id;
     if(!is_present(session, pubk_id))
       *obj_ptr++ = pubk_id;
-    if(atst_id != (piv_obj_id_t)-1 && !is_present(session, atst_id))
+    if(atst_id != PIV_INVALID_OBJ && !is_present(session, atst_id))
       *obj_ptr ++ = atst_id;
 
     session->n_objects = obj_ptr - session->objects;
@@ -3206,7 +3206,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     *obj_ptr++ = pvtk_id;
   if(!is_present(session, pubk_id))
     *obj_ptr++ = pubk_id;
-  if(atst_id != (piv_obj_id_t)-1 && !is_present(session, atst_id))
+  if(atst_id != PIV_INVALID_OBJ && !is_present(session, atst_id))
     *obj_ptr++ = atst_id;
 
   session->n_objects = obj_ptr - session->objects;

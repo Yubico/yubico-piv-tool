@@ -1376,7 +1376,7 @@ CK_RV check_create_cert(CK_ATTRIBUTE_PTR templ, CK_ULONG n,
 
     case CKA_ID:
       has_id = CK_TRUE;
-      if (find_cert_object(*((CK_BYTE_PTR)templ[i].pValue)) == (piv_obj_id_t)-1)
+      if (find_cert_object(*((CK_BYTE_PTR)templ[i].pValue)) == PIV_INVALID_OBJ)
         return CKR_ATTRIBUTE_VALUE_INVALID;
 
       *id = *((CK_BYTE_PTR)templ[i].pValue);
@@ -1439,7 +1439,7 @@ CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
 
     case CKA_ID:
       has_id = CK_TRUE;
-      if (find_pvtk_object(*((CK_BYTE_PTR)templ[i].pValue)) == (piv_obj_id_t)-1)
+      if (find_pvtk_object(*((CK_BYTE_PTR)templ[i].pValue)) == PIV_INVALID_OBJ)
         return CKR_ATTRIBUTE_VALUE_INVALID;
 
       *id = *((CK_BYTE_PTR)templ[i].pValue);
@@ -1518,7 +1518,7 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
 
     case CKA_ID:
       has_id = CK_TRUE;
-      if (find_pvtk_object(*((CK_BYTE_PTR)templ[i].pValue)) == (piv_obj_id_t)-1)
+      if (find_pvtk_object(*((CK_BYTE_PTR)templ[i].pValue)) == PIV_INVALID_OBJ)
         return CKR_ATTRIBUTE_VALUE_INVALID;
 
       *id = *((CK_BYTE_PTR)templ[i].pValue);

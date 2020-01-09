@@ -622,7 +622,7 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
       break;
 
     case CKA_ID:
-      if (find_pubk_object(*((CK_BYTE_PTR)templ[i].pValue)) == (piv_obj_id_t)-1)
+      if (find_pubk_object(*((CK_BYTE_PTR)templ[i].pValue)) == PIV_INVALID_OBJ)
         return CKR_ATTRIBUTE_VALUE_INVALID;
 
       gen->key_id = *((CK_BYTE_PTR)templ[i].pValue);
@@ -668,7 +668,7 @@ CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
       break;
 
     case CKA_ID:
-      if (find_pvtk_object(*((CK_BYTE_PTR)templ[i].pValue)) == (piv_obj_id_t)-1)
+      if (find_pvtk_object(*((CK_BYTE_PTR)templ[i].pValue)) == PIV_INVALID_OBJ)
         return CKR_ATTRIBUTE_VALUE_INVALID;
 
       // Check if ID was already specified in the public key template
