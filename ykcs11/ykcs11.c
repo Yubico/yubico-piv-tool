@@ -913,7 +913,21 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
+  ykcs11_slot_t *slot = session->slot;
   cleanup_session(session);
+
+  int other_sessions = 0;
+
+  for(int i = 0; i < YKCS11_MAX_SESSIONS; i++) {
+    session = sessions + i;
+    if(session->slot == slot) {
+      other_sessions++;
+    }
+  }
+
+  if(other_sessions == 0)
+    slot->login_state = YKCS11_PUBLIC;
+
   locking.pfnUnlockMutex(mutex);
 
   DOUT;
@@ -946,6 +960,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
     if(session->slot && session->info.slotID == slotID)
       cleanup_session(session);
   }
+
+  slots[slotID].login_state = YKCS11_PUBLIC;
 
   locking.pfnUnlockMutex(mutex);
 
@@ -1040,19 +1056,30 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
   }
 
   switch (userType) {
+  case CKU_CONTEXT_SPECIFIC:
+    if (session->op_info.type != YKCS11_SIGN && session->op_info.type != YKCS11_DECRYPT) {
+      DBG("No sign or decrypt operation in progress. Context specific user is forbidden.");
+      return CKR_USER_TYPE_INVALID;
+    }
+    // Fall through
   case CKU_USER:
     if (ulPinLen < PIV_MIN_PIN_LEN || ulPinLen > PIV_MAX_PIN_LEN)
       return CKR_ARGUMENTS_BAD;
 
     locking.pfnLockMutex(session->slot->mutex);
 
+    // We allow multiple logins for CKU_CONTEXT_SPECIFIC (we allow it regardless of CKA_ALWAYS_AUTHENTICATE because it's based on hardcoded tables and might be wrong)
+    if (session->slot->login_state == YKCS11_USER && userType == CKU_USER) {
+      DBG("Tried to log-in USER to a USER session");
+      locking.pfnUnlockMutex(session->slot->mutex);
+      return CKR_USER_ALREADY_LOGGED_IN;
+    }
+
     if (session->slot->login_state == YKCS11_SO) {
       DBG("Tried to log-in USER to a SO session");
       locking.pfnUnlockMutex(session->slot->mutex);
       return CKR_USER_ANOTHER_ALREADY_LOGGED_IN;
     }
-
-    // We allow multiple logins because some keys need it (we indicate so for the signing key)
 
     rv = token_login(session->slot->piv_state, CKU_USER, pPin, ulPinLen);
     if (rv != CKR_OK) {
@@ -1101,17 +1128,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
     session->slot->login_state = YKCS11_SO;
     locking.pfnUnlockMutex(session->slot->mutex);
     break;
-
-  case CKU_CONTEXT_SPECIFIC:
-    if (session->op_info.type == YKCS11_NOOP) {
-      DBG("No operation in progress. Context specific user is forbidden.");
-      return CKR_USER_TYPE_INVALID;
-    }
-    if (session->op_info.type == YKCS11_SIGN || session->op_info.type == YKCS11_DECRYPT) {
-      return C_Login(hSession, CKU_USER, pPin, ulPinLen);
-    }
-    else
-      return C_Login(hSession, CKU_SO, pPin, ulPinLen);
 
   default:
     return CKR_USER_TYPE_INVALID;
