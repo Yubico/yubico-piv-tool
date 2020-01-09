@@ -262,30 +262,6 @@ ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose) {
   return ykpiv_init_with_allocator(state, verbose, &_default_allocator);
 }
 
-ykpiv_rc ykpiv_reset_card(ykpiv_state *state) {
-  LONG rc = SCardBeginTransaction(state->card);
-  if(rc == SCARD_W_RESET_CARD) {
-    if(state->verbose) {
-      fprintf(stderr, "SCardBeginTransaction indicates card #%u was already reset\n", state->serial);
-    }
-    return YKPIV_OK;
-  }
-  if(rc != SCARD_S_SUCCESS) {
-    if(state->verbose) {
-      fprintf(stderr, "SCardBeginTransaction on card #%u failed, rc=%lx\n", state->serial, (long)rc);
-    }
-    return YKPIV_GENERIC_ERROR;
-  }
-  rc = SCardEndTransaction(state->card, SCARD_RESET_CARD);
-  if(rc != SCARD_S_SUCCESS) {
-    if(state->verbose) {
-      fprintf(stderr, "SCardEndTransaction(SCARD_RESET_CARD) on card #%u failed, rc=%lx\n", state->serial, (long)rc);
-    }
-    return YKPIV_GENERIC_ERROR;
-  }
-  return YKPIV_OK;
-}
-  
 static ykpiv_rc _ykpiv_done(ykpiv_state *state, bool disconnect) {
   if (disconnect)
     ykpiv_disconnect(state);
@@ -1411,20 +1387,7 @@ static ykpiv_rc _cache_pin(ykpiv_state *state, const char *pin, size_t len) {
 }
 
 ykpiv_rc ykpiv_clear_pin_cache(ykpiv_state *state) {
-#if DISABLE_PIN_CACHE
-  // Some embedded applications of this library may not want to keep the PIN
-  // data in RAM for security reasons.
-  return YKPIV_OK;
-#else
-  if (!state)
-    return YKPIV_ARGUMENT_ERROR;
-  if (state->pin) {
-    yc_memzero(state->pin, strnlen(state->pin, CB_PIN_MAX));
-    _ykpiv_free(state, state->pin);
-    state->pin = NULL;
-  }
-  return YKPIV_OK;
-#endif
+  return _cache_pin(state, NULL, 0);
 }
 
 static ykpiv_rc _cache_mgm_key(ykpiv_state *state, unsigned const char *key) {
@@ -1455,20 +1418,7 @@ static ykpiv_rc _cache_mgm_key(ykpiv_state *state, unsigned const char *key) {
 }
 
 ykpiv_rc ykpiv_clear_mgm_key_cache(ykpiv_state *state) {
-#if DISABLE_MGM_KEY_CACHE
-  // Some embedded applications of this library may not want to keep the PIN
-  // data in RAM for security reasons.
-  return YKPIV_OK;
-#else
-  if (!state)
-    return YKPIV_ARGUMENT_ERROR;
-  if (state->mgm_key) {
-    yc_memzero(state->mgm_key, CB_MGM_KEY);
-    _ykpiv_free(state, state->mgm_key);
-    state->mgm_key = NULL;
-  }
-  return YKPIV_OK;
-#endif
+  return _cache_mgm_key(state, NULL);
 }
 
 static ykpiv_rc _ykpiv_verify(ykpiv_state *state, const char *pin, const size_t pin_len, int *tries) {
