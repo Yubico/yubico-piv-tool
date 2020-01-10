@@ -925,10 +925,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
     }
   }
 
-  if(other_sessions == 0)
-    slot->login_state = YKCS11_PUBLIC;
-
   locking.pfnUnlockMutex(mutex);
+
+  if(other_sessions == 0) {
+    locking.pfnLockMutex(slot->mutex);
+    slot->login_state = YKCS11_PUBLIC;
+    locking.pfnUnlockMutex(slot->mutex);
+  }
 
   DOUT;
   return CKR_OK;
@@ -961,9 +964,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
       cleanup_session(session);
   }
 
-  slots[slotID].login_state = YKCS11_PUBLIC;
-
   locking.pfnUnlockMutex(mutex);
+
+  locking.pfnLockMutex(slots[slotID].mutex);
+  slots[slotID].login_state = YKCS11_PUBLIC;
+  locking.pfnUnlockMutex(slots[slotID].mutex);
 
   DOUT;
   return CKR_OK;
