@@ -597,7 +597,9 @@ START_TEST(test_generate_key) {
 }
 END_TEST
 
-START_TEST(test_authenticate) {
+static void test_authenticate() {
+  tcase_fn_start ("test_authenticate", __FILE__, __LINE__);
+
   ykpiv_rc res;
   const char *default_mgm_key = "010203040506070801020304050607080102030405060708";
   const char *mgm_key = "112233445566778811223344556677881122334455667788";
@@ -659,7 +661,6 @@ START_TEST(test_authenticate) {
   res = ykpiv_authenticate(g_state, key);
   ck_assert_int_eq(res, YKPIV_OK);
 }
-END_TEST
 
 START_TEST(test_change_pin) {
   ykpiv_rc res;
@@ -755,7 +756,7 @@ START_TEST(test_reset) {
   ck_assert_int_eq(tries_until_blocked, 3);
 
   // Authenticate and increase PIN retries
-  test_authenticate->fn(0);
+  test_authenticate();
   res = ykpiv_verify(g_state, "123456", NULL);
   ck_assert_int_eq(res, YKPIV_OK);
   res = ykpiv_set_pin_retries(g_state, 8, 3);
@@ -863,7 +864,7 @@ START_TEST(test_allocator) {
   // Verify we can communicate with device and make some allocations
   res = ykpiv_connect(g_state, NULL);
   ck_assert_int_eq(res, YKPIV_OK);
-  test_authenticate->fn(0);
+  test_authenticate();
   cert1 = alloc_auth_cert();
   cert2 = alloc_auth_cert();
 
