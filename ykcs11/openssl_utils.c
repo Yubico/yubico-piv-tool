@@ -583,9 +583,7 @@ CK_RV do_apply_DER_encoding_to_ECSIG(CK_BYTE_PTR signature, CK_ULONG_PTR signatu
   }
 
 adete_out:
-  if (sig != NULL) {
-    ECDSA_SIG_free(sig);
-  }
+  ECDSA_SIG_free(sig);
   if (r != NULL) {
     BN_free(r);
   }
