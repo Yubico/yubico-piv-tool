@@ -810,7 +810,7 @@ CK_RV decrypt_mechanism_init(ykcs11_session_t *session, CK_MECHANISM_PTR mech) {
     session->op_info.op.encrypt.padding = RSA_PKCS1_OAEP_PADDING;
     DBG("OAEP pParameter : %p %lu", mech->pParameter, mech->ulParameterLen);
     
-    if(mech->pParameter != NULL) {
+    if(mech->pParameter != NULL && mech->ulParameterLen == sizeof(CK_RSA_PKCS_OAEP_PARAMS)) {
       CK_RSA_PKCS_OAEP_PARAMS_PTR oaep = (CK_RSA_PKCS_OAEP_PARAMS_PTR) mech->pParameter;
       DBG("OAEP params : hashAlg 0x%lx mgf 0x%lx source 0x%lx pSourceData %p ulSourceDataLen %lu", oaep->hashAlg, oaep->mgf, oaep->source, oaep->pSourceData, oaep->ulSourceDataLen);
       session->op_info.op.encrypt.oaep_md = EVP_MD_by_mechanism(oaep->hashAlg);
