@@ -167,7 +167,7 @@ parse_err:
 }
 
 size_t read_data(unsigned char *buf, size_t len, FILE* input, enum enum_format format) {
-  char raw_buf[3072 * 2];
+  char raw_buf[YKPIV_OBJ_MAX_SIZE * 2];
   size_t raw_len = sizeof(raw_buf);
   raw_len = fread(raw_buf, 1, raw_len, input);
   switch(format) {
@@ -210,11 +210,11 @@ void dump_data(const unsigned char *buf, unsigned int len, FILE *output, bool sp
   switch(format) {
     case format_arg_hex:
       {
-        char tmp[3072 * 3 + 1];
+        char tmp[YKPIV_OBJ_MAX_SIZE * 3 + 1];
         unsigned int i;
         unsigned int step = 2;
         if(space) step += 1;
-        if(len > 3072) {
+        if(len > YKPIV_OBJ_MAX_SIZE) {
           return;
         }
         for (i = 0; i < len; i++) {

@@ -444,7 +444,7 @@ CK_RV token_generate_key(ykpiv_state *state, CK_BYTE algorithm, CK_BYTE key, CK_
 
 CK_RV token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_BYTE_PTR in) {
 
-  unsigned char certdata[3072];
+  unsigned char certdata[YKPIV_OBJ_MAX_SIZE + 16];
   unsigned char *certptr;
   CK_ULONG cert_len;
 
@@ -454,7 +454,7 @@ CK_RV token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_BYTE_PTR in) {
   if ((rv = do_check_cert(in, &cert_len)) != CKR_OK)
     return rv;
 
-  if (cert_len > 3072)
+  if (cert_len > YKPIV_OBJ_MAX_SIZE)
     return CKR_FUNCTION_FAILED;
 
   certptr = certdata;

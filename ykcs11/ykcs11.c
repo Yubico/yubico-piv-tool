@@ -837,7 +837,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     piv_obj_id_t pubk_id = find_pubk_object(sub_id);
     piv_obj_id_t pvtk_id = find_pvtk_object(sub_id);
     piv_obj_id_t atst_id = find_atst_object(sub_id);
-    CK_BYTE data[3072];  // Max cert value for ykpiv
+    CK_BYTE data[YKPIV_OBJ_MAX_SIZE];  // Max cert value for ykpiv
     unsigned long len;
     if(pvtk_id != PIV_INVALID_OBJ) {
       len = sizeof(data);
@@ -3123,7 +3123,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   piv_obj_id_t   pubk_id;
   piv_obj_id_t   atst_id;
   piv_obj_id_t   *obj_ptr;
-  CK_BYTE        cert_data[3072];
+  CK_BYTE        cert_data[YKPIV_OBJ_MAX_SIZE];
   CK_ULONG       cert_len;
 
   DIN;

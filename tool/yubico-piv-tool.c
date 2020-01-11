@@ -1316,7 +1316,7 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     FILE *output) {
   int object = (int)ykpiv_util_slot_object(get_slot_hex(slot));
   int slot_name;
-  unsigned char data[3072];
+  unsigned char data[YKPIV_OBJ_MAX_SIZE];
   const unsigned char *ptr = data;
   unsigned long len = sizeof(data);
   int cert_len;
@@ -1429,7 +1429,7 @@ static bool status(ykpiv_state *state, enum enum_hash hash,
                    enum enum_slot slot,
                    const char *output_file_name) {
   const EVP_MD *md;
-  unsigned char buf[3072];
+  unsigned char buf[YKPIV_OBJ_MAX_SIZE];
   long unsigned len = sizeof(buf);
   int i;
   uint32_t serial = 0;
@@ -1839,7 +1839,7 @@ static bool write_object(ykpiv_state *state, int id,
     const char *input_file_name, int verbosity, enum enum_format format) {
   bool ret = false;
   FILE *input_file = NULL;
-  unsigned char data[3072];
+  unsigned char data[YKPIV_OBJ_MAX_SIZE];
   size_t len = sizeof(data);
   ykpiv_rc res;
 
@@ -1878,7 +1878,7 @@ write_out:
 static bool read_object(ykpiv_state *state, int id, const char *output_file_name,
     enum enum_format format) {
   FILE *output_file = NULL;
-  unsigned char data[3072];
+  unsigned char data[YKPIV_OBJ_MAX_SIZE];
   unsigned long len = sizeof(data);
   bool ret = false;
 

@@ -386,7 +386,7 @@ static CK_RV get_doa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR
 /* Get certificate object attribute */
 static CK_RV _get_coa(ykcs11_x509_t **certs, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template, CK_BBOOL token) {
   CK_BYTE_PTR data;
-  CK_BYTE     b_tmp[3072]; // Max cert value for ykpiv
+  CK_BYTE     b_tmp[YKPIV_OBJ_MAX_SIZE]; // Max cert value for ykpiv
   CK_ULONG    ul_tmp;
   CK_ULONG    len = 0;
   CK_RV       rv;
@@ -526,7 +526,7 @@ static CK_RV get_atst(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
   CK_BYTE sub_id = piv_objects[obj].sub_id;
   if(s->atst[sub_id] == NULL && is_relevant_attribute(template)) {
     CK_ULONG slot = piv_2_ykpiv(find_pvtk_object(sub_id));
-    unsigned char data[3072];
+    unsigned char data[YKPIV_OBJ_MAX_SIZE];
     size_t len = sizeof(data);
     ykpiv_rc rc;
     CK_RV rv;
