@@ -826,8 +826,8 @@ CK_RV decrypt_mechanism_init(ykcs11_session_t *session, CK_MECHANISM_PTR mech) {
         session->op_info.op.encrypt.oaep_encparam_len = 0;
       }
     } else {
-      session->op_info.op.encrypt.oaep_md = EVP_sha1();
-      session->op_info.op.encrypt.mgf1_md = EVP_sha1();
+      session->op_info.op.encrypt.oaep_md = NULL;
+      session->op_info.op.encrypt.mgf1_md = NULL;
       session->op_info.op.encrypt.oaep_encparam = NULL;
       session->op_info.op.encrypt.oaep_encparam_len = 0;
     }
