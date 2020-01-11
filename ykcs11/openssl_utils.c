@@ -36,11 +36,6 @@
 #include "debug.h"
 #include <string.h>
 
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
-# define X509_set_notBefore X509_set1_notBefore
-# define X509_set_notAfter X509_set1_notAfter
-#endif
-
 CK_RV do_rand_seed(CK_BYTE_PTR data, CK_ULONG len) {
   RAND_seed(data, len);
   return CKR_OK;

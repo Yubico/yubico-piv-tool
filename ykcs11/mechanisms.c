@@ -882,6 +882,7 @@ CK_RV decrypt_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR data, CK_UL
 
   if(cb_len <= 0) {
     DBG("Padding check failed : %d", cb_len);
+    *data_len = 0;
     return CKR_FUNCTION_FAILED;
   }
 
