@@ -29,7 +29,6 @@
  */
 
 #include "utils.h"
-#include "slot.h"
 #include "token.h"
 #include "mechanisms.h"
 #include "debug.h"
@@ -46,14 +45,6 @@ size_t memstrcpy(void *dst, const char *src) {
   size_t len = strlen(src);
   memcpy(dst, src, len);
   return len;
-}
-
-size_t lastnon(unsigned const char *src, size_t len, unsigned char c) {
-  size_t last = len;
-  for(size_t pos = 0; pos < len; pos++)
-    if(src[pos] != c)
-      last = pos;
-  return last;
 }
 
 typedef struct {

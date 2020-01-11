@@ -38,7 +38,6 @@
 #include "utils.h"
 #include "mechanisms.h"
 #include "token.h"
-#include "slot.h"
 #include "openssl_types.h"
 #include "openssl_utils.h"
 #include "debug.h"
@@ -323,9 +322,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
       memset(slot->slot_info.manufacturerID, ' ', sizeof(slot->slot_info.manufacturerID));
       memstrcpy(slot->slot_info.manufacturerID, YKCS11_MANUFACTURER);
 
-      get_slot_version(&slot->slot_info.hardwareVersion);
-      get_slot_version(&slot->slot_info.firmwareVersion);
-
+      slot->slot_info.hardwareVersion.major = 1;
+      slot->slot_info.hardwareVersion.minor = 0;
+      slot->slot_info.firmwareVersion.major = 1;
+      slot->slot_info.firmwareVersion.minor = 0;
       slot->slot_info.flags = CKF_HW_SLOT | CKF_REMOVABLE_DEVICE;
 
       // Find existing slot, if any
@@ -370,12 +370,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
         slot->token_info.ulTotalPrivateMemory = CK_UNAVAILABLE_INFORMATION;
         slot->token_info.ulFreePrivateMemory = CK_UNAVAILABLE_INFORMATION;
 
+        slot->token_info.hardwareVersion.major = 1;
+        slot->token_info.hardwareVersion.minor = 0;
+
         memset(slot->token_info.manufacturerID, ' ', sizeof(slot->token_info.manufacturerID));
         memstrcpy(slot->token_info.manufacturerID, YKCS11_MANUFACTURER);
 
         memset(slot->token_info.utcTime, ' ', sizeof(slot->token_info.utcTime));
 
-        get_slot_version(&slot->token_info.hardwareVersion);
         get_token_model(slot->piv_state, slot->token_info.model, sizeof(slot->token_info.model));
         get_token_serial(slot->piv_state, slot->token_info.serialNumber, sizeof(slot->token_info.serialNumber));
         get_token_version(slot->piv_state, &slot->token_info.firmwareVersion);
@@ -652,15 +654,27 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
   size_t len = sizeof(mgm_key);
   ykpiv_rc rc;
 
+  if(pPin == NULL) {
+    DBG("Missing SO PIN");
+    return CKR_ARGUMENTS_BAD;
+  }
+
   if((rc = ykpiv_hex_decode((const char*)pPin, ulPinLen, mgm_key, &len)) != YKPIV_OK || len != 24) {
     DBG("ykpiv_hex_decode failed %d", rc);
-    return CKR_ARGUMENTS_BAD;
+    return CKR_PIN_INVALID;
   }
 
   int tries;
   ykcs11_slot_t *slot = slots + slotID;
 
   locking.pfnLockMutex(slot->mutex);
+
+  // Verify existing mgm key (SO_PIN)
+  if((rc = ykpiv_authenticate(slot->piv_state, mgm_key)) != YKPIV_OK) {
+    DBG("ykpiv_authenticate failed %d", rc);
+    locking.pfnUnlockMutex(slot->mutex);
+    return CKR_PIN_INCORRECT;
+  }
 
   // Block PIN
   while((rc = ykpiv_verify(slot->piv_state, "", &tries)) == YKPIV_WRONG_PIN && tries > 0) {

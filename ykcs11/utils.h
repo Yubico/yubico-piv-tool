@@ -36,7 +36,6 @@
 
 CK_BBOOL is_yubico_reader(const char* reader_name);
 size_t memstrcpy(void *dst, const char *src);
-size_t lastnon(unsigned const char *src, size_t len, unsigned char c);
 
 CK_RV noop_create_mutex(void **mutex);
 CK_RV noop_destroy_mutex(void *mutex);

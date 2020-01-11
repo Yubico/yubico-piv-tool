@@ -36,7 +36,6 @@ lib_LTLIBRARIES = libykcs11.la
 
 libykcs11_la_SOURCES = ykcs11.c ykcs11.pc.in ykcs11.map
 libykcs11_la_SOURCES += ykcs11.h debug.h
-libykcs11_la_SOURCES += slot.c slot.h
 libykcs11_la_SOURCES += token.c token.h
 libykcs11_la_SOURCES += mechanisms.c mechanisms.h
 libykcs11_la_SOURCES += utils.c utils.h

@@ -271,7 +271,7 @@ CK_RV token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF8CHAR_P
       size_t new_key_len = sizeof(new_key);
       if(ykpiv_hex_decode((const char*)pNewPin, ulNewLen, new_key, &new_key_len) != YKPIV_OK) {
         DBG("Failed to decode new pin")
-        return CKR_ARGUMENTS_BAD;
+        return CKR_PIN_INVALID;
       }
       res = ykpiv_set_mgmkey(state, new_key);
       break;
@@ -334,7 +334,7 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
   else if (user == CKU_SO) {
     if(ykpiv_hex_decode((char *)pin, pin_len, key, &key_len) != YKPIV_OK) {
       DBG("Failed decoding key");
-      return CKR_FUNCTION_FAILED;
+      return CKR_PIN_INVALID;
     }
 
     if(ykpiv_authenticate(state, key) != YKPIV_OK) {
