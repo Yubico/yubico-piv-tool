@@ -1786,7 +1786,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptInit)(
   session->op_info.buf_len = 0;
   session->op_info.type = YKCS11_ENCRYPT;
 
-  DBG("Trying to encrypt data with mechanism %lu and key %lu", pMechanism->mechanism, hKey);
+  DBG("Trying to encrypt data with mechanism %lu %p %lu and key %lu", pMechanism->mechanism, pMechanism->pParameter, pMechanism->ulParameterLen, hKey);
 
   DOUT;
   return CKR_OK;
@@ -1995,7 +1995,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
   if (pMechanism == NULL)
     return CKR_ARGUMENTS_BAD;
 
-  DBG("Trying to decrypt some data with mechanism %lu and key %lu", pMechanism->mechanism, hKey);
+  DBG("Trying to decrypt some data with mechanism %lu %p %lu and key %lu", pMechanism->mechanism, pMechanism->pParameter, pMechanism->ulParameterLen, hKey);
 
   CK_BYTE id = get_sub_id(hKey);
   if (id == 0) {
