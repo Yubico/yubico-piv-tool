@@ -808,7 +808,7 @@ CK_RV decrypt_mechanism_init(ykcs11_session_t *session, CK_MECHANISM_PTR mech) {
     break;
   case CKM_RSA_PKCS_OAEP:
     session->op_info.op.encrypt.padding = RSA_PKCS1_OAEP_PADDING;
-    DBG("OAEP pParameter : %p", mech->pParameter);
+    DBG("OAEP pParameter : %p %lu", mech->pParameter, mech->ulParameterLen);
     
     if(mech->pParameter != NULL) {
       CK_RSA_PKCS_OAEP_PARAMS_PTR oaep = (CK_RSA_PKCS_OAEP_PARAMS_PTR) mech->pParameter;
