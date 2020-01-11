@@ -829,8 +829,8 @@ CK_RV decrypt_mechanism_init(ykcs11_session_t *session, CK_MECHANISM_PTR mech) {
         session->op_info.op.encrypt.oaep_encparam_len = 0;
       }
     } else {
-      session->op_info.op.encrypt.oaep_md = NULL;
-      session->op_info.op.encrypt.mgf1_md = NULL;
+      session->op_info.op.encrypt.oaep_md = EVP_sha1();
+      session->op_info.op.encrypt.mgf1_md = EVP_sha1();
       session->op_info.op.encrypt.oaep_encparam = NULL;
       session->op_info.op.encrypt.oaep_encparam_len = 0;
     }
@@ -847,14 +847,15 @@ CK_RV decrypt_mechanism_init(ykcs11_session_t *session, CK_MECHANISM_PTR mech) {
 CK_RV decrypt_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR data, CK_ULONG_PTR data_len, CK_ULONG enc_len, CK_ULONG key_len) {
   ykpiv_rc piv_rv;
   CK_BYTE  dec[1024];
-  size_t   cbDataLen = sizeof(dec);
+  size_t   dec_len = sizeof(dec);
+  int      cb_len;
 
   CK_BYTE algo = do_get_key_algorithm(session->pkeys[session->op_info.op.encrypt.key_id]);
   CK_ULONG pivkey = piv_2_ykpiv(find_pvtk_object(session->op_info.op.encrypt.key_id));
   DBG("Using key %lx for decryption", pivkey);
 
   piv_rv = ykpiv_decipher_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, 
-                               session->op_info.buf, &cbDataLen, algo, pivkey);
+                               session->op_info.buf, &dec_len, algo, pivkey);
   if (piv_rv != YKPIV_OK) {
     if (piv_rv == YKPIV_AUTHENTICATION_ERROR) {
       DBG("Operation requires authentication or touch");
@@ -865,25 +866,28 @@ CK_RV decrypt_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR data, CK_UL
     }
   }
 
-  DBG("ykpiv_decipher_data returned %lu bytes", cbDataLen);
-
   if(session->op_info.op.encrypt.padding == RSA_PKCS1_PADDING) {
-    *data_len = RSA_padding_check_PKCS1_type_2(dec, sizeof(dec), session->op_info.buf + 1, cbDataLen - 1, key_len/8);
+    cb_len = RSA_padding_check_PKCS1_type_2(dec, sizeof(dec), session->op_info.buf + 1, dec_len - 1, key_len/8);
   } else if(session->op_info.op.encrypt.padding == RSA_PKCS1_OAEP_PADDING) {
-    *data_len = RSA_padding_check_PKCS1_OAEP_mgf1(dec, sizeof(dec), session->op_info.buf + 1, cbDataLen - 1, key_len/8, 
+    cb_len = RSA_padding_check_PKCS1_OAEP_mgf1(dec, sizeof(dec), session->op_info.buf + 1, dec_len - 1, key_len/8, 
                                                   session->op_info.op.encrypt.oaep_encparam, session->op_info.op.encrypt.oaep_encparam_len, 
                                                   session->op_info.op.encrypt.oaep_md, session->op_info.op.encrypt.mgf1_md);
   } else if(session->op_info.op.encrypt.padding == RSA_NO_PADDING) {
-    memcpy(dec, session->op_info.buf, enc_len);
-    *data_len = enc_len;
+    memcpy(dec, session->op_info.buf, dec_len);
+    cb_len = dec_len;
   } else {
-    DBG("Unknown padding");
+    DBG("Unknown padding %lu", session->op_info.op.encrypt.padding);
     return CKR_FUNCTION_FAILED;
   }
 
-  DBG("Unpadding returned %lu bytes", *data_len);
+  if(cb_len <= 0) {
+    DBG("Padding check failed : %d", cb_len);
+    return CKR_FUNCTION_FAILED;
+  }
 
-  memcpy(data, dec, *data_len);
+  memcpy(data, dec, cb_len);
+  *data_len = cb_len;
+
   free(session->op_info.op.encrypt.oaep_encparam);
   return CKR_OK;
 }
