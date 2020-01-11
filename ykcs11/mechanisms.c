@@ -811,19 +811,20 @@ CK_RV decrypt_mechanism_init(ykcs11_session_t *session, CK_MECHANISM_PTR mech) {
     
     if(mech->pParameter != NULL) {
       CK_RSA_PKCS_OAEP_PARAMS_PTR oaep = (CK_RSA_PKCS_OAEP_PARAMS_PTR) mech->pParameter;
-      if(oaep->source != CKZ_DATA_SPECIFIED) { // CKZ_DATA_SPECIFIED => type is CK_BYTE
-        DBG("Unknown type of OAEP encoding parameter");
-        return CKR_FUNCTION_FAILED;
-      }
       session->op_info.op.encrypt.oaep_md = EVP_MD_by_mechanism(oaep->hashAlg);
       session->op_info.op.encrypt.mgf1_md = EVP_MD_by_mechanism(oaep->mgf);
-      session->op_info.op.encrypt.oaep_encparam = malloc(oaep->ulSourceDataLen);
-      if(session->op_info.op.encrypt.oaep_encparam == NULL) {
-        DBG("Unable to allocate memory for %lu byte OAEP label", oaep->ulSourceDataLen);
-        return CKR_HOST_MEMORY;
+      if(oaep->source == CKZ_DATA_SPECIFIED && oaep->pSourceData) {
+        session->op_info.op.encrypt.oaep_encparam = malloc(oaep->ulSourceDataLen);
+        if(session->op_info.op.encrypt.oaep_encparam == NULL) {
+          DBG("Unable to allocate memory for %lu byte OAEP label", oaep->ulSourceDataLen);
+          return CKR_HOST_MEMORY;
+        }
+        memcpy(session->op_info.op.encrypt.oaep_encparam, oaep->pSourceData, oaep->ulSourceDataLen);
+        session->op_info.op.encrypt.oaep_encparam_len = oaep->ulSourceDataLen;
+      } else {
+        session->op_info.op.encrypt.oaep_encparam = NULL;
+        session->op_info.op.encrypt.oaep_encparam_len = 0;
       }
-      memcpy(session->op_info.op.encrypt.oaep_encparam, oaep->pSourceData, oaep->ulSourceDataLen);
-      session->op_info.op.encrypt.oaep_encparam_len = oaep->ulSourceDataLen;
     } else {
       session->op_info.op.encrypt.oaep_md = NULL;
       session->op_info.op.encrypt.mgf1_md = NULL;
