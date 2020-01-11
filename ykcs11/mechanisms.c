@@ -865,6 +865,8 @@ CK_RV decrypt_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR data, CK_UL
     }
   }
 
+  DBG("ykpiv_decipher_data returned %lu bytes", cbDataLen);
+
   if(session->op_info.op.encrypt.padding == RSA_PKCS1_PADDING) {
     *data_len = RSA_padding_check_PKCS1_type_2(dec, sizeof(dec), session->op_info.buf + 1, cbDataLen - 1, key_len/8);
   } else if(session->op_info.op.encrypt.padding == RSA_PKCS1_OAEP_PADDING) {
@@ -878,6 +880,8 @@ CK_RV decrypt_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR data, CK_UL
     DBG("Unknown padding");
     return CKR_FUNCTION_FAILED;
   }
+
+  DBG("Unpadding returned %lu bytes", *data_len);
 
   memcpy(data, dec, *data_len);
   free(session->op_info.op.encrypt.oaep_encparam);
