@@ -85,7 +85,7 @@ static ykcs11_session_t* get_free_session() {
 
 CK_STATE get_session_state(ykcs11_session_t *session) {
   switch(session->slot->login_state) {
-    case YKCS11_PUBLIC:
+    default:
       return (session->info.flags & CKF_RW_SESSION) ? CKS_RW_PUBLIC_SESSION : CKS_RO_PUBLIC_SESSION;
     case YKCS11_USER:
       return (session->info.flags & CKF_RW_SESSION) ? CKS_RW_USER_FUNCTIONS : CKS_RO_USER_FUNCTIONS;

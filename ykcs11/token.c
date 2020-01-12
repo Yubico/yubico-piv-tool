@@ -176,7 +176,7 @@ CK_RV get_token_version(ykpiv_state *state, CK_VERSION_PTR version) {
   }
 
   version->major = (buf[0] - '0');
-  version->minor = (buf[2] - '0') * 100 + (buf[4] - '0');
+  version->minor = (buf[2] - '0') * 10 + (buf[4] - '0');
 
   return CKR_OK;
 }
