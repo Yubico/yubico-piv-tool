@@ -141,8 +141,6 @@ static const piv_obj_id_t token_objects[] = { // TODO: is there a way to get thi
 
 CK_RV get_token_model(ykpiv_state *state, CK_UTF8CHAR_PTR str, CK_ULONG len) {
 
-  char buf[16];
-
   if (strlen(token_model) > len)
     return CKR_BUFFER_TOO_SMALL;
 
@@ -242,11 +240,9 @@ CK_RV get_token_mechanism_list(CK_MECHANISM_TYPE_PTR mec, CK_ULONG num) {
 
 CK_RV get_token_mechanism_info(CK_MECHANISM_TYPE mec, CK_MECHANISM_INFO_PTR info) {
 
-  CK_ULONG i;
-
-  for (i = 0; i < token_mechanisms_num; i++)
+  for (CK_ULONG i = 0; i < token_mechanisms_num; i++)
     if (token_mechanisms[i] == mec) {
-      memcpy((CK_BYTE_PTR) info, (CK_BYTE_PTR) (token_mechanism_infos + i), sizeof(CK_MECHANISM_INFO));
+      memcpy(info, token_mechanism_infos + i, sizeof(CK_MECHANISM_INFO));
       return CKR_OK;
     }
 
@@ -427,14 +423,14 @@ CK_RV token_generate_key(ykpiv_state *state, CK_BYTE algorithm, CK_BYTE key, CK_
   *certptr++ = 0xfe; /* LRC */
   *certptr++ = 0;
 
-  // Store the certificate into the token
-  if (ykpiv_save_object(state, ykpiv_util_slot_object(key), data, certptr - data) != YKPIV_OK)
-    return CKR_DEVICE_ERROR;
-
   if(*cert_len < certptr - data) {
     DBG("Certificate buffer too small.");
     return CKR_BUFFER_TOO_SMALL;
   }
+
+  // Store the certificate into the token
+  if (ykpiv_save_object(state, ykpiv_util_slot_object(key), data, certptr - data) != YKPIV_OK)
+    return CKR_DEVICE_ERROR;
 
   memcpy(cert_data, data, certptr - data);
   *cert_len = certptr - data;

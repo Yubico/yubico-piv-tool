@@ -566,8 +566,6 @@ CK_RV do_apply_DER_encoding_to_ECSIG(CK_BYTE_PTR signature, CK_ULONG_PTR signatu
 
   r = s = NULL;
 
-  CK_BYTE_PTR p = signature;
-
   int len = i2d_ECDSA_SIG(sig, &signature);
 
   if (len <= 0) {
