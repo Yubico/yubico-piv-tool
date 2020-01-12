@@ -1244,7 +1244,7 @@ CK_BBOOL attribute_match(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE
   return CK_TRUE;
 }
 
-CK_BBOOL is_private_object(ykcs11_session_t *s, CK_OBJECT_HANDLE obj) {
+CK_BBOOL is_private_object(CK_OBJECT_HANDLE obj) {
   return (obj < PIV_PVTK_OBJ_PIV_AUTH || obj > PIV_PVTK_OBJ_ATTESTATION) ? CK_FALSE : CK_TRUE;
 }
 

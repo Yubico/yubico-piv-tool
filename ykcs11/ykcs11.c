@@ -350,9 +350,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
         n_slots++;
       }
 
-      char buf[80] = { '@' };
-      strcat(buf, reader);
-      
+      char buf[strlen(reader) + 2];
+      snprintf(buf, sizeof(buf), "@%s", reader);
+
       // Try to connect if unconnected (both new and existing slots)
       if (!(slot->slot_info.flags & CKF_TOKEN_PRESENT) && ykpiv_connect(slot->piv_state, buf) == YKPIV_OK) {
 
@@ -1644,7 +1644,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
 
     // Strip away private objects if needed
     if (session->slot->login_state == YKCS11_PUBLIC) {
-      if (is_private_object(session, session->objects[i]) == CK_TRUE) {
+      if (is_private_object(session->objects[i]) == CK_TRUE) {
         DBG("Removing private object %u", session->objects[i]);
         continue;
       }

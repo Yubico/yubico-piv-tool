@@ -47,7 +47,7 @@ piv_obj_id_t find_atst_object(CK_BYTE sub_id);
 
 CK_RV    get_attribute(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
 CK_BBOOL attribute_match(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR attribute);
-CK_BBOOL is_private_object(ykcs11_session_t *s, CK_OBJECT_HANDLE obj);
+CK_BBOOL is_private_object(CK_OBJECT_HANDLE obj);
 void sort_objects(ykcs11_session_t *s);
 
 CK_RV    store_data(ykcs11_session_t *s, CK_BYTE sub_id, CK_BYTE_PTR data, CK_ULONG len);
