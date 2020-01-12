@@ -43,7 +43,7 @@ CK_RV get_token_mechanisms_num(CK_ULONG_PTR num);
 CK_RV get_token_mechanism_list(CK_MECHANISM_TYPE_PTR mec, CK_ULONG num);
 CK_RV get_token_mechanism_info(CK_MECHANISM_TYPE mec, CK_MECHANISM_INFO_PTR info);
 
-CK_RV get_token_object_ids(piv_obj_id_t **obj, CK_ULONG *num);
+CK_RV get_token_object_ids(const piv_obj_id_t **obj, CK_ULONG *num);
 CK_RV token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF8CHAR_PTR pOldPin, CK_ULONG ulOldLen,
                               CK_UTF8CHAR_PTR pNewPin, CK_ULONG ulNewLen);
 

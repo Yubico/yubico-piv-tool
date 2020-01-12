@@ -253,9 +253,9 @@ CK_RV get_token_mechanism_info(CK_MECHANISM_TYPE mec, CK_MECHANISM_INFO_PTR info
   return CKR_MECHANISM_INVALID;
 }
 
-CK_RV get_token_object_ids(piv_obj_id_t **obj, CK_ULONG_PTR len) {
+CK_RV get_token_object_ids(const piv_obj_id_t **obj, CK_ULONG_PTR len) {
 
-  *obj = (piv_obj_id_t*)token_objects;
+  *obj = token_objects;
   *len = sizeof(token_objects) / sizeof(token_objects[0]);
 
   return CKR_OK;

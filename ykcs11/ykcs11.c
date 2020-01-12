@@ -83,7 +83,7 @@ static ykcs11_session_t* get_free_session() {
   return NULL;
 }
 
-CK_STATE get_session_state(ykcs11_session_t *session) {
+static CK_STATE get_session_state(ykcs11_session_t *session) {
   switch(session->slot->login_state) {
     default:
       return (session->info.flags & CKF_RW_SESSION) ? CKS_RW_PUBLIC_SESSION : CKS_RO_PUBLIC_SESSION;
@@ -185,8 +185,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Finalize)(
   CK_VOID_PTR pReserved
 )
 {
-  CK_ULONG i;
-
   DIN;
 
   if (pReserved != NULL) {
@@ -275,7 +273,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
   CK_ULONG_PTR pulCount
 )
 {
-  CK_ULONG i;
   char readers[2048];
   size_t len = sizeof(readers);
 
@@ -364,8 +361,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
         slot->slot_info.flags |= CKF_TOKEN_PRESENT;
         slot->token_info.flags = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
 
-        slot->token_info.ulMinPinLen = 6;
-        slot->token_info.ulMaxPinLen = 8;
+        slot->token_info.ulMinPinLen = PIV_MIN_PIN_LEN;
+        slot->token_info.ulMaxPinLen = PIV_MAX_PIN_LEN;
 
         slot->token_info.ulMaxRwSessionCount = YKCS11_MAX_SESSIONS;
         slot->token_info.ulMaxSessionCount = YKCS11_MAX_SESSIONS;
@@ -402,7 +399,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 
   // Count and return slots with or without tokens as requested
   CK_ULONG count = 0;
-  for (i = 0; i < n_slots; i++) {
+  for (CK_ULONG i = 0; i < n_slots; i++) {
     if(!tokenPresent || (slots[i].slot_info.flags & CKF_TOKEN_PRESENT)) {
       if(pSlotList) {
         if(count >= *pulCount) {
@@ -835,7 +832,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
 
   locking.pfnUnlockMutex(mutex);
 
-  piv_obj_id_t *obj_ids;
+  const piv_obj_id_t *obj_ids;
   CK_ULONG num_ids;
   get_token_object_ids(&obj_ids, &num_ids);
 
@@ -970,8 +967,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
   CK_SLOT_ID slotID
 )
 {
-  CK_RV rv;
-
   DIN;
 
   if (mutex == NULL) {
@@ -2044,10 +2039,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
   CK_ULONG_PTR pulDataLen
 )
 {
-  ykpiv_rc piv_rv;
   CK_RV    rv;
-  size_t   cbDataLen = 0;
-  CK_BYTE  dec[1024];
   
   DIN;
 
@@ -2188,10 +2180,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
   CK_ULONG_PTR pulLastPartLen
 )
 {
-  ykpiv_rc piv_rv;
   CK_RV    rv;
-  size_t   cbDataLen = 0;
-  CK_BYTE  dec[1024];
   
   DIN;
 
@@ -3131,7 +3120,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 )
 {
   CK_RV          rv;
-  CK_ULONG       i;
   piv_obj_id_t   dobj_id;
   piv_obj_id_t   cert_id;
   piv_obj_id_t   pvtk_id;

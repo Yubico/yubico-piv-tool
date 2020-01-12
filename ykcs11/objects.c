@@ -298,7 +298,6 @@ static CK_RV get_doa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR
   CK_BYTE     tmp;
   CK_ULONG    ul_tmp;
   CK_ULONG    len = 0;
-  CK_RV       rv;
   DBG("For data object %lu, get ", obj);
 
   switch (template->type) {
@@ -515,7 +514,7 @@ static CK_ATTRIBUTE_TYPE relevant[] = {
 };
 
 static int compare_ck_attribute_type(const void *a, const void *b) {
-  return (*(CK_ATTRIBUTE_TYPE*)a - *(CK_ATTRIBUTE_TYPE*)b);
+  return (*(const CK_ATTRIBUTE_TYPE*)a - *(const CK_ATTRIBUTE_TYPE*)b);
 }
 
 static CK_BBOOL is_relevant_attribute(CK_ATTRIBUTE_PTR template) {
@@ -1192,7 +1191,7 @@ CK_ULONG piv_2_ykpiv(piv_obj_id_t id) {
 }
 
 static int compare_piv_obj_id(const void *a, const void *b) {
-  return (*(piv_obj_id_t*)a - *(piv_obj_id_t*)b);
+  return (*(const piv_obj_id_t*)a - *(const piv_obj_id_t*)b);
 }
 
 void sort_objects(ykcs11_session_t *s) {

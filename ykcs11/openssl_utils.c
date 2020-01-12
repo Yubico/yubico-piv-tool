@@ -206,8 +206,8 @@ CK_RV do_create_public_key(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm, 
 
     in += get_length(in, &len);
 
-    unsigned char *mod = in;
-    int mod_len = len;
+    CK_BYTE_PTR mod = in;
+    CK_ULONG mod_len = len;
 
     in += len;
 
@@ -233,8 +233,8 @@ CK_RV do_sign_empty_cert(const char *cn, ykcs11_pkey_t *pubkey, ykcs11_pkey_t *p
   if (*cert == NULL)
     return CKR_HOST_MEMORY;
   X509_set_version(*cert, 2); // Version 3
-  X509_NAME_add_entry_by_txt(X509_get_issuer_name(*cert), "CN", MBSTRING_ASC, (unsigned char*)cn, -1, -1, 0);
-  X509_NAME_add_entry_by_txt(X509_get_subject_name(*cert), "CN", MBSTRING_ASC, (unsigned char*)cn, -1, -1, 0);
+  X509_NAME_add_entry_by_txt(X509_get_issuer_name(*cert), "CN", MBSTRING_ASC, (const unsigned char*)cn, -1, -1, 0);
+  X509_NAME_add_entry_by_txt(X509_get_subject_name(*cert), "CN", MBSTRING_ASC, (const unsigned char*)cn, -1, -1, 0);
   ASN1_INTEGER_set(X509_get_serialNumber(*cert), 0);
   X509_gmtime_adj(X509_get_notBefore(*cert), 0);
   X509_gmtime_adj(X509_get_notAfter(*cert), 0);
