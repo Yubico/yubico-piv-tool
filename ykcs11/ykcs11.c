@@ -230,6 +230,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetInfo)(
 
   DIN;
 
+  if (pInfo == NULL) {
+    DBG("Wrong/Missing parameter");
+    return CKR_ARGUMENTS_BAD;
+  }
+  
   pInfo->cryptokiVersion = function_list.version;
 
   memset(pInfo->manufacturerID, ' ', sizeof(pInfo->manufacturerID));
@@ -434,6 +439,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotInfo)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
+  if (pInfo == NULL) {
+    DBG("Wrong/Missing parameter");
+    return CKR_ARGUMENTS_BAD;
+  }
+
   locking.pfnLockMutex(mutex);
 
   if (slotID >= n_slots) {
@@ -460,6 +470,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
   if (mutex == NULL) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  if (pInfo == NULL) {
+    DBG("Wrong/Missing parameter");
+    return CKR_ARGUMENTS_BAD;
   }
 
   locking.pfnLockMutex(mutex);
