@@ -83,13 +83,9 @@ static CK_BBOOL is_RSA_mechanism(CK_MECHANISM_TYPE m) {
 
 static const ykcs11_md_t* EVP_MD_by_mechanism(CK_MECHANISM_TYPE m) {
   switch (m) {
-  case CKM_MD5:
-    return EVP_md5();
   case CKM_SHA_1:
   case CKG_MGF1_SHA1:
     return EVP_sha1();
-  case CKM_RIPEMD160:
-    return EVP_ripemd160();
   case CKG_MGF1_SHA224:
     return EVP_sha224();
   case CKM_SHA256:
@@ -120,15 +116,7 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_MECH
     case CKM_ECDSA:
       // No hash required for these mechanisms
       break;
-/*
-    case CKM_MD5_RSA_PKCS:
-      md = EVP_md5();
-      break;
 
-    case CKM_RIPEMD160_RSA_PKCS:
-      md = EVP_ripemd160();
-      break;
-*/
     case CKM_SHA1_RSA_PKCS:
     case CKM_SHA1_RSA_PKCS_PSS:
     case CKM_ECDSA_SHA1:
@@ -363,14 +351,6 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_ME
     case CKM_RSA_PKCS_PSS:
     case CKM_ECDSA:
       // No hash required for these mechanisms
-      break;
-
-    case CKM_MD5_RSA_PKCS:
-      md = EVP_md5();
-      break;
-
-    case CKM_RIPEMD160_RSA_PKCS:
-      md = EVP_ripemd160();
       break;
 
     case CKM_SHA1_RSA_PKCS:
@@ -711,14 +691,6 @@ CK_RV digest_mechanism_init(ykcs11_session_t *session) {
   const ykcs11_md_t *md = NULL;
 
   switch (session->op_info.mechanism) {
-    case CKM_MD5:
-      md = EVP_md5();
-      break;
-
-    case CKM_RIPEMD160:
-      md = EVP_ripemd160();
-      break;
-
     case CKM_SHA_1:
       md = EVP_sha1();
       break;
