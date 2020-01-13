@@ -74,7 +74,7 @@ static ykcs11_session_t* get_session(CK_SESSION_HANDLE handle) {
   return sessions + handle - 1;
 }
 
-static ykcs11_session_t* get_free_session() {
+static ykcs11_session_t* get_free_session(void) {
   for(int i = 0; i < YKCS11_MAX_SESSIONS; i++) {
     if(sessions[i].slot == NULL) {
       return sessions + i;
