@@ -106,11 +106,12 @@ static const ykcs11_md_t* EVP_MD_by_mechanism(CK_MECHANISM_TYPE m) {
   }
 }
 
-CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_RSA_PKCS_PSS_PARAMS_PTR pss) {
+CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_MECHANISM_PTR mech) {
 
   const ykcs11_md_t *md = NULL;
 
   session->op_info.md_ctx = NULL;
+  session->op_info.mechanism = mech->mechanism;
 
   switch (session->op_info.mechanism) {
     case CKM_RSA_X_509:
@@ -119,7 +120,7 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_RSA_
     case CKM_ECDSA:
       // No hash required for these mechanisms
       break;
-
+/*
     case CKM_MD5_RSA_PKCS:
       md = EVP_md5();
       break;
@@ -127,7 +128,7 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_RSA_
     case CKM_RIPEMD160_RSA_PKCS:
       md = EVP_ripemd160();
       break;
-
+*/
     case CKM_SHA1_RSA_PKCS:
     case CKM_SHA1_RSA_PKCS_PSS:
     case CKM_ECDSA_SHA1:
@@ -197,10 +198,11 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_RSA_
         DBG("Mechanism %lu requires an RSA key", session->op_info.mechanism);
         return CKR_KEY_TYPE_INCONSISTENT;
       }
-      if(!pss) {
+      if(mech->pParameter == NULL || mech->ulParameterLen != sizeof(CK_RSA_PKCS_PSS_PARAMS)) {
         DBG("Mechanism %lu requires PSS parameters", session->op_info.mechanism);
-        return CKR_ARGUMENTS_BAD;
+        return CKR_MECHANISM_PARAM_INVALID;
       }
+      CK_RSA_PKCS_PSS_PARAMS_PTR pss = mech->pParameter;
       session->op_info.op.sign.padding = RSA_PKCS1_PSS_PADDING;
       session->op_info.op.sign.pss_md = EVP_MD_by_mechanism(pss->hashAlg);
       session->op_info.op.sign.mgf1_md = EVP_MD_by_mechanism(pss->mgf);
@@ -347,11 +349,12 @@ CK_RV verify_mechanism_cleanup(ykcs11_session_t *session) {
   return CKR_OK;
 }
 
-CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_RSA_PKCS_PSS_PARAMS_PTR pss) {
+CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_MECHANISM_PTR mech) {
 
   const ykcs11_md_t *md = NULL;
 
   session->op_info.md_ctx = NULL;
+  session->op_info.mechanism = mech->mechanism;
   session->op_info.op.verify.pkey_ctx = NULL;
 
   switch (session->op_info.mechanism) {
@@ -404,6 +407,7 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_RS
   }
 
   ykcs11_rsa_t *rsa = EVP_PKEY_get0_RSA(key);
+  CK_RSA_PKCS_PSS_PARAMS_PTR pss = NULL;
 
   switch (session->op_info.mechanism) {
     case CKM_RSA_X_509:
@@ -437,10 +441,11 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_RS
         DBG("Mechanism %lu requires an RSA key", session->op_info.mechanism);
         return CKR_KEY_TYPE_INCONSISTENT;
       }
-      if(!pss) {
+      if(mech->pParameter == NULL || mech->ulParameterLen != sizeof(CK_RSA_PKCS_PSS_PARAMS)) {
         DBG("Mechanism %lu requires PSS parameters", session->op_info.mechanism);
-        return CKR_ARGUMENTS_BAD;
+        return CKR_MECHANISM_PARAM_INVALID;
       }
+      pss = mech->pParameter;
       session->op_info.op.verify.padding = RSA_PKCS1_PSS_PADDING;
       break;
 
@@ -479,7 +484,7 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_RS
       DBG("EVP_PKEY_CTX_set_rsa_padding failed");
       return CKR_FUNCTION_FAILED;
     }
-    if (session->op_info.op.verify.padding == RSA_PKCS1_PSS_PADDING) {
+    if (pss) {
       if(!EVP_MD_by_mechanism(pss->hashAlg)) {
         DBG("Invalid PSS parameters: hashAlg mechanism %lu unknown", pss->hashAlg);
         return CKR_ARGUMENTS_BAD;
@@ -799,6 +804,7 @@ CK_RV digest_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR pDigest, CK_
 CK_RV decrypt_mechanism_init(ykcs11_session_t *session, CK_MECHANISM_PTR mech) {
 
   session->op_info.mechanism = mech->mechanism;
+
   switch (session->op_info.mechanism) {
   case CKM_RSA_X_509:
     session->op_info.op.encrypt.padding = RSA_NO_PADDING;
