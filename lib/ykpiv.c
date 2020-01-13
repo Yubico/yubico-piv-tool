@@ -636,7 +636,7 @@ ykpiv_rc _ykpiv_end_transaction(ykpiv_state *state) {
   LONG rc = SCardEndTransaction(state->card, SCARD_LEAVE_CARD);
   if(rc != SCARD_S_SUCCESS && state->verbose) {
     fprintf(stderr, "SCardEndTransaction on card #%u failed, rc=%lx\n", state->serial, (long)rc);
-    //return YKPIV_PCSC_ERROR;
+    // Ending the transaction can only fail because it's already ended - it's ended now either way so we don't fail here
   }
 #endif /* ENABLE_IMPLICIT_TRANSACTIONS */
   return YKPIV_OK;

@@ -284,6 +284,7 @@ extern "C"
   typedef struct _ykpiv_mgm {
     uint8_t data[24];
   } ykpiv_mgm;
+#pragma pack(pop)
 
   typedef struct _ykpiv_metadata {
     uint8_t algorithm;
@@ -293,7 +294,6 @@ extern "C"
     size_t pubkey_len;
     uint8_t pubkey[512];
   } ykpiv_metadata;
-#pragma pack(pop)
 
   /**
    * Free allocated data
