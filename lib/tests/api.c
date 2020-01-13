@@ -120,7 +120,7 @@ START_TEST(test_devicemodel) {
     ck_assert(version[1] == '.');
   }
   else if (model == DEVTYPE_YK4) {
-    ck_assert_ptr_nonnull(strstr(reader_buf, "Yubikey"));
+    ck_assert_ptr_nonnull(strstr(reader_buf, "YubiKey"));
     ck_assert(version[0] == '4'); // Verify app version 4.x
     ck_assert(version[1] == '.');
   }

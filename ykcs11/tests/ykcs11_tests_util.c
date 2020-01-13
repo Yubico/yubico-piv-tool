@@ -253,7 +253,7 @@ void test_digest_func(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   CK_BYTE     hdata[128];
   CK_ULONG    hdata_len;
 
-  CK_MECHANISM mech = {mech_type, NULL};
+  CK_MECHANISM mech = {mech_type, NULL, 0};
 
   for(i=0; i<10; i++) {
     if(RAND_bytes(data, data_len) == -1)
@@ -486,7 +486,7 @@ void generate_ec_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
     {CKA_EC_PARAMS, ec_params, ec_params_len}
   };
 
-  CK_MECHANISM mech = {CKM_EC_KEY_PAIR_GEN, NULL};
+  CK_MECHANISM mech = {CKM_EC_KEY_PAIR_GEN, NULL, 0};
 
   asrt(funcs->C_Login(session, CKU_SO, (CK_CHAR_PTR)"010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
 
@@ -522,7 +522,7 @@ void generate_rsa_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
     {CKA_PUBLIC_EXPONENT, e, sizeof(e)}
   };
 
-  CK_MECHANISM mech = {CKM_RSA_PKCS_KEY_PAIR_GEN, NULL};
+  CK_MECHANISM mech = {CKM_RSA_PKCS_KEY_PAIR_GEN, NULL, 0};
 
   asrt(funcs->C_Login(session, CKU_SO, (CK_CHAR_PTR)"010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
   for (i = 0; i < n_keys; i++) {
@@ -601,7 +601,7 @@ void test_ec_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJE
   const EVP_MD *md;
   EVP_MD_CTX *mdctx;
 
-  CK_MECHANISM mech = {mech_type, NULL};
+  CK_MECHANISM mech = {mech_type, NULL, 0};
 
   asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Login USER");
 
@@ -658,7 +658,7 @@ void test_rsa_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJ
   CK_ULONG    hdata_len;
 
   CK_OBJECT_HANDLE obj_pubkey;
-  CK_MECHANISM mech = {mech_type, NULL};
+  CK_MECHANISM mech = {mech_type, NULL, 0};
 
   asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "LOGIN USER");
 
@@ -727,7 +727,7 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
   CK_OBJECT_HANDLE obj_pubkey;
 
   CK_RSA_PKCS_PSS_PARAMS pss_params = {get_md_of(mech_type), get_md_of(mech_type), EVP_MD_size(get_md_type(get_md_of(mech_type)))};
-  CK_MECHANISM mech = {mech_type, &pss_params};
+  CK_MECHANISM mech = {mech_type, &pss_params, sizeof(pss_params)};
 
   data = malloc(pss_params.sLen);
 
@@ -839,7 +839,8 @@ void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   }
   data = malloc(data_len);
 
-  CK_MECHANISM mech = {mech_type, NULL};
+  CK_RSA_PKCS_OAEP_PARAMS params = {0};
+  CK_MECHANISM mech = {mech_type, &params, sizeof(params)};
   asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Login USER");
 
   for (i = 0; i < 24; i++) {
@@ -883,7 +884,8 @@ void test_rsa_encrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   CK_BYTE   dec[512];
   CK_ULONG  dec_len;
 
-  CK_MECHANISM mech = {mech_type, NULL};
+  CK_RSA_PKCS_OAEP_PARAMS params = {0};
+  CK_MECHANISM mech = {mech_type, &params, sizeof(params)};
   CK_OBJECT_HANDLE pubkey;
 
   asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Login USER");

@@ -739,7 +739,7 @@ static void test_login_order() {
   CK_OBJECT_HANDLE privkey, pubkey, cert;
   CK_SESSION_HANDLE session1, session2;
 
-  CK_MECHANISM sign_mech = {CKM_ECDSA, NULL};
+  CK_MECHANISM sign_mech = {CKM_ECDSA, NULL, 0};
 
   init_connection();
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session1), CKR_OK, "OpenSession1");
