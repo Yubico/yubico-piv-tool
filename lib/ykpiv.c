@@ -210,13 +210,13 @@ unsigned int _ykpiv_get_length(const unsigned char *buffer, size_t *len) {
 }
 
 bool _ykpiv_has_valid_length(const unsigned char* buffer, size_t len) {
-  if ((buffer[0] < 0x81) && (len > 0)) {
+  if ((len > 0) && (*buffer < 0x81)) {
     return true;
   }
-  else if (((*buffer & 0x7f) == 1) && (len > 1)) {
+  else if ((len > 1) && ((*buffer & 0x7f) == 1)) {
     return true;
   }
-  else if (((*buffer & 0x7f) == 2) && (len > 2)) {
+  else if ((len > 2) && ((*buffer & 0x7f) == 2)) {
     return true;
   }
   return false;

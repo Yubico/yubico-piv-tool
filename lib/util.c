@@ -1472,7 +1472,8 @@ static ykpiv_rc _get_metadata_item(uint8_t *data, size_t cb_data, uint8_t tag, u
     p_temp += cb_temp;
   }
 
-  if (p_temp < (data + cb_data)) {
+  // Make sure the item doesn't end after the buffer
+  if ((p_temp + cb_temp) <= (data + cb_data)) {
     *pp_item = p_temp;
     *pcb_item = cb_temp;
     return YKPIV_OK;
