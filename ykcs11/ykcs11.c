@@ -1788,9 +1788,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptInit)(
 
   session->op_info.op.encrypt.key_id = id;
 
-  if(decrypt_mechanism_init(session, pMechanism) != CKR_OK) {
+  CK_RV rv = decrypt_mechanism_init(session, pMechanism);
+  if(rv != CKR_OK) {
     DBG("Failed to initialize encryption operation");
-    return CKR_FUNCTION_FAILED;
+    return rv;
   } 
 
   session->op_info.buf_len = 0;
@@ -2018,10 +2019,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
     return CKR_KEY_TYPE_INCONSISTENT;
   }
 
-  if (decrypt_mechanism_init(session, pMechanism) != CKR_OK) {
-    DBG("Unable to initialize decryption operation");
-    return CKR_FUNCTION_FAILED;
-  }
+  CK_RV rv = decrypt_mechanism_init(session, pMechanism);
+  if(rv != CKR_OK) {
+    DBG("Failed to initialize decryption operation");
+    return rv;
+  } 
   
   session->op_info.op.encrypt.key_id = id;
   session->op_info.buf_len = 0;
@@ -2278,8 +2280,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestInit)(
 
   session->op_info.mechanism = pMechanism->mechanism;
 
-  CK_RV rv;
-  rv = digest_mechanism_init(session);
+  CK_RV rv = digest_mechanism_init(session);
   if(rv != CKR_OK) {
     DBG("Unable to initialize digest operation");
     return rv;

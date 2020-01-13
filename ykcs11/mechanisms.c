@@ -786,33 +786,29 @@ CK_RV decrypt_mechanism_init(ykcs11_session_t *session, CK_MECHANISM_PTR mech) {
     break;
   case CKM_RSA_PKCS_OAEP:
     session->op_info.op.encrypt.padding = RSA_PKCS1_OAEP_PADDING;    
-    if(mech->pParameter != NULL && mech->ulParameterLen == sizeof(CK_RSA_PKCS_OAEP_PARAMS)) {
-      CK_RSA_PKCS_OAEP_PARAMS_PTR oaep = (CK_RSA_PKCS_OAEP_PARAMS_PTR) mech->pParameter;
-      DBG("OAEP params : hashAlg 0x%lx mgf 0x%lx source 0x%lx pSourceData %p ulSourceDataLen %lu", oaep->hashAlg, oaep->mgf, oaep->source, oaep->pSourceData, oaep->ulSourceDataLen);
-      session->op_info.op.encrypt.oaep_md = EVP_MD_by_mechanism(oaep->hashAlg);
-      session->op_info.op.encrypt.mgf1_md = EVP_MD_by_mechanism(oaep->mgf);
-      if(oaep->source == CKZ_DATA_SPECIFIED && oaep->pSourceData) {
-        session->op_info.op.encrypt.oaep_encparam = malloc(oaep->ulSourceDataLen);
-        if(session->op_info.op.encrypt.oaep_encparam == NULL) {
-          DBG("Unable to allocate memory for %lu byte OAEP label", oaep->ulSourceDataLen);
-          return CKR_HOST_MEMORY;
-        }
-        memcpy(session->op_info.op.encrypt.oaep_encparam, oaep->pSourceData, oaep->ulSourceDataLen);
-        session->op_info.op.encrypt.oaep_encparam_len = oaep->ulSourceDataLen;
-      } else {
-        session->op_info.op.encrypt.oaep_encparam = NULL;
-        session->op_info.op.encrypt.oaep_encparam_len = 0;
+    if(mech->pParameter == NULL || mech->ulParameterLen != sizeof(CK_RSA_PKCS_OAEP_PARAMS)) {
+        return CKR_MECHANISM_PARAM_INVALID;
+    }
+    CK_RSA_PKCS_OAEP_PARAMS_PTR oaep = mech->pParameter;
+    DBG("OAEP params : hashAlg 0x%lx mgf 0x%lx source 0x%lx pSourceData %p ulSourceDataLen %lu", oaep->hashAlg, oaep->mgf, oaep->source, oaep->pSourceData, oaep->ulSourceDataLen);
+    session->op_info.op.encrypt.oaep_md = EVP_MD_by_mechanism(oaep->hashAlg);
+    session->op_info.op.encrypt.mgf1_md = EVP_MD_by_mechanism(oaep->mgf);
+    if(oaep->source == CKZ_DATA_SPECIFIED && oaep->pSourceData) {
+      session->op_info.op.encrypt.oaep_encparam = malloc(oaep->ulSourceDataLen);
+      if(session->op_info.op.encrypt.oaep_encparam == NULL) {
+        DBG("Unable to allocate memory for %lu byte OAEP label", oaep->ulSourceDataLen);
+        return CKR_HOST_MEMORY;
       }
+      memcpy(session->op_info.op.encrypt.oaep_encparam, oaep->pSourceData, oaep->ulSourceDataLen);
+      session->op_info.op.encrypt.oaep_encparam_len = oaep->ulSourceDataLen;
     } else {
-      session->op_info.op.encrypt.oaep_md = NULL;
-      session->op_info.op.encrypt.mgf1_md = NULL;
       session->op_info.op.encrypt.oaep_encparam = NULL;
       session->op_info.op.encrypt.oaep_encparam_len = 0;
     }
     break;
   default:
     DBG("Unsupported mechanism");
-    return CKR_FUNCTION_FAILED;
+    return CKR_MECHANISM_INVALID;
   }
 
   return CKR_OK;
