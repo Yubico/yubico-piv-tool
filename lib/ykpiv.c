@@ -622,6 +622,11 @@ ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state) {
       int tries;
       if((res = _ykpiv_verify(state, state->pin, strlen(state->pin), &tries)) != YKPIV_OK)
         return res;
+      // De-authenticate always-authenticate keys by running an arbitrary command
+      unsigned char data[80];
+      unsigned long recv_len = sizeof(data);
+      if((res = _ykpiv_fetch_object(state, YKPIV_OBJ_DISCOVERY, data, &recv_len)) != YKPIV_OK)
+        return res;
     }
     if(state->mgm_key) {
       return _ykpiv_authenticate(state, state->mgm_key);
@@ -1070,6 +1075,14 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
       if((res = _ykpiv_verify(state, state->pin, strlen(state->pin), &tries)) != YKPIV_OK) {
         if(state->verbose) {
           fprintf(stderr, "Veryfy PIN failed with status %x.\n", res);
+        }
+        return res;
+      }
+      // De-authenticate always-authenticate keys by running an arbitrary command
+      recv_len = sizeof(data);
+      if((res = _ykpiv_fetch_object(state, YKPIV_OBJ_DISCOVERY, data, &recv_len)) != YKPIV_OK) {
+        if(state->verbose) {
+          fprintf(stderr, "Fetch discovery object failed with status %x.\n", res);
         }
         return res;
       }
