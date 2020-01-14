@@ -3331,7 +3331,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_SeedRandom)(
   }
 
   if(ulSeedLen != 0) {
-    do_rand_seed(pSeed, ulSeedLen);
+    CK_RV rv = do_rand_seed(pSeed, ulSeedLen);
+    if (rv != CKR_OK) {
+      return rv;
+    }
   }
 
   DOUT;
@@ -3365,8 +3368,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateRandom)(
 
   // the OpenSC pkcs11 test calls with 0 and expects CKR_OK, do that..
   if (ulRandomLen != 0) {
-    if (do_rand_bytes(pRandomData, ulRandomLen) == -1) {
-      return CKR_GENERAL_ERROR;
+    CK_RV rv = do_rand_bytes(pRandomData, ulRandomLen);
+    if (rv != CKR_OK) {
+      return rv;
     }
   }
 

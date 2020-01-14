@@ -42,8 +42,7 @@ CK_RV do_rand_seed(CK_BYTE_PTR data, CK_ULONG len) {
 }
 
 CK_RV do_rand_bytes(CK_BYTE_PTR data, CK_ULONG len) {
-  RAND_bytes(data, len);
-  return CKR_OK;
+  return RAND_bytes(data, len) == len ? CKR_OK : CKR_FUNCTION_FAILED;
 }
 
 CK_RV do_rsa_encrypt(ykcs11_pkey_t *key, int padding, const ykcs11_md_t* oaep_md, const ykcs11_md_t* oaep_mgf1, 
