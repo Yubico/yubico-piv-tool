@@ -254,7 +254,7 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
     session->op_info.buf_len = cbLength;
   }
 
-  int padlen = session->op_info.out_len;
+  CK_ULONG padlen = session->op_info.out_len;
   CK_BYTE buf[1024];
 
   // Apply padding
