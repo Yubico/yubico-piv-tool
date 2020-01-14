@@ -124,7 +124,5 @@ YKPIV_1.8.0
 {
 global:
     ykpiv_get_metadata;
-    ykpiv_clear_pin_cache;
-    ykpiv_clear_mgm_key_cache;
     ykpiv_util_parse_metadata;
 } YKPIV_1.6.0;

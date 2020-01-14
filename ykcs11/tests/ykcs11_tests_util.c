@@ -606,12 +606,13 @@ void test_ec_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJE
   asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Login USER");
 
   for (i = 0; i < 24; i++) {
-    for (j = 0; j < 3; j++) {
+    for (j = 0; j < 2; j++) {
       if(RAND_bytes(data, sizeof(data)) == -1)
         exit(EXIT_FAILURE);
       data_len = sizeof(data);
 
       asrt(funcs->C_SignInit(session, &mech, obj_pvtkey[i]), CKR_OK, "SignInit");
+      asrt(funcs->C_Login(session, CKU_CONTEXT_SPECIFIC, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Re-Login USER");
       recv_len = sizeof(sig);
       asrt(funcs->C_Sign(session, data, sizeof(data), sig, &recv_len), CKR_OK, "Sign");
 
@@ -664,13 +665,14 @@ void test_rsa_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJ
 
   for (i = 0; i < 24; i++) {
     obj_pubkey = get_public_key_handle(funcs, session, obj_pvtkey[i]);    
-    for (j = 0; j < 3; j++) {
+    for (j = 0; j < 2; j++) {
 
       if(RAND_bytes(data, sizeof(data)) == -1)
         exit(EXIT_FAILURE);
 
       // Sign
       asrt(funcs->C_SignInit(session, &mech, obj_pvtkey[i]), CKR_OK, "SIGN INIT");
+      asrt(funcs->C_Login(session, CKU_CONTEXT_SPECIFIC, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Re-Login USER");
       sig_len = sizeof(sig);
       asrt(funcs->C_Sign(session, data, sizeof(data), sig, &sig_len), CKR_OK, "SIGN");
 
@@ -690,6 +692,7 @@ void test_rsa_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJ
 
       // Sign Update
       asrt(funcs->C_SignInit(session, &mech, obj_pvtkey[i]), CKR_OK, "SIGN INIT");
+      asrt(funcs->C_Login(session, CKU_CONTEXT_SPECIFIC, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Re-Login USER");
       sig_update_len = sizeof(sig_update);
       asrt(funcs->C_SignUpdate(session, data, 16), CKR_OK, "SIGN UPDATE 1");
       asrt(funcs->C_SignUpdate(session, data + 16, 10), CKR_OK, "SIGN UPDATE 2");
@@ -735,13 +738,14 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
 
   for (i = 0; i < 24; i++) {
     obj_pubkey = get_public_key_handle(funcs, session, obj_pvtkey[i]);    
-    for (j = 0; j < 3; j++) {
+    for (j = 0; j < 2; j++) {
 
       if(RAND_bytes(data, pss_params.sLen) == -1)
         exit(EXIT_FAILURE);
 
       // Sign
       asrt(funcs->C_SignInit(session, &mech, obj_pvtkey[i]), CKR_OK, "SIGN INIT");
+      asrt(funcs->C_Login(session, CKU_CONTEXT_SPECIFIC, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Re-Login USER");
       sig_len = sizeof(sig);
       asrt(funcs->C_Sign(session, data, pss_params.sLen, sig, &sig_len), CKR_OK, "SIGN");
 
@@ -769,6 +773,7 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
 
       // Sign Update
       asrt(funcs->C_SignInit(session, &mech, obj_pvtkey[i]), CKR_OK, "SIGN INIT");
+      asrt(funcs->C_Login(session, CKU_CONTEXT_SPECIFIC, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Re-Login USER");
       sig_update_len = sizeof(sig_update);
       asrt(funcs->C_SignUpdate(session, data, 10), CKR_OK, "SIGN UPDATE 1");
       asrt(funcs->C_SignUpdate(session, data + 10, pss_params.sLen - 10), CKR_OK, "SIGN UPDATE 2");
@@ -844,7 +849,7 @@ void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Login USER");
 
   for (i = 0; i < 24; i++) {
-    for (j = 0; j < 3; j++) {
+    for (j = 0; j < 2; j++) {
       // This is because the numerical value of the clear data cannot be larger than the numerical value of the RSA key modulus
       // Adding a padding takes care of this, but with RSA_NO_PADDING, we need to deal with that manually
       do {
@@ -856,12 +861,14 @@ void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
 
       // Decrypt
       asrt(funcs->C_DecryptInit(session, &mech, obj_pvtkey[i]), CKR_OK, "DECRYPT INIT");
+      asrt(funcs->C_Login(session, CKU_CONTEXT_SPECIFIC, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Re-Login USER");
       asrt(funcs->C_Decrypt(session, enc, enc_len, dec, &dec_len), CKR_OK, "DECRYPT");
       asrt(dec_len, data_len, "DECRYPTED DATA LEN");
       asrt(memcmp(data, dec, dec_len), 0, "DECRYPTED DATA");
 
       // Decrypt Update
       asrt(funcs->C_DecryptInit(session, &mech, obj_pvtkey[i]), CKR_OK, "DECRYPT INIT");
+      asrt(funcs->C_Login(session, CKU_CONTEXT_SPECIFIC, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Re-Login USER");
       asrt(funcs->C_DecryptUpdate(session, enc, 100, NULL, NULL), CKR_OK, "DECRYPT UPDATE");
       asrt(funcs->C_DecryptUpdate(session, enc+100, 8, NULL, NULL), CKR_OK, "DECRYPT UPDATE");
       asrt(funcs->C_DecryptUpdate(session, enc+108, 20, NULL, NULL), CKR_OK, "DECRYPT UPDATE");
@@ -892,7 +899,7 @@ void test_rsa_encrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
 
   for (i = 0; i < 24; i++) {
     pubkey = get_public_key_handle(funcs, session, obj_pvtkey[i]);
-    for (j = 0; j < 3; j++) {
+    for (j = 0; j < 2; j++) {
     
       if(RAND_bytes(data, data_len) == -1)
         exit(EXIT_FAILURE);

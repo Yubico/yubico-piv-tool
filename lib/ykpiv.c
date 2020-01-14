@@ -1399,10 +1399,6 @@ static ykpiv_rc _cache_pin(ykpiv_state *state, const char *pin, size_t len) {
 #endif
 }
 
-ykpiv_rc ykpiv_clear_pin_cache(ykpiv_state *state) {
-  return _cache_pin(state, NULL, 0);
-}
-
 static ykpiv_rc _cache_mgm_key(ykpiv_state *state, unsigned const char *key) {
 #if DISABLE_MGM_KEY_CACHE
   // Some embedded applications of this library may not want to keep the MGM_KEY
@@ -1428,10 +1424,6 @@ static ykpiv_rc _cache_mgm_key(ykpiv_state *state, unsigned const char *key) {
   }
   return YKPIV_OK;
 #endif
-}
-
-ykpiv_rc ykpiv_clear_mgm_key_cache(ykpiv_state *state) {
-  return _cache_mgm_key(state, NULL);
 }
 
 static ykpiv_rc _ykpiv_verify(ykpiv_state *state, const char *pin, const size_t pin_len, int *tries) {
