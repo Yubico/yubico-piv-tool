@@ -350,7 +350,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
         n_slots++;
       }
 
-      char buf[strlen(reader) + 2];
+      // If the buffer is too small we will simply skip this reader. Should never happen for a YubiKey.
+      char buf[128];
       snprintf(buf, sizeof(buf), "@%s", reader);
 
       // Try to connect if unconnected (both new and existing slots)

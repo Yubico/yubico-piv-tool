@@ -588,7 +588,7 @@ adete_out:
 
 static int BN_bn2bin_fixed(const BIGNUM *bn, CK_BYTE_PTR out, CK_ULONG len) {
 
-  CK_BYTE buf[BN_num_bytes(bn)];
+  CK_BYTE buf[1024];
   int actual = BN_bn2bin(bn, buf);
   if(actual <= 0)
     return actual;

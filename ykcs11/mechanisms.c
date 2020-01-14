@@ -255,7 +255,7 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
   }
 
   int padlen = session->op_info.out_len;
-  CK_BYTE buf[padlen];
+  CK_BYTE buf[1024];
 
   // Apply padding
   switch(session->op_info.op.sign.padding) {
@@ -493,7 +493,7 @@ CK_RV verify_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULON
 
   int rc;
 
-  CK_BYTE der[sig_len + 32]; // Add some space for the DER encoding
+  CK_BYTE der[1024];
   if(!session->op_info.op.verify.padding) {
     memcpy(der, sig, sig_len);
     sig = der;
