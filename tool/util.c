@@ -242,8 +242,8 @@ void dump_data(const unsigned char *buf, unsigned int len, FILE *output, bool sp
   }
 }
 
-int get_length(const unsigned char *buffer, int *len) {
-  if(buffer[0] < 0x81) {
+unsigned long get_length(const unsigned char *buffer, unsigned long *len) {
+  if(*buffer < 0x81) {
     *len = buffer[0];
     return 1;
   } else if((*buffer & 0x7f) == 1) {
@@ -256,6 +256,19 @@ int get_length(const unsigned char *buffer, int *len) {
   return 0;
 }
 
+bool has_valid_length(const unsigned char* buffer, unsigned long len) {
+  if ((len > 0) && (*buffer < 0x81)) {
+    return true;
+  }
+  else if ((len > 1) && ((*buffer & 0x7f) == 1)) {
+    return true;
+  }
+  else if ((len > 2) && ((*buffer & 0x7f) == 2)) {
+    return true;
+  }
+  return false;
+}
+
 int get_curve_name(int key_algorithm) {
   if(key_algorithm == YKPIV_ALGO_ECCP256) {
     return NID_X9_62_prime256v1;
@@ -265,7 +278,7 @@ int get_curve_name(int key_algorithm) {
   return 0;
 }
 
-int set_length(unsigned char *buffer, int length) {
+unsigned long set_length(unsigned char *buffer, unsigned long length) {
   if(length < 0x80) {
     *buffer++ = length;
     return 1;

@@ -1319,7 +1319,7 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
   unsigned char data[YKPIV_OBJ_MAX_SIZE];
   const unsigned char *ptr = data;
   unsigned long len = sizeof(data);
-  int cert_len;
+  unsigned long cert_len;
   X509 *x509 = NULL;
   X509_NAME *subj;
   BIO *bio = NULL;
