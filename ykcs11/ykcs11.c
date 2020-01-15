@@ -1101,7 +1101,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
       return CKR_USER_ALREADY_LOGGED_IN;
     }
 
-    if (session->slot->login_state == YKCS11_SO) {
+    if (session->slot->login_state == YKCS11_SO && userType == CKU_USER) {
       DBG("Tried to log-in USER to a SO session");
       locking.pfnUnlockMutex(session->slot->mutex);
       return CKR_USER_ANOTHER_ALREADY_LOGGED_IN;
