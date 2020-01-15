@@ -363,7 +363,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
         slot->token_info.flags = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
 
         slot->token_info.ulMinPinLen = PIV_MIN_PIN_LEN;
-        slot->token_info.ulMaxPinLen = PIV_MAX_PIN_LEN;
+        slot->token_info.ulMaxPinLen = PIV_MGM_KEY_LEN;
 
         slot->token_info.ulMaxRwSessionCount = YKCS11_MAX_SESSIONS;
         slot->token_info.ulMaxSessionCount = YKCS11_MAX_SESSIONS;
