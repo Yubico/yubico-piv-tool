@@ -615,11 +615,11 @@ ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state) {
   }
   if(retries) {
     ykpiv_rc res;
-    if ((res = _ykpiv_select_application(state)) != YKPIV_OK) {
+    if ((res = _ykpiv_select_application(state)) != YKPIV_OK)
       return res;
-    }
     if(state->mgm_key) {
-      return _ykpiv_authenticate(state, state->mgm_key);
+      if((res = _ykpiv_authenticate(state, state->mgm_key)) != YKPIV_OK)
+        return res;
     }
     if (state->pin) {
       int tries;
@@ -1066,37 +1066,6 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   } else if(sw != SW_SUCCESS) {
     if(state->verbose) {
       fprintf(stderr, "Sign command failed with code %x.\n", sw);
-    }
-    if (sw == SW_ERR_SECURITY_STATUS && state->pin) {
-      if(state->verbose) {
-        fprintf(stderr, "Verifying PIN and retrying sign command.\n");
-      }
-      int tries;
-      if((res = _ykpiv_verify(state, state->pin, strlen(state->pin), &tries)) != YKPIV_OK) {
-        if(state->verbose) {
-          fprintf(stderr, "Veryfy PIN failed with status %x.\n", res);
-        }
-        return res;
-      }
-      // De-authenticate always-authenticate keys by running an arbitrary command
-      recv_len = sizeof(data);
-      if((res = _ykpiv_fetch_object(state, YKPIV_OBJ_DISCOVERY, data, &recv_len)) != YKPIV_OK) {
-        if(state->verbose) {
-          fprintf(stderr, "Fetch discovery object failed with status %x.\n", res);
-        }
-        return res;
-      }
-      recv_len = sizeof(data);
-      if((res = _ykpiv_transfer_data(state, templ, indata, (long)(dataptr - indata), data, &recv_len, &sw)) != YKPIV_OK) {
-        if(state->verbose) {
-          fprintf(stderr, "Retry of Sign command failed to communicate with status %x.\n", res);
-        }
-        return res;
-      } else if(sw != SW_SUCCESS) {
-        if(state->verbose) {
-          fprintf(stderr, "Retry of Sign command failed with code %x.\n", sw);
-        }
-      }
     }
     if (sw == SW_ERR_SECURITY_STATUS)
       return YKPIV_AUTHENTICATION_ERROR;
