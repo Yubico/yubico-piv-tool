@@ -1182,6 +1182,11 @@ static ykpiv_rc _ykpiv_get_version(ykpiv_state *state) {
     return YKPIV_ARGUMENT_ERROR;
   }
 
+  /* get version from state if already retrieved from device */
+  if (state->ver.major || state->ver.minor || state->ver.patch) {
+    return YKPIV_OK;
+  }
+
   /* get version from device */
 
   memset(apdu.raw, 0, sizeof(apdu));
@@ -1207,22 +1212,12 @@ static ykpiv_rc _ykpiv_get_version(ykpiv_state *state) {
 
 ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len) {
   ykpiv_rc res;
-  int result;
-
-  /* get version from state if already from device */
-  if (state->ver.major || state->ver.minor || state->ver.patch) {
-    result = snprintf(version, len, "%d.%d.%d", state->ver.major, state->ver.minor, state->ver.patch);
-    if(result < 0 || result >= len) {
-      res = YKPIV_SIZE_ERROR;
-    }
-    return YKPIV_OK;
-  }
 
   if ((res = _ykpiv_begin_transaction(state)) < YKPIV_OK) return res;
   if ((res = _ykpiv_ensure_application_selected(state)) < YKPIV_OK) goto Cleanup;
 
   if ((res = _ykpiv_get_version(state)) >= YKPIV_OK) {
-    result = snprintf(version, len, "%d.%d.%d", state->ver.major, state->ver.minor, state->ver.patch);
+    int result = snprintf(version, len, "%d.%d.%d", state->ver.major, state->ver.minor, state->ver.patch);
     if(result < 0 || result >= len) {
       res = YKPIV_SIZE_ERROR;
     }
@@ -1246,6 +1241,11 @@ static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state) {
 
   if (!state) {
     return YKPIV_ARGUMENT_ERROR;
+  }
+
+  /* get serial from state if already retrieved from device */
+  if (state->serial != 0) {
+    return YKPIV_OK;
   }
 
   if (state->ver.major < 5) {
@@ -1353,11 +1353,6 @@ Cleanup:
 
 ykpiv_rc ykpiv_get_serial(ykpiv_state *state, uint32_t *p_serial) {
   ykpiv_rc res = YKPIV_OK;
-
-  if (state->serial != 0) {
-    *p_serial = state->serial;
-    return YKPIV_OK;
-  }
 
   if ((res = _ykpiv_begin_transaction(state)) != YKPIV_OK) return res;
   if ((res = _ykpiv_ensure_application_selected(state)) != YKPIV_OK) goto Cleanup;
