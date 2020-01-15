@@ -150,7 +150,7 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_MECH
       return CKR_MECHANISM_INVALID;
   }
 
-  session->op_info.out_len = EVP_PKEY_size(key);
+  session->op_info.out_len = do_get_signature_size(key);
   session->op_info.op.sign.rsa = EVP_PKEY_get0_RSA(key);
   session->op_info.op.sign.algorithm = do_get_key_algorithm(key);
 
@@ -287,8 +287,9 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
   }
 
   // Sign with PIV
-  size_t siglen = *sig_len;
-  ykpiv_rc rcc = ykpiv_sign_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, sig, &siglen, session->op_info.op.sign.algorithm, session->op_info.op.sign.piv_key);
+  unsigned char sigbuf[256];
+  size_t siglen = sizeof(sigbuf);
+  ykpiv_rc rcc = ykpiv_sign_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, sigbuf, &siglen, session->op_info.op.sign.algorithm, session->op_info.op.sign.piv_key);
   if(rcc == YKPIV_OK) {
     DBG("ykpiv_sign_data %lu bytes with key %x returned %lu bytes data", session->op_info.buf_len, session->op_info.op.sign.piv_key, siglen);
     *sig_len = siglen;
@@ -302,14 +303,14 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
   // Strip DER encoding on EC signatures
   switch(session->op_info.op.sign.algorithm) {
     case YKPIV_ALGO_ECCP256:
-      DBG("Stripping DER encoding from %lu bytes, returning 64", *sig_len);
-      rv = do_strip_DER_encoding_from_ECSIG(sig, sig_len, 64);
-      break;
     case YKPIV_ALGO_ECCP384:
-      DBG("Stripping DER encoding from %lu bytes, returning 96", *sig_len);
-      rv = do_strip_DER_encoding_from_ECSIG(sig, sig_len, 96);
+      DBG("Stripping DER encoding from %lu bytes, returning %lu", *sig_len, session->op_info.out_len);
+      rv = do_strip_DER_encoding_from_ECSIG(sigbuf, sig_len, session->op_info.out_len);
       break;
   }
+
+  if(rv == CKR_OK)
+    memcpy(sig, sigbuf, *sig_len);
 
   return rv;
 }

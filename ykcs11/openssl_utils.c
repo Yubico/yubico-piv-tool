@@ -420,6 +420,22 @@ CK_ULONG do_get_key_size(ykcs11_pkey_t *key) {
   return EVP_PKEY_bits(key);
 }
 
+CK_ULONG do_get_signature_size(ykcs11_pkey_t *key) {
+
+  switch (EVP_PKEY_base_id(key)) {
+  case EVP_PKEY_RSA:
+    return EVP_PKEY_size(key);
+  case EVP_PKEY_EC:
+    switch(EVP_PKEY_bits(key)) {
+    case 256:
+      return 64;
+    case 384:
+      return 96;
+    }
+  }
+  return 0; // Actually an error
+}
+
 CK_BYTE do_get_key_algorithm(ykcs11_pkey_t *key) {
 
   switch (EVP_PKEY_base_id(key)) {

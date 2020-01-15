@@ -1101,6 +1101,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
       return CKR_USER_ALREADY_LOGGED_IN;
     }
 
+    // We allow multiple logins for CKU_CONTEXT_SPECIFIC (we allow it regardless of CKA_ALWAYS_AUTHENTICATE because it's based on hardcoded tables and might be wrong)
     if (session->slot->login_state == YKCS11_SO && userType == CKU_USER) {
       DBG("Tried to log-in USER to a SO session");
       locking.pfnUnlockMutex(session->slot->mutex);
@@ -1114,7 +1115,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
       return rv;
     }
 
-    session->slot->login_state = YKCS11_USER;
+    // This allows contect-specific login while already logged in as SO, allowing creation of objects AND signing in one session
+    if(session->slot->login_state == YKCS11_PUBLIC)
+      session->slot->login_state = YKCS11_USER;
     locking.pfnUnlockMutex(session->slot->mutex);
     break;
 
@@ -1445,10 +1448,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (!is_present(session, hObject)) {
-    DBG("Object handle is invalid");
-    return CKR_OBJECT_HANDLE_INVALID;
-  }
+  // Silently ignore invalid handles for compatibility with applications
 
   // Only certificates can be deleted
   // SO must be logged in
@@ -2484,6 +2484,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
+  // This allows signing when logged in as SO and then doing a context-specific login to sign
   if (get_session_state(session) == CKS_RO_PUBLIC_SESSION ||
       get_session_state(session) == CKS_RW_PUBLIC_SESSION) {
     DBG("User is not logged in");
@@ -2585,12 +2586,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     return CKR_OK;
   }
 
-  if (*pulSignatureLen < session->op_info.out_len) {
-    DBG("The signature requires %lu bytes, got %lu", session->op_info.out_len, *pulSignatureLen);
-    DOUT;
-    return CKR_BUFFER_TOO_SMALL;
-  }
-
 #if YKCS11_DBG > 1
   dump_data(pData, ulDataLen, stderr, CK_TRUE, format_arg_hex);
 #endif
@@ -2598,6 +2593,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   if ((rv = digest_mechanism_update(session, pData, ulDataLen)) != CKR_OK) {
     DBG("digest_mechanism_update failed");
     goto sign_out;
+  }
+
+  if (*pulSignatureLen < session->op_info.out_len) {
+    DBG("The signature requires %lu bytes, got %lu", session->op_info.out_len, *pulSignatureLen);
+    DOUT;
+    return CKR_BUFFER_TOO_SMALL;
   }
 
   locking.pfnLockMutex(session->slot->mutex);
