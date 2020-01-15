@@ -256,7 +256,7 @@ void test_digest_func(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   CK_MECHANISM mech = {mech_type, NULL, 0};
 
   for(i=0; i<10; i++) {
-    if(RAND_bytes(data, data_len) == -1)
+    if(RAND_bytes(data, data_len) <= 0)
         exit(EXIT_FAILURE);
 
     asrt(get_hash(mech_type, data, data_len, hdata, &hdata_len), CKR_OK, "GET HASH");
@@ -607,7 +607,7 @@ void test_ec_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJE
 
   for (i = 0; i < 24; i++) {
     for (j = 0; j < 2; j++) {
-      if(RAND_bytes(data, sizeof(data)) == -1)
+      if(RAND_bytes(data, sizeof(data)) <= 0)
         exit(EXIT_FAILURE);
       data_len = sizeof(data);
 
@@ -667,7 +667,7 @@ void test_rsa_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJ
     obj_pubkey = get_public_key_handle(funcs, session, obj_pvtkey[i]);    
     for (j = 0; j < 2; j++) {
 
-      if(RAND_bytes(data, sizeof(data)) == -1)
+      if(RAND_bytes(data, sizeof(data)) <= 0)
         exit(EXIT_FAILURE);
 
       // Sign
@@ -740,7 +740,7 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
     obj_pubkey = get_public_key_handle(funcs, session, obj_pvtkey[i]);    
     for (j = 0; j < 2; j++) {
 
-      if(RAND_bytes(data, pss_params.sLen) == -1)
+      if(RAND_bytes(data, pss_params.sLen) <= 0)
         exit(EXIT_FAILURE);
 
       // Sign
@@ -853,7 +853,7 @@ void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
       // This is because the numerical value of the clear data cannot be larger than the numerical value of the RSA key modulus
       // Adding a padding takes care of this, but with RSA_NO_PADDING, we need to deal with that manually
       do {
-        if(RAND_bytes(data, data_len) == -1)
+        if(RAND_bytes(data, data_len) <= 0)
           exit(EXIT_FAILURE);
 
         enc_len = RSA_public_encrypt(data_len, data, enc, rsak, padding);
@@ -901,7 +901,7 @@ void test_rsa_encrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
     pubkey = get_public_key_handle(funcs, session, obj_pvtkey[i]);
     for (j = 0; j < 2; j++) {
     
-      if(RAND_bytes(data, data_len) == -1)
+      if(RAND_bytes(data, data_len) <= 0)
         exit(EXIT_FAILURE);
 
       // Encrypt

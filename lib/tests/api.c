@@ -429,7 +429,7 @@ START_TEST(test_import_key) {
     ck_assert_ptr_nonnull(rsa);
     EVP_PKEY_free(pub_key);
 
-    ck_assert_int_gt(RAND_bytes(rand, 128), 0);
+    ck_assert_int_gt(RAND_bytes(rand, sizeof(rand)), 0);
     mdctx = EVP_MD_CTX_create();
     EVP_DigestInit_ex(mdctx, md, NULL);
     EVP_DigestUpdate(mdctx, rand, 128);
@@ -509,7 +509,7 @@ START_TEST(test_pin_policy_always) {
     ck_assert_ptr_nonnull(rsa);
     EVP_PKEY_free(pub_key);
 
-    ck_assert_int_gt(RAND_bytes(rand, 128), 0);
+    ck_assert_int_gt(RAND_bytes(rand, sizeof(rand)), 0);
     mdctx = EVP_MD_CTX_create();
     EVP_DigestInit_ex(mdctx, md, NULL);
     EVP_DigestUpdate(mdctx, rand, 128);

@@ -440,7 +440,7 @@ prng_rc _ykpiv_prng_generate(unsigned char *buffer, const size_t cb_req) {
   }
 
 #else
-  if (-1 == RAND_bytes(buffer, cb_req)) {
+  if (RAND_bytes(buffer, cb_req) <= 0) {
     rc = PRNG_GENERAL_ERROR;
   }
 
