@@ -350,8 +350,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
         n_slots++;
       }
 
-      // If the buffer is too small we will simply skip this reader. Should never happen for a YubiKey.
-      char buf[128];
+      char buf[sizeof(readers) + 1];
       snprintf(buf, sizeof(buf), "@%s", reader);
 
       // Try to connect if unconnected (both new and existing slots)
@@ -1448,16 +1447,18 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  // Silently ignore invalid handles for compatibility with applications
-
-  // Only certificates can be deleted
   // SO must be logged in
   if (get_session_state(session) != CKS_RW_SO_FUNCTIONS) {
     DBG("Unable to delete objects, SO must be logged in");
     return CKR_USER_TYPE_INVALID;
   }
 
+  // Silently ignore valid but not-present handles for compatibility with applications
   CK_BYTE id = get_sub_id(hObject);
+  if(id == 0) {
+    DBG("Object handle is invalid");
+    return CKR_OBJECT_HANDLE_INVALID;
+  }
 
   locking.pfnLockMutex(session->slot->mutex);
 
