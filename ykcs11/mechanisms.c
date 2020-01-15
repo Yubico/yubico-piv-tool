@@ -294,7 +294,7 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
     *sig_len = siglen;
   } else {
     DBG("ykpiv_sign_data with key %x failed: %s", session->op_info.op.sign.piv_key, ykpiv_strerror(rcc));
-    return CKR_FUNCTION_FAILED;
+    return rcc == YKPIV_AUTHENTICATION_ERROR ? CKR_USER_NOT_LOGGED_IN : CKR_FUNCTION_FAILED;
   }
 
   CK_RV rv = CKR_OK;
