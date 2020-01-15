@@ -877,25 +877,21 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     len = sizeof(data);
     if(ykpiv_fetch_object(session->slot->piv_state, piv_2_ykpiv(obj_ids[i]), data, &len) == YKPIV_OK) {
       DBG("Read %lu bytes for data object %u (%lx)", len, obj_ids[i], piv_2_ykpiv(obj_ids[i]));
-      DBG("Adding data object %u", obj_ids[i]);
-      session->objects[session->n_objects++] = obj_ids[i];
       rv = store_data(session, sub_id, data, len);
       if (rv != CKR_OK) {
         DBG("Failed to store data object %u in session: %lu", obj_ids[i], rv);
-        locking.pfnUnlockMutex(session->slot->mutex);
-        session->slot = NULL;
-        return rv;
+        continue;
       }
+      DBG("Adding data object %u", obj_ids[i]);
+      session->objects[session->n_objects++] = obj_ids[i];
       if(cert_id != PIV_INVALID_OBJ) {
-        DBG("Adding cert object %u", cert_id);
-        session->objects[session->n_objects++] = cert_id;
         rv = store_cert(session, sub_id, data, len, CK_FALSE);
         if (rv != CKR_OK) {
           DBG("Failed to store certificate object %u in session: %lu", cert_id, rv);
-          locking.pfnUnlockMutex(session->slot->mutex);
-          session->slot = NULL;
-          return rv;
+          continue; // Bail out, can't create key objects without the public key from the cert
         }
+        DBG("Adding cert object %u", cert_id);
+        session->objects[session->n_objects++] = cert_id;
         if(rc != YKPIV_OK) { // Failed to get metadata, fall back to assuming we have keys for cert objects
           DBG("Adding key object %u and %u", pubk_id, pvtk_id);
           session->objects[session->n_objects++] = pubk_id;
