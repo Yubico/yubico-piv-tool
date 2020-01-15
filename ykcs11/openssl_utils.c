@@ -229,6 +229,9 @@ CK_RV do_create_public_key(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm, 
 
     in += get_length(in, &len);
 
+    if(in + len >= eob)
+      return CKR_GENERAL_ERROR;
+
     return do_create_rsa_key(mod, mod_len, in, len, pkey);
   }
   else {
@@ -242,6 +245,9 @@ CK_RV do_create_public_key(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm, 
       return CKR_GENERAL_ERROR;
 
     in += get_length(in, &len);
+
+    if(in + len >= eob)
+      return CKR_GENERAL_ERROR;
 
     return do_create_ec_key(in, len, curve_name, pkey);
   }
