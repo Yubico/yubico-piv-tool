@@ -618,6 +618,9 @@ ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state) {
     if ((res = _ykpiv_select_application(state)) != YKPIV_OK) {
       return res;
     }
+    if(state->mgm_key) {
+      return _ykpiv_authenticate(state, state->mgm_key);
+    }
     if (state->pin) {
       int tries;
       if((res = _ykpiv_verify(state, state->pin, strlen(state->pin), &tries)) != YKPIV_OK)
@@ -627,9 +630,6 @@ ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state) {
       unsigned long recv_len = sizeof(data);
       if((res = _ykpiv_fetch_object(state, YKPIV_OBJ_DISCOVERY, data, &recv_len)) != YKPIV_OK)
         return res;
-    }
-    if(state->mgm_key) {
-      return _ykpiv_authenticate(state, state->mgm_key);
     }
   }
 #endif /* ENABLE_IMPLICIT_TRANSACTIONS */
