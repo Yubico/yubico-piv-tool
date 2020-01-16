@@ -710,10 +710,13 @@ extern "C"
 #define YKPIV_ATR_YK5_P1 "\x3b\xf8\x13\x00\x00\x81\x31\xfe\x15\x01\x59\x75\x62\x69\x4b\x65\x79\xc1"
 #define YKPIV_ATR_YK5    "\x3b\xfd\x13\x00\x00\x81\x31\xfe\x15\x80\x73\xc0\x21\xc0\x57\x59\x75\x62\x69\x4b\x65\x79\x40"
 
-#define DEVTYPE_UNKNOWN  0x58585820 // "XXX" 
-#define DEVTYPE_NEO      0x4E454F20 // "NEO"
-#define DEVTYPE_YK4      0x594B3420 // "YK4"
-#define DEVTYPE_YK5      0x594B3520 // "YK5"
+#define DEVTYPE_UNKNOWN  0x00000000
+#define DEVTYPE_NEO      0x4E450000 //"NE"
+#define DEVTYPE_YK       0x594B0000 //"YK"
+#define DEVTYPE_NEOr3    (DEVTYPE_NEO | 0x00007233) //"r3"
+#define DEVTYPE_YK4      (DEVTYPE_YK  | 0x00000034) // "4"
+#define DEVTYPE_YK5      (DEVTYPE_YK  | 0x00000035) // "5"
+#define DEVYTPE_YK5      DEVTYPE_YK5 // Keep old typo for backwards compatibility
 
 #ifdef __cplusplus
 }

@@ -43,7 +43,7 @@
 #define MIN_ECC_KEY_SIZE 256
 #define MAX_ECC_KEY_SIZE 384
 
-static const char *token_model = "YubiKey XXXX";
+static const char *token_model = "YubiKey XXX";
 
 static const CK_MECHANISM_TYPE token_mechanisms[] = { // KEEP ALIGNED WITH token_mechanism_infos
     CKM_RSA_PKCS_KEY_PAIR_GEN,
@@ -147,15 +147,19 @@ CK_RV get_token_model(ykpiv_state *state, CK_UTF8CHAR_PTR str, CK_ULONG len) {
   ykpiv_devmodel model = ykpiv_util_devicemodel(state);
 
   memset(str, ' ', len);
-  uint8_t *ptr = str + memstrcpy(str, token_model);
+  uint8_t *ptr = str + memstrcpy(str, token_model) - 3;
 
-  *--ptr = (model & 0xff);
-  model >>= 8; 
-  *--ptr = (model & 0xff);
-  model >>= 8; 
-  *--ptr = (model & 0xff);
-  model >>= 8; 
-  *--ptr = (model & 0xff);
+  switch(model) {
+    case DEVTYPE_NEO:
+      memstrcpy(ptr, "NEO");
+      break;
+    case DEVTYPE_YK4:
+      memstrcpy(ptr, "YK4");
+      break;
+    case DEVTYPE_YK5:
+      memstrcpy(ptr, "YK5");
+      break;
+  }
 
   return CKR_OK;
 }
