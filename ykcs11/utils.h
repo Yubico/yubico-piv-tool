@@ -46,6 +46,7 @@ CK_RV native_destroy_mutex(void *mutex);
 CK_RV native_lock_mutex(void *mutex);
 CK_RV native_unlock_mutex(void *mutex);
 
-CK_RV check_mutex(void *mutex);
+CK_RV get_pid(uint64_t *pid);
+CK_RV check_pid(uint64_t pid);
 
 #endif

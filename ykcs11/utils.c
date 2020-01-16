@@ -47,29 +47,12 @@ size_t memstrcpy(void *dst, const char *src) {
   return len;
 }
 
-typedef struct {
-#ifdef __WIN32
-  CRITICAL_SECTION mutex;
-#else
-  pthread_mutex_t mutex;
-  pid_t pid;
-#endif
-} native_mutex_t;
-
 CK_RV noop_create_mutex(void **mutex) {
-  native_mutex_t *mtx = calloc(1, sizeof(native_mutex_t));
-  if (mtx == NULL) {
-    return CKR_HOST_MEMORY;
-  }
-#ifndef __WIN32
-  mtx->pid = getpid();
-#endif
-  *mutex = mtx;
+  *mutex = (void*)0xbaadf00d;
   return CKR_OK;
 }
 
 CK_RV noop_destroy_mutex(void *mutex) {
-  free(mutex);
   return CKR_OK;
 }
 
@@ -78,83 +61,91 @@ CK_RV noop_mutex_fn(void *mutex) {
 }
 
 CK_RV native_create_mutex(void **mutex) {
-  native_mutex_t *mtx = calloc(1, sizeof(native_mutex_t));
+#ifdef __WIN32
+  CRITICAL_SECTION *mtx = calloc(1, sizeof(CRITICAL_SECTION));
   if (mtx == NULL) {
     return CKR_HOST_MEMORY;
   }
-#ifdef __WIN32
-  InitializeCriticalSection(&mtx->mutex);
+  InitializeCriticalSection(mtx);
 #else
+  pthread_mutex_t *mtx = calloc(1, sizeof(pthread_mutex_t));
+  if (mtx == NULL) {
+    return CKR_HOST_MEMORY;
+  }
   pthread_mutexattr_t mattr;
   if(pthread_mutexattr_init(&mattr)) {
     free(mtx);
     return CKR_CANT_LOCK;
   }
   if(pthread_mutexattr_settype(&mattr, PTHREAD_MUTEX_ERRORCHECK)) {
+    pthread_mutexattr_destroy(&mattr);
     free(mtx);
     return CKR_CANT_LOCK;
   }
   if(pthread_mutexattr_setpshared(&mattr, PTHREAD_PROCESS_SHARED)) {
+    pthread_mutexattr_destroy(&mattr);
     free(mtx);
     return CKR_CANT_LOCK;
   }
-  if(pthread_mutex_init(&mtx->mutex, &mattr)) {
+  if(pthread_mutex_init(mtx, &mattr)) {
+    pthread_mutexattr_destroy(&mattr);
     free(mtx);
     return CKR_CANT_LOCK;
   }
   pthread_mutexattr_destroy(&mattr);
-  mtx->pid = getpid();
 #endif
   *mutex = mtx;
   return CKR_OK;
 }
 
 CK_RV native_destroy_mutex(void *mutex) {
-
 #ifdef __WIN32
   DeleteCriticalSection(mutex);
 #else
   pthread_mutex_destroy(mutex);
 #endif
-
   free(mutex);
-
   return CKR_OK;
 }
 
 CK_RV native_lock_mutex(void *mutex) {
-
 #ifdef __WIN32
   EnterCriticalSection(mutex);
 #else
-  if (pthread_mutex_lock(mutex) != 0) {
+  if(pthread_mutex_lock(mutex)) {
     return CKR_CANT_LOCK;
   }
 #endif
-
   return CKR_OK;
 }
 
 CK_RV native_unlock_mutex(void *mutex) {
-
 #ifdef __WIN32
   LeaveCriticalSection(mutex);
 #else
-  if (pthread_mutex_unlock(mutex) != 0) {
+  if(pthread_mutex_unlock(mutex)) {
     return CKR_CANT_LOCK;
   }
 #endif
-
   return CKR_OK;
 }
 
-CK_RV check_mutex(void *mutex) {
-  if(mutex == NULL)
-    return CKR_OK;
-#ifndef __WIN32
-  native_mutex_t *mtx = (native_mutex_t*)mutex;
-  if(mtx->pid == getppid()) // Inherited mutex from parent, ignore
-    return CKR_OK;
+CK_RV get_pid(uint64_t *pid) {
+#ifdef __WIN32
+  *pid = _getpid();
+#else
+  *pid = getpid();
 #endif
-  return CKR_CRYPTOKI_ALREADY_INITIALIZED;
+  return CKR_OK;
+}
+
+CK_RV check_pid(uint64_t pid) {
+#ifdef __WIN32
+  if(pid)
+    return CKR_CRYPTOKI_ALREADY_INITIALIZED;
+#else
+  if(pid && pid != getppid())
+    return CKR_CRYPTOKI_ALREADY_INITIALIZED;
+#endif
+  return CKR_OK;
 }
