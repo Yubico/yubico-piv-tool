@@ -84,7 +84,7 @@ With the default installation of the YubiKey's PIV, testing EC keys works only o
 
 [source, bash]
 ----
-$ pkcs11-tool --module /path/to/libykcs11.so --login --test-ec --id 2 --key-type EC:secp256r1
+$ pkcs11-tool --module /path/to/libykcs11.so --login --login-type so --test-ec --id 2 --key-type EC:secp256r1
 ----
 
 
