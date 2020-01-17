@@ -608,9 +608,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismInfo)(
 
   locking.pfnUnlockMutex(global_mutex);
 
-  if (get_token_mechanism_info(type, pInfo) != CKR_OK) {
+  CK_RV rv;
+
+  if ((rv = get_token_mechanism_info(type, pInfo)) != CKR_OK) {
     DBG("Unable to retrieve mechanism information");
-    return CKR_MECHANISM_INVALID;
+    return rv;
   }
 
   DOUT;
