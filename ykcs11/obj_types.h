@@ -200,4 +200,9 @@ typedef struct {
   CK_BBOOL derive;
 } piv_pubk_obj_t;
 
+typedef struct {
+  CK_MECHANISM_TYPE type;
+  CK_MECHANISM_INFO info;
+} token_mechanism;
+
 #endif

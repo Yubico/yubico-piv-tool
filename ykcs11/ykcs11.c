@@ -535,8 +535,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
   CK_ULONG_PTR pulCount
 )
 {
-  CK_ULONG count;
-
   DIN;
 
   if (global_mutex == NULL) {
@@ -565,26 +563,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
 
   locking.pfnUnlockMutex(global_mutex);
 
-  // TODO: check more return values
+  CK_RV rv;
 
-  if (get_token_mechanisms_num(&count) != CKR_OK)
-    return CKR_FUNCTION_FAILED;
-
-  if (pMechanismList == NULL) {
-    *pulCount = count;
-    DBG("Found %lu mechanisms", *pulCount);
-    DOUT;
-    return CKR_OK;
-  }
-
-  if (*pulCount < count) {
-    DBG("Buffer too small: needed %lu, provided %lu", count, *pulCount);
-    return CKR_BUFFER_TOO_SMALL;
-  }
-
-  if (get_token_mechanism_list(pMechanismList, *pulCount) != CKR_OK) {
+  if ((rv = get_token_mechanism_list(pMechanismList, pulCount)) != CKR_OK) {
     DBG("Unable to retrieve mechanism list");
-    return CKR_FUNCTION_FAILED;
+    return rv;
   }
 
   DOUT;

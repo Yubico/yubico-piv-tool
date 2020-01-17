@@ -45,58 +45,30 @@
 
 static const char *token_model = "YubiKey XXX";
 
-static const CK_MECHANISM_TYPE token_mechanisms[] = { // KEEP ALIGNED WITH token_mechanism_infos
-    CKM_RSA_PKCS_KEY_PAIR_GEN,
-    CKM_RSA_PKCS,
-    CKM_RSA_PKCS_PSS,
-    CKM_RSA_PKCS_OAEP,
-    CKM_RSA_X_509,
-    CKM_SHA1_RSA_PKCS,
-    CKM_SHA256_RSA_PKCS,
-    CKM_SHA384_RSA_PKCS,
-    CKM_SHA512_RSA_PKCS,
-    CKM_SHA1_RSA_PKCS_PSS,
-    CKM_SHA256_RSA_PKCS_PSS,
-    CKM_SHA384_RSA_PKCS_PSS,
-    CKM_SHA512_RSA_PKCS_PSS,
-    CKM_EC_KEY_PAIR_GEN,
-    //CKM_ECDSA_KEY_PAIR_GEN, Same as CKM_EC_KEY_PAIR_GEN, deprecated in 2.11
-    CKM_ECDSA,
-    CKM_ECDSA_SHA1,
-    CKM_ECDSA_SHA256,
-    CKM_ECDSA_SHA384,
-    CKM_SHA_1,
-    CKM_SHA256,
-    CKM_SHA384,
-    CKM_SHA512
-    // SUPPORT FOR OATH?
-};
-static const CK_ULONG token_mechanisms_num = sizeof(token_mechanisms) / sizeof(CK_MECHANISM_TYPE);
-
-static const CK_MECHANISM_INFO token_mechanism_infos[] = { // KEEP ALIGNED WITH token_mechanisms
-    {MIN_RSA_KEY_SIZE, MAX_RSA_KEY_SIZE, CKF_HW | CKF_GENERATE_KEY_PAIR}, // CKM_RSA_PKCS_KEY_PAIR_GEN
-    {MIN_RSA_KEY_SIZE, MAX_RSA_KEY_SIZE, CKF_HW | CKF_DECRYPT | CKF_SIGN}, // CKM_RSA_PKCS
-    {MIN_RSA_KEY_SIZE, MAX_RSA_KEY_SIZE, CKF_HW | CKF_SIGN}, // CKM_RSA_PKCS_PSS
-    {MIN_RSA_KEY_SIZE, MAX_RSA_KEY_SIZE, CKF_HW | CKF_DECRYPT}, // CKM_RSA_PKCS_OAEP
-    {MIN_RSA_KEY_SIZE, MAX_RSA_KEY_SIZE, CKF_HW | CKF_DECRYPT | CKF_SIGN}, // CKM_RSA_X_509
-    {MIN_RSA_KEY_SIZE, MAX_RSA_KEY_SIZE, CKF_HW | CKF_SIGN}, // CKM_SHA1_RSA_PKCS
-    {MIN_RSA_KEY_SIZE, MAX_RSA_KEY_SIZE, CKF_HW | CKF_SIGN}, // CKM_SHA256_RSA_PKCS
-    {MIN_RSA_KEY_SIZE, MAX_RSA_KEY_SIZE, CKF_HW | CKF_SIGN}, // CKM_SHA384_RSA_PKCS
-    {MIN_RSA_KEY_SIZE, MAX_RSA_KEY_SIZE, CKF_HW | CKF_SIGN}, // CKM_SHA512_RSA_PKCS
-    {MIN_RSA_KEY_SIZE, MAX_RSA_KEY_SIZE, CKF_HW | CKF_SIGN}, // CKM_SHA1_RSA_PKCS_PSS
-    {MIN_RSA_KEY_SIZE, MAX_RSA_KEY_SIZE, CKF_HW | CKF_SIGN}, // CKM_SHA256_RSA_PKCS_PSS
-    {MIN_RSA_KEY_SIZE, MAX_RSA_KEY_SIZE, CKF_HW | CKF_SIGN}, // CKM_SHA384_RSA_PKCS_PSS
-    {MIN_RSA_KEY_SIZE, MAX_RSA_KEY_SIZE, CKF_HW | CKF_SIGN}, // CKM_SHA512_RSA_PKCS_PSS
-    {MIN_ECC_KEY_SIZE, MAX_ECC_KEY_SIZE, CKF_HW | CKF_GENERATE_KEY_PAIR}, // CKM_EC_KEY_PAIR_GEN
-    //{, , }, // CKM_ECDSA_KEY_PAIR_GEN Same as CKM_EC_KEY_PAIR_GEN deprecated in 2.11
-    {MIN_ECC_KEY_SIZE, MAX_ECC_KEY_SIZE, CKF_HW | CKF_SIGN}, // CKM_ECDSA
-    {MIN_ECC_KEY_SIZE, MAX_ECC_KEY_SIZE, CKF_HW | CKF_SIGN}, // CKM_ECDSA_SHA1
-    {MIN_ECC_KEY_SIZE, MAX_ECC_KEY_SIZE, CKF_HW | CKF_SIGN}, // CKM_ECDSA_SHA256
-    {MIN_ECC_KEY_SIZE, MAX_ECC_KEY_SIZE, CKF_HW | CKF_SIGN}, // CKM_ECDSA_SHA348
-    {0, 0, CKF_DIGEST}, // CKM_SHA_1
-    {0, 0, CKF_DIGEST}, // CKM_SHA256
-    {0, 0, CKF_DIGEST}, // CKM_SHA384
-    {0, 0, CKF_DIGEST}  // CKM_SHA512
+static const token_mechanism token_mechanisms[] = {
+  CKM_RSA_PKCS_KEY_PAIR_GEN, {MIN_RSA_KEY_SIZE, MAX_RSA_KEY_SIZE, CKF_HW | CKF_GENERATE_KEY_PAIR},
+  CKM_RSA_PKCS, {MIN_RSA_KEY_SIZE, MAX_RSA_KEY_SIZE, CKF_HW | CKF_DECRYPT | CKF_SIGN},
+  CKM_RSA_PKCS_PSS, {MIN_RSA_KEY_SIZE, MAX_RSA_KEY_SIZE, CKF_HW | CKF_SIGN},
+  CKM_RSA_PKCS_OAEP, {MIN_RSA_KEY_SIZE, MAX_RSA_KEY_SIZE, CKF_HW | CKF_DECRYPT},
+  CKM_RSA_X_509, {MIN_RSA_KEY_SIZE, MAX_RSA_KEY_SIZE, CKF_HW | CKF_DECRYPT | CKF_SIGN},
+  CKM_SHA1_RSA_PKCS, {MIN_RSA_KEY_SIZE, MAX_RSA_KEY_SIZE, CKF_HW | CKF_SIGN},
+  CKM_SHA256_RSA_PKCS, {MIN_RSA_KEY_SIZE, MAX_RSA_KEY_SIZE, CKF_HW | CKF_SIGN},
+  CKM_SHA384_RSA_PKCS, {MIN_RSA_KEY_SIZE, MAX_RSA_KEY_SIZE, CKF_HW | CKF_SIGN},
+  CKM_SHA512_RSA_PKCS, {MIN_RSA_KEY_SIZE, MAX_RSA_KEY_SIZE, CKF_HW | CKF_SIGN},
+  CKM_SHA1_RSA_PKCS_PSS, {MIN_RSA_KEY_SIZE, MAX_RSA_KEY_SIZE, CKF_HW | CKF_SIGN},
+  CKM_SHA256_RSA_PKCS_PSS, {MIN_RSA_KEY_SIZE, MAX_RSA_KEY_SIZE, CKF_HW | CKF_SIGN},
+  CKM_SHA384_RSA_PKCS_PSS, {MIN_RSA_KEY_SIZE, MAX_RSA_KEY_SIZE, CKF_HW | CKF_SIGN},
+  CKM_SHA512_RSA_PKCS_PSS, {MIN_RSA_KEY_SIZE, MAX_RSA_KEY_SIZE, CKF_HW | CKF_SIGN},
+  CKM_EC_KEY_PAIR_GEN, {MIN_ECC_KEY_SIZE, MAX_ECC_KEY_SIZE, CKF_HW | CKF_GENERATE_KEY_PAIR},
+  CKM_ECDSA_KEY_PAIR_GEN, {MIN_ECC_KEY_SIZE, MAX_ECC_KEY_SIZE, CKF_HW | CKF_GENERATE_KEY_PAIR}, //Same as CKM_EC_KEY_PAIR_GEN, deprecated in 2.11
+  CKM_ECDSA, {MIN_ECC_KEY_SIZE, MAX_ECC_KEY_SIZE, CKF_HW | CKF_SIGN},
+  CKM_ECDSA_SHA1, {MIN_ECC_KEY_SIZE, MAX_ECC_KEY_SIZE, CKF_HW | CKF_SIGN},
+  CKM_ECDSA_SHA256, {MIN_ECC_KEY_SIZE, MAX_ECC_KEY_SIZE, CKF_HW | CKF_SIGN},
+  CKM_ECDSA_SHA384, {MIN_ECC_KEY_SIZE, MAX_ECC_KEY_SIZE, CKF_HW | CKF_SIGN},
+  CKM_SHA_1, {0, 0, CKF_DIGEST},
+  CKM_SHA256, {0, 0, CKF_DIGEST},
+  CKM_SHA384, {0, 0, CKF_DIGEST},
+  CKM_SHA512, {0, 0, CKF_DIGEST}
 };
 
 static const piv_obj_id_t token_objects[] = { // TODO: is there a way to get this from the token?
@@ -227,28 +199,30 @@ CK_RV get_token_label(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
   return rv;
 }
 
-CK_RV get_token_mechanisms_num(CK_ULONG_PTR num) {
+CK_RV get_token_mechanism_list(CK_MECHANISM_TYPE_PTR mec, CK_ULONG_PTR num) {
 
-  *num = token_mechanisms_num;
-  return CKR_OK;
-}
+  if(mec) {
+    if (*num < sizeof(token_mechanisms) / sizeof(token_mechanisms[0])) {
+      return CKR_BUFFER_TOO_SMALL;
+    }
 
-CK_RV get_token_mechanism_list(CK_MECHANISM_TYPE_PTR mec, CK_ULONG num) {
+    for (CK_ULONG i = 0; i < sizeof(token_mechanisms) / sizeof(token_mechanisms[0]); i++) {
+      mec[i] = token_mechanisms[i].type;
+    }
+  }
 
-  if (token_mechanisms_num > num)
-    return CKR_BUFFER_TOO_SMALL;
-
-  memcpy(mec, token_mechanisms, token_mechanisms_num * sizeof(CK_MECHANISM_TYPE));
+  *num = sizeof(token_mechanisms) / sizeof(token_mechanisms[0]);
   return CKR_OK;
 }
 
 CK_RV get_token_mechanism_info(CK_MECHANISM_TYPE mec, CK_MECHANISM_INFO_PTR info) {
 
-  for (CK_ULONG i = 0; i < token_mechanisms_num; i++)
-    if (token_mechanisms[i] == mec) {
-      memcpy(info, token_mechanism_infos + i, sizeof(CK_MECHANISM_INFO));
+  for (CK_ULONG i = 0; i < sizeof(token_mechanisms) / sizeof(token_mechanisms[0]); i++) {
+    if (token_mechanisms[i].type == mec) {
+      memcpy(info, &token_mechanisms[i].info, sizeof(CK_MECHANISM_INFO));
       return CKR_OK;
     }
+  }
 
   return CKR_MECHANISM_INVALID;
 }
