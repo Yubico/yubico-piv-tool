@@ -196,14 +196,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_Finalize)(
 {
   DIN;
 
-  if (pReserved != NULL) {
-    DBG("Finalized called with pReserved != NULL");
-    return CKR_ARGUMENTS_BAD;
-  }
-
   if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  if (pReserved != NULL) {
+    DBG("Finalized called with pReserved != NULL");
+    return CKR_ARGUMENTS_BAD;
   }
 
   // Clean up all sessions
@@ -288,14 +288,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 
   DIN;
 
-  if(pulCount == NULL) {
-    DBG("GetSlotList called with pulCount = NULL");
-    return CKR_ARGUMENTS_BAD;
-  }
-
   if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
+  }
+
+  if(pulCount == NULL) {
+    DBG("GetSlotList called with pulCount = NULL");
+    return CKR_ARGUMENTS_BAD;
   }
 
   ykpiv_state *piv_state;
@@ -1428,8 +1428,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
 {
   DIN;
 
-  DBG("Deleting object %lu", hObject);
-
   if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
@@ -1447,6 +1445,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
     DBG("Unable to delete objects, SO must be logged in");
     return CKR_USER_TYPE_INVALID;
   }
+
+  DBG("Deleting object %lu", hObject);
 
   // Silently ignore valid but not-present handles for compatibility with applications
   CK_BYTE id = get_sub_id(hObject);
@@ -1602,11 +1602,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
 {
   DIN;
 
-  if (ulCount != 0 && pTemplate == NULL) {
-    DBG("Bad arguments");
-    return CKR_ARGUMENTS_BAD;
-  }
-
   if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
@@ -1622,6 +1617,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
   if (session->find_obj.active)  {
     DBG("Search is already active");
     return CKR_OPERATION_ACTIVE;
+  }
+
+  if (ulCount != 0 && pTemplate == NULL) {
+    DBG("Bad arguments");
+    return CKR_ARGUMENTS_BAD;
   }
 
   session->find_obj.active = CK_TRUE;
