@@ -1004,11 +1004,18 @@ CK_ULONG piv_2_ykpiv(piv_obj_id_t id) {
   case PIV_DATA_OBJ_PI:
     return YKPIV_OBJ_PRINTED;
 
+  case PIV_DATA_OBJ_DISCOVERY:
+    return YKPIV_OBJ_DISCOVERY;
+
   case PIV_DATA_OBJ_HISTORY:
     return YKPIV_OBJ_KEY_HISTORY;
 
   case PIV_DATA_OBJ_IRIS_IMAGE:
     return YKPIV_OBJ_IRIS;
+
+  //case PIV_DATA_OBJ_BITGT:
+  //case PIV_DATA_OBJ_SM_SIGNER:
+  //case PIV_DATA_OBJ_PC_REF_DATA:
 
   case PIV_DATA_OBJ_X509_PIV_AUTH:
   case PIV_CERT_OBJ_X509_PIV_AUTH:

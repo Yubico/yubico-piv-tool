@@ -102,10 +102,10 @@ static const piv_obj_id_t token_objects[] = { // TODO: is there a way to get thi
     PIV_DATA_OBJ_CHF,             // Cardholder fingerprints
     PIV_DATA_OBJ_SEC_OBJ,         // Security object
     PIV_DATA_OBJ_CHFI,            // Cardholder facial images
-    //PIV_DATA_OBJ_PI,            // Cardholder printed information
-    //PIV_DATA_OBJ_DISCOVERY,     // Discovery object
-    //PIV_DATA_OBJ_HISTORY,       // History object
-    //PIV_DATA_OBJ_IRIS_IMAGE,    // Cardholder iris images
+    PIV_DATA_OBJ_PI,              // Cardholder printed information
+    PIV_DATA_OBJ_DISCOVERY,       // Discovery object
+    PIV_DATA_OBJ_HISTORY,         // History object
+    PIV_DATA_OBJ_IRIS_IMAGE,      // Cardholder iris images
     //PIV_DATA_OBJ_BITGT,         // Biometric information templates group template
     //PIV_DATA_OBJ_SM_SIGNER,     // Secure messaging signer
     //PIV_DATA_OBJ_PC_REF_DATA,   // Pairing code reference data
