@@ -1,0 +1,90 @@
+== OpenSC’s pkcs11-tool
+The YKCS11 module works well with `pkcs11-tool`. Be aware though that older versions of OpenSC (like the ones available on Linux distributions) may produce errors when running some commands. If so, try to install a newer version.
+
+=== Examples:
+
+==== Display Device Info
+
+[source, bash]
+----
+$ pkcs11-tool --module /path/to/libykcs11.so --show-info
+----
+
+==== Key Generation
+Only the SO user is permitted to generate keys. The SO's PIN is the PIV management key.
+
+* Generate an EC key in slot 9A using curve `secp384r1`
+[source, bash]
+----
+$ pkcs11-tool --module /path/to/libykcs11.so --login --login-type so --keypairgen --id 1 --key-type EC:secp384r1
+----
+
+* Generate an EC key in slot 9E using curve `prime256v1`
+[source, bash]
+----
+$ pkcs11-tool --module /path/to/libykcs11.so --login --login-type so --keypairgen --id 4 --key-type EC:prime256v1
+----
+
+* Generate an RSA key in slot 9C
+
+[source, bash]
+----
+$ pkcs11-tool --module /path/to/libykcs11.so --login --login-type so --keypairgen --id 2 --key-type rsa:1024
+----
+
+==== Signing
+
+Signatures generated using `pkcs11-tool` can be verified using, i.e. `openssl`. 
+
+To verify the signature with `openssl`, the public key needs to be extracted from the certificate. To do that, follow the steps bellow:
+
+1. Export the certificate from the YubiKey using the YubiKey Manager, `ykman`, `yubico-piv-tool`, FireFox or any other available tool
+2. If the certificate is not in `PEM` format, convert it into `PEM` format
+3. Extract the public key from the certificate by running the following command
+[source, bash]
+----
+$ openssl x509 -in cert.pem -pubkey -noout > pubkey.pem
+----
+
+
+The following are a few command line examples of signing data with `pkcs11-tool` and verifying the signature with `openssl`:
+
+* Sign data with an RSA key in slot 9E:
+[source, bash]
+----
+$ pkcs11-tool --module /path/to/libykcs11.so --sign --id 4 -i data.txt -o data.sig
+$ openssl rsautl -verify -in data.sig -inkey 9e_pubkey.pem -pubin  
+----
+
+* Sign data with an RSA key in slot 9C and SHA256:
+[source, bash]
+----
+$ pkcs11-tool --module /path/to/libykcs11.so --sign -m RSA-SHA256 --id 2 -i data.txt -o data.sig 
+$ openssl dgst -sha256 -verify 9c_pubkey.pem -signature data.sig data.txt
+----
+
+* Signing data with an EC key in slot 9A and SHA1
+[source, bash]
+----
+$ pkcs11-tool --module /path/to/libykcs11.so --sign --id 1 -m ECDSA-SHA1 --signature-format openssl -i data.txt -o data.sig
+$ openssl dgst -sha1 -verify 9a_pubkey.pem -signature data.sig data.txt
+----
+
+==== Testing
+
+===== Testing RSA Keys
+At least one RSA key needs to already exist in the YubiKey for this test to work.
+[source, bash]
+----
+$ pkcs11-tool --module /path/to/libykcs11.so --login  --test
+----
+
+===== Testing EC Keys
+With the default installation of the YubiKey's PIV, testing EC keys works only on slot 9C. This is because `pkcs11-tool --test-ec` assumes that the same user can both generate a keypair and sign data. This, however, is not allowed by the YubiKey, which implements separation of duty more strictly. By default, however, the key that resides on slot 9C has its `CKA_ALWAYS_AUTHENTICATE` attribute set to True, which prompts the user for the PIN during the different operations, and so the right PIN can be entered at the right time.
+
+[source, bash]
+----
+$ pkcs11-tool --module /path/to/libykcs11.so --login --test-ec --id 2 --key-type EC:secp256r1
+----
+
+

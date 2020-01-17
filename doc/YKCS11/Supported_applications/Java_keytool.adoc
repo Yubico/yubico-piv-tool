@@ -1,0 +1,51 @@
+== Java Keytool
+The YKCS11 module can be used with Java keytool through the SunPKCS11 provider that is shipped with Java by default. To configure the SunPKCS11 provider to use the YKCS11, create a configuration file, let's call it `sun_ykcs11.conf`, with the following content:
+
+[source, bash]
+----
+name = ykcs11
+library = /path/to/libykcs11.so
+----
+
+The name is an arbitrary string.
+
+This configuration file should then be used as the provider's argument parameter in the command line. 
+
+=== Examples:
+
+==== List Content
+
+[source, bash]
+----
+$ keytool -list -keystore NONE -storetype PKCS11 -providerClass sun.security.pkcs11.SunPKCS11 -providerArg /path/to/sun_ykcs11.conf
+----
+
+The `-keystore NONE` indicates that the keys are not stored in a soft token, aka not a file. The `-storetype PKCS11` indicates that the keys are accessible through the PKCS#11 interface.
+
+==== Signing a JAR file
+
+To sign a jar file using `jarsigner`, the alias of the signing key needs to be specified. The aliases of the keys stored on the YubiKey PIV are fixed and unmodifiable. The key aliases are displayed when listing the content of the YubiKey using `keytool -list` above or they can be found in link:../index.adoc[this list]
+
+Example of signing a jar file with the key on slot 9c: 
+
+[source, bash]
+----
+
+$ jarsigner -keystore NONE -storetype PKCS11 -providerClass sun.security.pkcs11.SunPKCS11 -providerArg /path/to/sun_ykcs11.conf lib.jar "X.509 Certificate for Digital Signature"
+----
+
+To display PKCS11 debug messages, add the parameter -J-Djava.security.debug=sunpkcs11:
+
+[source, bash]
+----
+jarsigner -verify -keystore NONE -storetype PKCS11 -providerClass sun.security.pkcs11.SunPKCS11 -providerArg /path/to/sun_ykcs11.conf lib.jar "X.509 Certificate for Digital Signature" -J-Djava.security.debug=sunpkcs11
+----
+
+The result will be that two files will appear under `META-INF` inside the jar file; one of them will have the ending `.SF` and the other will have the ending `.EC` or `.RSA` depending on the key type of the signing key.
+
+To verify the signature of a jar file run
+
+[source, bash]
+----
+$ jarsigner -verify -keystore NONE -storetype PKCS11 -providerClass sun.security.pkcs11.SunPKCS11 -providerArg /path/to/sun_ykcs11.conf lib.jar "X.509 Certificate for Digital Signature" 
+----
