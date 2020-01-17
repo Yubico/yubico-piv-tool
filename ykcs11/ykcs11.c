@@ -201,7 +201,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Finalize)(
     return CKR_ARGUMENTS_BAD;
   }
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -293,7 +293,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
     return CKR_ARGUMENTS_BAD;
   }
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -441,7 +441,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotInfo)(
 {
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -474,7 +474,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
 {
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -537,7 +537,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismList)(
 {
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -582,7 +582,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismInfo)(
 {
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -628,7 +628,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
 {
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -742,7 +742,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetPIN)(
 {
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -784,7 +784,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
 {
   DIN; // TODO: pApplication and Notify
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -916,7 +916,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
 {
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -960,7 +960,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
 {
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -996,7 +996,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSessionInfo)(
 {
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -1056,7 +1056,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
   DIN;
   CK_RV          rv;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -1168,7 +1168,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Logout)(
 {
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -1229,7 +1229,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -1430,7 +1430,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
 
   DBG("Deleting object %lu", hObject);
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -1503,7 +1503,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetObjectSize)(
 {
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -1541,7 +1541,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
 
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -1607,7 +1607,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
     return CKR_ARGUMENTS_BAD;
   }
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -1675,7 +1675,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
 {
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -1714,7 +1714,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsFinal)(
 {
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -1743,7 +1743,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptInit)(
 {
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -1808,7 +1808,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Encrypt)(
 
   DIN;
   
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -1868,7 +1868,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptUpdate)(
 {
   DIN;
   
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -1914,7 +1914,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptFinal)(
 
   DIN;
   
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -1974,7 +1974,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
 {
   DIN;
   
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -2038,7 +2038,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
   
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -2119,7 +2119,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptUpdate)(
   
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -2179,7 +2179,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
   
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -2247,7 +2247,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestInit)(
 {
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -2295,7 +2295,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Digest)(
 {
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -2360,7 +2360,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestUpdate)(
 
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -2407,7 +2407,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestFinal)(
 
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -2466,7 +2466,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
 {
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     DOUT;
     return CKR_CRYPTOKI_NOT_INITIALIZED;
@@ -2541,7 +2541,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     DOUT;
     return CKR_CRYPTOKI_NOT_INITIALIZED;
@@ -2628,7 +2628,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignUpdate)(
   
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     DOUT;
     return CKR_CRYPTOKI_NOT_INITIALIZED;
@@ -2691,7 +2691,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
   
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     DOUT;
     return CKR_CRYPTOKI_NOT_INITIALIZED;
@@ -2786,7 +2786,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
 {
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     DOUT;
     return CKR_CRYPTOKI_NOT_INITIALIZED;
@@ -2852,7 +2852,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Verify)(
 
   DIN;
   
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     DOUT;
     return CKR_CRYPTOKI_NOT_INITIALIZED;
@@ -2910,7 +2910,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyUpdate)(
 
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     DOUT;
     return CKR_CRYPTOKI_NOT_INITIALIZED;
@@ -2962,7 +2962,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyFinal)(
 
   DIN;
   
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     DOUT;
     return CKR_CRYPTOKI_NOT_INITIALIZED;
@@ -3124,7 +3124,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -3307,7 +3307,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SeedRandom)(
 {
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
@@ -3343,7 +3343,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateRandom)(
 {
   DIN;
 
-  if (global_mutex == NULL) {
+  if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
