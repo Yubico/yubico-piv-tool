@@ -187,7 +187,10 @@ unsigned int _ykpiv_get_length(const unsigned char *buffer, size_t *len) {
 }
 
 bool _ykpiv_has_valid_length(const unsigned char* buffer, size_t len) {
-  if ((buffer[0] < 0x81) && (len > 0)) {
+  if (!buffer || (len == 0)) {
+    return false;
+  }
+  else if ((buffer[0] < 0x81) && (len > 0)) {
     return true;
   }
   else if (((*buffer & 0x7f) == 1) && (len > 1)) {
@@ -370,7 +373,13 @@ static ykpiv_rc _ykpiv_connect(ykpiv_state *state, uintptr_t context, uintptr_t 
       return YKPIV_PCSC_ERROR;
     }
 
-    state->isNEO = (((sizeof(YKPIV_ATR_NEO_R3) - 1) == atr_len) && (0 == memcmp(YKPIV_ATR_NEO_R3, atr, atr_len)));
+    if (((atr_len == (sizeof(YKPIV_ATR_NEO_R3) - 1)) && !memcmp(YKPIV_ATR_NEO_R3, atr, atr_len)) ||
+        ((atr_len == (sizeof(YKPIV_ATR_NEO_R3_NFC) - 1)) && !memcmp(YKPIV_ATR_NEO_R3_NFC, atr, atr_len))) {
+      state->isNEO = true;
+    }
+    else {
+      state->isNEO = false;
+    }
   }
 
   state->context = context;
