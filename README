@@ -48,13 +48,37 @@ infrastructure.
    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ----
 
-=== Building
-After downloading and unpacking the package tarball, you build it as
-follows.
+=== Building on POSIX
+Either clone from Git or download and unpackage the tarball, then make 
+sure you have the pre-requisites installed and build following the 
+steps below. 
 
+Please make sure to have recent versions of the following packages 
+installed on your system. 
+
+  autoconf automake libtool libssl pkg-config check libpcsc gengetopt 
+  help2man
+
+Help2man is used to generate the manpages.  
+Gengetopt version 2.22.6 or later is needed for command line parameter 
+handling. The 
+link:https://github.com/Yubico/yubico-piv-tool/tree/master/vagrant/development[Vagrant
+VM] has all these dependencies preinstalled.
+
+  $ autoreconf --install
   $ ./configure
   $ make
   $ sudo make install
+
+On macos you might need to point out homebrew openssl version when 
+running pkg-config.
+
+  $ PKG_CONFIG_PATH="/usr/local/opt/openssl@1.1/lib/pkgconfig" ./configure
+
+Don't forget you might need to be root for the last command. You might
+also need to update your linked libraries, by running
+
+  sudo ldconfig
 
 The backend to use is decided at compile time, see the summary at the
 end of the ./configure output.  Use --with-backend=foo to chose
@@ -68,11 +92,7 @@ backend to use.
 
 === Building from Git
 Recent versions of autoconf, automake, check, pkg-config, and libtool
-must be installed.  Help2man is used to generate the manpages.  Gengetopt
-version 2.22.6 or later is needed for command line parameter handling.
-The
-link:https://github.com/Yubico/yubico-piv-tool/tree/master/vagrant/development[Vagrant
-VM] has all these dependencies preinstalled.
+must be installed.  
 
 Generate the build system using:
 
