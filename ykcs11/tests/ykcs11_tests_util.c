@@ -862,6 +862,7 @@ void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
       // Decrypt
       asrt(funcs->C_DecryptInit(session, &mech, obj_pvtkey[i]), CKR_OK, "DECRYPT INIT");
       asrt(funcs->C_Login(session, CKU_CONTEXT_SPECIFIC, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Re-Login USER");
+      dec_len = sizeof(dec);
       asrt(funcs->C_Decrypt(session, enc, enc_len, dec, &dec_len), CKR_OK, "DECRYPT");
       asrt(dec_len, data_len, "DECRYPTED DATA LEN");
       asrt(memcmp(data, dec, dec_len), 0, "DECRYPTED DATA");
@@ -869,9 +870,13 @@ void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
       // Decrypt Update
       asrt(funcs->C_DecryptInit(session, &mech, obj_pvtkey[i]), CKR_OK, "DECRYPT INIT");
       asrt(funcs->C_Login(session, CKU_CONTEXT_SPECIFIC, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Re-Login USER");
-      asrt(funcs->C_DecryptUpdate(session, enc, 100, NULL, NULL), CKR_OK, "DECRYPT UPDATE");
-      asrt(funcs->C_DecryptUpdate(session, enc+100, 8, NULL, NULL), CKR_OK, "DECRYPT UPDATE");
-      asrt(funcs->C_DecryptUpdate(session, enc+108, 20, NULL, NULL), CKR_OK, "DECRYPT UPDATE");
+      dec_len = sizeof(dec);
+      asrt(funcs->C_DecryptUpdate(session, enc, 100, dec, &dec_len), CKR_OK, "DECRYPT UPDATE");
+      dec_len = sizeof(dec);
+      asrt(funcs->C_DecryptUpdate(session, enc+100, 8, dec, &dec_len), CKR_OK, "DECRYPT UPDATE");
+      dec_len = sizeof(dec);
+      asrt(funcs->C_DecryptUpdate(session, enc+108, 20, dec, &dec_len), CKR_OK, "DECRYPT UPDATE");
+      dec_len = sizeof(dec);
       asrt(funcs->C_DecryptFinal(session, dec, &dec_len), CKR_OK, "DECRYPT FINAL");
       asrt(dec_len, data_len, "DECRYPTED DATA LEN");
       asrt(memcmp(data, dec, dec_len), 0, "DECRYPTED DATA");

@@ -358,6 +358,9 @@ bool prepare_rsa_signature(const unsigned char *in, unsigned int in_len, unsigne
   ASN1_OCTET_STRING *digest;
   unsigned char data[1024];
 
+  if(in_len > sizeof(data))
+    return false;
+
   memcpy(data, in, in_len);
 
   digestInfo = X509_SIG_new();

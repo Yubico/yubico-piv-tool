@@ -1820,7 +1820,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Encrypt)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (pData == NULL || pEncryptedData == NULL) {
+  if (pData == NULL || pulEncryptedDataLen == NULL) {
     DBG("Invalid parameters");
     return CKR_ARGUMENTS_BAD;
   }
@@ -1880,7 +1880,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptUpdate)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (pPart == NULL) {
+  if (pPart == NULL || pulEncryptedPartLen == NULL) {
     DBG("Invalid parameters");
     return CKR_ARGUMENTS_BAD;
   }
@@ -1926,7 +1926,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptFinal)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (pLastEncryptedPart == NULL) {
+  if (pulLastEncryptedPartLen == NULL) {
     DBG("Invalid parameters");
     return CKR_ARGUMENTS_BAD;
   }
@@ -2058,6 +2058,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
     goto decrypt_out;
   }
 
+  if (pEncryptedData == NULL || pulDataLen == NULL) {
+    DBG("Invalid parameters");
+    return CKR_ARGUMENTS_BAD;
+  }
+
   if (session->op_info.type != YKCS11_DECRYPT) {
     DBG("Decryption operation not initialized");
     rv = CKR_OPERATION_NOT_INITIALIZED;
@@ -2091,7 +2096,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
 
   locking.pfnLockMutex(session->slot->mutex);
 
-  rv = decrypt_mechanism_final(session, pData, pulDataLen, ulEncryptedDataLen, key_len);
+  rv = decrypt_mechanism_final(session, pData, pulDataLen, key_len);
 
   locking.pfnUnlockMutex(session->slot->mutex);
 
@@ -2139,6 +2144,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptUpdate)(
     goto decrypt_out;
   }
 
+  if (pEncryptedPart == NULL || pulPartLen == NULL) {
+    DBG("Invalid parameters");
+    return CKR_ARGUMENTS_BAD;
+  }
+
   if (session->op_info.type != YKCS11_DECRYPT) {
     DBG("Decryption operation not initialized");
     rv = CKR_OPERATION_NOT_INITIALIZED;
@@ -2157,6 +2167,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptUpdate)(
 
   memcpy(session->op_info.buf + session->op_info.buf_len, pEncryptedPart, ulEncryptedPartLen);
   session->op_info.buf_len += ulEncryptedPartLen;
+
+  *pulPartLen = 0;
   rv = CKR_OK;
 
   decrypt_out:
@@ -2199,6 +2211,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
     goto decrypt_out;
   }
 
+  if (pulLastPartLen == NULL) {
+    DBG("Invalid parameters");
+    return CKR_ARGUMENTS_BAD;
+  }
+
   if (session->op_info.type != YKCS11_DECRYPT) {
     DBG("Decryption operation not initialized");
     rv = CKR_OPERATION_NOT_INITIALIZED;
@@ -2212,7 +2229,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
   if (pLastPart == NULL) {
     // Just return the size of the decrypted data
     *pulLastPartLen = datalen;
-    DBG("The size of the signature will be %lu", *pulLastPartLen);
+    DBG("The size of the decrypted data will be %lu", *pulLastPartLen);
     DOUT;
     return CKR_OK;
   }
@@ -2224,7 +2241,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
 
   locking.pfnLockMutex(session->slot->mutex);
 
-  rv = decrypt_mechanism_final(session, pLastPart, pulLastPartLen, session->op_info.buf_len, key_len);
+  rv = decrypt_mechanism_final(session, pLastPart, pulLastPartLen, key_len);
 
   locking.pfnUnlockMutex(session->slot->mutex);
 
@@ -2561,8 +2578,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     return CKR_OPERATION_NOT_INITIALIZED;
   }
 
-  if (pData == NULL) {
-    DBG("No data provided");
+  if (pData == NULL || pulSignatureLen == NULL) {
+    DBG("Invalid parameters");
     DOUT;
     return CKR_ARGUMENTS_BAD;
   }
@@ -2649,7 +2666,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignUpdate)(
   }
 
   if (pPart == NULL) {
-    DBG("No data provided");
+    DBG("Invalid parameters");
     DOUT;
     return CKR_ARGUMENTS_BAD;
   }
@@ -2711,6 +2728,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
     return CKR_OPERATION_NOT_INITIALIZED;
   }
 
+  if (pulSignatureLen == NULL) {
+    DBG("Invalid parameters");
+    DOUT;
+    return CKR_ARGUMENTS_BAD;
+  }
+
   if (get_session_state(session) == CKS_RO_PUBLIC_SESSION ||
       get_session_state(session) == CKS_RW_PUBLIC_SESSION) {
     DBG("User is not logged in");
@@ -2735,7 +2758,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
   locking.pfnLockMutex(session->slot->mutex);
 
   if((rv = sign_mechanism_final(session, pSignature, pulSignatureLen)) != CKR_OK) {
-    DBG("Unable to perform sign final step");
+    DBG("sign_mechanism_final failed");
     locking.pfnUnlockMutex(session->slot->mutex);
     goto sign_out;
   }
@@ -2925,7 +2948,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyUpdate)(
   }
 
   if (pPart == NULL) {
-    DBG("No data provided");
+    DBG("Invalid parameters");
     DOUT;
     return CKR_ARGUMENTS_BAD;
   }

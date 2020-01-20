@@ -586,7 +586,7 @@ CK_RV do_delete_pubk(EVP_PKEY **key) {
 
 }
 
-CK_RV do_apply_DER_encoding_to_ECSIG(CK_BYTE_PTR signature, CK_ULONG_PTR signature_len) {
+CK_RV do_apply_DER_encoding_to_ECSIG(CK_BYTE_PTR signature, CK_ULONG_PTR signature_len, CK_ULONG buf_size) {
 
   ECDSA_SIG *sig = ECDSA_SIG_new();
   CK_RV rv = CKR_FUNCTION_FAILED;
@@ -607,14 +607,23 @@ CK_RV do_apply_DER_encoding_to_ECSIG(CK_BYTE_PTR signature, CK_ULONG_PTR signatu
 
   r = s = NULL;
 
-  int len = i2d_ECDSA_SIG(sig, &signature);
-
+  int len = i2d_ECDSA_SIG(sig, NULL);
   if (len <= 0) {
     goto adete_out;
-  } else {
-    *signature_len = len;
-    rv = CKR_OK;
   }
+
+  if (len > buf_size) {
+    rv = CKR_BUFFER_TOO_SMALL;
+    goto adete_out;
+  }
+
+  len = i2d_ECDSA_SIG(sig, &signature);
+  if (len <= 0) {
+    goto adete_out;
+  }
+
+  *signature_len = len;
+  rv = CKR_OK;
 
 adete_out:
   ECDSA_SIG_free(sig);
@@ -647,11 +656,11 @@ static int BN_bn2bin_fixed(const BIGNUM *bn, CK_BYTE_PTR out, CK_ULONG len) {
   return len;
 }
 
-CK_RV do_strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG_PTR len, CK_ULONG sig_len) {
+CK_RV do_strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG len, CK_ULONG sig_len) {
 
   const CK_BYTE *p = data;
 
-  ECDSA_SIG *sig = d2i_ECDSA_SIG(NULL, &p, *len);
+  ECDSA_SIG *sig = d2i_ECDSA_SIG(NULL, &p, len);
   if(sig == NULL)
     return CKR_DATA_INVALID;
 
@@ -663,8 +672,6 @@ CK_RV do_strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG_PTR len, CK_UL
 
   if(BN_bn2bin_fixed(y, data + sig_len / 2, sig_len / 2) <= 0)
     return CKR_DATA_INVALID;
-
-  *len = sig_len;
 
   return CKR_OK;
 }

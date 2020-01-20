@@ -248,8 +248,11 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
     }
     if(session->op_info.op.sign.padding == RSA_PKCS1_PADDING) {
       // Wrap in an X509_SIG
-      prepare_rsa_signature(session->op_info.buf, cbLength, session->op_info.buf, &cbLength,
-                            EVP_MD_type(EVP_MD_CTX_md(session->op_info.md_ctx)));
+      if(!prepare_rsa_signature(session->op_info.buf, cbLength, session->op_info.buf, &cbLength,
+                            EVP_MD_type(EVP_MD_CTX_md(session->op_info.md_ctx)))) {
+        DBG("prepare_rsa_signature failed");
+        return CKR_FUNCTION_FAILED;
+      }
     }
     session->op_info.buf_len = cbLength;
   }
@@ -292,7 +295,6 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
   ykpiv_rc rcc = ykpiv_sign_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, sigbuf, &siglen, session->op_info.op.sign.algorithm, session->op_info.op.sign.piv_key);
   if(rcc == YKPIV_OK) {
     DBG("ykpiv_sign_data %lu bytes with key %x returned %lu bytes data", session->op_info.buf_len, session->op_info.op.sign.piv_key, siglen);
-    *sig_len = siglen;
   } else {
     DBG("ykpiv_sign_data with key %x failed: %s", session->op_info.op.sign.piv_key, ykpiv_strerror(rcc));
     return rcc == YKPIV_AUTHENTICATION_ERROR ? CKR_USER_NOT_LOGGED_IN : CKR_FUNCTION_FAILED;
@@ -304,13 +306,18 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
   switch(session->op_info.op.sign.algorithm) {
     case YKPIV_ALGO_ECCP256:
     case YKPIV_ALGO_ECCP384:
-      DBG("Stripping DER encoding from %lu bytes, returning %lu", *sig_len, session->op_info.out_len);
-      rv = do_strip_DER_encoding_from_ECSIG(sigbuf, sig_len, session->op_info.out_len);
+      DBG("Stripping DER encoding from %lu bytes, returning %lu", siglen, session->op_info.out_len);
+      rv = do_strip_DER_encoding_from_ECSIG(sigbuf, siglen, session->op_info.out_len);
+      siglen = session->op_info.out_len;
       break;
   }
 
-  if(rv == CKR_OK)
-    memcpy(sig, sigbuf, *sig_len);
+  if(rv == CKR_OK) {
+    if(siglen > *sig_len)
+      return CKR_BUFFER_TOO_SMALL;
+    memcpy(sig, sigbuf, siglen);
+    *sig_len = siglen;
+  }
 
   return rv;
 }
@@ -496,13 +503,17 @@ CK_RV verify_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULON
 
   CK_BYTE der[1024];
   if(!session->op_info.op.verify.padding) {
+    if(sig_len > sizeof(der)) {
+      DBG("do_apply_DER_encoding_to_ECSIG failed because signature was too large (%lu)", sig_len);
+      return CKR_FUNCTION_FAILED;
+    }
     memcpy(der, sig, sig_len);
     sig = der;
     DBG("Applying DER encoding to signature of %lu bytes", sig_len);
-    CK_RV rv = do_apply_DER_encoding_to_ECSIG(sig, &sig_len);
+    CK_RV rv = do_apply_DER_encoding_to_ECSIG(sig, &sig_len, sizeof(der));
     if(rv != CKR_OK) {
       DBG("do_apply_DER_encoding_to_ECSIG failed");
-      return CKR_FUNCTION_FAILED;
+      return rv;
     }
   }
 
@@ -815,7 +826,7 @@ CK_RV decrypt_mechanism_init(ykcs11_session_t *session, CK_MECHANISM_PTR mech) {
   return CKR_OK;
 }
 
-CK_RV decrypt_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR data, CK_ULONG_PTR data_len, CK_ULONG enc_len, CK_ULONG key_len) {
+CK_RV decrypt_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR data, CK_ULONG_PTR data_len, CK_ULONG key_len) {
   ykpiv_rc piv_rv;
   CK_BYTE  dec[1024];
   size_t   dec_len = sizeof(dec);
@@ -857,9 +868,16 @@ CK_RV decrypt_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR data, CK_UL
     return CKR_FUNCTION_FAILED;
   }
 
+  if(cb_len > *data_len) {
+    DBG("Unpadded data too large (%d) for provided buffer (%lu)", cb_len, *data_len);
+    *data_len = 0;
+    return CKR_BUFFER_TOO_SMALL;
+  }
+
   memcpy(data, dec, cb_len);
   *data_len = cb_len;
 
   free(session->op_info.op.encrypt.oaep_encparam);
+  session->op_info.op.encrypt.oaep_encparam = NULL;
   return CKR_OK;
 }
