@@ -128,7 +128,7 @@ ykpiv_rc ykpiv_util_get_cardid(ykpiv_state *state, ykpiv_cardid *cardid) {
         }
 
         res = YKPIV_OK;
-        memcpy(cardid->data, p_temp, cb_temp);
+        memcpy(cardid->data, p_temp, YKPIV_CARDID_SIZE);
         goto Cleanup;
       }
 
