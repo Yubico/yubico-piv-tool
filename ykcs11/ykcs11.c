@@ -85,6 +85,7 @@ static ykcs11_session_t* get_free_session(void) {
 }
 
 static void cleanup_session(ykcs11_session_t *session) {
+  /*
   for(size_t i = 0; i < sizeof(session->data) / sizeof(session->data[0]); i++) {
     free(session->data[i].data);
   }
@@ -93,6 +94,7 @@ static void cleanup_session(ykcs11_session_t *session) {
     do_delete_cert(session->certs + i);
     do_delete_cert(session->atst + i);
   }
+  */
   memset(session, 0, sizeof(*session));
 }
 
@@ -733,9 +735,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetPIN)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  CK_USER_TYPE user_type = session->slot->login_state == YKCS11_SO ? CKU_SO : CKU_USER;
-
   locking.pfnLockMutex(session->slot->mutex);
+
+  CK_USER_TYPE user_type = session->slot->login_state == YKCS11_SO ? CKU_SO : CKU_USER;
 
   CK_RV rv = token_change_pin(session->slot->piv_state, user_type, pOldPin, ulOldLen, pNewPin, ulNewLen);
   if (rv != CKR_OK) {
@@ -802,84 +804,74 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
   session->slot = slots + slotID;
 
   locking.pfnUnlockMutex(global_mutex);
-
-  const piv_obj_id_t *obj_ids;
-  CK_ULONG num_ids;
-  get_token_object_ids(&obj_ids, &num_ids);
-
   locking.pfnLockMutex(session->slot->mutex);
 
-  // Save a list of all the available objects in the session
-
-  for(CK_ULONG i = 0; i < num_ids; i++) {
-    CK_RV rv;
-    ykpiv_rc rc = YKPIV_KEY_ERROR;
-    CK_BYTE sub_id = get_sub_id(obj_ids[i]);
-    ykpiv_metadata *md = session->meta + sub_id;
-    piv_obj_id_t cert_id = find_cert_object(sub_id);
-    piv_obj_id_t pubk_id = find_pubk_object(sub_id);
-    piv_obj_id_t pvtk_id = find_pvtk_object(sub_id);
-    piv_obj_id_t atst_id = find_atst_object(sub_id);
-    CK_BYTE data[YKPIV_OBJ_MAX_SIZE];  // Max cert value for ykpiv
-    unsigned long len;
-    if(pvtk_id != PIV_INVALID_OBJ) {
-      len = sizeof(data);
-      if((rc = ykpiv_get_metadata(session->slot->piv_state, piv_2_ykpiv(pvtk_id), data, &len)) == YKPIV_OK) {
-        DBG("Read %lu bytes metadata for private key %u (slot %lx)", len, pvtk_id, piv_2_ykpiv(pvtk_id));
-        if((rc = ykpiv_util_parse_metadata(data, len, md)) == YKPIV_OK) {
-          if((rv = do_create_public_key(md->pubkey, md->pubkey_len, md->algorithm, &session->pkeys[sub_id])) == CKR_OK) {
-            DBG("Adding key object %u and %u (metadata)", pubk_id, pvtk_id);
-            session->objects[session->n_objects++] = pubk_id;
-            session->objects[session->n_objects++] = pvtk_id;
-            if(md->origin == YKPIV_METADATA_ORIGIN_GENERATED && atst_id != PIV_INVALID_OBJ) { // Attestation key doesn't have an attestation
-              DBG("Adding attestation cert object %u (metadata)", atst_id);
-              session->objects[session->n_objects++] = atst_id;
+  if(session->slot->n_objects == 0) {
+    const piv_obj_id_t *obj_ids;
+    CK_ULONG num_ids;
+    get_token_object_ids(&obj_ids, &num_ids);
+    for(CK_ULONG i = 0; i < num_ids; i++) {
+      CK_RV rv;
+      ykpiv_rc rc = YKPIV_KEY_ERROR;
+      CK_BYTE sub_id = get_sub_id(obj_ids[i]);
+      piv_obj_id_t cert_id = find_cert_object(sub_id);
+      piv_obj_id_t pubk_id = find_pubk_object(sub_id);
+      piv_obj_id_t pvtk_id = find_pvtk_object(sub_id);
+      piv_obj_id_t atst_id = find_atst_object(sub_id);
+      CK_BYTE data[YKPIV_OBJ_MAX_SIZE];  // Max cert value for ykpiv
+      unsigned long len;
+      if(pvtk_id != PIV_INVALID_OBJ) {
+        len = sizeof(data);
+        if((rc = ykpiv_get_metadata(session->slot->piv_state, piv_2_ykpiv(pvtk_id), data, &len)) == YKPIV_OK) {
+          DBG("Read %lu bytes metadata for private key %u (slot %lx)", len, pvtk_id, piv_2_ykpiv(pvtk_id));
+          ykpiv_metadata *md = session->slot->meta + sub_id;
+          if((rc = ykpiv_util_parse_metadata(data, len, md)) == YKPIV_OK) {
+            if((rv = do_create_public_key(md->pubkey, md->pubkey_len, md->algorithm, &session->slot->pkeys[sub_id])) == CKR_OK) {
+              add_object(session->slot, pubk_id);
+              add_object(session->slot, pvtk_id);
+              if(md->origin == YKPIV_METADATA_ORIGIN_GENERATED && atst_id != PIV_INVALID_OBJ) { // Attestation key doesn't have an attestation
+                add_object(session->slot, atst_id);
+              }
+            } else {
+              DBG("Failed to create public key info for private key %u (slot %lx, algorithm %u) from metadata: %lu", pvtk_id, piv_2_ykpiv(pvtk_id), md->algorithm, rv);
+              rc = YKPIV_KEY_ERROR; // Ensure we create the key from the certificate instead
             }
           } else {
-            DBG("Failed to create public key info for private key %u (slot %lx, algorithm %u) from metadata: %lu", pvtk_id, piv_2_ykpiv(pvtk_id), md->algorithm, rv);
-            rc = YKPIV_KEY_ERROR; // Ensure we create the key from the certificate instead
+            DBG("Failed to parse metadata for private key %u (slot %lx): %s", pvtk_id, piv_2_ykpiv(pvtk_id), ykpiv_strerror(rc));
           }
-        } else {
-          DBG("Failed to parse metadata for private key %u (slot %lx): %s", pvtk_id, piv_2_ykpiv(pvtk_id), ykpiv_strerror(rc));
         }
       }
-    }
-    len = sizeof(data);
-    if(ykpiv_fetch_object(session->slot->piv_state, piv_2_ykpiv(obj_ids[i]), data, &len) == YKPIV_OK) {
-      DBG("Read %lu bytes for data object %u (%lx)", len, obj_ids[i], piv_2_ykpiv(obj_ids[i]));
-      rv = store_data(session, sub_id, data, len);
-      if (rv != CKR_OK) {
-        DBG("Failed to store data object %u in session: %lu", obj_ids[i], rv);
-        continue;
-      }
-      DBG("Adding data object %u", obj_ids[i]);
-      session->objects[session->n_objects++] = obj_ids[i];
-      if(cert_id != PIV_INVALID_OBJ) {
-        rv = store_cert(session, sub_id, data, len, CK_FALSE);
+      len = sizeof(data);
+      if(ykpiv_fetch_object(session->slot->piv_state, piv_2_ykpiv(obj_ids[i]), data, &len) == YKPIV_OK) {
+        DBG("Read %lu bytes for data object %u (%lx)", len, obj_ids[i], piv_2_ykpiv(obj_ids[i]));
+        rv = store_data(session->slot, sub_id, data, len);
         if (rv != CKR_OK) {
-          DBG("Failed to store certificate object %u in session: %lu", cert_id, rv);
-          continue; // Bail out, can't create key objects without the public key from the cert
+          DBG("Failed to store data object %u in session: %lu", obj_ids[i], rv);
+          continue;
         }
-        DBG("Adding cert object %u", cert_id);
-        session->objects[session->n_objects++] = cert_id;
-        if(rc != YKPIV_OK) { // Failed to get metadata, fall back to assuming we have keys for cert objects
-          DBG("Adding key object %u and %u", pubk_id, pvtk_id);
-          session->objects[session->n_objects++] = pubk_id;
-          session->objects[session->n_objects++] = pvtk_id;
-          if(atst_id != PIV_INVALID_OBJ) { // Attestation key doesn't have an attestation
-            DBG("Adding attestation cert object (blindly) %u", atst_id);
-            session->objects[session->n_objects++] = atst_id;
+        add_object(session->slot, obj_ids[i]);
+        if(cert_id != PIV_INVALID_OBJ) {
+          rv = store_cert(session->slot, sub_id, data, len, CK_FALSE);
+          if (rv != CKR_OK) {
+            DBG("Failed to store certificate object %u in session: %lu", cert_id, rv);
+            continue; // Bail out, can't create key objects without the public key from the cert
+          }
+          add_object(session->slot, cert_id);
+          if(rc != YKPIV_OK) { // Failed to get metadata, fall back to assuming we have keys for cert objects
+            add_object(session->slot, pubk_id);
+            add_object(session->slot, pvtk_id);
+            if(atst_id != PIV_INVALID_OBJ) { // Attestation key doesn't have an attestation
+              add_object(session->slot, atst_id);
+            }
           }
         }
       }
     }
+    sort_objects(session->slot);
   }
 
   locking.pfnUnlockMutex(session->slot->mutex);
 
-  DBG("Found %lu session objects", session->n_objects);
-
-  sort_objects(session);
   *phSession = get_session_handle(session);
 
   DOUT;
@@ -994,10 +986,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSessionInfo)(
   switch(session->slot->login_state) {
     default:
       pInfo->state = (session->info.flags & CKF_RW_SESSION) ? CKS_RW_PUBLIC_SESSION : CKS_RO_PUBLIC_SESSION;
+      break;
     case YKCS11_USER:
       pInfo->state = (session->info.flags & CKF_RW_SESSION) ? CKS_RW_USER_FUNCTIONS : CKS_RO_USER_FUNCTIONS;
+      break;
     case YKCS11_SO:
       pInfo->state = CKS_RW_SO_FUNCTIONS;
+      break;
   }
 
   DOUT;
@@ -1231,11 +1226,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (session->slot->login_state != YKCS11_SO) {
-    DBG("Authentication as SO required to import objects");
-    return CKR_USER_TYPE_INVALID;
-  }
-
   class = CKO_VENDOR_DEFINED; // Use this as a known value
   for (i = 0; i < ulCount; i++) {
     if (pTemplate[i].type == CKA_CLASS) {
@@ -1275,6 +1265,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     locking.pfnLockMutex(session->slot->mutex);
 
+    if (session->slot->login_state != YKCS11_SO) {
+      DBG("Authentication as SO required to import objects");
+      locking.pfnUnlockMutex(session->slot->mutex);
+      return CKR_USER_TYPE_INVALID;
+    }
+
     rv = token_import_cert(session->slot->piv_state, piv_2_ykpiv(cert_id), value);
     if (rv != CKR_OK) {
       DBG("Unable to import certificate");
@@ -1282,40 +1278,34 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       return rv;
     }
 
-    locking.pfnUnlockMutex(session->slot->mutex);
-
-    DBG("%lu session objects before cert import", session->n_objects);
-
     // Add objects that were not already present
-    obj_ptr = session->objects + session->n_objects;
 
-    if(!is_present(session, dobj_id))
-      *obj_ptr++ = dobj_id;
-    if(!is_present(session, cert_id))
-      *obj_ptr++ = cert_id;
-    if(!is_present(session, pvtk_id))
-      *obj_ptr++ = pvtk_id;
-    if(!is_present(session, pubk_id))
-      *obj_ptr++ = pubk_id;
-    if(atst_id != PIV_INVALID_OBJ && !is_present(session, atst_id))
-      *obj_ptr ++ = atst_id;
+    if(!is_present(session->slot, dobj_id))
+      add_object(session->slot, dobj_id);
+    if(!is_present(session->slot, cert_id))
+      add_object(session->slot, cert_id);
+    if(!is_present(session->slot, pvtk_id))
+      add_object(session->slot, pvtk_id);
+    if(!is_present(session->slot, pubk_id))
+      add_object(session->slot, pubk_id);
+    if(atst_id != PIV_INVALID_OBJ && !is_present(session->slot, atst_id))
+      add_object(session->slot, atst_id);
 
-    session->n_objects = obj_ptr - session->objects;
-    sort_objects(session);
+    sort_objects(session->slot);
 
-    DBG("%lu session objects after cert import", session->n_objects);
-
-    rv = store_data(session, id, value, value_len);
+    rv = store_data(session->slot, id, value, value_len);
     if (rv != CKR_OK) {
       DBG("Unable to store data in session");
       return CKR_FUNCTION_FAILED;
     }
 
-    rv = store_cert(session, id, value, value_len, CK_TRUE);
+    rv = store_cert(session->slot, id, value, value_len, CK_TRUE);
     if (rv != CKR_OK) {
       DBG("Unable to store certificate in session");
       return CKR_FUNCTION_FAILED;
     }
+
+    locking.pfnUnlockMutex(session->slot->mutex);
 
     *phObject = cert_id;
     break;
@@ -1346,6 +1336,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     pvtk_id = find_pvtk_object(id);
 
     locking.pfnLockMutex(session->slot->mutex);
+
+    if (session->slot->login_state != YKCS11_SO) {
+      DBG("Authentication as SO required to import objects");
+      locking.pfnUnlockMutex(session->slot->mutex);
+      return CKR_USER_TYPE_INVALID;
+    }
 
     if (is_rsa == CK_TRUE) {
       DBG("Key is RSA");
@@ -1448,32 +1444,34 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
     return rv;
   }
 
-  locking.pfnUnlockMutex(session->slot->mutex);
-
   // Remove the related objects from the session
 
-  DBG("%lu session objects before destroying object %lu", session->n_objects, hObject);
+  DBG("%lu session objects before destroying object %lu", session->slot->n_objects, hObject);
 
   CK_ULONG j = 0;
-  for (CK_ULONG i = 0; i < session->n_objects; i++) {
-    if(get_sub_id(session->objects[i]) != id)
-      session->objects[j++] = session->objects[i];
+  for (CK_ULONG i = 0; i < session->slot->n_objects; i++) {
+    if(get_sub_id(session->slot->objects[i]) != id)
+      session->slot->objects[j++] = session->slot->objects[i];
   }
-  session->n_objects = j;
+  session->slot->n_objects = j;
 
-  DBG("%lu session objects after destroying object %lu", session->n_objects, hObject);
+  DBG("%lu session objects after destroying object %lu", session->slot->n_objects, hObject);
 
-  rv = delete_data(session, id);
+  rv = delete_data(session->slot, id);
   if (rv != CKR_OK) {
     DBG("Unable to delete data from session");
+    locking.pfnUnlockMutex(session->slot->mutex);
     return CKR_FUNCTION_FAILED;
   }
 
-  rv = delete_cert(session, id);
+  rv = delete_cert(session->slot, id);
   if (rv != CKR_OK) {
     DBG("Unable to delete certificate from session");
+    locking.pfnUnlockMutex(session->slot->mutex);
     return CKR_FUNCTION_FAILED;
   }
+
+  locking.pfnUnlockMutex(session->slot->mutex);
 
   DOUT;
   return CKR_OK;
@@ -1492,6 +1490,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetObjectSize)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
+  if (pulSize == NULL)
+    return CKR_ARGUMENTS_BAD;
+
   ykcs11_session_t* session = get_session(hSession);
 
   if (session == NULL || session->slot == NULL) {
@@ -1499,15 +1500,17 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetObjectSize)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (!is_present(session, hObject)) {
+  locking.pfnLockMutex(session->slot->mutex);
+
+  if (!is_present(session->slot, hObject)) {
     DBG("Object handle is invalid");
+    locking.pfnUnlockMutex(session->slot->mutex);
     return CKR_OBJECT_HANDLE_INVALID;
   }
 
-  if (pulSize == NULL)
-    return CKR_ARGUMENTS_BAD;
+  CK_RV rv = get_data_len(session->slot, get_sub_id(hObject), pulSize);
 
-  CK_RV rv = get_data_len(session, get_sub_id(hObject), pulSize);
+  locking.pfnUnlockMutex(session->slot->mutex);
 
   DOUT;
   return rv;
@@ -1530,6 +1533,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
+  if (pTemplate == NULL || ulCount == 0)
+    return CKR_ARGUMENTS_BAD;
+
   ykcs11_session_t* session = get_session(hSession);
 
   if (session == NULL || session->slot == NULL) {
@@ -1537,20 +1543,18 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (!is_present(session, hObject)) {
+  locking.pfnLockMutex(session->slot->mutex);
+
+  if (!is_present(session->slot, hObject)) {
     DBG("Object handle is invalid");
+    locking.pfnUnlockMutex(session->slot->mutex);
     return CKR_OBJECT_HANDLE_INVALID;
   }
-
-  if (pTemplate == NULL || ulCount == 0)
-    return CKR_ARGUMENTS_BAD;
-
-  locking.pfnLockMutex(session->slot->mutex);
 
   rv_final = CKR_OK;
   for (i = 0; i < ulCount; i++) {
 
-    rv = get_attribute(session, hObject, pTemplate + i);
+    rv = get_attribute(session->slot, hObject, pTemplate + i);
 
     // TODO: this function has some complex cases for return value. Make sure to check them.
     if (rv != CKR_OK) {
@@ -1617,28 +1621,28 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjectsInit)(
   locking.pfnLockMutex(session->slot->mutex);
 
   // Match parameters
-  for (CK_ULONG i = 0; i < session->n_objects; i++) {
+  for (CK_ULONG i = 0; i < session->slot->n_objects; i++) {
 
     // Strip away private objects if needed
     if (session->slot->login_state == YKCS11_PUBLIC) {
-      if (is_private_object(session->objects[i]) == CK_TRUE) {
-        DBG("Removing private object %u", session->objects[i]);
+      if (is_private_object(session->slot->objects[i]) == CK_TRUE) {
+        DBG("Removing private object %u", session->slot->objects[i]);
         continue;
       }
     }
   
     bool keep = true;
     for (CK_ULONG j = 0; j < ulCount; j++) {
-      if (attribute_match(session, session->objects[i], pTemplate + j) == CK_FALSE) {
-        DBG("Removing object %u", session->objects[i]);
+      if (attribute_match(session->slot, session->slot->objects[i], pTemplate + j) == CK_FALSE) {
+        DBG("Removing object %u", session->slot->objects[i]);
         keep = false;
         break;
       }
     }
 
     if(keep) {
-      DBG("Keeping object %u", session->objects[i]);
-      session->find_obj.objects[session->find_obj.n_objects++] = session->objects[i];
+      DBG("Keeping object %u", session->slot->objects[i]);
+      session->find_obj.objects[session->find_obj.n_objects++] = session->slot->objects[i];
     }
   }
 
@@ -1739,11 +1743,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptInit)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (!is_present(session, hKey)) {
-    DBG("Key handle is invalid");
-    return CKR_OBJECT_HANDLE_INVALID;
-  }
-
   if (session->op_info.type != YKCS11_NOOP) {
     DBG("Other operation in process");
     return CKR_OPERATION_ACTIVE;
@@ -1758,23 +1757,27 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptInit)(
     return CKR_KEY_HANDLE_INVALID;
   }
 
-  if (do_get_key_type(session->pkeys[id]) != CKK_RSA) {
-    DBG("Key %lu is not an RSA key", hKey);
-    return CKR_KEY_TYPE_INCONSISTENT;
+  locking.pfnLockMutex(session->slot->mutex);
+
+  if (!is_present(session->slot, hKey)) {
+    DBG("Key handle is invalid");
+    locking.pfnUnlockMutex(session->slot->mutex);
+    return CKR_OBJECT_HANDLE_INVALID;
   }
 
-  session->op_info.op.encrypt.key_id = id;
+  session->op_info.op.encrypt.piv_key = piv_2_ykpiv(hKey);
 
-  CK_RV rv = decrypt_mechanism_init(session, pMechanism);
+  CK_RV rv = decrypt_mechanism_init(session, session->slot->pkeys[id], pMechanism);
   if(rv != CKR_OK) {
     DBG("Failed to initialize encryption operation");
+    locking.pfnUnlockMutex(session->slot->mutex);
     return rv;
-  } 
+  }
+
+  locking.pfnUnlockMutex(session->slot->mutex);
 
   session->op_info.buf_len = 0;
   session->op_info.type = YKCS11_ENCRYPT;
-
-  DBG("Trying to encrypt data with mechanism %lu %p %lu and key %lu", pMechanism->mechanism, pMechanism->pParameter, pMechanism->ulParameterLen, hKey);
 
   DOUT;
   return CKR_OK;
@@ -1814,12 +1817,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_Encrypt)(
     return CKR_OPERATION_NOT_INITIALIZED;
   }
 
-  DBG("Using key id %x for encryption", session->op_info.op.encrypt.key_id);
+  DBG("Using public key for slot %x for encryption", session->op_info.op.encrypt.piv_key);
 #if YKCS11_DBG > 1
   dump_data(pData, ulDataLen, stderr, CK_TRUE, format_arg_hex);
 #endif
 
-  rv = do_rsa_encrypt(session->pkeys[session->op_info.op.encrypt.key_id],
+  rv = do_rsa_encrypt(session->op_info.op.encrypt.key,
                       session->op_info.op.encrypt.padding,
                       session->op_info.op.encrypt.oaep_md, session->op_info.op.encrypt.mgf1_md,
                       session->op_info.op.encrypt.oaep_label, session->op_info.op.encrypt.oaep_label_len,
@@ -1920,12 +1923,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptFinal)(
     return CKR_OPERATION_NOT_INITIALIZED;
   }
 
-  DBG("Using key id %x for encryption", session->op_info.op.encrypt.key_id);
+  DBG("Using slot %x for encryption", session->op_info.op.encrypt.piv_key);
 #if YKCS11_DBG > 1
   dump_data(session->op_info.buf, session->op_info.buf_len, stderr, CK_TRUE, format_arg_hex);
 #endif
 
-  rv = do_rsa_encrypt(session->pkeys[session->op_info.op.encrypt.key_id],
+  rv = do_rsa_encrypt(session->op_info.op.encrypt.key,
                       session->op_info.op.encrypt.padding,
                       session->op_info.op.encrypt.oaep_md, session->op_info.op.encrypt.mgf1_md,
                       session->op_info.op.encrypt.oaep_label, session->op_info.op.encrypt.oaep_label_len,
@@ -1970,11 +1973,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
     return CKR_SESSION_CLOSED;
   }
 
-  if (!is_present(session, hKey)) {
-    DBG("Key handle is invalid");
-    return CKR_OBJECT_HANDLE_INVALID;
-  }
-
   if (session->op_info.type != YKCS11_NOOP) {
     DBG("Other operation in process");
     return CKR_OPERATION_ACTIVE;
@@ -1983,26 +1981,31 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
   if (pMechanism == NULL)
     return CKR_ARGUMENTS_BAD;
 
-  DBG("Trying to decrypt some data with mechanism %lu %p %lu and key %lu", pMechanism->mechanism, pMechanism->pParameter, pMechanism->ulParameterLen, hKey);
-
   CK_BYTE id = get_sub_id(hKey);
   if (id == 0) {
     DBG("Invalid key handle %lu", hKey);
     return CKR_KEY_HANDLE_INVALID;
   }
 
-  if (do_get_key_type(session->pkeys[id]) != CKK_RSA) {
-    DBG("Key %lu is not an RSA key", hKey);
-    return CKR_KEY_TYPE_INCONSISTENT;
+  locking.pfnLockMutex(session->slot->mutex);
+
+  if (!is_present(session->slot, hKey)) {
+    DBG("Key handle is invalid");
+    locking.pfnUnlockMutex(session->slot->mutex);
+    return CKR_OBJECT_HANDLE_INVALID;
   }
 
-  CK_RV rv = decrypt_mechanism_init(session, pMechanism);
+  session->op_info.op.encrypt.piv_key = piv_2_ykpiv(hKey);
+
+  CK_RV rv = decrypt_mechanism_init(session, session->slot->pkeys[id], pMechanism);
   if(rv != CKR_OK) {
     DBG("Failed to initialize decryption operation");
+    locking.pfnUnlockMutex(session->slot->mutex);
     return rv;
-  } 
+  }
+
+  locking.pfnUnlockMutex(session->slot->mutex);
   
-  session->op_info.op.encrypt.key_id = id;
   session->op_info.buf_len = 0;
   session->op_info.type = YKCS11_DECRYPT;
 
@@ -2053,7 +2056,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
     goto decrypt_out;
   }
 
-  CK_ULONG key_len = do_get_key_size(session->pkeys[session->op_info.op.encrypt.key_id]);
+  CK_ULONG key_len = do_get_key_size(session->op_info.op.encrypt.key);
   CK_ULONG datalen = (key_len + 7) / 8 - 11;
   DBG("The size of the data will be %lu", datalen);
 
@@ -2065,7 +2068,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
     return CKR_OK;
   }
 
-  DBG("Sending %lu bytes to be decrypted", ulEncryptedDataLen);
+  DBG("Using slot %x to decrypt %lu bytes", session->op_info.op.encrypt.piv_key, ulEncryptedDataLen);
 #if YKCS11_DBG > 1
   dump_data(pEncryptedData, ulEncryptedDataLen, stderr, CK_TRUE, format_arg_hex);
 #endif
@@ -2206,7 +2209,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
     goto decrypt_out;
   }
 
-  CK_ULONG key_len = do_get_key_size(session->pkeys[session->op_info.op.encrypt.key_id]);
+  CK_ULONG key_len = do_get_key_size(session->op_info.op.encrypt.key);
   CK_ULONG datalen = (key_len + 7) / 8 - 11;
   DBG("The size of the data will be %lu", datalen);
 
@@ -2218,7 +2221,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
     return CKR_OK;
   }
 
-  DBG("Sending %lu bytes to be decrypted", session->op_info.buf_len);
+  DBG("Using slot %x to decrypt %lu bytes", session->op_info.op.encrypt.piv_key, session->op_info.buf_len);
 #if YKCS11_DBG > 1
   dump_data(session->op_info.buf, session->op_info.buf_len, stderr, CK_TRUE, format_arg_hex);
 #endif
@@ -2270,11 +2273,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestInit)(
     return CKR_ARGUMENTS_BAD;
   }
 
-  DBG("Trying to hash some data with mechanism %lu", pMechanism->mechanism);
-
-  session->op_info.mechanism = pMechanism->mechanism;
-
-  CK_RV rv = digest_mechanism_init(session);
+  CK_RV rv = digest_mechanism_init(session, pMechanism);
   if(rv != CKR_OK) {
     DBG("Unable to initialize digest operation");
     return rv;
@@ -2500,7 +2499,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     return CKR_ARGUMENTS_BAD;
   }
 
-  if (!is_present(session, hKey)) {
+  if (!is_present(session->slot, hKey)) {
     DBG("Key handle %lu is invalid", hKey);
     DOUT;
     return CKR_OBJECT_HANDLE_INVALID;
@@ -2515,7 +2514,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
   session->op_info.op.sign.piv_key = piv_2_ykpiv(hKey);
   CK_BYTE id = get_sub_id(hKey);
 
-  CK_RV rv = sign_mechanism_init(session, session->pkeys[id], pMechanism);
+  CK_RV rv = sign_mechanism_init(session, session->slot->pkeys[id], pMechanism);
   if (rv != CKR_OK) {
     DBG("Unable to initialize signing operation");
     sign_mechanism_cleanup(session);
@@ -2806,7 +2805,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (!is_present(session, hKey)) {
+  if (!is_present(session->slot, hKey)) {
     DBG("Key handle %lu is invalid", hKey);
     DOUT;
     return CKR_OBJECT_HANDLE_INVALID;
@@ -2832,7 +2831,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
 
   CK_BYTE id = get_sub_id(hKey);
   
-  CK_RV rv = verify_mechanism_init(session, session->pkeys[id], pMechanism);
+  CK_RV rv = verify_mechanism_init(session, session->slot->pkeys[id], pMechanism);
   if (rv != CKR_OK) {
     DBG("Unable to initialize verification operation");
     verify_mechanism_cleanup(session);
@@ -3212,42 +3211,36 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     return rv;
   }
 
-  locking.pfnUnlockMutex(session->slot->mutex);
-
-  DBG("%lu session objects before key generation", session->n_objects);
-
   // Add objects that were not already present
-  obj_ptr = session->objects + session->n_objects;
 
-  if(!is_present(session, dobj_id))
-    *obj_ptr++ = dobj_id;
-  if(!is_present(session, cert_id))
-    *obj_ptr++ = cert_id;
-  if(!is_present(session, pvtk_id))
-    *obj_ptr++ = pvtk_id;
-  if(!is_present(session, pubk_id))
-    *obj_ptr++ = pubk_id;
-  if(atst_id != PIV_INVALID_OBJ && !is_present(session, atst_id))
-    *obj_ptr++ = atst_id;
+  if(!is_present(session->slot, dobj_id))
+    add_object(session->slot, dobj_id);
+  if(!is_present(session->slot, cert_id))
+    add_object(session->slot, cert_id);
+  if(!is_present(session->slot, pvtk_id))
+    add_object(session->slot, pvtk_id);
+  if(!is_present(session->slot, pubk_id))
+    add_object(session->slot, pubk_id);
+  if(atst_id != PIV_INVALID_OBJ && !is_present(session->slot, atst_id))
+    add_object(session->slot, atst_id);
 
-  session->n_objects = obj_ptr - session->objects;
-  sort_objects(session);
-
-  DBG("%lu session objects after key generation", session->n_objects);
+  sort_objects(session->slot);
 
   // Write/Update the object
 
-  rv = store_data(session, gen.key_id, cert_data, cert_len);
+  rv = store_data(session->slot, gen.key_id, cert_data, cert_len);
   if (rv != CKR_OK) {
     DBG("Unable to store data in session");
     return CKR_FUNCTION_FAILED;
   }
 
-  rv = store_cert(session, gen.key_id, cert_data, cert_len, CK_TRUE);
+  rv = store_cert(session->slot, gen.key_id, cert_data, cert_len, CK_TRUE);
   if (rv != CKR_OK) {
     DBG("Unable to store certificate in session");
     return CKR_FUNCTION_FAILED;
   }
+
+  locking.pfnUnlockMutex(session->slot->mutex);
 
   *phPrivateKey = pvtk_id;
   *phPublicKey  = pubk_id;

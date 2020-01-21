@@ -45,11 +45,11 @@ CK_RV check_generation_mechanism(CK_MECHANISM_PTR m);
 CK_RV check_pubkey_template(gen_info_t *gen_info, CK_MECHANISM_PTR mech, CK_ATTRIBUTE_PTR templ, CK_ULONG n); // TODO: Move to objects.c
 CK_RV check_pvtkey_template(gen_info_t *gen_info, CK_MECHANISM_PTR mech, CK_ATTRIBUTE_PTR templ, CK_ULONG n); // TODO: Move to objects.c
 
-CK_RV digest_mechanism_init(ykcs11_session_t *session);
+CK_RV digest_mechanism_init(ykcs11_session_t *session, CK_MECHANISM_PTR mech);
 CK_RV digest_mechanism_update(ykcs11_session_t *session, CK_BYTE_PTR in, CK_ULONG in_len);
 CK_RV digest_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR pDigest, CK_ULONG_PTR pDigestLength);
 
-CK_RV decrypt_mechanism_init(ykcs11_session_t *session, CK_MECHANISM_PTR mech);
+CK_RV decrypt_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_MECHANISM_PTR mech);
 CK_RV decrypt_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR dec, CK_ULONG_PTR dec_len, CK_ULONG key_len);
 
 #endif

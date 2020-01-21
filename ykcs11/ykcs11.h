@@ -43,11 +43,23 @@ typedef enum {
 } ykcs11_login_state_t;
 
 typedef struct {
-  CK_SLOT_INFO  slot_info;
-  CK_TOKEN_INFO token_info;
-  ykpiv_state   *piv_state;
-  ykcs11_login_state_t login_state;
+  CK_ULONG        len;
+  CK_BYTE_PTR     data;
+} ykcs11_data_t;
+
+typedef struct {
   void* mutex;
+  CK_SLOT_INFO   slot_info;
+  CK_TOKEN_INFO  token_info;
+  ykpiv_state    *piv_state;
+  ykcs11_login_state_t login_state;
+  CK_ULONG       n_objects;   // TOTAL number of objects in the token
+  piv_obj_id_t   objects[PIV_OBJ_COUNT]; // List of objects in the token
+  ykpiv_metadata meta[26];    // Private key metadata, if supported
+  ykcs11_data_t  data[38];    // Raw data, stored by sub_id 1-37
+  ykcs11_x509_t  *certs[26];  // Certificates, stored by sub_id 1-25
+  ykcs11_x509_t  *atst[26];   // Attestations, stored by sub_id 1-25
+  ykcs11_pkey_t  *pkeys[26];  // Public keys, stored by sub_id 1-25
 } ykcs11_slot_t;
 
 typedef enum {
@@ -66,12 +78,12 @@ typedef struct {
 
 typedef struct {
   CK_ULONG          padding;   // RSA padding, 0 for EC
-  ykcs11_rsa_t      *rsa;      // RSA key (needed for PSS padding), NULL for EC
+  ykcs11_rsa_t      *rsa;      // RSA public key (needed for PSS padding), NULL for EC
+  CK_BYTE           piv_key;   // PIV Key id
+  CK_BYTE           algorithm; // PIV Key algorithm
   const ykcs11_md_t *pss_md;
   const ykcs11_md_t *mgf1_md;
   CK_ULONG          pss_slen;
-  CK_BYTE           piv_key;   // PIV Key id
-  CK_BYTE           algorithm; // PIV Key algorithm
 } sign_info_t;
 
 typedef struct {
@@ -80,12 +92,14 @@ typedef struct {
 } verify_info_t;
 
 typedef struct {
-  CK_BYTE     key_id;
-  CK_ULONG    padding; // padding in the rsa case
-  const ykcs11_md_t   *oaep_md;
-  const ykcs11_md_t   *mgf1_md;
-  unsigned char       *oaep_label;
-  CK_ULONG            oaep_label_len;
+  CK_ULONG          padding;   // RSA padding, 0 for EC
+  ykcs11_pkey_t     *key;      // Public key
+  CK_BYTE           piv_key;   // PIV Key id
+  CK_BYTE           algorithm; // PIV Key algorithm
+  const ykcs11_md_t *oaep_md;
+  const ykcs11_md_t *mgf1_md;
+  unsigned char     *oaep_label;
+  CK_ULONG          oaep_label_len;
 } encrypt_info_t;
 
 typedef union {
@@ -112,20 +126,8 @@ typedef struct {
 } ykcs11_find_t;
 
 typedef struct {
-  CK_ULONG        len;
-  CK_BYTE_PTR     data;
-} ykcs11_data_t;
-
-typedef struct {
   CK_SESSION_INFO info;        // slotid, state, flags, deviceerror
   ykcs11_slot_t   *slot;       // slot for open session, or NULL 
-  CK_ULONG        n_objects;   // TOTAL number of objects in the token
-  piv_obj_id_t    objects[PIV_OBJ_COUNT]; // List of objects in the token
-  ykpiv_metadata  meta[26];    // Private key metadata, if supported
-  ykcs11_data_t   data[38];    // Raw data, stored by sub_id 1-37
-  ykcs11_x509_t   *certs[26];  // Certificates, stored by sub_id 1-25
-  ykcs11_x509_t   *atst[26];   // Attestations, stored by sub_id 1-25
-  ykcs11_pkey_t   *pkeys[26];  // Public keys, stored by sub_id 1-25
   ykcs11_find_t   find_obj;    // Active find operation (if any)
   op_info_t       op_info;
 } ykcs11_session_t;
@@ -133,7 +135,7 @@ typedef struct {
 typedef struct {
   piv_obj_id_t piv_id;
   const char   *label;
-  CK_RV        (*get_attribute)(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
+  CK_RV        (*get_attribute)(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template);
   CK_BYTE      sub_id; // Sub-object id
 } piv_obj_t;
 

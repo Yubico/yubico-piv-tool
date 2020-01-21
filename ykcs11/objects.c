@@ -41,11 +41,11 @@
 #define PRIME256V1 "\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07" // TODO: already define in mechanisms.c. Move
 #define SECP384R1 "\x06\x05\x2b\x81\x04\x00\x22" // TODO: already define in mechanisms.c. Move
 
-static CK_RV get_doa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
-static CK_RV get_coa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
-static CK_RV get_proa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
-static CK_RV get_puoa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
-static CK_RV get_atst(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template);
+static CK_RV get_doa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template);
+static CK_RV get_coa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template);
+static CK_RV get_proa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template);
+static CK_RV get_puoa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template);
+static CK_RV get_atst(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template);
 
 //TODO: this is mostly a snippet from OpenSC how to give credit?     Less and less so now
 /* Must be in order, and one per enumerated PIV_OBJ */
@@ -293,12 +293,12 @@ static piv_pubk_obj_t pubkey_objects[] = {
 };
 
 /* Get data object attribute */
-static CK_RV get_doa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
+static CK_RV get_doa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
   CK_BYTE     tmp;
   CK_ULONG    ul_tmp;
   CK_ULONG    len = 0;
-  DBG("For data object %lu, get ", obj);
+  DBG("For data object %u, get ", obj);
 
   switch (template->type) {
   case CKA_CLASS:
@@ -383,13 +383,13 @@ static CK_RV get_doa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR
 }
 
 /* Get certificate object attribute */
-static CK_RV _get_coa(ykcs11_x509_t **certs, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template, CK_BBOOL token) {
+static CK_RV _get_coa(ykcs11_x509_t **certs, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template, CK_BBOOL token) {
   CK_BYTE_PTR data;
   CK_BYTE     b_tmp[YKPIV_OBJ_MAX_SIZE]; // Max cert value for ykpiv
   CK_ULONG    ul_tmp;
   CK_ULONG    len = 0;
   CK_RV       rv;
-  DBG("For certificate object %lu, get ", obj);
+  DBG("For certificate object %u, get ", obj);
 
   switch (template->type) {
   case CKA_CLASS:
@@ -501,7 +501,7 @@ static CK_RV _get_coa(ykcs11_x509_t **certs, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_
   return CKR_OK;
 }
 
-static CK_RV get_coa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
+static CK_RV get_coa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template) {
   return _get_coa(s->certs, obj, template, CK_TRUE);
 }
 
@@ -521,7 +521,7 @@ static CK_BBOOL is_relevant_attribute(CK_ATTRIBUTE_PTR template) {
   return bsearch(&template->type, relevant, sizeof(relevant)/sizeof(relevant[0]), sizeof(relevant[0]), compare_ck_attribute_type) ? CK_TRUE : CK_FALSE;
 }
 
-static CK_RV get_atst(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
+static CK_RV get_atst(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE sub_id = piv_objects[obj].sub_id;
   if(s->atst[sub_id] == NULL && is_relevant_attribute(template)) {
     CK_ULONG slot = piv_2_ykpiv(find_pvtk_object(sub_id));
@@ -529,7 +529,7 @@ static CK_RV get_atst(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
     size_t len = sizeof(data);
     ykpiv_rc rc;
     CK_RV rv;
-    if((rc = ykpiv_attest(s->slot->piv_state, slot, data, &len)) == YKPIV_OK) {
+    if((rc = ykpiv_attest(s->piv_state, slot, data, &len)) == YKPIV_OK) {
       DBG("Created attestation for slot %lx", slot);
       if((rv = do_store_cert(data, len, &s->atst[sub_id])) != CKR_OK)
         return rv;
@@ -548,13 +548,13 @@ static CK_RV get_atst(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
 }
 
 /* Get private key object attribute */
-static CK_RV get_proa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
+static CK_RV get_proa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
   CK_BYTE     b_tmp[1024];
   CK_ULONG    ul_tmp;
   CK_ULONG    len = 0;
   CK_RV       rv;
-  DBG("For private key object %lu, get ", obj);
+  DBG("For private key object %u, get ", obj);
 
   switch (template->type) {
   case CKA_CLASS:
@@ -781,12 +781,12 @@ static CK_RV get_proa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PT
 }
 
 /* Get public key object attribute */
-static CK_RV get_puoa(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
+static CK_RV get_puoa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
   CK_BYTE     b_tmp[1024];
   CK_ULONG    ul_tmp;
   CK_ULONG    len = 0;
-  DBG("For public key object %lu, get ", obj);
+  DBG("For public key object %u, get ", obj);
 
   switch (template->type) {
   case CKA_CLASS:
@@ -1201,15 +1201,25 @@ static int compare_piv_obj_id(const void *a, const void *b) {
   return (*(const piv_obj_id_t*)a - *(const piv_obj_id_t*)b);
 }
 
-void sort_objects(ykcs11_session_t *s) {
+void sort_objects(ykcs11_slot_t *s) {
   qsort(s->objects, s->n_objects, sizeof(piv_obj_id_t), compare_piv_obj_id);
 }
 
-CK_BBOOL is_present(ykcs11_session_t *s, piv_obj_id_t id) {
+CK_BBOOL is_present(ykcs11_slot_t *s, piv_obj_id_t id) {
   return bsearch(&id, s->objects, s->n_objects, sizeof(piv_obj_id_t), compare_piv_obj_id) ? CK_TRUE : CK_FALSE;
 }
 
-CK_BBOOL is_local_key(ykcs11_session_t *s, piv_obj_id_t id) {
+CK_BBOOL add_object(ykcs11_slot_t *s, piv_obj_id_t id) {
+  if(s->n_objects < sizeof(s->objects) / sizeof(s->objects[0])) {
+    s->objects[s->n_objects++] = id;
+    DBG("Added object %u, slot contains %lu objects", id, s->n_objects);
+    return true;
+  }
+  DBG("Couldn't add object %u because %lu objects are already present", id, s->n_objects);
+  return false;
+}
+
+CK_BBOOL is_local_key(ykcs11_slot_t *s, piv_obj_id_t id) {
   CK_BYTE sub_id = piv_objects[id].sub_id;
   piv_obj_id_t atst_id = find_atst_object(sub_id);
   if(is_present(s, atst_id) && s->pkeys[25]) { // We have an attestation, and the attestation public key is available
@@ -1228,11 +1238,11 @@ CK_BBOOL is_local_key(ykcs11_session_t *s, piv_obj_id_t id) {
   return CK_FALSE;
 }
 
-CK_RV get_attribute(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR template) {
+CK_RV get_attribute(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template) {
   return piv_objects[obj].get_attribute(s, obj, template);
 }
 
-CK_BBOOL attribute_match(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE_PTR attribute) {
+CK_BBOOL attribute_match(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR attribute) {
 
   CK_BYTE data[4096];
   CK_ATTRIBUTE to_match = { attribute->type, data, sizeof(data) };
@@ -1251,7 +1261,7 @@ CK_BBOOL attribute_match(ykcs11_session_t *s, CK_OBJECT_HANDLE obj, CK_ATTRIBUTE
   return CK_TRUE;
 }
 
-CK_BBOOL is_private_object(CK_OBJECT_HANDLE obj) {
+CK_BBOOL is_private_object(piv_obj_id_t obj) {
   return (obj < PIV_PVTK_OBJ_PIV_AUTH || obj > PIV_PVTK_OBJ_ATTESTATION) ? CK_FALSE : CK_TRUE;
 }
 
@@ -1299,7 +1309,7 @@ piv_obj_id_t find_atst_object(CK_BYTE sub_id) {
   return -1;
 }
 
-CK_RV store_data(ykcs11_session_t *s, CK_BYTE sub_id, CK_BYTE_PTR data, CK_ULONG len) {
+CK_RV store_data(ykcs11_slot_t *s, CK_BYTE sub_id, CK_BYTE_PTR data, CK_ULONG len) {
   if(s->data[sub_id].data == NULL || s->data[sub_id].len < len) {
     free(s->data[sub_id].data);
     s->data[sub_id].data = malloc(len);
@@ -1312,19 +1322,19 @@ CK_RV store_data(ykcs11_session_t *s, CK_BYTE sub_id, CK_BYTE_PTR data, CK_ULONG
   return CKR_OK;
 }
 
-CK_RV delete_data(ykcs11_session_t *s, CK_BYTE sub_id) {
+CK_RV delete_data(ykcs11_slot_t *s, CK_BYTE sub_id) {
   free(s->data[sub_id].data);
   s->data[sub_id].data = NULL;
   s->data[sub_id].len = 0;
   return CKR_OK;
 }
 
-CK_RV get_data_len(ykcs11_session_t *s, CK_BYTE sub_id, CK_ULONG_PTR len) {
+CK_RV get_data_len(ykcs11_slot_t *s, CK_BYTE sub_id, CK_ULONG_PTR len) {
   *len = s->data[sub_id].len;
   return CKR_OK;
 }
 
-CK_RV store_cert(ykcs11_session_t *s, CK_BYTE sub_id, CK_BYTE_PTR data, CK_ULONG len, CK_BBOOL force_pubkey) {
+CK_RV store_cert(ykcs11_slot_t *s, CK_BYTE sub_id, CK_BYTE_PTR data, CK_ULONG len, CK_BBOOL force_pubkey) {
 
   CK_RV rv;
 
@@ -1343,7 +1353,7 @@ CK_RV store_cert(ykcs11_session_t *s, CK_BYTE sub_id, CK_BYTE_PTR data, CK_ULONG
   return CKR_OK;
 }
 
-CK_RV delete_cert(ykcs11_session_t *s, CK_BYTE sub_id) {
+CK_RV delete_cert(ykcs11_slot_t *s, CK_BYTE sub_id) {
   CK_RV rv;
 
   // Clear the object containing the certificate

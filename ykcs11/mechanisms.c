@@ -698,8 +698,9 @@ CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
 
 }
 
-CK_RV digest_mechanism_init(ykcs11_session_t *session) {
+CK_RV digest_mechanism_init(ykcs11_session_t *session, CK_MECHANISM_PTR mech) {
 
+  session->op_info.mechanism = mech->mechanism;
   const ykcs11_md_t *md = NULL;
 
   switch (session->op_info.mechanism) {
@@ -781,9 +782,16 @@ CK_RV digest_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR pDigest, CK_
   return CKR_OK;
 }
 
-CK_RV decrypt_mechanism_init(ykcs11_session_t *session, CK_MECHANISM_PTR mech) {
+CK_RV decrypt_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_MECHANISM_PTR mech) {
+
+  if (do_get_key_type(key) != CKK_RSA) {
+    DBG("Mechanism %lu requires an RSA key", mech->mechanism);
+    return CKR_KEY_TYPE_INCONSISTENT;
+  }
 
   session->op_info.mechanism = mech->mechanism;
+  session->op_info.op.encrypt.algorithm = do_get_key_algorithm(key);
+  session->op_info.op.encrypt.key = key;
 
   switch (session->op_info.mechanism) {
   case CKM_RSA_X_509:
@@ -828,12 +836,8 @@ CK_RV decrypt_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR data, CK_UL
   size_t   dec_len = sizeof(dec);
   int      cb_len;
 
-  CK_BYTE algo = do_get_key_algorithm(session->pkeys[session->op_info.op.encrypt.key_id]);
-  CK_ULONG pivkey = piv_2_ykpiv(find_pvtk_object(session->op_info.op.encrypt.key_id));
-  DBG("Using key %lx for decryption", pivkey);
-
   piv_rv = ykpiv_decipher_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, 
-                               session->op_info.buf, &dec_len, algo, pivkey);
+                               session->op_info.buf, &dec_len, session->op_info.op.encrypt.algorithm, session->op_info.op.encrypt.piv_key);
   if (piv_rv != YKPIV_OK) {
     if (piv_rv == YKPIV_AUTHENTICATION_ERROR) {
       DBG("Operation requires authentication or touch");
