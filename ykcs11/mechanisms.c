@@ -385,7 +385,7 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_ME
 
     case CKM_SHA512_RSA_PKCS:
     case CKM_SHA512_RSA_PKCS_PSS:
-    case CKM_ECDSA_SHA512:
+//    case CKM_ECDSA_SHA512:
       md = EVP_sha512();
       break;
 
@@ -705,10 +705,6 @@ CK_RV digest_mechanism_init(ykcs11_session_t *session) {
   switch (session->op_info.mechanism) {
     case CKM_SHA_1:
       md = EVP_sha1();
-      break;
-
-    case CKM_ECDSA_SHA224:
-      md = EVP_sha224();
       break;
 
     case CKM_SHA256:
