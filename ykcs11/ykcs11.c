@@ -754,10 +754,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetPIN)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  CK_USER_TYPE user_type = CKU_USER;
-  if (get_session_state(session) == CKS_RW_SO_FUNCTIONS) {
-    user_type = CKU_SO;
-  }
+  CK_USER_TYPE user_type = session->slot->login_state == YKCS11_SO ? CKU_SO : CKU_USER;
 
   locking.pfnLockMutex(session->slot->mutex);
 
@@ -1247,8 +1244,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (get_session_state(session) != CKS_RW_SO_FUNCTIONS) {
-    DBG("Authentication required to import objects");
+  if (session->slot->login_state != YKCS11_SO) {
+    DBG("Authentication as SO required to import objects");
     return CKR_USER_TYPE_INVALID;
   }
 
@@ -1441,8 +1438,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
   }
 
   // SO must be logged in
-  if (get_session_state(session) != CKS_RW_SO_FUNCTIONS) {
-    DBG("Unable to delete objects, SO must be logged in");
+  if (session->slot->login_state != YKCS11_SO) {
+    DBG("Authentication as SO required to delete objects");
     return CKR_USER_TYPE_INVALID;
   }
 
@@ -2051,8 +2048,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
     goto decrypt_out;
   }
 
-  if (get_session_state(session) == CKS_RO_PUBLIC_SESSION ||
-      get_session_state(session) == CKS_RW_PUBLIC_SESSION) {
+  // This allows decrypting when logged in as SO and then doing a context-specific login as USER
+  if (session->slot->login_state == YKCS11_PUBLIC) {
     DBG("User is not logged in");
     rv = CKR_USER_NOT_LOGGED_IN;
     goto decrypt_out;
@@ -2137,8 +2134,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptUpdate)(
     goto decrypt_out;
   }
 
-  if (get_session_state(session) == CKS_RO_PUBLIC_SESSION ||
-      get_session_state(session) == CKS_RW_PUBLIC_SESSION) {
+  // This allows decrypting when logged in as SO and then doing a context-specific login as USER
+  if (session->slot->login_state == YKCS11_PUBLIC) {
     DBG("User is not logged in");
     rv = CKR_USER_NOT_LOGGED_IN;
     goto decrypt_out;
@@ -2204,8 +2201,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
     goto decrypt_out;
   }
 
-  if (get_session_state(session) == CKS_RO_PUBLIC_SESSION ||
-      get_session_state(session) == CKS_RW_PUBLIC_SESSION) {
+  // This allows decrypting when logged in as SO and then doing a context-specific login as USER
+  if (session->slot->login_state == YKCS11_PUBLIC) {
     DBG("User is not logged in");
     rv = CKR_USER_NOT_LOGGED_IN;
     goto decrypt_out;
@@ -2498,8 +2495,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
   }
 
   // This allows signing when logged in as SO and then doing a context-specific login to sign
-  if (get_session_state(session) == CKS_RO_PUBLIC_SESSION ||
-      get_session_state(session) == CKS_RW_PUBLIC_SESSION) {
+  if (session->slot->login_state == YKCS11_PUBLIC) {
     DBG("User is not logged in");
     DOUT;
     return CKR_USER_NOT_LOGGED_IN;
@@ -2584,8 +2580,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     return CKR_ARGUMENTS_BAD;
   }
 
-  if (get_session_state(session) == CKS_RO_PUBLIC_SESSION ||
-      get_session_state(session) == CKS_RW_PUBLIC_SESSION) {
+  // This allows signing when logged in as SO and then doing a context-specific login to sign
+  if (session->slot->login_state == YKCS11_PUBLIC) {
     DBG("User is not logged in");
     rv =  CKR_USER_NOT_LOGGED_IN;
     goto sign_out;
@@ -2671,8 +2667,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignUpdate)(
     return CKR_ARGUMENTS_BAD;
   }
 
-  if (get_session_state(session) == CKS_RO_PUBLIC_SESSION ||
-      get_session_state(session) == CKS_RW_PUBLIC_SESSION) {
+  // This allows signing when logged in as SO and then doing a context-specific login to sign
+  if (session->slot->login_state == YKCS11_PUBLIC) {
     DBG("User is not logged in");
     rv = CKR_USER_NOT_LOGGED_IN;
     goto sign_out;
@@ -2734,8 +2730,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
     return CKR_ARGUMENTS_BAD;
   }
 
-  if (get_session_state(session) == CKS_RO_PUBLIC_SESSION ||
-      get_session_state(session) == CKS_RW_PUBLIC_SESSION) {
+  // This allows signing when logged in as SO and then doing a context-specific login to sign
+  if (session->slot->login_state == YKCS11_PUBLIC) {
     DBG("User is not logged in");
     rv = CKR_USER_NOT_LOGGED_IN;
     goto sign_out;
@@ -3159,8 +3155,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (get_session_state(session) != CKS_RW_SO_FUNCTIONS) {
-    DBG("Authentication required to generate keys");
+  if (session->slot->login_state != YKCS11_SO) {
+    DBG("Authentication as SO required to generate keys");
     return CKR_USER_TYPE_INVALID;
   }
 
