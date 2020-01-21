@@ -88,18 +88,8 @@ interface, with slightly different shared library linkage and
 header file names: "pcsc" is used under GNU-like systems, "macscard"
 under Mac OS X, and "winscard" is used under Windows.  In most
 situations, running ./configure should automatically find the proper
-backend to use.
-
-=== Building from Git
-Recent versions of autoconf, automake, check, pkg-config, and libtool
-must be installed.  
-
-Generate the build system using:
-
-  $ autoreconf --install
-
-Then you follow the normal build instructions, see above.
-To turn on all warnings add --enable-gcc-warnings to ./configure
+backend to use. To turn on all warnings add --enable-gcc-warnings to 
+./configure
 
 === Portability
 The main development platform is Debian GNU/Linux.  The project is
