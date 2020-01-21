@@ -38,17 +38,6 @@
 #include <openssl/ec.h>
 #include <openssl/rand.h>
 
-typedef enum {
-  YKCS11_NO_HASH,
-  YKCS11_SHA1,
-  //YKCS11_SHA224,
-  YKCS11_SHA256,
-  YKCS11_SHA384,
-  YKCS11_SHA512,
-  //YKCS11_RIPEMD128_RSA_PKCS,
-  //YKCS11_RIPEMD160
-} ykcs11_hash_t;
-
 #undef X509_NAME
 
 typedef EVP_MD ykcs11_md_t;
