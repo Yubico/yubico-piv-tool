@@ -481,7 +481,6 @@ pkcs5_rc pkcs5_pbkdf2_sha1(const uint8_t* password, const size_t cb_password, co
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
-  /* for some reason openssl always returns 1 for PBKDF2 */
   if(PKCS5_PBKDF2_HMAC_SHA1((const char*)password, cb_password, salt, cb_salt, iterations, cb_key, (unsigned char*)key) <= 0)
     rc = PKCS5_GENERAL_ERROR;
 #pragma GCC diagnostic pop
