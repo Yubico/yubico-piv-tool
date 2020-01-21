@@ -802,16 +802,16 @@ CK_RV decrypt_mechanism_init(ykcs11_session_t *session, CK_MECHANISM_PTR mech) {
     session->op_info.op.encrypt.oaep_md = EVP_MD_by_mechanism(oaep->hashAlg);
     session->op_info.op.encrypt.mgf1_md = EVP_MD_by_mechanism(oaep->mgf);
     if(oaep->source == CKZ_DATA_SPECIFIED && oaep->pSourceData) {
-      session->op_info.op.encrypt.oaep_encparam = malloc(oaep->ulSourceDataLen);
-      if(session->op_info.op.encrypt.oaep_encparam == NULL) {
+      session->op_info.op.encrypt.oaep_label = malloc(oaep->ulSourceDataLen);
+      if(session->op_info.op.encrypt.oaep_label == NULL) {
         DBG("Unable to allocate memory for %lu byte OAEP label", oaep->ulSourceDataLen);
         return CKR_HOST_MEMORY;
       }
-      memcpy(session->op_info.op.encrypt.oaep_encparam, oaep->pSourceData, oaep->ulSourceDataLen);
-      session->op_info.op.encrypt.oaep_encparam_len = oaep->ulSourceDataLen;
+      memcpy(session->op_info.op.encrypt.oaep_label, oaep->pSourceData, oaep->ulSourceDataLen);
+      session->op_info.op.encrypt.oaep_label_len = oaep->ulSourceDataLen;
     } else {
-      session->op_info.op.encrypt.oaep_encparam = NULL;
-      session->op_info.op.encrypt.oaep_encparam_len = 0;
+      session->op_info.op.encrypt.oaep_label = NULL;
+      session->op_info.op.encrypt.oaep_label_len = 0;
     }
     break;
   default:
@@ -848,7 +848,7 @@ CK_RV decrypt_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR data, CK_UL
     cb_len = RSA_padding_check_PKCS1_type_2(dec, sizeof(dec), session->op_info.buf + 1, dec_len - 1, key_len/8);
   } else if(session->op_info.op.encrypt.padding == RSA_PKCS1_OAEP_PADDING) {
     cb_len = RSA_padding_check_PKCS1_OAEP_mgf1(dec, sizeof(dec), session->op_info.buf + 1, dec_len - 1, key_len/8, 
-                                                  session->op_info.op.encrypt.oaep_encparam, session->op_info.op.encrypt.oaep_encparam_len, 
+                                                  session->op_info.op.encrypt.oaep_label, session->op_info.op.encrypt.oaep_label_len, 
                                                   session->op_info.op.encrypt.oaep_md, session->op_info.op.encrypt.mgf1_md);
   } else if(session->op_info.op.encrypt.padding == RSA_NO_PADDING) {
     memcpy(dec, session->op_info.buf, dec_len);
@@ -873,7 +873,7 @@ CK_RV decrypt_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR data, CK_UL
   memcpy(data, dec, cb_len);
   *data_len = cb_len;
 
-  free(session->op_info.op.encrypt.oaep_encparam);
-  session->op_info.op.encrypt.oaep_encparam = NULL;
+  free(session->op_info.op.encrypt.oaep_label);
+  session->op_info.op.encrypt.oaep_label = NULL;
   return CKR_OK;
 }

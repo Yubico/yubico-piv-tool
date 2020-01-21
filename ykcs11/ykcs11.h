@@ -84,8 +84,8 @@ typedef struct {
   CK_ULONG    padding; // padding in the rsa case
   const ykcs11_md_t   *oaep_md;
   const ykcs11_md_t   *mgf1_md;
-  unsigned char       *oaep_encparam;
-  CK_ULONG            oaep_encparam_len;
+  unsigned char       *oaep_label;
+  CK_ULONG            oaep_label_len;
 } encrypt_info_t;
 
 typedef union {

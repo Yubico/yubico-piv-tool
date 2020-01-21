@@ -1822,7 +1822,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Encrypt)(
   rv = do_rsa_encrypt(session->pkeys[session->op_info.op.encrypt.key_id],
                       session->op_info.op.encrypt.padding,
                       session->op_info.op.encrypt.oaep_md, session->op_info.op.encrypt.mgf1_md,
-                      session->op_info.op.encrypt.oaep_encparam, session->op_info.op.encrypt.oaep_encparam_len,
+                      session->op_info.op.encrypt.oaep_label, session->op_info.op.encrypt.oaep_label_len,
                       pData, ulDataLen,
                       pEncryptedData, pulEncryptedDataLen);
   if(rv != CKR_OK) {
@@ -1928,7 +1928,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptFinal)(
   rv = do_rsa_encrypt(session->pkeys[session->op_info.op.encrypt.key_id],
                       session->op_info.op.encrypt.padding,
                       session->op_info.op.encrypt.oaep_md, session->op_info.op.encrypt.mgf1_md,
-                      session->op_info.op.encrypt.oaep_encparam, session->op_info.op.encrypt.oaep_encparam_len,
+                      session->op_info.op.encrypt.oaep_label, session->op_info.op.encrypt.oaep_label_len,
                       session->op_info.buf,
                       session->op_info.buf_len,
                       pLastEncryptedPart,
