@@ -34,7 +34,7 @@
 |C_Decrypt|| With RSA keys only.
 |C_DecryptUpdate|| With RSA keys only.
 |C_DecryptFinal|| With RSA keys only.
-|C_DigestInit|CKM_SHA_1, CKM_ECDSA_SHA224, CKM_SHA256, CKM_SHA384, CKM_SHA512| Uses OpenSSL digest functions
+|C_DigestInit|CKM_SHA_1, CKM_SHA256, CKM_SHA384, CKM_SHA512| Uses OpenSSL digest functions
 |C_Digest|| Uses OpenSSL digest functions
 |C_DigestUpdate|| Uses OpenSSL digest functions
 |C_DigestFinal|| Uses OpenSSL digest functions

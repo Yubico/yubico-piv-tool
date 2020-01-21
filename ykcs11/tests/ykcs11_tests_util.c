@@ -277,7 +277,7 @@ void test_digest_func(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   }
 }
 
-EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int curve, CK_ULONG key_len, 
+EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_BYTE n_keys, int curve, CK_ULONG key_len, 
                       CK_BYTE* ec_params, CK_ULONG ec_params_len, CK_OBJECT_HANDLE_PTR obj_cert, CK_OBJECT_HANDLE_PTR obj_pvtkey) {
   EVP_PKEY       *evp;
   EC_KEY         *eck;
@@ -355,7 +355,7 @@ EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int
 
   asrt(funcs->C_Login(session, CKU_SO, (CK_CHAR_PTR)"010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
 
-  for (i = 0; i < 24; i++) {
+  for (i = 0; i < n_keys; i++) {
     id = i+1;
     asrt(funcs->C_CreateObject(session, publicKeyTemplate, 3, obj_cert + i), CKR_OK, "IMPORT CERT");
     asrt(obj_cert[i], 37+i, "CERTIFICATE HANDLE");
@@ -369,7 +369,7 @@ EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int
 }
 
 void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int keylen, EVP_PKEY* evp, RSA* rsak,
-                      CK_OBJECT_HANDLE_PTR obj_cert, CK_OBJECT_HANDLE_PTR obj_pvtkey) {
+                    CK_BYTE n_keys, CK_OBJECT_HANDLE_PTR obj_cert, CK_OBJECT_HANDLE_PTR obj_pvtkey) {
   X509        *cert;
   ASN1_TIME   *tm;
   CK_BYTE     i, j;
@@ -389,6 +389,8 @@ void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int k
   const BIGNUM *bp, *bq, *biqmp, *bdmp1, *bdmq1;
 
   unsigned char  *px;
+  int p_len, q_len, dp_len, dq_len, qinv_len;
+  int len = keylen/16;
 
   CK_ATTRIBUTE privateKeyTemplate[] = {
     {CKA_CLASS, &class_k, sizeof(class_k)},
@@ -408,20 +410,25 @@ void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int k
     {CKA_VALUE, value_c, sizeof(value_c)}
   };
 
-  e_bn = BN_bin2bn(e, 3, NULL);
+  int len_correct = 0;
 
+  e_bn = BN_bin2bn(e, 3, NULL);
   if (e_bn == NULL)
     exit(EXIT_FAILURE);
 
-  asrt(RSA_generate_key_ex(rsak, keylen, e_bn, NULL), 1, "GENERATE RSAK");
+  do {
+    asrt(RSA_generate_key_ex(rsak, keylen, e_bn, NULL), 1, "GENERATE RSAK");
 
-  RSA_get0_factors(rsak, &bp, &bq);
-  RSA_get0_crt_params(rsak, &bdmp1, &bdmq1, &biqmp);
-  asrt(BN_bn2bin(bp, p), sizeof(p), "GET P");
-  asrt(BN_bn2bin(bq, q), sizeof(q), "GET Q");
-  asrt(BN_bn2bin(bdmp1, dp), sizeof(dp), "GET DP");
-  asrt(BN_bn2bin(bdmq1, dq), sizeof(dq), "GET DQ");
-  asrt(BN_bn2bin(biqmp, qinv), sizeof(qinv), "GET QINV");
+    RSA_get0_factors(rsak, &bp, &bq);
+    RSA_get0_crt_params(rsak, &bdmp1, &bdmq1, &biqmp);
+    p_len = BN_bn2bin(bp, p);
+    q_len = BN_bn2bin(bq, q);
+    dp_len = BN_bn2bin(bdmp1, dp);
+    dq_len = BN_bn2bin(bdmq1, dq);
+    qinv_len = BN_bn2bin(biqmp, qinv);
+    len_correct = p_len == len && q_len == len && dp_len == len && dq_len == len && qinv_len == len; 
+  } while(!len_correct);
+
 
   if (EVP_PKEY_set1_RSA(evp, rsak) == 0)
     exit(EXIT_FAILURE);
@@ -452,7 +459,7 @@ void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int k
 
   asrt(funcs->C_Login(session, CKU_SO, (CK_CHAR_PTR)"010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
 
-  for (i = 0; i < 24; i++) {
+  for (i = 0; i < n_keys; i++) {
     id = i+1;
     asrt(funcs->C_CreateObject(session, publicKeyTemplate, 3, obj_cert + i), CKR_OK, "IMPORT CERT");
     asrt(obj_cert[i], 37+i, "CERTIFICATE HANDLE");
@@ -499,14 +506,13 @@ void generate_ec_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
 }
 
-void generate_rsa_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_BYTE n_keys, 
+void generate_rsa_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_ULONG key_size, CK_BYTE n_keys,
                       CK_OBJECT_HANDLE_PTR obj_pubkey, CK_OBJECT_HANDLE_PTR obj_pvtkey) {
   CK_BYTE     i, j;
   CK_BYTE     e[] = {0x01, 0x00, 0x01};
   CK_ULONG    class_k = CKO_PRIVATE_KEY;
   CK_ULONG    class_c = CKO_PUBLIC_KEY;
   CK_ULONG    kt = CKK_RSA;
-  CK_ULONG    key_size = 1024;
   CK_BYTE     id = 0;
 
   CK_ATTRIBUTE privateKeyTemplate[] = {
@@ -586,8 +592,46 @@ static void construct_der_encoded_sig(CK_BYTE sig[], CK_BYTE_PTR der_encoded, CK
       der_encoded[1] = der_ptr - der_encoded - 2;
 }
 
-void test_ec_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
-                   EC_KEY *eck, CK_MECHANISM_TYPE mech_type, CK_ULONG key_len) {
+void test_ec_sign_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
+                         CK_BYTE n_keys, EC_KEY *eck, CK_ULONG key_len) {
+                    
+  CK_BYTE     i;
+  CK_BYTE     data[32];
+  CK_ULONG    data_len;
+  CK_BYTE     sig[256];
+  CK_ULONG    recv_len;
+
+  CK_BYTE     der_encoded[116];
+
+  CK_MECHANISM mech = {CKM_ECDSA, NULL, 0};
+
+  asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Login USER");
+
+  data_len = sizeof(data);
+  for (i = 0; i < n_keys; i++) {
+    if(RAND_bytes(data, data_len) <= 0)
+      exit(EXIT_FAILURE);
+
+    asrt(funcs->C_SignInit(session, &mech, obj_pvtkey[i]), CKR_OK, "SignInit");
+    asrt(funcs->C_Login(session, CKU_CONTEXT_SPECIFIC, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Re-Login USER");
+    recv_len = sizeof(sig);
+    asrt(funcs->C_Sign(session, data, sizeof(data), sig, &recv_len), CKR_OK, "Sign");
+
+    if(eck != NULL) {
+      // External verification
+      construct_der_encoded_sig(sig, der_encoded, key_len);
+      asrt(ECDSA_verify(0, data, data_len, der_encoded, der_encoded[1] + 2, eck), 1, "ECDSA VERIFICATION");
+    } else {
+      // Internal verification
+      asrt(funcs->C_VerifyInit(session, &mech, get_public_key_handle(funcs, session, obj_pvtkey[i])), CKR_OK, "VerifyInit");
+      asrt(funcs->C_Verify(session, data, sizeof(data), sig, recv_len), CKR_OK, "Verify");
+    }
+  }
+  asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");  
+}
+
+void test_ec_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
+                           CK_MECHANISM_TYPE mech_type, EC_KEY *eck, CK_ULONG key_len) {
                     
   CK_BYTE     i, j;
   CK_BYTE     data[32];
@@ -595,30 +639,34 @@ void test_ec_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJE
   CK_BYTE     hdata[64];
   unsigned int    hdata_len;  
   CK_BYTE     sig[256];
-  CK_ULONG    recv_len;
+  CK_ULONG    sig_len;
+  CK_BYTE     sig_update[256];
+  CK_ULONG    sig_update_len;
 
   CK_BYTE     der_encoded[116];
   const EVP_MD *md;
   EVP_MD_CTX *mdctx;
 
+  CK_OBJECT_HANDLE obj_pubkey;
   CK_MECHANISM mech = {mech_type, NULL, 0};
 
   asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Login USER");
 
-  for (i = 0; i < 24; i++) {
-    for (j = 0; j < 2; j++) {
+  for (i = 0; i < 4; i++) {
+    obj_pubkey = get_public_key_handle(funcs, session, obj_pvtkey[i]);
+    for (j = 0; j < 4; j++) {
       if(RAND_bytes(data, sizeof(data)) <= 0)
         exit(EXIT_FAILURE);
       data_len = sizeof(data);
 
+      // Sign
       asrt(funcs->C_SignInit(session, &mech, obj_pvtkey[i]), CKR_OK, "SignInit");
       asrt(funcs->C_Login(session, CKU_CONTEXT_SPECIFIC, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Re-Login USER");
-      recv_len = sizeof(sig);
-      asrt(funcs->C_Sign(session, data, sizeof(data), sig, &recv_len), CKR_OK, "Sign");
-
-      // Internal verification
-      asrt(funcs->C_VerifyInit(session, &mech, get_public_key_handle(funcs, session, obj_pvtkey[i])), CKR_OK, "VerifyInit");
-      asrt(funcs->C_Verify(session, data, sizeof(data), sig, recv_len), CKR_OK, "Verify");
+      sig_len = sizeof(sig);
+      asrt(funcs->C_Sign(session, data, sizeof(data), sig, &sig_len), CKR_OK, "Sign");
+      //Verify
+      asrt(funcs->C_VerifyInit(session, &mech, obj_pubkey), CKR_OK, "VerifyInit");
+      asrt(funcs->C_Verify(session, data, sizeof(data), sig, sig_len), CKR_OK, "Verify");
 
       // External verification
       if(eck != NULL) {
@@ -645,8 +693,55 @@ void test_ec_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJE
   asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");  
 }
 
-void test_rsa_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
-                    EVP_PKEY* evp, CK_MECHANISM_TYPE mech_type) {
+void test_rsa_sign_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
+                          CK_BYTE n_keys, EVP_PKEY* evp) {
+  CK_BYTE     i, j;
+  CK_BYTE     data[32];
+  CK_BYTE     sig[256];
+  CK_BYTE     sig_update[256];
+  CK_ULONG    sig_len;
+  CK_ULONG    sig_update_len;
+  EVP_PKEY_CTX *ctx = NULL;
+
+  CK_BYTE     hdata[512];
+  CK_ULONG    hdata_len;
+
+  CK_OBJECT_HANDLE obj_pubkey;
+  CK_MECHANISM mech = {CKM_RSA_PKCS, NULL, 0};
+
+  asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "LOGIN USER");
+
+  for (i = 0; i < n_keys; i++) {
+    obj_pubkey = get_public_key_handle(funcs, session, obj_pvtkey[i]);    
+    
+    if(RAND_bytes(data, sizeof(data)) <= 0)
+      exit(EXIT_FAILURE);
+
+    // Sign
+    asrt(funcs->C_SignInit(session, &mech, obj_pvtkey[i]), CKR_OK, "SIGN INIT");
+    asrt(funcs->C_Login(session, CKU_CONTEXT_SPECIFIC, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Re-Login USER");
+    sig_len = sizeof(sig);
+    asrt(funcs->C_Sign(session, data, sizeof(data), sig, &sig_len), CKR_OK, "SIGN");
+
+    if(evp != NULL) {
+      // External verification
+      ctx = EVP_PKEY_CTX_new(evp, NULL);
+      asrt(ctx != NULL, 1, "EVP_KEY_CTX_new");
+      asrt(EVP_PKEY_verify_init(ctx) > 0, 1, "EVP_KEY_verify_init");
+      asrt(EVP_PKEY_CTX_set_signature_md(ctx, NULL) > 0, 1, "EVP_PKEY_CTX_set_signature_md");
+      asrt(EVP_PKEY_verify(ctx, sig, sig_len, data, 32), 1, "EVP_PKEY_verify");
+    } else {
+      // Internal verification: Verify
+      asrt(funcs->C_VerifyInit(session, &mech, obj_pubkey), CKR_OK, "VERIFY INIT");
+      asrt(funcs->C_Verify(session, data, sizeof(data), sig, sig_len), CKR_OK, "VERIFY"); 
+    }
+  }
+
+  asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
+}
+
+void test_rsa_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
+                            CK_BYTE n_keys, EVP_PKEY* evp, CK_MECHANISM_TYPE mech_type) {
   CK_BYTE     i, j;
   CK_BYTE     data[32];
   CK_BYTE     sig[256];
@@ -663,9 +758,9 @@ void test_rsa_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJ
 
   asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "LOGIN USER");
 
-  for (i = 0; i < 24; i++) {
+  for (i = 0; i < n_keys; i++) {
     obj_pubkey = get_public_key_handle(funcs, session, obj_pvtkey[i]);    
-    for (j = 0; j < 2; j++) {
+    for (j = 0; j < 4; j++) {
 
       if(RAND_bytes(data, sizeof(data)) <= 0)
         exit(EXIT_FAILURE);
@@ -714,7 +809,7 @@ void test_rsa_sign(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJ
 }
 
 void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
-                    RSA* rsak, CK_MECHANISM_TYPE mech_type) {
+                       CK_BYTE n_keys, RSA* rsak, CK_MECHANISM_TYPE mech_type) {
   CK_BYTE     i, j;
   CK_BYTE*    data;
   CK_BYTE     sig[256];
@@ -736,9 +831,9 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
 
   asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "LOGIN USER");
 
-  for (i = 0; i < 24; i++) {
+  for (i = 0; i < n_keys; i++) {
     obj_pubkey = get_public_key_handle(funcs, session, obj_pvtkey[i]);    
-    for (j = 0; j < 2; j++) {
+    for (j = 0; j < 4; j++) {
 
       if(RAND_bytes(data, pss_params.sLen) <= 0)
         exit(EXIT_FAILURE);
@@ -829,7 +924,7 @@ static int is_data_too_large(int enc_ret) {
 }
 
 void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
-                    RSA* rsak, CK_MECHANISM_TYPE mech_type, CK_ULONG padding) {
+                      CK_BYTE n_keys, RSA* rsak, CK_MECHANISM_TYPE mech_type, CK_ULONG padding) {
   CK_ULONG  i, j;
   int       data_len, enc_len;
   CK_BYTE*  data;
@@ -848,8 +943,8 @@ void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   CK_MECHANISM mech = {mech_type, &params, sizeof(params)};
   asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Login USER");
 
-  for (i = 0; i < 24; i++) {
-    for (j = 0; j < 2; j++) {
+  for (i = 0; i < n_keys; i++) {
+    for (j = 0; j < 4; j++) {
       // This is because the numerical value of the clear data cannot be larger than the numerical value of the RSA key modulus
       // Adding a padding takes care of this, but with RSA_NO_PADDING, we need to deal with that manually
       do {
@@ -886,8 +981,67 @@ void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
 }
 
+void test_rsa_decrypt_oaep(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
+                           CK_BYTE n_keys, CK_MECHANISM_TYPE mdhash,  RSA* rsak) {
+  CK_ULONG  i, j;
+  int       data_len;
+  CK_BYTE   data[32];
+  CK_BYTE   padded_data[512];
+  CK_BYTE   padded_data_len;
+  CK_BYTE   enc[512];
+  CK_BYTE   dec[512];
+  CK_ULONG  dec_len;
+  size_t    enc_len;
+  EVP_MD*   md;
+
+  CK_RSA_PKCS_OAEP_PARAMS params = {mdhash, mdhash, 0, NULL, 0};
+  CK_MECHANISM mech = {CKM_RSA_PKCS_OAEP, &params, sizeof(params)};
+
+  data_len = sizeof(data);
+  padded_data_len = RSA_size(rsak);
+  md = get_md_type(mdhash);
+
+  asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Login USER");
+
+
+  for (i = 0; i < n_keys; i++) {
+    for (j = 0; j < 4; j++) {
+
+      if(RAND_bytes(data, data_len) <= 0)
+        exit(EXIT_FAILURE);
+
+      RSA_padding_add_PKCS1_OAEP_mgf1(padded_data, padded_data_len, data, data_len, 
+					                            NULL, 0, md, md);
+       enc_len = RSA_public_encrypt(padded_data_len, padded_data, enc, rsak, RSA_NO_PADDING);
+      
+      // Decrypt
+      asrt(funcs->C_DecryptInit(session, &mech, obj_pvtkey[i]), CKR_OK, "DECRYPT INIT");
+      asrt(funcs->C_Login(session, CKU_CONTEXT_SPECIFIC, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Re-Login USER");
+      dec_len = sizeof(dec);
+      asrt(funcs->C_Decrypt(session, enc, enc_len, dec, &dec_len), CKR_OK, "DECRYPT");
+      asrt(dec_len, data_len, "DECRYPTED DATA LEN");
+      asrt(memcmp(data, dec, dec_len), 0, "DECRYPTED DATA");
+
+      // Decrypt Update
+      asrt(funcs->C_DecryptInit(session, &mech, obj_pvtkey[i]), CKR_OK, "DECRYPT INIT");
+      asrt(funcs->C_Login(session, CKU_CONTEXT_SPECIFIC, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Re-Login USER");
+      dec_len = sizeof(dec);
+      asrt(funcs->C_DecryptUpdate(session, enc, 100, dec, &dec_len), CKR_OK, "DECRYPT UPDATE");
+      dec_len = sizeof(dec);
+      asrt(funcs->C_DecryptUpdate(session, enc+100, 8, dec, &dec_len), CKR_OK, "DECRYPT UPDATE");
+      dec_len = sizeof(dec);
+      asrt(funcs->C_DecryptUpdate(session, enc+108, 20, dec, &dec_len), CKR_OK, "DECRYPT UPDATE");
+      dec_len = sizeof(dec);
+      asrt(funcs->C_DecryptFinal(session, dec, &dec_len), CKR_OK, "DECRYPT FINAL");
+      asrt(dec_len, data_len, "DECRYPTED DATA LEN");
+      asrt(memcmp(data, dec, dec_len), 0, "DECRYPTED DATA");
+    }
+  }
+  asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
+}
+
 void test_rsa_encrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
-                    RSA* rsak, CK_MECHANISM_TYPE mech_type, CK_ULONG padding) {
+                      CK_BYTE n_keys, RSA* rsak, CK_MECHANISM_TYPE mech_type, CK_ULONG padding) {
   CK_ULONG  i,j;
   CK_BYTE   data[32];
   CK_ULONG  data_len = sizeof(data);
@@ -902,9 +1056,9 @@ void test_rsa_encrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
 
   asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Login USER");
 
-  for (i = 0; i < 24; i++) {
+  for (i = 0; i < n_keys; i++) {
     pubkey = get_public_key_handle(funcs, session, obj_pvtkey[i]);
-    for (j = 0; j < 2; j++) {
+    for (j = 0; j < 4; j++) {
     
       if(RAND_bytes(data, data_len) <= 0)
         exit(EXIT_FAILURE);
