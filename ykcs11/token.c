@@ -118,18 +118,17 @@ CK_RV get_token_model(ykpiv_state *state, CK_UTF8CHAR_PTR str, CK_ULONG len) {
 
   ykpiv_devmodel model = ykpiv_util_devicemodel(state);
 
-  memset(str, ' ', len);
-  uint8_t *ptr = str + memstrcpy(str, token_model) - 3;
+  uint8_t *ptr = str + memstrcpy(str, len, token_model) - 3;
 
   switch(model) {
     case DEVTYPE_NEO:
-      memstrcpy(ptr, "NEO");
+      memstrcpy(ptr, 3, "NEO");
       break;
     case DEVTYPE_YK4:
-      memstrcpy(ptr, "YK4");
+      memstrcpy(ptr, 3, "YK4");
       break;
     case DEVTYPE_YK5:
-      memstrcpy(ptr, "YK5");
+      memstrcpy(ptr, 3, "YK5");
       break;
   }
 
@@ -171,8 +170,7 @@ CK_RV get_token_serial(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
   if(actual >= len)
     return CKR_BUFFER_TOO_SMALL;
 
-  memset(str, ' ', len);
-  memstrcpy(str, buf);
+  memstrcpy(str, len, buf);
 
   return rv;
 }
@@ -193,8 +191,7 @@ CK_RV get_token_label(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
   if(actual >= len)
     return CKR_BUFFER_TOO_SMALL;
 
-  memset(str, ' ', len);
-  memstrcpy(str, buf);
+  memstrcpy(str, len, buf);
 
   return rv;
 }

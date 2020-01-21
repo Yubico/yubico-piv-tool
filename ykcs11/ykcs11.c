@@ -233,16 +233,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetInfo)(
   }
   
   pInfo->cryptokiVersion = function_list.version;
-
-  memset(pInfo->manufacturerID, ' ', sizeof(pInfo->manufacturerID));
-  memstrcpy(pInfo->manufacturerID, YKCS11_MANUFACTURER);
-
+  pInfo->libraryVersion = ver;
   pInfo->flags = 0;
 
-  memset(pInfo->libraryDescription, ' ', sizeof(pInfo->libraryDescription));
-  memstrcpy(pInfo->libraryDescription, YKCS11_LIBDESC);
-
-  pInfo->libraryVersion = ver;
+  memstrcpy(pInfo->manufacturerID, sizeof(pInfo->manufacturerID), YKCS11_MANUFACTURER);
+  memstrcpy(pInfo->libraryDescription, sizeof(pInfo->libraryDescription), YKCS11_LIBDESC);
 
   DOUT;
   return CKR_OK;
@@ -317,11 +312,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 
       // Values must NOT be null terminated and ' ' padded
 
-      memset(slot->slot_info.slotDescription, ' ', sizeof(slot->slot_info.slotDescription));
-      memstrcpy(slot->slot_info.slotDescription, reader);
-
-      memset(slot->slot_info.manufacturerID, ' ', sizeof(slot->slot_info.manufacturerID));
-      memstrcpy(slot->slot_info.manufacturerID, YKCS11_MANUFACTURER);
+      memstrcpy(slot->slot_info.slotDescription, sizeof(slot->slot_info.slotDescription), reader);
+      memstrcpy(slot->slot_info.manufacturerID, sizeof(slot->slot_info.manufacturerID), YKCS11_MANUFACTURER);
 
       slot->slot_info.hardwareVersion.major = 1;
       slot->slot_info.hardwareVersion.minor = 0;
@@ -374,9 +366,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
         slot->token_info.hardwareVersion.major = 1;
         slot->token_info.hardwareVersion.minor = 0;
 
-        memset(slot->token_info.manufacturerID, ' ', sizeof(slot->token_info.manufacturerID));
-        memstrcpy(slot->token_info.manufacturerID, YKCS11_MANUFACTURER);
-
+        memstrcpy(slot->token_info.manufacturerID, sizeof(slot->token_info.manufacturerID), YKCS11_MANUFACTURER);
         memset(slot->token_info.utcTime, ' ', sizeof(slot->token_info.utcTime));
 
         get_token_model(slot->piv_state, slot->token_info.model, sizeof(slot->token_info.model));
