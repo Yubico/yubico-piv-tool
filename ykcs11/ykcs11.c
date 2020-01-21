@@ -84,17 +84,6 @@ static ykcs11_session_t* get_free_session(void) {
   return NULL;
 }
 
-static CK_STATE get_session_state(ykcs11_session_t *session) {
-  switch(session->slot->login_state) {
-    default:
-      return (session->info.flags & CKF_RW_SESSION) ? CKS_RW_PUBLIC_SESSION : CKS_RO_PUBLIC_SESSION;
-    case YKCS11_USER:
-      return (session->info.flags & CKF_RW_SESSION) ? CKS_RW_USER_FUNCTIONS : CKS_RO_USER_FUNCTIONS;
-    case YKCS11_SO:
-      return CKS_RW_SO_FUNCTIONS;
-  }
-}
-
 static void cleanup_session(ykcs11_session_t *session) {
   for(size_t i = 0; i < sizeof(session->data) / sizeof(session->data[0]); i++) {
     free(session->data[i].data);
@@ -1011,7 +1000,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSessionInfo)(
   }
 
   memcpy(pInfo, &session->info, sizeof(CK_SESSION_INFO));
-  pInfo->state = get_session_state(session);
+  
+  switch(session->slot->login_state) {
+    default:
+      pInfo->state = (session->info.flags & CKF_RW_SESSION) ? CKS_RW_PUBLIC_SESSION : CKS_RO_PUBLIC_SESSION;
+    case YKCS11_USER:
+      pInfo->state = (session->info.flags & CKF_RW_SESSION) ? CKS_RW_USER_FUNCTIONS : CKS_RO_USER_FUNCTIONS;
+    case YKCS11_SO:
+      pInfo->state = CKS_RW_SO_FUNCTIONS;
+  }
 
   DOUT;
   return CKR_OK;
