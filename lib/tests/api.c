@@ -114,18 +114,16 @@ START_TEST(test_devicemodel) {
   res = ykpiv_list_readers(g_state, reader_buf, &num_readers);
   ck_assert_int_eq(res, YKPIV_OK);
   ck_assert_int_gt(num_readers, 0);
+  ck_assert_int_eq(strncmp(reader_buf, "Yubico", 6), 0);
   if (model == DEVTYPE_YK5) {
-    ck_assert_ptr_nonnull(strstr(reader_buf, "YubiKey"));
     ck_assert(version[0] == '5'); // Verify app version 5.x
     ck_assert(version[1] == '.');
   }
   else if (model == DEVTYPE_YK4) {
-    ck_assert_ptr_nonnull(strstr(reader_buf, "YubiKey"));
     ck_assert(version[0] == '4'); // Verify app version 4.x
     ck_assert(version[1] == '.');
   }
   else {
-    ck_assert_ptr_nonnull(strstr(reader_buf, "Yubikey NEO"));
     ck_assert(version[0] == '1'); // Verify app version 1.x
     ck_assert(version[1] == '.');
   }
