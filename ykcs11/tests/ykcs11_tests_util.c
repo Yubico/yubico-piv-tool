@@ -992,7 +992,7 @@ void test_rsa_decrypt_oaep(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session
   CK_BYTE   dec[512];
   CK_ULONG  dec_len;
   size_t    enc_len;
-  EVP_MD*   md;
+  const EVP_MD *md;
 
   CK_RSA_PKCS_OAEP_PARAMS params = {mdhash, mdhash, 0, NULL, 0};
   CK_MECHANISM mech = {CKM_RSA_PKCS_OAEP, &params, sizeof(params)};
