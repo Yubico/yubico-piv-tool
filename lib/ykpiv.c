@@ -401,7 +401,7 @@ static ykpiv_rc _ykpiv_connect(ykpiv_state *state, uintptr_t context, uintptr_t 
     }
 
     if(atr_len + 1 == sizeof(YKPIV_ATR_NEO_R3) && !memcmp(atr, YKPIV_ATR_NEO_R3, atr_len))
-      state->model = DEVTYPE_NEO;
+      state->model = DEVTYPE_NEOr3;
     else if(atr_len + 1 == sizeof(YKPIV_ATR_YK4) && !memcmp(atr, YKPIV_ATR_YK4, atr_len))
       state->model = DEVTYPE_YK4;
     else if(atr_len + 1 == sizeof(YKPIV_ATR_YK5_P1) && !memcmp(atr, YKPIV_ATR_YK5_P1, atr_len))
@@ -1202,7 +1202,7 @@ Cleanup:
 static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state) {
   ykpiv_rc res = YKPIV_OK;
   APDU apdu;
-  const uint8_t yk_applet[] = { 0xa0, 0x00, 0x00, 0x05, 0x27, 0x20, 0x01, 0x01 };
+  static const uint8_t yk_applet[] = { 0xa0, 0x00, 0x00, 0x05, 0x27, 0x20, 0x01, 0x01 };
   uint8_t data[0xff];
   uint32_t recv_len = sizeof(data);
   int sw;
@@ -1266,7 +1266,7 @@ static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state) {
     memset(apdu.raw, 0, sizeof(apdu));
     apdu.st.ins = YKPIV_INS_SELECT_APPLICATION;
     apdu.st.p1 = 0x04;
-    apdu.st.lc = (unsigned char)sizeof(aid);
+    apdu.st.lc = sizeof(aid);
     memcpy(apdu.st.data, aid, sizeof(aid));
 
     if((res = _send_data(state, &apdu, temp, &recv_len, &sw)) < YKPIV_OK) {

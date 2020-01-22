@@ -122,7 +122,7 @@ CK_RV get_token_model(ykpiv_state *state, CK_UTF8CHAR_PTR str, CK_ULONG len) {
   uint8_t *ptr = str + memstrcpy(str, len, token_model) - 3;
 
   switch(model) {
-    case DEVTYPE_NEO:
+    case DEVTYPE_NEOr3:
       memstrcpy(ptr, 3, "NEO");
       break;
     case DEVTYPE_YK4:

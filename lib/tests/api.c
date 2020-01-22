@@ -109,7 +109,7 @@ START_TEST(test_devicemodel) {
   fprintf(stderr, "Version: %s\n", version);
   model = ykpiv_util_devicemodel(g_state);
   fprintf(stdout, "Model: %x\n", model);
-  ck_assert(model == DEVTYPE_YK5 || model == DEVTYPE_YK4 || model == DEVTYPE_NEO);
+  ck_assert(model == DEVTYPE_YK5 || model == DEVTYPE_YK4 || model == DEVTYPE_NEOr3);
 
   res = ykpiv_list_readers(g_state, reader_buf, &num_readers);
   ck_assert_int_eq(res, YKPIV_OK);
@@ -452,7 +452,7 @@ START_TEST(test_import_key) {
     ykpiv_devmodel model;
     model = ykpiv_util_devicemodel(g_state);
     res = ykpiv_attest(g_state, 0x9a, attest, &attest_len);
-    if (model != DEVTYPE_NEO) {
+    if (model != DEVTYPE_NEOr3) {
       ck_assert_int_eq(res, YKPIV_ARGUMENT_ERROR);
     }
     else {
@@ -469,7 +469,7 @@ START_TEST(test_pin_policy_always) {
     ykpiv_devmodel model;
     model = ykpiv_util_devicemodel(g_state);
     // Only works with YK4.  NEO should skip.
-    if (model == DEVTYPE_NEO) {
+    if (model == DEVTYPE_NEOr3) {
       fprintf(stderr, "WARNING: Not supported with Yubikey NEO.  Test skipped.\n");
       return;
     }
@@ -576,7 +576,7 @@ START_TEST(test_generate_key) {
     model = ykpiv_util_devicemodel(g_state);
     res = ykpiv_attest(g_state, YKPIV_KEY_AUTHENTICATION, attest, &attest_len);
     // Only works with YK4.  NEO should error.
-    if (model != DEVTYPE_NEO) {
+    if (model != DEVTYPE_NEOr3) {
       ck_assert_int_eq(res, YKPIV_OK);
       ck_assert_int_gt(attest_len, 0);
     }
