@@ -807,12 +807,12 @@ int main(void) {
   if (test_token_info() != 0) {
     exit(77);
   }
-  /*test_mechanism_list_and_info();
+  test_mechanism_list_and_info();
   test_session();
   test_multiple_sessions();
   test_max_multiple_sessions();
   test_login();
-  //test_login_order();
+  test_login_order();
   test_digest();
   test_generate_eccp256();
   test_generate_eccp384();
@@ -820,13 +820,13 @@ int main(void) {
   test_import_eccp256();
   test_import_eccp384();
   test_import_rsakeys();
-  */test_sign_eccp256();
-  /*test_sign_eccp384();
+  test_sign_eccp256();
+  test_sign_eccp384();
   test_sign_rsakeys();
   test_decrypt_RSA();
   test_encrypt_RSA();
   test_key_attributes();
-  test_find_objects();*/
+  test_find_objects();
 #else
   fprintf(stderr, "HARDWARE TESTS DISABLED!, skipping...\n");
 #endif
