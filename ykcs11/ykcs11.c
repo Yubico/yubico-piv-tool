@@ -85,17 +85,24 @@ static ykcs11_session_t* get_free_session(void) {
 }
 
 static void cleanup_session(ykcs11_session_t *session) {
-  /*
-  for(size_t i = 0; i < sizeof(session->data) / sizeof(session->data[0]); i++) {
-    free(session->data[i].data);
-  }
-  for(size_t i = 0; i < sizeof(session->certs) / sizeof(session->certs[0]); i++) {
-    do_delete_pubk(session->pkeys + i);
-    do_delete_cert(session->certs + i);
-    do_delete_cert(session->atst + i);
-  }
-  */
+  DBG("Cleaning up session %lu", get_session_handle(session));
   memset(session, 0, sizeof(*session));
+}
+
+static void cleanup_slot(ykcs11_slot_t *slot) {
+  DBG("Cleaning up slot %lu", slot - slots);
+  for(size_t i = 0; i < sizeof(slot->data) / sizeof(slot->data[0]); i++) {
+    free(slot->data[i].data);
+    slot->data[i].data = NULL;
+  }
+  for(size_t i = 0; i < sizeof(slot->certs) / sizeof(slot->certs[0]); i++) {
+    do_delete_pubk(slot->pkeys + i);
+    do_delete_cert(slot->certs + i);
+    do_delete_cert(slot->atst + i);
+  }
+  memset(slot->objects, 0, sizeof(slot->objects));
+  slot->login_state = YKCS11_PUBLIC;
+  slot->n_objects = 0;
 }
 
 /* General Purpose */
@@ -199,11 +206,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_Finalize)(
 
   // Clean up all sessions
   for(int i = 0; i < YKCS11_MAX_SESSIONS; i++) {
-    cleanup_session(sessions + i);
+    if(sessions[i].slot)
+      cleanup_session(sessions + i);
   }
 
   // Close all slot states (will reset cards)
   for(int i = 0; i < YKCS11_MAX_SLOTS; i++) {
+    if(slots[i].n_objects) {
+      cleanup_slot(slots + i);
+    }
     if(slots[i].piv_state) {
       ykpiv_done(slots[i].piv_state);
     }
@@ -798,7 +809,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     return CKR_SESSION_COUNT;
   }
 
-  memset(session, 0, sizeof(*session));
   session->info.slotID = slotID;
   session->info.flags = flags;
   session->slot = slots + slotID;
@@ -912,9 +922,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
 
   locking.pfnUnlockMutex(global_mutex);
 
-  if(other_sessions == 0) {
+  if(!other_sessions) {
     locking.pfnLockMutex(slot->mutex);
-    slot->login_state = YKCS11_PUBLIC;
+    cleanup_slot(slot);
     locking.pfnUnlockMutex(slot->mutex);
   }
 
@@ -941,17 +951,23 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
     return CKR_SLOT_ID_INVALID;
   }
 
+  int cleaned_sessions = 0;
+
   for(int i = 0; i < YKCS11_MAX_SESSIONS; i++) {
     ykcs11_session_t *session = sessions + i;
-    if(session->slot && session->info.slotID == slotID)
+    if(session->slot && session->info.slotID == slotID) {
       cleanup_session(session);
+      cleaned_sessions++;
+    }
   }
 
   locking.pfnUnlockMutex(global_mutex);
 
-  locking.pfnLockMutex(slots[slotID].mutex);
-  slots[slotID].login_state = YKCS11_PUBLIC;
-  locking.pfnUnlockMutex(slots[slotID].mutex);
+  if(cleaned_sessions) {
+    locking.pfnLockMutex(slots[slotID].mutex);
+    cleanup_slot(slots + slotID);
+    locking.pfnUnlockMutex(slots[slotID].mutex);
+  }
 
   DOUT;
   return CKR_OK;
