@@ -55,7 +55,6 @@ typedef struct {
   ykcs11_login_state_t login_state;
   CK_ULONG       n_objects;   // TOTAL number of objects in the token
   piv_obj_id_t   objects[PIV_OBJ_COUNT]; // List of objects in the token
-  ykpiv_metadata meta[26];    // Private key metadata, if supported
   ykcs11_data_t  data[38];    // Raw data, stored by sub_id 1-37
   ykcs11_x509_t  *certs[26];  // Certificates, stored by sub_id 1-25
   ykcs11_x509_t  *atst[26];   // Attestations, stored by sub_id 1-25

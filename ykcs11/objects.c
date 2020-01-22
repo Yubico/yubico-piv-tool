@@ -505,45 +505,7 @@ static CK_RV get_coa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templa
   return _get_coa(s->certs, obj, template, CK_TRUE);
 }
 
-// Using bsearch requires this to be sorted by numeric value
-static CK_ATTRIBUTE_TYPE relevant[] = {
-  CKA_VALUE,
-  CKA_ISSUER,
-  CKA_SERIAL_NUMBER,
-  CKA_SUBJECT,
-};
-
-static int compare_ck_attribute_type(const void *a, const void *b) {
-  return (*(const CK_ATTRIBUTE_TYPE*)a - *(const CK_ATTRIBUTE_TYPE*)b);
-}
-
-static CK_BBOOL is_relevant_attribute(CK_ATTRIBUTE_PTR template) {
-  return bsearch(&template->type, relevant, sizeof(relevant)/sizeof(relevant[0]), sizeof(relevant[0]), compare_ck_attribute_type) ? CK_TRUE : CK_FALSE;
-}
-
 static CK_RV get_atst(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template) {
-  CK_BYTE sub_id = piv_objects[obj].sub_id;
-  if(s->atst[sub_id] == NULL && is_relevant_attribute(template)) {
-    CK_ULONG slot = piv_2_ykpiv(find_pvtk_object(sub_id));
-    unsigned char data[YKPIV_OBJ_MAX_SIZE];
-    size_t len = sizeof(data);
-    ykpiv_rc rc;
-    CK_RV rv;
-    if((rc = ykpiv_attest(s->piv_state, slot, data, &len)) == YKPIV_OK) {
-      DBG("Created attestation for slot %lx", slot);
-      if((rv = do_store_cert(data, len, &s->atst[sub_id])) != CKR_OK)
-        return rv;
-    } else {
-      DBG("Failed to create attestation for slot %lx: %s", slot, ykpiv_strerror(rc));
-      ykcs11_pkey_t *pkey;
-      if((rv = do_generate_ec_key(NID_X9_62_prime256v1, &pkey)) != CKR_OK)
-        return rv;
-      char cn[128];
-      snprintf(cn, sizeof(cn), "YubiKey PIV Attestation %lx failed: %s", slot, ykpiv_strerror(rc)); 
-      if((rv = do_sign_empty_cert(cn, s->pkeys[sub_id], pkey, &s->atst[sub_id])) != CKR_OK)
-        return rv;
-    }
-  }
   return _get_coa(s->atst, obj, template, CK_FALSE);
 }
 
@@ -631,7 +593,7 @@ static CK_RV get_proa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
   case CKA_LOCAL:
     DBG("LOCAL"); // We have added attestation objects for local keys only (if we have metadata)
     len = sizeof(CK_BBOOL);
-    b_tmp[0] = s->meta[piv_objects[obj].sub_id].origin == YKPIV_METADATA_ORIGIN_GENERATED ? CK_TRUE : is_local_key(s, obj);
+    b_tmp[0] = is_local_key(s, obj);
     data = b_tmp;
     break;
 
@@ -842,7 +804,7 @@ static CK_RV get_puoa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
   case CKA_LOCAL:
     DBG("LOCAL"); // We have added attestation objects for local keys only (if we have metadata)
     len = sizeof(CK_BBOOL);
-    b_tmp[0] = s->meta[piv_objects[obj].sub_id].origin == YKPIV_METADATA_ORIGIN_GENERATED ? CK_TRUE : is_local_key(s, obj);
+    b_tmp[0] = is_local_key(s, obj);
     data = b_tmp;
     break;
 
@@ -1220,22 +1182,7 @@ CK_BBOOL add_object(ykcs11_slot_t *s, piv_obj_id_t id) {
 }
 
 CK_BBOOL is_local_key(ykcs11_slot_t *s, piv_obj_id_t id) {
-  CK_BYTE sub_id = piv_objects[id].sub_id;
-  piv_obj_id_t atst_id = find_atst_object(sub_id);
-  if(is_present(s, atst_id) && s->pkeys[25]) { // We have an attestation, and the attestation public key is available
-    CK_ATTRIBUTE attr = {CKA_VALUE, NULL, 0};
-    if(get_attribute(s, atst_id, &attr) == CKR_OK) { // Trigger attestation, if not already done
-      if(X509_verify(s->atst[sub_id], s->pkeys[25]) > 0) { // Only indicate CKA_LOCAL for real attestations
-        DBG("Certificate verification succeeded");
-        return CK_TRUE;
-      } else {
-        DBG("Certificate verification failed");
-      }
-    } else {
-      DBG("Failed to get value attribute of attestation certificate %u", atst_id);
-    }
-  }
-  return CK_FALSE;
+  return is_present(s, find_atst_object(piv_objects[id].sub_id));
 }
 
 CK_RV get_attribute(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template) {
