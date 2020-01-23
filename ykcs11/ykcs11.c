@@ -1025,6 +1025,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSessionInfo)(
   }
 
   memcpy(pInfo, &session->info, sizeof(CK_SESSION_INFO));
+
+  locking.pfnLockMutex(session->slot->mutex);
   
   switch(session->slot->login_state) {
     default:
@@ -1037,6 +1039,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSessionInfo)(
       pInfo->state = CKS_RW_SO_FUNCTIONS;
       break;
   }
+
+  locking.pfnUnlockMutex(session->slot->mutex);
 
   DOUT;
   return CKR_OK;
