@@ -402,11 +402,15 @@ static ykpiv_rc _ykpiv_connect(ykpiv_state *state, uintptr_t context, uintptr_t 
 
     if(atr_len + 1 == sizeof(YKPIV_ATR_NEO_R3) && !memcmp(atr, YKPIV_ATR_NEO_R3, atr_len))
       state->model = DEVTYPE_NEOr3;
+    else if(atr_len + 1 == sizeof(YKPIV_ATR_NEO_R3_NFC) && !memcmp(atr, YKPIV_ATR_NEO_R3_NFC, atr_len))
+      state->model = DEVTYPE_NEOr3;
     else if(atr_len + 1 == sizeof(YKPIV_ATR_YK4) && !memcmp(atr, YKPIV_ATR_YK4, atr_len))
       state->model = DEVTYPE_YK4;
     else if(atr_len + 1 == sizeof(YKPIV_ATR_YK5_P1) && !memcmp(atr, YKPIV_ATR_YK5_P1, atr_len))
       state->model = DEVTYPE_YK5;
     else if(atr_len + 1 == sizeof(YKPIV_ATR_YK5) && !memcmp(atr, YKPIV_ATR_YK5, atr_len))
+      state->model = DEVTYPE_YK5;
+    else if(atr_len + 1 == sizeof(YKPIV_ATR_YK5_NFC) && !memcmp(atr, YKPIV_ATR_YK5_NFC, atr_len))
       state->model = DEVTYPE_YK5;
     else
       state->model = DEVTYPE_UNKNOWN;
