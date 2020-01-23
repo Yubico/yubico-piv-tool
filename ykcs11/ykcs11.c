@@ -345,8 +345,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
       // Initialize piv_state and increase slot count if this is a new slot
       if(slot == slots + n_slots) {
         DBG("Initializing slot %lu for '%s'", slot-slots, reader);
-        if(ykpiv_init(&slot->piv_state, YKCS11_DBG) != YKPIV_OK) {
-          DBG("Unable to initialize libykpiv");
+        ykpiv_rc rc;
+        if((rc = ykpiv_init(&slot->piv_state, YKCS11_DBG)) != YKPIV_OK) {
+          DBG("Unable to initialize libykpiv: %s", ykpiv_strerror(rc));
           locking.pfnUnlockMutex(global_mutex);
           return CKR_FUNCTION_FAILED;
         }
@@ -658,7 +659,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
   }
 
   if((rc = ykpiv_hex_decode((const char*)pPin, ulPinLen, mgm_key, &len)) != YKPIV_OK || len != 24) {
-    DBG("ykpiv_hex_decode failed %d", rc);
+    DBG("ykpiv_hex_decode failed %s", ykpiv_strerror(rc));
     return CKR_PIN_INVALID;
   }
 
@@ -669,38 +670,38 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
 
   // Verify existing mgm key (SO_PIN)
   if((rc = ykpiv_authenticate(slot->piv_state, mgm_key)) != YKPIV_OK) {
-    DBG("ykpiv_authenticate failed %d", rc);
+    DBG("ykpiv_authenticate failed %s", ykpiv_strerror(rc));
     locking.pfnUnlockMutex(slot->mutex);
     return CKR_PIN_INCORRECT;
   }
 
   // Block PIN
   while((rc = ykpiv_verify(slot->piv_state, "", &tries)) == YKPIV_WRONG_PIN && tries > 0) {
-    DBG("ykpiv_verify (%d), %d tries left", rc, tries);
+    DBG("ykpiv_verify (%s), %d tries left", ykpiv_strerror(rc), tries);
   }
 
   // Block PUK
   while((rc = ykpiv_unblock_pin(slot->piv_state, "", 0, "", 0, &tries)) == YKPIV_WRONG_PIN && tries > 0) {
-    DBG("ykpiv_unblock_pin (%d), %d tries left", rc, tries);
+    DBG("ykpiv_unblock_pin (%s), %d tries left", ykpiv_strerror(rc), tries);
   }
 
   // Reset PIV (requires PIN and PUK to be blocked)
   if((rc = ykpiv_util_reset(slot->piv_state)) != YKPIV_OK) {
-    DBG("ykpiv_util_reset failed %d", rc);
+    DBG("ykpiv_util_reset failed %s", ykpiv_strerror(rc));
     locking.pfnUnlockMutex(slot->mutex);
     return CKR_FUNCTION_FAILED;
   }
 
   // Authenticate with default mgm key (SO PIN)
   if((rc = ykpiv_authenticate(slot->piv_state, NULL)) != YKPIV_OK) {
-    DBG("ykpiv_authenticate failed %d", rc);
+    DBG("ykpiv_authenticate failed %s", ykpiv_strerror(rc));
     locking.pfnUnlockMutex(slot->mutex);
     return CKR_FUNCTION_FAILED;
   }
 
   // Set new mgm key (SO PIN)
   if((rc = ykpiv_set_mgmkey(slot->piv_state, mgm_key)) != YKPIV_OK) {
-    DBG("ykpiv_set_mgmkey failed %d", rc);
+    DBG("ykpiv_set_mgmkey failed %s", ykpiv_strerror(rc));
     locking.pfnUnlockMutex(slot->mutex);
     return CKR_FUNCTION_FAILED;
   }
@@ -1763,6 +1764,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptInit)(
 
   if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
+    DOUT;
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
@@ -1770,28 +1772,33 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptInit)(
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
+    DOUT;
     return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (session->op_info.type != YKCS11_NOOP) {
     DBG("Other operation in process");
+    DOUT;
     return CKR_OPERATION_ACTIVE;
   }
 
   if (pMechanism == NULL)
     return CKR_ARGUMENTS_BAD;
 
-  CK_BYTE id = get_sub_id(hKey);
-  if (id == 0) {
-    DBG("Invalid key handle %lu", hKey);
+  if (hKey < PIV_PUBK_OBJ_PIV_AUTH || hKey > PIV_PUBK_OBJ_ATTESTATION) {
+    DBG("Key handle %lu is not a public key", hKey);
+    DOUT;
     return CKR_KEY_HANDLE_INVALID;
   }
+
+  CK_BYTE id = get_sub_id(hKey);
 
   locking.pfnLockMutex(session->slot->mutex);
 
   if (!is_present(session->slot, hKey)) {
     DBG("Key handle is invalid");
     locking.pfnUnlockMutex(session->slot->mutex);
+    DOUT;
     return CKR_OBJECT_HANDLE_INVALID;
   }
 
@@ -1801,6 +1808,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptInit)(
   if(rv != CKR_OK) {
     DBG("Failed to initialize encryption operation");
     locking.pfnUnlockMutex(session->slot->mutex);
+    DOUT;
     return rv;
   }
 
@@ -1821,8 +1829,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Encrypt)(
   CK_ULONG_PTR pulEncryptedDataLen
 )
 {
-  CK_RV rv;
-
   DIN;
   
   if (!pid) {
@@ -1848,11 +1854,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Encrypt)(
   }
 
   DBG("Using public key for slot %x for encryption", session->op_info.op.encrypt.piv_key);
-#if YKCS11_DBG > 1
-  dump_data(pData, ulDataLen, stderr, CK_TRUE, format_arg_hex);
-#endif
 
-  rv = do_rsa_encrypt(session->op_info.op.encrypt.key,
+  CK_RV rv = do_rsa_encrypt(session->op_info.op.encrypt.key,
                       session->op_info.op.encrypt.padding,
                       session->op_info.op.encrypt.oaep_md, session->op_info.op.encrypt.mgf1_md,
                       session->op_info.op.encrypt.oaep_label, session->op_info.op.encrypt.oaep_label_len,
@@ -1864,9 +1867,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Encrypt)(
   }
 
   DBG("Got %lu encrypted bytes back", *pulEncryptedDataLen);
-#if YKCS11_DBG > 1
-  dump_data(pEncryptedData, *pulEncryptedDataLen, stderr, CK_TRUE, format_arg_hex);
-#endif
 
   session->op_info.type = YKCS11_NOOP;
   session->op_info.buf_len = 0;
@@ -1954,9 +1954,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptFinal)(
   }
 
   DBG("Using slot %x for encryption", session->op_info.op.encrypt.piv_key);
-#if YKCS11_DBG > 1
-  dump_data(session->op_info.buf, session->op_info.buf_len, stderr, CK_TRUE, format_arg_hex);
-#endif
 
   rv = do_rsa_encrypt(session->op_info.op.encrypt.key,
                       session->op_info.op.encrypt.padding,
@@ -1972,9 +1969,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptFinal)(
   }
 
   DBG("Got %lu encrypted bytes back", *pulLastEncryptedPartLen);
-#if YKCS11_DBG > 1
-  dump_data(pLastEncryptedPart, *pulLastEncryptedPartLen, stderr, CK_TRUE, format_arg_hex);
-#endif
 
   session->op_info.type = YKCS11_NOOP;
   session->op_info.buf_len = 0;
@@ -2000,28 +1994,33 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
+    DOUT;
     return CKR_SESSION_CLOSED;
   }
 
   if (session->op_info.type != YKCS11_NOOP) {
     DBG("Other operation in process");
+    DOUT;
     return CKR_OPERATION_ACTIVE;
   }
 
   if (pMechanism == NULL)
     return CKR_ARGUMENTS_BAD;
 
-  CK_BYTE id = get_sub_id(hKey);
-  if (id == 0) {
-    DBG("Invalid key handle %lu", hKey);
+  if (hKey < PIV_PVTK_OBJ_PIV_AUTH || hKey > PIV_PVTK_OBJ_ATTESTATION) {
+    DBG("Key handle %lu is not a private key", hKey);
+    DOUT;
     return CKR_KEY_HANDLE_INVALID;
   }
+
+  CK_BYTE id = get_sub_id(hKey);
 
   locking.pfnLockMutex(session->slot->mutex);
 
   if (!is_present(session->slot, hKey)) {
     DBG("Key handle is invalid");
     locking.pfnUnlockMutex(session->slot->mutex);
+    DOUT;
     return CKR_OBJECT_HANDLE_INVALID;
   }
 
@@ -2029,6 +2028,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
   if (session->slot->login_state == YKCS11_PUBLIC) {
     DBG("User is not logged in");
     locking.pfnUnlockMutex(session->slot->mutex);
+    DOUT;
     return CKR_USER_NOT_LOGGED_IN;
   }
 
@@ -2038,6 +2038,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
   if(rv != CKR_OK) {
     DBG("Failed to initialize decryption operation");
     locking.pfnUnlockMutex(session->slot->mutex);
+    DOUT;
     return rv;
   }
 
@@ -2099,9 +2100,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
   }
 
   DBG("Using slot %x to decrypt %lu bytes", session->op_info.op.encrypt.piv_key, ulEncryptedDataLen);
-#if YKCS11_DBG > 1
-  dump_data(pEncryptedData, ulEncryptedDataLen, stderr, CK_TRUE, format_arg_hex);
-#endif
 
   if(ulEncryptedDataLen > sizeof(session->op_info.buf)) {
     DBG("Too much data added to operation buffer, max is %lu bytes", sizeof(session->op_info.buf));
@@ -2126,9 +2124,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
   locking.pfnUnlockMutex(session->slot->mutex);
 
   DBG("Got %lu bytes back", *pulDataLen);
-#if YKCS11_DBG > 1
-  dump_data(pData, *pulDataLen, stderr, CK_TRUE, format_arg_hex);
-#endif
 
   decrypt_out:
   session->op_info.type = YKCS11_NOOP;
@@ -2174,9 +2169,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptUpdate)(
   }
 
   DBG("Adding %lu bytes to be decrypted", ulEncryptedPartLen);
-#if YKCS11_DBG > 1
-  dump_data(pEncryptedPart, ulEncryptedPartLen, stderr, CK_TRUE, format_arg_hex);
-#endif
 
   if(session->op_info.buf_len + ulEncryptedPartLen > sizeof(session->op_info.buf)) {
     DBG("Too much data added to operation buffer, max is %lu bytes", sizeof(session->op_info.buf));
@@ -2246,9 +2238,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
   }
 
   DBG("Using slot %x to decrypt %lu bytes", session->op_info.op.encrypt.piv_key, session->op_info.buf_len);
-#if YKCS11_DBG > 1
-  dump_data(session->op_info.buf, session->op_info.buf_len, stderr, CK_TRUE, format_arg_hex);
-#endif
 
   locking.pfnLockMutex(session->slot->mutex);
 
@@ -2265,9 +2254,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
   locking.pfnUnlockMutex(session->slot->mutex);
 
   DBG("Got %lu bytes back", *pulLastPartLen);
-#if YKCS11_DBG > 1
-  dump_data(session->op_info.buf, *pulLastPartLen, stderr, CK_TRUE, format_arg_hex);
-#endif
 
   decrypt_out:
   session->op_info.type = YKCS11_NOOP;
@@ -2530,6 +2516,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     return CKR_KEY_HANDLE_INVALID;
   }
 
+  CK_BYTE id = get_sub_id(hKey);
+
   locking.pfnLockMutex(session->slot->mutex);
 
   if (!is_present(session->slot, hKey)) {
@@ -2548,7 +2536,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
   }
 
   session->op_info.op.sign.piv_key = piv_2_ykpiv(hKey);
-  CK_BYTE id = get_sub_id(hKey);
 
   CK_RV rv = sign_mechanism_init(session, session->slot->pkeys[id], pMechanism);
   if (rv != CKR_OK) {
@@ -2613,15 +2600,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     return CKR_OK;
   }
 
-#if YKCS11_DBG > 1
-  dump_data(pData, ulDataLen, stderr, CK_TRUE, format_arg_hex);
-#endif
-
-  if ((rv = digest_mechanism_update(session, pData, ulDataLen)) != CKR_OK) {
-    DBG("digest_mechanism_update failed");
-    goto sign_out;
-  }
-
   if (*pulSignatureLen < session->op_info.out_len) {
     DBG("The signature requires %lu bytes, got %lu", session->op_info.out_len, *pulSignatureLen);
     DOUT;
@@ -2635,6 +2613,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     DBG("User is not logged in");
     rv =  CKR_USER_NOT_LOGGED_IN;
     locking.pfnUnlockMutex(session->slot->mutex);
+    goto sign_out;
+  }
+
+  if ((rv = digest_mechanism_update(session, pData, ulDataLen)) != CKR_OK) {
+    DBG("digest_mechanism_update failed");
     goto sign_out;
   }
 
@@ -2692,10 +2675,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignUpdate)(
     DOUT;
     return CKR_ARGUMENTS_BAD;
   }
-
-#if YKCS11_DBG > 1
-  dump_data(pPart, ulPartLen, stderr, CK_TRUE, format_arg_hex);
-#endif
 
   if ((rv = digest_mechanism_update(session, pPart, ulPartLen)) != CKR_OK) {
     DBG("digest_mechanism_update failed");
@@ -2839,22 +2818,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (!is_present(session->slot, hKey)) {
-    DBG("Key handle %lu is invalid", hKey);
+  if (session->op_info.type != YKCS11_NOOP) {
+    DBG("Other operation in process");
     DOUT;
-    return CKR_OBJECT_HANDLE_INVALID;
+    return CKR_OPERATION_ACTIVE;
   }
 
   if (hKey < PIV_PUBK_OBJ_PIV_AUTH || hKey > PIV_PUBK_OBJ_ATTESTATION) {
     DBG("Key handle %lu is not a public key", hKey);
     DOUT;
     return CKR_KEY_HANDLE_INVALID;
-  }
-
-  if (session->op_info.type != YKCS11_NOOP) {
-    DBG("Other operation in process");
-    DOUT;
-    return CKR_OPERATION_ACTIVE;
   }
 
   if (pMechanism == NULL) {
@@ -2864,14 +2837,26 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyInit)(
   }
 
   CK_BYTE id = get_sub_id(hKey);
+
+  locking.pfnLockMutex(session->slot->mutex);
+
+  if (!is_present(session->slot, hKey)) {
+    DBG("Key handle %lu is invalid", hKey);
+    DOUT;
+    locking.pfnUnlockMutex(session->slot->mutex);
+    return CKR_OBJECT_HANDLE_INVALID;
+  }
   
   CK_RV rv = verify_mechanism_init(session, session->slot->pkeys[id], pMechanism);
   if (rv != CKR_OK) {
     DBG("Unable to initialize verification operation");
     verify_mechanism_cleanup(session);
     DOUT;
+    locking.pfnUnlockMutex(session->slot->mutex);
     return rv;
   }
+
+  locking.pfnUnlockMutex(session->slot->mutex);
 
   session->op_info.type = YKCS11_VERIFY;
 
