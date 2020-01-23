@@ -864,37 +864,40 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
         }
       }
       len = sizeof(data);
-      if(ykpiv_fetch_object(session->slot->piv_state, piv_2_ykpiv(obj_ids[i]), data, &len) == YKPIV_OK) {
-        DBG("Read %lu bytes for slot %lx", len, piv_2_ykpiv(obj_ids[i]));
-        rv = store_data(session->slot, sub_id, data, len);
+      ykpiv_rc rcc = ykpiv_fetch_object(session->slot->piv_state, piv_2_ykpiv(obj_ids[i]), data, &len);
+      if(rcc != YKPIV_OK) {
+        DBG("Failed to fetch object for slot %lx: %s", piv_2_ykpiv(obj_ids[i]), ykpiv_strerror(rcc));
+        continue;
+      }
+      DBG("Read %lu bytes for slot %lx", len, piv_2_ykpiv(obj_ids[i]));
+      rv = store_data(session->slot, sub_id, data, len);
+      if (rv != CKR_OK) {
+        DBG("Failed to store data object %u in session: %lu", obj_ids[i], rv);
+        continue;
+      }
+      add_object(session->slot, obj_ids[i]);
+      if(cert_id != PIV_INVALID_OBJ) {
+        rv = store_cert(session->slot, sub_id, data, len, CK_FALSE);
         if (rv != CKR_OK) {
-          DBG("Failed to store data object %u in session: %lu", obj_ids[i], rv);
-          continue;
+          DBG("Failed to store certificate object %u in session: %lu", cert_id, rv);
+          continue; // Bail out, can't create key objects without the public key from the cert
         }
-        add_object(session->slot, obj_ids[i]);
-        if(cert_id != PIV_INVALID_OBJ) {
-          rv = store_cert(session->slot, sub_id, data, len, CK_FALSE);
-          if (rv != CKR_OK) {
-            DBG("Failed to store certificate object %u in session: %lu", cert_id, rv);
-            continue; // Bail out, can't create key objects without the public key from the cert
-          }
-          add_object(session->slot, cert_id);
-          if(rc != YKPIV_OK) { // Failed to get metadata, fall back to assuming we have keys for cert objects
-            add_object(session->slot, pubk_id);
-            add_object(session->slot, pvtk_id);
-            if(atst_id != PIV_INVALID_OBJ) { // Attestation key doesn't have an attestation
-              len = sizeof(data);
-              ykpiv_rc rcc = ykpiv_attest(session->slot->piv_state, slot, data, &len);
-              if(rcc == YKPIV_OK) {
-                DBG("Created attestation for slot %lx", slot);
-                if((rv = do_store_cert(data, len, session->slot->atst + sub_id)) == CKR_OK) {
-                  add_object(session->slot, atst_id);
-                } else {
-                  DBG("Failed to store certificate object %u in session: %lu", atst_id, rv);
-                }
+        add_object(session->slot, cert_id);
+        if(rc != YKPIV_OK) { // Failed to get metadata, fall back to assuming we have keys for cert objects
+          add_object(session->slot, pubk_id);
+          add_object(session->slot, pvtk_id);
+          if(atst_id != PIV_INVALID_OBJ) { // Attestation key doesn't have an attestation
+            len = sizeof(data);
+            ykpiv_rc rcc = ykpiv_attest(session->slot->piv_state, slot, data, &len);
+            if(rcc == YKPIV_OK) {
+              DBG("Created attestation for slot %lx", slot);
+              if((rv = do_store_cert(data, len, session->slot->atst + sub_id)) == CKR_OK) {
+                add_object(session->slot, atst_id);
               } else {
-                DBG("Failed to create attestation for slot %lx: %s", slot, ykpiv_strerror(rcc));
+                DBG("Failed to store certificate object %u in session: %lu", atst_id, rv);
               }
+            } else {
+              DBG("Failed to create attestation for slot %lx: %s", slot, ykpiv_strerror(rcc));
             }
           }
         }
