@@ -1,0 +1,26 @@
+== OpenSSL via PKCS11 Engine
+
+The easiest way to get OpenSSL to work with YKCS11 via `engine_pkcs11` is by using the `pll-kit` proxy module. To get the OpenSSL PKCS11 engine to use YKCS11 specifically, set the environment variable `PKCS11_MODULE_PATH` to point to `libykcs11.so` module.
+
+=== Examples
+
+==== Data Signing
+
+[source, bash]
+----
+PKCS11_MODULE_PATH=/path/to/libykcs11.so openssl rsautl -engine pkcs11 -keyform engine -inkey "pkcs11:object=Private key for PIVAuthentication;type=private" -sign -in data.txt -out data.sig
+----
+
+`object=Private key for PIVAuthentication` specifies the alias (or label) of the private key to be used. The aliases of the keys stored on the YubiKey PIV are fixed and unmodifiable; and they can be found in link:../Functions_and_values.adoc[this list]
+
+`type=private` specifies that the type of the object is a private key (`CKA_CLASS = CKO_PRIVATE_KEY`)
+
+For more parameters to specify keys see https://tools.ietf.org/html/rfc7512[RFC7512]
+
+CAUTION: Be aware that the order of the parameters in the command line may be important.
+
+=== See Also
+
+For more details on PKCS11 engine, see https://github.com/OpenSC/libp11[OpenSC libp11]
+
+For more details on how to configure OpenSSL PKCS11 engine for Yubico supported modules, see https://developers.yubico.com/YubiHSM2/Usage_Guides/OpenSSL_with_pkcs11_engine.html[OpenSSL with YubiHSM 2]

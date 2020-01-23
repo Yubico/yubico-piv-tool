@@ -24,7 +24,7 @@ The `-keystore NONE` indicates that the keys are not stored in a soft token, aka
 
 ==== Signing a JAR file
 
-To sign a jar file using `jarsigner`, the alias of the signing key needs to be specified. The aliases of the keys stored on the YubiKey PIV are fixed and unmodifiable. The key aliases are displayed when listing the content of the YubiKey using `keytool -list` above or they can be found in link:../index.adoc[this list]
+To sign a jar file using `jarsigner`, the alias of the signing key needs to be specified. The aliases of the keys stored on the YubiKey PIV are fixed and unmodifiable. The key aliases are displayed when listing the content of the YubiKey using `keytool -list` above or they can be found in link:../Functions_and_values.adoc[this list]
 
 Example of signing a jar file with the key on slot 9c: 
 
