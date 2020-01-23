@@ -1675,6 +1675,15 @@ ykpiv_rc _ykpiv_fetch_object(ykpiv_state *state, int object_id,
     *len = (unsigned long)outlen;
     return YKPIV_OK;
   } else {
+    if (SW_ERR_OBJECT_NOT_FOUND == sw) {
+      return YKPIV_INVALID_OBJECT;
+    }
+    if (SW_ERR_SECURITY_STATUS == sw) {
+      return YKPIV_AUTHENTICATION_ERROR;
+    }
+    if(state->verbose) {
+      fprintf(stderr, "Failed to get data for object %x with status %x\n", object_id, sw);
+    }
     return YKPIV_GENERIC_ERROR;
   }
 }
