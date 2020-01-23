@@ -679,7 +679,8 @@ ykpiv_rc _ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
       fprintf(stderr, "Going to send %lu bytes in this go.\n", (unsigned long)this_size);
     }
     apdu.st.lc = (unsigned char)this_size;
-    memcpy(apdu.st.data, in_ptr, this_size);
+    if(this_size)
+      memcpy(apdu.st.data, in_ptr, this_size);
     res = _send_data(state, &apdu, data, &recv_len, sw);
     if(res != YKPIV_OK) {
       goto Cleanup;
