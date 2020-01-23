@@ -866,7 +866,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
       len = sizeof(data);
       ykpiv_rc rcc = ykpiv_fetch_object(session->slot->piv_state, piv_2_ykpiv(obj_ids[i]), data, &len);
       if(rcc != YKPIV_OK) {
-        DBG("Failed to fetch object for slot %lx: %s", piv_2_ykpiv(obj_ids[i]), ykpiv_strerror(rcc));
+        DBG("Failed to fetch data for object %u slot %lx: %s", obj_ids[i], piv_2_ykpiv(obj_ids[i]), ykpiv_strerror(rcc));
         continue;
       }
       DBG("Read %lu bytes for slot %lx", len, piv_2_ykpiv(obj_ids[i]));
