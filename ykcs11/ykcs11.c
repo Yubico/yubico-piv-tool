@@ -3199,7 +3199,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   }
 
   if (gen.algorithm == 0) {
-    DBG("Key length not specified");
+    DBG("Key type or length not specified");
     return CKR_TEMPLATE_INCOMPLETE;
   }
 
@@ -3214,7 +3214,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   pvtk_id = find_pvtk_object(gen.key_id);
   atst_id = find_atst_object(gen.key_id);
 
-  DBG("Generating key with algorithm %u in object %u and %u (slot %lx)", gen.algorithm, pvtk_id, pubk_id, piv_2_ykpiv(pvtk_id));
+  CK_ULONG slot = piv_2_ykpiv(pvtk_id);
+
+  DBG("Generating key with algorithm %u in object %u and %u (slot %lx)", gen.algorithm, pvtk_id, pubk_id, slot);
 
   locking.pfnLockMutex(session->slot->mutex);
 
@@ -3225,7 +3227,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   }
 
   cert_len = sizeof(cert_data);
-  if ((rv = token_generate_key(session->slot->piv_state, gen.algorithm, piv_2_ykpiv(pvtk_id), cert_data, &cert_len)) != CKR_OK) {
+  if ((rv = token_generate_key(session->slot->piv_state, gen.algorithm, slot, cert_data, &cert_len)) != CKR_OK) {
     DBG("Unable to generate key pair");
     locking.pfnUnlockMutex(session->slot->mutex);
     return rv;
@@ -3256,15 +3258,18 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   if(!is_present(session->slot, pubk_id))
     add_object(session->slot, pubk_id);
 
-  if(atst_id != PIV_INVALID_OBJ && !is_present(session->slot, atst_id)) {
-    CK_ULONG slot = piv_2_ykpiv(pvtk_id);
+  // Create an attestation, if appropriate and able
+
+  if(atst_id != PIV_INVALID_OBJ) {
     unsigned char data[YKPIV_OBJ_MAX_SIZE];
     size_t len = sizeof(data);
     ykpiv_rc rc = ykpiv_attest(session->slot->piv_state, slot, data, &len);
     if(rc == YKPIV_OK) {
       DBG("Created attestation for slot %lx", slot);
       if((rv = do_store_cert(data, len, session->slot->atst + gen.key_id)) == CKR_OK) {
-        add_object(session->slot, atst_id);
+        // Add attestation object if not already present
+        if(!is_present(session->slot, atst_id))
+          add_object(session->slot, atst_id);
       } else {
         DBG("Failed to store attestation certificate %u in session: %lu", atst_id, rv);
       }
