@@ -1298,7 +1298,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       return CKR_USER_TYPE_INVALID;
     }
 
-    rv = token_import_cert(session->slot->piv_state, piv_2_ykpiv(cert_id), value);
+    rv = token_import_cert(session->slot->piv_state, piv_2_ykpiv(cert_id), value, value_len);
     if (rv != CKR_OK) {
       DBG("Unable to import certificate");
       locking.pfnUnlockMutex(session->slot->mutex);

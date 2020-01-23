@@ -301,21 +301,14 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm,
   return CKR_OK;
 }
 
-CK_RV do_check_cert(CK_BYTE_PTR in, CK_ULONG_PTR cert_len) {
+CK_RV do_check_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG_PTR cert_len) {
 
-  X509                *cert;
   const unsigned char *p = in; // Mandatory temp variable required by OpenSSL
-  unsigned long       len;
-
-  len = 0;
-  len += get_length(p + 1, &len) + 1;
-
-  *cert_len = len;
-
-  cert = d2i_X509(NULL, &p, (long) *cert_len);
+  X509 *cert = d2i_X509(NULL, &p, in_len);
   if (cert == NULL)
     return CKR_FUNCTION_FAILED;
-
+  X509_free(cert);
+  *cert_len = p - in;
   return CKR_OK;
 }
 

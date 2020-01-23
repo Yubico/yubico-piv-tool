@@ -414,7 +414,7 @@ CK_RV token_generate_key(ykpiv_state *state, CK_BYTE algorithm, CK_BYTE key, CK_
   return CKR_OK;
 }
 
-CK_RV token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_BYTE_PTR in) {
+CK_RV token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_BYTE_PTR in, CK_ULONG in_len) {
 
   unsigned char certdata[YKPIV_OBJ_MAX_SIZE + 16];
   unsigned char *certptr;
@@ -423,7 +423,7 @@ CK_RV token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_BYTE_PTR in) {
   CK_RV rv;
 
   // Check whether or not we have a valid cert
-  if ((rv = do_check_cert(in, &cert_len)) != CKR_OK)
+  if ((rv = do_check_cert(in, in_len, &cert_len)) != CKR_OK)
     return rv;
 
   if (cert_len > YKPIV_OBJ_MAX_SIZE)
@@ -443,7 +443,7 @@ CK_RV token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_BYTE_PTR in) {
   *certptr++ = 0;
 
   // Store the certificate into the token
-  if (ykpiv_save_object(state, cert_id, certdata, (size_t)(certptr - certdata)) != YKPIV_OK)
+  if (ykpiv_save_object(state, cert_id, certdata, certptr - certdata) != YKPIV_OK)
     return CKR_DEVICE_ERROR;
 
   return CKR_OK;
