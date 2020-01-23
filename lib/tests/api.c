@@ -198,7 +198,7 @@ START_TEST(test_read_write_list_delete_cert) {
     ck_assert_int_eq(res, YKPIV_OK);
 
     res = ykpiv_util_read_cert(g_state, YKPIV_KEY_AUTHENTICATION, &read_cert, &read_cert_len);
-    ck_assert_int_eq(res, YKPIV_GENERIC_ERROR);
+    ck_assert_int_eq(res, YKPIV_INVALID_OBJECT);
 
     res = ykpiv_util_free(g_state, read_cert);
     ck_assert_int_eq(res, YKPIV_OK);
