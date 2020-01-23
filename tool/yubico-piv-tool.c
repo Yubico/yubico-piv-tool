@@ -1179,11 +1179,6 @@ static bool read_certificate(ykpiv_state *state, enum enum_slot slot,
 
   if (key_format == key_format_arg_PEM ||
       key_format == key_format_arg_SSH) {
-    x509 = X509_new();
-    if (!x509) {
-      fprintf(stderr, "Failed allocating x509 structure.\n");
-      goto read_cert_out;
-    }
     x509 = d2i_X509(NULL, (const unsigned char**)&ptr, cert_len);
     if (!x509) {
       fprintf(stderr, "Failed parsing x509 information.\n");
@@ -1337,11 +1332,6 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     const ASN1_TIME *not_before, *not_after;
 
     ptr += get_length(ptr, &cert_len);
-    x509 = X509_new();
-    if(!x509) {
-      fprintf(output, "Allocation failure.\n");
-      return;
-    }
     x509 = d2i_X509(NULL, &ptr, cert_len);
     if(!x509) {
       fprintf(output, "Unknown data present.\n");
@@ -1809,11 +1799,6 @@ static bool attest(ykpiv_state *state, enum enum_slot slot,
   if(key_format == key_format_arg_PEM) {
     const unsigned char *ptr = data;
     int len2 = (int)len;
-    x509 = X509_new();
-    if(!x509) {
-      fprintf(stderr, "Failed allocating x509 structure.\n");
-      goto attest_out;
-    }
     x509 = d2i_X509(NULL, &ptr, len2);
     if(!x509) {
       fprintf(stderr, "Failed parsing x509 information.\n");
