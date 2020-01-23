@@ -863,21 +863,21 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
           }
         }
       }
-      len = sizeof(data);
-      ykpiv_rc rcc = ykpiv_fetch_object(session->slot->piv_state, piv_2_ykpiv(obj_ids[i]), data, &len);
+      unsigned long ulen = sizeof(data);
+      ykpiv_rc rcc = ykpiv_fetch_object(session->slot->piv_state, piv_2_ykpiv(obj_ids[i]), data, &ulen);
       if(rcc != YKPIV_OK) {
         DBG("Failed to read object %u slot %lx: %s", obj_ids[i], piv_2_ykpiv(obj_ids[i]), ykpiv_strerror(rcc));
         continue;
       }
-      DBG("Read %lu bytes for object %u slot %lx", len, obj_ids[i], piv_2_ykpiv(obj_ids[i]));
-      rv = store_data(session->slot, sub_id, data, len);
+      DBG("Read %lu bytes for object %u slot %lx", ulen, obj_ids[i], piv_2_ykpiv(obj_ids[i]));
+      rv = store_data(session->slot, sub_id, data, ulen);
       if (rv != CKR_OK) {
         DBG("Failed to store data object %u in session: %lu", obj_ids[i], rv);
         continue;
       }
       add_object(session->slot, obj_ids[i]);
       if(cert_id != PIV_INVALID_OBJ) {
-        rv = store_cert(session->slot, sub_id, data, len, CK_FALSE);
+        rv = store_cert(session->slot, sub_id, data, ulen, CK_FALSE);
         if (rv != CKR_OK) {
           DBG("Failed to store certificate object %u in session: %lu", cert_id, rv);
           continue; // Bail out, can't create key objects without the public key from the cert
