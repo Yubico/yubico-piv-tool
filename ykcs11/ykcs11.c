@@ -236,8 +236,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetInfo)(
   CK_INFO_PTR pInfo
 )
 {
-  CK_VERSION ver = {YKCS11_VERSION_MAJOR, (YKCS11_VERSION_MINOR * 10) + YKCS11_VERSION_PATCH};
-
   DIN;
 
   if (pInfo == NULL) {
@@ -246,7 +244,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetInfo)(
   }
   
   pInfo->cryptokiVersion = function_list.version;
-  pInfo->libraryVersion = ver;
+  pInfo->libraryVersion.major = YKCS11_VERSION_MAJOR;
+  pInfo->libraryVersion.minor = (YKCS11_VERSION_MINOR * 10) + YKCS11_VERSION_PATCH;
   pInfo->flags = 0;
 
   memstrcpy(pInfo->manufacturerID, sizeof(pInfo->manufacturerID), YKCS11_MANUFACTURER);
@@ -834,7 +833,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
       if(pvtk_id != PIV_INVALID_OBJ) {
         len = sizeof(data);
         if((rc = ykpiv_get_metadata(session->slot->piv_state, slot, data, &len)) == YKPIV_OK) {
-          DBG("Read %lu bytes metadata for private key %u (slot %lx)", len, pvtk_id, slot);
+          DBG("Read %lu bytes metadata for slot %lx", len, slot);
           ykpiv_metadata md = {0};
           if((rc = ykpiv_util_parse_metadata(data, len, &md)) == YKPIV_OK) {
             if((rv = do_create_public_key(md.pubkey, md.pubkey_len, md.algorithm, &session->slot->pkeys[sub_id])) == CKR_OK) {
@@ -843,29 +842,29 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
               if(atst_id != PIV_INVALID_OBJ && md.origin == YKPIV_METADATA_ORIGIN_GENERATED) { // Attestation key doesn't have an attestation
                 len = sizeof(data);
                 ykpiv_rc rcc = ykpiv_attest(session->slot->piv_state, slot, data, &len);
-                if(rcc  == YKPIV_OK) {
-                  DBG("Created attestation for key %u (slot %lx)", pvtk_id, slot);
+                if(rcc == YKPIV_OK) {
+                  DBG("Created attestation for slot %lx", slot);
                   if((rv = do_store_cert(data, len, session->slot->atst + sub_id)) == CKR_OK) {
                     add_object(session->slot, atst_id);
                   } else {
                     DBG("Failed to store certificate object %u in session: %lu", atst_id, rv);
                   }
                 } else {
-                  DBG("Failed to create attestation for key %u (slot %lx): %s", pvtk_id, slot, ykpiv_strerror(rcc));
+                  DBG("Failed to create attestation for slot %lx: %s", slot, ykpiv_strerror(rcc));
                 }
               }
             } else {
-              DBG("Failed to create public key info for private key %u (slot %lx, algorithm %u) from metadata: %lu", pvtk_id, slot, md.algorithm, rv);
+              DBG("Failed to create public key info for slot %lx, algorithm %u from metadata: %lu", slot, md.algorithm, rv);
               rc = YKPIV_KEY_ERROR; // Ensure we create the key from the certificate instead
             }
           } else {
-            DBG("Failed to parse metadata for private key %u (slot %lx): %s", pvtk_id, slot, ykpiv_strerror(rc));
+            DBG("Failed to parse metadata for slot %lx: %s", slot, ykpiv_strerror(rc));
           }
         }
       }
       len = sizeof(data);
       if(ykpiv_fetch_object(session->slot->piv_state, piv_2_ykpiv(obj_ids[i]), data, &len) == YKPIV_OK) {
-        DBG("Read %lu bytes for data object %u (%lx)", len, obj_ids[i], piv_2_ykpiv(obj_ids[i]));
+        DBG("Read %lu bytes for slot %lx", len, piv_2_ykpiv(obj_ids[i]));
         rv = store_data(session->slot, sub_id, data, len);
         if (rv != CKR_OK) {
           DBG("Failed to store data object %u in session: %lu", obj_ids[i], rv);
@@ -885,15 +884,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
             if(atst_id != PIV_INVALID_OBJ) { // Attestation key doesn't have an attestation
               len = sizeof(data);
               ykpiv_rc rcc = ykpiv_attest(session->slot->piv_state, slot, data, &len);
-              if(rcc  == YKPIV_OK) {
-                DBG("Created attestation for key %u (slot %lx)", pvtk_id, slot);
+              if(rcc == YKPIV_OK) {
+                DBG("Created attestation for slot %lx", slot);
                 if((rv = do_store_cert(data, len, session->slot->atst + sub_id)) == CKR_OK) {
                   add_object(session->slot, atst_id);
                 } else {
                   DBG("Failed to store certificate object %u in session: %lu", atst_id, rv);
                 }
               } else {
-                DBG("Failed to create attestation for key %u (slot %lx): %s", pvtk_id, slot, ykpiv_strerror(rcc));
+                DBG("Failed to create attestation for slot %lx: %s", slot, ykpiv_strerror(rcc));
               }
             }
           }
@@ -922,7 +921,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
     return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
-  locking.pfnLockMutex(global_mutex);
   ykcs11_session_t *session = get_session(hSession);
 
   if (session == NULL || session->slot == NULL) {
@@ -932,9 +930,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
   }
 
   ykcs11_slot_t *slot = session->slot;
-  cleanup_session(session);
-
   int other_sessions = 0;
+
+  locking.pfnLockMutex(global_mutex);
+
+  cleanup_session(session);
 
   for(int i = 0; i < YKCS11_MAX_SESSIONS; i++) {
     session = sessions + i;
@@ -1269,19 +1269,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
   for (i = 0; i < ulCount; i++) {
     if (pTemplate[i].type == CKA_CLASS) {
       class = *((CK_ULONG_PTR)pTemplate[i].pValue);
-
-      // Can only import certificates and private keys
-      if (class != CKO_CERTIFICATE &&
-          class != CKO_PRIVATE_KEY) {
-        DBG("Unsupported class %lu", class);
-        return CKR_ATTRIBUTE_VALUE_INVALID;
-      }
     }
-  }
-
-  if (class == CKO_VENDOR_DEFINED) {
-    DBG("Object class must be specified");
-    return CKR_TEMPLATE_INCOMPLETE;
   }
 
   switch (class) {
@@ -1317,6 +1305,20 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       return rv;
     }
 
+    rv = store_data(session->slot, id, value, value_len);
+    if (rv != CKR_OK) {
+      DBG("Unable to store data in session");
+      locking.pfnUnlockMutex(session->slot->mutex);
+      return CKR_FUNCTION_FAILED;
+    }
+
+    rv = store_cert(session->slot, id, value, value_len, CK_TRUE);
+    if (rv != CKR_OK) {
+      DBG("Unable to store certificate in session");
+      locking.pfnUnlockMutex(session->slot->mutex);
+      return CKR_FUNCTION_FAILED;
+    }
+
     // Add objects that were not already present
 
     if(!is_present(session->slot, dobj_id))
@@ -1327,22 +1329,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       add_object(session->slot, pvtk_id);
     if(!is_present(session->slot, pubk_id))
       add_object(session->slot, pubk_id);
-    if(atst_id != PIV_INVALID_OBJ && !is_present(session->slot, atst_id))
-      add_object(session->slot, atst_id);
+
+    // No attestation can be created for imported objects
 
     sort_objects(session->slot);
-
-    rv = store_data(session->slot, id, value, value_len);
-    if (rv != CKR_OK) {
-      DBG("Unable to store data in session");
-      return CKR_FUNCTION_FAILED;
-    }
-
-    rv = store_cert(session->slot, id, value, value_len, CK_TRUE);
-    if (rv != CKR_OK) {
-      DBG("Unable to store certificate in session");
-      return CKR_FUNCTION_FAILED;
-    }
 
     locking.pfnUnlockMutex(session->slot->mutex);
 
@@ -1459,14 +1449,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  // SO must be logged in
-  if (session->slot->login_state != YKCS11_SO) {
-    DBG("Authentication as SO required to delete objects");
-    return CKR_USER_TYPE_INVALID;
-  }
-
-  DBG("Deleting object %lu", hObject);
-
   // Silently ignore valid but not-present handles for compatibility with applications
   CK_BYTE id = get_sub_id(hObject);
   if(id == 0) {
@@ -1475,6 +1457,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
   }
 
   locking.pfnLockMutex(session->slot->mutex);
+
+  // SO must be logged in
+  if (session->slot->login_state != YKCS11_SO) {
+    DBG("Authentication as SO required to delete objects");
+    locking.pfnUnlockMutex(session->slot->mutex);
+    return CKR_USER_TYPE_INVALID;
+  }
+
+  DBG("Deleting object %lu", hObject);
 
   CK_RV rv = token_delete_cert(session->slot->piv_state, piv_2_ykpiv(find_data_object(id)));
   if (rv != CKR_OK) {
@@ -2034,6 +2025,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptInit)(
     return CKR_OBJECT_HANDLE_INVALID;
   }
 
+  // This allows decrypting when logged in as SO and then doing a context-specific login as USER
+  if (session->slot->login_state == YKCS11_PUBLIC) {
+    DBG("User is not logged in");
+    locking.pfnUnlockMutex(session->slot->mutex);
+    return CKR_USER_NOT_LOGGED_IN;
+  }
+
   session->op_info.op.encrypt.piv_key = piv_2_ykpiv(hKey);
 
   CK_RV rv = decrypt_mechanism_init(session, session->slot->pkeys[id], pMechanism);
@@ -2077,13 +2075,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
     goto decrypt_out;
   }
 
-  // This allows decrypting when logged in as SO and then doing a context-specific login as USER
-  if (session->slot->login_state == YKCS11_PUBLIC) {
-    DBG("User is not logged in");
-    rv = CKR_USER_NOT_LOGGED_IN;
-    goto decrypt_out;
-  }
-
   if (pEncryptedData == NULL || pulDataLen == NULL) {
     DBG("Invalid parameters");
     return CKR_ARGUMENTS_BAD;
@@ -2121,6 +2112,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
   memcpy(session->op_info.buf, pEncryptedData, ulEncryptedDataLen);
 
   locking.pfnLockMutex(session->slot->mutex);
+
+  // This allows decrypting when logged in as SO and then doing a context-specific login as USER
+  if (session->slot->login_state == YKCS11_PUBLIC) {
+    DBG("User is not logged in");
+    rv = CKR_USER_NOT_LOGGED_IN;
+    locking.pfnUnlockMutex(session->slot->mutex);
+    goto decrypt_out;
+  }
 
   rv = decrypt_mechanism_final(session, pData, pulDataLen, key_len);
 
@@ -2160,13 +2159,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptUpdate)(
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
     rv = CKR_SESSION_HANDLE_INVALID;
-    goto decrypt_out;
-  }
-
-  // This allows decrypting when logged in as SO and then doing a context-specific login as USER
-  if (session->slot->login_state == YKCS11_PUBLIC) {
-    DBG("User is not logged in");
-    rv = CKR_USER_NOT_LOGGED_IN;
     goto decrypt_out;
   }
 
@@ -2230,13 +2222,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
     goto decrypt_out;
   }
 
-  // This allows decrypting when logged in as SO and then doing a context-specific login as USER
-  if (session->slot->login_state == YKCS11_PUBLIC) {
-    DBG("User is not logged in");
-    rv = CKR_USER_NOT_LOGGED_IN;
-    goto decrypt_out;
-  }
-
   if (pulLastPartLen == NULL) {
     DBG("Invalid parameters");
     return CKR_ARGUMENTS_BAD;
@@ -2266,6 +2251,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
 #endif
 
   locking.pfnLockMutex(session->slot->mutex);
+
+    // This allows decrypting when logged in as SO and then doing a context-specific login as USER
+  if (session->slot->login_state == YKCS11_PUBLIC) {
+    DBG("User is not logged in");
+    rv = CKR_USER_NOT_LOGGED_IN;
+    locking.pfnUnlockMutex(session->slot->mutex);
+    goto decrypt_out;
+  }
 
   rv = decrypt_mechanism_final(session, pLastPart, pulLastPartLen, key_len);
 
@@ -2519,13 +2512,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  // This allows signing when logged in as SO and then doing a context-specific login to sign
-  if (session->slot->login_state == YKCS11_PUBLIC) {
-    DBG("User is not logged in");
-    DOUT;
-    return CKR_USER_NOT_LOGGED_IN;
-  }
-
   if (session->op_info.type != YKCS11_NOOP) {
     DBG("Other operation in process");
     DOUT;
@@ -2538,16 +2524,27 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     return CKR_ARGUMENTS_BAD;
   }
 
-  if (!is_present(session->slot, hKey)) {
-    DBG("Key handle %lu is invalid", hKey);
-    DOUT;
-    return CKR_OBJECT_HANDLE_INVALID;
-  }
-
   if (hKey < PIV_PVTK_OBJ_PIV_AUTH || hKey > PIV_PVTK_OBJ_ATTESTATION) {
     DBG("Key handle %lu is not a private key", hKey);
     DOUT;
     return CKR_KEY_HANDLE_INVALID;
+  }
+
+  locking.pfnLockMutex(session->slot->mutex);
+
+  if (!is_present(session->slot, hKey)) {
+    DBG("Key handle %lu is invalid", hKey);
+    DOUT;
+    locking.pfnUnlockMutex(session->slot->mutex);
+    return CKR_OBJECT_HANDLE_INVALID;
+  }
+
+  // This allows signing when logged in as SO and then doing a context-specific login to sign
+  if (session->slot->login_state == YKCS11_PUBLIC) {
+    DBG("User is not logged in");
+    DOUT;
+    locking.pfnUnlockMutex(session->slot->mutex);
+    return CKR_USER_NOT_LOGGED_IN;
   }
 
   session->op_info.op.sign.piv_key = piv_2_ykpiv(hKey);
@@ -2558,8 +2555,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
     DBG("Unable to initialize signing operation");
     sign_mechanism_cleanup(session);
     DOUT;
+    locking.pfnUnlockMutex(session->slot->mutex);
     return rv;
   }
+
+  locking.pfnUnlockMutex(session->slot->mutex);
 
   session->op_info.type = YKCS11_SIGN;
 
@@ -2605,13 +2605,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
     return CKR_ARGUMENTS_BAD;
   }
 
-  // This allows signing when logged in as SO and then doing a context-specific login to sign
-  if (session->slot->login_state == YKCS11_PUBLIC) {
-    DBG("User is not logged in");
-    rv =  CKR_USER_NOT_LOGGED_IN;
-    goto sign_out;
-  }
-
   if (pSignature == NULL) {
     // Just return the size of the signature
     *pulSignatureLen = session->op_info.out_len;
@@ -2636,6 +2629,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   }
 
   locking.pfnLockMutex(session->slot->mutex);
+
+  // This allows signing when logged in as SO and then doing a context-specific login to sign
+  if (session->slot->login_state == YKCS11_PUBLIC) {
+    DBG("User is not logged in");
+    rv =  CKR_USER_NOT_LOGGED_IN;
+    locking.pfnUnlockMutex(session->slot->mutex);
+    goto sign_out;
+  }
 
   if((rv = sign_mechanism_final(session, pSignature, pulSignatureLen)) != CKR_OK) {
     DBG("sign_mechanism_final failed");
@@ -2690,13 +2691,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignUpdate)(
     DBG("Invalid parameters");
     DOUT;
     return CKR_ARGUMENTS_BAD;
-  }
-
-  // This allows signing when logged in as SO and then doing a context-specific login to sign
-  if (session->slot->login_state == YKCS11_PUBLIC) {
-    DBG("User is not logged in");
-    rv = CKR_USER_NOT_LOGGED_IN;
-    goto sign_out;
   }
 
 #if YKCS11_DBG > 1
@@ -2755,13 +2749,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
     return CKR_ARGUMENTS_BAD;
   }
 
-  // This allows signing when logged in as SO and then doing a context-specific login to sign
-  if (session->slot->login_state == YKCS11_PUBLIC) {
-    DBG("User is not logged in");
-    rv = CKR_USER_NOT_LOGGED_IN;
-    goto sign_out;
-  }
-
   if (pSignature == NULL) {
     // Just return the size of the signature
     *pulSignatureLen = session->op_info.out_len;
@@ -2777,6 +2764,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
   }
 
   locking.pfnLockMutex(session->slot->mutex);
+
+  // This allows signing when logged in as SO and then doing a context-specific login to sign
+  if (session->slot->login_state == YKCS11_PUBLIC) {
+    DBG("User is not logged in");
+    rv = CKR_USER_NOT_LOGGED_IN;
+    locking.pfnUnlockMutex(session->slot->mutex);
+    goto sign_out;
+  }
 
   if((rv = sign_mechanism_final(session, pSignature, pulSignatureLen)) != CKR_OK) {
     DBG("sign_mechanism_final failed");
@@ -3180,11 +3175,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     return CKR_SESSION_HANDLE_INVALID;
   }
 
-  if (session->slot->login_state != YKCS11_SO) {
-    DBG("Authentication as SO required to generate keys");
-    return CKR_USER_TYPE_INVALID;
-  }
-
   if (session->op_info.type != YKCS11_NOOP) {
     DBG("Other operation in process");
     return CKR_OPERATION_ACTIVE;
@@ -3243,9 +3233,29 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 
   locking.pfnLockMutex(session->slot->mutex);
 
+  if (session->slot->login_state != YKCS11_SO) {
+    DBG("Authentication as SO required to generate keys");
+    locking.pfnUnlockMutex(session->slot->mutex);
+    return CKR_USER_TYPE_INVALID;
+  }
+
   cert_len = sizeof(cert_data);
   if ((rv = token_generate_key(session->slot->piv_state, gen.algorithm, piv_2_ykpiv(pvtk_id), cert_data, &cert_len)) != CKR_OK) {
     DBG("Unable to generate key pair");
+    locking.pfnUnlockMutex(session->slot->mutex);
+    return rv;
+  }
+
+  rv = store_data(session->slot, gen.key_id, cert_data, cert_len);
+  if (rv != CKR_OK) {
+    DBG("Unable to store data in session");
+    locking.pfnUnlockMutex(session->slot->mutex);
+    return rv;
+  }
+
+  rv = store_cert(session->slot, gen.key_id, cert_data, cert_len, CK_TRUE);
+  if (rv != CKR_OK) {
+    DBG("Unable to store certificate in session");
     locking.pfnUnlockMutex(session->slot->mutex);
     return rv;
   }
@@ -3260,24 +3270,25 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     add_object(session->slot, pvtk_id);
   if(!is_present(session->slot, pubk_id))
     add_object(session->slot, pubk_id);
-  if(atst_id != PIV_INVALID_OBJ && !is_present(session->slot, atst_id))
-    add_object(session->slot, atst_id);
+
+  if(atst_id != PIV_INVALID_OBJ && !is_present(session->slot, atst_id)) {
+    CK_ULONG slot = piv_2_ykpiv(pvtk_id);
+    unsigned char data[YKPIV_OBJ_MAX_SIZE];
+    size_t len = sizeof(data);
+    ykpiv_rc rc = ykpiv_attest(session->slot->piv_state, slot, data, &len);
+    if(rc == YKPIV_OK) {
+      DBG("Created attestation for slot %lx", slot);
+      if((rv = do_store_cert(data, len, session->slot->atst + gen.key_id)) == CKR_OK) {
+        add_object(session->slot, atst_id);
+      } else {
+        DBG("Failed to store attestation certificate %u in session: %lu", atst_id, rv);
+      }
+    } else {
+      DBG("Failed to create attestation for slot %lx: %s", slot, ykpiv_strerror(rc));
+    }
+  }
 
   sort_objects(session->slot);
-
-  // Write/Update the object
-
-  rv = store_data(session->slot, gen.key_id, cert_data, cert_len);
-  if (rv != CKR_OK) {
-    DBG("Unable to store data in session");
-    return CKR_FUNCTION_FAILED;
-  }
-
-  rv = store_cert(session->slot, gen.key_id, cert_data, cert_len, CK_TRUE);
-  if (rv != CKR_OK) {
-    DBG("Unable to store certificate in session");
-    return CKR_FUNCTION_FAILED;
-  }
 
   locking.pfnUnlockMutex(session->slot->mutex);
 
