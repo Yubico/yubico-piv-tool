@@ -128,8 +128,16 @@ static ykpiv_rc _ykpiv_verify(ykpiv_state *state, const char *pin, const size_t 
 static ykpiv_rc _ykpiv_authenticate(ykpiv_state *state, unsigned const char *key);
 static ykpiv_rc _ykpiv_auth_deauthenticate(ykpiv_state *state);
 
-static unsigned const char aid[] = {
+static unsigned const char piv_aid[] = {
 	0xa0, 0x00, 0x00, 0x03, 0x08
+};
+
+static unsigned const char yk_aid[] = {
+  0xa0, 0x00, 0x00, 0x05, 0x27, 0x20, 0x01, 0x01
+};
+
+static unsigned const char mgmt_aid[] = {
+  0xa0, 0x00, 0x00, 0x05, 0x27, 0x47, 0x11, 0x17
 };
 
 static void* _default_alloc(void *data, size_t cb) {
@@ -311,8 +319,8 @@ ykpiv_rc _ykpiv_select_application(ykpiv_state *state) {
   memset(apdu.raw, 0, sizeof(apdu));
   apdu.st.ins = YKPIV_INS_SELECT_APPLICATION;
   apdu.st.p1 = 0x04;
-  apdu.st.lc = sizeof(aid);
-  memcpy(apdu.st.data, aid, sizeof(aid));
+  apdu.st.lc = sizeof(piv_aid);
+  memcpy(apdu.st.data, piv_aid, sizeof(piv_aid));
 
   if((res = _send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
     if(state->verbose) {
@@ -360,7 +368,7 @@ ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state) {
     return YKPIV_GENERIC_ERROR;
   }
 
-  res = _ykpiv_verify(state, NULL, 0, 0);
+  res = _ykpiv_verify(state, NULL, 0, NULL);
 
   if ((YKPIV_OK != res) && (YKPIV_WRONG_PIN != res)) {
     res = _ykpiv_select_application(state);
@@ -1207,7 +1215,6 @@ Cleanup:
 static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state) {
   ykpiv_rc res = YKPIV_OK;
   APDU apdu;
-  static const uint8_t yk_applet[] = { 0xa0, 0x00, 0x00, 0x05, 0x27, 0x20, 0x01, 0x01 };
   uint8_t data[0xff];
   uint32_t recv_len = sizeof(data);
   int sw;
@@ -1230,8 +1237,8 @@ static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state) {
     memset(apdu.raw, 0, sizeof(apdu));
     apdu.st.ins = YKPIV_INS_SELECT_APPLICATION;
     apdu.st.p1 = 0x04;
-    apdu.st.lc = sizeof(yk_applet);
-    memcpy(apdu.st.data, yk_applet, sizeof(yk_applet));
+    apdu.st.lc = sizeof(yk_aid);
+    memcpy(apdu.st.data, yk_aid, sizeof(yk_aid));
 
     if ((res = _send_data(state, &apdu, temp, &recv_len, &sw)) < YKPIV_OK) {
       if (state->verbose) {
@@ -1271,8 +1278,8 @@ static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state) {
     memset(apdu.raw, 0, sizeof(apdu));
     apdu.st.ins = YKPIV_INS_SELECT_APPLICATION;
     apdu.st.p1 = 0x04;
-    apdu.st.lc = sizeof(aid);
-    memcpy(apdu.st.data, aid, sizeof(aid));
+    apdu.st.lc = sizeof(piv_aid);
+    memcpy(apdu.st.data, piv_aid, sizeof(piv_aid));
 
     if((res = _send_data(state, &apdu, temp, &recv_len, &sw)) < YKPIV_OK) {
       if(state->verbose) {
@@ -1403,6 +1410,7 @@ static ykpiv_rc _ykpiv_verify(ykpiv_state *state, const char *pin, const size_t 
   ykpiv_rc res;
 
   if (pin_len > CB_PIN_MAX) {
+    if (tries) *tries = 0;
     return YKPIV_SIZE_ERROR;
   }
 
@@ -1422,6 +1430,7 @@ static ykpiv_rc _ykpiv_verify(ykpiv_state *state, const char *pin, const size_t 
   yc_memzero(&apdu, sizeof(apdu));
 
   if (res != YKPIV_OK) {
+    if (tries) *tries = 0;
     return res;
   }
   else if (sw == SW_SUCCESS) {
@@ -1443,6 +1452,7 @@ static ykpiv_rc _ykpiv_verify(ykpiv_state *state, const char *pin, const size_t 
     return YKPIV_WRONG_PIN;
   }
   else {
+    if (tries) *tries = 0;
     return YKPIV_GENERIC_ERROR;
   }
 }
@@ -2069,8 +2079,6 @@ ykpiv_rc ykpiv_auth_deauthenticate(ykpiv_state *state) {
   return res;
 }
 
-static const uint8_t MGMT_AID[] = { 0xa0, 0x00, 0x00, 0x05, 0x27, 0x47, 0x11, 0x17 };
-
 /* deauthenticates the user pin and mgm key */
 static ykpiv_rc _ykpiv_auth_deauthenticate(ykpiv_state *state) {
   ykpiv_rc res = YKPIV_OK;
@@ -2086,8 +2094,17 @@ static ykpiv_rc _ykpiv_auth_deauthenticate(ykpiv_state *state) {
   memset(apdu.raw, 0, sizeof(apdu));
   apdu.st.ins = YKPIV_INS_SELECT_APPLICATION;
   apdu.st.p1 = 0x04;
-  apdu.st.lc = sizeof(MGMT_AID);
-  memcpy(apdu.st.data, MGMT_AID, sizeof(MGMT_AID));
+
+  // Once mgmt_aid is selected on NEO we can't select piv_aid again... So we use yk_aid.
+  // But... YK 5 below 5.3 doesn't allow access to yk_aid, so still use mgmt_aid on non-NEO devices
+
+  if (state->ver.major < 4) {
+    apdu.st.lc = sizeof(yk_aid);
+    memcpy(apdu.st.data, yk_aid, sizeof(yk_aid));
+  } else {
+    apdu.st.lc = sizeof(mgmt_aid);
+    memcpy(apdu.st.data, mgmt_aid, sizeof(mgmt_aid));
+  }
 
   if ((res = _send_data(state, &apdu, data, &recv_len, &sw)) < YKPIV_OK) {
     if (state->verbose) {
@@ -2097,7 +2114,7 @@ static ykpiv_rc _ykpiv_auth_deauthenticate(ykpiv_state *state) {
   }
   else if (sw != SW_SUCCESS) {
     if (state->verbose) {
-      fprintf(stderr, "Failed selecting mgmt application: %04x\n", sw);
+      fprintf(stderr, "Failed selecting mgmt/yk application: %04x\n", sw);
     }
     return YKPIV_GENERIC_ERROR;
   }

@@ -750,8 +750,9 @@ START_TEST(test_reset) {
 
   // Authenticate and increase PIN retries
   test_authenticate_helper();
-  res = ykpiv_verify(g_state, "123456", NULL);
+  res = ykpiv_verify(g_state, "123456", &tries);
   ck_assert_int_eq(res, YKPIV_OK);
+  ck_assert_int_eq(tries, 0);
   res = ykpiv_set_pin_retries(g_state, 8, 3);
   ck_assert_int_eq(res, YKPIV_OK);
 
@@ -775,6 +776,7 @@ START_TEST(test_reset) {
   // Try wrong PIN
   res = ykpiv_verify(g_state, "AAAAAA", &tries);
   ck_assert_int_eq(res, YKPIV_WRONG_PIN);
+  ck_assert_int_eq(tries, 2);
 
   // Verify 2 PIN retries remaining
   tries = 0;
@@ -786,6 +788,7 @@ START_TEST(test_reset) {
   tries = 100;
   res = ykpiv_verify(g_state, "123456", &tries);
   ck_assert_int_eq(res, YKPIV_OK);
+  ck_assert_int_eq(tries, 0);
 
   // Verify back to 3 PIN retries remaining
   tries = 0;
