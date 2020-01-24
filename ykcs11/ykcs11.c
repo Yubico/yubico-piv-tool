@@ -2625,6 +2625,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   if ((rv = digest_mechanism_update(session, pData, ulDataLen)) != CKR_OK) {
     DBG("digest_mechanism_update failed");
+    locking.pfnUnlockMutex(session->slot->mutex);
     goto sign_out;
   }
 
@@ -3223,7 +3224,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 
   CK_ULONG slot = piv_2_ykpiv(pvtk_id);
 
-  DBG("Generating key with algorithm %u in object %u and %u (slot %lx)", gen.algorithm, pvtk_id, pubk_id, slot);
+  DBG("Generating key with algorithm %u in object %u and %u in slot %lx", gen.algorithm, pvtk_id, pubk_id, slot);
 
   locking.pfnLockMutex(session->slot->mutex);
 
