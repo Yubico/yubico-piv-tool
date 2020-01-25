@@ -8,7 +8,7 @@ The easiest way to get OpenSSL to work with YKCS11 via `engine_pkcs11` is by usi
 
 [source, bash]
 ----
-PKCS11_MODULE_PATH=/path/to/libykcs11.so openssl rsautl -engine pkcs11 -keyform engine -inkey "pkcs11:object=Private key for PIVAuthentication;type=private" -sign -in data.txt -out data.sig
+$ PKCS11_MODULE_PATH=/path/to/libykcs11.so openssl rsautl -engine pkcs11 -keyform engine -inkey "pkcs11:object=Private key for PIVAuthentication;type=private" -sign -in data.txt -out data.sig
 ----
 
 `object=Private key for PIVAuthentication` specifies the alias (or label) of the private key to be used. The aliases of the keys stored on the YubiKey PIV are fixed and unmodifiable; and they can be found in link:../Functions_and_values.adoc[this list]
