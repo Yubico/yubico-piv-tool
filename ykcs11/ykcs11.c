@@ -1447,7 +1447,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     if (rv != CKR_OK) {
       DBG("Unable to store data in session");
       locking.pfnUnlockMutex(session->slot->mutex);
-      rv = CKR_FUNCTION_FAILED;
       goto create_out;
     }
 
@@ -1455,7 +1454,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     if (rv != CKR_OK) {
       DBG("Unable to store certificate in session");
       locking.pfnUnlockMutex(session->slot->mutex);
-      rv = CKR_FUNCTION_FAILED;
       goto create_out;
     }
 
@@ -1641,7 +1639,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
   if (rv != CKR_OK) {
     DBG("Unable to delete data from session");
     locking.pfnUnlockMutex(session->slot->mutex);
-    rv = CKR_FUNCTION_FAILED;
     goto destroy_out;
   }
 
@@ -1649,7 +1646,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
   if (rv != CKR_OK) {
     DBG("Unable to delete certificate from session");
     locking.pfnUnlockMutex(session->slot->mutex);
-    rv = CKR_FUNCTION_FAILED;
     goto destroy_out;
   }
 
@@ -3141,6 +3137,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Verify)(
 
   rv = digest_mechanism_update(session, pData, ulDataLen);
   if (rv != CKR_OK) {
+    DBG("Failed to update verification operation");
     goto verify_out;
   }
 
@@ -3610,7 +3607,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_SeedRandom)(
   }
 
   if(ulSeedLen != 0) {
-    CK_RV rv = do_rand_seed(pSeed, ulSeedLen);
+    rv = do_rand_seed(pSeed, ulSeedLen);
     if (rv != CKR_OK) {
       goto seed_out;
     }
@@ -3653,7 +3650,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateRandom)(
 
   // the OpenSC pkcs11 test calls with 0 and expects CKR_OK, do that..
   if (ulRandomLen != 0) {
-    CK_RV rv = do_rand_bytes(pRandomData, ulRandomLen);
+    rv = do_rand_bytes(pRandomData, ulRandomLen);
     if (rv != CKR_OK) {
       goto genrand_out;
     }
