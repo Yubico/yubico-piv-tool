@@ -63,6 +63,7 @@ const uint8_t CHUID_TMPL[] = {
   0x31, 0x30, 0x31, 0x3e, 0x00, 0xfe, 0x00,
 };
 #define CHUID_GUID_OFFS 29
+#define TAG_CHUID_UUID 0x34
 
 // f0: Card Identifier
 //  - 0xa000000116 == GSC-IS RID
@@ -97,20 +98,45 @@ ykpiv_rc ykpiv_util_get_cardid(ykpiv_state *state, ykpiv_cardid *cardid) {
   ykpiv_rc res = YKPIV_OK;
   uint8_t buf[CB_OBJ_MAX];
   size_t len = sizeof(buf);
+  uint8_t *p_temp = NULL;
+  size_t cb_temp = 0;
+  uint8_t tag = 0;
 
   if (!cardid) return YKPIV_GENERIC_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
-  res = _ykpiv_fetch_object(state, YKPIV_OBJ_CHUID, buf, (unsigned long *)&len);
-  if (YKPIV_OK == res) {
-    if (len != sizeof(CHUID_TMPL)) {
-      res = YKPIV_GENERIC_ERROR;
+  if ((res = _ykpiv_fetch_object(state, YKPIV_OBJ_CHUID, buf, (unsigned long *)&len)) == YKPIV_OK) {
+    p_temp = buf;
+
+    while (p_temp < (buf + len)) {
+      tag = *p_temp++;
+
+      if (!_ykpiv_has_valid_length(p_temp, (buf + len - p_temp))) {
+        res = YKPIV_SIZE_ERROR;
+        goto Cleanup;
+      }
+
+      p_temp += _ykpiv_get_length(p_temp, &cb_temp);
+
+      if (tag == TAG_CHUID_UUID) {
+        /* found card uuid */
+        if (cb_temp < YKPIV_CARDID_SIZE) {
+          res = YKPIV_SIZE_ERROR;
+          goto Cleanup;
+        }
+
+        res = YKPIV_OK;
+        memcpy(cardid->data, p_temp, YKPIV_CARDID_SIZE);
+        goto Cleanup;
+      }
+
+      p_temp += cb_temp;
     }
-    else {
-      memcpy(cardid->data, buf + CHUID_GUID_OFFS, YKPIV_CARDID_SIZE);
-    }
+
+    /* not found, not malformed */
+    res = YKPIV_GENERIC_ERROR;
   }
 
 Cleanup:
