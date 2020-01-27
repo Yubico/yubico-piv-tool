@@ -97,7 +97,7 @@ static size_t _obj_size_max(ykpiv_state *state) {
 ykpiv_rc ykpiv_util_get_cardid(ykpiv_state *state, ykpiv_cardid *cardid) {
   ykpiv_rc res = YKPIV_OK;
   uint8_t buf[CB_OBJ_MAX];
-  size_t len = sizeof(buf);
+  unsigned long len = sizeof(buf);
   uint8_t *p_temp = NULL;
   size_t cb_temp = 0;
   uint8_t tag = 0;
@@ -107,7 +107,7 @@ ykpiv_rc ykpiv_util_get_cardid(ykpiv_state *state, ykpiv_cardid *cardid) {
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
-  if ((res = _ykpiv_fetch_object(state, YKPIV_OBJ_CHUID, buf, (unsigned long *)&len)) == YKPIV_OK) {
+  if ((res = _ykpiv_fetch_object(state, YKPIV_OBJ_CHUID, buf, &len)) == YKPIV_OK) {
     p_temp = buf;
 
     while (p_temp < (buf + len)) {
@@ -122,7 +122,7 @@ ykpiv_rc ykpiv_util_get_cardid(ykpiv_state *state, ykpiv_cardid *cardid) {
 
       if (tag == TAG_CHUID_UUID) {
         /* found card uuid */
-        if (cb_temp < YKPIV_CARDID_SIZE) {
+        if (cb_temp < YKPIV_CARDID_SIZE || p_temp + YKPIV_CARDID_SIZE > buf + len) {
           res = YKPIV_SIZE_ERROR;
           goto Cleanup;
         }
@@ -180,14 +180,14 @@ Cleanup:
 ykpiv_rc ykpiv_util_get_cccid(ykpiv_state *state, ykpiv_cccid *ccc) {
   ykpiv_rc res = YKPIV_OK;
   uint8_t buf[CB_OBJ_MAX];
-  size_t len = sizeof(buf);
+  unsigned long len = sizeof(buf);
 
   if (!ccc) return YKPIV_GENERIC_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
-  res = _ykpiv_fetch_object(state, YKPIV_OBJ_CAPABILITY, buf, (unsigned long *)&len);
+  res = _ykpiv_fetch_object(state, YKPIV_OBJ_CAPABILITY, buf, &len);
   if (YKPIV_OK == res) {
     if (len != sizeof(CCC_TMPL)) {
       res = YKPIV_GENERIC_ERROR;
@@ -480,7 +480,7 @@ Cleanup:
 ykpiv_rc ykpiv_util_read_mscmap(ykpiv_state *state, ykpiv_container **containers, size_t *n_containers) {
   ykpiv_rc res = YKPIV_OK;
   uint8_t buf[CB_BUF_MAX];
-  size_t cbBuf = sizeof(buf);
+  unsigned long cbBuf = sizeof(buf);
   size_t len = 0;
   uint8_t *ptr = NULL;
 
@@ -491,7 +491,7 @@ ykpiv_rc ykpiv_util_read_mscmap(ykpiv_state *state, ykpiv_container **containers
   *containers = 0;
   *n_containers = 0;
 
-  if (YKPIV_OK == (res = _ykpiv_fetch_object(state, YKPIV_OBJ_MSCMAP, buf, (unsigned long*)&cbBuf))) {
+  if (YKPIV_OK == (res = _ykpiv_fetch_object(state, YKPIV_OBJ_MSCMAP, buf, &cbBuf))) {
     ptr = buf;
 
     /* check that object contents are at least large enough to read the header */
@@ -504,7 +504,7 @@ ykpiv_rc ykpiv_util_read_mscmap(ykpiv_state *state, ykpiv_container **containers
       ptr += (unsigned long)_ykpiv_get_length(ptr, &len);
 
       /* check that decoded length represents object contents */
-      if (len > (cbBuf - (size_t)(ptr - buf))) {
+      if (len > (cbBuf - (ptr - buf))) {
         res = YKPIV_OK;
         goto Cleanup;
       }
@@ -580,7 +580,7 @@ Cleanup:
 ykpiv_rc ykpiv_util_read_msroots(ykpiv_state *state, uint8_t **data, size_t *data_len) {
   ykpiv_rc res = YKPIV_OK;
   uint8_t buf[CB_BUF_MAX];
-  size_t cbBuf = sizeof(buf);
+  unsigned long cbBuf = sizeof(buf);
   size_t len = 0;
   uint8_t *ptr = NULL;
   int object_id = 0;
@@ -606,7 +606,7 @@ ykpiv_rc ykpiv_util_read_msroots(ykpiv_state *state, uint8_t **data, size_t *dat
   for (object_id = YKPIV_OBJ_MSROOTS1; object_id <= YKPIV_OBJ_MSROOTS5; object_id++) {
     cbBuf = sizeof(buf);
 
-    if (YKPIV_OK != (res = _ykpiv_fetch_object(state, object_id, buf, (unsigned long*)&cbBuf))) {
+    if (YKPIV_OK != (res = _ykpiv_fetch_object(state, object_id, buf, &cbBuf))) {
       goto Cleanup;
     }
 
@@ -629,7 +629,7 @@ ykpiv_rc ykpiv_util_read_msroots(ykpiv_state *state, uint8_t **data, size_t *dat
     ptr += _ykpiv_get_length(ptr, &len);
 
     // check that decoded length represents object contents
-    if (len > (cbBuf - (size_t)(ptr - buf))) {
+    if (len > (cbBuf - (ptr - buf))) {
       res = YKPIV_OK;
       goto Cleanup;
     }
@@ -1392,7 +1392,7 @@ static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf
       ptr += _ykpiv_get_length(ptr, &len);
 
       // check that decoded length represents object contents
-      if (len > (*buf_len - (size_t)(ptr - buf))) {
+      if (len > (*buf_len - (ptr - buf))) {
         *buf_len = 0;
         return YKPIV_OK;
       }
@@ -1607,7 +1607,7 @@ static ykpiv_rc _set_metadata_item(uint8_t *data, size_t *pcb_data, size_t cb_da
 #pragma GCC diagnostic pop
 
       /* move remaining data */
-      memmove(p_next + cb_moved, p_next, *pcb_data - (size_t)(p_next - data));
+      memmove(p_next + cb_moved, p_next, *pcb_data - (p_next - data));
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsign-conversion"
       *pcb_data += cb_moved;
@@ -1663,7 +1663,7 @@ static ykpiv_rc _set_metadata_item(uint8_t *data, size_t *pcb_data, size_t cb_da
 static ykpiv_rc _read_metadata(ykpiv_state *state, uint8_t tag, uint8_t* data, size_t* pcb_data) {
   ykpiv_rc res = YKPIV_OK;
   uint8_t *p_temp = NULL;
-  size_t cb_temp = 0;
+  unsigned long cb_temp = 0;
   int obj_id = 0;
 
   if (!data || !pcb_data || (CB_BUF_MAX > *pcb_data)) return YKPIV_GENERIC_ERROR;
@@ -1677,7 +1677,7 @@ static ykpiv_rc _read_metadata(ykpiv_state *state, uint8_t tag, uint8_t* data, s
   cb_temp = *pcb_data;
   *pcb_data = 0;
 
-  if (YKPIV_OK != (res = _ykpiv_fetch_object(state, obj_id, data, (unsigned long*)&cb_temp))) {
+  if (YKPIV_OK != (res = _ykpiv_fetch_object(state, obj_id, data, &cb_temp))) {
     return res;
   }
 
@@ -1689,7 +1689,7 @@ static ykpiv_rc _read_metadata(ykpiv_state *state, uint8_t tag, uint8_t* data, s
 
   p_temp += _ykpiv_get_length(p_temp, pcb_data);
 
-  if (*pcb_data > (cb_temp - (size_t)(p_temp - data))) {
+  if (*pcb_data > (cb_temp - (p_temp - data))) {
     *pcb_data = 0;
     return YKPIV_GENERIC_ERROR;
   }
@@ -1735,7 +1735,7 @@ static ykpiv_rc _write_metadata(ykpiv_state *state, uint8_t tag, uint8_t *data, 
     memcpy(pTemp, data, cb_data);
     pTemp += cb_data;
 
-    res = _ykpiv_save_object(state, obj_id, buf, (size_t)(pTemp - buf));
+    res = _ykpiv_save_object(state, obj_id, buf, pTemp - buf);
   }
 
   return res;
