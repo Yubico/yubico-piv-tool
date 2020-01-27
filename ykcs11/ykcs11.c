@@ -945,6 +945,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
           } else {
             DBG("Failed to parse metadata for slot %lx: %s", slot, ykpiv_strerror(rc));
           }
+        } else {
+          DBG("Failed to read metadata for slot %lx: %s", slot, ykpiv_strerror(rc));
         }
       }
       unsigned long ulen = sizeof(data);
