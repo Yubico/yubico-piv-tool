@@ -48,7 +48,7 @@ infrastructure.
    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ----
 
-=== Building on POSIX
+=== Building on POSIX platforms
 Either clone from Git or download and unpackage the tarball, then make 
 sure you have the pre-requisites installed and build following the 
 steps below. 
@@ -75,8 +75,8 @@ running pkg-config.
 
   $ PKG_CONFIG_PATH="/usr/local/opt/openssl@1.1/lib/pkgconfig" ./configure
 
-Don't forget you might need to be root for the last command. You might
-also need to update your linked libraries, by running
+Don't forget you might need to be root for the last command. On Linux 
+it might be needed to update your linked libraries after install
 
   sudo ldconfig
 
