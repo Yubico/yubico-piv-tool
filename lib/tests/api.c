@@ -743,6 +743,8 @@ START_TEST(test_reset) {
   ykpiv_rc res;
   int tries = 100;
   int tries_until_blocked;
+  ykpiv_devmodel model;
+  model = ykpiv_util_devicemodel(g_state);
 
   // Block and reset, with default PIN retries
   tries_until_blocked = block_and_reset();
@@ -794,7 +796,11 @@ START_TEST(test_reset) {
   tries = 0;
   res = ykpiv_get_pin_retries(g_state, &tries);
   ck_assert_int_eq(res, YKPIV_OK);
-  ck_assert_int_eq(tries, 3);
+  if(model == DEVTYPE_NEO || model == DEVTYPE_NEOr3) {
+    ck_assert_int_eq(tries, 0);
+  } else {
+    ck_assert_int_eq(tries, 3);
+  }
 }
 END_TEST
 

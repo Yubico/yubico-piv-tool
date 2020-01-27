@@ -56,6 +56,8 @@ CK_FUNCTION_LIST_PTR funcs;
 
 #define asrt(c, e, m) _asrt(__FILE__, __LINE__, c, e, m);
 
+CK_BBOOL is_neo = CK_FALSE;
+
 static void _asrt(const char *file, int line, CK_ULONG check, CK_ULONG expected, const char *msg) {
 
   if (check == expected)
@@ -118,6 +120,7 @@ static int test_token_info() {
   const CK_CHAR_PTR TOKEN_MODEL  = "YubiKey ";  // Skip last 3 characters (version dependent)
   const CK_CHAR_PTR TOKEN_MODEL_YK4  = "YubiKey YK4";
   const CK_CHAR_PTR TOKEN_MODEL_YK5  = "YubiKey YK5";
+  const CK_CHAR_PTR TOKEN_MODEL_NEO  = "YubiKey NEO";
   //const CK_CHAR_PTR TOKEN_SERIAL = "1234";
   const CK_FLAGS TOKEN_FLAGS = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
   const CK_VERSION HW = {1, 0};
@@ -143,17 +146,19 @@ static int test_token_info() {
   asrt(info.ulFreePrivateMemory, -1, "FREE_PVT_MEM");
 
   if (strncmp(info.model, TOKEN_MODEL_YK4, strlen(TOKEN_MODEL_YK4)) != 0 &&
-      strncmp(info.model, TOKEN_MODEL_YK5, strlen(TOKEN_MODEL_YK5)) != 0) {
-    dprintf(0, "\n\n** WARNING: Only YK04 and YK05 supported. Skipping remaining tests.\n\n");
+      strncmp(info.model, TOKEN_MODEL_YK5, strlen(TOKEN_MODEL_YK5)) != 0 && 
+      strncmp(info.model, TOKEN_MODEL_NEO, strlen(TOKEN_MODEL_NEO)) != 0) {
+    dprintf(0, "\n\n** WARNING: Only YKNEO, YK04 and YK05 supported. Skipping remaining tests.\n\n");
     return -1;
   }
 
+  if(strncmp(info.model, TOKEN_MODEL_NEO, strlen(TOKEN_MODEL_NEO)) == 0) {
+    is_neo = CK_TRUE;
+  } 
+
   asrt(info.hardwareVersion.major, HW.major, "HW_MAJ");
   asrt(info.hardwareVersion.minor, HW.minor, "HW_MIN");
-
-  if (info.firmwareVersion.major != 4 && info.firmwareVersion.major != 5)
-    asrt(info.firmwareVersion.major, 4, "FW_MAJ");
-
+  
   asrt(strncmp(info.utcTime, TOKEN_TIME, sizeof(info.utcTime)), 0, "TOKEN_TIME");
 
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
@@ -407,17 +412,17 @@ static void test_login_order() {
   dprintf(0, "TEST END: test_login_order()\n");
 }
 
-static void test_generate_eccp(CK_BYTE* key_params, CK_ULONG key_params_len) {
+static void test_generate_eccp(CK_BYTE* key_params, CK_ULONG key_params_len, CK_BYTE n_keys) {
   CK_OBJECT_HANDLE obj_pvtkey[N_ALL_KEYS], obj_pubkey[N_ALL_KEYS];
   CK_SESSION_HANDLE session;
 
   init_connection();
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
 
-  generate_ec_keys(funcs, session, N_ALL_KEYS, key_params, key_params_len, obj_pubkey, obj_pvtkey);
-  test_ec_sign_simple(funcs, session, obj_pvtkey, N_ALL_KEYS, NULL, 0);
+  generate_ec_keys(funcs, session, n_keys, key_params, key_params_len, obj_pubkey, obj_pvtkey);
+  test_ec_sign_simple(funcs, session, obj_pvtkey, n_keys, NULL, 0);
 
-  destroy_test_objects(funcs, session, obj_pvtkey, N_ALL_KEYS);
+  destroy_test_objects(funcs, session, obj_pvtkey, n_keys);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
 }
@@ -425,14 +430,20 @@ static void test_generate_eccp(CK_BYTE* key_params, CK_ULONG key_params_len) {
 static void test_generate_eccp256() {
   dprintf(0, "TEST START: test_generate_eccp256()\n");
   CK_BYTE     params[] = {0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07};
-  test_generate_eccp(params, sizeof(params));
+  if(is_neo) {
+    test_generate_eccp(params, sizeof(params), N_SELECTED_KEYS);
+  } else {
+    test_generate_eccp(params, sizeof(params), N_ALL_KEYS);
+  }
   dprintf(0, "TEST END: test_generate_eccp256()\n");
 }
 
 static void test_generate_eccp384() {
   dprintf(0, "TEST START: test_generate_eccp384()\n");
   CK_BYTE     params[] = {0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x22};
-  test_generate_eccp(params, sizeof(params));
+  if(!is_neo) {
+    test_generate_eccp(params, sizeof(params), N_ALL_KEYS);
+  }
   dprintf(0, "TEST END: test_generate_eccp384()\n");
 }
 
@@ -470,29 +481,36 @@ static void test_sign_eccp256() {
 static void test_sign_eccp384() {
   dprintf(0, "TEST START: test_sign_eccp384()\n");
   CK_BYTE     params[] = {0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x22};
-  test_sign_eccp(params, sizeof(params), 48, NID_secp384r1);
+  if(!is_neo) {
+    test_sign_eccp(params, sizeof(params), 48, NID_secp384r1);
+  }
   dprintf(0, "TEST END: test_sign_eccp384()\n");
 }
 
-static void test_generate_rsa(CK_ULONG key_size) {
+static void test_generate_rsa(CK_ULONG key_size, CK_BYTE n_keys) {
   CK_OBJECT_HANDLE obj_pvtkey[N_ALL_KEYS], obj_pubkey[N_ALL_KEYS];
   CK_SESSION_HANDLE session;
 
   init_connection();
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
 
-  generate_rsa_keys(funcs, session, key_size, N_ALL_KEYS, obj_pubkey, obj_pvtkey);
-  test_rsa_sign_simple(funcs, session, obj_pvtkey, N_ALL_KEYS, NULL);
+  generate_rsa_keys(funcs, session, key_size, n_keys, obj_pubkey, obj_pvtkey);
+  test_rsa_sign_simple(funcs, session, obj_pvtkey, n_keys, NULL);
 
-  destroy_test_objects(funcs, session, obj_pvtkey, N_ALL_KEYS);
+  destroy_test_objects(funcs, session, obj_pvtkey, n_keys);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
 }
 
 static void test_generate_rsakeys() {
   dprintf(0, "TEST START: test_generate_rsakeys()\n");
-  test_generate_rsa(1024);
-  test_generate_rsa(2048);
+  if(is_neo) {
+    test_generate_rsa(1024, N_SELECTED_KEYS);
+    test_generate_rsa(2048, N_SELECTED_KEYS);
+  } else {
+    test_generate_rsa(1024, N_ALL_KEYS);
+    test_generate_rsa(2048, N_ALL_KEYS);
+  }
   dprintf(0, "TEST END: test_generate_rsakeys()\n");
 }
 
@@ -508,16 +526,18 @@ static void test_key_attributes() {
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
 
   generate_ec_keys(funcs, session, 1, params_eccp256, sizeof(params_eccp256), &pubkey, &privkey);
-  test_pubkey_attributes_ec(funcs, session, pubkey, 256, "Public key for PIV Authentication", 67, params_eccp256, sizeof(params_eccp256));
-  test_privkey_attributes_ec(funcs, session, privkey, 256, "Private key for PIV Authentication", 67, params_eccp256, sizeof(params_eccp256), CK_FALSE);
-
-  generate_ec_keys(funcs, session, 1, params_eccp384, sizeof(params_eccp384), &pubkey, &privkey);
-  test_pubkey_attributes_ec(funcs, session, pubkey, 384, "Public key for PIV Authentication", 99, params_eccp384, sizeof(params_eccp384));
-  test_privkey_attributes_ec(funcs, session, privkey, 384, "Private key for PIV Authentication", 99, params_eccp384, sizeof(params_eccp384), CK_FALSE);
-
+  test_pubkey_attributes_ec(funcs, session, pubkey, 256, "Public key for PIV Authentication", 67, params_eccp256, sizeof(params_eccp256), is_neo);
+  test_privkey_attributes_ec(funcs, session, privkey, 256, "Private key for PIV Authentication", 67, params_eccp256, sizeof(params_eccp256), CK_FALSE, is_neo);
+  
+  if(!is_neo) {
+    generate_ec_keys(funcs, session, 1, params_eccp384, sizeof(params_eccp384), &pubkey, &privkey);
+    test_pubkey_attributes_ec(funcs, session, pubkey, 384, "Public key for PIV Authentication", 99, params_eccp384, sizeof(params_eccp384), 0);
+    test_privkey_attributes_ec(funcs, session, privkey, 384, "Private key for PIV Authentication", 99, params_eccp384, sizeof(params_eccp384), CK_FALSE, CK_FALSE);
+  }
+  
   generate_rsa_keys(funcs, session, 1024, 1, &pubkey, &privkey);
-  test_pubkey_attributes_rsa(funcs, session, pubkey, 1024, "Public key for PIV Authentication", 128, e, sizeof(e));
-  test_privkey_attributes_rsa(funcs, session, privkey, 1024, "Private key for PIV Authentication", 128, e, sizeof(e), CK_FALSE);
+  test_pubkey_attributes_rsa(funcs, session, pubkey, 1024, "Public key for PIV Authentication", 128, e, sizeof(e), is_neo);
+  test_privkey_attributes_rsa(funcs, session, privkey, 1024, "Private key for PIV Authentication", 128, e, sizeof(e), CK_FALSE, is_neo);
 
   destroy_test_objects(funcs, session, &privkey, 1);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
@@ -558,10 +578,14 @@ static void test_find_objects() {
   asrt(funcs->C_GetAttributeValue(session, privkey, idTemplate, 1), CKR_OK, "GET CKA_ID");
   asrt(funcs->C_FindObjectsInit(session, idTemplate, 1), CKR_OK, "FIND INIT");
   asrt(funcs->C_FindObjects(session, found_obj, 10, &n_found_obj), CKR_OK, "FIND");
-  asrt(n_found_obj, 5, "N FOUND OBJS");
+  if(is_neo) {
+    asrt(n_found_obj, 4, "N FOUND OBJS");
+  } else {
+    asrt(n_found_obj, 5, "N FOUND OBJS");
+  }
   asrt(funcs->C_FindObjectsFinal(session), CKR_OK, "FIND FINAL");
 
-  for(i=0; i<5; i++) {
+  for(i=0; i<n_found_obj; i++) {
     asrt(funcs->C_GetAttributeValue(session, found_obj[i], classTemplate, 1), CKR_OK, "GET CKA_CLASS");
     if(object_class == CKO_PRIVATE_KEY) {
       n_privkey_obj++;
@@ -577,14 +601,24 @@ static void test_find_objects() {
   }
   asrt(n_privkey_obj, 1, "NO PRIVATE KEY");
   asrt(n_pubkey_obj, 1, "NO PUBLIC KEY");
-  asrt(n_cert_obj, 2, "NUMBER OF CERTIFICATES");
   asrt(n_data_obj, 1, "NO DATA");
+  if(is_neo) {
+    asrt(n_cert_obj, 1, "NUMBER OF CERTIFICATES");
+  } else {
+    asrt(n_cert_obj, 2, "NUMBER OF CERTIFICATES");
+  }
 
   test_find_objects_by_class(funcs, session, CKO_PRIVATE_KEY, ckaid, 1, 86);
   test_find_objects_by_class(funcs, session, CKO_PUBLIC_KEY, ckaid, 1, 111);
   test_find_objects_by_class(funcs, session, CKO_DATA, ckaid, 1, 0);
-  test_find_objects_by_class(funcs, session, CKO_CERTIFICATE, ckaid, 2, 37);
-  test_find_objects_by_class(funcs, session, CKO_CERTIFICATE, ckaid, 2, 62);
+  if(is_neo) {
+    test_find_objects_by_class(funcs, session, CKO_CERTIFICATE, ckaid, 1, 37);
+  } else {
+    test_find_objects_by_class(funcs, session, CKO_CERTIFICATE, ckaid, 2, 37);
+  }
+  if(!is_neo) {
+    test_find_objects_by_class(funcs, session, CKO_CERTIFICATE, ckaid, 2, 62);
+  }
 
   asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
 
@@ -616,7 +650,7 @@ static CK_OBJECT_HANDLE get_public_key_handle(CK_SESSION_HANDLE session, CK_OBJE
   return found_obj[0];
 }
 
-static void test_import_eccp(CK_BYTE* key_params, CK_ULONG key_params_len, CK_ULONG key_len, int curve) {
+static void test_import_eccp(CK_BYTE* key_params, CK_ULONG key_params_len, CK_ULONG key_len, int curve, CK_BYTE n_keys) {
   EC_KEY            *eck;
   CK_OBJECT_HANDLE  obj_cert[N_ALL_KEYS], obj_pvtkey[N_ALL_KEYS];
   CK_SESSION_HANDLE session;
@@ -624,13 +658,13 @@ static void test_import_eccp(CK_BYTE* key_params, CK_ULONG key_params_len, CK_UL
   init_connection();
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
 
-  eck = import_ec_key(funcs, session, N_ALL_KEYS, curve, key_len, key_params, key_params_len, obj_cert, obj_pvtkey);
+  eck = import_ec_key(funcs, session, n_keys, curve, key_len, key_params, key_params_len, obj_cert, obj_pvtkey);
   if (eck == NULL)
     exit(EXIT_FAILURE);
 
-  test_ec_sign_simple(funcs, session, obj_pvtkey, N_ALL_KEYS, eck, key_len);
+  test_ec_sign_simple(funcs, session, obj_pvtkey, n_keys, eck, key_len);
 
-  destroy_test_objects(funcs, session, obj_cert, N_ALL_KEYS);
+  destroy_test_objects(funcs, session, obj_cert, n_keys);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
 }
@@ -638,18 +672,24 @@ static void test_import_eccp(CK_BYTE* key_params, CK_ULONG key_params_len, CK_UL
 static void test_import_eccp256() {
   dprintf(0, "TEST START: test_import_eccp256()\n");
   CK_BYTE           params[] = {0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07};
-  test_import_eccp(params, sizeof(params), 32, NID_X9_62_prime256v1);
+  if(is_neo) {
+    test_import_eccp(params, sizeof(params), 32, NID_X9_62_prime256v1, N_SELECTED_KEYS);  
+  } else {
+    test_import_eccp(params, sizeof(params), 32, NID_X9_62_prime256v1, N_ALL_KEYS);
+  }
   dprintf(0, "TEST END: test_import_eccp256()\n");
 }
 
 static void test_import_eccp384() {
   dprintf(0, "TEST START: test_import_eccp384()\n");
   CK_BYTE           params[] = {0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x22};
-  test_import_eccp(params, sizeof(params), 48, NID_secp384r1);
+  if(!is_neo) {
+    test_import_eccp(params, sizeof(params), 48, NID_secp384r1, N_ALL_KEYS);
+  }
   dprintf(0, "TEST END: test_import_eccp384()\n");
 }
 
-static void test_import_rsa(CK_ULONG key_size) {
+static void test_import_rsa(CK_ULONG key_size, CK_BYTE n_keys) {
   EVP_PKEY    *evp = EVP_PKEY_new();
   RSA         *rsak = RSA_new();
   CK_OBJECT_HANDLE obj_cert[N_ALL_KEYS], obj_pvtkey[N_ALL_KEYS];
@@ -658,13 +698,13 @@ static void test_import_rsa(CK_ULONG key_size) {
   init_connection();
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
 
-  import_rsa_key(funcs, session, key_size, evp, rsak, N_ALL_KEYS, obj_cert, obj_pvtkey);
+  import_rsa_key(funcs, session, key_size, evp, rsak, n_keys, obj_cert, obj_pvtkey);
   if (evp == NULL || rsak == NULL)
     exit(EXIT_FAILURE);
 
-  test_rsa_sign_simple(funcs, session, obj_pvtkey, N_ALL_KEYS, evp);
+  test_rsa_sign_simple(funcs, session, obj_pvtkey, n_keys, evp);
 
-  destroy_test_objects(funcs, session, obj_cert, N_ALL_KEYS);
+  destroy_test_objects(funcs, session, obj_cert, n_keys);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
 
@@ -672,8 +712,13 @@ static void test_import_rsa(CK_ULONG key_size) {
 
 static void test_import_rsakeys() {
   dprintf(0, "TEST START: test_import_rsakeys()\n");
-  test_import_rsa(1024);
-  test_import_rsa(2048);
+  if(is_neo) {
+    test_import_rsa(1024, N_SELECTED_KEYS);
+    test_import_rsa(2048, N_SELECTED_KEYS);
+  } else {
+    test_import_rsa(1024, N_ALL_KEYS);
+    test_import_rsa(2048, N_ALL_KEYS);
+  }
 dprintf(0, "TEST END: test_import_rsakeys()\n");
 }
 
@@ -803,7 +848,7 @@ int main(void) {
     exit(77); // exit code 77 == skipped tests
 
   test_initalize();
-  // Require YK4 to continue.  Skip if different model found.
+  // Require YK4, YK5 or NEO to continue.  Skip if different model found.
   if (test_token_info() != 0) {
     exit(77);
   }
