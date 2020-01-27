@@ -1019,7 +1019,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
 
   if (session == NULL || session->slot == NULL) {
     DBG("Trying to close a session, but there is no existing one");
-    locking.pfnUnlockMutex(global_mutex);
     rv = CKR_SESSION_HANDLE_INVALID;
     goto closesession_out;
   }
