@@ -35,7 +35,7 @@
 #include "token.h"
 
 CK_BBOOL is_yubico_reader(const char* reader_name);
-size_t memstrcpy(void *dst, size_t size, const char *src);
+size_t memstrcpy(unsigned char *dst, size_t size, const char *src);
 
 CK_RV noop_create_mutex(void **mutex);
 CK_RV noop_destroy_mutex(void *mutex);
