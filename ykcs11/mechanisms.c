@@ -792,6 +792,7 @@ CK_RV decrypt_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_M
   session->op_info.mechanism = mech->mechanism;
   session->op_info.op.encrypt.algorithm = do_get_key_algorithm(key);
   session->op_info.op.encrypt.key = key;
+  session->op_info.op.encrypt.oaep_label = NULL;
 
   switch (session->op_info.mechanism) {
   case CKM_RSA_X_509:

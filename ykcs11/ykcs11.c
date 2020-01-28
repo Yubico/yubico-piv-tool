@@ -1989,7 +1989,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptInit)(
     goto encinit_out;
   }
 
-  session->op_info.op.encrypt.piv_key = piv_2_ykpiv(hKey);
+  session->op_info.op.encrypt.piv_key = piv_2_ykpiv(find_pvtk_object(id));
 
   rv = decrypt_mechanism_init(session, session->slot->pkeys[id], pMechanism);
   if(rv != CKR_OK) {
