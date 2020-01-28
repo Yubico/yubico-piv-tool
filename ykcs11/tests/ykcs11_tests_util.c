@@ -599,7 +599,7 @@ void test_ec_sign_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
   CK_BYTE     data[32];
   CK_ULONG    data_len;
   CK_BYTE     sig[256];
-  CK_ULONG    recv_len;
+  CK_ULONG    sig_len;
 
   CK_BYTE     der_encoded[116];
 
@@ -614,8 +614,8 @@ void test_ec_sign_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
 
     asrt(funcs->C_SignInit(session, &mech, obj_pvtkey[i]), CKR_OK, "SignInit");
     asrt(funcs->C_Login(session, CKU_CONTEXT_SPECIFIC, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Re-Login USER");
-    recv_len = sizeof(sig);
-    asrt(funcs->C_Sign(session, data, sizeof(data), sig, &recv_len), CKR_OK, "Sign");
+    sig_len = sizeof(sig);
+    asrt(funcs->C_Sign(session, data, sizeof(data), sig, &sig_len), CKR_OK, "Sign");
 
     if(eck != NULL) {
       // External verification
@@ -624,7 +624,7 @@ void test_ec_sign_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
     } else {
       // Internal verification
       asrt(funcs->C_VerifyInit(session, &mech, get_public_key_handle(funcs, session, obj_pvtkey[i])), CKR_OK, "VerifyInit");
-      asrt(funcs->C_Verify(session, data, sizeof(data), sig, recv_len), CKR_OK, "Verify");
+      asrt(funcs->C_Verify(session, data, sizeof(data), sig, sig_len), CKR_OK, "Verify");
     }
   }
   asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");  
@@ -633,15 +633,13 @@ void test_ec_sign_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
 void test_ec_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
                            CK_MECHANISM_TYPE mech_type, EC_KEY *eck, CK_ULONG key_len) {
                     
-  CK_BYTE     i, j;
-  CK_BYTE     data[32];
-  CK_ULONG    data_len;
-  CK_BYTE     hdata[64];
-  unsigned int    hdata_len;  
-  CK_BYTE     sig[256];
-  CK_ULONG    sig_len;
-  CK_BYTE     sig_update[256];
-  CK_ULONG    sig_update_len;
+  CK_BYTE       i, j;
+  CK_BYTE       data[32];
+  CK_ULONG      data_len;
+  CK_BYTE       hdata[64];
+  unsigned int  hdata_len;  
+  CK_BYTE*      sig;
+  CK_ULONG      sig_len;
 
   CK_BYTE     der_encoded[116];
   const EVP_MD *md;
@@ -662,7 +660,9 @@ void test_ec_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session
       // Sign
       asrt(funcs->C_SignInit(session, &mech, obj_pvtkey[i]), CKR_OK, "SignInit");
       asrt(funcs->C_Login(session, CKU_CONTEXT_SPECIFIC, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Re-Login USER");
-      sig_len = sizeof(sig);
+      sig_len = 0;
+      asrt(funcs->C_Sign(session, data, sizeof(data), NULL, &sig_len), CKR_OK, "Sign");
+      sig = malloc(sig_len);
       asrt(funcs->C_Sign(session, data, sizeof(data), sig, &sig_len), CKR_OK, "Sign");
       //Verify
       asrt(funcs->C_VerifyInit(session, &mech, obj_pubkey), CKR_OK, "VerifyInit");
@@ -688,6 +688,7 @@ void test_ec_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session
 
         asrt(ECDSA_verify(0, hdata, hdata_len, der_encoded, der_encoded[1] + 2, eck), 1, "ECDSA VERIFICATION");
       }
+      free(sig);
     }
   }
   asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");  
@@ -695,12 +696,10 @@ void test_ec_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session
 
 void test_rsa_sign_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
                           CK_BYTE n_keys, EVP_PKEY* evp) {
-  CK_BYTE     i, j;
+  CK_BYTE     i;
   CK_BYTE     data[32];
   CK_BYTE     sig[256];
-  CK_BYTE     sig_update[256];
   CK_ULONG    sig_len;
-  CK_ULONG    sig_update_len;
   EVP_PKEY_CTX *ctx = NULL;
 
   CK_BYTE     hdata[512];
@@ -744,8 +743,8 @@ void test_rsa_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE sessio
                             CK_BYTE n_keys, EVP_PKEY* evp, CK_MECHANISM_TYPE mech_type) {
   CK_BYTE     i, j;
   CK_BYTE     data[32];
-  CK_BYTE     sig[256];
-  CK_BYTE     sig_update[256];
+  CK_BYTE*    sig;
+  CK_BYTE*    sig_update;
   CK_ULONG    sig_len;
   CK_ULONG    sig_update_len;
   EVP_PKEY_CTX *ctx = NULL;
@@ -768,7 +767,9 @@ void test_rsa_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE sessio
       // Sign
       asrt(funcs->C_SignInit(session, &mech, obj_pvtkey[i]), CKR_OK, "SIGN INIT");
       asrt(funcs->C_Login(session, CKU_CONTEXT_SPECIFIC, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Re-Login USER");
-      sig_len = sizeof(sig);
+      sig_len = 0;
+      asrt(funcs->C_Sign(session, data, sizeof(data), NULL, &sig_len), CKR_OK, "SIGN");
+      sig = malloc(sig_len);
       asrt(funcs->C_Sign(session, data, sizeof(data), sig, &sig_len), CKR_OK, "SIGN");
 
       // External verification
@@ -788,12 +789,14 @@ void test_rsa_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE sessio
       // Sign Update
       asrt(funcs->C_SignInit(session, &mech, obj_pvtkey[i]), CKR_OK, "SIGN INIT");
       asrt(funcs->C_Login(session, CKU_CONTEXT_SPECIFIC, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Re-Login USER");
-      sig_update_len = sizeof(sig_update);
+      sig_update_len = 0;
       asrt(funcs->C_SignUpdate(session, data, 16), CKR_OK, "SIGN UPDATE 1");
       asrt(funcs->C_SignUpdate(session, data + 16, 10), CKR_OK, "SIGN UPDATE 2");
       asrt(funcs->C_SignUpdate(session, data + 26, 6), CKR_OK, "SIGN UPDATE 3");
-      asrt(funcs->C_SignFinal(session, sig_update, &sig_update_len), CKR_OK, "SIGN FINAL");
+      asrt(funcs->C_SignFinal(session, NULL, &sig_update_len), CKR_OK, "SIGN FINAL");
       asrt(sig_update_len, sig_len, "SIGNATURE LENGTH");
+      sig_update = malloc(sig_update_len);
+      asrt(funcs->C_SignFinal(session, sig_update, &sig_update_len), CKR_OK, "SIGN FINAL");
       // Compare signatures
       asrt(memcmp(sig, sig_update, sig_len), 0, "SIGNATURE");
 
@@ -801,7 +804,10 @@ void test_rsa_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE sessio
       asrt(funcs->C_VerifyInit(session, &mech, obj_pubkey), CKR_OK, "VERIFY INIT");
       asrt(funcs->C_VerifyUpdate(session, data, 10), CKR_OK, "VERIFY UPDATE 1");
       asrt(funcs->C_VerifyUpdate(session, data+10, 22), CKR_OK, "VERIFY UPDATE 2");
-      asrt(funcs->C_VerifyFinal(session, sig_update, sig_update_len), CKR_OK, "VERIFY FINAL");     
+      asrt(funcs->C_VerifyFinal(session, sig_update, sig_update_len), CKR_OK, "VERIFY FINAL");
+
+      free(sig);
+      free(sig_update);
     }
   }
 
@@ -812,8 +818,8 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
                        CK_BYTE n_keys, RSA* rsak, CK_MECHANISM_TYPE mech_type) {
   CK_BYTE     i, j;
   CK_BYTE*    data;
-  CK_BYTE     sig[256];
-  CK_BYTE     sig_update[256];
+  CK_BYTE*    sig;
+  CK_BYTE*    sig_update;
   CK_ULONG    sig_len;
   CK_ULONG    sig_update_len;
 
@@ -841,7 +847,9 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
       // Sign
       asrt(funcs->C_SignInit(session, &mech, obj_pvtkey[i]), CKR_OK, "SIGN INIT");
       asrt(funcs->C_Login(session, CKU_CONTEXT_SPECIFIC, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Re-Login USER");
-      sig_len = sizeof(sig);
+      sig_len = 0;
+      asrt(funcs->C_Sign(session, data, pss_params.sLen, NULL, &sig_len), CKR_OK, "SIGN");
+      sig = malloc(sig_len);
       asrt(funcs->C_Sign(session, data, pss_params.sLen, sig, &sig_len), CKR_OK, "SIGN");
 
       // External verification
@@ -869,11 +877,13 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
       // Sign Update
       asrt(funcs->C_SignInit(session, &mech, obj_pvtkey[i]), CKR_OK, "SIGN INIT");
       asrt(funcs->C_Login(session, CKU_CONTEXT_SPECIFIC, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Re-Login USER");
-      sig_update_len = sizeof(sig_update);
+      sig_update_len = 0;
       asrt(funcs->C_SignUpdate(session, data, 10), CKR_OK, "SIGN UPDATE 1");
       asrt(funcs->C_SignUpdate(session, data + 10, pss_params.sLen - 10), CKR_OK, "SIGN UPDATE 2");
-      asrt(funcs->C_SignFinal(session, sig_update, &sig_update_len), CKR_OK, "SIGN FINAL");
+      asrt(funcs->C_SignFinal(session, NULL, &sig_update_len), CKR_OK, "SIGN FINAL");
       asrt(sig_update_len, sig_len, "SIGNATURE LENGTH");
+      sig_update = malloc(sig_update_len);
+      asrt(funcs->C_SignFinal(session, sig_update, &sig_update_len), CKR_OK, "SIGN FINAL");
 
 
       // External verification
@@ -900,6 +910,8 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
       asrt(funcs->C_VerifyUpdate(session, data+5, pss_params.sLen-5), CKR_OK, "VERIFY UPDATE 2");
       asrt(funcs->C_VerifyFinal(session, sig_update, sig_update_len), CKR_OK, "VERIFY FINAL");     
     
+      free(sig);
+      free(sig_update);
     }
   }
   free(data);
@@ -929,7 +941,7 @@ void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   int       data_len, enc_len;
   CK_BYTE*  data;
   CK_BYTE   enc[512];
-  CK_BYTE   dec[512];
+  CK_BYTE*  dec;
   CK_ULONG  dec_len;
 
   if(padding == RSA_NO_PADDING) {
@@ -957,10 +969,13 @@ void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
       // Decrypt
       asrt(funcs->C_DecryptInit(session, &mech, obj_pvtkey[i]), CKR_OK, "DECRYPT INIT");
       asrt(funcs->C_Login(session, CKU_CONTEXT_SPECIFIC, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Re-Login USER");
-      dec_len = sizeof(dec);
+      dec_len = 0;
+      asrt(funcs->C_Decrypt(session, enc, enc_len, NULL, &dec_len), CKR_OK, "DECRYPT");
+      dec = malloc(dec_len);
       asrt(funcs->C_Decrypt(session, enc, enc_len, dec, &dec_len), CKR_OK, "DECRYPT");
       asrt(dec_len, data_len, "DECRYPTED DATA LEN");
       asrt(memcmp(data, dec, dec_len), 0, "DECRYPTED DATA");
+      free(dec);
 
       // Decrypt Update
       asrt(funcs->C_DecryptInit(session, &mech, obj_pvtkey[i]), CKR_OK, "DECRYPT INIT");
@@ -971,10 +986,13 @@ void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
       asrt(funcs->C_DecryptUpdate(session, enc+100, 8, dec, &dec_len), CKR_OK, "DECRYPT UPDATE");
       dec_len = sizeof(dec);
       asrt(funcs->C_DecryptUpdate(session, enc+108, 20, dec, &dec_len), CKR_OK, "DECRYPT UPDATE");
-      dec_len = sizeof(dec);
+      dec_len = 0;
+      asrt(funcs->C_DecryptFinal(session, NULL, &dec_len), CKR_OK, "DECRYPT FINAL");
+      dec = malloc(dec_len);
       asrt(funcs->C_DecryptFinal(session, dec, &dec_len), CKR_OK, "DECRYPT FINAL");
       asrt(dec_len, data_len, "DECRYPTED DATA LEN");
       asrt(memcmp(data, dec, dec_len), 0, "DECRYPTED DATA");
+      free(dec);
     }
   }
   free(data);
@@ -1045,7 +1063,7 @@ void test_rsa_encrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   CK_ULONG  i,j;
   CK_BYTE   data[32];
   CK_ULONG  data_len = sizeof(data);
-  CK_BYTE   enc[512];
+  CK_BYTE   enc[128];
   CK_ULONG  enc_len;
   CK_BYTE   dec[512];
   CK_ULONG  dec_len;
@@ -1065,9 +1083,10 @@ void test_rsa_encrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
 
       // Encrypt
       asrt(funcs->C_EncryptInit(session, &mech, pubkey), CKR_OK, "ENCRYPT INIT CKM_RSA_PKCS");
-      enc_len = sizeof(enc);
-      asrt(funcs->C_Encrypt(session, data, data_len, enc, &enc_len), CKR_OK, "ENCRYPT CKM_RSA_PKCS");
+      enc_len = 0;
+      asrt(funcs->C_Encrypt(session, data, data_len, NULL, &enc_len), CKR_OK, "ENCRYPT CKM_RSA_PKCS");
       asrt(enc_len, 128, "ENCRYPTED DATA LEN");
+      asrt(funcs->C_Encrypt(session, data, data_len, enc, &enc_len), CKR_OK, "ENCRYPT CKM_RSA_PKCS");
 
       dec_len = RSA_private_decrypt(enc_len, enc, dec, rsak, padding);
       if(padding == RSA_NO_PADDING) {
@@ -1084,9 +1103,10 @@ void test_rsa_encrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
       asrt(funcs->C_EncryptUpdate(session, data, 10, enc, &enc_len), CKR_OK, "ENCRYPT UPDATE CKM_RSA_PKCS");
       enc_len = sizeof(enc);
       asrt(funcs->C_EncryptUpdate(session, data+10, 22, enc, &enc_len), CKR_OK, "ENCRYPT UPDATE CKM_RSA_PKCS");
-      enc_len = sizeof(enc);
-      asrt(funcs->C_EncryptFinal(session, enc, &enc_len), CKR_OK, "ENCRYPT FINAL CKM_RSA_PKCS");
+      enc_len = 0;
+      asrt(funcs->C_EncryptFinal(session, NULL, &enc_len), CKR_OK, "ENCRYPT FINAL CKM_RSA_PKCS");
       asrt(enc_len, 128, "ENCRYPTED DATA LEN");
+      asrt(funcs->C_EncryptFinal(session, enc, &enc_len), CKR_OK, "ENCRYPT FINAL CKM_RSA_PKCS");
 
       dec_len = RSA_private_decrypt(enc_len, enc, dec, rsak, padding);
       if(padding == RSA_NO_PADDING) {

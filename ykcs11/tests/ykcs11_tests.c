@@ -771,9 +771,9 @@ static void test_decrypt_RSA() {
   if (evp == NULL ||  rsak == NULL)
     exit(EXIT_FAILURE);
 
-  //test_rsa_decrypt(funcs, session, obj_pvtkey, N_SELECTED_KEYS, rsak, CKM_RSA_PKCS, RSA_PKCS1_PADDING);
-  //test_rsa_decrypt(funcs, session, obj_pvtkey, N_SELECTED_KEYS, rsak, CKM_RSA_X_509, RSA_NO_PADDING);
-  //test_rsa_decrypt(funcs, session, obj_pvtkey, N_SELECTED_KEYS, rsak, CKM_RSA_PKCS_OAEP, RSA_PKCS1_OAEP_PADDING);
+  test_rsa_decrypt(funcs, session, obj_pvtkey, N_SELECTED_KEYS, rsak, CKM_RSA_PKCS, RSA_PKCS1_PADDING);
+  test_rsa_decrypt(funcs, session, obj_pvtkey, N_SELECTED_KEYS, rsak, CKM_RSA_X_509, RSA_NO_PADDING);
+  test_rsa_decrypt(funcs, session, obj_pvtkey, N_SELECTED_KEYS, rsak, CKM_RSA_PKCS_OAEP, RSA_PKCS1_OAEP_PADDING);
 
   test_rsa_decrypt_oaep(funcs, session, obj_pvtkey, N_SELECTED_KEYS, CKM_SHA_1, rsak);
   test_rsa_decrypt_oaep(funcs, session, obj_pvtkey, N_SELECTED_KEYS, CKM_SHA256, rsak);

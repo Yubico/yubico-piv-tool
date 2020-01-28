@@ -2063,8 +2063,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_Encrypt)(
   rv = CKR_OK;
 
 enc_out:
-  session->op_info.type = YKCS11_NOOP;
-  session->op_info.buf_len = 0;
+  if(pEncryptedData) {
+    session->op_info.type = YKCS11_NOOP;
+    session->op_info.buf_len = 0;
+  }
   DOUT;
   return rv;
 }
@@ -2177,8 +2179,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptFinal)(
   rv = CKR_OK;
   
 encfinal_out:  
-  session->op_info.type = YKCS11_NOOP;
-  session->op_info.buf_len = 0;
+  if(pLastEncryptedPart) {
+    session->op_info.type = YKCS11_NOOP;
+    session->op_info.buf_len = 0;
+  }
   DOUT;
   return rv;
 }
@@ -2300,8 +2304,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
   }
 
   CK_ULONG key_len = do_get_key_size(session->op_info.op.encrypt.key);
-  CK_ULONG datalen = (key_len + 7) / 8 - 11;
-  DBG("The size of the data will be %lu", datalen);
+  CK_ULONG datalen = (key_len + 7) / 8; // When RSA_NO_PADDING is used
+  if(session->op_info.op.encrypt.padding == RSA_PKCS1_PADDING) {
+    datalen -= 11;
+  } else if(session->op_info.op.encrypt.padding == RSA_PKCS1_OAEP_PADDING) {
+    datalen -= 41;
+  }
+  DBG("The maximum size of the data will be %lu", datalen);
 
   if (pData == NULL) {
     // Just return the size of the decrypted data
@@ -2396,11 +2405,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptUpdate)(
   rv = CKR_OK;
 
 decrypt_out:
-  if(rv != CKR_OK) {
-    session->op_info.type = YKCS11_NOOP;
-    session->op_info.buf_len = 0;
-  }
-
   DOUT;
   return rv;
 }
@@ -2441,8 +2445,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
   }
 
   CK_ULONG key_len = do_get_key_size(session->op_info.op.encrypt.key);
-  CK_ULONG datalen = (key_len + 7) / 8 - 11;
-  DBG("The size of the data will be %lu", datalen);
+  CK_ULONG datalen = (key_len + 7) / 8; // When RSA_NO_PADDING is used
+  if(session->op_info.op.encrypt.padding == RSA_PKCS1_PADDING) {
+    datalen -= 11;
+  } else if(session->op_info.op.encrypt.padding == RSA_PKCS1_OAEP_PADDING) {
+    datalen -= 41;
+  }
+  DBG("The maximum size of the data will be %lu", datalen);
 
   if (pLastPart == NULL) {
     // Just return the size of the decrypted data
