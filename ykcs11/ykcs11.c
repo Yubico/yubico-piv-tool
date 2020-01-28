@@ -2712,7 +2712,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestFinal)(
 digest_out:
   session->op_info.type = YKCS11_NOOP;
   DOUT;
-  return CKR_OK;
+  return rv;
 }
 
 CK_DEFINE_FUNCTION(CK_RV, C_SignInit)(
@@ -2891,16 +2891,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignUpdate)(
 
   if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
-    rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-    goto sign_out;
+    DOUT;
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
   ykcs11_session_t* session = get_session(hSession);
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
-    rv = CKR_SESSION_HANDLE_INVALID;
-    goto sign_out;
+    DOUT;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (session->op_info.type != YKCS11_SIGN) {
@@ -3174,16 +3174,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyUpdate)(
 
   if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
-    rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-    goto verify_out;
+    DOUT;
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
   ykcs11_session_t* session = get_session(hSession);
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
-    rv = CKR_SESSION_HANDLE_INVALID;
-    goto verify_out;
+    DOUT;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (pPart == NULL) {
