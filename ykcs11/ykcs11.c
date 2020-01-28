@@ -66,7 +66,7 @@ static uint64_t pid;
 static CK_FUNCTION_LIST function_list;
 
 static CK_SESSION_HANDLE get_session_handle(ykcs11_session_t *session) {
-  return session - sessions + 1;
+  return (CK_SESSION_HANDLE)(session - sessions + 1);
 }
 
 static ykcs11_session_t* get_session(CK_SESSION_HANDLE handle) {
@@ -973,7 +973,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
           add_object(session->slot, pvtk_id);
           if(atst_id != PIV_INVALID_OBJ) { // Attestation key doesn't have an attestation
             len = sizeof(data);
-            ykpiv_rc rcc = ykpiv_attest(session->slot->piv_state, slot, data, &len);
+            rcc = ykpiv_attest(session->slot->piv_state, slot, data, &len);
             if(rcc == YKPIV_OK) {
               DBG("Created attestation for slot %lx", slot);
               if((rv = do_store_cert(data, len, session->slot->atst + sub_id)) == CKR_OK) {
@@ -1129,6 +1129,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSessionInfo)(
   locking.pfnLockMutex(session->slot->mutex);
   
   switch(session->slot->login_state) {
+    case YKCS11_PUBLIC:
     default:
       pInfo->state = (session->info.flags & CKF_RW_SESSION) ? CKS_RW_PUBLIC_SESSION : CKS_RO_PUBLIC_SESSION;
       break;
@@ -1470,7 +1471,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     locking.pfnUnlockMutex(session->slot->mutex);
 
-    *phObject = cert_id;
+    *phObject = (CK_OBJECT_HANDLE)cert_id;
     break;
 
   case CKO_PRIVATE_KEY:
@@ -1539,7 +1540,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     }
 
     locking.pfnUnlockMutex(session->slot->mutex);
-    *phObject = pvtk_id;
+    *phObject = (CK_OBJECT_HANDLE)pvtk_id;
     break;
 
   default:
@@ -1891,7 +1892,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
 
   // Return the next object, if any
   while(session->find_obj.idx < session->find_obj.n_objects && *pulObjectCount < ulMaxObjectCount) {
-    *phObject++ = session->find_obj.objects[session->find_obj.idx++];
+    *phObject++ = (CK_OBJECT_HANDLE)session->find_obj.objects[session->find_obj.idx++];
     (*pulObjectCount)++;
   }
 
@@ -2021,16 +2022,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_Encrypt)(
   
   if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
-    rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-    goto enc_out;
+    DOUT;
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
   ykcs11_session_t* session = get_session(hSession);
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
-    rv = CKR_SESSION_HANDLE_INVALID;
-    goto enc_out;
+    DOUT;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (pData == NULL || pulEncryptedDataLen == NULL) {
@@ -2061,7 +2062,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Encrypt)(
   DBG("Got %lu encrypted bytes back", *pulEncryptedDataLen);
   rv = CKR_OK;
 
-enc_out:  
+enc_out:
   session->op_info.type = YKCS11_NOOP;
   session->op_info.buf_len = 0;
   DOUT;
@@ -2117,7 +2118,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptUpdate)(
   *pulEncryptedPartLen = 0;
   rv = CKR_OK;
 
-encupdate_out:  
+encupdate_out: 
   DOUT;
   return rv;
 }
@@ -2133,16 +2134,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptFinal)(
   
   if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
-    rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-    goto encfinal_out;
+    DOUT;
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
   ykcs11_session_t* session = get_session(hSession);
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
-    rv = CKR_SESSION_HANDLE_INVALID;
-    goto encfinal_out;
+    DOUT;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (pulLastEncryptedPartLen == NULL) {
@@ -2274,16 +2275,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
 
   if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
-    rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-    goto decrypt_out;
+    DOUT;
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
   ykcs11_session_t* session = get_session(hSession);
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
-    rv = CKR_SESSION_HANDLE_INVALID;
-    goto decrypt_out;
+    DOUT;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (pEncryptedData == NULL || pulDataLen == NULL) {
@@ -2415,16 +2416,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
 
   if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
-    rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-    goto decrypt_out;
+    DOUT;
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
   ykcs11_session_t* session = get_session(hSession);
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
-    rv = CKR_SESSION_HANDLE_INVALID;
-    goto decrypt_out;
+    DOUT;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (pulLastPartLen == NULL) {
@@ -2537,16 +2538,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_Digest)(
 
   if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
-    rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-    goto digest_out;
+    DOUT;
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
   ykcs11_session_t* session = get_session(hSession);
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
-    rv = CKR_SESSION_HANDLE_INVALID;
-    goto digest_out;
+    DOUT;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (session->op_info.type != YKCS11_DIGEST) {
@@ -2654,16 +2655,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_DigestFinal)(
 
   if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
-    rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-    goto digest_out;
+    DOUT;
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
   ykcs11_session_t* session = get_session(hSession);
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
-    rv = CKR_SESSION_HANDLE_INVALID;
-    goto digest_out;
+    DOUT;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (session->op_info.type != YKCS11_DIGEST) {
@@ -2798,16 +2799,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
 
   if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
-    rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-    goto sign_out;
+    DOUT;
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
   ykcs11_session_t* session = get_session(hSession);
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
-    rv = CKR_SESSION_HANDLE_INVALID;
-    goto sign_out;
+    DOUT;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (session->op_info.type != YKCS11_SIGN) {
@@ -2841,7 +2842,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Sign)(
   // This allows signing when logged in as SO and then doing a context-specific login to sign
   if (session->slot->login_state == YKCS11_PUBLIC) {
     DBG("User is not logged in");
-    rv =  CKR_USER_NOT_LOGGED_IN;
+    rv = CKR_USER_NOT_LOGGED_IN;
     locking.pfnUnlockMutex(session->slot->mutex);
     goto sign_out;
   }
@@ -2932,16 +2933,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_SignFinal)(
 
   if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
-    rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-    goto sign_out;
+    DOUT;
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
   ykcs11_session_t* session = get_session(hSession);
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
-    rv = CKR_SESSION_HANDLE_INVALID;
-    goto sign_out;
+    DOUT;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (session->op_info.type != YKCS11_SIGN) {
@@ -3107,16 +3108,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_Verify)(
 
   if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
-    rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-    goto verify_out;
+    DOUT;
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
   ykcs11_session_t* session = get_session(hSession);
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
-    rv = CKR_SESSION_HANDLE_INVALID;
-    goto verify_out;
+    DOUT;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (pData == NULL || pSignature == NULL) {
@@ -3215,16 +3216,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_VerifyFinal)(
   
   if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
-    rv = CKR_CRYPTOKI_NOT_INITIALIZED;
-    goto verify_out;
+    DOUT;
+    return CKR_CRYPTOKI_NOT_INITIALIZED;
   }
 
   ykcs11_session_t* session = get_session(hSession);
 
   if (session == NULL || session->slot == NULL) {
     DBG("Session is not open");
-    rv = CKR_SESSION_HANDLE_INVALID;
-    goto verify_out;
+    DOUT;
+    return CKR_SESSION_HANDLE_INVALID;
   }
 
   if (pSignature == NULL) {
@@ -3514,8 +3515,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 
   locking.pfnUnlockMutex(session->slot->mutex);
 
-  *phPrivateKey = pvtk_id;
-  *phPublicKey  = pubk_id;
+  *phPrivateKey = (CK_OBJECT_HANDLE)pvtk_id;
+  *phPublicKey  = (CK_OBJECT_HANDLE)pubk_id;
   rv = CKR_OK;
 
 genkp_out:
