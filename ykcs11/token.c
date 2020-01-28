@@ -146,7 +146,7 @@ CK_RV get_token_version(ykpiv_state *state, CK_VERSION_PTR version) {
   if (ykpiv_get_version(state, buf, sizeof(buf)) != YKPIV_OK) {
     version->major = 0;
     version->minor = 0;
-    return CKR_FUNCTION_FAILED;
+    return CKR_DEVICE_ERROR;
   }
 
   version->major = (buf[0] - '0');
@@ -161,7 +161,7 @@ CK_RV get_token_serial(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
   char buf[64];
   int actual;
 
-  CK_RV rv = ykpiv_get_serial(state, &serial);
+  ykpiv_rc rc = ykpiv_get_serial(state, &serial);
 
   actual = snprintf(buf, sizeof(buf), "%u", serial);
 
@@ -173,7 +173,7 @@ CK_RV get_token_serial(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
 
   memstrcpy(str, len, buf);
 
-  return rv;
+  return rc == YKPIV_OK ? CKR_OK : CKR_DEVICE_ERROR;
 }
 
 CK_RV get_token_label(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
@@ -182,7 +182,7 @@ CK_RV get_token_label(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
   char buf[64];
   int actual;
 
-  CK_RV rv = ykpiv_get_serial(state, &serial);
+  ykpiv_rc rc = ykpiv_get_serial(state, &serial);
 
   actual = snprintf(buf, sizeof(buf), "YubiKey PIV #%u", serial);
 
@@ -194,7 +194,7 @@ CK_RV get_token_label(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
 
   memstrcpy(str, len, buf);
 
-  return rv;
+  return rc == YKPIV_OK ? CKR_OK : CKR_DEVICE_ERROR;
 }
 
 CK_RV get_token_mechanism_list(CK_MECHANISM_TYPE_PTR mec, CK_ULONG_PTR num) {
@@ -272,7 +272,7 @@ CK_RV token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF8CHAR_P
     case YKPIV_PIN_LOCKED:
       return CKR_PIN_LOCKED;
     default:
-      return CKR_FUNCTION_FAILED;
+      return CKR_DEVICE_ERROR;
   }
 }
 
@@ -491,7 +491,7 @@ CK_RV token_import_private_key(ykpiv_state *state, CK_BYTE key_id,
 
   if (rc != YKPIV_OK) {
     DBG("ykpiv_import_private_key failed: %s", ykpiv_strerror(rc));
-    return CKR_FUNCTION_FAILED;
+    return CKR_DEVICE_ERROR;
   }
 
   return CKR_OK;

@@ -297,7 +297,7 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
     DBG("ykpiv_sign_data %lu bytes with key %x returned %lu bytes data", session->op_info.buf_len, session->op_info.op.sign.piv_key, siglen);
   } else {
     DBG("ykpiv_sign_data with key %x failed: %s", session->op_info.op.sign.piv_key, ykpiv_strerror(rcc));
-    return rcc == YKPIV_AUTHENTICATION_ERROR ? CKR_USER_NOT_LOGGED_IN : CKR_FUNCTION_FAILED;
+    return rcc == YKPIV_AUTHENTICATION_ERROR ? CKR_USER_NOT_LOGGED_IN : CKR_DEVICE_ERROR;
   }
 
   CK_RV rv = CKR_OK;
@@ -844,7 +844,7 @@ CK_RV decrypt_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR data, CK_UL
       return CKR_USER_NOT_LOGGED_IN;
     } else {
       DBG("Decrypt error, %s", ykpiv_strerror(piv_rv));
-      return CKR_FUNCTION_FAILED;
+      return CKR_DEVICE_ERROR;
     }
   }
 

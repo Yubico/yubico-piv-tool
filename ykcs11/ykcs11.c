@@ -332,7 +332,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
   if (ykpiv_list_readers(piv_state, readers, &len) != YKPIV_OK) {
     DBG("Unable to list readers");
     ykpiv_done(piv_state);
-    rv = CKR_FUNCTION_FAILED;
+    rv = CKR_DEVICE_ERROR;
     goto slotlist_out;
   }
 
@@ -756,7 +756,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
   if((rc = ykpiv_util_reset(slot->piv_state)) != YKPIV_OK) {
     DBG("ykpiv_util_reset failed %s", ykpiv_strerror(rc));
     locking.pfnUnlockMutex(slot->mutex);
-    rv = CKR_FUNCTION_FAILED;
+    rv = CKR_DEVICE_ERROR;
     goto inittoken_out;
   }
 
@@ -764,7 +764,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
   if((rc = ykpiv_authenticate(slot->piv_state, NULL)) != YKPIV_OK) {
     DBG("ykpiv_authenticate failed %s", ykpiv_strerror(rc));
     locking.pfnUnlockMutex(slot->mutex);
-    rv = CKR_FUNCTION_FAILED;
+    rv = CKR_DEVICE_ERROR;
     goto inittoken_out;
   }
 
@@ -772,7 +772,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
   if((rc = ykpiv_set_mgmkey(slot->piv_state, mgm_key)) != YKPIV_OK) {
     DBG("ykpiv_set_mgmkey failed %s", ykpiv_strerror(rc));
     locking.pfnUnlockMutex(slot->mutex);
-    rv = CKR_FUNCTION_FAILED;
+    rv = CKR_DEVICE_ERROR;
     goto inittoken_out;
   }
 
@@ -905,8 +905,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     CK_ULONG num_ids;
     get_token_object_ids(&obj_ids, &num_ids);
     for(CK_ULONG i = 0; i < num_ids; i++) {
-      CK_RV rv;
-      ykpiv_rc rc = YKPIV_KEY_ERROR;
+      ykpiv_rc rcc, rc = YKPIV_KEY_ERROR;
       CK_BYTE sub_id = get_sub_id(obj_ids[i]);
       piv_obj_id_t cert_id = find_cert_object(sub_id);
       piv_obj_id_t pubk_id = find_pubk_object(sub_id);
@@ -926,7 +925,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
               add_object(session->slot, pvtk_id);
               if(atst_id != PIV_INVALID_OBJ && md.origin == YKPIV_METADATA_ORIGIN_GENERATED) { // Attestation key doesn't have an attestation
                 len = sizeof(data);
-                ykpiv_rc rcc = ykpiv_attest(session->slot->piv_state, slot, data, &len);
+                rcc = ykpiv_attest(session->slot->piv_state, slot, data, &len);
                 if(rcc == YKPIV_OK) {
                   DBG("Created attestation for slot %lx", slot);
                   if((rv = do_store_cert(data, len, session->slot->atst + sub_id)) == CKR_OK) {
@@ -950,7 +949,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
         }
       }
       unsigned long ulen = sizeof(data);
-      ykpiv_rc rcc = ykpiv_fetch_object(session->slot->piv_state, piv_2_ykpiv(obj_ids[i]), data, &ulen);
+      rcc = ykpiv_fetch_object(session->slot->piv_state, piv_2_ykpiv(obj_ids[i]), data, &ulen);
       if(rcc != YKPIV_OK) {
         DBG("Failed to read object %u slot %lx: %s", obj_ids[i], piv_2_ykpiv(obj_ids[i]), ykpiv_strerror(rcc));
         continue;
@@ -1039,7 +1038,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseSession)(
 
   locking.pfnUnlockMutex(global_mutex);
 
-  if(!other_sessions) {
+  if(other_sessions == 0) {
     locking.pfnLockMutex(slot->mutex);
     cleanup_slot(slot);
     locking.pfnUnlockMutex(slot->mutex);
@@ -1085,7 +1084,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CloseAllSessions)(
 
   locking.pfnUnlockMutex(global_mutex);
 
-  if(cleaned_sessions) {
+  if(cleaned_sessions > 0) {
     locking.pfnLockMutex(slots[slotID].mutex);
     cleanup_slot(slots + slotID);
     locking.pfnUnlockMutex(slots[slotID].mutex);
@@ -1378,8 +1377,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
   piv_obj_id_t     cert_id;
   piv_obj_id_t     pubk_id;
   piv_obj_id_t     pvtk_id;
-  piv_obj_id_t     atst_id;
-  piv_obj_id_t     *obj_ptr;
 
   if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
@@ -1425,7 +1422,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     cert_id = find_cert_object(id);
     pubk_id = find_pubk_object(id);
     pvtk_id = find_pvtk_object(id);
-    atst_id = find_atst_object(id);
 
     locking.pfnLockMutex(session->slot->mutex);
 
@@ -3374,7 +3370,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   piv_obj_id_t   pvtk_id;
   piv_obj_id_t   pubk_id;
   piv_obj_id_t   atst_id;
-  piv_obj_id_t   *obj_ptr;
   CK_BYTE        cert_data[YKPIV_OBJ_MAX_SIZE];
   CK_ULONG       cert_len;
   
