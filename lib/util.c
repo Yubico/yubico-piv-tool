@@ -113,7 +113,7 @@ ykpiv_rc ykpiv_util_get_cardid(ykpiv_state *state, ykpiv_cardid *cardid) {
     while (p_temp < (buf + len)) {
       tag = *p_temp++;
 
-      if (!_ykpiv_has_valid_length(p_temp, (buf + len - p_temp))) {
+      if (!_ykpiv_has_valid_length(p_temp, (size_t)(buf + len - p_temp))) {
         res = YKPIV_SIZE_ERROR;
         goto Cleanup;
       }
@@ -234,7 +234,7 @@ Cleanup:
 }
 
 ykpiv_devmodel ykpiv_util_devicemodel(ykpiv_state *state) {
-  if (!state || !state->context || (state->context == (uintptr_t)-1)) {
+  if (!state || !state->context || (state->context == (SCARDCONTEXT)-1)) {
     return DEVTYPE_UNKNOWN;
   }
   return state->model;
@@ -504,7 +504,7 @@ ykpiv_rc ykpiv_util_read_mscmap(ykpiv_state *state, ykpiv_container **containers
       ptr += (unsigned long)_ykpiv_get_length(ptr, &len);
 
       /* check that decoded length represents object contents */
-      if (len > (cbBuf - (ptr - buf))) {
+      if (len > (cbBuf - (size_t)(ptr - buf))) {
         res = YKPIV_OK;
         goto Cleanup;
       }
@@ -629,7 +629,7 @@ ykpiv_rc ykpiv_util_read_msroots(ykpiv_state *state, uint8_t **data, size_t *dat
     ptr += _ykpiv_get_length(ptr, &len);
 
     // check that decoded length represents object contents
-    if (len > (cbBuf - (ptr - buf))) {
+    if (len > (cbBuf - (size_t)(ptr - buf))) {
       res = YKPIV_OK;
       goto Cleanup;
     }
@@ -1392,7 +1392,7 @@ static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf
       ptr += _ykpiv_get_length(ptr, &len);
 
       // check that decoded length represents object contents
-      if (len > (*buf_len - (ptr - buf))) {
+      if (len > (*buf_len - (size_t)(ptr - buf))) {
         *buf_len = 0;
         return YKPIV_OK;
       }
@@ -1484,7 +1484,7 @@ static ykpiv_rc _get_metadata_item(uint8_t *data, size_t cb_data, uint8_t tag, u
   while (p_temp < (data + cb_data)) {
     tag_temp = *p_temp++;
 
-    if (!_ykpiv_has_valid_length(p_temp, (data + cb_data - p_temp))) {
+    if (!_ykpiv_has_valid_length(p_temp, (size_t)(data + cb_data - p_temp))) {
       return YKPIV_SIZE_ERROR;
     }
 
@@ -1607,7 +1607,7 @@ static ykpiv_rc _set_metadata_item(uint8_t *data, size_t *pcb_data, size_t cb_da
 #pragma GCC diagnostic pop
 
       /* move remaining data */
-      memmove(p_next + cb_moved, p_next, *pcb_data - (p_next - data));
+      memmove(p_next + cb_moved, p_next, *pcb_data - (size_t)(p_next - data));
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsign-conversion"
       *pcb_data += cb_moved;
@@ -1689,7 +1689,7 @@ static ykpiv_rc _read_metadata(ykpiv_state *state, uint8_t tag, uint8_t* data, s
 
   p_temp += _ykpiv_get_length(p_temp, pcb_data);
 
-  if (*pcb_data > (cb_temp - (p_temp - data))) {
+  if (*pcb_data > (cb_temp - (size_t)(p_temp - data))) {
     *pcb_data = 0;
     return YKPIV_GENERIC_ERROR;
   }
@@ -1735,7 +1735,7 @@ static ykpiv_rc _write_metadata(ykpiv_state *state, uint8_t tag, uint8_t *data, 
     memcpy(pTemp, data, cb_data);
     pTemp += cb_data;
 
-    res = _ykpiv_save_object(state, obj_id, buf, pTemp - buf);
+    res = _ykpiv_save_object(state, obj_id, buf, (size_t)(pTemp - buf));
   }
 
   return res;
