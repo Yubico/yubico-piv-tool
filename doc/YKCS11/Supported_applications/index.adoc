@@ -3,7 +3,7 @@
 The YKCS11 module was tested with the following applications:
 
 * link:pkcs11tool.adoc[OpenSC's `pkcs11-tool`]
-* link:java_keytool.adoc[Java `keytool`]
+* link:Java_keytool.adoc[Java `keytool`]
 * link:openssh.adoc[OpenSSH]
 * link:openssl_engine.adoc[OpenSSL via PKCS11 Engine]
 * link:firefox.adoc[FireFox]
