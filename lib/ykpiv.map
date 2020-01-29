@@ -120,7 +120,7 @@ global:
     ykpiv_get_serial;
 } YKPIV_1.5.0;
 
-YKPIV_1.8.0
+YKPIV_2.0.0
 {
 global:
     ykpiv_get_metadata;
