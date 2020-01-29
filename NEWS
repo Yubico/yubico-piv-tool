@@ -4,7 +4,7 @@ yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
 ** ykpiv: Added ykpiv_get_metadata and ykpiv_util_parse_metadata to read and parse private key metadata (supported from YK 5.3).
 
-** ykpiv: Fixed PCSC transaction handling when re-selecting PIV because of a card reset indication.
+** ykpiv: Fixed PCSC transaction handling when re-selecting PIV due to external card reset events.
 
 ** ykpiv: Improved error reporting.
 
@@ -18,9 +18,9 @@ yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
 ** ykcs11: Shared library exports all PKCS11 functions per the spec (For applications that don't use C_GetFunctionList).
 
-** ykcs11: Support for up to 16 simultaneous sessions, with support for multi-threaded access (if requested whan calling C_Initialize).
+** ykcs11: Support for up to 16 simultaneous sessions, with support for multi-threaded access (if requested when calling C_Initialize).
 
-** ykcs11: Support for resetting the PIV application via C_initToken. Requires knowledge of the mgmt key (SO PIN) per the PKCS11 spec.
+** ykcs11: Support for resetting the PIV application via C_initToken. Requires knowledge of the MGMT KEY (SO PIN) per the PKCS11 spec.
 
 ** ykcs11: Support for public-key operations not supported by PIV (C_Verify, C_Encrypt), implemented using OpenSSL.
 
@@ -28,15 +28,15 @@ yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
 ** ykcs11: Support for forked processes on Linux and MacOS.
 
-** ykcs11: Support for RSA signatures using PKCS or PSS padding with optional digesting by the library. Raw signatures also supported.
+** ykcs11: Support for RSA signatures using PKCS or PSS padding with optional digesting by the library. Raw signatures are also supported.
 
-** ykcs11: Support for ECDSA signatures with optional digesting by the library. Raw signatures also supported.
+** ykcs11: Support for ECDSA signatures with optional digesting by the library. Raw signatures are also supported.
 
 ** ykcs11: Support for RSA encryption / decryption with PKCS or OAEP padding.
 
 ** ykcs11: Makes use of key metadata when available (YK 5.3 and above), providing access to keys even if certificates are not present.
 
-** ykcs11: Supports SHA1, SHA256, SHA384 and SHA512 digesting, plus SHA224 digesting for ECDSA signatures and for the MGF1 digest in PSS / OAEP.
+** ykcs11: Supports SHA1, SHA256, SHA384 and SHA512 digesting, plus SHA224 digesting for ECDSA signatures and for the MGF1 digest in PSS / OAEP, implemented using OpenSSL.
 
 ** ykcs11: Supports C_Login with context-specific user type. This allows use cases that require both SO PIN and normal PIN in the same session.
 
