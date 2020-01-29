@@ -37,7 +37,7 @@ EXTRA_DIST += doc/Attestation.adoc doc/YubiKey_PIV_introduction.adoc \
 							doc/Actions/signing.adoc	doc/Actions/status.adoc	doc/Actions/test-decryption.adoc	doc/Actions/test-signature.adoc	doc/Actions/version.adoc \
 							doc/YKCS11/index.adoc	doc/YKCS11/Functions_and_values.adoc \
 							doc/YKCS11/Supported_applications/index.adoc	doc/YKCS11/Supported_applications/Java_keytool.adoc	doc/YKCS11/Supported_applications/firefox.adoc	\
-							doc/YKCS11/Supported_applications/fortify.adoc	doc/YKCS11/Supported_applications/openssh.adoc	doc/YKCS11/Supported_applications/pkcs11tool.adoc	 \
+							doc/YKCS11/Supported_applications/fortify.adoc	doc/YKCS11/Supported_applications/openssh.adoc	doc/YKCS11/Supported_applications/pkcs11tool.adoc	 doc/YKCS11/Supported_applications/openssl_engine.adoc  \
 							doc/YKCS11/Supported_applications/images/ff_auth-import.png doc/YKCS11/Supported_applications/images/ff_certinfo_download.png \
 							doc/YKCS11/Supported_applications/images/ff_certmanager_view.png doc/YKCS11/Supported_applications/images/ff_device_manager_load.png \
 							doc/YKCS11/Supported_applications/images/ff_device_manager_load_driver.png doc/YKCS11/Supported_applications/images/ff_device_manager_yubico_info.png \
