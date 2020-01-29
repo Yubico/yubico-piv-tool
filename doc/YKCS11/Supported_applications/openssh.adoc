@@ -1,0 +1,19 @@
+== OpenSSH
+
+Keys stored on the YubiKey can be used to login to remote SSH servers. This can be done either with the YubiKey's PIV application using, for example, OpenSSH, or with the YubiKey's PGP application.
+
+Following are some command line examples of using OpenSSH with the Yubikey's PIV application through YKCS11. For guides on how to use the YubiKey's PGP application for SSH authentication, see https://developers.yubico.com/PGP/SSH_authentication/[here] 
+
+To direct OpenSSH to use key's stored on the YubiKey, the YKCS11 module needs to be specified with the `-I` option in the command line
+
+[source, bash]
+----
+$ ssh -I /path/to/libykcs11.so git@github.com 
+----
+
+To download the public key accessible through the YKCS11 module: 
+
+[source, bash]
+----
+$ ssh-keygen -D /path/to/libykcs11.so 
+----

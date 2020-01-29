@@ -96,7 +96,7 @@ void teardown(void) {
   ck_assert_int_eq(res, YKPIV_OK);
 }
 
-#ifdef HW_TESTS
+#if HW_TESTS
 START_TEST(test_devicemodel) {
   ykpiv_rc res;
   ykpiv_devmodel model;
@@ -108,19 +108,22 @@ START_TEST(test_devicemodel) {
   ck_assert_int_eq(res, YKPIV_OK);
   fprintf(stderr, "Version: %s\n", version);
   model = ykpiv_util_devicemodel(g_state);
-  fprintf(stdout, "Model: %u\n", model);
-  ck_assert(model == DEVTYPE_YK4 || model == DEVTYPE_NEOr3);
+  fprintf(stdout, "Model: %x\n", model);
+  ck_assert(model == DEVTYPE_YK5 || model == DEVTYPE_YK4 || model == DEVTYPE_NEOr3);
 
   res = ykpiv_list_readers(g_state, reader_buf, &num_readers);
   ck_assert_int_eq(res, YKPIV_OK);
   ck_assert_int_gt(num_readers, 0);
-  if (model == DEVTYPE_YK4) {
-    ck_assert_ptr_nonnull(strstr(reader_buf, "Yubikey 4"));
+  ck_assert_int_eq(strncmp(reader_buf, "Yubico", 6), 0);
+  if (model == DEVTYPE_YK5) {
+    ck_assert(version[0] == '5'); // Verify app version 5.x
+    ck_assert(version[1] == '.');
+  }
+  else if (model == DEVTYPE_YK4) {
     ck_assert(version[0] == '4'); // Verify app version 4.x
     ck_assert(version[1] == '.');
   }
   else {
-    ck_assert_ptr_nonnull(strstr(reader_buf, "Yubikey NEO"));
     ck_assert(version[0] == '1'); // Verify app version 1.x
     ck_assert(version[1] == '.');
   }
@@ -195,7 +198,7 @@ START_TEST(test_read_write_list_delete_cert) {
     ck_assert_int_eq(res, YKPIV_OK);
 
     res = ykpiv_util_read_cert(g_state, YKPIV_KEY_AUTHENTICATION, &read_cert, &read_cert_len);
-    ck_assert_int_eq(res, YKPIV_GENERIC_ERROR);
+    ck_assert_int_eq(res, YKPIV_INVALID_OBJECT);
 
     res = ykpiv_util_free(g_state, read_cert);
     ck_assert_int_eq(res, YKPIV_OK);
@@ -424,7 +427,7 @@ START_TEST(test_import_key) {
     ck_assert_ptr_nonnull(rsa);
     EVP_PKEY_free(pub_key);
 
-    ck_assert_int_gt(RAND_bytes(rand, 128), 0);
+    ck_assert_int_gt(RAND_bytes(rand, sizeof(rand)), 0);
     mdctx = EVP_MD_CTX_create();
     EVP_DigestInit_ex(mdctx, md, NULL);
     EVP_DigestUpdate(mdctx, rand, 128);
@@ -449,8 +452,8 @@ START_TEST(test_import_key) {
     ykpiv_devmodel model;
     model = ykpiv_util_devicemodel(g_state);
     res = ykpiv_attest(g_state, 0x9a, attest, &attest_len);
-    if (model == DEVTYPE_YK4) {
-      ck_assert_int_eq(res, YKPIV_GENERIC_ERROR);
+    if (model != DEVTYPE_NEOr3) {
+      ck_assert_int_eq(res, YKPIV_ARGUMENT_ERROR);
     }
     else {
       ck_assert_int_eq(res, YKPIV_NOT_SUPPORTED);
@@ -466,7 +469,7 @@ START_TEST(test_pin_policy_always) {
     ykpiv_devmodel model;
     model = ykpiv_util_devicemodel(g_state);
     // Only works with YK4.  NEO should skip.
-    if (model != DEVTYPE_YK4) {
+    if (model == DEVTYPE_NEOr3) {
       fprintf(stderr, "WARNING: Not supported with Yubikey NEO.  Test skipped.\n");
       return;
     }
@@ -504,7 +507,7 @@ START_TEST(test_pin_policy_always) {
     ck_assert_ptr_nonnull(rsa);
     EVP_PKEY_free(pub_key);
 
-    ck_assert_int_gt(RAND_bytes(rand, 128), 0);
+    ck_assert_int_gt(RAND_bytes(rand, sizeof(rand)), 0);
     mdctx = EVP_MD_CTX_create();
     EVP_DigestInit_ex(mdctx, md, NULL);
     EVP_DigestUpdate(mdctx, rand, 128);
@@ -573,7 +576,7 @@ START_TEST(test_generate_key) {
     model = ykpiv_util_devicemodel(g_state);
     res = ykpiv_attest(g_state, YKPIV_KEY_AUTHENTICATION, attest, &attest_len);
     // Only works with YK4.  NEO should error.
-    if (model == DEVTYPE_YK4) {
+    if (model != DEVTYPE_NEOr3) {
       ck_assert_int_eq(res, YKPIV_OK);
       ck_assert_int_gt(attest_len, 0);
     }
@@ -584,7 +587,7 @@ START_TEST(test_generate_key) {
 }
 END_TEST
 
-START_TEST(test_authenticate) {
+static void test_authenticate_helper() {
   ykpiv_rc res;
   const char *default_mgm_key = "010203040506070801020304050607080102030405060708";
   const char *mgm_key = "112233445566778811223344556677881122334455667788";
@@ -645,6 +648,10 @@ START_TEST(test_authenticate) {
   ck_assert_int_eq(res, YKPIV_OK);
   res = ykpiv_authenticate(g_state, key);
   ck_assert_int_eq(res, YKPIV_OK);
+}
+
+START_TEST(test_authenticate) {
+  test_authenticate_helper();
 }
 END_TEST
 
@@ -736,15 +743,18 @@ START_TEST(test_reset) {
   ykpiv_rc res;
   int tries = 100;
   int tries_until_blocked;
+  ykpiv_devmodel model;
+  model = ykpiv_util_devicemodel(g_state);
 
   // Block and reset, with default PIN retries
   tries_until_blocked = block_and_reset();
   ck_assert_int_eq(tries_until_blocked, 3);
 
   // Authenticate and increase PIN retries
-  test_authenticate(0);
-  res = ykpiv_verify(g_state, "123456", NULL);
+  test_authenticate_helper();
+  res = ykpiv_verify(g_state, "123456", &tries);
   ck_assert_int_eq(res, YKPIV_OK);
+  ck_assert_int_eq(tries, 0);
   res = ykpiv_set_pin_retries(g_state, 8, 3);
   ck_assert_int_eq(res, YKPIV_OK);
 
@@ -768,6 +778,7 @@ START_TEST(test_reset) {
   // Try wrong PIN
   res = ykpiv_verify(g_state, "AAAAAA", &tries);
   ck_assert_int_eq(res, YKPIV_WRONG_PIN);
+  ck_assert_int_eq(tries, 2);
 
   // Verify 2 PIN retries remaining
   tries = 0;
@@ -779,12 +790,17 @@ START_TEST(test_reset) {
   tries = 100;
   res = ykpiv_verify(g_state, "123456", &tries);
   ck_assert_int_eq(res, YKPIV_OK);
+  ck_assert_int_eq(tries, 0);
 
   // Verify back to 3 PIN retries remaining
   tries = 0;
   res = ykpiv_get_pin_retries(g_state, &tries);
   ck_assert_int_eq(res, YKPIV_OK);
-  ck_assert_int_eq(tries, 3);
+  if(model == DEVTYPE_NEO || model == DEVTYPE_NEOr3) {
+    ck_assert_int_eq(tries, 0);
+  } else {
+    ck_assert_int_eq(tries, 3);
+  }
 }
 END_TEST
 
@@ -850,7 +866,7 @@ START_TEST(test_allocator) {
   // Verify we can communicate with device and make some allocations
   res = ykpiv_connect(g_state, NULL);
   ck_assert_int_eq(res, YKPIV_OK);
-  test_authenticate(0);
+  test_authenticate_helper();
   cert1 = alloc_auth_cert();
   cert2 = alloc_auth_cert();
 
@@ -947,7 +963,7 @@ Suite *test_suite(void) {
 
   s = suite_create("libykpiv api");
   tc = tcase_create("api");
-#ifdef HW_TESTS
+#if HW_TESTS
   tcase_add_unchecked_fixture(tc, setup, teardown);
 
   // Must be first: Reset device.  Tests run serially, and depend on a clean slate.

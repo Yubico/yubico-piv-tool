@@ -1,0 +1,194 @@
+== Supported PKCS#11 Functions
+[options="header"]
+|=======================
+|PKCS#11 Function | Mechanism | Comment
+|C_Initialize||
+|C_Finalize||
+|C_GetInfo||
+|C_GetFunctionList||
+|C_GetSlotList||
+|C_GetSlotInfo||
+|C_GetTokenInfo||
+|C_GetMechanismList||
+|C_GetMechanismInfo||
+|C_InitToken||
+|C_SetPIN||
+|C_OpenSession||
+|C_CloseSession||
+|C_CloseAllSessions||
+|C_GetSessionInfo||
+|C_Login||
+|C_Logout||
+|C_CreateObject|| With CKO_PRIVATE_KEY or CKO_CERTIFICATE
+|C_DestroyObject||
+|C_GetObjectSize||
+|C_GetAttributeValue||
+|C_FindObjectsInit||
+|C_FindObjects||
+|C_FindObjectsFinal||
+|C_EncryptInit| CKM_RSA_X_509, CKM_RSA_PKCS, CKM_RSA_PKCS_OAEP | With RSA keys only. Uses OpenSSL encryption functions
+|C_Encrypt|| With RSA keys only. Uses OpenSSL encryption functions
+|C_EncryptUpdate|| With RSA keys only. Uses OpenSSL encryption functions
+|C_EncryptFinal|| With RSA keys only. Uses OpenSSL encryption functions
+|C_DecryptInit| CKM_RSA_X_509, CKM_RSA_PKCS, CKM_RSA_PKCS_OAEP | With RSA keys only.
+|C_Decrypt|| With RSA keys only.
+|C_DecryptUpdate|| With RSA keys only.
+|C_DecryptFinal|| With RSA keys only.
+|C_DigestInit|CKM_SHA_1, CKM_SHA256, CKM_SHA384, CKM_SHA512| Uses OpenSSL digest functions
+|C_Digest|| Uses OpenSSL digest functions
+|C_DigestUpdate|| Uses OpenSSL digest functions
+|C_DigestFinal|| Uses OpenSSL digest functions
+|C_SignInit|
+CKM_RSA_X_509, 
+CKM_RSA_PKCS, 
+CKM_SHA1_RSA_PKCS,
+CKM_SHA256_RSA_PKCS, 
+CKM_SHA384_RSA_PKCS, 
+CKM_SHA512_RSA_PKCS, 
+CKM_RSA_PKCS_PSS, 
+CKM_SHA1_RSA_PKCS_PSS,
+CKM_SHA256_RSA_PKCS_PSS, 
+CKM_SHA384_RSA_PKCS_PSS, 
+CKM_SHA512_RSA_PKCS_PSS, 
+CKM_ECDSA, 
+CKM_ECDSA_SHA1, 
+CKM_ECDSA_SHA224, 
+CKM_ECDSA_SHA256, 
+CKM_ECDSA_SHA384|
+|C_Sign||
+|C_SignUpdate||
+|C_SignFinal||
+|C_VerifyInit|CKM_RSA_X_509, 
+CKM_RSA_PKCS, 
+CKM_SHA1_RSA_PKCS,
+CKM_SHA256_RSA_PKCS, 
+CKM_SHA384_RSA_PKCS, 
+CKM_SHA512_RSA_PKCS, 
+CKM_RSA_PKCS_PSS, 
+CKM_SHA1_RSA_PKCS_PSS,
+CKM_SHA256_RSA_PKCS_PSS, 
+CKM_SHA384_RSA_PKCS_PSS, 
+CKM_SHA512_RSA_PKCS_PSS, 
+CKM_ECDSA, 
+CKM_ECDSA_SHA1, 
+CKM_ECDSA_SHA224, 
+CKM_ECDSA_SHA256, 
+CKM_ECDSA_SHA384| Uses OpenSSL verification functions
+|C_Verify|| Uses OpenSSL verification functions
+|C_VerifyUpdate|| Uses OpenSSL verification functions
+|C_VerifyFinal|| Uses OpenSSL verification functions
+|C_GenerateKeyPair|CKM_RSA_PKCS_KEY_PAIR_GEN, CKM_EC_KEY_PAIR_GEN|
+|=======================
+
+== Supported PKCS#11 Objects
+
+Not all PKCS#11 Object types are implemented. This is a list of what is
+implemented and what it maps to.
+
+[options="header"]
+|==============================================================================
+| PKCS#11 | Supported CKK | Comment
+| CKO_PRIVATE_KEY | CKK_RSA, CKK_EC | RSA 1024 and 2048 with e=0x10001, EC with secp256r1, secp384r1
+| CKO_PUBLIC_KEY | | Stored in X509 Certificates
+| CKO_CERTIFICATE | | X509 Certificates containing either the public key or the attestation certificate
+| CKO_DATA | | 
+|==============================================================================
+
+== Supported Attributes per Object Type
+
+[options="header"]
+|=================================
+|Attribute | Private key object | Public key object | Certificate object | Data object
+|CKA_CLASS             |X|X|X|X
+|CKA_ID                |X|X|X|X
+|CKA_TOKEN             |X|X|X|X
+|CKA_PRIVATE           |X|X|X|X
+|CKA_LABEL             |X|X|X|X
+|CKA_APPLICATION       | | | |X
+|CKA_OBJECT_ID         | | | |X
+|CKA_MODIFIABLE        |X|X|X|X
+|CKA_VALUE             | | |X|X
+|CKA_SUBJECT           | | |X|
+|CKA_ISSUER            | | |X|
+|CKA_SERIALNUMBER      | | |X|
+|CKA_CERTIFICATE_TYPE  | | |X|
+|KcA_TRUSTED           | |X|X|
+|CKA_KEY_TYPE          |X|X| |
+|CKA_SENSITIVE         |X| | |
+|CKA_ALWAYS_SENSITIVE  |X| | |
+|CKA_EXTRACTABLE       |X| | |
+|CKA_NEVER_EXTRACTABLE |X| | |
+|CKA_LOCAL             |X|X| |
+|CKA_ENCRYPT           | |X| |
+|CKA_DECRYPT           |X| | |
+|CKA_WRAP              | |X| |
+|CKA_UNWRAP            |X| | |
+|CKA_SIGN              |X| | |
+|CKA_VERIFY            | |X| |
+|CKA_DERIVE            |X|X| |
+|CKA_MODULUS           |X|X| |
+|CKA_EC_POINT          |X|X| |
+|CKA_EC_PARAMS         |X|X| |
+|CKA_MODULUS_BITS      |X|X| |
+|CKA_PUBLIC_EXPONENT   |X|X| |
+|CKA_ALWAYS_AUTHENTICATE |X|||
+|=================================
+
+== Key Alias per Slot and Object Type
+
+Some applications, mainly Java, specify the keys to use by their key alias, which is refered to as a key's label by PKCS#11. Objects' labels as access by YKCS11 are fixed values and are unmodifiable. Following is the list of object lables according to their object type and the slot they reside in (See https://developers.yubico.com/PIV/Introduction/Certificate_slots.html[PIV Certificate Slots] for the slot usage).
+
+[options="header"]
+|=================================
+|Slot | Private key | Public key | Certificate | Attestation certificate | Data object
+
+|9a | Private key for PIV Authentication | Public key for PIV Authentication | X.509 Certificate for PIV Authentication | X.509 Certificate for PIV Attestation 9a | X.509 Certificate for PIV Authentication
+
+|9c | Private key for Digital Signature | Public key for Digital Signature | X.509 Certificate for Digital Signature | X.509 Certificate for PIV Attestation 9c | X.509 Certificate for Digital Signature
+
+|9d | Private key for Key Management | Public key for Key Management | X.509 Certificate for Key Management | X.509 Certificate for PIV Attestation 9d |X.509 Certificate for Key Management
+
+|9e | Private key for Card Authentication | Public key for Card Authentication | X.509 Certificate for Card Authentication | X.509 Certificate for PIV Attestation 9e|X.509 Certificate for Card Authentication
+
+|82 | Private key for Retired Key 1 | Public key for Retired Key 1 | X.509 Certificate for Retired Key 1 |X.509 Certificate for PIV Attestation 82 |X.509 Certificate for Retired Key 1 
+
+|83 | Private key for Retired Key 2 | Public key for Retired Key 2 | X.509 Certificate for Retired Key 2 | X.509 Certificate for PIV Attestation 82 |X.509 Certificate for Retired Key 2 
+
+|84 | Private key for Retired Key 3 | Public key for Retired Key 3 | X.509 Certificate for Retired Key 3 | X.509 Certificate for PIV Attestation 83 |X.509 Certificate for Retired Key 3 
+
+|85 | Private key for Retired Key 4 | Public key for Retired Key 4 | X.509 Certificate for Retired Key 4 | X.509 Certificate for PIV Attestation 84 | X.509 Certificate for Retired Key 4 
+
+|86 | Private key for Retired Key 5 | Public key for Retired Key 5 | X.509 Certificate for Retired Key 5 | X.509 Certificate for PIV Attestation 85 | X.509 Certificate for Retired Key 5 
+
+|87 | Private key for Retired Key 6 | Public key for Retired Key 6 | X.509 Certificate for Retired Key 6 | X.509 Certificate for PIV Attestation 86| X.509 Certificate for Retired Key 6 
+
+|88 | Private key for Retired Key 7 | Public key for Retired Key 7 | X.509 Certificate for Retired Key 7 | X.509 Certificate for PIV Attestation 87 | X.509 Certificate for Retired Key 7 
+
+|89 | Private key for Retired Key 8 | Public key for Retired Key 8 | X.509 Certificate for Retired Key 8 | X.509 Certificate for PIV Attestation 88 | X.509 Certificate for Retired Key 8 
+
+|8a | Private key for Retired Key 9 | Public key for Retired Key 9 | X.509 Certificate for Retired Key 9 | X.509 Certificate for PIV Attestation 89 | X.509 Certificate for Retired Key 9 
+
+|8b | Private key for Retired Key 10 | Public key for Retired Key 10 | X.509 Certificate for Retired Key 10 | X.509 Certificate for PIV Attestation 8a | X.509 Certificate for Retired Key 10 
+
+|8c | Private key for Retired Key 11 | Public key for Retired Key 11 | X.509 Certificate for Retired Key 11 | X.509 Certificate for PIV Attestation 8b | X.509 Certificate for Retired Key 11 
+
+|8d | Private key for Retired Key 12 | Public key for Retired Key 12 | X.509 Certificate for Retired Key 12 | X.509 Certificate for PIV Attestation 8c | X.509 Certificate for Retired Key 12 
+
+|8e | Private key for Retired Key 13 | Public key for Retired Key 13 | X.509 Certificate for Retired Key 13 | X.509 Certificate for PIV Attestation 8d | X.509 Certificate for Retired Key 13 
+
+|8f | Private key for Retired Key 14 | Public key for Retired Key 14 | X.509 Certificate for Retired Key 14 | X.509 Certificate for PIV Attestation 8e | X.509 Certificate for Retired Key 14 
+
+|90 | Private key for Retired Key 15 | Public key for Retired Key 15 | X.509 Certificate for Retired Key 15 | X.509 Certificate for PIV Attestation 8f | X.509 Certificate for Retired Key 15 
+
+|91 | Private key for Retired Key 16 | Public key for Retired Key 16 | X.509 Certificate for Retired Key 16 | X.509 Certificate for PIV Attestation 90 | X.509 Certificate for Retired Key 16 
+
+|92 | Private key for Retired Key 17 | Public key for Retired Key 17 | X.509 Certificate for Retired Key 17 | X.509 Certificate for PIV Attestation 91 | X.509 Certificate for Retired Key 17 
+
+|93 | Private key for Retired Key 18 | Public key for Retired Key 18 | X.509 Certificate for Retired Key 18 | X.509 Certificate for PIV Attestation 92 | X.509 Certificate for Retired Key 18 
+
+|94 | Private key for Retired Key 19 | Public key for Retired Key 19 | X.509 Certificate for Retired Key 19 | X.509 Certificate for PIV Attestation 93 | X.509 Certificate for Retired Key 19 
+
+|95 | Private key for Retired Key 20 | Public key for Retired Key 20 | X.509 Certificate for Retired Key 20 | X.509 Certificate for PIV Attestation 94 | X.509 Certificate for Retired Key 20 
+
+|f9 | Private key for PIV Attestation | Public key for PIV Attestation | X.509 Certificate for PIV Attestation | X.509 Certificate for PIV Attestation 95 | X.509 Certificate for PIV Attestation 
+|=================================

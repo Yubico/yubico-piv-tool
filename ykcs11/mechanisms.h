@@ -33,21 +33,23 @@
 
 #include "ykcs11.h"
 
-CK_RV    check_sign_mechanism(const ykcs11_session_t *s, CK_MECHANISM_PTR m);
-CK_BBOOL is_RSA_mechanism(CK_MECHANISM_TYPE m);
-CK_BBOOL is_PSS_mechanism(CK_MECHANISM_TYPE m);
-CK_BBOOL is_EC_mechanism(CK_MECHANISM_TYPE m);
-CK_BBOOL is_hashed_mechanism(CK_MECHANISM_TYPE m);
+CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_MECHANISM_PTR mech);
+CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_PTR sig_len);
+CK_RV sign_mechanism_cleanup(ykcs11_session_t *session);
 
-CK_RV apply_sign_mechanism_init(op_info_t *op_info);
-CK_RV apply_sign_mechanism_update(op_info_t *op_info, CK_BYTE_PTR in, CK_ULONG in_len);
-CK_RV apply_sign_mechanism_finalize(op_info_t *op_info);
-CK_RV sign_mechanism_cleanup(op_info_t *op_info);
+CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_MECHANISM_PTR mech);
+CK_RV verify_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG sig_len);
+CK_RV verify_mechanism_cleanup(ykcs11_session_t *session);
 
-CK_RV check_generation_mechanism(const ykcs11_session_t *s, CK_MECHANISM_PTR m);
-CK_RV check_pubkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG n); // TODO: Move to objects.c
-CK_RV check_pvtkey_template(op_info_t *op_info, CK_ATTRIBUTE_PTR templ, CK_ULONG n); // TODO: Move to objects.c
+CK_RV check_generation_mechanism(CK_MECHANISM_PTR m);
+CK_RV check_pubkey_template(gen_info_t *gen_info, CK_MECHANISM_PTR mech, CK_ATTRIBUTE_PTR templ, CK_ULONG n); // TODO: Move to objects.c
+CK_RV check_pvtkey_template(gen_info_t *gen_info, CK_MECHANISM_PTR mech, CK_ATTRIBUTE_PTR templ, CK_ULONG n); // TODO: Move to objects.c
 
-CK_RV check_hash_mechanism(const ykcs11_session_t *s, CK_MECHANISM_PTR m);
+CK_RV digest_mechanism_init(ykcs11_session_t *session, CK_MECHANISM_PTR mech);
+CK_RV digest_mechanism_update(ykcs11_session_t *session, CK_BYTE_PTR in, CK_ULONG in_len);
+CK_RV digest_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR pDigest, CK_ULONG_PTR pDigestLength);
+
+CK_RV decrypt_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_MECHANISM_PTR mech);
+CK_RV decrypt_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR dec, CK_ULONG_PTR dec_len, CK_ULONG key_len);
 
 #endif

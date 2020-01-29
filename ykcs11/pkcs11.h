@@ -208,10 +208,10 @@ extern "C" {
 #define ck_unlockmutex_t CK_UNLOCKMUTEX
 
 #define ck_c_initialize_args _CK_C_INITIALIZE_ARGS
-#define create_mutex CreateMutex
-#define destroy_mutex DestroyMutex
-#define lock_mutex LockMutex
-#define unlock_mutex UnlockMutex
+#define create_mutex pfnCreateMutex
+#define destroy_mutex pfnDestroyMutex
+#define lock_mutex pfnLockMutex
+#define unlock_mutex pfnUnlockMutex
 #define reserved pReserved
 
 #endif	/* CRYPTOKI_COMPAT */

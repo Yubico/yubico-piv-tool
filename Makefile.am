@@ -31,7 +31,20 @@ ACLOCAL_AMFLAGS = -I m4
 
 EXTRA_DIST = windows.mk mac.mk tool/tests/basic.sh tools/fasc.pl ykcs11/tests/reset.sh
 
-EXTRA_DIST += doc/Attestation.adoc doc/YKCS11_release_notes.adoc doc/YubiKey_PIV_introduction.adoc
+EXTRA_DIST += doc/Attestation.adoc doc/YubiKey_PIV_introduction.adoc \
+							doc/Actions/index.adoc doc/Actions/attest.adoc	doc/Actions/delete_certificate.adoc	doc/Actions/key_generation.adoc	\
+							doc/Actions/key_import.adoc	doc/Actions/read_certificate.adoc	doc/Actions/read_write_objects.adoc	doc/Actions/reset.adoc	\
+							doc/Actions/signing.adoc	doc/Actions/status.adoc	doc/Actions/test-decryption.adoc	doc/Actions/test-signature.adoc	doc/Actions/version.adoc \
+							doc/YKCS11/index.adoc	doc/YKCS11/Functions_and_values.adoc \
+							doc/YKCS11/Supported_applications/index.adoc	doc/YKCS11/Supported_applications/Java_keytool.adoc	doc/YKCS11/Supported_applications/firefox.adoc	\
+							doc/YKCS11/Supported_applications/fortify.adoc	doc/YKCS11/Supported_applications/openssh.adoc	doc/YKCS11/Supported_applications/pkcs11tool.adoc	 \
+							doc/YKCS11/Supported_applications/images/ff_auth-import.png doc/YKCS11/Supported_applications/images/ff_certinfo_download.png \
+							doc/YKCS11/Supported_applications/images/ff_certmanager_view.png doc/YKCS11/Supported_applications/images/ff_device_manager_load.png \
+							doc/YKCS11/Supported_applications/images/ff_device_manager_load_driver.png doc/YKCS11/Supported_applications/images/ff_device_manager_yubico_info.png \
+							doc/YKCS11/Supported_applications/images/ff_sec-device.png doc/YKCS11/Supported_applications/images/ff_sec-priv.png \
+							doc/YKCS11/Supported_applications/images/ff_view-certs.png doc/YKCS11/Supported_applications/images/fortify_init.png \
+							doc/YKCS11/Supported_applications/images/fortify_pin.png doc/YKCS11/Supported_applications/images/fortify_selectprovider.png \
+							doc/YKCS11/Supported_applications/images/fortify_tools.png doc/YKCS11/Supported_applications/images/fortify_viewcerts.png	
 
 if ENABLE_COV
 cov-reset:

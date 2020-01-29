@@ -31,44 +31,40 @@
 #ifndef OPENSSL_UTIL_H
 #define OPENSSL_UTIL_H
 
-/* #include <openssl/x509.h> */
-/* #include <openssl/evp.h> */
-/* #include <openssl/rsa.h> */
-/* #include <openssl/ec.h> */
-
 #include "openssl_types.h"
 #include "pkcs11y.h"
 
-CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, X509 **cert);
-CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_BBOOL is_rsa, CK_ULONG key_algorithm,
-                           CK_BYTE_PTR out, CK_ULONG_PTR out_len);
-CK_RV do_check_cert(CK_BYTE_PTR in, CK_ULONG_PTR cert_len);
-CK_RV do_get_raw_cert(X509 *cert, CK_BYTE_PTR out, CK_ULONG_PTR out_len);
-CK_RV do_delete_cert(X509 **cert);
-//CK_RV free_cert(X509 *cert);
+CK_RV do_rand_seed(CK_BYTE_PTR data, CK_ULONG len);
+CK_RV do_rand_bytes(CK_BYTE_PTR data, CK_ULONG len);
+CK_RV do_rsa_encrypt(ykcs11_pkey_t *key, int padding, const ykcs11_md_t* oaep_md, const ykcs11_md_t* oaep_mgf1, 
+                     unsigned char *oaep_label, CK_ULONG oaep_label_len,
+                     CK_BYTE_PTR data, CK_ULONG data_len, CK_BYTE_PTR enc, CK_ULONG_PTR enc_len);
+CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, ykcs11_x509_t **cert);
+CK_RV do_generate_ec_key(int curve_name, ykcs11_pkey_t **pkey);
+CK_RV do_create_ec_key(CK_BYTE_PTR point, CK_ULONG point_len, int curve_name, ykcs11_pkey_t **pkey);
+CK_RV do_create_rsa_key(CK_BYTE_PTR mod, CK_ULONG mod_len, CK_BYTE_PTR exp, CK_ULONG exp_len, ykcs11_pkey_t **pkey);
+CK_RV do_create_public_key(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm, ykcs11_pkey_t **pkey);
+CK_RV do_sign_empty_cert(const char *cn, ykcs11_pkey_t *pubkey, ykcs11_pkey_t *pvtkey, ykcs11_x509_t **cert);
+CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm,
+                           const char *cn, CK_BYTE_PTR out, CK_ULONG_PTR out_len);
+CK_RV do_check_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG_PTR cert_len);
+CK_RV do_get_raw_cert(ykcs11_x509_t *cert, CK_BYTE_PTR out, CK_ULONG_PTR out_len);
+CK_RV do_get_raw_name(ykcs11_x509_name_t *name, CK_BYTE_PTR out, CK_ULONG_PTR out_len);
+CK_RV do_get_raw_integer(ykcs11_asn1_integer_t *serial, CK_BYTE_PTR out, CK_ULONG_PTR out_len);
+CK_RV do_delete_cert(ykcs11_x509_t **cert);
 
-CK_RV       do_store_pubk(X509 *cert, EVP_PKEY **key);
-CK_KEY_TYPE do_get_key_type(EVP_PKEY *key);
-CK_ULONG    do_get_rsa_modulus_length(EVP_PKEY *key);
-CK_RV       do_get_public_exponent(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
-CK_RV       do_get_public_key(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
-CK_RV       do_get_modulus(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
-CK_RV       do_get_curve_parameters(EVP_PKEY *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
-CK_RV       do_delete_pubk(EVP_PKEY **key);
-//CK_RV       free_key(EVP_PKEY *key);
+CK_RV       do_store_pubk(ykcs11_x509_t *cert, ykcs11_pkey_t **key);
+CK_KEY_TYPE do_get_key_type(ykcs11_pkey_t *key);
+CK_ULONG    do_get_key_size(ykcs11_pkey_t *key);
+CK_ULONG    do_get_signature_size(ykcs11_pkey_t *key);
+CK_BYTE     do_get_key_algorithm(ykcs11_pkey_t *key);
+CK_RV       do_get_public_exponent(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
+CK_RV       do_get_public_key(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
+CK_RV       do_get_modulus(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
+CK_RV       do_get_curve_parameters(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len);
+CK_RV       do_delete_pubk(ykcs11_pkey_t **key);
 
-CK_RV do_encode_rsa_public_key(ykcs11_rsa_key_t **key, CK_BYTE_PTR modulus, CK_ULONG mlen, CK_BYTE_PTR exponent, CK_ULONG elen);
-CK_RV do_free_rsa_public_key(ykcs11_rsa_key_t *key);
-
-CK_RV do_pkcs_1_t1(CK_BYTE_PTR in, CK_ULONG in_len, CK_BYTE_PTR out, CK_ULONG_PTR out_len, CK_ULONG key_len);
-CK_RV do_pkcs_1_digest_info(CK_BYTE_PTR in, CK_ULONG in_len, int nid, CK_BYTE_PTR out, CK_ULONG_PTR out_len);
-
-CK_RV do_pkcs_pss(RSA *key, CK_BYTE_PTR in, CK_ULONG in_len, int nid,
-                  CK_BYTE_PTR out, CK_ULONG_PTR out_len);
-
-CK_RV do_md_init(hash_t hash, ykcs11_md_ctx_t **ctx);
-CK_RV do_md_update(ykcs11_md_ctx_t *ctx, CK_BYTE_PTR in, CK_ULONG in_len);
-CK_RV do_md_finalize(ykcs11_md_ctx_t *ctx, CK_BYTE_PTR out, CK_ULONG_PTR out_len, int *nid);
-CK_RV do_md_cleanup(ykcs11_md_ctx_t *ctx);
+CK_RV do_apply_DER_encoding_to_ECSIG(CK_BYTE_PTR signature, CK_ULONG_PTR len, CK_ULONG buf_size);
+CK_RV do_strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG len, CK_ULONG sig_len);
 
 #endif

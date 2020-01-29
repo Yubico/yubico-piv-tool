@@ -1,5 +1,5 @@
 == Read Certificate
-    $ yubico-piv-tool -a read-certificate -s <slot> [ -i <cert.pem> -K <cert file format> ]
+    $ yubico-piv-tool -a read-certificate -s <slot> [ -o <cert.pem> -K <cert file format> ]
 
 === Description
 Returns the certificate stored on a certain slot.

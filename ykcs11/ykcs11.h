@@ -31,77 +31,111 @@
 #ifndef YKCS11_H
 #define YKCS11_H
 
+#include "ykpiv.h"
 #include "pkcs11y.h"
 #include "obj_types.h"
 #include "openssl_types.h"
-#include "vendors.h"
 
-#define YKCS11_OP_BUFSIZE  4096
-
-typedef struct {
-  vendor_id_t   vid;
-  CK_TOKEN_INFO info;
-  piv_obj_id_t  *objects;  // List of objects in the token
-  CK_ULONG      n_objects; // TOTAL number of objects in the token
-  CK_ULONG      n_certs;   // Number of certificate objects in the token (portion of n_objects)
-} ykcs11_token_t;
+typedef enum {
+  YKCS11_PUBLIC,
+  YKCS11_USER,
+  YKCS11_SO
+} ykcs11_login_state_t;
 
 typedef struct {
-  vendor_id_t    vid;
-  CK_SLOT_INFO   info;
-  ykcs11_token_t *token;
+  CK_ULONG        len;
+  CK_BYTE_PTR     data;
+} ykcs11_data_t;
+
+typedef struct {
+  void* mutex;
+  CK_SLOT_INFO   slot_info;
+  CK_TOKEN_INFO  token_info;
+  ykpiv_state    *piv_state;
+  ykcs11_login_state_t login_state;
+  CK_ULONG       n_objects;   // TOTAL number of objects in the token
+  piv_obj_id_t   objects[PIV_OBJ_COUNT]; // List of objects in the token
+  ykcs11_data_t  data[38];    // Raw data, stored by sub_id 1-37
+  ykcs11_x509_t  *certs[26];  // Certificates, stored by sub_id 1-25
+  ykcs11_x509_t  *atst[26];   // Attestations, stored by sub_id 1-25
+  ykcs11_pkey_t  *pkeys[26];  // Public keys, stored by sub_id 1-25
 } ykcs11_slot_t;
-
-typedef struct {
-  CK_SESSION_HANDLE handle;
-  CK_SESSION_INFO   info; /* slotid, state, flags, deviceerror */
-  ykcs11_slot_t     *slot;
-} ykcs11_session_t;
 
 typedef enum {
   YKCS11_NOOP,
-  YKCS11_GEN,
+  YKCS11_DIGEST,
   YKCS11_SIGN,
-  YKCS11_HASH,
+  YKCS11_VERIFY,
+  YKCS11_ENCRYPT,
   YKCS11_DECRYPT
 } ykcs11_op_type_t;
 
 typedef struct {
-  CK_BBOOL rsa;            // RSA or EC key
+  CK_BYTE  algorithm;      // PIV Key algorithm
   CK_BYTE  key_id;         // Key id
-  CK_ULONG key_len;        // Length in bits
-  CK_ULONG vendor_defined; // Additional parameters (touch and PIN policy)
 } gen_info_t;
 
 typedef struct {
-  ykcs11_md_ctx_t   *md_ctx; // Digest context
-  ykcs11_rsa_key_t  *key;    // Raw public key (needed for PSS)
-  CK_BYTE           algo;    // Algo for ykpiv // TODO: infer this from the key length?
-  CK_ULONG          key_id;  // Key id for ykpiv // TODO: make this a BYTE and store the id {0, 1, 2, 3}
-  CK_ULONG          key_len; // Length in bits
+  CK_ULONG          padding;   // RSA padding, 0 for EC
+  ykcs11_rsa_t      *rsa;      // RSA public key (needed for PSS padding), NULL for EC
+  CK_BYTE           piv_key;   // PIV Key id
+  CK_BYTE           algorithm; // PIV Key algorithm
+  const ykcs11_md_t *pss_md;
+  const ykcs11_md_t *mgf1_md;
+  CK_ULONG          pss_slen;
 } sign_info_t;
 
 typedef struct {
-  CK_BYTE todo;
-} hash_info_t;
+  CK_ULONG          padding;   // RSA padding, 0 for EC
+  ykcs11_pkey_ctx_t *pkey_ctx; // Signature context
+} verify_info_t;
 
 typedef struct {
-  CK_BYTE todo;
-} decrypt_info_t;
+  CK_ULONG          padding;   // RSA padding, 0 for EC
+  ykcs11_pkey_t     *key;      // Public key
+  CK_BYTE           piv_key;   // PIV Key id
+  CK_BYTE           algorithm; // PIV Key algorithm
+  const ykcs11_md_t *oaep_md;
+  const ykcs11_md_t *mgf1_md;
+  unsigned char     *oaep_label;
+  CK_ULONG          oaep_label_len;
+} encrypt_info_t;
 
 typedef union {
-  gen_info_t     gen;
   sign_info_t    sign;
-  hash_info_t    hash;
-  decrypt_info_t decrypt;
+  verify_info_t  verify;
+  encrypt_info_t encrypt; // Used for both encrypt and decrypt
 } op_t;
 
 typedef struct {
-  ykcs11_op_type_t type;
-  CK_MECHANISM     mechanism;
-  op_t             op;
-  CK_BYTE          buf[YKCS11_OP_BUFSIZE];
-  CK_ULONG         buf_len;
+  CK_MECHANISM_TYPE mechanism; // Active mechanism, if any
+  ykcs11_op_type_t type;     // Active operation, if any
+  op_t             op;       // Operation specific data,if any
+  ykcs11_md_ctx_t  *md_ctx;  // Digest context
+  CK_ULONG         out_len;  // Required out length in bytes
+  CK_ULONG         buf_len;  // Current buf length in bytes
+  CK_BYTE          buf[4096];
 } op_info_t;
+
+typedef struct {
+  CK_BBOOL        active;     
+  CK_ULONG        idx;
+  CK_ULONG        n_objects;
+  piv_obj_id_t    objects[PIV_OBJ_COUNT];
+} ykcs11_find_t;
+
+typedef struct {
+  CK_SESSION_INFO info;        // slotid, state, flags, deviceerror
+  ykcs11_slot_t   *slot;       // slot for open session, or NULL 
+  ykcs11_find_t   find_obj;    // Active find operation (if any)
+  op_info_t       op_info;
+} ykcs11_session_t;
+
+typedef struct {
+  piv_obj_id_t piv_id;
+  const char   *label;
+  CK_RV        (*get_attribute)(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template);
+  CK_BYTE      sub_id; // Sub-object id
+} piv_obj_t;
 
 #endif

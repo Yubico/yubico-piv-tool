@@ -131,6 +131,7 @@ extern "C"
                                     const unsigned char *ec_data, unsigned char ec_data_len,
                                     const unsigned char pin_policy, const unsigned char touch_policy);
   ykpiv_rc ykpiv_attest(ykpiv_state *state, const unsigned char key, unsigned char *data, size_t *data_len);
+  ykpiv_rc ykpiv_get_metadata(ykpiv_state *state, const unsigned char key, unsigned char *data, size_t *data_len);
 
   /**
    * Return the number of PIN attempts remaining before PIN is locked.
@@ -282,6 +283,15 @@ extern "C"
     uint8_t data[24];
   } ykpiv_mgm;
 #pragma pack(pop)
+
+  typedef struct _ykpiv_metadata {
+    uint8_t algorithm;
+    uint8_t pin_policy;
+    uint8_t touch_policy;
+    uint8_t origin;
+    size_t pubkey_len;
+    uint8_t pubkey[512];
+  } ykpiv_metadata;
 
   /**
    * Free allocated data
@@ -547,8 +557,8 @@ extern "C"
   ykpiv_rc ykpiv_util_write_mscmap(ykpiv_state *state, ykpiv_container *containers, size_t n_containers);
   ykpiv_rc ykpiv_util_read_msroots(ykpiv_state  *state, uint8_t **data, size_t *data_len);
   ykpiv_rc ykpiv_util_write_msroots(ykpiv_state *state, uint8_t *data, size_t data_len);
-
-
+  ykpiv_rc ykpiv_util_parse_metadata(uint8_t *data, size_t data_len, ykpiv_metadata *metadata);
+  
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -648,7 +658,10 @@ extern "C"
 #define SW_SUCCESS 0x9000
 #define SW_ERR_SECURITY_STATUS 0x6982
 #define SW_ERR_AUTH_BLOCKED 0x6983
+#define SW_ERR_CONDITIONS_OF_USE 0x6985
 #define SW_ERR_INCORRECT_PARAM 0x6a80
+#define SW_ERR_FILE_NOT_FOUND 0x6a82
+#define SW_ERR_REFERENCE_NOT_FOUND 0x6a88
 /* this is a custom sw for yubikey */
 #define SW_ERR_INCORRECT_SLOT 0x6b00
 #define SW_ERR_NOT_SUPPORTED 0x6d00
@@ -661,6 +674,7 @@ extern "C"
 #define YKPIV_INS_SET_PIN_RETRIES 0xfa
 #define YKPIV_INS_ATTEST 0xf9
 #define YKPIV_INS_GET_SERIAL 0xf8
+#define YKPIV_INS_GET_METADATA 0xf7
 
 #define YKPIV_PINPOLICY_TAG 0xaa
 #define YKPIV_PINPOLICY_DEFAULT 0
@@ -674,6 +688,16 @@ extern "C"
 #define YKPIV_TOUCHPOLICY_ALWAYS 2
 #define YKPIV_TOUCHPOLICY_CACHED 3
 
+#define YKPIV_METADATA_ALGORITHM_TAG 0x01 // See values for YKPIV_ALGO_TAG
+
+#define YKPIV_METADATA_POLICY_TAG 0x02 // Two bytes, see values for YKPIV_PINPOLICY_TAG and YKPIV_TOUCHPOLICY_TAG
+
+#define YKPIV_METADATA_ORIGIN_TAG 0x03
+#define YKPIV_METADATA_ORIGIN_GENERATED 0x01
+#define YKPIV_METADATA_ORIGIN_IMPORTED 0x02
+
+#define YKPIV_METADATA_PUBKEY_TAG 0x04 // RSA: DER-encoded sequence N, E; EC: Uncompressed EC point X, Y
+
 #define YKPIV_IS_EC(a) ((a == YKPIV_ALGO_ECCP256 || a == YKPIV_ALGO_ECCP384))
 #define YKPIV_IS_RSA(a) ((a == YKPIV_ALGO_RSA1024 || a == YKPIV_ALGO_RSA2048))
 
@@ -684,16 +708,19 @@ extern "C"
 #define YKPIV_CERTINFO_GZIP 1
 
 #define YKPIV_ATR_NEO_R3 "\x3b\xfc\x13\x00\x00\x81\x31\xfe\x15\x59\x75\x62\x69\x6b\x65\x79\x4e\x45\x4f\x72\x33\xe1"
+#define YKPIV_ATR_NEO_R3_NFC "\x3b\x8c\x80\x01\x59\x75\x62\x69\x6b\x65\x79\x4e\x45\x4f\x72\x33\x58"
 #define YKPIV_ATR_YK4    "\x3b\xf8\x13\x00\x00\x81\x31\xfe\x15\x59\x75\x62\x69\x6b\x65\x79\x34\xd4"
 #define YKPIV_ATR_YK5_P1 "\x3b\xf8\x13\x00\x00\x81\x31\xfe\x15\x01\x59\x75\x62\x69\x4b\x65\x79\xc1"
 #define YKPIV_ATR_YK5    "\x3b\xfd\x13\x00\x00\x81\x31\xfe\x15\x80\x73\xc0\x21\xc0\x57\x59\x75\x62\x69\x4b\x65\x79\x40"
+#define YKPIV_ATR_YK5_NFC "\x3b\x8d\x80\x01\x80\x73\xc0\x21\xc0\x57\x59\x75\x62\x69\x4b\x65\x79\xf9"
 
 #define DEVTYPE_UNKNOWN  0x00000000
 #define DEVTYPE_NEO      0x4E450000 //"NE"
 #define DEVTYPE_YK       0x594B0000 //"YK"
 #define DEVTYPE_NEOr3    (DEVTYPE_NEO | 0x00007233) //"r3"
 #define DEVTYPE_YK4      (DEVTYPE_YK  | 0x00000034) // "4"
-#define DEVYTPE_YK5      (DEVTYPE_YK  | 0x00000035) // "5"
+#define DEVTYPE_YK5      (DEVTYPE_YK  | 0x00000035) // "5"
+#define DEVYTPE_YK5      DEVTYPE_YK5 // Keep old typo for backwards compatibility
 
 #ifdef __cplusplus
 }

@@ -32,15 +32,21 @@
 #define UTILS_H
 
 #include "ykcs11.h"
+#include "token.h"
 
-CK_BBOOL has_token(const ykcs11_slot_t *slot);
-CK_RV parse_readers(ykpiv_state *state,const CK_BYTE_PTR readers, const CK_ULONG len,
-                       ykcs11_slot_t *slots, CK_ULONG_PTR n_slots, CK_ULONG_PTR n_with_token);
-CK_RV create_token(ykpiv_state *state, CK_BYTE_PTR p, ykcs11_slot_t *slot);
-void  destroy_token(ykcs11_slot_t *slot);
+CK_BBOOL is_yubico_reader(const char* reader_name);
+size_t memstrcpy(unsigned char *dst, size_t size, const char *src);
 
-CK_BBOOL is_valid_key_id(CK_BYTE id);
+CK_RV noop_create_mutex(void **mutex);
+CK_RV noop_destroy_mutex(void *mutex);
+CK_RV noop_mutex_fn(void *mutex);
 
-void strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG_PTR len);
+CK_RV native_create_mutex(void **mutex);
+CK_RV native_destroy_mutex(void *mutex);
+CK_RV native_lock_mutex(void *mutex);
+CK_RV native_unlock_mutex(void *mutex);
+
+CK_RV get_pid(uint64_t *pid);
+CK_RV check_pid(uint64_t pid);
 
 #endif

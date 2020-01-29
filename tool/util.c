@@ -82,32 +82,28 @@ FILE *open_file(const char *file_name, enum file_mode mode) {
 }
 
 unsigned char get_algorithm(EVP_PKEY *key) {
-  int type = EVP_PKEY_type(EVP_PKEY_id(key));
+  int type = EVP_PKEY_base_id(key);
+  int size = EVP_PKEY_bits(key);
   switch(type) {
     case EVP_PKEY_RSA:
       {
-        RSA *rsa = EVP_PKEY_get1_RSA(key);
-        int size = RSA_size(rsa);
-        if(size == 256) {
+        if(size == 2048) {
           return YKPIV_ALGO_RSA2048;
-        } else if(size == 128) {
+        } else if(size == 1024) {
           return YKPIV_ALGO_RSA1024;
         } else {
-          fprintf(stderr, "Unusable key of %d bits, only 1024 and 2048 are supported.\n", size * 8);
+          fprintf(stderr, "Unusable RSA key of %d bits, only 1024 and 2048 are supported.\n", size);
           return 0;
         }
       }
     case EVP_PKEY_EC:
       {
-        EC_KEY *ec = EVP_PKEY_get1_EC_KEY(key);
-        const EC_GROUP *group = EC_KEY_get0_group(ec);
-        int curve = EC_GROUP_get_curve_name(group);
-        if(curve == NID_X9_62_prime256v1) {
+        if(size == 256) {
           return YKPIV_ALGO_ECCP256;
-        } else if(curve == NID_secp384r1) {
+        } else if(size == 384) {
           return YKPIV_ALGO_ECCP384;
         } else {
-          fprintf(stderr, "Unknown EC curve %d\n", curve);
+          fprintf(stderr, "Unusable EC key of %d bits, only 256 and 384 are supported.\n", size);
           return 0;
         }
       }
@@ -171,7 +167,7 @@ parse_err:
 }
 
 size_t read_data(unsigned char *buf, size_t len, FILE* input, enum enum_format format) {
-  char raw_buf[3072 * 2];
+  char raw_buf[YKPIV_OBJ_MAX_SIZE * 2];
   size_t raw_len = sizeof(raw_buf);
   raw_len = fread(raw_buf, 1, raw_len, input);
   switch(format) {
@@ -214,11 +210,11 @@ void dump_data(const unsigned char *buf, unsigned int len, FILE *output, bool sp
   switch(format) {
     case format_arg_hex:
       {
-        char tmp[3072 * 3 + 1];
+        char tmp[YKPIV_OBJ_MAX_SIZE * 3 + 1];
         unsigned int i;
         unsigned int step = 2;
         if(space) step += 1;
-        if(len > 3072) {
+        if(len > YKPIV_OBJ_MAX_SIZE) {
           return;
         }
         for (i = 0; i < len; i++) {
@@ -246,8 +242,8 @@ void dump_data(const unsigned char *buf, unsigned int len, FILE *output, bool sp
   }
 }
 
-int get_length(const unsigned char *buffer, int *len) {
-  if(buffer[0] < 0x81) {
+unsigned long get_length(const unsigned char *buffer, unsigned long *len) {
+  if(*buffer < 0x81) {
     *len = buffer[0];
     return 1;
   } else if((*buffer & 0x7f) == 1) {
@@ -260,6 +256,19 @@ int get_length(const unsigned char *buffer, int *len) {
   return 0;
 }
 
+bool has_valid_length(const unsigned char* buffer, unsigned long len) {
+  if ((len > 0) && (*buffer < 0x81)) {
+    return true;
+  }
+  else if ((len > 1) && ((*buffer & 0x7f) == 1)) {
+    return true;
+  }
+  else if ((len > 2) && ((*buffer & 0x7f) == 2)) {
+    return true;
+  }
+  return false;
+}
+
 int get_curve_name(int key_algorithm) {
   if(key_algorithm == YKPIV_ALGO_ECCP256) {
     return NID_X9_62_prime256v1;
@@ -269,7 +278,7 @@ int get_curve_name(int key_algorithm) {
   return 0;
 }
 
-int set_length(unsigned char *buffer, int length) {
+unsigned long set_length(unsigned char *buffer, unsigned long length) {
   if(length < 0x80) {
     *buffer++ = length;
     return 1;
@@ -349,6 +358,9 @@ bool prepare_rsa_signature(const unsigned char *in, unsigned int in_len, unsigne
   ASN1_OCTET_STRING *digest;
   unsigned char data[1024];
 
+  if(in_len > sizeof(data))
+    return false;
+
   memcpy(data, in, in_len);
 
   digestInfo = X509_SIG_new();
@@ -384,7 +396,7 @@ bool read_pw(const char *name, char *pwbuf, size_t pwbuflen, int verify, int std
   }
 
   ret = snprintf(prompt, sizeof(prompt), READ_PW_PROMPT_BASE, name);
-  if (ret < 0 || ((unsigned int) ret) > (sizeof(prompt)-1)) {
+  if (ret < 0 || ret >= sizeof(prompt)) {
     fprintf(stderr, "Failed to read %s: snprintf failed.\n", name);
     return false;
   }
@@ -540,9 +552,8 @@ int SSH_write_X509(FILE *fp, X509 *x) {
     return ret;
   }
 
-  switch (EVP_PKEY_id(pkey)) {
-  case EVP_PKEY_RSA:
-  case EVP_PKEY_RSA2: {
+  switch (EVP_PKEY_base_id(pkey)) {
+  case EVP_PKEY_RSA: {
     RSA *rsa;
     unsigned char n[256];
     const BIGNUM *bn_n;

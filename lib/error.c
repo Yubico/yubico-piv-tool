@@ -47,14 +47,18 @@ static const err_t errors[] = {
   ERR (YKPIV_PCSC_ERROR, "Error in PCSC call"),
   ERR (YKPIV_SIZE_ERROR, "Wrong buffer size"),
   ERR (YKPIV_APPLET_ERROR, "No PIV application found"),
-  ERR (YKPIV_AUTHENTICATION_ERROR, "Error during authentication"),
+  ERR (YKPIV_AUTHENTICATION_ERROR, "Authentication error"),
   ERR (YKPIV_RANDOMNESS_ERROR, "Error getting randomness"),
   ERR (YKPIV_GENERIC_ERROR, "Something went wrong."),
-  ERR (YKPIV_KEY_ERROR, "Error in key"),
+  ERR (YKPIV_KEY_ERROR, "Key error"),
   ERR (YKPIV_PARSE_ERROR, "Parse error"),
   ERR (YKPIV_WRONG_PIN, "Wrong PIN code"),
-  ERR (YKPIV_INVALID_OBJECT, "Object invalid"),
+  ERR (YKPIV_INVALID_OBJECT, "Invalid object"),
   ERR (YKPIV_ALGORITHM_ERROR, "Algorithm error"),
+  ERR (YKPIV_PIN_LOCKED, "PIN locked"),
+  ERR (YKPIV_ARGUMENT_ERROR, "Argument error"),
+  ERR (YKPIV_RANGE_ERROR, "Range error"),
+  ERR (YKPIV_NOT_SUPPORTED, "Not supported"),
 };
 
 /**

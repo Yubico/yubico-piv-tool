@@ -63,6 +63,7 @@ const uint8_t CHUID_TMPL[] = {
   0x31, 0x30, 0x31, 0x3e, 0x00, 0xfe, 0x00,
 };
 #define CHUID_GUID_OFFS 29
+#define TAG_CHUID_UUID 0x34
 
 // f0: Card Identifier
 //  - 0xa000000116 == GSC-IS RID
@@ -86,7 +87,7 @@ static ykpiv_rc _get_metadata_item(uint8_t *data, size_t cb_data, uint8_t tag, u
 static ykpiv_rc _set_metadata_item(uint8_t *data, size_t *pcb_data, size_t cb_data_max, uint8_t tag, uint8_t *p_item, size_t cb_item);
 
 static size_t _obj_size_max(ykpiv_state *state) {
-  return (state && state->isNEO) ? CB_OBJ_MAX_NEO : CB_OBJ_MAX;
+  return (state && state->model == DEVTYPE_NEOr3) ? CB_OBJ_MAX_NEO : CB_OBJ_MAX;
 }
 
 /*
@@ -96,21 +97,46 @@ static size_t _obj_size_max(ykpiv_state *state) {
 ykpiv_rc ykpiv_util_get_cardid(ykpiv_state *state, ykpiv_cardid *cardid) {
   ykpiv_rc res = YKPIV_OK;
   uint8_t buf[CB_OBJ_MAX];
-  size_t len = sizeof(buf);
+  unsigned long len = sizeof(buf);
+  uint8_t *p_temp = NULL;
+  size_t cb_temp = 0;
+  uint8_t tag = 0;
 
   if (!cardid) return YKPIV_GENERIC_ERROR;
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
-  res = _ykpiv_fetch_object(state, YKPIV_OBJ_CHUID, buf, (unsigned long *)&len);
-  if (YKPIV_OK == res) {
-    if (len != sizeof(CHUID_TMPL)) {
-      res = YKPIV_GENERIC_ERROR;
+  if ((res = _ykpiv_fetch_object(state, YKPIV_OBJ_CHUID, buf, &len)) == YKPIV_OK) {
+    p_temp = buf;
+
+    while (p_temp < (buf + len)) {
+      tag = *p_temp++;
+
+      if (!_ykpiv_has_valid_length(p_temp, (size_t)(buf + len - p_temp))) {
+        res = YKPIV_SIZE_ERROR;
+        goto Cleanup;
+      }
+
+      p_temp += _ykpiv_get_length(p_temp, &cb_temp);
+
+      if (tag == TAG_CHUID_UUID) {
+        /* found card uuid */
+        if (cb_temp < YKPIV_CARDID_SIZE || p_temp + YKPIV_CARDID_SIZE > buf + len) {
+          res = YKPIV_SIZE_ERROR;
+          goto Cleanup;
+        }
+
+        res = YKPIV_OK;
+        memcpy(cardid->data, p_temp, YKPIV_CARDID_SIZE);
+        goto Cleanup;
+      }
+
+      p_temp += cb_temp;
     }
-    else {
-      memcpy(cardid->data, buf + CHUID_GUID_OFFS, YKPIV_CARDID_SIZE);
-    }
+
+    /* not found, not malformed */
+    res = YKPIV_GENERIC_ERROR;
   }
 
 Cleanup:
@@ -136,7 +162,7 @@ ykpiv_rc ykpiv_util_set_cardid(ykpiv_state *state, const ykpiv_cardid *cardid) {
     memcpy(id, cardid->data, sizeof(id));
   }
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   memcpy(buf, CHUID_TMPL, sizeof(CHUID_TMPL));
@@ -154,14 +180,14 @@ Cleanup:
 ykpiv_rc ykpiv_util_get_cccid(ykpiv_state *state, ykpiv_cccid *ccc) {
   ykpiv_rc res = YKPIV_OK;
   uint8_t buf[CB_OBJ_MAX];
-  size_t len = sizeof(buf);
+  unsigned long len = sizeof(buf);
 
   if (!ccc) return YKPIV_GENERIC_ERROR;
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
-  res = _ykpiv_fetch_object(state, YKPIV_OBJ_CAPABILITY, buf, (unsigned long *)&len);
+  res = _ykpiv_fetch_object(state, YKPIV_OBJ_CAPABILITY, buf, &len);
   if (YKPIV_OK == res) {
     if (len != sizeof(CCC_TMPL)) {
       res = YKPIV_GENERIC_ERROR;
@@ -194,7 +220,7 @@ ykpiv_rc ykpiv_util_set_cccid(ykpiv_state *state, const ykpiv_cccid *ccc) {
     memcpy(id, ccc->data, sizeof(id));
   }
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   len = sizeof(CCC_TMPL);
@@ -208,10 +234,10 @@ Cleanup:
 }
 
 ykpiv_devmodel ykpiv_util_devicemodel(ykpiv_state *state) {
-  if (!state || !state->context || (state->context == (uintptr_t)-1)) {
+  if (!state || !state->context || (state->context == (SCARDCONTEXT)-1)) {
     return DEVTYPE_UNKNOWN;
   }
-  return (state->isNEO ? DEVTYPE_NEOr3 : DEVTYPE_YK4);
+  return state->model;
 }
 
 ykpiv_rc ykpiv_util_list_keys(ykpiv_state *state, uint8_t *key_count, ykpiv_key **data, size_t *data_len) {
@@ -257,7 +283,7 @@ ykpiv_rc ykpiv_util_list_keys(ykpiv_state *state, uint8_t *key_count, ykpiv_key 
 
   if ((NULL == data) || (NULL == data_len) || (NULL == key_count)) { return YKPIV_GENERIC_ERROR; }
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   // init return parameters
@@ -342,7 +368,7 @@ ykpiv_rc ykpiv_util_read_cert(ykpiv_state *state, uint8_t slot, uint8_t **data, 
 
   if ((NULL == data )|| (NULL == data_len)) return YKPIV_GENERIC_ERROR;
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   *data = 0;
@@ -376,7 +402,7 @@ Cleanup:
 ykpiv_rc ykpiv_util_write_cert(ykpiv_state *state, uint8_t slot, uint8_t *data, size_t data_len, uint8_t certinfo) {
   ykpiv_rc res = YKPIV_OK;
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   res = _write_certificate(state, slot, data, data_len, certinfo);
@@ -403,7 +429,7 @@ ykpiv_rc ykpiv_util_block_puk(ykpiv_state *state) {
 
   if (NULL == state) return YKPIV_GENERIC_ERROR;
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   while (tries != 0) {
@@ -454,18 +480,18 @@ Cleanup:
 ykpiv_rc ykpiv_util_read_mscmap(ykpiv_state *state, ykpiv_container **containers, size_t *n_containers) {
   ykpiv_rc res = YKPIV_OK;
   uint8_t buf[CB_BUF_MAX];
-  size_t cbBuf = sizeof(buf);
+  unsigned long cbBuf = sizeof(buf);
   size_t len = 0;
   uint8_t *ptr = NULL;
 
   if ((NULL == containers) || (NULL == n_containers)) { res = YKPIV_GENERIC_ERROR; goto Cleanup; }
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   *containers = 0;
   *n_containers = 0;
 
-  if (YKPIV_OK == (res = _ykpiv_fetch_object(state, YKPIV_OBJ_MSCMAP, buf, (unsigned long*)&cbBuf))) {
+  if (YKPIV_OK == (res = _ykpiv_fetch_object(state, YKPIV_OBJ_MSCMAP, buf, &cbBuf))) {
     ptr = buf;
 
     /* check that object contents are at least large enough to read the header */
@@ -508,7 +534,7 @@ ykpiv_rc ykpiv_util_write_mscmap(ykpiv_state *state, ykpiv_container *containers
   size_t req_len = 0;
   size_t data_len = n_containers * sizeof(ykpiv_container);
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   // check if data and data_len are zero, this means that
@@ -554,7 +580,7 @@ Cleanup:
 ykpiv_rc ykpiv_util_read_msroots(ykpiv_state *state, uint8_t **data, size_t *data_len) {
   ykpiv_rc res = YKPIV_OK;
   uint8_t buf[CB_BUF_MAX];
-  size_t cbBuf = sizeof(buf);
+  unsigned long cbBuf = sizeof(buf);
   size_t len = 0;
   uint8_t *ptr = NULL;
   int object_id = 0;
@@ -567,7 +593,7 @@ ykpiv_rc ykpiv_util_read_msroots(ykpiv_state *state, uint8_t **data, size_t *dat
 
   if (!data || !data_len) return YKPIV_GENERIC_ERROR;
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   *data = 0;
@@ -580,7 +606,7 @@ ykpiv_rc ykpiv_util_read_msroots(ykpiv_state *state, uint8_t **data, size_t *dat
   for (object_id = YKPIV_OBJ_MSROOTS1; object_id <= YKPIV_OBJ_MSROOTS5; object_id++) {
     cbBuf = sizeof(buf);
 
-    if (YKPIV_OK != (res = _ykpiv_fetch_object(state, object_id, buf, (unsigned long*)&cbBuf))) {
+    if (YKPIV_OK != (res = _ykpiv_fetch_object(state, object_id, buf, &cbBuf))) {
       goto Cleanup;
     }
 
@@ -655,7 +681,7 @@ ykpiv_rc ykpiv_util_write_msroots(ykpiv_state *state, uint8_t *data, size_t data
   unsigned int i = 0;
   size_t cb_obj_max = _obj_size_max(state);
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   // check if either data and data_len are zero, this means that
@@ -798,7 +824,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     return YKPIV_GENERIC_ERROR;
   }
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   templ[3] = slot;
@@ -990,7 +1016,7 @@ ykpiv_rc ykpiv_util_get_config(ykpiv_state *state, ykpiv_config *config) {
   config->pin_last_changed = 0;
   config->mgm_type = YKPIV_CONFIG_MGM_MANUAL;
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   /* recover admin data */
@@ -1058,7 +1084,7 @@ ykpiv_rc ykpiv_util_set_pin_last_changed(ykpiv_state *state) {
 
   if (NULL == state) return YKPIV_GENERIC_ERROR;
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   /* recover admin data */
@@ -1095,7 +1121,7 @@ ykpiv_rc ykpiv_util_get_derived_mgm(ykpiv_state *state, const uint8_t *pin, cons
   if (NULL == state) return YKPIV_GENERIC_ERROR;
   if ((NULL == pin) || (0 == pin_len) || (NULL == mgm)) return YKPIV_GENERIC_ERROR;
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   /* recover management key */
@@ -1131,7 +1157,7 @@ ykpiv_rc ykpiv_util_get_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
   if (NULL == state) return YKPIV_GENERIC_ERROR;
   if (NULL == mgm) return YKPIV_GENERIC_ERROR;
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   if (YKPIV_OK != (res = _read_metadata(state, TAG_PROTECTED, data, &cb_data))) {
@@ -1192,7 +1218,7 @@ ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
     }
   }
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) { res = YKPIV_PCSC_ERROR; goto Cleanup; }
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) goto Cleanup;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   /* try to set the mgm key as long as we don't encounter a fatal error */
@@ -1458,7 +1484,7 @@ static ykpiv_rc _get_metadata_item(uint8_t *data, size_t cb_data, uint8_t tag, u
   while (p_temp < (data + cb_data)) {
     tag_temp = *p_temp++;
 
-    if (!_ykpiv_has_valid_length(p_temp, (data + cb_data - p_temp))) {
+    if (!_ykpiv_has_valid_length(p_temp, (size_t)(data + cb_data - p_temp))) {
       return YKPIV_SIZE_ERROR;
     }
 
@@ -1472,13 +1498,52 @@ static ykpiv_rc _get_metadata_item(uint8_t *data, size_t cb_data, uint8_t tag, u
     p_temp += cb_temp;
   }
 
-  if (p_temp < (data + cb_data)) {
+  // Make sure the item doesn't end after the buffer
+  if ((p_temp + cb_temp) <= (data + cb_data)) {
     *pp_item = p_temp;
     *pcb_item = cb_temp;
     return YKPIV_OK;
   }
 
   return YKPIV_GENERIC_ERROR;
+}
+
+ykpiv_rc ykpiv_util_parse_metadata(uint8_t *data, size_t data_len, ykpiv_metadata *metadata) {
+  uint8_t *p;
+  size_t cb;
+
+  ykpiv_rc rc = _get_metadata_item(data, data_len, YKPIV_METADATA_ALGORITHM_TAG, &p, &cb);
+  if(rc != YKPIV_OK)
+    return rc;
+  if(cb != 1)
+    return YKPIV_PARSE_ERROR;
+  metadata->algorithm = p[0];
+
+  rc = _get_metadata_item(data, data_len, YKPIV_METADATA_POLICY_TAG, &p, &cb);
+  if(rc != YKPIV_OK)
+    return rc;
+  if(cb != 2)
+    return YKPIV_PARSE_ERROR;
+  metadata->pin_policy = p[0];
+  metadata->touch_policy = p[1];
+
+  rc = _get_metadata_item(data, data_len, YKPIV_METADATA_ORIGIN_TAG, &p, &cb);
+  if(rc != YKPIV_OK)
+    return rc;
+  if(cb != 1)
+    return YKPIV_PARSE_ERROR;
+  metadata->origin = p[0];
+
+  rc = _get_metadata_item(data, data_len, YKPIV_METADATA_PUBKEY_TAG, &p, &cb);
+  if(rc != YKPIV_OK)
+    return rc;
+  if(cb > sizeof(metadata->pubkey))
+    return YKPIV_PARSE_ERROR;
+
+  metadata->pubkey_len = cb;
+  memcpy(metadata->pubkey, p, cb);
+
+  return YKPIV_OK;
 }
 
 static int _get_length_size(size_t length) {
@@ -1598,7 +1663,7 @@ static ykpiv_rc _set_metadata_item(uint8_t *data, size_t *pcb_data, size_t cb_da
 static ykpiv_rc _read_metadata(ykpiv_state *state, uint8_t tag, uint8_t* data, size_t* pcb_data) {
   ykpiv_rc res = YKPIV_OK;
   uint8_t *p_temp = NULL;
-  size_t cb_temp = 0;
+  unsigned long cb_temp = 0;
   int obj_id = 0;
 
   if (!data || !pcb_data || (CB_BUF_MAX > *pcb_data)) return YKPIV_GENERIC_ERROR;
@@ -1612,7 +1677,7 @@ static ykpiv_rc _read_metadata(ykpiv_state *state, uint8_t tag, uint8_t* data, s
   cb_temp = *pcb_data;
   *pcb_data = 0;
 
-  if (YKPIV_OK != (res = _ykpiv_fetch_object(state, obj_id, data, (unsigned long*)&cb_temp))) {
+  if (YKPIV_OK != (res = _ykpiv_fetch_object(state, obj_id, data, &cb_temp))) {
     return res;
   }
 

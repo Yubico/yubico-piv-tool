@@ -58,6 +58,25 @@
 #endif
 
 /**
+ * DISABLE_MGM_KEY_CACHE - disable in-RAM cache of MGM_KEY (SO PIN)
+ *
+ * By default, the MGM_KEY is cached in RAM when provided to \p ykpiv_authenticate() or
+ * changed with \p ykpiv_set_mgmkey().  If the USB connection is lost between
+ * calls, the device will be re-authenticated on the next call using the cached
+ * MGM_KEY.  The MGM_KEY is cleared with a call to \p ykpiv_done().
+ *
+ * The MGM_KEY cache prevents problems with long-running applications losing their
+ * authentication in some cases, such as when a laptop sleeps.
+ *
+ * The cache can be disabled by setting this define to 1 if it is not desired
+ * to store the MGM_KEY in RAM.
+ *
+ */
+#ifndef DISABLE_MGM_KEY_CACHE
+#define DISABLE_MGM_KEY_CACHE 0
+#endif
+
+/**
  * ENABLE_APPLICATION_RESELECT - re-select application for all public API calls
  *
  * If this is enabled, every public call (prefixed with \r ykpiv_) will check
@@ -102,11 +121,23 @@
 #define YKPIV_MGM_DEFAULT "\x01\x02\x03\x04\x05\x06\x07\x08\x01\x02\x03\x04\x05\x06\x07\x08\x01\x02\x03\x04\x05\x06\x07\x08"
 
 static ykpiv_rc _cache_pin(ykpiv_state *state, const char *pin, size_t len);
-static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state, uint32_t *p_serial, bool force);
-static ykpiv_rc _ykpiv_get_version(ykpiv_state *state, ykpiv_version_t *p_version);
+static ykpiv_rc _cache_mgm_key(ykpiv_state *state, unsigned const char *key);
+static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state);
+static ykpiv_rc _ykpiv_get_version(ykpiv_state *state);
+static ykpiv_rc _ykpiv_verify(ykpiv_state *state, const char *pin, const size_t pin_len, int *tries);
+static ykpiv_rc _ykpiv_authenticate(ykpiv_state *state, unsigned const char *key);
+static ykpiv_rc _ykpiv_auth_deauthenticate(ykpiv_state *state);
 
-static unsigned const char aid[] = {
+static unsigned const char piv_aid[] = {
 	0xa0, 0x00, 0x00, 0x03, 0x08
+};
+
+static unsigned const char yk_aid[] = {
+  0xa0, 0x00, 0x00, 0x05, 0x27, 0x20, 0x01, 0x01
+};
+
+static unsigned const char mgmt_aid[] = {
+  0xa0, 0x00, 0x00, 0x05, 0x27, 0x47, 0x11, 0x17
 };
 
 static void* _default_alloc(void *data, size_t cb) {
@@ -187,13 +218,13 @@ unsigned int _ykpiv_get_length(const unsigned char *buffer, size_t *len) {
 }
 
 bool _ykpiv_has_valid_length(const unsigned char* buffer, size_t len) {
-  if ((buffer[0] < 0x81) && (len > 0)) {
+  if ((len > 0) && (*buffer < 0x81)) {
     return true;
   }
-  else if (((*buffer & 0x7f) == 1) && (len > 1)) {
+  else if ((len > 1) && ((*buffer & 0x7f) == 1)) {
     return true;
   }
-  else if (((*buffer & 0x7f) == 2) && (len > 2)) {
+  else if ((len > 2) && ((*buffer & 0x7f) == 2)) {
     return true;
   }
   return false;
@@ -228,7 +259,6 @@ ykpiv_rc ykpiv_init_with_allocator(ykpiv_state **state, int verbose, const ykpiv
   }
 
   memset(s, 0, sizeof(ykpiv_state));
-  s->pin = NULL;
   s->allocator = *allocator;
   s->verbose = verbose;
   s->context = (SCARDCONTEXT)-1;
@@ -244,6 +274,7 @@ static ykpiv_rc _ykpiv_done(ykpiv_state *state, bool disconnect) {
   if (disconnect)
     ykpiv_disconnect(state);
   _cache_pin(state, NULL, 0);
+  _cache_mgm_key(state, NULL);
   _ykpiv_free(state, state);
   return YKPIV_OK;
 }
@@ -258,6 +289,9 @@ ykpiv_rc ykpiv_done(ykpiv_state *state) {
 
 ykpiv_rc ykpiv_disconnect(ykpiv_state *state) {
   if(state->card) {
+    if(state->verbose) {
+      fprintf(stderr, "Disconnect card #%u.\n", state->serial);
+    }
     SCardDisconnect(state->card, SCARD_RESET_CARD);
     state->card = 0;
   }
@@ -266,6 +300,11 @@ ykpiv_rc ykpiv_disconnect(ykpiv_state *state) {
     SCardReleaseContext(state->context);
     state->context = (SCARDCONTEXT)-1;
   }
+
+  state->serial = 0;
+  state->ver.major = 0;
+  state->ver.minor = 0;
+  state->ver.patch = 0;
 
   return YKPIV_OK;
 }
@@ -280,8 +319,8 @@ ykpiv_rc _ykpiv_select_application(ykpiv_state *state) {
   memset(apdu.raw, 0, sizeof(apdu));
   apdu.st.ins = YKPIV_INS_SELECT_APPLICATION;
   apdu.st.p1 = 0x04;
-  apdu.st.lc = sizeof(aid);
-  memcpy(apdu.st.data, aid, sizeof(aid));
+  apdu.st.lc = sizeof(piv_aid);
+  memcpy(apdu.st.data, piv_aid, sizeof(piv_aid));
 
   if((res = _send_data(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
     if(state->verbose) {
@@ -304,14 +343,14 @@ ykpiv_rc _ykpiv_select_application(ykpiv_state *state) {
    * can determine how to get the serial number, which for the NEO/Yk4
    * will result in another selection of the PIV applet. */
 
-  res = _ykpiv_get_version(state, NULL);
+  res = _ykpiv_get_version(state);
   if (res != YKPIV_OK) {
     if (state->verbose) {
       fprintf(stderr, "Failed to retrieve version: '%s'\n", ykpiv_strerror(res));
     }
   }
 
-  res = _ykpiv_get_serial(state, NULL, false);
+  res = _ykpiv_get_serial(state);
   if (res != YKPIV_OK) {
     if (state->verbose) {
       fprintf(stderr, "Failed to retrieve serial number: '%s'\n", ykpiv_strerror(res));
@@ -324,13 +363,12 @@ ykpiv_rc _ykpiv_select_application(ykpiv_state *state) {
 
 ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state) {
   ykpiv_rc res = YKPIV_OK;
-
 #if ENABLE_APPLICATION_RESELECTION
   if (NULL == state) {
     return YKPIV_GENERIC_ERROR;
   }
 
-  res = ykpiv_verify(state, NULL, 0);
+  res = _ykpiv_verify(state, NULL, 0, NULL);
 
   if ((YKPIV_OK != res) && (YKPIV_WRONG_PIN != res)) {
     res = _ykpiv_select_application(state);
@@ -370,7 +408,20 @@ static ykpiv_rc _ykpiv_connect(ykpiv_state *state, uintptr_t context, uintptr_t 
       return YKPIV_PCSC_ERROR;
     }
 
-    state->isNEO = (((sizeof(YKPIV_ATR_NEO_R3) - 1) == atr_len) && (0 == memcmp(YKPIV_ATR_NEO_R3, atr, atr_len)));
+    if(atr_len + 1 == sizeof(YKPIV_ATR_NEO_R3) && !memcmp(atr, YKPIV_ATR_NEO_R3, atr_len))
+      state->model = DEVTYPE_NEOr3;
+    else if(atr_len + 1 == sizeof(YKPIV_ATR_NEO_R3_NFC) && !memcmp(atr, YKPIV_ATR_NEO_R3_NFC, atr_len))
+      state->model = DEVTYPE_NEOr3;
+    else if(atr_len + 1 == sizeof(YKPIV_ATR_YK4) && !memcmp(atr, YKPIV_ATR_YK4, atr_len))
+      state->model = DEVTYPE_YK4;
+    else if(atr_len + 1 == sizeof(YKPIV_ATR_YK5_P1) && !memcmp(atr, YKPIV_ATR_YK5_P1, atr_len))
+      state->model = DEVTYPE_YK5;
+    else if(atr_len + 1 == sizeof(YKPIV_ATR_YK5) && !memcmp(atr, YKPIV_ATR_YK5, atr_len))
+      state->model = DEVTYPE_YK5;
+    else if(atr_len + 1 == sizeof(YKPIV_ATR_YK5_NFC) && !memcmp(atr, YKPIV_ATR_YK5_NFC, atr_len))
+      state->model = DEVTYPE_YK5;
+    else
+      state->model = DEVTYPE_UNKNOWN;
   }
 
   state->context = context;
@@ -396,113 +447,117 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
   pcsc_word active_protocol;
   char reader_buf[2048];
   size_t num_readers = sizeof(reader_buf);
-  long rc;
+  LONG rc;
   char *reader_ptr;
+  ykpiv_rc ret;
   SCARDHANDLE card = (SCARDHANDLE)-1;
 
-  ykpiv_rc ret = ykpiv_list_readers(state, reader_buf, &num_readers);
-  if(ret != YKPIV_OK) {
-    return ret;
-  }
-
-  for(reader_ptr = reader_buf; *reader_ptr != '\0'; reader_ptr += strlen(reader_ptr) + 1) {
-    if(wanted) {
-      char *ptr = reader_ptr;
-      bool found = false;
-      do {
-        if(strlen(ptr) < strlen(wanted)) {
-          break;
-        }
-        if(strncasecmp(ptr, wanted, strlen(wanted)) == 0) {
-          found = true;
-          break;
-        }
-      } while(*ptr++);
-
-      if(found == false) {
+  if(wanted && *wanted == '@') {
+    wanted++; // Skip the '@' 
+    if(state->verbose) {
+      fprintf(stderr, "Connect reader '%s'.\n", wanted);
+    }
+    if(SCardIsValidContext(state->context) != SCARD_S_SUCCESS) {
+      rc = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &state->context);
+      if (rc != SCARD_S_SUCCESS) {
         if(state->verbose) {
-          fprintf(stderr, "skipping reader '%s' since it doesn't match '%s'.\n", reader_ptr, wanted);
+          fprintf (stderr, "SCardEstablishContext failed, rc=%lx\n", (long)rc);
         }
-        continue;
+        return YKPIV_PCSC_ERROR;
       }
     }
-    if(state->verbose) {
-      fprintf(stderr, "trying to connect to reader '%s'.\n", reader_ptr);
-    }
-    rc = SCardConnect(state->context, reader_ptr, SCARD_SHARE_SHARED,
-		      SCARD_PROTOCOL_T1, &card, &active_protocol);
+    rc = SCardConnect(state->context, wanted, SCARD_SHARE_SHARED,
+          SCARD_PROTOCOL_T1, &card, &active_protocol);
     if(rc != SCARD_S_SUCCESS)
     {
       if(state->verbose) {
-        fprintf(stderr, "SCardConnect failed, rc=%08lx\n", rc);
+        fprintf(stderr, "SCardConnect failed for '%s', rc=%lx\n", wanted, (long)rc);
       }
-      continue;
+      SCardReleaseContext(state->context);
+      state->context = (SCARDCONTEXT)-1;
+      return YKPIV_PCSC_ERROR;
+    }
+  } else
+  {
+    ret = ykpiv_list_readers(state, reader_buf, &num_readers);
+    if(ret != YKPIV_OK) {
+      return ret;
     }
 
-    // at this point, card should not equal state->card, to allow _ykpiv_connect() to determine device type
-    if (YKPIV_OK == _ykpiv_connect(state, state->context, card)) {
-      /*
-       * Select applet.  This is done here instead of in _ykpiv_connect() because
-       * you may not want to select the applet when connecting to a card handle that
-       * was supplied by an external library.
-       */
-      if (YKPIV_OK != (ret = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
-#if ENABLE_APPLICATION_RESELECTION
-      ret = _ykpiv_ensure_application_selected(state);
-#else
-      ret = _ykpiv_select_application(state);
-#endif
-      _ykpiv_end_transaction(state);
-      return ret;
+    for(reader_ptr = reader_buf; *reader_ptr != '\0'; reader_ptr += strlen(reader_ptr) + 1) {
+      if(wanted) {
+        char *ptr = reader_ptr;
+        bool found = false;
+        do {
+          if(strlen(ptr) < strlen(wanted)) {
+            break;
+          }
+          if(strncasecmp(ptr, wanted, strlen(wanted)) == 0) {
+            found = true;
+            break;
+          }
+        } while(*ptr++);
+
+        if(found == false) {
+          if(state->verbose) {
+            fprintf(stderr, "Skipping reader '%s' since it doesn't match '%s'.\n", reader_ptr, wanted);
+          }
+          continue;
+        }
+      }
+      if(state->verbose) {
+        fprintf(stderr, "Connect reader '%s' matching '%s'.\n", reader_ptr, wanted);
+      }
+      rc = SCardConnect(state->context, reader_ptr, SCARD_SHARE_SHARED,
+            SCARD_PROTOCOL_T1, &card, &active_protocol);
+      if(rc == SCARD_S_SUCCESS)
+      {
+        break;
+      }
+      if(state->verbose) {
+        fprintf(stderr, "SCardConnect failed for '%s', rc=%lx\n", reader_ptr, (long)rc);
+      }
+    }
+
+    if(*reader_ptr == '\0') {
+      if(state->verbose) {
+        fprintf(stderr, "No usable reader found matching '%s'.\n", wanted);
+      }
+      SCardReleaseContext(state->context);
+      state->context = (SCARDCONTEXT)-1;
+      return YKPIV_PCSC_ERROR;
     }
   }
 
-  if(*reader_ptr == '\0') {
-    if(state->verbose) {
-      fprintf(stderr, "error: no usable reader found.\n");
-    }
-    SCardReleaseContext(state->context);
-    state->context = (SCARDCONTEXT)-1;
-    return YKPIV_PCSC_ERROR;
+  // at this point, card should not equal state->card, to allow _ykpiv_connect() to determine device type
+  if (YKPIV_OK == _ykpiv_connect(state, state->context, card)) {
+    /*
+      * Select applet.  This is done here instead of in _ykpiv_connect() because
+      * you may not want to select the applet when connecting to a card handle that
+      * was supplied by an external library.
+      */
+    if (YKPIV_OK != (ret = _ykpiv_begin_transaction(state))) return ret;
+#if ENABLE_APPLICATION_RESELECTION
+    ret = _ykpiv_ensure_application_selected(state);
+#else
+    ret = _ykpiv_select_application(state);
+#endif
+    _ykpiv_end_transaction(state);
+    return ret;
   }
 
   return YKPIV_GENERIC_ERROR;
 }
 
-static ykpiv_rc reconnect(ykpiv_state *state) {
-  pcsc_word active_protocol = 0;
-  long rc;
-  ykpiv_rc res;
-  int tries;
-  if(state->verbose) {
-    fprintf(stderr, "trying to reconnect to current reader.\n");
-  }
-  rc = SCardReconnect(state->card, SCARD_SHARE_SHARED,
-		      SCARD_PROTOCOL_T1, SCARD_RESET_CARD, &active_protocol);
-  if(rc != SCARD_S_SUCCESS) {
-    if(state->verbose) {
-      fprintf(stderr, "SCardReconnect failed, rc=%08lx\n", rc);
-    }
-    return YKPIV_PCSC_ERROR;
-  }
-  if ((res = _ykpiv_select_application(state)) != YKPIV_OK) {
-    return res;
-  }
-  if (state->pin) {
-    return ykpiv_verify(state, state->pin, &tries);
-  }
-  return YKPIV_OK;
-}
-
 ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
   pcsc_word num_readers = 0;
-  long rc;
+  LONG rc;
 
   if(SCardIsValidContext(state->context) != SCARD_S_SUCCESS) {
     rc = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &state->context);
     if (rc != SCARD_S_SUCCESS) {
       if(state->verbose) {
-        fprintf (stderr, "error: SCardEstablishContext failed, rc=%08lx\n", rc);
+        fprintf (stderr, "SCardEstablishContext failed, rc=%lx\n", (long)rc);
       }
       return YKPIV_PCSC_ERROR;
     }
@@ -511,7 +566,12 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
   rc = SCardListReaders(state->context, NULL, NULL, &num_readers);
   if (rc != SCARD_S_SUCCESS) {
     if(state->verbose) {
-      fprintf (stderr, "error: SCardListReaders failed, rc=%08lx\n", rc);
+      fprintf (stderr, "SCardListReaders failed, rc=%lx\n", (long)rc);
+    }
+    if(rc == SCARD_E_NO_READERS_AVAILABLE) {
+      *readers = 0;
+      *len = 1;
+      return YKPIV_OK;
     }
     SCardReleaseContext(state->context);
     state->context = (SCARDCONTEXT)-1;
@@ -528,7 +588,7 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
   if (rc != SCARD_S_SUCCESS)
   {
     if(state->verbose) {
-      fprintf (stderr, "error: SCardListReaders failed, rc=%08lx\n", rc);
+      fprintf (stderr, "SCardListReaders failed, rc=%lx\n", (long)rc);
     }
     SCardReleaseContext(state->context);
     state->context = (SCARDCONTEXT)-1;
@@ -542,33 +602,58 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
 
 ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state) {
 #if ENABLE_IMPLICIT_TRANSACTIONS
-  long rc;
-
-  rc = SCardBeginTransaction(state->card);
-  if((long)((unsigned long)rc & 0xFFFFFFFF) == SCARD_W_RESET_CARD) {
-   ykpiv_rc res = YKPIV_OK;
-   if((res = reconnect(state)) != YKPIV_OK) {
-      return res;
+  LONG rc;
+  int retries = 0;
+  while((rc = SCardBeginTransaction(state->card)) == SCARD_W_RESET_CARD && retries < 5) {
+    retries++;
+    if(state->verbose) {
+      fprintf(stderr, "Reconnect card #%u attempt %d\n", state->serial, retries);
     }
-    rc = SCardBeginTransaction(state->card);
+    pcsc_word active_protocol = 0;
+    rc = SCardReconnect(state->card, SCARD_SHARE_SHARED,
+            SCARD_PROTOCOL_T1, SCARD_LEAVE_CARD, &active_protocol);
+    if(rc != SCARD_S_SUCCESS) {
+      if(state->verbose) {
+        fprintf(stderr, "SCardReconnect on card #%u failed, rc=%lx\n", state->serial, (long)rc);
+      }
+      return YKPIV_PCSC_ERROR;
+    }    
   }
   if(rc != SCARD_S_SUCCESS) {
     if(state->verbose) {
-      fprintf(stderr, "error: Failed to begin pcsc transaction, rc=%08lx\n", rc);
+      fprintf(stderr, "SCardBeginTransaction on card #%u failed after %d retries, rc=%lx\n", state->serial, retries, (long)rc);
     }
     return YKPIV_PCSC_ERROR;
   }
+  if(retries) {
+    ykpiv_rc res;
+    if ((res = _ykpiv_select_application(state)) != YKPIV_OK)
+      return res;
+    if(state->mgm_key) {
+      if((res = _ykpiv_authenticate(state, state->mgm_key)) != YKPIV_OK)
+        return res;
+    }
+    if (state->pin) {
+      int tries;
+      if((res = _ykpiv_verify(state, state->pin, strlen(state->pin), &tries)) != YKPIV_OK)
+        return res;
+      // De-authenticate always-authenticate keys by running an arbitrary command
+      unsigned char data[80];
+      unsigned long recv_len = sizeof(data);
+      if((res = _ykpiv_fetch_object(state, YKPIV_OBJ_DISCOVERY, data, &recv_len)) != YKPIV_OK)
+        return res;
+    }
+  }
 #endif /* ENABLE_IMPLICIT_TRANSACTIONS */
-
   return YKPIV_OK;
 }
 
 ykpiv_rc _ykpiv_end_transaction(ykpiv_state *state) {
 #if ENABLE_IMPLICIT_TRANSACTIONS
-  long rc = SCardEndTransaction(state->card, SCARD_LEAVE_CARD);
+  LONG rc = SCardEndTransaction(state->card, SCARD_LEAVE_CARD);
   if(rc != SCARD_S_SUCCESS && state->verbose) {
-    fprintf(stderr, "error: Failed to end pcsc transaction, rc=%08lx\n", rc);
-    return YKPIV_PCSC_ERROR;
+    fprintf(stderr, "SCardEndTransaction on card #%u failed, rc=%lx\n", state->serial, (long)rc);
+    // Ending the transaction can only fail because it's already ended - it's ended now either way so we don't fail here
   }
 #endif /* ENABLE_IMPLICIT_TRANSACTIONS */
   return YKPIV_OK;
@@ -602,7 +687,8 @@ ykpiv_rc _ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
       fprintf(stderr, "Going to send %lu bytes in this go.\n", (unsigned long)this_size);
     }
     apdu.st.lc = (unsigned char)this_size;
-    memcpy(apdu.st.data, in_ptr, this_size);
+    if(this_size)
+      memcpy(apdu.st.data, in_ptr, this_size);
     res = _send_data(state, &apdu, data, &recv_len, sw);
     if(res != YKPIV_OK) {
       goto Cleanup;
@@ -664,7 +750,7 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
 
   if ((res = _ykpiv_begin_transaction(state)) != YKPIV_OK) {
     *out_len = 0;
-    return YKPIV_PCSC_ERROR;
+    return res;
   }
   res = _ykpiv_transfer_data(state, templ, in_data, in_len, out_data, out_len, sw);
   _ykpiv_end_transaction(state);
@@ -673,7 +759,6 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
 
 ykpiv_rc _send_data(ykpiv_state *state, APDU *apdu,
     unsigned char *data, uint32_t *recv_len, int *sw) {
-  long rc;
   unsigned int send_len = (unsigned int)apdu->st.lc + 5;
   pcsc_word tmp_len = *recv_len;
 
@@ -682,10 +767,10 @@ ykpiv_rc _send_data(ykpiv_state *state, APDU *apdu,
     dump_hex(apdu->raw, send_len);
     fprintf(stderr, "\n");
   }
-  rc = SCardTransmit(state->card, SCARD_PCI_T1, apdu->raw, send_len, NULL, data, &tmp_len);
+  LONG rc = SCardTransmit(state->card, SCARD_PCI_T1, apdu->raw, send_len, NULL, data, &tmp_len);
   if(rc != SCARD_S_SUCCESS) {
     if(state->verbose) {
-      fprintf (stderr, "error: SCardTransmit failed, rc=%08lx\n", rc);
+      fprintf (stderr, "SCardTransmit on card #%u failed, rc=%lx\n", state->serial, (long)rc);
     }
     return YKPIV_PCSC_ERROR;
   }
@@ -705,6 +790,20 @@ ykpiv_rc _send_data(ykpiv_state *state, APDU *apdu,
 }
 
 ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
+  ykpiv_rc res;
+  if (NULL == state) return YKPIV_GENERIC_ERROR;
+
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+
+  res = _ykpiv_authenticate(state, key);
+
+Cleanup:
+  _ykpiv_end_transaction(state);
+  return res;
+}
+
+static ykpiv_rc _ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
   APDU apdu;
   unsigned char data[261];
   unsigned char challenge[8];
@@ -716,9 +815,6 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
   size_t out_len = 0;
 
   if (NULL == state) return YKPIV_GENERIC_ERROR;
-
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   if (NULL == key) {
     /* use the derived mgm key to authenticate, if it hasn't been derived, use default */
@@ -807,6 +903,7 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
     }
 
     if (memcmp(response, data + 4, 8) == 0) {
+      _cache_mgm_key(state, key);
       res = YKPIV_OK;
     }
     else {
@@ -820,7 +917,6 @@ Cleanup:
     des_destroy_key(mgm_key);
   }
 
-  _ykpiv_end_transaction(state);
   return res;
 }
 
@@ -835,7 +931,7 @@ ykpiv_rc ykpiv_set_mgmkey2(ykpiv_state *state, const unsigned char *new_key, con
   int sw;
   ykpiv_rc res = YKPIV_OK;
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   if (yk_des_is_weak_key(new_key, DES_LEN_3DES)) {
@@ -872,6 +968,7 @@ ykpiv_rc ykpiv_set_mgmkey2(ykpiv_state *state, const unsigned char *new_key, con
     goto Cleanup;
   }
   else if (sw == SW_SUCCESS) {
+    _cache_mgm_key(state, new_key);
     goto Cleanup;
   }
   res = YKPIV_GENERIC_ERROR;
@@ -956,7 +1053,7 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
     default:
       return YKPIV_ALGORITHM_ERROR;
   }
-
+  
   if(in_len < 0x80) {
     bytes = 1;
   } else if(in_len < 0xff) {
@@ -974,19 +1071,18 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   memcpy(dataptr, sign_in, (size_t)in_len);
   dataptr += in_len;
 
-  if((res = ykpiv_transfer_data(state, templ, indata, (long)(dataptr - indata), data,
-        &recv_len, &sw)) != YKPIV_OK) {
+  if((res = _ykpiv_transfer_data(state, templ, indata, (long)(dataptr - indata), data, &recv_len, &sw)) != YKPIV_OK) {
     if(state->verbose) {
-      fprintf(stderr, "Sign command failed to communicate.\n");
+      fprintf(stderr, "Sign command failed to communicate with status %x.\n", res);
     }
     return res;
   } else if(sw != SW_SUCCESS) {
     if(state->verbose) {
-      fprintf(stderr, "Failed sign command with code %x.\n", sw);
+      fprintf(stderr, "Sign command failed with code %x.\n", sw);
     }
     if (sw == SW_ERR_SECURITY_STATUS)
       return YKPIV_AUTHENTICATION_ERROR;
-    else
+    else if(sw != SW_SUCCESS)
       return YKPIV_GENERIC_ERROR;
   }
   /* skip the first 7c tag */
@@ -1026,7 +1122,7 @@ ykpiv_rc ykpiv_sign_data(ykpiv_state *state,
 
   if (NULL == state) return YKPIV_GENERIC_ERROR;
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   /* don't attempt to reselect in crypt operations to avoid problems with PIN_ALWAYS */
   /*if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;*/
 
@@ -1044,7 +1140,7 @@ ykpiv_rc ykpiv_decipher_data(ykpiv_state *state, const unsigned char *in,
 
   if (NULL == state) return YKPIV_GENERIC_ERROR;
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   /* don't attempt to reselect in crypt operations to avoid problems with PIN_ALWAYS */
   /*if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;*/
 
@@ -1057,23 +1153,19 @@ ykpiv_rc ykpiv_decipher_data(ykpiv_state *state, const unsigned char *in,
   return res;
 }
 
-static ykpiv_rc _ykpiv_get_version(ykpiv_state *state, ykpiv_version_t *p_version) {
+static ykpiv_rc _ykpiv_get_version(ykpiv_state *state) {
   APDU apdu;
   unsigned char data[261];
   uint32_t recv_len = sizeof(data);
   int sw;
   ykpiv_rc res;
-
+  
   if (!state) {
     return YKPIV_ARGUMENT_ERROR;
   }
 
-  /* get version from state if already from device */
-
+  /* get version from state if already retrieved from device */
   if (state->ver.major || state->ver.minor || state->ver.patch) {
-    if (p_version) {
-      memcpy(p_version, &(state->ver), sizeof(ykpiv_version_t));
-    }
     return YKPIV_OK;
   }
 
@@ -1093,9 +1185,6 @@ static ykpiv_rc _ykpiv_get_version(ykpiv_state *state, ykpiv_version_t *p_versio
     state->ver.major = data[0];
     state->ver.minor = data[1];
     state->ver.patch = data[2];
-    if (p_version) {
-      memcpy(p_version, &(state->ver), sizeof(ykpiv_version_t));
-    }
   } else {
     res = YKPIV_GENERIC_ERROR;
   }
@@ -1105,15 +1194,13 @@ static ykpiv_rc _ykpiv_get_version(ykpiv_state *state, ykpiv_version_t *p_versio
 
 ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len) {
   ykpiv_rc res;
-  int result = 0;
-  ykpiv_version_t ver = {0};
 
-  if ((res = _ykpiv_begin_transaction(state)) < YKPIV_OK) return YKPIV_PCSC_ERROR;
+  if ((res = _ykpiv_begin_transaction(state)) < YKPIV_OK) return res;
   if ((res = _ykpiv_ensure_application_selected(state)) < YKPIV_OK) goto Cleanup;
 
-  if ((res = _ykpiv_get_version(state, &ver)) >= YKPIV_OK) {
-    result = snprintf(version, len, "%d.%d.%d", ver.major, ver.minor, ver.patch);
-    if(result < 0) {
+  if ((res = _ykpiv_get_version(state)) >= YKPIV_OK) {
+    int result = snprintf(version, len, "%d.%d.%d", state->ver.major, state->ver.minor, state->ver.patch);
+    if(result < 0 || result >= len) {
       res = YKPIV_SIZE_ERROR;
     }
   }
@@ -1125,11 +1212,10 @@ Cleanup:
 }
 
 /* caller must make sure that this is wrapped in a transaction for synchronized operation */
-static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state, uint32_t *p_serial, bool f_force) {
+static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state) {
   ykpiv_rc res = YKPIV_OK;
   APDU apdu;
-  const uint8_t yk_applet[] = { 0xa0, 0x00, 0x00, 0x05, 0x27, 0x20, 0x01, 0x01 };
-  unsigned char data[0xff];
+  uint8_t data[0xff];
   uint32_t recv_len = sizeof(data);
   int sw;
   uint8_t *p_temp = NULL;
@@ -1138,8 +1224,8 @@ static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state, uint32_t *p_serial, bool f
     return YKPIV_ARGUMENT_ERROR;
   }
 
-  if (!f_force && (state->serial != 0)) {
-    if (p_serial) *p_serial = state->serial;
+  /* get serial from state if already retrieved from device */
+  if (state->serial != 0) {
     return YKPIV_OK;
   }
 
@@ -1151,8 +1237,8 @@ static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state, uint32_t *p_serial, bool f
     memset(apdu.raw, 0, sizeof(apdu));
     apdu.st.ins = YKPIV_INS_SELECT_APPLICATION;
     apdu.st.p1 = 0x04;
-    apdu.st.lc = sizeof(yk_applet);
-    memcpy(apdu.st.data, yk_applet, sizeof(yk_applet));
+    apdu.st.lc = sizeof(yk_aid);
+    memcpy(apdu.st.data, yk_aid, sizeof(yk_aid));
 
     if ((res = _send_data(state, &apdu, temp, &recv_len, &sw)) < YKPIV_OK) {
       if (state->verbose) {
@@ -1192,8 +1278,8 @@ static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state, uint32_t *p_serial, bool f
     memset(apdu.raw, 0, sizeof(apdu));
     apdu.st.ins = YKPIV_INS_SELECT_APPLICATION;
     apdu.st.p1 = 0x04;
-    apdu.st.lc = (unsigned char)sizeof(aid);
-    memcpy(apdu.st.data, aid, sizeof(aid));
+    apdu.st.lc = sizeof(piv_aid);
+    memcpy(apdu.st.data, piv_aid, sizeof(piv_aid));
 
     if((res = _send_data(state, &apdu, temp, &recv_len, &sw)) < YKPIV_OK) {
       if(state->verbose) {
@@ -1233,14 +1319,13 @@ static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state, uint32_t *p_serial, bool f
     return YKPIV_SIZE_ERROR;
   }
 
-  p_temp = (uint8_t*)(&state->serial);
-
-  *p_temp++ = data[3];
-  *p_temp++ = data[2];
-  *p_temp++ = data[1];
-  *p_temp++ = data[0];
-
-  if (p_serial) *p_serial = state->serial;
+  state->serial = data[0];
+  state->serial <<= 8;
+  state->serial += data[1];
+  state->serial <<= 8;
+  state->serial += data[2];
+  state->serial <<= 8;
+  state->serial += data[3];
 
 Cleanup:
 
@@ -1250,10 +1335,11 @@ Cleanup:
 ykpiv_rc ykpiv_get_serial(ykpiv_state *state, uint32_t *p_serial) {
   ykpiv_rc res = YKPIV_OK;
 
-  if ((res = _ykpiv_begin_transaction(state)) != YKPIV_OK) return YKPIV_PCSC_ERROR;
+  if ((res = _ykpiv_begin_transaction(state)) != YKPIV_OK) return res;
   if ((res = _ykpiv_ensure_application_selected(state)) != YKPIV_OK) goto Cleanup;
 
-  res = _ykpiv_get_serial(state, p_serial, false);
+  res = _ykpiv_get_serial(state);
+  *p_serial = state->serial;
 
 Cleanup:
 
@@ -1289,7 +1375,34 @@ static ykpiv_rc _cache_pin(ykpiv_state *state, const char *pin, size_t len) {
 #endif
 }
 
-static ykpiv_rc _verify(ykpiv_state *state, const char *pin, const size_t pin_len, int *tries) {
+static ykpiv_rc _cache_mgm_key(ykpiv_state *state, unsigned const char *key) {
+#if DISABLE_MGM_KEY_CACHE
+  // Some embedded applications of this library may not want to keep the MGM_KEY
+  // data in RAM for security reasons.
+  return YKPIV_OK;
+#else
+  if (!state)
+    return YKPIV_ARGUMENT_ERROR;
+  if (key && state->mgm_key == key) {
+    return YKPIV_OK;
+  }
+  if (state->mgm_key) {
+    yc_memzero(state->mgm_key, CB_MGM_KEY);
+    _ykpiv_free(state, state->mgm_key);
+    state->mgm_key = NULL;
+  }
+  if (key) {
+    state->mgm_key = _ykpiv_alloc(state, CB_MGM_KEY);
+    if (state->mgm_key == NULL) {
+      return YKPIV_MEMORY_ERROR;
+    }
+    memcpy(state->mgm_key, key, CB_MGM_KEY);
+  }
+  return YKPIV_OK;
+#endif
+}
+
+static ykpiv_rc _ykpiv_verify(ykpiv_state *state, const char *pin, const size_t pin_len, int *tries) {
   APDU apdu;
   unsigned char data[261];
   uint32_t recv_len = sizeof(data);
@@ -1297,6 +1410,7 @@ static ykpiv_rc _verify(ykpiv_state *state, const char *pin, const size_t pin_le
   ykpiv_rc res;
 
   if (pin_len > CB_PIN_MAX) {
+    if (tries) *tries = 0;
     return YKPIV_SIZE_ERROR;
   }
 
@@ -1316,6 +1430,7 @@ static ykpiv_rc _verify(ykpiv_state *state, const char *pin, const size_t pin_le
   yc_memzero(&apdu, sizeof(apdu));
 
   if (res != YKPIV_OK) {
+    if (tries) *tries = 0;
     return res;
   }
   else if (sw == SW_SUCCESS) {
@@ -1337,6 +1452,7 @@ static ykpiv_rc _verify(ykpiv_state *state, const char *pin, const size_t pin_le
     return YKPIV_WRONG_PIN;
   }
   else {
+    if (tries) *tries = 0;
     return YKPIV_GENERIC_ERROR;
   }
 }
@@ -1347,11 +1463,11 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
 
 ykpiv_rc ykpiv_verify_select(ykpiv_state *state, const char *pin, const size_t pin_len, int *tries, bool force_select) {
   ykpiv_rc res = YKPIV_OK;
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (force_select) {
     if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
   }
-  res = _verify(state, pin, pin_len, tries);
+  res = _ykpiv_verify(state, pin, pin_len, tries);
 Cleanup:
 
   _ykpiv_end_transaction(state);
@@ -1360,20 +1476,27 @@ Cleanup:
 
 ykpiv_rc ykpiv_get_pin_retries(ykpiv_state *state, int *tries) {
   ykpiv_rc res;
-  ykpiv_rc ykrc;
+
   if (NULL == state || NULL == tries) {
     return YKPIV_ARGUMENT_ERROR;
   }
+
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
+
   // Force a re-select to unverify, because once verified the spec dictates that
   // subsequent verify calls will return a "verification not needed" instead of
   // the number of tries left...
-  res = _ykpiv_select_application(state);
-  if (res != YKPIV_OK) return res;
-  ykrc = ykpiv_verify(state, NULL, tries);
-  // WRONG_PIN is expected on successful query.
-  return ykrc == YKPIV_WRONG_PIN ? YKPIV_OK : ykrc;
-}
 
+  res = _ykpiv_auth_deauthenticate(state);
+  if (res != YKPIV_OK) goto Cleanup;
+  res = _ykpiv_select_application(state);
+  if (res != YKPIV_OK) goto Cleanup;
+  res = _ykpiv_verify(state, NULL, 0, tries);
+  // WRONG_PIN is expected on successful query.
+Cleanup:
+  _ykpiv_end_transaction(state);
+  return res == YKPIV_WRONG_PIN ? YKPIV_OK : res;
+}
 
 ykpiv_rc ykpiv_set_pin_retries(ykpiv_state *state, int pin_tries, int puk_tries) {
   ykpiv_rc res = YKPIV_OK;
@@ -1394,10 +1517,10 @@ ykpiv_rc ykpiv_set_pin_retries(ykpiv_state *state, int pin_tries, int puk_tries)
   templ[2] = (unsigned char)pin_tries;
   templ[3] = (unsigned char)puk_tries;
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
-  res = ykpiv_transfer_data(state, templ, NULL, 0, data, &recv_len, &sw);
+  res = _ykpiv_transfer_data(state, templ, NULL, 0, data, &recv_len, &sw);
   if (YKPIV_OK == res) {
     if (SW_SUCCESS == sw) {
       // success, fall through
@@ -1443,7 +1566,7 @@ static ykpiv_rc _ykpiv_change_pin(ykpiv_state *state, int action, const char * c
     memset(indata + CB_PIN_MAX + new_pin_len, 0xff, CB_PIN_MAX - new_pin_len);
   }
 
-  res = ykpiv_transfer_data(state, templ, indata, sizeof(indata), data, &recv_len, &sw);
+  res = _ykpiv_transfer_data(state, templ, indata, sizeof(indata), data, &recv_len, &sw);
   yc_memzero(indata, sizeof(indata));
 
   if(res != YKPIV_OK) {
@@ -1467,7 +1590,7 @@ static ykpiv_rc _ykpiv_change_pin(ykpiv_state *state, int action, const char * c
 ykpiv_rc ykpiv_change_pin(ykpiv_state *state, const char * current_pin, size_t current_pin_len, const char * new_pin, size_t new_pin_len, int *tries) {
   ykpiv_rc res = YKPIV_GENERIC_ERROR;
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   res = _ykpiv_change_pin(state, CHREF_ACT_CHANGE_PIN, current_pin, current_pin_len, new_pin, new_pin_len, tries);
@@ -1485,7 +1608,7 @@ Cleanup:
 ykpiv_rc ykpiv_change_puk(ykpiv_state *state, const char * current_puk, size_t current_puk_len, const char * new_puk, size_t new_puk_len, int *tries) {
   ykpiv_rc res = YKPIV_GENERIC_ERROR;
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   res = _ykpiv_change_pin(state, CHREF_ACT_CHANGE_PUK, current_puk, current_puk_len, new_puk, new_puk_len, tries);
@@ -1498,7 +1621,7 @@ Cleanup:
 ykpiv_rc ykpiv_unblock_pin(ykpiv_state *state, const char * puk, size_t puk_len, const char * new_pin, size_t new_pin_len, int *tries) {
   ykpiv_rc res = YKPIV_GENERIC_ERROR;
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   res = _ykpiv_change_pin(state, CHREF_ACT_UNBLOCK_PIN, puk, puk_len, new_pin, new_pin_len, tries);
@@ -1512,7 +1635,7 @@ ykpiv_rc ykpiv_fetch_object(ykpiv_state *state, int object_id,
     unsigned char *data, unsigned long *len) {
   ykpiv_rc res;
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   res = _ykpiv_fetch_object(state, object_id, data, len);
@@ -1535,7 +1658,7 @@ ykpiv_rc _ykpiv_fetch_object(ykpiv_state *state, int object_id,
     return YKPIV_INVALID_OBJECT;
   }
 
-  if((res = ykpiv_transfer_data(state, templ, indata, (long)(inptr - indata), data, len, &sw))
+  if((res = _ykpiv_transfer_data(state, templ, indata, (long)(inptr - indata), data, len, &sw))
       != YKPIV_OK) {
     return res;
   }
@@ -1562,6 +1685,15 @@ ykpiv_rc _ykpiv_fetch_object(ykpiv_state *state, int object_id,
     *len = (unsigned long)outlen;
     return YKPIV_OK;
   } else {
+    if (SW_ERR_FILE_NOT_FOUND == sw) {
+      return YKPIV_INVALID_OBJECT;
+    }
+    if (SW_ERR_SECURITY_STATUS == sw) {
+      return YKPIV_AUTHENTICATION_ERROR;
+    }
+    if(state->verbose) {
+      fprintf(stderr, "Failed to get data for object %x with status %x\n", object_id, sw);
+    }
     return YKPIV_GENERIC_ERROR;
   }
 }
@@ -1570,7 +1702,7 @@ ykpiv_rc ykpiv_save_object(ykpiv_state *state, int object_id,
     unsigned char *indata, size_t len) {
   ykpiv_rc res;
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   res = _ykpiv_save_object(state, object_id, indata, len);
@@ -1749,10 +1881,10 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
     *in_ptr++ = touch_policy;
   }
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
-  if ((res = ykpiv_transfer_data(state, templ, key_data, (long)(in_ptr - key_data), data, &recv_len, &sw)) != YKPIV_OK) {
+  if ((res = _ykpiv_transfer_data(state, templ, key_data, (long)(in_ptr - key_data), data, &recv_len, &sw)) != YKPIV_OK) {
     goto Cleanup;
   }
   if (SW_SUCCESS != sw) {
@@ -1781,16 +1913,22 @@ ykpiv_rc ykpiv_attest(ykpiv_state *state, const unsigned char key, unsigned char
 
   ul_data_len = (unsigned long)*data_len;
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
-  if ((res = ykpiv_transfer_data(state, templ, NULL, 0, data, &ul_data_len, &sw)) != YKPIV_OK) {
+  if ((res = _ykpiv_transfer_data(state, templ, NULL, 0, data, &ul_data_len, &sw)) != YKPIV_OK) {
     goto Cleanup;
   }
   if (SW_SUCCESS != sw) {
     res = YKPIV_GENERIC_ERROR;
     if (SW_ERR_NOT_SUPPORTED == sw) {
       res = YKPIV_NOT_SUPPORTED;
+    }
+    if (SW_ERR_REFERENCE_NOT_FOUND == sw) {
+      res = YKPIV_KEY_ERROR;
+    }
+    if (SW_ERR_INCORRECT_PARAM == sw) {
+      res = YKPIV_ARGUMENT_ERROR;
     }
     goto Cleanup;
   }
@@ -1806,6 +1944,45 @@ Cleanup:
   return res;
 }
 
+ykpiv_rc ykpiv_get_metadata(ykpiv_state *state, const unsigned char key, unsigned char *data, size_t *data_len) {
+  ykpiv_rc res;
+  unsigned char templ[] = {0, YKPIV_INS_GET_METADATA, 0, key};
+  int sw;
+  unsigned long ul_data_len;
+
+  if (state == NULL || data == NULL || data_len == NULL) {
+    return YKPIV_ARGUMENT_ERROR;
+  }
+
+  ul_data_len = (unsigned long)*data_len;
+
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+
+  if ((res = _ykpiv_transfer_data(state, templ, NULL, 0, data, &ul_data_len, &sw)) != YKPIV_OK) {
+    goto Cleanup;
+  }
+
+  if (SW_SUCCESS != sw) {
+    res = YKPIV_GENERIC_ERROR;
+    if (SW_ERR_NOT_SUPPORTED == sw) {
+      res = YKPIV_NOT_SUPPORTED;
+    }
+    if (SW_ERR_REFERENCE_NOT_FOUND == sw) {
+      res = YKPIV_KEY_ERROR;
+    }
+    if (SW_ERR_INCORRECT_PARAM == sw) {
+      res = YKPIV_ARGUMENT_ERROR;
+    }
+    goto Cleanup;
+  }
+
+  *data_len = (size_t)ul_data_len;
+
+Cleanup:
+  _ykpiv_end_transaction(state);
+  return res;
+}
 
 ykpiv_rc ykpiv_auth_getchallenge(ykpiv_state *state, uint8_t *challenge, const size_t challenge_len) {
   ykpiv_rc res = YKPIV_OK;
@@ -1818,7 +1995,7 @@ ykpiv_rc ykpiv_auth_getchallenge(ykpiv_state *state, uint8_t *challenge, const s
   if (NULL == challenge) return YKPIV_GENERIC_ERROR;
   if (8 != challenge_len) return YKPIV_SIZE_ERROR;
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   /* get a challenge from the card */
@@ -1857,7 +2034,7 @@ ykpiv_rc ykpiv_auth_verifyresponse(ykpiv_state *state, uint8_t *response, const 
   if (NULL == response) return YKPIV_GENERIC_ERROR;
   if (8 != response_len) return YKPIV_SIZE_ERROR;
 
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return YKPIV_PCSC_ERROR;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   /* note: do not select the applet here, as it resets the challenge state */
 
   /* send the response to the card and a challenge of our own. */
@@ -1888,10 +2065,22 @@ Cleanup:
   return res;
 }
 
-static const uint8_t MGMT_AID[] = { 0xa0, 0x00, 0x00, 0x05, 0x27, 0x47, 0x11, 0x17 };
-
 /* deauthenticates the user pin and mgm key */
 ykpiv_rc ykpiv_auth_deauthenticate(ykpiv_state *state) {
+  ykpiv_rc res = YKPIV_OK;
+
+  if (NULL == state) return YKPIV_GENERIC_ERROR;
+
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
+
+  res = _ykpiv_auth_deauthenticate(state);
+
+  _ykpiv_end_transaction(state);
+  return res;
+}
+
+/* deauthenticates the user pin and mgm key */
+static ykpiv_rc _ykpiv_auth_deauthenticate(ykpiv_state *state) {
   ykpiv_rc res = YKPIV_OK;
   APDU apdu;
   unsigned char data[0xff];
@@ -1902,31 +2091,33 @@ ykpiv_rc ykpiv_auth_deauthenticate(ykpiv_state *state) {
     return YKPIV_ARGUMENT_ERROR;
   }
 
-  /* this function does not use ykpiv_transfer_data because it selects a different app */
-  if ((res = _ykpiv_begin_transaction(state)) < YKPIV_OK) return res;
-
   memset(apdu.raw, 0, sizeof(apdu));
   apdu.st.ins = YKPIV_INS_SELECT_APPLICATION;
   apdu.st.p1 = 0x04;
-  apdu.st.lc = sizeof(MGMT_AID);
-  memcpy(apdu.st.data, MGMT_AID, sizeof(MGMT_AID));
+
+  // Once mgmt_aid is selected on NEO we can't select piv_aid again... So we use yk_aid.
+  // But... YK 5 below 5.3 doesn't allow access to yk_aid, so still use mgmt_aid on non-NEO devices
+
+  if (state->ver.major < 4) {
+    apdu.st.lc = sizeof(yk_aid);
+    memcpy(apdu.st.data, yk_aid, sizeof(yk_aid));
+  } else {
+    apdu.st.lc = sizeof(mgmt_aid);
+    memcpy(apdu.st.data, mgmt_aid, sizeof(mgmt_aid));
+  }
 
   if ((res = _send_data(state, &apdu, data, &recv_len, &sw)) < YKPIV_OK) {
     if (state->verbose) {
       fprintf(stderr, "Failed communicating with card: '%s'\n", ykpiv_strerror(res));
     }
-    goto Cleanup;
+    return res;
   }
   else if (sw != SW_SUCCESS) {
     if (state->verbose) {
-      fprintf(stderr, "Failed selecting mgmt application: %04x\n", sw);
+      fprintf(stderr, "Failed selecting mgmt/yk application: %04x\n", sw);
     }
-    res = YKPIV_GENERIC_ERROR;
-    goto Cleanup;
+    return YKPIV_GENERIC_ERROR;
   }
 
-Cleanup:
-
-  _ykpiv_end_transaction(state);
   return res;
 }

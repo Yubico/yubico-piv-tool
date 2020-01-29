@@ -119,3 +119,10 @@ YKPIV_1.6.0
 global:
     ykpiv_get_serial;
 } YKPIV_1.5.0;
+
+YKPIV_1.8.0
+{
+global:
+    ykpiv_get_metadata;
+    ykpiv_util_parse_metadata;
+} YKPIV_1.6.0;

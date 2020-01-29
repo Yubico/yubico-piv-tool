@@ -1179,11 +1179,6 @@ static bool read_certificate(ykpiv_state *state, enum enum_slot slot,
 
   if (key_format == key_format_arg_PEM ||
       key_format == key_format_arg_SSH) {
-    x509 = X509_new();
-    if (!x509) {
-      fprintf(stderr, "Failed allocating x509 structure.\n");
-      goto read_cert_out;
-    }
     x509 = d2i_X509(NULL, (const unsigned char**)&ptr, cert_len);
     if (!x509) {
       fprintf(stderr, "Failed parsing x509 information.\n");
@@ -1316,10 +1311,10 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     FILE *output) {
   int object = (int)ykpiv_util_slot_object(get_slot_hex(slot));
   int slot_name;
-  unsigned char data[3072];
+  unsigned char data[YKPIV_OBJ_MAX_SIZE];
   const unsigned char *ptr = data;
   unsigned long len = sizeof(data);
-  int cert_len;
+  unsigned long cert_len;
   X509 *x509 = NULL;
   X509_NAME *subj;
   BIO *bio = NULL;
@@ -1337,11 +1332,6 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     const ASN1_TIME *not_before, *not_after;
 
     ptr += get_length(ptr, &cert_len);
-    x509 = X509_new();
-    if(!x509) {
-      fprintf(output, "Allocation failure.\n");
-      return;
-    }
     x509 = d2i_X509(NULL, &ptr, cert_len);
     if(!x509) {
       fprintf(output, "Unknown data present.\n");
@@ -1429,7 +1419,7 @@ static bool status(ykpiv_state *state, enum enum_hash hash,
                    enum enum_slot slot,
                    const char *output_file_name) {
   const EVP_MD *md;
-  unsigned char buf[3072];
+  unsigned char buf[YKPIV_OBJ_MAX_SIZE];
   long unsigned len = sizeof(buf);
   int i;
   uint32_t serial = 0;
@@ -1533,7 +1523,7 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
   {
     unsigned char rand[128];
     EVP_MD_CTX *mdctx;
-    if(RAND_bytes(rand, 128) == -1) {
+    if(RAND_bytes(rand, sizeof(rand)) <= 0) {
       fprintf(stderr, "error: no randomness.\n");
       return false;
     }
@@ -1680,7 +1670,7 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
       size_t len2 = sizeof(data);
       RSA *rsa = EVP_PKEY_get1_RSA(pubkey);
 
-      if(RAND_bytes(secret, sizeof(secret)) == -1) {
+      if(RAND_bytes(secret, sizeof(secret)) <= 0) {
         fprintf(stderr, "error: no randomness.\n");
         ret = false;
         goto decipher_out;
@@ -1809,11 +1799,6 @@ static bool attest(ykpiv_state *state, enum enum_slot slot,
   if(key_format == key_format_arg_PEM) {
     const unsigned char *ptr = data;
     int len2 = (int)len;
-    x509 = X509_new();
-    if(!x509) {
-      fprintf(stderr, "Failed allocating x509 structure.\n");
-      goto attest_out;
-    }
     x509 = d2i_X509(NULL, &ptr, len2);
     if(!x509) {
       fprintf(stderr, "Failed parsing x509 information.\n");
@@ -1839,7 +1824,7 @@ static bool write_object(ykpiv_state *state, int id,
     const char *input_file_name, int verbosity, enum enum_format format) {
   bool ret = false;
   FILE *input_file = NULL;
-  unsigned char data[3072];
+  unsigned char data[YKPIV_OBJ_MAX_SIZE];
   size_t len = sizeof(data);
   ykpiv_rc res;
 
@@ -1878,7 +1863,7 @@ write_out:
 static bool read_object(ykpiv_state *state, int id, const char *output_file_name,
     enum enum_format format) {
   FILE *output_file = NULL;
-  unsigned char data[3072];
+  unsigned char data[YKPIV_OBJ_MAX_SIZE];
   unsigned long len = sizeof(data);
   bool ret = false;
 
