@@ -245,15 +245,21 @@ CK_RV token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF8CHAR_P
         DBG("Failed to decode new pin")
         return CKR_PIN_INVALID;
       }
+      DBG("Changing SO PIN")
       res = ykpiv_set_mgmkey(state, new_key);
       break;
     }
     case CKU_USER:
       if(ulOldLen >= 4 && strncmp((const char*)pOldPin, "puk:", 4) == 0){
-        DBG("Changing PUK pin")
-        res = ykpiv_change_puk(state, (const char*)pOldPin + 4, ulOldLen - 4, (const char*)pNewPin, ulNewLen, &tries);
+        if(ulNewLen >= 4 && strncmp((const char*)pNewPin, "puk:", 4) == 0) {
+          DBG("Changing PUK")
+          res = ykpiv_change_puk(state, (const char*)pOldPin + 4, ulOldLen - 4, (const char*)pNewPin + 4, ulNewLen - 4, &tries);
+        } else {
+          DBG("Unblocking PIN with PUK")
+          res = ykpiv_unblock_pin(state, (const char*)pOldPin + 4, ulOldLen - 4, (const char*)pNewPin, ulNewLen, &tries);
+        }
       }else{
-        DBG("Changing USER pin")
+        DBG("Changing PIN")
         res = ykpiv_change_pin(state, (const char*)pOldPin, ulOldLen, (const char*)pNewPin, ulNewLen, &tries);
       }
       break;

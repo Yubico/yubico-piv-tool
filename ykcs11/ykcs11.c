@@ -821,6 +821,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_SetPIN)(
     goto setpin_out;
   }
 
+  if((session->info.flags & CKF_RW_SESSION) == 0) {
+    DBG("User called SetPIN on read-only session");
+    rv = CKR_SESSION_READ_ONLY;
+    goto setpin_out;
+  }
+
   locking.pfnLockMutex(session->slot->mutex);
 
   CK_USER_TYPE user_type = session->slot->login_state == YKCS11_SO ? CKU_SO : CKU_USER;
