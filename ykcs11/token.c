@@ -72,6 +72,7 @@ static const token_mechanism token_mechanisms[] = {
   CKM_SHA512, {0, 0, CKF_DIGEST}
 };
 
+// The commented out objects below are either not supported (PIV_DATA_OBJ_BITGT) or requires authentication.
 static const piv_obj_id_t token_objects[] = { // TODO: is there a way to get this from the token?
     PIV_DATA_OBJ_X509_PIV_AUTH,   // PIV authentication
     PIV_DATA_OBJ_X509_DS,         // digital signature
@@ -101,15 +102,15 @@ static const piv_obj_id_t token_objects[] = { // TODO: is there a way to get thi
     PIV_DATA_OBJ_CCC,             // Card capability container
     PIV_DATA_OBJ_CHUI,            // Cardholder unique id
     //PIV_DATA_OBJ_CHF,           // Cardholder fingerprints
-    //PIV_DATA_OBJ_SEC_OBJ,       // Security object
+    PIV_DATA_OBJ_SEC_OBJ,         // Security object
     //PIV_DATA_OBJ_CHFI,          // Cardholder facial images
     //PIV_DATA_OBJ_PI,            // Cardholder printed information
     PIV_DATA_OBJ_DISCOVERY,       // Discovery object
     PIV_DATA_OBJ_HISTORY,         // History object
     //PIV_DATA_OBJ_IRIS_IMAGE,    // Cardholder iris images
     //PIV_DATA_OBJ_BITGT,         // Biometric information templates group template
-    //PIV_DATA_OBJ_SM_SIGNER,     // Secure messaging signer
-    //PIV_DATA_OBJ_PC_REF_DATA,   // Pairing code reference data
+    PIV_DATA_OBJ_SM_SIGNER,       // Secure messaging signer
+    PIV_DATA_OBJ_PC_REF_DATA,     // Pairing code reference data
 };
 
 CK_RV get_token_model(ykpiv_state *state, CK_UTF8CHAR_PTR str, CK_ULONG len) {

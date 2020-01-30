@@ -975,9 +975,14 @@ CK_ULONG piv_2_ykpiv(piv_obj_id_t id) {
   case PIV_DATA_OBJ_IRIS_IMAGE:
     return YKPIV_OBJ_IRIS;
 
-  //case PIV_DATA_OBJ_BITGT:
-  //case PIV_DATA_OBJ_SM_SIGNER:
-  //case PIV_DATA_OBJ_PC_REF_DATA:
+  case PIV_DATA_OBJ_BITGT:
+    return YKPIV_OBJ_BITGT;
+
+  case PIV_DATA_OBJ_SM_SIGNER:
+    return YKPIV_OBJ_SM_SIGNER;
+  
+  case PIV_DATA_OBJ_PC_REF_DATA:
+    return YKPIV_OBJ_PC_REF_DATA;
 
   case PIV_DATA_OBJ_X509_PIV_AUTH:
   case PIV_CERT_OBJ_X509_PIV_AUTH:
