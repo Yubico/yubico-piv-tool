@@ -911,56 +911,59 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     CK_ULONG num_ids;
     get_token_object_ids(&obj_ids, &num_ids);
     for(CK_ULONG i = 0; i < num_ids; i++) {
-      ykpiv_rc rcc, rc = YKPIV_KEY_ERROR;
+      ykpiv_rc rc = YKPIV_KEY_ERROR;
       CK_BYTE sub_id = get_sub_id(obj_ids[i]);
       piv_obj_id_t cert_id = find_cert_object(sub_id);
       piv_obj_id_t pubk_id = find_pubk_object(sub_id);
       piv_obj_id_t pvtk_id = find_pvtk_object(sub_id);
       piv_obj_id_t atst_id = find_atst_object(sub_id);
-      CK_ULONG slot = piv_2_ykpiv(pvtk_id);
       CK_BYTE data[YKPIV_OBJ_MAX_SIZE];  // Max cert value for ykpiv
       size_t len;
       if(pvtk_id != PIV_INVALID_OBJ) {
+        CK_ULONG slot = piv_2_ykpiv(pvtk_id);
         len = sizeof(data);
-        if((rc = ykpiv_get_metadata(session->slot->piv_state, slot, data, &len)) == YKPIV_OK) {
-          DBG("Read %lu bytes metadata for slot %lx", len, slot);
-          ykpiv_metadata md = {0};
-          if((rc = ykpiv_util_parse_metadata(data, len, &md)) == YKPIV_OK) {
-            if((rv = do_create_public_key(md.pubkey, md.pubkey_len, md.algorithm, &session->slot->pkeys[sub_id])) == CKR_OK) {
-              add_object(session->slot, pubk_id);
+        if((rc = ykpiv_attest(session->slot->piv_state, slot, data, &len)) == YKPIV_OK) {
+          DBG("Created attestation for object %u slot %lx", pvtk_id, slot);
+          if((rv = do_store_cert(data, len, &session->slot->atst[sub_id])) == CKR_OK) {
+            if(atst_id != PIV_INVALID_OBJ)
+              add_object(session->slot, atst_id);
+            if((rv = do_store_pubk(session->slot->atst[sub_id], &session->slot->pkeys[sub_id])) == CKR_OK) {
               add_object(session->slot, pvtk_id);
-              if(atst_id != PIV_INVALID_OBJ && md.origin == YKPIV_METADATA_ORIGIN_GENERATED) { // Attestation key doesn't have an attestation
-                len = sizeof(data);
-                rcc = ykpiv_attest(session->slot->piv_state, slot, data, &len);
-                if(rcc == YKPIV_OK) {
-                  DBG("Created attestation for slot %lx", slot);
-                  if((rv = do_store_cert(data, len, session->slot->atst + sub_id)) == CKR_OK) {
-                    add_object(session->slot, atst_id);
-                  } else {
-                    DBG("Failed to store certificate object %u in session: %lu", atst_id, rv);
-                  }
-                } else {
-                  DBG("Failed to create attestation for slot %lx: %s", slot, ykpiv_strerror(rcc));
-                }
-              }
+              add_object(session->slot, pubk_id);
             } else {
-              DBG("Failed to create public key info for slot %lx, algorithm %u from metadata: %lu", slot, md.algorithm, rv);
-              rc = YKPIV_KEY_ERROR; // Ensure we create the key from the certificate instead
+              DBG("Failed to store key objects %u and %u in session: %lu", pubk_id, pvtk_id, rv);
             }
           } else {
-            DBG("Failed to parse metadata for slot %lx: %s", slot, ykpiv_strerror(rc));
+            DBG("Failed to store attestation certificate object %u in session: %lu", atst_id, rv);
           }
         } else {
-          DBG("Failed to read metadata for slot %lx: %s", slot, ykpiv_strerror(rc));
+          DBG("Failed to create attestation for object %u slot %lx: %s", pvtk_id, slot, ykpiv_strerror(rc));
+          len = sizeof(data);
+          if((rc = ykpiv_get_metadata(session->slot->piv_state, slot, data, &len)) == YKPIV_OK) {
+            DBG("Fetched %lu bytes metadata for object %u slot %lx", len, pvtk_id, slot);
+            ykpiv_metadata md = {0};
+            if((rc = ykpiv_util_parse_metadata(data, len, &md)) == YKPIV_OK) {
+              if((rv = do_create_public_key(md.pubkey, md.pubkey_len, md.algorithm, &session->slot->pkeys[sub_id])) == CKR_OK) {
+                add_object(session->slot, pvtk_id);
+                add_object(session->slot, pubk_id);
+              } else {
+                DBG("Failed to create public key for slot %lx, algorithm %u from metadata: %lu", slot, md.algorithm, rv);
+              }
+            } else {
+              DBG("Failed to parse metadata for object %u slot %lx: %s", pvtk_id, slot, ykpiv_strerror(rc));
+            }
+          } else {
+            DBG("Failed to fetch metadata for object %u slot %lx: %s", pvtk_id, slot, ykpiv_strerror(rc));
+          }
         }
       }
       unsigned long ulen = sizeof(data);
-      rcc = ykpiv_fetch_object(session->slot->piv_state, piv_2_ykpiv(obj_ids[i]), data, &ulen);
+      CK_RV rcc = ykpiv_fetch_object(session->slot->piv_state, piv_2_ykpiv(obj_ids[i]), data, &ulen);
       if(rcc != YKPIV_OK) {
-        DBG("Failed to read object %u slot %lx: %s", obj_ids[i], piv_2_ykpiv(obj_ids[i]), ykpiv_strerror(rcc));
+        DBG("Failed to fetch object %u slot %lx: %s", obj_ids[i], piv_2_ykpiv(obj_ids[i]), ykpiv_strerror(rcc));
         continue;
       }
-      DBG("Read %lu bytes for object %u slot %lx", ulen, obj_ids[i], piv_2_ykpiv(obj_ids[i]));
+      DBG("Fetched %lu bytes for object %u slot %lx", ulen, obj_ids[i], piv_2_ykpiv(obj_ids[i]));
       rv = store_data(session->slot, sub_id, data, ulen);
       if (rv != CKR_OK) {
         DBG("Failed to store data object %u in session: %lu", obj_ids[i], rv);
@@ -968,29 +971,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
       }
       add_object(session->slot, obj_ids[i]);
       if(cert_id != PIV_INVALID_OBJ) {
-        rv = store_cert(session->slot, sub_id, data, ulen, CK_FALSE);
+        rv = store_cert(session->slot, sub_id, data, ulen, CK_FALSE); // Will only overwrite key if not set from attestation or metadata
         if (rv != CKR_OK) {
           DBG("Failed to store certificate object %u in session: %lu", cert_id, rv);
           continue; // Bail out, can't create key objects without the public key from the cert
         }
         add_object(session->slot, cert_id);
-        if(rc != YKPIV_OK) { // Failed to get metadata, fall back to assuming we have keys for cert objects
-          add_object(session->slot, pubk_id);
+        if(rc != YKPIV_OK) { // Failed to get attestation or metadata, fall back to assuming we have keys for cert objects
           add_object(session->slot, pvtk_id);
-          if(atst_id != PIV_INVALID_OBJ) { // Attestation key doesn't have an attestation
-            len = sizeof(data);
-            rcc = ykpiv_attest(session->slot->piv_state, slot, data, &len);
-            if(rcc == YKPIV_OK) {
-              DBG("Created attestation for slot %lx", slot);
-              if((rv = do_store_cert(data, len, session->slot->atst + sub_id)) == CKR_OK) {
-                add_object(session->slot, atst_id);
-              } else {
-                DBG("Failed to store certificate object %u in session: %lu", atst_id, rv);
-              }
-            } else {
-              DBG("Failed to create attestation for slot %lx: %s", slot, ykpiv_strerror(rcc));
-            }
-          }
+          add_object(session->slot, pubk_id);
         }
       }
     }
@@ -3515,6 +3504,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     if(rc == YKPIV_OK) {
       DBG("Created attestation for slot %lx", slot);
       if((rv = do_store_cert(data, len, session->slot->atst + gen.key_id)) == CKR_OK) {
+        do_store_pubk(session->slot->atst[gen.key_id], session->slot->pkeys + gen.key_id);
         // Add attestation object if not already present
         if(!is_present(session->slot, atst_id))
           add_object(session->slot, atst_id);
