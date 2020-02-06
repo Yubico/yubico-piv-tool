@@ -3504,7 +3504,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     if(rc == YKPIV_OK) {
       DBG("Created attestation for slot %lx", slot);
       if((rv = do_store_cert(data, len, session->slot->atst + gen.key_id)) == CKR_OK) {
-        do_store_pubk(session->slot->atst[gen.key_id], session->slot->pkeys + gen.key_id);
         // Add attestation object if not already present
         add_object(session->slot, atst_id);
       } else {
