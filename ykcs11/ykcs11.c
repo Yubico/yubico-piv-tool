@@ -928,6 +928,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
             if(atst_id != PIV_INVALID_OBJ)
               add_object(session->slot, atst_id);
             if((rv = do_store_pubk(session->slot->atst[sub_id], &session->slot->pkeys[sub_id])) == CKR_OK) {
+              session->slot->local[sub_id] = CK_TRUE;
               add_object(session->slot, pvtk_id);
               add_object(session->slot, pubk_id);
             } else {
@@ -944,6 +945,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
             ykpiv_metadata md = {0};
             if((rc = ykpiv_util_parse_metadata(data, len, &md)) == YKPIV_OK) {
               if((rv = do_create_public_key(md.pubkey, md.pubkey_len, md.algorithm, &session->slot->pkeys[sub_id])) == CKR_OK) {
+                session->slot->local[sub_id] = md.origin == YKPIV_METADATA_ORIGIN_GENERATED ? CK_TRUE : CK_FALSE;
                 add_object(session->slot, pvtk_id);
                 add_object(session->slot, pubk_id);
               } else {
@@ -1449,6 +1451,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       goto create_out;
     }
 
+    session->slot->local[id] = CK_FALSE;
+
     // Add objects that were not already present
 
     if(!is_present(session->slot, dobj_id))
@@ -1533,6 +1537,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
         goto create_out;
       }
     }
+
+    session->slot->local[id] = CK_FALSE;
 
     locking.pfnUnlockMutex(session->slot->mutex);
     *phObject = (CK_OBJECT_HANDLE)pvtk_id;
@@ -3483,6 +3489,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     locking.pfnUnlockMutex(session->slot->mutex);
     goto genkp_out;
   }
+
+  session->slot->local[gen.key_id] = CK_TRUE;
 
   // Add objects that were not already present
 

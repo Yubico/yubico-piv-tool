@@ -59,6 +59,7 @@ typedef struct {
   ykcs11_x509_t  *certs[26];  // Certificates, stored by sub_id 1-25
   ykcs11_x509_t  *atst[26];   // Attestations, stored by sub_id 1-25
   ykcs11_pkey_t  *pkeys[26];  // Public keys, stored by sub_id 1-25
+  CK_BBOOL       local[26];   // CKA_LOCAL attribute, stored by sub_id 1-25
 } ykcs11_slot_t;
 
 typedef enum {

@@ -1187,7 +1187,7 @@ CK_BBOOL add_object(ykcs11_slot_t *s, piv_obj_id_t id) {
 }
 
 CK_BBOOL is_local_key(ykcs11_slot_t *s, piv_obj_id_t id) {
-  return is_present(s, find_atst_object(piv_objects[id].sub_id));
+  return s->local[piv_objects[id].sub_id];
 }
 
 CK_RV get_attribute(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template) {
