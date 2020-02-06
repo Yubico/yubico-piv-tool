@@ -567,21 +567,26 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
   for (CK_ULONG i = 0; i < n; i++) {
     switch (templ[i].type) {
     case CKA_CLASS:
-      if (*((CK_ULONG_PTR) templ[i].pValue) != CKO_PUBLIC_KEY)
+      if (*((CK_ULONG_PTR) templ[i].pValue) != CKO_PUBLIC_KEY) {
+        DBG("Bad CKA_CLASS");
         return CKR_TEMPLATE_INCONSISTENT;
-
+      }
       break;
 
     case CKA_KEY_TYPE:
       if ((rsa == CK_TRUE  && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_RSA) ||
-          (rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_ECDSA))
+          (rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_ECDSA)) {
+        DBG("Bad CKA_KEY_TYPE");
         return CKR_TEMPLATE_INCONSISTENT;
+      }
 
       break;
 
     case CKA_PUBLIC_EXPONENT:
-      if (rsa == CK_FALSE)
+      if (rsa == CK_FALSE) {
+        DBG("Non-RSA key can't have CKA_PUBLIC_EXPONENT");
         return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
 
       // Only support F4
       if (templ[i].ulValueLen != 3 || memcmp((CK_BYTE_PTR)templ[i].pValue, F4, 3) != 0) {
@@ -592,9 +597,10 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
       break;
 
     case CKA_MODULUS_BITS:
-      if (rsa == CK_FALSE)
+      if (rsa == CK_FALSE) {
         return CKR_ATTRIBUTE_VALUE_INVALID;
-
+        DBG("Non-RSA key can't have CKA_MODULUS_BITS");
+      }
       switch(*(CK_ULONG_PTR)templ[i].pValue) {
         case 1024:
           gen->algorithm = YKPIV_ALGO_RSA1024;
@@ -614,8 +620,10 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
         gen->algorithm = YKPIV_ALGO_ECCP256;
       else if(templ[i].ulValueLen == 7 && memcmp((CK_BYTE_PTR)templ[i].pValue, SECP384R1, 7) == 0)
         gen->algorithm = YKPIV_ALGO_ECCP384;
-      else
+      else {
+        DBG("Bad CKA_EC_PARAMS");
         return CKR_FUNCTION_FAILED;
+      }
       break;
 
     case CKA_ID:
@@ -652,16 +660,18 @@ CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
   for (CK_ULONG i = 0; i < n; i++) {
     switch (templ[i].type) {
     case CKA_CLASS:
-      if (*((CK_ULONG_PTR)templ[i].pValue) != CKO_PRIVATE_KEY)
+      if (*((CK_ULONG_PTR)templ[i].pValue) != CKO_PRIVATE_KEY) {
+        DBG("Bad CKA_CLASS");
         return CKR_TEMPLATE_INCONSISTENT;
-
+      }
       break;
 
     case CKA_KEY_TYPE:
       if ((rsa == CK_TRUE  && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_RSA) ||
-          (rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_ECDSA))
+          (rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_ECDSA)) {
+        DBG("Bad CKA_KEY_TYPE");
         return CKR_TEMPLATE_INCONSISTENT;
-
+      }
       break;
 
     case CKA_ID:
@@ -671,9 +681,10 @@ CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
       // Check if ID was already specified in the public key template
       // In that case it has to match
       if (gen->key_id != 0 &&
-          gen->key_id != *((CK_BYTE_PTR)templ[i].pValue))
+          gen->key_id != *((CK_BYTE_PTR)templ[i].pValue)) {
+        DBG("Inconsistent CKA_ID");
         return CKR_TEMPLATE_INCONSISTENT;
-
+      }
       gen->key_id = *((CK_BYTE_PTR)templ[i].pValue);
       break;
 
