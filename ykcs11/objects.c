@@ -1178,6 +1178,13 @@ CK_BBOOL is_present(ykcs11_slot_t *s, piv_obj_id_t id) {
 
 CK_BBOOL add_object(ykcs11_slot_t *s, piv_obj_id_t id) {
   if(s->n_objects < sizeof(s->objects) / sizeof(s->objects[0])) {
+    // We can't use is_present here because the objects might not be sorted
+    for(CK_ULONG i = 0; i < s->n_objects; i++) {
+      if(id == s->objects[i]) {
+        DBG("Couldn't add object %u because it is already present", id);
+        return false;
+      }
+    }
     s->objects[s->n_objects++] = id;
     DBG("Added object %u, slot contains %lu objects", id, s->n_objects);
     return true;

@@ -1455,14 +1455,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     // Add objects that were not already present
 
-    if(!is_present(session->slot, dobj_id))
-      add_object(session->slot, dobj_id);
-    if(!is_present(session->slot, cert_id))
-      add_object(session->slot, cert_id);
-    if(!is_present(session->slot, pvtk_id))
-      add_object(session->slot, pvtk_id);
-    if(!is_present(session->slot, pubk_id))
-      add_object(session->slot, pubk_id);
+    add_object(session->slot, dobj_id);
+    add_object(session->slot, cert_id);
+    add_object(session->slot, pvtk_id);
+    add_object(session->slot, pubk_id);
 
     // No attestation can be created for imported objects
 
@@ -3494,14 +3490,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
 
   // Add objects that were not already present
 
-  if(!is_present(session->slot, dobj_id))
-    add_object(session->slot, dobj_id);
-  if(!is_present(session->slot, cert_id))
-    add_object(session->slot, cert_id);
-  if(!is_present(session->slot, pvtk_id))
-    add_object(session->slot, pvtk_id);
-  if(!is_present(session->slot, pubk_id))
-    add_object(session->slot, pubk_id);
+  add_object(session->slot, dobj_id);
+  add_object(session->slot, cert_id);
+  add_object(session->slot, pvtk_id);
+  add_object(session->slot, pubk_id);
 
   // Create an attestation, if appropriate and able
 
@@ -3514,8 +3506,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
       if((rv = do_store_cert(data, len, session->slot->atst + gen.key_id)) == CKR_OK) {
         do_store_pubk(session->slot->atst[gen.key_id], session->slot->pkeys + gen.key_id);
         // Add attestation object if not already present
-        if(!is_present(session->slot, atst_id))
-          add_object(session->slot, atst_id);
+        add_object(session->slot, atst_id);
       } else {
         DBG("Failed to store attestation certificate %u in session: %lu", atst_id, rv);
       }
