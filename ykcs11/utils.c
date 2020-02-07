@@ -42,9 +42,7 @@ CK_BBOOL is_yubico_reader(const char* reader_name) {
 }
 
 size_t memstrcpy(unsigned char *dst, size_t size, const char *src) {
-  size_t len = strlen(src);
-  if(len > size)
-    len = size;
+  size_t len = strnlen(src, size);
   memcpy(dst, src, len);
   memset(dst + len, ' ', size - len);
   return len;
