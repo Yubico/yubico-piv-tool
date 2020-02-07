@@ -248,6 +248,7 @@ CK_RV token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF8CHAR_P
       }
       DBG("Changing SO PIN")
       res = ykpiv_set_mgmkey(state, new_key);
+      OPENSSL_cleanse(new_key, sizeof(new_key));
       break;
     }
     case CKU_USER:
@@ -313,11 +314,13 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
   else if (user == CKU_SO) {
     if(ykpiv_hex_decode((char *)pin, pin_len, key, &key_len) != YKPIV_OK) {
       DBG("Failed decoding key");
+      OPENSSL_cleanse(key, key_len);
       return CKR_PIN_INVALID;
     }
 
     if(ykpiv_authenticate(state, key) != YKPIV_OK) {
       DBG("Failed to authenticate");
+      OPENSSL_cleanse(key, key_len);
       return CKR_PIN_INCORRECT;
     }
   }
