@@ -29,8 +29,8 @@
  */
 
 #include "../../tool/openssl-compat.h"
-#include <ykcs11.h>
-#include <ykcs11-version.h>
+#include "ykcs11.h"
+#include "ykcs11-version.h"
 
 #include <string.h>
 

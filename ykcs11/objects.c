@@ -30,7 +30,7 @@
 
 #include "obj_types.h"
 #include "objects.h"
-#include <ykpiv.h>
+#include "ykpiv.h"
 #include <string.h>
 #include <stdlib.h>
 #include "openssl_utils.h"

@@ -31,7 +31,7 @@
 #include "ykcs11.h"
 #include "ykcs11-version.h"
 #include <stdlib.h>
-#include <ykpiv.h>
+#include "ykpiv.h"
 #include <string.h>
 #include "obj_types.h"
 #include "objects.h"

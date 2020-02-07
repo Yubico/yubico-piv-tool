@@ -30,7 +30,7 @@
 
 #include "openssl_utils.h"
 #include <stdbool.h>
-#include <ykpiv.h>
+#include "ykpiv.h"
 #include "../tool/util.h" // TODO: share this better?
 #include "../tool/openssl-compat.h" // TODO: share this better?
 #include "debug.h"

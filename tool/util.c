@@ -43,7 +43,7 @@
 #include <openssl/x509.h>
 #include <openssl/rsa.h>
 
-#include <ykpiv.h>
+#include "ykpiv.h"
 
 #include "cmdline.h"
 #include "util.h"

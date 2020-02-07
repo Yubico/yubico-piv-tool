@@ -32,7 +32,7 @@
 
 #include "pkcs11y.h"
 #include "obj_types.h"
-#include <ykpiv.h>
+#include "ykpiv.h"
 
 CK_RV get_token_model(ykpiv_state *state, CK_UTF8CHAR_PTR str, CK_ULONG len);
 CK_RV get_token_serial(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len);
