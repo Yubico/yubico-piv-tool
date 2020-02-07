@@ -286,43 +286,58 @@ CK_RV token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF8CHAR_P
 
 CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK_ULONG pin_len) {
 
-  int tries = 0; // TODO: this is effectively disregarded, should we add a better value in ykpiv_verify?
-  unsigned char key[24];
-  size_t key_len = sizeof(key);
-  unsigned char *term_pin;
   ykpiv_rc res;
 
   if (user == CKU_USER) {
     // add null termination for the pin
-    term_pin = malloc(pin_len + 1);
+    char *term_pin = malloc(pin_len + 1);
     if (term_pin == NULL) {
       return CKR_HOST_MEMORY;
     }
     memcpy(term_pin, pin, pin_len);
     term_pin[pin_len] = 0;
 
-    res = ykpiv_verify(state, (char *)term_pin, &tries);
+    res = ykpiv_verify(state, term_pin, NULL);
 
     OPENSSL_cleanse(term_pin, pin_len);
     free(term_pin);
 
     if (res != YKPIV_OK) {
-      DBG("Failed to login");
-      return CKR_PIN_INCORRECT;
+      DBG("Failed to login: %s", ykpiv_strerror(res));
+
+      if(res == YKPIV_WRONG_PIN)
+        return CKR_PIN_INCORRECT;
+        
+      if(res == YKPIV_PIN_LOCKED)
+        return CKR_PIN_LOCKED;
+
+      return CKR_DEVICE_ERROR;
     }
   }
   else if (user == CKU_SO) {
+    unsigned char key[24];
+    size_t key_len = sizeof(key);
+
     if(ykpiv_hex_decode((char *)pin, pin_len, key, &key_len) != YKPIV_OK) {
       DBG("Failed decoding key");
       OPENSSL_cleanse(key, key_len);
       return CKR_PIN_INVALID;
     }
 
-    if(ykpiv_authenticate(state, key) != YKPIV_OK) {
-      DBG("Failed to authenticate");
+    if((res = ykpiv_authenticate(state, key)) != YKPIV_OK) {
+      DBG("Failed to authenticate: %s", ykpiv_strerror(res));
       OPENSSL_cleanse(key, key_len);
-      return CKR_PIN_INCORRECT;
+
+      if(res == YKPIV_WRONG_PIN)
+        return CKR_PIN_INCORRECT;
+        
+      if(res == YKPIV_PIN_LOCKED)
+        return CKR_PIN_LOCKED;
+
+      return CKR_DEVICE_ERROR;
     }
+
+    OPENSSL_cleanse(key, key_len);
   }
 
   return CKR_OK;
