@@ -143,7 +143,7 @@ Read out the certificate from a slot and then run a signature test:
   $ yubico-piv-tool -aread-cert -s9a
   $ yubico-piv-tool -averify-pin -atest-signature -s9a
 
-Import a key into slot 85 (only available on YubiKey 4) and set the
-touch policy (also only available on YubiKey 4):
+Import a key into slot 85 (only available on YubiKey 4 & 5) and set the
+touch policy (also only available on YubiKey 4 & 5):
 
   $ yubico-piv-tool -aimport-key -s85 --touch-policy=always -ikey.pem
