@@ -186,7 +186,7 @@ static void dump_hex(const unsigned char *buf, unsigned int len) {
   }
 }
 
-unsigned int _ykpiv_set_length(unsigned char *buffer, size_t length) {
+size_t _ykpiv_set_length(unsigned char *buffer, size_t length) {
   if(length < 0x80) {
     *buffer++ = (unsigned char)length;
     return 1;
@@ -202,7 +202,7 @@ unsigned int _ykpiv_set_length(unsigned char *buffer, size_t length) {
   }
 }
 
-unsigned int _ykpiv_get_length(const unsigned char *buffer, size_t *len) {
+size_t _ykpiv_get_length(const unsigned char *buffer, size_t *len) {
   if(buffer[0] < 0x81) {
     *len = buffer[0];
     return 1;
@@ -217,7 +217,7 @@ unsigned int _ykpiv_get_length(const unsigned char *buffer, size_t *len) {
   return 0;
 }
 
-bool _ykpiv_has_valid_length(const unsigned char* buffer, size_t len) {
+bool _ykpiv_has_valid_length(const unsigned char* buffer, ptrdiff_t len) {
   if ((len > 0) && (*buffer < 0x81)) {
     return true;
   }
@@ -1665,9 +1665,9 @@ ykpiv_rc _ykpiv_fetch_object(ykpiv_state *state, int object_id,
 
   if(sw == SW_SUCCESS) {
     size_t outlen = 0;
-    unsigned int offs = 0;
+    size_t offs = 0;
     
-    if ((*len < 2) || !_ykpiv_has_valid_length(data + 1, *len - 1)) {
+    if ((*len < 2) || !_ykpiv_has_valid_length(data + 1, (ptrdiff_t)(*len - 1))) {
       return YKPIV_SIZE_ERROR;
     }
 

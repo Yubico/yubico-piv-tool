@@ -113,7 +113,7 @@ ykpiv_rc ykpiv_util_get_cardid(ykpiv_state *state, ykpiv_cardid *cardid) {
     while (p_temp < (buf + len)) {
       tag = *p_temp++;
 
-      if (!_ykpiv_has_valid_length(p_temp, (size_t)(buf + len - p_temp))) {
+      if (!_ykpiv_has_valid_length(p_temp, buf + len - p_temp)) {
         res = YKPIV_SIZE_ERROR;
         goto Cleanup;
       }
@@ -1484,7 +1484,7 @@ static ykpiv_rc _get_metadata_item(uint8_t *data, size_t cb_data, uint8_t tag, u
   while (p_temp < (data + cb_data)) {
     tag_temp = *p_temp++;
 
-    if (!_ykpiv_has_valid_length(p_temp, (size_t)(data + cb_data - p_temp))) {
+    if (!_ykpiv_has_valid_length(p_temp, data + cb_data - p_temp)) {
       return YKPIV_SIZE_ERROR;
     }
 

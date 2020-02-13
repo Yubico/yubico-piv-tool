@@ -256,7 +256,7 @@ unsigned long get_length(const unsigned char *buffer, unsigned long *len) {
   return 0;
 }
 
-bool has_valid_length(const unsigned char* buffer, unsigned long len) {
+bool has_valid_length(const unsigned char* buffer, ptrdiff_t len) {
   if ((len > 0) && (*buffer < 0x81)) {
     return true;
   }
