@@ -960,7 +960,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
         }
       }
       unsigned long ulen = sizeof(data);
-      CK_RV rcc = ykpiv_fetch_object(session->slot->piv_state, piv_2_ykpiv(obj_ids[i]), data, &ulen);
+      ykpiv_rc rcc = ykpiv_fetch_object(session->slot->piv_state, piv_2_ykpiv(obj_ids[i]), data, &ulen);
       if(rcc != YKPIV_OK) {
         DBG("Failed to fetch object %u slot %lx: %s", obj_ids[i], piv_2_ykpiv(obj_ids[i]), ykpiv_strerror(rcc));
         continue;
