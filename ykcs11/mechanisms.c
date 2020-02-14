@@ -585,7 +585,7 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
     case CKA_PUBLIC_EXPONENT:
       if (rsa == CK_FALSE) {
         DBG("Non-RSA key can't have CKA_PUBLIC_EXPONENT");
-        return CKR_ATTRIBUTE_VALUE_INVALID;
+        return CKR_TEMPLATE_INCONSISTENT;
       }
 
       // Only support F4
@@ -598,8 +598,8 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
 
     case CKA_MODULUS_BITS:
       if (rsa == CK_FALSE) {
-        return CKR_ATTRIBUTE_VALUE_INVALID;
         DBG("Non-RSA key can't have CKA_MODULUS_BITS");
+        return CKR_TEMPLATE_INCONSISTENT;
       }
       switch(*(CK_ULONG_PTR)templ[i].pValue) {
         case 1024:
@@ -615,6 +615,10 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
       break;
 
     case CKA_EC_PARAMS:
+      if (rsa == CK_TRUE) {
+        DBG("RSA key can't have CKA_EC_PARAMS");
+        return CKR_TEMPLATE_INCONSISTENT;
+      }
       // Support PRIME256V1 and SECP384R1
       if (templ[i].ulValueLen == 10 && memcmp((CK_BYTE_PTR)templ[i].pValue, PRIME256V1, 10) == 0)
         gen->algorithm = YKPIV_ALGO_ECCP256;
@@ -622,14 +626,15 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
         gen->algorithm = YKPIV_ALGO_ECCP384;
       else {
         DBG("Bad CKA_EC_PARAMS");
-        return CKR_FUNCTION_FAILED;
+        return CKR_ATTRIBUTE_VALUE_INVALID;
       }
       break;
 
     case CKA_ID:
-      if (find_pubk_object(*((CK_BYTE_PTR)templ[i].pValue)) == PIV_INVALID_OBJ)
+      if (find_pubk_object(*((CK_BYTE_PTR)templ[i].pValue)) == PIV_INVALID_OBJ) {
+        DBG("Bad CKA_ID");
         return CKR_ATTRIBUTE_VALUE_INVALID;
-
+      }
       gen->key_id = *((CK_BYTE_PTR)templ[i].pValue);
       break;
 
@@ -677,9 +682,10 @@ CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
       break;
 
     case CKA_ID:
-      if (find_pvtk_object(*((CK_BYTE_PTR)templ[i].pValue)) == PIV_INVALID_OBJ)
+      if (find_pvtk_object(*((CK_BYTE_PTR)templ[i].pValue)) == PIV_INVALID_OBJ) {
+        DBG("Bad CKA_ID");
         return CKR_ATTRIBUTE_VALUE_INVALID;
-
+      }
       // Check if ID was already specified in the public key template
       // In that case it has to match
       if (gen->key_id != 0 &&
