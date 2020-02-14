@@ -633,6 +633,7 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
       gen->key_id = *((CK_BYTE_PTR)templ[i].pValue);
       break;
 
+    case CKA_SENSITIVE:
     case CKA_TOKEN:
     case CKA_ENCRYPT:
     case CKA_VERIFY:
@@ -640,6 +641,7 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
     case CKA_DERIVE:
     case CKA_PRIVATE:
     case CKA_LABEL:
+    case CKA_SUBJECT:
       // Ignore these attributes for now
       break;
 
@@ -696,6 +698,7 @@ CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
     case CKA_TOKEN:
     case CKA_DERIVE:
     case CKA_LABEL:
+    case CKA_SUBJECT:
       // Ignore these attributes for now
       break;
 
