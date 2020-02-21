@@ -37,7 +37,7 @@ usage:
 		echo "Try this instead:"; \
 		echo "  make PGPKEYID=[PGPKEYID] VERSION=[VERSION]"; \
 		echo "For example:"; \
-		echo "  make PGPKEYID=2117364A VERSION=1.6.0"; \
+		echo "  make PGPKEYID=2117364A VERSION=2.0.0"; \
 		exit 1; \
 	fi
 
