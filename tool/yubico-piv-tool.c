@@ -557,6 +557,10 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
       fprintf(stderr, "Failed checking input GZIP file.\n");
       goto import_cert_out;
     }
+    if (st.st_size > INT_MAX) {
+      fprintf(stderr, "Size of certificate file too large.\n");
+      goto import_cert_out;
+    }
     cert_len = st.st_size;
     compress = 0x01;
   } else {
@@ -573,7 +577,7 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
     unsigned char *certptr = certdata;
     ykpiv_rc res;
 
-    if(cert_len > YKPIV_OBJ_MAX_SIZE) {
+    if(cert_len > YKPIV_OBJ_MAX_SIZE || cert_len < 0) {
       fprintf(stderr, "Length of certificate is more than can fit.\n");
       goto import_cert_out;
     }
