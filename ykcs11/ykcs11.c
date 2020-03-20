@@ -29,7 +29,7 @@
  */
 
 #include "ykcs11.h"
-#include "ykcs11-version.h"
+#include "ykcs11-config.h"
 #include <stdlib.h>
 #include "ykpiv.h"
 #include <string.h>

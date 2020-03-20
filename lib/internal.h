@@ -31,12 +31,13 @@
 #ifndef YKPIV_INTERNAL_H
 #define YKPIV_INTERNAL_H
 
+#include "ykpiv-config.h"
 #include "ykpiv.h"
 
 #include <stdbool.h>
 
-#if BACKEND_PCSC
-#if defined HAVE_PCSC_WINSCARD_H
+#ifdef BACKEND_PCSC
+#ifdef HAVE_PCSC_WINSCARD_H
 # include <PCSC/wintypes.h>
 # include <PCSC/winscard.h>
 #else

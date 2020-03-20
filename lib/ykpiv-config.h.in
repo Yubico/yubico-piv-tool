@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016 Yubico AB
+ * Copyright (c) 2014-2016 Yubico AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,8 +28,8 @@
  *
  */
 
-#ifndef YKCS11_VERSION_H
-#define YKCS11_VERSION_H
+#ifndef YKPIV_VERSION_H
+#define YKPIV_VERSION_H
 
 #ifdef __cplusplus
 extern "C"
@@ -37,50 +37,69 @@ extern "C"
 #endif
 
 	/**
-	 * YKCS11_VERSION_STRING
+	 * YKPIV_VERSION_STRING
 	 *
 	 * Pre-processor symbol with a string that describe the header file
 	 * version number.  Used together with ykneomgr_check_version() to verify
 	 * header file and run-time library consistency.
 	 */
-#define YKCS11_VERSION_STRING "@VERSION@"
+#cmakedefine YKPIV_VERSION_STRING "@VERSION@"
 
 	/**
-	 * YKCS11_VERSION_NUMBER
+	 * YKPIV_VERSION_NUMBER
 	 *
 	 * Pre-processor symbol with a hexadecimal value describing the header
 	 * file version number.  For example, when the header version is 1.2.3
 	 * this symbol will have the value 0x01020300.  The last two digits
 	 * are only used between public releases, and will otherwise be 00.
 	 */
-#define YKCS11_VERSION_NUMBER @YKCS11_VERSION_NUMBER@
+#cmakedefine YKPIV_VERSION_NUMBER @YKPIV_VERSION_NUMBER@
 
 	/**
-	 * YKCS11_VERSION_MAJOR
+	 * YKPIV_VERSION_MAJOR
 	 *
 	 * Pre-processor symbol with a decimal value that describe the major
 	 * level of the header file version number.  For example, when the
 	 * header version is 1.2.3 this symbol will be 1.
 	 */
-#define YKCS11_VERSION_MAJOR @YKCS11_VERSION_MAJOR@
+#define YKPIV_VERSION_MAJOR @YKPIV_VERSION_MAJOR@
 
 	/**
-	 * YKCS11_VERSION_MINOR
+	 * YKPIV_VERSION_MINOR
 	 *
 	 * Pre-processor symbol with a decimal value that describe the minor
 	 * level of the header file version number.  For example, when the
 	 * header version is 1.2.3 this symbol will be 2.
 	 */
-#define YKCS11_VERSION_MINOR @YKCS11_VERSION_MINOR@
+#define YKPIV_VERSION_MINOR @YKPIV_VERSION_MINOR@
 
 	/**
-	 * YKCS11_VERSION_PATCH
+	 * YKPIV_VERSION_PATCH
 	 *
 	 * Pre-processor symbol with a decimal value that describe the patch
 	 * level of the header file version number.  For example, when the
 	 * header version is 1.2.3 this symbol will be 3.
 	 */
-#define YKCS11_VERSION_PATCH @YKCS11_VERSION_PATCH@
+#define YKPIV_VERSION_PATCH @YKPIV_VERSION_PATCH@
+
+    /**
+     * BACKEND_PCSC
+     *
+     * Pre-processor symbol that describes the available PCSC backend.
+     * If PCSC was not found on the system, some functionality will be missing.
+     */
+#cmakedefine BACKEND_PCSC @BACKEND_PCSC@
+
+    /**
+     * HAVE_PCSC_WINSCARD_H
+     *
+     * Pre-processor symbol indicating whether the file PCSC/winscard.h
+     * exists on the system or not.
+     */
+#cmakedefine HAVE_PCSC_WINSCARD_H @HAVE_PCSC_WINSCARD_H@
+
+
+	const char *ykpiv_check_version (const char *req_version);
 
 #ifdef __cplusplus
 }

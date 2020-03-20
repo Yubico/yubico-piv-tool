@@ -28,7 +28,7 @@
  *
  */
 
-#include "ykpiv-version.h"
+#include "ykpiv-config.h"
 
 #include <stddef.h>
 

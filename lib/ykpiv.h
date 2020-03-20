@@ -43,7 +43,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-#include "ykpiv-version.h"
+#include "ykpiv-config.h"
 
 #ifdef __cplusplus
 extern "C"

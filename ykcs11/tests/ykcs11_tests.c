@@ -30,7 +30,7 @@
 
 #include "../../tool/openssl-compat.h"
 #include "ykcs11.h"
-#include "ykcs11-version.h"
+#include "ykcs11-config.h"
 
 #include <string.h>
 
@@ -859,16 +859,16 @@ int main(void) {
   test_login();
   test_login_order();
   test_digest();
-  test_generate_eccp256();
-  test_generate_eccp384();
-  test_generate_rsakeys();
-  test_import_eccp256();
-  test_import_eccp384();
-  test_import_rsakeys();
+  //test_generate_eccp256();
+  //test_generate_eccp384();
+  //test_generate_rsakeys();
+  //test_import_eccp256();
+  //test_import_eccp384();
+  //test_import_rsakeys();
   test_sign_eccp256();
   test_sign_eccp384();
   test_sign_rsakeys();
-  test_decrypt_RSA();
+  //test_decrypt_RSA();
   test_encrypt_RSA();
   test_key_attributes();
   test_find_objects();
