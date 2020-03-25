@@ -27,15 +27,15 @@
 
 message("ykcs11/tests/CMakeList.txt")
 
-find_program (BASH_PROGRAM bash)
-
-add_test(
-        NAME reset_tests
-        COMMAND ${BASH_PROGRAM} ${CMAKE_CURRENT_SOURCE_DIR}/reset.sh
-)
-set_property(TEST reset_tests APPEND PROPERTY ENVIRONMENT "EXEEXT=${CMAKE_EXECUTABLE_SUFFIX}")
-set_property(TEST reset_tests APPEND PROPERTY ENVIRONMENT "YKPIV_ENV_HWTESTS_CONFIRMED=${HW_TESTS}")
-
+if(ENABLE_HARDWARE_TESTS)
+    find_program (BASH_PROGRAM bash)
+    add_test(
+            NAME reset_tests
+            COMMAND ${BASH_PROGRAM} ${CMAKE_CURRENT_SOURCE_DIR}/reset.sh
+    )
+    set_property(TEST reset_tests APPEND PROPERTY ENVIRONMENT "EXEEXT=${CMAKE_EXECUTABLE_SUFFIX}")
+    set_property(TEST reset_tests APPEND PROPERTY ENVIRONMENT "YKPIV_ENV_HWTESTS_CONFIRMED=${HW_TESTS}")
+endif(ENABLE_HARDWARE_TESTS)
 
 set(SOURCE_YKCS11_TESTS ykcs11_tests.c ykcs11_tests_util.c
         ../ykcs11.c

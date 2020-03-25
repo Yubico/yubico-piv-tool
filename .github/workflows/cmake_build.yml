@@ -7,20 +7,55 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
     steps:
       # This action checks-out the repository under $GITHUB_WORKSPACE, so the workflow can access it.
       - name: checkout
         uses: actions/checkout@v2
-      - name: sudo apt install pcscd pcsc-tools
-        run: sudo apt install pcscd pcsc pcsc-tools
-      - name: mkdir cmake_build
-        run: mkdir cmake_build
-      - name: cd cmake_build; cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON
+      - name: Install prerequisites
         run: |
+            if [ "$RUNNER_OS" == "Linux" ]; then
+              echo sudo apt install libpcsclite-dev check gengetopt help2man
+              sudo apt install libpcsclite-dev check gengetopt help2man
+            elif [ "$RUNNER_OS" == "macOS" ]; then
+              echo brew install pkg-config pcsc-lite check gengetopt help2man
+              brew install pkg-config pcsc-lite check gengetopt help2man
+
+              echo ls /usr/local/opt/pcsc-lite/lib/pkgconfig
+              ls /usr/local/opt/pcsc-lite/lib/pkgconfig
+
+              echo ln -s /usr/local/opt/pcsc-lite/lib/pkgconfig/libpcsclite.pc /usr/local/lib/pkgconfig/libpcsclite.pc
+              ln -s /usr/local/opt/pcsc-lite/lib/pkgconfig/libpcsclite.pc /usr/local/lib/pkgconfig/libpcsclite.pc
+
+              echo pkg-config --list-all
+              pkg-config --list-all
+            else
+              echo "$RUNNER_OS not supported"
+              exit 1
+            fi
+        shell: bash
+      #- name: Linux install libpcsclite-dev check gengetopt help2man
+      #  if: ${{ matrix.os }} == 'ubuntu-latest'
+      #  run: sudo apt install libpcsclite-dev check gengetopt help2man
+      #- name: Mac homebrew version
+      #  if: ${{ matrix.os }} == 'macos-latest'
+      #  run: brew help
+      - name: run cmake
+        run: |
+          echo export PKG_CONFIG_PATH="/usr/local/Cellar/openssl@1.1/1.1.1d/lib/pkgconfig"
+          export PKG_CONFIG_PATH="/usr/local/Cellar/openssl@1.1/1.1.1d/lib/pkgconfig"
+          echo mkdir cmake_build
+          mkdir cmake_build
+          echo cd cmake_build
           cd cmake_build
+          echo cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON
           cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON
-      - name: make
-        run: make
-      - name: make test
-        run: make test
+          echo make
+          make
+          echo make test
+          make test
