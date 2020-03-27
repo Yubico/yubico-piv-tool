@@ -25,15 +25,6 @@ jobs:
             elif [ "$RUNNER_OS" == "macOS" ]; then
               echo brew install pkg-config pcsc-lite check gengetopt help2man
               brew install pkg-config pcsc-lite check gengetopt help2man
-
-              echo ls /usr/local/opt/pcsc-lite/lib/pkgconfig
-              ls /usr/local/opt/pcsc-lite/lib/pkgconfig
-
-              echo ln -s /usr/local/opt/pcsc-lite/lib/pkgconfig/libpcsclite.pc /usr/local/lib/pkgconfig/libpcsclite.pc
-              ln -s /usr/local/opt/pcsc-lite/lib/pkgconfig/libpcsclite.pc /usr/local/lib/pkgconfig/libpcsclite.pc
-
-              echo pkg-config --list-all
-              pkg-config --list-all
             else
               echo "$RUNNER_OS not supported"
               exit 1
@@ -47,15 +38,20 @@ jobs:
       #  run: brew help
       - name: run cmake
         run: |
-          echo export PKG_CONFIG_PATH="/usr/local/Cellar/openssl@1.1/1.1.1d/lib/pkgconfig"
-          export PKG_CONFIG_PATH="/usr/local/Cellar/openssl@1.1/1.1.1d/lib/pkgconfig"
+          echo ls /usr/local/Cellar/openssl@1.1/1.1.1d/include/openssl
+          ls /usr/local/Cellar/openssl@1.1/1.1.1d/include/openssl
+
           echo mkdir cmake_build
           mkdir cmake_build
+
           echo cd cmake_build
           cd cmake_build
+
           echo cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON
           cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON
+
           echo make
           make
+
           echo make test
           make test

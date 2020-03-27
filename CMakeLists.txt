@@ -31,6 +31,16 @@ set (CMAKE_C_STANDARD 11)
 
 project (yubico-piv-tool)
 
+set (yubico_piv_tool_VERSION_MAJOR 2)
+set (yubico_piv_tool_VERSION_MINOR 0)
+set (yubico_piv_tool_VERSION_PATCH 1)
+set (VERSION "${yubico_piv_tool_VERSION_MAJOR}.${yubico_piv_tool_VERSION_MINOR}.${yubico_piv_tool_VERSION_PATCH}")
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    set(ENV{PKG_CONFIG_PATH} "/usr/local/opt/openssl@1.1/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
+    set(ENV{PKG_CONFIG_PATH} "/usr/local/opt/pcsc-lite/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
+endif ()
+
 find_package (PkgConfig REQUIRED)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
 include(configOptions)
@@ -84,19 +94,6 @@ else()
     set (CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -Wl,--strip-all -fPIE -pie")
 endif ()
 
-set (yubico_piv_tool_VERSION_MAJOR 2)
-set (yubico_piv_tool_VERSION_MINOR 0)
-set (yubico_piv_tool_VERSION_PATCH 1)
-set (VERSION "${yubico_piv_tool_VERSION_MAJOR}.${yubico_piv_tool_VERSION_MINOR}.${yubico_piv_tool_VERSION_PATCH}")
-#[[
-if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    set(ENV{PKG_CONFIG_PATH} "/usr/local/opt/openssl/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
-    set(ENV{PKG_CONFIG_PATH} "/usr/local/opt/pcsc-lite/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
-    set(ENV{PKG_CONFIG_PATH} "/usr/local/opt/libedit/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
-elseif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
-    set(ENV{PKG_CONFIG_PATH} "/usr/libdata/pkgconfig:$ENV{PKG_CONFIG_PATH}")
-endif ()
-]]
 enable_testing()
 #find_package(codecov)
 
