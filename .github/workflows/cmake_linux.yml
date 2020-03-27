@@ -1,0 +1,36 @@
+name: CMake Build Ubuntu
+# This workflow is triggered on pushes to the repository.
+on:
+  push:
+    branches:
+      - cmake
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      # This action checks-out the repository under $GITHUB_WORKSPACE, so the workflow can access it.
+      - name: checkout
+        uses: actions/checkout@v2
+      - name: Install prerequisites
+        run: |
+          echo sudo apt install libpcsclite-dev check gengetopt help2man
+          sudo apt install libpcsclite-dev check gengetopt help2man
+      - name: run cmake
+        run: |
+          echo mkdir cmake_build
+          mkdir cmake_build
+
+          echo cd cmake_build
+          cd cmake_build
+
+          echo cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON
+          cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON
+
+          echo make
+          make
+
+          echo make test
+          make test

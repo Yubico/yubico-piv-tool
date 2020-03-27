@@ -1,0 +1,48 @@
+name: CMake Build MacOS
+# This workflow is triggered on pushes to the repository.
+on:
+  push:
+    branches:
+      - cmake
+
+jobs:
+  build:
+
+    runs-on: macos-latest
+
+    steps:
+      # This action checks-out the repository under $GITHUB_WORKSPACE, so the workflow can access it.
+      - name: checkout
+        uses: actions/checkout@v2
+      - name: Install prerequisites
+        run: |
+          echo brew install pkg-config pcsc-lite check gengetopt help2man
+          brew install pkg-config pcsc-lite check gengetopt help2man
+
+          echo cd /usr/local/include
+          cd /usr/local/include
+
+          echo ln -s /usr/local/Cellar/openssl@1.1/1.1.1d/include/openssl .
+          ln -s /usr/local/Cellar/openssl@1.1/1.1.1d/include/openssl .
+
+          echo ls -l /usr/local/include
+          ls -l /usr/local/include
+      - name: run cmake
+        run: |
+          echo ls /usr/local/Cellar/openssl@1.1/1.1.1d/include/openssl
+          ls /usr/local/Cellar/openssl@1.1/1.1.1d/include/openssl
+
+          echo mkdir cmake_build
+          mkdir cmake_build
+
+          echo cd cmake_build
+          cd cmake_build
+
+          echo cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON
+          cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON
+
+          echo make
+          make
+
+          echo make test
+          make test
