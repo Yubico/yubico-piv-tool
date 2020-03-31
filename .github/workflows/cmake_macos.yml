@@ -18,20 +18,8 @@ jobs:
         run: |
           echo brew install pkg-config pcsc-lite check gengetopt help2man
           brew install pkg-config pcsc-lite check gengetopt help2man
-
-          echo cd /usr/local/include
-          cd /usr/local/include
-
-          echo ln -s /usr/local/Cellar/openssl@1.1/1.1.1d/include/openssl .
-          ln -s /usr/local/Cellar/openssl@1.1/1.1.1d/include/openssl .
-
-          echo ls -l /usr/local/include
-          ls -l /usr/local/include
       - name: run cmake
         run: |
-          echo ls /usr/local/Cellar/openssl@1.1/1.1.1d/include/openssl
-          ls /usr/local/Cellar/openssl@1.1/1.1.1d/include/openssl
-
           echo mkdir cmake_build
           mkdir cmake_build
 
@@ -46,3 +34,9 @@ jobs:
 
           echo make test
           make test
+          
+          echo make install
+          make install
+
+          echo yubico-piv-tool --help
+          yubico-piv-tool --help

@@ -88,4 +88,6 @@ macro (find_pcscd)
     message("BACKEND_PCSC: ${BACKEND_PCSC}")
     message("HAVE_PCSC_WINSCARD_H: ${HAVE_PCSC_WINSCARD_H}")
 
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${PCSC_CFLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${PCSC_CFLAGS}")
 endmacro()

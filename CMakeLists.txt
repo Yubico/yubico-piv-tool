@@ -46,7 +46,6 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
 include(configOptions)
 include(openssl)
 find_libcrypto()
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${LIBCRYPTO_LDFLAGS}")
 
 if (NOT CMAKE_BUILD_TYPE)
     if (${RELEASE_BUILD} MATCHES 1)
@@ -171,8 +170,8 @@ endif()
 
 add_subdirectory (lib)
 if(NOT BUILD_ONLY_LIB)
-    add_subdirectory (ykcs11)
     add_subdirectory (tool)
+    add_subdirectory (ykcs11)
 endif()
 
 add_custom_target (

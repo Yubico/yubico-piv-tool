@@ -27,6 +27,8 @@
 
 message("tool/CMakeList.txt")
 
+link_directories(${PCSC_LIBRARY_DIRS})
+
 include(gengetopt)
 find_gengetopt()
 add_gengetopt_files (cmdline)
@@ -57,8 +59,6 @@ if (BUILD_STATIC_LIB)
     target_link_libraries(yubico-piv-tool_static ykpiv_static ${LIBCRYPTO_LDFLAGS})
 #    add_coverage (yubicp-piv-tool_static)
 endif (BUILD_STATIC_LIB)
-
-
 
 # Set install RPATH
 set_target_properties(yubico-piv-tool PROPERTIES INSTALL_RPATH "${YKPIV_INSTALL_LIB_DIR}")

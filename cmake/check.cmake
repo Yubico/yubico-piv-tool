@@ -19,5 +19,5 @@ macro (find_check)
             message (WARNING "check not found...")
         endif(LIBCHECK_FOUND)
     endif(NOT LIBCHECK_FOUND)
-
+    include_directories(${LIBCHECK_INCLUDE_DIRS})
 endmacro()
