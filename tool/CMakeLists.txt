@@ -50,11 +50,11 @@ endif ()
 list(APPEND LCOV_REMOVE_PATTERNS "'${PROJECT_SOURCE_DIR}/tool/cmdline.c'")
 
 add_executable (yubico-piv-tool ${SOURCE})
-target_link_libraries (yubico-piv-tool ykpiv)
+target_link_libraries (yubico-piv-tool ykpiv ${LIBCRYPTO_LDFLAGS})
 if (BUILD_STATIC_LIB)
     add_executable (yubico-piv-tool_static ${SOURCE})
     set_target_properties (yubico-piv-tool_static PROPERTIES COMPILE_FLAGS "-DSTATIC")
-    target_link_libraries(yubico-piv-tool_static ykpiv_static)
+    target_link_libraries(yubico-piv-tool_static ykpiv_static ${LIBCRYPTO_LDFLAGS})
 #    add_coverage (yubicp-piv-tool_static)
 endif (BUILD_STATIC_LIB)
 

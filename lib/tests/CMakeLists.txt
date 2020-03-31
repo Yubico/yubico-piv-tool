@@ -42,9 +42,9 @@ add_executable (test_basic ${SOURCE_BASIC})
 add_executable(test_api ${SOURCE_API})
 add_executable(test_parse_key ${SOURCE_PARSE_KEY})
 
-target_link_libraries(test_basic ykpiv ${LIBCHECK_LDFLAGS})
-target_link_libraries(test_api ykpiv ${LIBCHECK_LDFLAGS})
-target_link_libraries(test_parse_key ykpiv ${LIBCHECK_LDFLAGS})
+target_link_libraries(test_basic ykpiv ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
+target_link_libraries(test_api ykpiv ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
+target_link_libraries(test_parse_key ykpiv ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
 
 add_test(
         NAME basic

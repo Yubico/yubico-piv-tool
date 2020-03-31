@@ -1,4 +1,4 @@
-macro (find_openssl)
+macro (find_libcrypto)
     if(NOT LIBCRYPTO_FOUND)
         pkg_check_modules(LIBCRYPTO REQUIRED libcrypto)
         if(LIBCRYPTO_FOUND)
