@@ -124,4 +124,188 @@ EC_KEY *yubico_EVP_PKEY_get0_EC_KEY(const EVP_PKEY *pkey) {
 }
 #endif /* HAVE_DECL_EVP_PKEY_GET0_EC_KEY */
 
+#ifdef LIBRESSL_VERSION_NUMBER
+
+#ifndef RSAerror
+#define RSAerror(e) RSAerr(0xfff,e)
+#endif
+int timingsafe_memcmp(const void*, const void*, size_t);
+uint32_t arc4random_buf(void *, size_t);
+void freezero(void *, size_t);
+
+#ifndef HAVE_DECL_RSA_PADDING_CHECK_PKCS1_OAEP_MGF1
+int yubico_RSA_padding_check_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
+    const unsigned char *from, int flen, int num, const unsigned char *param,
+    int plen, const EVP_MD *md, const EVP_MD *mgf1md)
+{
+	int i, dblen, mlen = -1;
+	const unsigned char *maskeddb;
+	int lzero;
+	unsigned char *db = NULL;
+	unsigned char seed[EVP_MAX_MD_SIZE], phash[EVP_MAX_MD_SIZE];
+	unsigned char *padded_from;
+	int bad = 0;
+	int mdlen;
+
+	if (md == NULL)
+		md = EVP_sha1();
+	if (mgf1md == NULL)
+		mgf1md = md;
+
+	if ((mdlen = EVP_MD_size(md)) <= 0)
+		goto err;
+
+	if (--num < 2 * mdlen + 1)
+		/*
+		 * 'num' is the length of the modulus, i.e. does not depend
+		 * on the particular ciphertext.
+		 */
+		goto decoding_err;
+
+	lzero = num - flen;
+	if (lzero < 0) {
+		/*
+		 * signalling this error immediately after detection might allow
+		 * for side-channel attacks (e.g. timing if 'plen' is huge
+		 * -- cf. James H. Manger, "A Chosen Ciphertext Attack on RSA
+		 * Optimal Asymmetric Encryption Padding (OAEP) [...]",
+		 * CRYPTO 2001), so we use a 'bad' flag
+		 */
+		bad = 1;
+		lzero = 0;
+		flen = num; /* don't overflow the memcpy to padded_from */
+	}
+
+	dblen = num - mdlen;
+	if ((db = malloc(dblen + num)) == NULL) {
+		RSAerror(ERR_R_MALLOC_FAILURE);
+		return -1;
+	}
+
+	/*
+	 * Always do this zero-padding copy (even when lzero == 0)
+	 * to avoid leaking timing info about the value of lzero.
+	 */
+	padded_from = db + dblen;
+	memset(padded_from, 0, lzero);
+	memcpy(padded_from + lzero, from, flen);
+
+	maskeddb = padded_from + mdlen;
+
+	if (PKCS1_MGF1(seed, mdlen, maskeddb, dblen, mgf1md))
+		goto err;
+	for (i = 0; i < mdlen; i++)
+		seed[i] ^= padded_from[i];
+	if (PKCS1_MGF1(db, dblen, seed, mdlen, mgf1md))
+		goto err;
+	for (i = 0; i < dblen; i++)
+		db[i] ^= maskeddb[i];
+
+	if (!EVP_Digest((void *)param, plen, phash, NULL, md, NULL))
+		goto err;
+
+	if (timingsafe_memcmp(db, phash, mdlen) != 0 || bad)
+		goto decoding_err;
+	else {
+		for (i = mdlen; i < dblen; i++)
+			if (db[i] != 0x00)
+				break;
+		if (i == dblen || db[i] != 0x01)
+			goto decoding_err;
+		else {
+			/* everything looks OK */
+
+			mlen = dblen - ++i;
+			if (tlen < mlen) {
+				RSAerror(RSA_R_DATA_TOO_LARGE);
+				mlen = -1;
+			} else
+				memcpy(to, db + i, mlen);
+		}
+	}
+	free(db);
+	return mlen;
+
+ decoding_err:
+	/*
+	 * To avoid chosen ciphertext attacks, the error message should not
+	 * reveal which kind of decoding error happened
+	 */
+	RSAerror(RSA_R_OAEP_DECODING_ERROR);
+ err:
+	free(db);
+	return -1;
+}
+#endif /* HAVE_DECL_RSA_PADDING_CHECK_PKCS1_OAEP_MGF1 */
+
+#ifndef HAVE_DECL_RSA_PADDING_ADD_PKCS1_OAEP_MGF1
+int yubico_RSA_padding_add_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
+    const unsigned char *from, int flen, const unsigned char *param, int plen,
+    const EVP_MD *md, const EVP_MD *mgf1md)
+{
+	int i, emlen = tlen - 1;
+	unsigned char *db, *seed;
+	unsigned char *dbmask = NULL;
+	unsigned char seedmask[EVP_MAX_MD_SIZE];
+	int mdlen, dbmask_len = 0;
+	int rv = 0;
+
+	if (md == NULL)
+		md = EVP_sha1();
+	if (mgf1md == NULL)
+		mgf1md = md;
+
+	if ((mdlen = EVP_MD_size(md)) <= 0)
+		goto err;
+
+	if (flen > emlen - 2 * mdlen - 1) {
+		RSAerror(RSA_R_DATA_TOO_LARGE_FOR_KEY_SIZE);
+		goto err;
+	}
+
+	if (emlen < 2 * mdlen + 1) {
+		RSAerror(RSA_R_KEY_SIZE_TOO_SMALL);
+		goto err;
+	}
+
+	to[0] = 0;
+	seed = to + 1;
+	db = to + mdlen + 1;
+
+	if (!EVP_Digest((void *)param, plen, db, NULL, md, NULL))
+		goto err;
+
+	memset(db + mdlen, 0, emlen - flen - 2 * mdlen - 1);
+	db[emlen - flen - mdlen - 1] = 0x01;
+	memcpy(db + emlen - flen - mdlen, from, flen);
+	arc4random_buf(seed, mdlen);
+
+	dbmask_len = emlen - mdlen;
+	if ((dbmask = malloc(dbmask_len)) == NULL) {
+		RSAerror(ERR_R_MALLOC_FAILURE);
+		goto err;
+	}
+
+	if (PKCS1_MGF1(dbmask, dbmask_len, seed, mdlen, mgf1md) < 0)
+		goto err;
+	for (i = 0; i < dbmask_len; i++)
+		db[i] ^= dbmask[i];
+	if (PKCS1_MGF1(seedmask, mdlen, db, dbmask_len, mgf1md) < 0)
+		goto err;
+	for (i = 0; i < mdlen; i++)
+		seed[i] ^= seedmask[i];
+
+	rv = 1;
+
+ err:
+	explicit_bzero(seedmask, sizeof(seedmask));
+	freezero(dbmask, dbmask_len);
+
+	return rv;
+}
+
+#endif /* HAVE_DECL_RSA_PADDING_ADD_PKCS1_OAEP_MGF1 */
+
+#endif /* LIBRESSL_VERSION_NUMBER */
+
 #endif /* OPENSSL_VERSION_NUMBER || LIBRESSL_VERSION_NUMBER */

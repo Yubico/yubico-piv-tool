@@ -78,6 +78,20 @@ EC_KEY *yubico_EVP_PKEY_get0_EC_KEY(const EVP_PKEY *pkey);
 
 #endif /* EVP_PKEY_CTRL_RSA_OAEP_MD */
 
+#ifndef HAVE_DECL_RSA_PADDING_CHECK_PKCS1_OAEP_MGF1
+int yubico_RSA_padding_check_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
+    const unsigned char *from, int flen, int num, const unsigned char *param,
+    int plen, const EVP_MD *md, const EVP_MD *mgf1md);
+#define RSA_padding_check_PKCS1_OAEP_mgf1 yubico_RSA_padding_check_PKCS1_OAEP_mgf1
+#endif /* HAVE_DECL_RSA_PADDING_CHECK_PKCS1_OAEP_MGF1 */
+
+#ifndef HAVE_DECL_RSA_PADDING_ADD_PKCS1_OAEP_MGF1
+int yubico_RSA_padding_add_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
+    const unsigned char *from, int flen, const unsigned char *param, int plen,
+    const EVP_MD *md, const EVP_MD *mgf1md);
+#define RSA_padding_add_PKCS1_OAEP_mgf1 yubico_RSA_padding_add_PKCS1_OAEP_mgf1
+#endif /* HAVE_DECL_RSA_PADDING_ADD_PKCS1_OAEP_MGF1 */
+
 #endif /* _WINDOWS */
 #endif /* OPENSSL_VERSION_NUMBER || LIBRESSL_VERSION_NUMBER */
 #endif /* LIBCRYPTO_COMPAT_H */

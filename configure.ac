@@ -280,6 +280,10 @@ AS_IF([test "x$enable_hardware_tests" != xno],
 AY_OPENSSL_CHECK_FUNC(RSA_set0_key,[[#include <openssl/rsa.h>]])
 AY_OPENSSL_CHECK_FUNC(RSA_get0_factors,[[#include <openssl/rsa.h>]])
 AY_OPENSSL_CHECK_FUNC(RSA_get0_crt_params,[[#include <openssl/rsa.h>]])
+AY_OPENSSL_CHECK_FUNC(RSA_padding_add_PKCS1_OAEP_mgf1,
+		      [[#include <openssl/rsa.h>]])
+AY_OPENSSL_CHECK_FUNC(RSA_padding_check_PKCS1_OAEP_mgf1,
+		      [[#include <openssl/rsa.h>]])
 AY_OPENSSL_CHECK_FUNC(X509_SIG_getm,[[#include <openssl/x509.h>]])
 AY_OPENSSL_CHECK_FUNC(ECDSA_SIG_set0,[[#include <openssl/ecdsa.h>]])
 AY_OPENSSL_CHECK_FUNC(EVP_PKEY_get0_RSA,[[
