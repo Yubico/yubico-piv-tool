@@ -68,3 +68,4 @@ option "id" - "Id of object for write/read object" int optional
 option "format" f "Format of data for write/read object" values="hex","base64","binary" enum optional default="hex"
 option "sign" - "Sign data" flag off hidden
 option "stdin-input" - "Read sensitive values from stdin" flag off hidden
+option "attestation" - "Add attestation cross-signature" flag off
