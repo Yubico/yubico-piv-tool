@@ -13,7 +13,7 @@
 #include <string.h>
 #include <openssl/engine.h>
 
-int RSA_set0_key(RSA *r, BIGNUM *n, BIGNUM *e, BIGNUM *d)
+int yubico_RSA_set0_key(RSA *r, BIGNUM *n, BIGNUM *e, BIGNUM *d)
 {
     /* If the fields n and e in r are NULL, the corresponding input
      * parameters MUST be non-NULL for n and e.  d may be
@@ -38,7 +38,7 @@ int RSA_set0_key(RSA *r, BIGNUM *n, BIGNUM *e, BIGNUM *d)
     return 1;
 }
 
-void RSA_get0_key(const RSA *r,
+void yubico_RSA_get0_key(const RSA *r,
                   const BIGNUM **n, const BIGNUM **e, const BIGNUM **d)
 {
     if (n != NULL)
@@ -49,7 +49,7 @@ void RSA_get0_key(const RSA *r,
         *d = r->d;
 }
 
-void RSA_get0_factors(const RSA *r, const BIGNUM **p, const BIGNUM **q)
+void yubico_RSA_get0_factors(const RSA *r, const BIGNUM **p, const BIGNUM **q)
 {
     if (p != NULL)
         *p = r->p;
@@ -57,7 +57,7 @@ void RSA_get0_factors(const RSA *r, const BIGNUM **p, const BIGNUM **q)
         *q = r->q;
 }
 
-void RSA_get0_crt_params(const RSA *r,
+void yubico_RSA_get0_crt_params(const RSA *r,
                          const BIGNUM **dmp1, const BIGNUM **dmq1,
                          const BIGNUM **iqmp)
 {
@@ -69,7 +69,7 @@ void RSA_get0_crt_params(const RSA *r,
         *iqmp = r->iqmp;
 }
 
-void X509_SIG_getm(X509_SIG *sig, X509_ALGOR **palg,
+void yubico_X509_SIG_getm(X509_SIG *sig, X509_ALGOR **palg,
                    ASN1_OCTET_STRING **pdigest)
 {
     if (palg)
@@ -78,7 +78,7 @@ void X509_SIG_getm(X509_SIG *sig, X509_ALGOR **palg,
         *pdigest = sig->digest;
 }
 
-int ECDSA_SIG_set0(ECDSA_SIG *sig, BIGNUM *r, BIGNUM *s)
+int yubico_ECDSA_SIG_set0(ECDSA_SIG *sig, BIGNUM *r, BIGNUM *s)
 {
     if (r == NULL || s == NULL)
         return 0;
@@ -89,21 +89,21 @@ int ECDSA_SIG_set0(ECDSA_SIG *sig, BIGNUM *r, BIGNUM *s)
     return 1;
 }
 
-void ECDSA_SIG_get0(const ECDSA_SIG *sig, const BIGNUM **pr, const BIGNUM **ps) {
+void yubico_ECDSA_SIG_get0(const ECDSA_SIG *sig, const BIGNUM **pr, const BIGNUM **ps) {
     if (pr != NULL)
         *pr = sig->r;
     if (ps != NULL)
         *ps = sig->s;
 }
 
-RSA *EVP_PKEY_get0_RSA(const EVP_PKEY *pkey) {
+RSA *yubico_EVP_PKEY_get0_RSA(const EVP_PKEY *pkey) {
   if (pkey->type != EVP_PKEY_RSA) {
     return NULL;
   }
   return pkey->pkey.rsa;
 }
 
-EC_KEY *EVP_PKEY_get0_EC_KEY(const EVP_PKEY *pkey) {
+EC_KEY *yubico_EVP_PKEY_get0_EC_KEY(const EVP_PKEY *pkey) {
   if (pkey->type != EVP_PKEY_EC) {
     return NULL;
   }
