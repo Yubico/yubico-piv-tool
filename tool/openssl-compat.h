@@ -65,6 +65,19 @@ EC_KEY *yubico_EVP_PKEY_get0_EC_KEY(const EVP_PKEY *pkey);
 #define EVP_PKEY_get0_EC_KEY yubico_EVP_PKEY_get0_EC_KEY
 #endif /* HAVE_DECL_EVP_PKEY_GET0_EC_KEY */
 
+#ifndef EVP_PKEY_CTRL_RSA_OAEP_MD
+#define EVP_PKEY_CTRL_RSA_OAEP_MD		(EVP_PKEY_ALG_CTRL + 9)
+#define EVP_PKEY_CTRL_RSA_OAEP_LABEL		(EVP_PKEY_ALG_CTRL + 10)
+#define EVP_PKEY_CTX_set_rsa_oaep_md(ctx, md) \
+	EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_RSA, EVP_PKEY_OP_TYPE_CRYPT, \
+	    EVP_PKEY_CTRL_RSA_OAEP_MD, 0, (void *)(md))
+
+#define EVP_PKEY_CTX_set0_rsa_oaep_label(ctx, l, llen) \
+	EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_RSA, EVP_PKEY_OP_TYPE_CRYPT, \
+	    EVP_PKEY_CTRL_RSA_OAEP_LABEL, llen, (void *)(l))
+
+#endif /* EVP_PKEY_CTRL_RSA_OAEP_MD */
+
 #endif /* _WINDOWS */
 #endif /* OPENSSL_VERSION_NUMBER || LIBRESSL_VERSION_NUMBER */
 #endif /* LIBCRYPTO_COMPAT_H */
