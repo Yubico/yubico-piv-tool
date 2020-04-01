@@ -732,9 +732,15 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
 
       // Extract the public key for the request from the attestation
       const unsigned char *ptr = buf;
-      X509 *cert = d2i_X509(NULL, &ptr, buflen);
-      public_key = X509_get_pubkey(cert);
-      X509_free(cert);
+      X509 *x509 = d2i_X509(NULL, &ptr, buflen);
+      if(x509) {
+        public_key = X509_get_pubkey(x509);
+        X509_free(x509);
+      }
+      if(!public_key) {
+        fprintf(stderr, "Failed extracting public key for request from attestation.\n");
+        goto request_out;
+      }
     } else {
       fprintf(stderr, "Failed creating attestation: %s.\n", ykpiv_strerror(rc));
       goto request_out;
