@@ -13,6 +13,7 @@
 #include <string.h>
 #include <openssl/engine.h>
 
+#ifndef HAVE_DECL_RSA_SET0_KEY
 int yubico_RSA_set0_key(RSA *r, BIGNUM *n, BIGNUM *e, BIGNUM *d)
 {
     /* If the fields n and e in r are NULL, the corresponding input
@@ -48,7 +49,9 @@ void yubico_RSA_get0_key(const RSA *r,
     if (d != NULL)
         *d = r->d;
 }
+#endif /* HAVE_DECL_RSA_SET0_KEY */
 
+#ifndef HAVE_DECL_RSA_GET0_FACTORS
 void yubico_RSA_get0_factors(const RSA *r, const BIGNUM **p, const BIGNUM **q)
 {
     if (p != NULL)
@@ -56,7 +59,9 @@ void yubico_RSA_get0_factors(const RSA *r, const BIGNUM **p, const BIGNUM **q)
     if (q != NULL)
         *q = r->q;
 }
+#endif /* HAVE_DECL_RSA_GET0_FACTORS */
 
+#ifndef HAVE_DECL_RSA_GET0_CRT_PARAMS
 void yubico_RSA_get0_crt_params(const RSA *r,
                          const BIGNUM **dmp1, const BIGNUM **dmq1,
                          const BIGNUM **iqmp)
@@ -68,7 +73,9 @@ void yubico_RSA_get0_crt_params(const RSA *r,
     if (iqmp != NULL)
         *iqmp = r->iqmp;
 }
+#endif /* HAVE_DECL_RSA_GET0_CRT_PARAMS */
 
+#ifndef HAVE_DECL_X509_SIG_GETM
 void yubico_X509_SIG_getm(X509_SIG *sig, X509_ALGOR **palg,
                    ASN1_OCTET_STRING **pdigest)
 {
@@ -77,7 +84,9 @@ void yubico_X509_SIG_getm(X509_SIG *sig, X509_ALGOR **palg,
     if (pdigest)
         *pdigest = sig->digest;
 }
+#endif /* HAVE_DECL_X509_SIG_GETM */
 
+#ifndef HAVE_DECL_ECDSA_SIG_SET0
 int yubico_ECDSA_SIG_set0(ECDSA_SIG *sig, BIGNUM *r, BIGNUM *s)
 {
     if (r == NULL || s == NULL)
@@ -95,19 +104,24 @@ void yubico_ECDSA_SIG_get0(const ECDSA_SIG *sig, const BIGNUM **pr, const BIGNUM
     if (ps != NULL)
         *ps = sig->s;
 }
+#endif /* HAVE_DECL_ECDSA_SIG_SET0 */
 
+#ifndef HAVE_DECL_EVP_PKEY_GET0_RSA
 RSA *yubico_EVP_PKEY_get0_RSA(const EVP_PKEY *pkey) {
   if (pkey->type != EVP_PKEY_RSA) {
     return NULL;
   }
   return pkey->pkey.rsa;
 }
+#endif /* HAVE_DECL_EVP_PKEY_GET0_RSA */
 
+#ifndef HAVE_DECL_EVP_PKEY_GET0_EC_KEY
 EC_KEY *yubico_EVP_PKEY_get0_EC_KEY(const EVP_PKEY *pkey) {
   if (pkey->type != EVP_PKEY_EC) {
     return NULL;
   }
   return pkey->pkey.ec;
 }
+#endif /* HAVE_DECL_EVP_PKEY_GET0_EC_KEY */
 
 #endif /* OPENSSL_VERSION_NUMBER || LIBRESSL_VERSION_NUMBER */

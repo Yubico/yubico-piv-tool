@@ -49,6 +49,21 @@ AM_MISSING_PROG(HELP2ADOC, help2adoc, $missing_dir)
 AM_MISSING_PROG(GENGETOPT, gengetopt, $missing_dir)
 PKG_PROG_PKG_CONFIG
 
+AC_DEFUN([AY_OPENSSL_CHECK_FUNC],
+AC_CACHE_CHECK([for prototype $1],
+[ay_cv_openssl_have_$1],
+[AC_COMPILE_IFELSE([AC_LANG_PROGRAM([$2],[[
+ #ifndef $1
+ void *fp = $1;
+ #endif
+]])],
+[ay_cv_openssl_have_$1=yes],
+[ay_cv_openssl_have_$1=no])])
+if test "x$ay_cv_openssl_have_$1" = xyes; then
+	AC_DEFINE_UNQUOTED(AS_TR_CPP([HAVE_DECL_]$1))
+fi
+)
+
 PKG_CHECK_MODULES([OPENSSL], [libcrypto], [OPENSSL_VERSION=`$PKG_CONFIG --modversion libcrypto`])
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.6])
 
@@ -261,6 +276,21 @@ AS_IF([test "x$enable_hardware_tests" != xno],
              hw_tests="ENABLED"],
       [true],
             [hw_tests="DISABLED"])
+
+AY_OPENSSL_CHECK_FUNC(RSA_set0_key,[[#include <openssl/rsa.h>]])
+AY_OPENSSL_CHECK_FUNC(RSA_get0_factors,[[#include <openssl/rsa.h>]])
+AY_OPENSSL_CHECK_FUNC(RSA_get0_crt_params,[[#include <openssl/rsa.h>]])
+AY_OPENSSL_CHECK_FUNC(X509_SIG_getm,[[#include <openssl/x509.h>]])
+AY_OPENSSL_CHECK_FUNC(ECDSA_SIG_set0,[[#include <openssl/ecdsa.h>]])
+AY_OPENSSL_CHECK_FUNC(EVP_PKEY_get0_RSA,[[
+#include <openssl/evp.h>
+#include <openssl/rsa.h>
+]])
+AY_OPENSSL_CHECK_FUNC(EVP_PKEY_get0_EC_KEY,[[
+#include <openssl/ecdsa.h>
+#include <openssl/evp.h>
+#include <openssl/dh.h>
+]])
 
 AC_SUBST(YKPIV_VERSION_MAJOR, `echo $PACKAGE_VERSION | sed 's/\(.*\)\..*\..*/\1/g'`)
 AC_SUBST(YKPIV_VERSION_MINOR, `echo $PACKAGE_VERSION | sed 's/.*\.\(.*\)\..*/\1/g'`)
