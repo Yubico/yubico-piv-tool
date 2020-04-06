@@ -62,6 +62,7 @@ static ykcs11_session_t sessions[YKCS11_MAX_SESSIONS];
 static CK_C_INITIALIZE_ARGS locking;
 static void *global_mutex;
 static uint64_t pid;
+int verbose;
 
 static CK_FUNCTION_LIST function_list;
 
@@ -111,6 +112,13 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
   CK_VOID_PTR pInitArgs
 )
 {
+#if YKCS11_DBG
+  verbose = YKCS11_DBG;
+#else
+  const char *dbg = getenv("YKCS11_DBG");
+  verbose = dbg ? atoi(dbg) : 0;
+#endif
+
   DIN;
   CK_RV rv;
 
@@ -323,7 +331,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
   }
 
   ykpiv_state *piv_state;
-  if (ykpiv_init(&piv_state, YKCS11_DBG) != YKPIV_OK) {
+  if (ykpiv_init(&piv_state, verbose) != YKPIV_OK) {
     DBG("Unable to initialize libykpiv");
     rv = CKR_FUNCTION_FAILED;
     goto slotlist_out;
@@ -376,7 +384,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
       if(slot == slots + n_slots) {
         DBG("Initializing slot %lu for '%s'", slot-slots, reader);
         ykpiv_rc rc;
-        if((rc = ykpiv_init(&slot->piv_state, YKCS11_DBG)) != YKPIV_OK) {
+        if((rc = ykpiv_init(&slot->piv_state, verbose)) != YKPIV_OK) {
           DBG("Unable to initialize libykpiv: %s", ykpiv_strerror(rc));
           locking.pfnUnlockMutex(global_mutex);
           rv = CKR_FUNCTION_FAILED;
