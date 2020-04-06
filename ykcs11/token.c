@@ -253,12 +253,16 @@ CK_RV token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF8CHAR_P
     }
     case CKU_USER:
       if(ulOldLen >= 4 && strncmp((const char*)pOldPin, "puk:", 4) == 0){
-        if(ulNewLen >= 4 && strncmp((const char*)pNewPin, "puk:", 4) == 0) {
-          DBG("Changing PUK")
-          res = ykpiv_change_puk(state, (const char*)pOldPin + 4, ulOldLen - 4, (const char*)pNewPin + 4, ulNewLen - 4, &tries);
-        } else {
+        if(ulNewLen >= 4 && strncmp((const char*)pNewPin, "pin:", 4) == 0) {
           DBG("Unblocking PIN with PUK")
-          res = ykpiv_unblock_pin(state, (const char*)pOldPin + 4, ulOldLen - 4, (const char*)pNewPin, ulNewLen, &tries);
+          res = ykpiv_unblock_pin(state, (const char*)pOldPin + 4, ulOldLen - 4, (const char*)pNewPin + 4, ulNewLen - 4, &tries);
+        } else {
+          DBG("Changing PUK")
+          if(ulNewLen >= 4 && strncmp((const char*)pNewPin, "puk:", 4) == 0) {
+            res = ykpiv_change_puk(state, (const char*)pOldPin + 4, ulOldLen - 4, (const char*)pNewPin + 4, ulNewLen - 4, &tries);
+          } else {
+            res = ykpiv_change_puk(state, (const char*)pOldPin + 4, ulOldLen - 4, (const char*)pNewPin, ulNewLen, &tries);
+          }
         }
       }else{
         DBG("Changing PIN")
