@@ -34,7 +34,7 @@ jobs:
 
           echo make test
           make test
-          
+
           echo make install
           make install
 

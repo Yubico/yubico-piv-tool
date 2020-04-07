@@ -127,7 +127,11 @@ extern "C" {
 
 #else
 
+#ifdef CRYPTOKI_EXPORTS
+#define CK_SPEC __attribute__((visibility("default")))
+#else
 #define CK_SPEC
+#endif
 
 #endif
 

@@ -29,6 +29,7 @@ message("ykcs11/CMakeList.txt")
 
 link_directories(${PCSC_LIBRARY_DIRS})
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden")
+add_definitions(-DCRYPTOKI_EXPORTS)
 
 set(
         SOURCE
@@ -50,11 +51,11 @@ include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-set(YKCS11_VERSION_STRING "${yubico_piv_tool_VERSION_MAJOR}.${yubico_piv_tool_VERSION_MINOR}.${yubico_piv_tool_VERSION_PATCH}")
-set(YKCS11_VERSION_NUMBER ${yubico_piv_tool_VERSION_MAJOR}.${yubico_piv_tool_VERSION_MINOR}.${yubico_piv_tool_VERSION_PATCH})
 set(YKCS11_VERSION_MAJOR ${yubico_piv_tool_VERSION_MAJOR})
 set(YKCS11_VERSION_MINOR  ${yubico_piv_tool_VERSION_MINOR})
 set(YKCS11_VERSION_PATCH ${yubico_piv_tool_VERSION_PATCH})
+set(YKCS11_VERSION_STRING "${YKCS11_VERSION_MAJOR}.${YKCS11_VERSION_MINOR}.${YKCS11_VERSION_PATCH}")
+set(YKCS11_VERSION_NUMBER ${YKCS11_VERSION_MAJOR}.${YKCS11_VERSION_MINOR}.${YKCS11_VERSION_PATCH})
 
 
 if(NOT ${ENABLE_YKCS11_DBG})
@@ -72,10 +73,9 @@ endif(NOT ${ENABLE_HARDWARE_TESTS})
 
 add_library(ykcs11 SHARED ${SOURCE})
 target_link_libraries(ykcs11 ykpiv)
-# Remove "lib" from the built target
-set_target_properties(ykcs11 PROPERTIES PREFIX "")
+set_target_properties (ykcs11 PROPERTIES VERSION "${YKCS11_VERSION_STRING}" SOVERSION ${YKCS11_VERSION_MAJOR})
 
-#add_definitions(-DCRYPTOKI_EXPORTS)
+
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     # glibc provides the iconv functionality out of the box, this
@@ -85,7 +85,7 @@ endif()
 
 #add_coverage (ykcs11)
 
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ykcs11.pc.in ${CMAKE_CURRENT_BINARY_DIR}/ykcs11.pc @ONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ykcs11.pc.in ${CMAKE_CURRENT_SOURCE_DIR}/ykcs11.pc @ONLY)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ykcs11-config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/ykcs11-config.h @ONLY)
 
 set_target_properties(ykcs11 PROPERTIES INSTALL_RPATH "${YKPIV_INSTALL_LIB_DIR}")
