@@ -74,9 +74,6 @@ endif(NOT ${ENABLE_HARDWARE_TESTS})
 add_library(ykcs11 SHARED ${SOURCE})
 target_link_libraries(ykcs11 ykpiv)
 set_target_properties (ykcs11 PROPERTIES VERSION "${YKCS11_VERSION_STRING}" SOVERSION ${YKCS11_VERSION_MAJOR})
-
-
-
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     # glibc provides the iconv functionality out of the box, this
     # will probably be required on other platforms besides macOS.
