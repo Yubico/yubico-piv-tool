@@ -16,8 +16,8 @@ jobs:
         uses: actions/checkout@v2
       - name: Install prerequisites
         run: |
-          echo sudo apt install libpcsclite-dev check gengetopt help2man opensc-pkcs11
-          sudo apt install libpcsclite-dev check gengetopt help2man opensc-pkcs11
+          echo sudo apt install libpcsclite-dev check gengetopt help2man
+          sudo apt install libpcsclite-dev check gengetopt help2man
       - name: run cmake
         run: |
           echo mkdir cmake_build
@@ -26,8 +26,8 @@ jobs:
           echo cd cmake_build
           cd cmake_build
 
-          echo cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON
-          cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON
+          echo cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON -DRELEASE_BUILD=1
+          cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON -DRELEASE_BUILD=1
 
           echo make
           make
@@ -38,8 +38,8 @@ jobs:
           echo sudo make install
           sudo make install
 
-          echo yubico-piv-tool --help
-          yubico-piv-tool --help
+          echo "yubico-piv-tool --help | grep 'Usage: yubico-piv-tool'"
+          yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
-          echo pkcs11-tool --help
-          pkcs11-tool --help
+          echo "objdump -T /usr/local/lib/ykcs11/libykcs11.so | grep C_Sign"
+          objdump -T /usr/local/lib/ykcs11/libykcs11.so | grep C_Sign
