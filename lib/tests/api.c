@@ -715,10 +715,10 @@ static int block_and_reset() {
   tries_until_blocked = 0;
   while (tries) {
     res = ykpiv_verify(g_state, "AAAAAA", &tries);
+    tries_until_blocked++;
     if (res == YKPIV_PIN_LOCKED)
       break;
     ck_assert_int_eq(res, YKPIV_WRONG_PIN);
-    tries_until_blocked++;
   }
 
   // Verify no PIN retries remaining
@@ -754,7 +754,7 @@ START_TEST(test_reset) {
   test_authenticate_helper();
   res = ykpiv_verify(g_state, "123456", &tries);
   ck_assert_int_eq(res, YKPIV_OK);
-  ck_assert_int_eq(tries, 0);
+  ck_assert_int_eq(tries, -1);
   res = ykpiv_set_pin_retries(g_state, 8, 3);
   ck_assert_int_eq(res, YKPIV_OK);
 
@@ -790,7 +790,7 @@ START_TEST(test_reset) {
   tries = 100;
   res = ykpiv_verify(g_state, "123456", &tries);
   ck_assert_int_eq(res, YKPIV_OK);
-  ck_assert_int_eq(tries, 0);
+  ck_assert_int_eq(tries, -1);
 
   // Verify back to 3 PIN retries remaining
   tries = 0;

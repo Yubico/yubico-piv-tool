@@ -157,6 +157,7 @@ struct ykpiv_state {
   SCARDCONTEXT context;
   SCARDHANDLE card;
   int  verbose;
+  int tries;
   char *pin;
   uint8_t *mgm_key;
   ykpiv_allocator allocator;

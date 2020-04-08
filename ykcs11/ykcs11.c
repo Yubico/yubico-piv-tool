@@ -545,6 +545,23 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetTokenInfo)(
 
   memcpy(pInfo, &slots[slotID].token_info, sizeof(CK_TOKEN_INFO));
 
+  int tries = YKPIV_RETRIES_MAX;
+  ykpiv_get_pin_retries(slots[slotID].piv_state, &tries);
+
+  switch(tries) {
+    case 0:
+      pInfo->flags |= CKF_USER_PIN_LOCKED;
+      break;
+    case 1:
+      pInfo->flags |= CKF_USER_PIN_FINAL_TRY;
+      break;
+    case 2:
+      pInfo->flags |= CKF_USER_PIN_COUNT_LOW;
+      break;
+    default:
+      break;
+  }
+
   for(int i = 0; i < YKCS11_MAX_SESSIONS; i++) {
     if(sessions[i].slot) {
       if(sessions[i].info.flags & CKF_RW_SESSION) {
