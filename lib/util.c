@@ -1053,19 +1053,21 @@ ykpiv_rc ykpiv_util_get_config(ykpiv_state *state, ykpiv_config *config) {
   cb_data = sizeof(data);
 
   if (YKPIV_OK == _read_metadata(state, TAG_PROTECTED, data, &cb_data)) {
-    config->protected_data_available = true;
 
     if (YKPIV_OK == _get_metadata_item(data, cb_data, TAG_PROTECTED_FLAGS_1, &p_item, &cb_item)) {
       if (*p_item & PROTECTED_FLAGS_1_PUK_NOBLOCK) config->puk_noblock_on_upgrade = true;
     }
 
     if (YKPIV_OK == _get_metadata_item(data, cb_data, TAG_PROTECTED_MGM, &p_item, &cb_item)) {
-      if (config->mgm_type != YKPIV_CONFIG_MGM_PROTECTED) {
-        if (state->verbose) {
-          fprintf(stderr, "conflicting types of mgm key administration configured - protected mgm exists\n");
+      if(sizeof(config->protected_data) == cb_item) {
+        config->protected_data_available = true;
+        memcpy(config->protected_data, p_item, cb_item);
+        if (config->mgm_type != YKPIV_CONFIG_MGM_PROTECTED) {
+          if (state->verbose) fprintf(stderr, "conflicting types of mgm key administration configured - protected mgm exists\n");
         }
+      } else {
+        if (state->verbose) fprintf(stderr, "protected data contains mgm, but is the wrong size = %lu\n", (unsigned long)cb_item);
       }
-      config->mgm_type = YKPIV_CONFIG_MGM_PROTECTED; /* always favor protected mgm */
     }
   }
 

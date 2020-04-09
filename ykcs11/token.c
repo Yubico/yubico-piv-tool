@@ -292,19 +292,15 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
 
   ykpiv_rc res;
 
-  if (user == CKU_USER) {
-    // add null termination for the pin
-    char *term_pin = malloc(pin_len + 1);
-    if (term_pin == NULL) {
-      return CKR_HOST_MEMORY;
-    }
+  if (pin_len >= YKPIV_MIN_PIN_LEN && pin_len <= YKPIV_MAX_PIN_LEN) {
+    char term_pin[YKPIV_MAX_PIN_LEN + 1];
+
     memcpy(term_pin, pin, pin_len);
     term_pin[pin_len] = 0;
 
     res = ykpiv_verify(state, term_pin, NULL);
 
     OPENSSL_cleanse(term_pin, pin_len);
-    free(term_pin);
 
     if (res != YKPIV_OK) {
       DBG("Failed to login: %s", ykpiv_strerror(res));
@@ -317,20 +313,41 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
 
       return CKR_DEVICE_ERROR;
     }
+  } else if(pin_len != YKPIV_MGM_KEY_LEN) {
+    DBG("Key is wrong length");
+    return CKR_PIN_LEN_RANGE;
   }
-  else if (user == CKU_SO) {
-    unsigned char key[24];
-    size_t key_len = sizeof(key);
 
-    if(ykpiv_hex_decode((char *)pin, pin_len, key, &key_len) != YKPIV_OK) {
-      DBG("Failed decoding key");
-      OPENSSL_cleanse(key, key_len);
-      return CKR_PIN_INVALID;
+  if (user == CKU_SO) {
+    unsigned char key[24];
+
+    if (pin_len == YKPIV_MGM_KEY_LEN) {
+      size_t key_len = sizeof(key);
+      if(ykpiv_hex_decode((char *)pin, pin_len, key, &key_len) != YKPIV_OK) {
+        DBG("Failed decoding key");
+        OPENSSL_cleanse(key, key_len);
+        return CKR_PIN_INVALID;
+      }
+    } else {
+      ykpiv_config cfg;
+      res = ykpiv_util_get_config(state, &cfg);
+      if(res != YKPIV_OK) {
+        DBG("Failed to get device configuration: %s", ykpiv_strerror(res));
+        return CKR_DEVICE_ERROR;
+      }
+
+      if(cfg.mgm_type != YKPIV_CONFIG_MGM_PROTECTED || cfg.protected_data_available != true) {
+        DBG("Device configuration invalid, no PIN-protected MGM key available");
+        return CKR_PIN_INVALID;
+      }
+
+      memcpy(key, cfg.protected_data, sizeof(key));
+      OPENSSL_cleanse(cfg.protected_data, sizeof(cfg.protected_data));
     }
 
     if((res = ykpiv_authenticate(state, key)) != YKPIV_OK) {
       DBG("Failed to authenticate: %s", ykpiv_strerror(res));
-      OPENSSL_cleanse(key, key_len);
+      OPENSSL_cleanse(key, sizeof(key));
 
       if(res == YKPIV_WRONG_PIN)
         return CKR_PIN_INCORRECT;
@@ -341,7 +358,7 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
       return CKR_DEVICE_ERROR;
     }
 
-    OPENSSL_cleanse(key, key_len);
+    OPENSSL_cleanse(key, sizeof(key));
   }
 
   return CKR_OK;

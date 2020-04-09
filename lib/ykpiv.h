@@ -272,11 +272,12 @@ extern "C"
 
 #pragma pack(push, 1)
   typedef struct _ykpiv_config {
-    uint8_t               protected_data_available;
     uint8_t               puk_blocked;
     uint8_t               puk_noblock_on_upgrade;
     uint32_t              pin_last_changed;
     ykpiv_config_mgm_type mgm_type;
+    uint8_t               protected_data_available;
+    uint8_t               protected_data[24];
   } ykpiv_config;
 
   typedef struct _ykpiv_mgm {
@@ -703,6 +704,10 @@ extern "C"
 
 #define YKPIV_IS_EC(a) ((a == YKPIV_ALGO_ECCP256 || a == YKPIV_ALGO_ECCP384))
 #define YKPIV_IS_RSA(a) ((a == YKPIV_ALGO_RSA1024 || a == YKPIV_ALGO_RSA2048))
+
+#define YKPIV_MIN_PIN_LEN 6
+#define YKPIV_MAX_PIN_LEN 8
+#define YKPIV_MGM_KEY_LEN 48
 
 #define YKPIV_RETRIES_DEFAULT 3
 #define YKPIV_RETRIES_MAX 0xff

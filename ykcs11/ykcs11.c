@@ -47,10 +47,6 @@
 #define YKCS11_MANUFACTURER "Yubico (www.yubico.com)"
 #define YKCS11_LIBDESC      "PKCS#11 PIV Library (SP-800-73)"
 
-#define PIV_MIN_PIN_LEN 6
-#define PIV_MAX_PIN_LEN 8
-#define PIV_MGM_KEY_LEN 48
-
 #define YKCS11_MAX_SLOTS       16
 #define YKCS11_MAX_SESSIONS    16
 
@@ -404,8 +400,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
         slot->slot_info.flags |= CKF_TOKEN_PRESENT;
         slot->token_info.flags = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
 
-        slot->token_info.ulMinPinLen = PIV_MIN_PIN_LEN;
-        slot->token_info.ulMaxPinLen = PIV_MGM_KEY_LEN;
+        slot->token_info.ulMinPinLen = YKPIV_MIN_PIN_LEN;
+        slot->token_info.ulMaxPinLen = YKPIV_MGM_KEY_LEN;
 
         slot->token_info.ulMaxRwSessionCount = YKCS11_MAX_SESSIONS;
         slot->token_info.ulMaxSessionCount = YKCS11_MAX_SESSIONS;
@@ -1220,7 +1216,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
     goto login_out;
   }
 
-  DBG("user %lu, pin %s, pinlen %lu", userType, pPin, ulPinLen);
+  DBG("userType %lu, pinLen %lu", userType, ulPinLen);
 
   ykcs11_session_t* session = get_session(hSession);
 
@@ -1239,11 +1235,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
     }
     // Fall through
   case CKU_USER:
-    if (ulPinLen < PIV_MIN_PIN_LEN || ulPinLen > PIV_MAX_PIN_LEN) {
-      rv = CKR_ARGUMENTS_BAD;
-      goto login_out;
-    }
-
     locking.pfnLockMutex(session->slot->mutex);
 
     // We allow multiple logins for CKU_CONTEXT_SPECIFIC (we allow it regardless of CKA_ALWAYS_AUTHENTICATE because it's based on hardcoded tables and might be wrong)
@@ -1276,11 +1267,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
     break;
 
   case CKU_SO:
-    if (ulPinLen != PIV_MGM_KEY_LEN) {
-      rv = CKR_ARGUMENTS_BAD;
-      goto login_out;
-    }
-
     locking.pfnLockMutex(session->slot->mutex);
 
     if (session->slot->login_state == YKCS11_USER) {
