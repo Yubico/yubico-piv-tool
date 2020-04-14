@@ -313,7 +313,7 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
 
       return CKR_DEVICE_ERROR;
     }
-  } else if(pin_len != YKPIV_MGM_KEY_LEN) {
+  } else if(pin_len != YKPIV_MGM_KEY_LEN || user != CKU_SO) {
     DBG("Key is wrong length");
     return CKR_PIN_LEN_RANGE;
   }
