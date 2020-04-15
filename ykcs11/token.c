@@ -298,12 +298,13 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
     memcpy(term_pin, pin, pin_len);
     term_pin[pin_len] = 0;
 
-    res = ykpiv_verify(state, term_pin, NULL);
+    int tries;
+    res = ykpiv_verify(state, term_pin, &tries);
 
     OPENSSL_cleanse(term_pin, pin_len);
 
     if (res != YKPIV_OK) {
-      DBG("Failed to login: %s", ykpiv_strerror(res));
+      DBG("Failed to login: %s, %d tries left", ykpiv_strerror(res), tries);
 
       if(res == YKPIV_WRONG_PIN)
         return CKR_PIN_INCORRECT;
@@ -314,8 +315,8 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
       return CKR_DEVICE_ERROR;
     }
   } else if(pin_len != YKPIV_MGM_KEY_LEN || user != CKU_SO) {
-    DBG("Key is wrong length");
-    return CKR_PIN_LEN_RANGE;
+    DBG("PIN is wrong length");
+    return CKR_ARGUMENTS_BAD;
   }
 
   if (user == CKU_SO) {
@@ -326,7 +327,7 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
       if(ykpiv_hex_decode((char *)pin, pin_len, key, &key_len) != YKPIV_OK) {
         DBG("Failed decoding key");
         OPENSSL_cleanse(key, key_len);
-        return CKR_PIN_INVALID;
+        return CKR_ARGUMENTS_BAD;
       }
     } else {
       ykpiv_config cfg;
@@ -338,7 +339,7 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
 
       if(cfg.mgm_type != YKPIV_CONFIG_MGM_PROTECTED || cfg.protected_data_available != true) {
         DBG("Device configuration invalid, no PIN-protected MGM key available");
-        return CKR_PIN_INVALID;
+        return CKR_USER_PIN_NOT_INITIALIZED;
       }
 
       memcpy(key, cfg.protected_data, sizeof(key));
@@ -349,12 +350,9 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
       DBG("Failed to authenticate: %s", ykpiv_strerror(res));
       OPENSSL_cleanse(key, sizeof(key));
 
-      if(res == YKPIV_WRONG_PIN)
+      if(res == YKPIV_AUTHENTICATION_ERROR)
         return CKR_PIN_INCORRECT;
         
-      if(res == YKPIV_PIN_LOCKED)
-        return CKR_PIN_LOCKED;
-
       return CKR_DEVICE_ERROR;
     }
 

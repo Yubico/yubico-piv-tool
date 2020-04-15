@@ -759,7 +759,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
   if((rc = ykpiv_authenticate(slot->piv_state, mgm_key)) != YKPIV_OK) {
     DBG("ykpiv_authenticate failed %s", ykpiv_strerror(rc));
     locking.pfnUnlockMutex(slot->mutex);
-    rv = CKR_PIN_INCORRECT;
+    rv = rc == YKPIV_AUTHENTICATION_ERROR ? CKR_PIN_INCORRECT : CKR_DEVICE_ERROR;
     goto inittoken_out;
   }
 
@@ -785,7 +785,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
   if((rc = ykpiv_authenticate(slot->piv_state, NULL)) != YKPIV_OK) {
     DBG("ykpiv_authenticate failed %s", ykpiv_strerror(rc));
     locking.pfnUnlockMutex(slot->mutex);
-    rv = CKR_DEVICE_ERROR;
+    rv = rc == YKPIV_AUTHENTICATION_ERROR ? CKR_PIN_INCORRECT : CKR_DEVICE_ERROR;
     goto inittoken_out;
   }
 
