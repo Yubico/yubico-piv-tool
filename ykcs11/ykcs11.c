@@ -2323,7 +2323,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
   if (pData == NULL) {
     // Just return the size of the decrypted data
     *pulDataLen = datalen;
-    DBG("The size of the signature will be %lu", *pulDataLen);
+    DBG("The size of the data will be %lu", *pulDataLen);
     DOUT;
     return CKR_OK;
   }

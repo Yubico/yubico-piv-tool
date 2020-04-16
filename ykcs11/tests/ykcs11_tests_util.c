@@ -957,14 +957,11 @@ void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
 
   for (i = 0; i < n_keys; i++) {
     for (j = 0; j < 4; j++) {
-      // This is because the numerical value of the clear data cannot be larger than the numerical value of the RSA key modulus
-      // Adding a padding takes care of this, but with RSA_NO_PADDING, we need to deal with that manually
-      do {
-        if(RAND_bytes(data, data_len) <= 0)
-          exit(EXIT_FAILURE);
+      if(RAND_bytes(data, data_len) <= 0)
+        exit(EXIT_FAILURE);
 
-        enc_len = RSA_public_encrypt(data_len, data, enc, rsak, padding);
-      } while(is_data_too_large(enc_len) == 1);
+      data[0] &= 0x7f; // Unset high bit to ensure it's less than modulus (required for raw RSA)
+      enc_len = RSA_public_encrypt(data_len, data, enc, rsak, padding);
 
       // Decrypt
       asrt(funcs->C_DecryptInit(session, &mech, obj_pvtkey[i]), CKR_OK, "DECRYPT INIT");
@@ -1080,6 +1077,8 @@ void test_rsa_encrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
     
       if(RAND_bytes(data, data_len) <= 0)
         exit(EXIT_FAILURE);
+
+      data[0] &= 0x7f; // Unset high bit to ensure it's less than modulus (required for raw RSA)
 
       // Encrypt
       asrt(funcs->C_EncryptInit(session, &mech, pubkey), CKR_OK, "ENCRYPT INIT CKM_RSA_PKCS");
