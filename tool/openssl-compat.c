@@ -10,9 +10,6 @@
 #include "openssl-compat.h"
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
 
-#ifdef __linux__
-#include <bsd/stdlib.h>
-#endif
 #include <string.h>
 #include <limits.h>
 
@@ -269,7 +266,7 @@ int RSA_padding_add_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
 	memset(db + mdlen, 0, emlen - flen - 2 * mdlen - 1);
 	db[emlen - flen - mdlen - 1] = 0x01;
 	memcpy(db + emlen - flen - mdlen, from, flen);
-	arc4random_buf(seed, mdlen);
+	RAND_bytes(seed, mdlen);
 
 	dbmask_len = emlen - mdlen;
 	if ((dbmask = malloc(dbmask_len)) == NULL) {
