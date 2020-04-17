@@ -10,7 +10,9 @@
 #include "openssl-compat.h"
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
 
-#include <stdlib.h>
+#ifdef __linux__
+#include <bsd/stdlib.h>
+#endif
 #include <string.h>
 #include <limits.h>
 
