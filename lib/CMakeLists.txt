@@ -68,4 +68,4 @@ install(
 install(FILES ykpiv.h DESTINATION ${YKPIV_INSTALL_INC_DIR})
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ykpiv.pc DESTINATION ${YKPIV_INSTALL_PKGCONFIG_DIR})
 
-add_subdirectory (tests)
+#add_subdirectory (tests)

@@ -94,4 +94,4 @@ install(
 install(FILES pkcs11.h DESTINATION "${YKPIV_INSTALL_INC_DIR}/ykcs11")
 install(FILES pkcs11y.h DESTINATION "${YKPIV_INSTALL_INC_DIR}/ykcs11")
 
-add_subdirectory (tests)
+#add_subdirectory (tests)
