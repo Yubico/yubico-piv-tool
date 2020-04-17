@@ -976,19 +976,11 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     fprintf(stderr, "Failed to set certificate serial.\n");
     goto selfsign_out;
   }
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
   if(!X509_gmtime_adj(X509_get_notBefore(x509), 0)) {
-#else
-  if(!X509_gmtime_adj(X509_get_notBefore(x509), 0)) {
-#endif
     fprintf(stderr, "Failed to set certificate notBefore.\n");
     goto selfsign_out;
   }
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
   if(!X509_gmtime_adj(X509_get_notAfter(x509), 60L * 60L * 24L * validDays)) {
-#else
-  if(!X509_gmtime_adj(X509_get_notAfter(x509), 60L * 60L * 24L * validDays)) {
-#endif
     fprintf(stderr, "Failed to set certificate notAfter.\n");
     goto selfsign_out;
   }
@@ -1460,21 +1452,13 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     dump_data(data, md_len, output, false, format_arg_hex);
 
     bio = BIO_new_fp(output, BIO_NOCLOSE | BIO_FP_TEXT);
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
     not_before = X509_get_notBefore(x509);
-#else
-    not_before = X509_get_notBefore(x509);
-#endif
     if(not_before) {
       fprintf(output, "\tNot Before:\t");
       ASN1_TIME_print(bio, not_before);
       fprintf(output, "\n");
     }
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
     not_after = X509_get_notAfter(x509);
-#else
-    not_after = X509_get_notAfter(x509);
-#endif
     if(not_after) {
       fprintf(output, "\tNot After:\t");
       ASN1_TIME_print(bio, not_after);
@@ -2132,7 +2116,7 @@ int main(int argc, char *argv[]) {
 
 
   /* openssl setup.. */
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
   OpenSSL_add_all_algorithms();
 #endif
 
@@ -2375,7 +2359,7 @@ int main(int argc, char *argv[]) {
   }
 
   ykpiv_done(state);
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
   EVP_cleanup();
 #endif
   return ret;
