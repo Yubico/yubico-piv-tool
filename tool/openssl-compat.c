@@ -96,7 +96,7 @@ void ECDSA_SIG_get0(const ECDSA_SIG *sig, const BIGNUM **pr, const BIGNUM **ps) 
         *ps = sig->s;
 }
 
-#if (LIBRESSL_VERSION_NUMBER < 0x27000000L)
+#if (LIBRESSL_VERSION_NUMBER < 0x2070500fL)
 
 RSA *EVP_PKEY_get0_RSA(const EVP_PKEY *pkey) {
   if (pkey->type != EVP_PKEY_RSA) {

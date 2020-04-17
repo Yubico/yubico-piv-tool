@@ -36,7 +36,7 @@ void X509_SIG_getm(X509_SIG *sig, X509_ALGOR **palg,
 int ECDSA_SIG_set0(ECDSA_SIG *sig, BIGNUM *r, BIGNUM *s);
 void ECDSA_SIG_get0(const ECDSA_SIG *sig, const BIGNUM **pr, const BIGNUM **ps);
 
-#if (LIBRESSL_VERSION_NUMBER < 0x27000000L)
+#if (LIBRESSL_VERSION_NUMBER < 0x2070500fL)
 
 RSA *EVP_PKEY_get0_RSA(const EVP_PKEY *pkey);
 EC_KEY *EVP_PKEY_get0_EC_KEY(const EVP_PKEY *pkey);
