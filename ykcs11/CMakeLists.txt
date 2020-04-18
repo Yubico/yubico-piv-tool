@@ -42,7 +42,7 @@ set(
         ../tool/util.c
 )
 
-if(${LIBCRYPTO_VERSION} VERSION_LESS 1.1.0)
+if(${OPENSSL_VERSION} VERSION_LESS 1.1.0)
     set(SOURCE ${SOURCE} ../tool/openssl-compat.c)
 endif()
 
@@ -94,4 +94,4 @@ install(
 install(FILES pkcs11.h DESTINATION "${YKPIV_INSTALL_INC_DIR}/ykcs11")
 install(FILES pkcs11y.h DESTINATION "${YKPIV_INSTALL_INC_DIR}/ykcs11")
 
-#add_subdirectory (tests)
+add_subdirectory (tests)

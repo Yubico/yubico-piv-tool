@@ -90,4 +90,6 @@ macro (find_pcscd)
 
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${PCSC_CFLAGS}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${PCSC_CFLAGS}")
+    link_directories(${PCSC_LIBRARY_DIRS})
+
 endmacro()

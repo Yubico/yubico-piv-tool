@@ -18,13 +18,10 @@ jobs:
         run: |
           echo sudo apt install libpcsclite-dev check gengetopt help2man
           sudo apt install libpcsclite-dev check gengetopt help2man
-      - name: run cmake
+      - name: Build and install
         run: |
-          echo mkdir cmake_build
-          mkdir cmake_build
-
-          echo cd cmake_build
-          cd cmake_build
+          echo "mkdir cmake_build; cd cmake_build"
+          mkdir cmake_build; cd cmake_build
 
           echo cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON -DRELEASE_BUILD=1
           cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON -DRELEASE_BUILD=1
@@ -35,6 +32,11 @@ jobs:
           echo make test
           make test
 
+          echo "ldd {yubico-piv-tool/libykpiv.so/libykcs11.so} | grep libcrypto.so"
+          ldd tool/yubico-piv-tool | grep libcrypto.so
+          ldd lib/libykpiv.so | grep libcrypto.so
+          ldd ykcs11/libykcs11.so | grep libcrypto.so
+
           echo sudo make install
           sudo make install
 
@@ -43,3 +45,28 @@ jobs:
 
           echo "objdump -T /usr/local/lib/ykcs11/libykcs11.so | grep C_Sign"
           objdump -T /usr/local/lib/ykcs11/libykcs11.so | grep C_Sign
+
+      - name: Build using OpenSSL static link
+        run: |
+          echo "rm -rf cmake_build; mkdir cmake_build; cd cmake_build"
+          rm -rf cmake_build; mkdir cmake_build; cd cmake_build
+
+          echo cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON -DRELEASE_BUILD=1 -DOPENSSL_STATIC_LINK=ON
+          cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON -DRELEASE_BUILD=1 -DOPENSSL_STATIC_LINK=ON
+
+          echo make
+          make
+
+          echo make test
+          make test
+
+          echo "ldd {yubico-piv-tool/libykpiv.so/libykcs11.so} | grep libcrypto.so"
+          ldd tool/yubico-piv-tool | grep libcrypto.so | wc -l | grep 0
+          ldd lib/libykpiv.so | grep libcrypto.so | wc -l | grep 0
+          ldd ykcs11/libykcs11.so | grep libcrypto.so | wc -l | grep 0
+
+          echo sudo make install
+          sudo make install
+
+          echo "yubico-piv-tool --help | grep 'Usage: yubico-piv-tool'"
+          yubico-piv-tool --help | grep "Usage: yubico-piv-tool"

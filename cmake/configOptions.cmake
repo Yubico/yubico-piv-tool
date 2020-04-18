@@ -9,6 +9,7 @@ option(VERBOSE_CMAKE "Prints out trace messages when running the cmake script" O
 option(ENABLE_GCC_WARN "Turn on lots of GCC warnings (for developers)" OFF)
 option(GENERATE_MAN_PAGES "Generate man pages for the command line tool" ON)
 option(DISABLE_LTO "Disable/enable turning on Link Time Optimization" ON)
+option(OPENSSL_STATIC_LINK "Statically link to OpenSSL" OFF)
 
 set(BACKEND "check" CACHE STRING "use specific backend/linkage; 'pcsc', 'macscard' or'winscard'")
 set(PCSC_LIB "" CACHE STRING "Name of custom PCSC lib")

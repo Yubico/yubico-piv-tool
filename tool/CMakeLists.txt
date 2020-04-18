@@ -27,7 +27,8 @@
 
 message("tool/CMakeList.txt")
 
-link_directories(${PCSC_LIBRARY_DIRS})
+include(pcscd)
+find_pcscd()
 
 include(gengetopt)
 find_gengetopt()
@@ -80,4 +81,4 @@ if (GENERATE_MAN_PAGES)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/yubico-piv-tool.1" DESTINATION "${YKPIV_INSTALL_MAN_DIR}/man1")
 endif(GENERATE_MAN_PAGES)
 
-#add_subdirectory(tests)
+add_subdirectory(tests)

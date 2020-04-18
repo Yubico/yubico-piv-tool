@@ -29,7 +29,6 @@ message("lib/CMakeList.txt")
 
 include(pcscd)
 find_pcscd()
-link_directories(${PCSC_LIBRARY_DIRS})
 
 set(YKPIV_VERSION_STRING "${yubico_piv_tool_VERSION_MAJOR}.${yubico_piv_tool_VERSION_MINOR}.${yubico_piv_tool_VERSION_PATCH}")
 
@@ -40,7 +39,6 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 add_library(ykpiv SHARED ${SOURCE})
 set_target_properties(ykpiv PROPERTIES BUILD_RPATH "${CMAKE_BINARY_DIR}/lib")
-#set_target_properties (ykpiv PROPERTIES VERSION "${yubico_piv_tool_VERSION_MAJOR}.${yubico_piv_tool_VERSION_MINOR}.${yubico_piv_tool_VERSION_PATCH}" SOVERSION ${yubico_piv_tool_VERSION_MAJOR})
 set_target_properties (ykpiv PROPERTIES VERSION "${YKPIV_VERSION_STRING}" SOVERSION ${yubico_piv_tool_VERSION_MAJOR})
 
 if(BUILD_STATIC_LIB)
@@ -68,4 +66,4 @@ install(
 install(FILES ykpiv.h DESTINATION ${YKPIV_INSTALL_INC_DIR})
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ykpiv.pc DESTINATION ${YKPIV_INSTALL_PKGCONFIG_DIR})
 
-#add_subdirectory (tests)
+add_subdirectory (tests)
