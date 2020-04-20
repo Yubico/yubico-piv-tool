@@ -1,5 +1,7 @@
 .deps/
 .vagrant/
+CMakeFiles
+cmake-build-debug
 Makefile
 Makefile.in
 aclocal.m4
