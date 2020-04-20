@@ -1,0 +1,22 @@
+name: Build MacOS Release Archive
+# This workflow is triggered on pushes to the repository.
+on:
+  push:
+    branches:
+      - cmake
+
+jobs:
+  build:
+
+    runs-on: macos-latest
+
+    steps:
+      # This action checks-out the repository under $GITHUB_WORKSPACE, so the workflow can access it.
+      - name: checkout
+        uses: actions/checkout@v2
+      - name: Install prerequisites
+        run: |
+          echo brew install pkg-config pcsc-lite check gengetopt help2man
+          brew install pkg-config pcsc-lite check gengetopt help2man
+      - name: Build macos executables archive
+        run: ./macos/make_pkg.sh
