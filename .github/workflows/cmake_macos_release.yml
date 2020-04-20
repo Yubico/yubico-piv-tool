@@ -19,4 +19,12 @@ jobs:
           echo brew install pkg-config pcsc-lite check gengetopt help2man
           brew install pkg-config pcsc-lite check gengetopt help2man
       - name: Build macos executables archive
-        run: ./macos/make_pkg.sh
+        run: |
+          ./macos/make_pkg.sh 2.1.0 2 /usr/local
+          mkdir macos/artifact
+          mv macos/yubico-piv-tool*.zip macos/artifact/
+      - name: Upload artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: yubico-piv-tool-mac
+          path: macos/artifact

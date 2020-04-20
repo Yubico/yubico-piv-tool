@@ -39,7 +39,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 add_library(ykpiv SHARED ${SOURCE})
 set_target_properties(ykpiv PROPERTIES BUILD_RPATH "${CMAKE_BINARY_DIR}/lib")
-set_target_properties (ykpiv PROPERTIES VERSION "${YKPIV_VERSION_STRING}" SOVERSION ${yubico_piv_tool_VERSION_MAJOR})
+set_target_properties (ykpiv PROPERTIES SOVERSION ${yubico_piv_tool_VERSION_MAJOR})
 
 if(BUILD_STATIC_LIB)
     add_library (ykpiv_static STATIC ${STATIC_SOURCE})
@@ -63,7 +63,15 @@ install(
         ARCHIVE DESTINATION ${YKPIV_INSTALL_LIB_DIR}
         LIBRARY DESTINATION ${YKPIV_INSTALL_LIB_DIR}
         RUNTIME DESTINATION ${YKPIV_INSTALL_BIN_DIR})
-install(FILES ykpiv.h DESTINATION ${YKPIV_INSTALL_INC_DIR})
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ykpiv.pc DESTINATION ${YKPIV_INSTALL_PKGCONFIG_DIR})
+
+install(
+        TARGETS ykpiv_static
+        ARCHIVE DESTINATION ${YKPIV_INSTALL_LIB_DIR}
+        LIBRARY DESTINATION ${YKPIV_INSTALL_LIB_DIR}
+        RUNTIME DESTINATION ${YKPIV_INSTALL_BIN_DIR})
+
+
+install(FILES ykpiv.h DESTINATION ${YKPIV_INSTALL_INC_DIR}/ykpiv)
+install(FILES ykpiv-config.h DESTINATION ${YKPIV_INSTALL_INC_DIR}/ykpiv)
 
 add_subdirectory (tests)

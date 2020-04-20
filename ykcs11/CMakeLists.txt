@@ -72,8 +72,17 @@ endif(NOT ${ENABLE_HARDWARE_TESTS})
 
 
 add_library(ykcs11 SHARED ${SOURCE})
+set_target_properties (ykcs11 PROPERTIES SOVERSION ${YKCS11_VERSION_MAJOR})
 target_link_libraries(ykcs11 ykpiv)
-set_target_properties (ykcs11 PROPERTIES VERSION "${YKCS11_VERSION_STRING}" SOVERSION ${YKCS11_VERSION_MAJOR})
+
+if(BUILD_STATIC_LIB)
+    add_library (ykcs11_static STATIC ${SOURCE})
+    set_target_properties (ykcs11_static PROPERTIES POSITION_INDEPENDENT_CODE on OUTPUT_NAME ykcs11)
+    set_target_properties (ykcs11_static PROPERTIES COMPILE_FLAGS "-DSTATIC " )
+    target_link_libraries (ykcs11_static ykpiv_static)
+endif(BUILD_STATIC_LIB)
+
+
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     # glibc provides the iconv functionality out of the box, this
     # will probably be required on other platforms besides macOS.
@@ -88,10 +97,14 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ykcs11-config.h.in ${CMAKE_CURRENT_SO
 set_target_properties(ykcs11 PROPERTIES INSTALL_RPATH "${YKPIV_INSTALL_LIB_DIR}")
 install(
         TARGETS ykcs11
-        ARCHIVE DESTINATION "${YKPIV_INSTALL_LIB_DIR}/ykcs11"
-        LIBRARY DESTINATION "${YKPIV_INSTALL_LIB_DIR}/ykcs11"
-        RUNTIME DESTINATION "${YKPIV_INSTALL_BIN_DIR}/ykcs11")
-install(FILES pkcs11.h DESTINATION "${YKPIV_INSTALL_INC_DIR}/ykcs11")
-install(FILES pkcs11y.h DESTINATION "${YKPIV_INSTALL_INC_DIR}/ykcs11")
+        ARCHIVE DESTINATION "${YKPIV_INSTALL_LIB_DIR}"
+        LIBRARY DESTINATION "${YKPIV_INSTALL_LIB_DIR}"
+        RUNTIME DESTINATION "${YKPIV_INSTALL_BIN_DIR}")
+
+install(
+        TARGETS ykcs11_static
+        ARCHIVE DESTINATION "${YKPIV_INSTALL_LIB_DIR}"
+        LIBRARY DESTINATION "${YKPIV_INSTALL_LIB_DIR}"
+        RUNTIME DESTINATION "${YKPIV_INSTALL_BIN_DIR}")
 
 add_subdirectory (tests)
