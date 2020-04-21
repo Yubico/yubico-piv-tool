@@ -1144,8 +1144,8 @@ static bool verify_pin(ykpiv_state *state, const char *pin) {
 
   res = ykpiv_verify(state, pin, &tries);
   if(res == YKPIV_OK) {
-    return true;
-  } else if(res == YKPIV_WRONG_PIN) {
+      return true;
+  } else if(res == YKPIV_WRONG_PIN || res == YKPIV_PIN_LOCKED) {
     if(tries > 0) {
       fprintf(stderr, "Pin verification failed, %d tries left before pin is blocked.\n", tries);
     } else {
@@ -2045,7 +2045,7 @@ int main(int argc, char *argv[]) {
           }
           if(!read_pw("Password", pwbuf, sizeof(pwbuf), false, args_info.stdin_input_flag)) {
             fprintf(stderr, "Failed to get password.\n");
-            return false;
+            return EXIT_FAILURE;
           }
           password = pwbuf;
         }
@@ -2227,7 +2227,8 @@ int main(int argc, char *argv[]) {
 
         if(!pin) {
           if (!read_pw("PIN", pinbuf, sizeof(pinbuf), false, args_info.stdin_input_flag)) {
-            return false;
+            fprintf(stderr, "Failed to get PIN.\n");
+            return EXIT_FAILURE;
           }
           pin = pinbuf;
         }
@@ -2250,13 +2251,15 @@ int main(int argc, char *argv[]) {
 
         if(!pin) {
           if (!read_pw(name, pinbuf, sizeof(pinbuf), false, args_info.stdin_input_flag)) {
-            return false;
+            fprintf(stderr, "Failed to get %s.\n", name);
+            return EXIT_FAILURE;
           }
           pin = pinbuf;
         }
         if(!new_pin) {
           if (!read_pw(new_name, new_pinbuf, sizeof(new_pinbuf), true, args_info.stdin_input_flag)) {
-            return false;
+            fprintf(stderr, "Failed to get %s.\n", new_name);
+            return EXIT_FAILURE;
           }
           new_pin = new_pinbuf;
         }
