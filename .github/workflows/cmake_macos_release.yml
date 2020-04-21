@@ -18,11 +18,41 @@ jobs:
         run: |
           echo brew install pkg-config pcsc-lite check gengetopt help2man
           brew install pkg-config pcsc-lite check gengetopt help2man
+
       - name: Build macos executables archive
         run: |
-          ./macos/make_pkg.sh 2.1.0 2 /usr/local
+          export RELEASE_VERION=2.1.0
+          export INSTALL_PREFIX=/usr/local
+
+          ./macos/make_pkg.sh $RELEASE_VERION $INSTALL_PREFIX
           mkdir macos/artifact
-          mv macos/yubico-piv-tool*.zip macos/artifact/
+          mv macos/yubico-piv-tool-$RELEASE_VERION-mac.zip macos/artifact/
+
+      - name: Create .pkg installer
+        run: |
+          export RELEASE_VERION=2.1.0
+
+          cd macos
+          mkdir -p pkg/root pkg/comp
+          unzip artifact/yubico-piv-tool-$RELEASE_VERION-mac.zip -d pkg/root/
+
+          echo pkgbuild --root=$PWD/pkg/root/ --identifier com.yubico.yubico-piv-tool --version $RELEASE_VERION $PWD/pkg/comp/yubico-piv-tool.pkg
+          pkgbuild --root="$PWD/pkg/root/" --identifier "com.yubico.yubico-piv-tool" --version "$RELEASE_VERION" "$PWD/pkg/comp/yubico-piv-tool.pkg"
+
+          echo productbuild  --package-path $PWD/comp --distribution $PWD/distribution.xml $PWD/yubico-piv-tool-$RELEASE_VERION.pkg
+          productbuild  --package-path "$PWD/comp" --distribution "$PWD/distribution.xml" "$PWD/yubico-piv-tool-$RELEASE_VERION.pkg"
+
+          cp yubico-piv-tool-$RELEASE_VERION.pkg artifact/
+          rm -rf pkg
+
+      - name: Install yubico-piv-tool from pkg installer
+        run: |
+          export RELEASE_VERION=2.1.0
+
+          cd macos
+          sudo installer -verbose -store -pkg "$PWD/yubico-piv-tool-$RELEASE_VERION.pkg" -target /
+#          yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v1
         with:

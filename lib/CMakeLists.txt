@@ -32,7 +32,7 @@ find_pcscd()
 
 set(YKPIV_VERSION_STRING "${yubico_piv_tool_VERSION_MAJOR}.${yubico_piv_tool_VERSION_MINOR}.${yubico_piv_tool_VERSION_PATCH}")
 
-set(SOURCE ykpiv.c util.c internal.c version.c error.c)
+set(SOURCE ykpiv.c util.c version.c error.c internal.c)
 set(STATIC_SOURCE ${SOURCE})
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})

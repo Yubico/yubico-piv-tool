@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<installer-gui-script minSpecVersion="1">
+    <title>yubico-piv-tool</title>
+    <pkg-ref id="com.yubico.yubico-piv-tool"/>
+    <options customize="never" require-scripts="false"/>
+    <choices-outline>
+        <line choice="default">
+            <line choice="com.yubico.yubico-piv-tool"/>
+        </line>
+    </choices-outline>
+    <choice id="default"/>
+    <choice id="com.yubico.yubico-piv-tool" visible="false">
+        <pkg-ref id="com.yubico.yubico-piv-tool"/>
+    </choice>
+    <pkg-ref id="com.yubico.yubico-piv-tool" version="0" onConclusion="none">yubico-piv-tool.pkg</pkg-ref>
+</installer-gui-script>

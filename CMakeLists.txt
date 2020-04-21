@@ -44,7 +44,7 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
     if(NOT ${CMAKE_BUILD_TYPE} STREQUAL "Release")
         set(ENV{PKG_CONFIG_PATH} "/usr/local/opt/openssl@1.1/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
     endif(NOT ${CMAKE_BUILD_TYPE} STREQUAL "Release")
-    set(ENV{PKG_CONFIG_PATH} "/usr/local/opt/pcsc-lite/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
+    #set(ENV{PKG_CONFIG_PATH} "/usr/local/opt/pcsc-lite/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
 endif(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
 
 find_package (PkgConfig REQUIRED)
