@@ -1612,19 +1612,13 @@ static ykpiv_rc _set_metadata_item(uint8_t *data, size_t *pcb_data, size_t cb_da
         (long)cb_len); /* accounts for different length encoding */
 
       /* length would cause buffer overflow, return error */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wsign-conversion"
       if ((size_t)(*pcb_data + cb_moved) > cb_data_max) {
         return YKPIV_GENERIC_ERROR;
       }
-#pragma GCC diagnostic pop
 
       /* move remaining data */
       memmove(p_next + cb_moved, p_next, *pcb_data - (size_t)(p_next - data));
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wsign-conversion"
       *pcb_data += cb_moved;
-#pragma GCC diagnostic pop
 
       /* re-encode item and insert */
       if (cb_item != 0) {
