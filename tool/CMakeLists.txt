@@ -27,10 +27,10 @@
 
 message("tool/CMakeList.txt")
 
-include(pcscd)
+include(${CMAKE_SOURCE_DIR}/cmake/pcscd.cmake)
 find_pcscd()
 
-include(gengetopt)
+include(${CMAKE_SOURCE_DIR}/cmake/gengetopt.cmake)
 find_gengetopt()
 add_gengetopt_files (cmdline)
 
@@ -73,7 +73,7 @@ install(
         RUNTIME DESTINATION "${YKPIV_INSTALL_BIN_DIR}")
 
 if (GENERATE_MAN_PAGES)
-    include (help2man)
+    include (${CMAKE_SOURCE_DIR}/cmake/help2man.cmake)
     add_help2man_manpage (yubico-piv-tool.1 yubico-piv-tool)
 
     add_custom_target (yubico-piv-tool-man ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/yubico-piv-tool.1)
@@ -81,4 +81,6 @@ if (GENERATE_MAN_PAGES)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/yubico-piv-tool.1" DESTINATION "${YKPIV_INSTALL_MAN_DIR}/man1")
 endif(GENERATE_MAN_PAGES)
 
-add_subdirectory(tests)
+if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+    add_subdirectory(tests)
+endif(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")

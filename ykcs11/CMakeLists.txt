@@ -107,4 +107,6 @@ install(
         LIBRARY DESTINATION "${YKPIV_INSTALL_LIB_DIR}"
         RUNTIME DESTINATION "${YKPIV_INSTALL_BIN_DIR}")
 
-add_subdirectory (tests)
+if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+    add_subdirectory(tests)
+endif(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")

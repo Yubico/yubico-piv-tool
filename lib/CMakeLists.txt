@@ -27,7 +27,7 @@
 
 message("lib/CMakeList.txt")
 
-include(pcscd)
+include(${CMAKE_SOURCE_DIR}/cmake/pcscd.cmake)
 find_pcscd()
 
 set(YKPIV_VERSION_STRING "${yubico_piv_tool_VERSION_MAJOR}.${yubico_piv_tool_VERSION_MINOR}.${yubico_piv_tool_VERSION_PATCH}")
@@ -39,7 +39,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 add_library(ykpiv SHARED ${SOURCE})
 set_target_properties(ykpiv PROPERTIES BUILD_RPATH "${CMAKE_BINARY_DIR}/lib")
-set_target_properties (ykpiv PROPERTIES SOVERSION ${yubico_piv_tool_VERSION_MAJOR})
+set_target_properties(ykpiv PROPERTIES SOVERSION ${yubico_piv_tool_VERSION_MAJOR})
 
 if(BUILD_STATIC_LIB)
     add_library (ykpiv_static STATIC ${STATIC_SOURCE})
@@ -50,9 +50,9 @@ endif(BUILD_STATIC_LIB)
 
 #add_coverage (ykpiv)
 
-target_link_libraries (ykpiv ${LIBCRYPTO_LIBRARIES} ${PCSC_LIBRARIES} ${PCSC_WIN_LIBS} ${PCSC_MACOSX_LIBS} ${PCSC_CUSTOM_LIBS})
+target_link_libraries (ykpiv ${LIBCRYPTO_LIBRARIES} ${PCSC_LIBRARIES} ${PCSC_WIN_LIBS} ${PCSC_MACOSX_LIBS} ${PCSC_CUSTOM_LIBS} ${ADDITIONAL_LIBRARY})
 if(BUILD_STATIC_LIB)
-    target_link_libraries (ykpiv_static ${LIBCRYPTO_LIBRARIES} ${PCSC_LIBRARIES} ${PCSC_WIN_LIBS} ${PCSC_MACOSX_LIBS} ${PCSC_CUSTOM_LIBS})
+    target_link_libraries (ykpiv_static ${LIBCRYPTO_LIBRARIES} ${PCSC_LIBRARIES} ${PCSC_WIN_LIBS} ${PCSC_MACOSX_LIBS} ${PCSC_CUSTOM_LIBS} ${ADDITIONAL_LIBRARY})
 endif(BUILD_STATIC_LIB)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ykpiv.pc.in ${CMAKE_CURRENT_BINARY_DIR}/ykpiv.pc @ONLY)
@@ -74,4 +74,6 @@ install(
 install(FILES ykpiv.h DESTINATION ${YKPIV_INSTALL_INC_DIR}/ykpiv)
 install(FILES ykpiv-config.h DESTINATION ${YKPIV_INSTALL_INC_DIR}/ykpiv)
 
-add_subdirectory (tests)
+if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+    add_subdirectory(tests)
+endif(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")

@@ -14,6 +14,7 @@ option(OPENSSL_STATIC_LINK "Statically link to OpenSSL" OFF)
 set(BACKEND "check" CACHE STRING "use specific backend/linkage; 'pcsc', 'macscard' or'winscard'")
 set(PCSC_LIB "" CACHE STRING "Name of custom PCSC lib")
 set(PCSC_DIR "" CACHE STRING "Path to custom PCSC lib dir (use with PCSC_LIB")
+set(GENGETOPT_PATH "" CACHE STRING "Path to look for gengetopt program")
 
 # Set various install paths
 if (NOT DEFINED YKPIV_INSTALL_LIB_DIR)

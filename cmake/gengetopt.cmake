@@ -1,6 +1,6 @@
 macro (find_gengetopt)
     if (NOT GENGETOPT_EXECUTABLE)
-        find_program (GENGETOPT_EXECUTABLE gengetopt)
+        find_program (GENGETOPT_EXECUTABLE gengetopt ${GENGETOPT_PATH})
         if (NOT GENGETOPT_EXECUTABLE)
             message (FATAL_ERROR "gengetopt not found. Aborting...")
         endif ()
