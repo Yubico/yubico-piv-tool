@@ -2031,6 +2031,7 @@ int main(int argc, char *argv[]) {
 
   if(ykpiv_connect(state, args_info.reader_arg) != YKPIV_OK) {
     fprintf(stderr, "Failed to connect to yubikey.\nTry removing and reconnecting the device.");
+    ykpiv_done(state);
     return EXIT_FAILURE;
   }
 
@@ -2045,6 +2046,7 @@ int main(int argc, char *argv[]) {
           }
           if(!read_pw("Password", pwbuf, sizeof(pwbuf), false, args_info.stdin_input_flag)) {
             fprintf(stderr, "Failed to get password.\n");
+            ykpiv_done(state);
             return EXIT_FAILURE;
           }
           password = pwbuf;
@@ -2068,17 +2070,20 @@ int main(int argc, char *argv[]) {
           if(args_info.key_given && args_info.key_orig == NULL) {
             if(!read_pw("management key", keybuf, sizeof(keybuf), false, args_info.stdin_input_flag)) {
               fprintf(stderr, "Failed to read management key from stdin,\n");
+              ykpiv_done(state);
               return EXIT_FAILURE;
             }
             key_ptr = keybuf;
           }
           if(ykpiv_hex_decode(key_ptr, strlen(key_ptr), key, &key_len) != YKPIV_OK) {
             fprintf(stderr, "Failed decoding key!\n");
+            ykpiv_done(state);
             return EXIT_FAILURE;
           }
 
           if(ykpiv_authenticate(state, key) != YKPIV_OK) {
             fprintf(stderr, "Failed authentication with the application.\n");
+            ykpiv_done(state);
             return EXIT_FAILURE;
           }
           if(verbosity) {
@@ -2228,6 +2233,7 @@ int main(int argc, char *argv[]) {
         if(!pin) {
           if (!read_pw("PIN", pinbuf, sizeof(pinbuf), false, args_info.stdin_input_flag)) {
             fprintf(stderr, "Failed to get PIN.\n");
+            ykpiv_done(state);
             return EXIT_FAILURE;
           }
           pin = pinbuf;
@@ -2252,6 +2258,7 @@ int main(int argc, char *argv[]) {
         if(!pin) {
           if (!read_pw(name, pinbuf, sizeof(pinbuf), false, args_info.stdin_input_flag)) {
             fprintf(stderr, "Failed to get %s.\n", name);
+            ykpiv_done(state);
             return EXIT_FAILURE;
           }
           pin = pinbuf;
@@ -2259,6 +2266,7 @@ int main(int argc, char *argv[]) {
         if(!new_pin) {
           if (!read_pw(new_name, new_pinbuf, sizeof(new_pinbuf), true, args_info.stdin_input_flag)) {
             fprintf(stderr, "Failed to get %s.\n", new_name);
+            ykpiv_done(state);
             return EXIT_FAILURE;
           }
           new_pin = new_pinbuf;
