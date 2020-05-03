@@ -12,7 +12,7 @@ macro (find_libcrypto)
                 endif(WIN32)
                 set(LIBCRYPTO_INCLUDE_DIRS ${OPENSSL_INCLUDE_DIR})
                 set(LIBCRYPTO_VERSION ${OPENSSL_VERSION})
-                set(LIBCRYPTO_LIBRARIES ${LIBCRYPTO_LIBRARIES} ${OPENSSL_LIBRARIES})
+                #set(LIBCRYPTO_LIBRARIES ${LIBCRYPTO_LIBRARIES} ${OPENSSL_LIBRARIES})
 
                 if(VERBOSE_CMAKE)
                     message("LIBCRYPTO_LDFLAGS: ${LIBCRYPTO_LDFLAGS}")
