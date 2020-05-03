@@ -11,10 +11,13 @@ option(GENERATE_MAN_PAGES "Generate man pages for the command line tool" ON)
 option(DISABLE_LTO "Disable/enable turning on Link Time Optimization" ON)
 option(OPENSSL_STATIC_LINK "Statically link to OpenSSL" OFF)
 
+set(YKCS11_DBG "1" CACHE STRING "Enable/disable YKCS11 debug messages. Possible values is 0 through 9")
 set(BACKEND "check" CACHE STRING "use specific backend/linkage; 'pcsc', 'macscard' or'winscard'")
 set(PCSC_LIB "" CACHE STRING "Name of custom PCSC lib")
 set(PCSC_DIR "" CACHE STRING "Path to custom PCSC lib dir (use with PCSC_LIB")
 set(GENGETOPT_PATH "" CACHE STRING "Path to look for gengetopt program")
+set(GETOPT_INCLUDE_DIR "" CACHE STRING "Path to look for getopt.h file")
+set(CHECK_PATH "" CACHE STRING "Path to look for 'check', the test framework for C. If 'check' is not found, tests are skipped")
 
 # Set various install paths
 if (NOT DEFINED YKPIV_INSTALL_LIB_DIR)

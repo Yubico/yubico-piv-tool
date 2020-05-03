@@ -39,7 +39,7 @@
 
 #include <check.h>
 
-#ifdef __MINGW32__
+#ifdef _WIN32
 #define dprintf(fd, ...) fprintf(stdout, __VA_ARGS__)
 #endif
 

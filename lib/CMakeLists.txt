@@ -27,6 +27,9 @@
 
 message("lib/CMakeList.txt")
 
+include(${CMAKE_SOURCE_DIR}/cmake/openssl.cmake)
+find_libcrypto()
+
 include(${CMAKE_SOURCE_DIR}/cmake/pcscd.cmake)
 find_pcscd()
 
@@ -63,17 +66,15 @@ install(
         ARCHIVE DESTINATION ${YKPIV_INSTALL_LIB_DIR}
         LIBRARY DESTINATION ${YKPIV_INSTALL_LIB_DIR}
         RUNTIME DESTINATION ${YKPIV_INSTALL_BIN_DIR})
-
-install(
+if(BUILD_STATIC_LIB)
+    install(
         TARGETS ykpiv_static
         ARCHIVE DESTINATION ${YKPIV_INSTALL_LIB_DIR}
         LIBRARY DESTINATION ${YKPIV_INSTALL_LIB_DIR}
         RUNTIME DESTINATION ${YKPIV_INSTALL_BIN_DIR})
-
+endif(BUILD_STATIC_LIB)
 
 install(FILES ykpiv.h DESTINATION ${YKPIV_INSTALL_INC_DIR}/ykpiv)
 install(FILES ykpiv-config.h DESTINATION ${YKPIV_INSTALL_INC_DIR}/ykpiv)
 
-if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-    add_subdirectory(tests)
-endif(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+add_subdirectory(tests)

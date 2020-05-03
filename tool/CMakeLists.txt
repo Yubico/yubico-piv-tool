@@ -27,6 +27,9 @@
 
 message("tool/CMakeList.txt")
 
+include(${CMAKE_SOURCE_DIR}/cmake/openssl.cmake)
+find_libcrypto()
+
 include(${CMAKE_SOURCE_DIR}/cmake/pcscd.cmake)
 find_pcscd()
 
@@ -39,10 +42,16 @@ set (
         ${GGO_C}
         util.c
         yubico-piv-tool.c
-        openssl-compat.c
 )
 
-include_directories (${CMAKE_CURRENT_SOURCE_DIR}/../lib ${CMAKE_CURRENT_SOURCE_DIR})
+if(${OPENSSL_VERSION} VERSION_LESS 1.1.0)
+    set(SOURCE ${SOURCE} openssl-compat.c)
+endif()
+
+include_directories (
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_CURRENT_SOURCE_DIR}
+)
 
 if (CMAKE_C_COMPILER_ID MATCHES Clang)
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIE")
@@ -51,6 +60,10 @@ else ()
 endif ()
 
 list(APPEND LCOV_REMOVE_PATTERNS "'${PROJECT_SOURCE_DIR}/tool/cmdline.c'")
+
+set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${OPENSSL_LIB_PATH})
+#find_package(OpenSSL)
+#set (LIBCRYPTO_LDFLAGS OpenSSL::Crypto)
 
 add_executable (yubico-piv-tool ${SOURCE})
 target_link_libraries (yubico-piv-tool ykpiv ${LIBCRYPTO_LDFLAGS})
@@ -81,6 +94,4 @@ if (GENERATE_MAN_PAGES)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/yubico-piv-tool.1" DESTINATION "${YKPIV_INSTALL_MAN_DIR}/man1")
 endif(GENERATE_MAN_PAGES)
 
-if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-    add_subdirectory(tests)
-endif(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+add_subdirectory(tests)

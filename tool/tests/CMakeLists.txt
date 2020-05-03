@@ -27,55 +27,65 @@
 
 #set(LOG_COMPILER "${VALGRIND}")
 
-include(check)
+include(${CMAKE_SOURCE_DIR}/cmake/check.cmake)
 find_check()
 
-find_program (BASH_PROGRAM bash)
+if(NOT DEFINED SKIP_TESTS)
 
-configure_file (
-        ${CMAKE_CURRENT_SOURCE_DIR}/cert.pem
-        ${CMAKE_CURRENT_BINARY_DIR}/cert.pem
-        COPYONLY)
-
-configure_file (
-        ${CMAKE_CURRENT_SOURCE_DIR}/private.pem
-        ${CMAKE_CURRENT_BINARY_DIR}/private.pem
-        COPYONLY)
-
-configure_file (
-        ${CMAKE_CURRENT_SOURCE_DIR}/public.pem
-        ${CMAKE_CURRENT_BINARY_DIR}/public.pem
-        COPYONLY)
+    set(SOURCE_PARSE_NAME parse_name.c ../util.c)
+    set(SOURCE_TEST_INOUT test_inout.c ../util.c)
 
 
-set(SOURCE_PARSE_NAME parse_name.c ../util.c)
-set(SOURCE_TEST_INOUT test_inout.c ../util.c)
+    add_executable(test_parse_name ${SOURCE_PARSE_NAME})
+    add_executable (test_inout ${SOURCE_TEST_INOUT})
+
+    if(WIN32)
+        set(YKPIV_LIB_LINK ykpiv_static)
+    else(WIN32)
+        set(YKPIV_LIB_LINK ykpiv)
+    endif(WIN32)
+
+    target_link_libraries(test_parse_name ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS} ${YKPIV_LIB_LINK})
+    target_link_libraries(test_inout ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS} ${YKPIV_LIB_LINK})
 
 
-add_executable(test_parse_name ${SOURCE_PARSE_NAME})
-add_executable (test_inout ${SOURCE_TEST_INOUT})
-
-target_link_libraries(test_parse_name crypto ${LIBCHECK_LDFLAGS} ykpiv)
-target_link_libraries(test_inout crypto ${LIBCHECK_LDFLAGS} ykpiv)
-
-
-add_test(
+    add_test(
         NAME test_parse_name
         COMMAND test_parse_name
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/tool/tests/
-)
+    )
 
-add_test(
+    add_test(
         NAME test_inout
         COMMAND test_inout
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/tool/tests/
-)
+    )
 
 
-add_test(
-        NAME basic_tests
-        COMMAND ${BASH_PROGRAM} ${CMAKE_CURRENT_SOURCE_DIR}/basic.sh
-)
-set_property(TEST basic_tests APPEND PROPERTY ENVIRONMENT "VERSION=${VERSION}")
-set_property(TEST basic_tests APPEND PROPERTY ENVIRONMENT "EXEEXT=${CMAKE_EXECUTABLE_SUFFIX}")
+    find_program (BASH_PROGRAM bash)
+    if(BASH_PROGRAM_FOUND)
+        configure_file (
+            ${CMAKE_CURRENT_SOURCE_DIR}/cert.pem
+            ${CMAKE_CURRENT_BINARY_DIR}/cert.pem
+            COPYONLY)
 
+        configure_file (
+            ${CMAKE_CURRENT_SOURCE_DIR}/private.pem
+            ${CMAKE_CURRENT_BINARY_DIR}/private.pem
+            COPYONLY)
+
+        configure_file (
+            ${CMAKE_CURRENT_SOURCE_DIR}/public.pem
+            ${CMAKE_CURRENT_BINARY_DIR}/public.pem
+            COPYONLY)
+
+        add_test(
+            NAME basic_tests
+            COMMAND ${BASH_PROGRAM} ${CMAKE_CURRENT_SOURCE_DIR}/basic.sh
+        )
+        set_property(TEST basic_tests APPEND PROPERTY ENVIRONMENT "VERSION=${VERSION}")
+        set_property(TEST basic_tests APPEND PROPERTY ENVIRONMENT "EXEEXT=${CMAKE_EXECUTABLE_SUFFIX}")
+    else(BASH_PROGRAM_FOUND)
+        message("Cannot find 'bash'. Skipping basic tests...")
+    endif(BASH_PROGRAM_FOUND)
+endif(NOT DEFINED SKIP_TESTS)

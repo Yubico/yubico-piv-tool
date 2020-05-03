@@ -27,7 +27,8 @@
 
 cmake_minimum_required (VERSION 3.10)
 cmake_policy(SET CMP0025 NEW)
-set (CMAKE_C_STANDARD 11)
+set (CMAKE_C_STANDARD 99)
+#set (CMAKE_C_STANDARD 11)
 
 project (yubico-piv-tool)
 
@@ -35,6 +36,7 @@ set (yubico_piv_tool_VERSION_MAJOR 2)
 set (yubico_piv_tool_VERSION_MINOR 1)
 set (yubico_piv_tool_VERSION_PATCH 0)
 set (VERSION "${yubico_piv_tool_VERSION_MAJOR}.${yubico_piv_tool_VERSION_MINOR}.${yubico_piv_tool_VERSION_PATCH}")
+include(${CMAKE_SOURCE_DIR}/cmake/configOptions.cmake)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
@@ -48,7 +50,14 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
 endif(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
-    message("win32")
+    set(_WINDOWS 1)
+    if(WIN32)
+        message("win32")
+        set(_WIN32 1)
+    else(WIN32)
+        message("win64")
+    endif(WIN32)
+
     #[[set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-use-linker-plugin -static-libgcc")
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wl,--nxcompat")
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wl,--disable-auto-image-base -Wl,--dynamicbase")
@@ -70,7 +79,7 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
     #    set (WIN32_BCRYPT 1)
     #endif()
     if (NOT LIBCRYPTO_LDFLAGS)
-        set (LIBCRYPTO_LDFLAGS "-lcrypto")
+        set (LIBCRYPTO_LIBRARIES "bcrypt.lib")
     endif()
     if (NOT LIBCRYPTO_VERSION)
         # msys now installs openssl 1.1.1, hardcode to that until we come up with something cleverer
@@ -84,9 +93,6 @@ else(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
 
     find_package (PkgConfig REQUIRED)
     set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
-    include(configOptions)
-    include(openssl)
-    find_libcrypto()
 
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -w") # -g -O2
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Werror")
@@ -103,7 +109,7 @@ else(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
         set (WARN_FLAGS "${WARN_FLAGS} -Waggregate-return")
         set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${WARN_FLAGS}")
     endif(ENABLE_GCC_WARN)
-endif(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+
 # fortify can only be used with -O2 and higher, so only enable for release builds
 #[[if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")
     set (CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -D_FORTIFY_SOURCE=2")
@@ -119,7 +125,7 @@ if (NOT DISABLE_LTO)
         endif ()
     endif ()
 endif ()
-
+endif(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
 #if (CMAKE_C_COMPILER_ID STREQUAL AppleClang)
 #    set (CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -fPIE")
 #else()
@@ -132,8 +138,8 @@ enable_testing()
 
 add_subdirectory (lib)
 if(NOT BUILD_ONLY_LIB)
-    add_subdirectory (tool)
     add_subdirectory (ykcs11)
+    add_subdirectory (tool)
 endif()
 
 add_custom_target (

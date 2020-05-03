@@ -31,19 +31,26 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
-#include <stdio.h>
-
 extern int verbose;
 
-#define DBG(x...) if(verbose) {                                                \
+#define D(x, ...) \
+do { if(verbose) { \
     fprintf (stderr, "debug: %s:%d (%s): ", __FILE__, __LINE__, __FUNCTION__); \
-    fprintf (stderr, x);                                                       \
-    fprintf (stderr, "\n");                                                    \
-  }
+    fprintf (stderr, x, ##__VA_ARGS__);                                                       \
+    fprintf (stderr, "\n");}                                                    \
+  } while (0)
+
+//#if YKCS11_DBG
+#ifdef YKCS11_DBG
+#include <stdio.h>
+#define DBG(x, ...) D(x);
+#else
+#define DBG(x, ...)
+#endif
 
 #if YKCS11_DINOUT
-#define DIN DBG(("In"));
-#define DOUT DBG(("Out"));
+#define DIN D(("In"));
+#define DOUT D(("Out"));
 #else
 #define DIN
 #define DOUT

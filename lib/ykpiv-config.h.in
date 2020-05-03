@@ -83,6 +83,21 @@ extern "C"
 #define YKPIV_VERSION_PATCH @YKPIV_VERSION_PATCH@
 
     /**
+     * _WINDOWS
+     *
+     * Pre-processor symbol that describes the system.
+     */
+#cmakedefine _WINDOWS @_WINDOWS@
+
+
+    /**
+     * _WIN32
+     *
+     * Pre-processor symbol that describes the Windows system architecture.
+     */
+#cmakedefine _WIN32 @_WIN32@
+
+    /**
      * BACKEND_PCSC
      *
      * Pre-processor symbol that describes the available PCSC backend.

@@ -31,35 +31,43 @@ else ()
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIE -pie")
 endif ()
 
-include(check)
+include(${CMAKE_SOURCE_DIR}/cmake/check.cmake)
 find_check()
 
-set(SOURCE_BASIC basic.c)
-set(SOURCE_API api.c)
-set(SOURCE_PARSE_KEY parse_key.c)
+if(NOT DEFINED SKIP_TESTS)
+    set(SOURCE_BASIC basic.c)
+    set(SOURCE_API api.c)
+    set(SOURCE_PARSE_KEY parse_key.c)
 
-add_executable (test_basic ${SOURCE_BASIC})
-add_executable(test_api ${SOURCE_API})
-add_executable(test_parse_key ${SOURCE_PARSE_KEY})
+    add_executable (test_basic ${SOURCE_BASIC})
+    add_executable(test_api ${SOURCE_API})
+    add_executable(test_parse_key ${SOURCE_PARSE_KEY})
 
-target_link_libraries(test_basic ykpiv ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
-target_link_libraries(test_api ykpiv ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
-target_link_libraries(test_parse_key ykpiv ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
+    if(WIN32)
+        set(YKPIV_LIB_LINK ykpiv_static)
+    else(WIN32)
+        set(YKPIV_LIB_LINK ykpiv)
+    endif(WIN32)
 
-add_test(
+    target_link_libraries(test_basic ${YKPIV_LIB_LINK} ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
+    target_link_libraries(test_api ${YKPIV_LIB_LINK} ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
+    target_link_libraries(test_parse_key ${YKPIV_LIB_LINK} ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
+
+    add_test(
         NAME basic
         COMMAND test_basic
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/lib/tests/
-)
+    )
 
-add_test(
+    add_test(
         NAME api
         COMMAND test_api
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/lib/tests/
-)
+    )
 
-add_test(
+    add_test(
         NAME parse_key
         COMMAND test_parse_key
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/lib/tests/
-)
+    )
+endif(NOT DEFINED SKIP_TESTS)

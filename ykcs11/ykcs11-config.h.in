@@ -83,6 +83,13 @@ extern "C"
 #define YKCS11_VERSION_PATCH @YKCS11_VERSION_PATCH@
 
     /**
+     * _WIN32
+     *
+     * Pre-processor symbol that describes the Windows system architecture.
+     */
+#cmakedefine _WIN32 @_WIN32@
+
+    /**
      * YKCS11_DBG
      *
      * Pre-processor symbol that describes how much debug output to print out.

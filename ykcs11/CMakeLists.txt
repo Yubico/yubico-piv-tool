@@ -27,6 +27,9 @@
 
 message("ykcs11/CMakeList.txt")
 
+include(${CMAKE_SOURCE_DIR}/cmake/openssl.cmake)
+find_libcrypto()
+
 link_directories(${PCSC_LIBRARY_DIRS})
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden")
 add_definitions(-DCRYPTOKI_EXPORTS)
@@ -49,6 +52,7 @@ endif()
 include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}/../lib
         ${CMAKE_CURRENT_SOURCE_DIR}
+        ${LIBCRYPTO_INCLUDE_DIRS}
 )
 
 set(YKCS11_VERSION_MAJOR ${yubico_piv_tool_VERSION_MAJOR})
@@ -58,28 +62,25 @@ set(YKCS11_VERSION_STRING "${YKCS11_VERSION_MAJOR}.${YKCS11_VERSION_MINOR}.${YKC
 set(YKCS11_VERSION_NUMBER ${YKCS11_VERSION_MAJOR}.${YKCS11_VERSION_MINOR}.${YKCS11_VERSION_PATCH})
 
 
-if(NOT ${ENABLE_YKCS11_DBG})
-    set(YKCS11_DBG 0)
-else(NOT ${ENABLE_YKCS11_DBG})
-    set(YKCS11_DBG ${ENABLE_YKCS11_DBG})
-endif(NOT ${ENABLE_YKCS11_DBG})
-
 if(NOT ${ENABLE_HARDWARE_TESTS})
     set(HW_TESTS 0)
 else(NOT ${ENABLE_HARDWARE_TESTS})
     set(HW_TESTS 1)
 endif(NOT ${ENABLE_HARDWARE_TESTS})
 
-
 add_library(ykcs11 SHARED ${SOURCE})
 set_target_properties (ykcs11 PROPERTIES SOVERSION ${YKCS11_VERSION_MAJOR})
-target_link_libraries(ykcs11 ykpiv)
+if(WIN32)
+    target_link_libraries(ykcs11 ykpiv_static ${LIBCRYPTO_LDFLAGS})
+else(WIN32)
+    target_link_libraries(ykcs11 ykpiv ${LIBCRYPTO_LDFLAGS})
+endif(WIN32)
 
 if(BUILD_STATIC_LIB)
     add_library (ykcs11_static STATIC ${SOURCE})
     set_target_properties (ykcs11_static PROPERTIES POSITION_INDEPENDENT_CODE on OUTPUT_NAME ykcs11)
     set_target_properties (ykcs11_static PROPERTIES COMPILE_FLAGS "-DSTATIC " )
-    target_link_libraries (ykcs11_static ykpiv_static)
+    target_link_libraries (ykcs11_static ykpiv_static ${LIBCRYPTO_LDFLAGS})
 endif(BUILD_STATIC_LIB)
 
 
@@ -101,12 +102,12 @@ install(
         LIBRARY DESTINATION "${YKPIV_INSTALL_LIB_DIR}"
         RUNTIME DESTINATION "${YKPIV_INSTALL_BIN_DIR}")
 
-install(
+if(BUILD_STATIC_LIB)
+    install(
         TARGETS ykcs11_static
         ARCHIVE DESTINATION "${YKPIV_INSTALL_LIB_DIR}"
         LIBRARY DESTINATION "${YKPIV_INSTALL_LIB_DIR}"
         RUNTIME DESTINATION "${YKPIV_INSTALL_BIN_DIR}")
+endif(BUILD_STATIC_LIB)
 
-if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-    add_subdirectory(tests)
-endif(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+add_subdirectory(tests)

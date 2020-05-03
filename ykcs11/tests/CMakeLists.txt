@@ -27,17 +27,21 @@
 
 message("ykcs11/tests/CMakeList.txt")
 
-if(ENABLE_HARDWARE_TESTS)
-    find_program (BASH_PROGRAM bash)
-    add_test(
+include(${CMAKE_SOURCE_DIR}/cmake/check.cmake)
+find_check()
+
+if(NOT DEFINED SKIP_TESTS)
+    if(ENABLE_HARDWARE_TESTS)
+        find_program (BASH_PROGRAM bash)
+        add_test(
             NAME reset_tests
             COMMAND ${BASH_PROGRAM} ${CMAKE_CURRENT_SOURCE_DIR}/reset.sh
-    )
-    set_property(TEST reset_tests APPEND PROPERTY ENVIRONMENT "EXEEXT=${CMAKE_EXECUTABLE_SUFFIX}")
-    set_property(TEST reset_tests APPEND PROPERTY ENVIRONMENT "YKPIV_ENV_HWTESTS_CONFIRMED=${HW_TESTS}")
-endif(ENABLE_HARDWARE_TESTS)
+        )
+        set_property(TEST reset_tests APPEND PROPERTY ENVIRONMENT "EXEEXT=${CMAKE_EXECUTABLE_SUFFIX}")
+        set_property(TEST reset_tests APPEND PROPERTY ENVIRONMENT "YKPIV_ENV_HWTESTS_CONFIRMED=${HW_TESTS}")
+    endif(ENABLE_HARDWARE_TESTS)
 
-set(SOURCE_YKCS11_TESTS ykcs11_tests.c ykcs11_tests_util.c
+    set(SOURCE_YKCS11_TESTS ykcs11_tests.c ykcs11_tests_util.c
         ../ykcs11.c
         ../openssl_utils.c
         ../utils.c
@@ -45,14 +49,19 @@ set(SOURCE_YKCS11_TESTS ykcs11_tests.c ykcs11_tests_util.c
         ../objects.c
         ../mechanisms.c
         ../../tool/util.c
-)
+    )
 
-add_executable(test_ykcs11 ${SOURCE_YKCS11_TESTS})
-target_link_libraries(test_ykcs11 crypto pthread ykpiv)
+    add_executable(test_ykcs11 ${SOURCE_YKCS11_TESTS})
+    if(WIN32)
+        target_link_libraries(test_ykcs11 ${LIBCRYPTO_LDFLAGS} ykpiv_static)
+    else(WIN32)
+        target_link_libraries(test_ykcs11 ${LIBCRYPTO_LDFLAGS} pthread ykpiv)
+    endif(WIN32)
 
-add_test(
+    add_test(
         NAME test_ykcs11
         COMMAND test_ykcs11
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/ykcs11/tests/
-)
-set_property(TEST test_ykcs11 APPEND PROPERTY ENVIRONMENT "YKPIV_ENV_HWTESTS_CONFIRMED=${HW_TESTS}")
+    )
+    set_property(TEST test_ykcs11 APPEND PROPERTY ENVIRONMENT "YKPIV_ENV_HWTESTS_CONFIRMED=${HW_TESTS}")
+endif(NOT DEFINED SKIP_TESTS)

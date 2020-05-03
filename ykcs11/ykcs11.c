@@ -108,7 +108,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(
   CK_VOID_PTR pInitArgs
 )
 {
-#if YKCS11_DBG
+//#if YKCS11_DBG linux/mac
+#ifdef YKCS11_DBG
   verbose = YKCS11_DBG;
 #else
   const char *dbg = getenv("YKCS11_DBG");
