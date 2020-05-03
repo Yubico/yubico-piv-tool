@@ -8,8 +8,21 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v1
+      - name: checkout
+        uses: actions/checkout@v1
+
       - name: build
         run: |
-          echo Get-ChildItem env:
-          Get-ChildItem env:
+          echo "mkdir cmake_build; cd cmake_build"
+          mkdir cmake_build; cd cmake_build
+
+          echo cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON ..
+          cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON ..
+
+          echo cmake --build . -v
+          cmake --build . -v
+
+          echo "yubico-piv-tool.exe"
+          cd tool/Debug
+          yubico-piv-tool.exe --version
+
