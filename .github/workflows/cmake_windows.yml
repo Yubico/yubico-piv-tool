@@ -1,4 +1,4 @@
-name: windows
+name: CMake Build Windows
 
 on: [push]
 
@@ -11,8 +11,5 @@ jobs:
       - uses: actions/checkout@v1
       - name: build
         run: |
-          echo dir
-          dir
-
-          echo ls
-          ls
+          echo Get-ChildItem env:
+          Get-ChildItem env:
