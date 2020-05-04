@@ -11,48 +11,28 @@ jobs:
       - name: checkout
         uses: actions/checkout@v1
 
+      - name: install prerequisites
+        run: |
+          echo vcpkg search openssl
+          vcpkg search openssl-windows
+
       - name: build
         run: |
 
-          echo "ls 'C:\Strawberry\c'"
-          ls 'C:\Strawberry\c'
-          echo "ls 'C:\Strawberry\c\bin'"
-          ls 'C:\Strawberry\c\bin'
-          echo "ls 'C:\Strawberry\c\include'"
-          ls 'C:\Strawberry\c\include'
-          echo "ls 'C:\Strawberry\c\lib'"
-          ls 'C:\Strawberry\c\lib'
-          echo "ls 'C:\Strawberry\c\libexec'"
-          ls 'C:\Strawberry\c\libexec'
-          echo "ls 'C:\Strawberry\c\x86_64-w64-mingw32'"
-          ls 'C:\Strawberry\c\x86_64-w64-mingw32'
-
-          echo "ls 'C:\Strawberry\c\x86_64-w64-mingw32\bin'"
-          ls 'C:\Strawberry\c\x86_64-w64-mingw32\bin'
-          echo "ls 'C:\Strawberry\c\x86_64-w64-mingw32\include'"
-          ls 'C:\Strawberry\c\x86_64-w64-mingw32\include'
-          echo "ls 'C:\Strawberry\c\x86_64-w64-mingw32\lib'"
-          ls 'C:\Strawberry\c\x86_64-w64-mingw32\lib'
+#          echo "ls 'C:\Strawberry\c'"
+#          ls 'C:\Strawberry\c'
+#          echo "ls 'C:\Strawberry\c\bin'"
+#          ls 'C:\Strawberry\c\bin'
+#          echo "ls 'C:\Strawberry\c\include'"
+#          ls 'C:\Strawberry\c\include'
+#          echo "ls 'C:\Strawberry\c\lib'"
+#          ls 'C:\Strawberry\c\lib'
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#          echo "mkdir cmake_build; cd cmake_build"
-#          mkdir cmake_build; cd cmake_build
+          echo "mkdir cmake_build; cd cmake_build"
+          mkdir cmake_build; cd cmake_build
 
 #          echo "cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON -DBACKEND=winscard -DOPENSSL_ROOT_DIR=C:\Program Files\OpenSSL .."
 #          cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON -DBACKEND=winscard -DOPENSSL_ROOT_DIR='C:\Program Files\OpenSSL'  ..
