@@ -1,7 +1,7 @@
 macro (find_libcrypto)
     if(WIN32)
         if(NOT OpenSSL_FOUND)
-            find_package(OpenSSL REQUIRED PATHS ${OPENSSL_DIR})
+            find_package(OpenSSL REQUIRED)
             if(OpenSSL_FOUND)
                 set(LIBCRYPTO_LDFLAGS OpenSSL::Crypto)
                 #set(LIBCRYPTO_LDFLAGS crypto)
