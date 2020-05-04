@@ -13,8 +13,8 @@ jobs:
 
       - name: install prerequisites
         run: |
-          echo vcpkg search openssl
-          vcpkg search openssl-windows
+          echo "vcpkg install openssl:x86-windows"
+          vcpkg install openssl:x86-windows
 
       - name: build
         run: |
