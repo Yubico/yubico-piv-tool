@@ -13,26 +13,32 @@ jobs:
 
       - name: build
         run: |
-          echo "ls C:\Program Files\OpenSSL"
-          ls 'C:\Program Files\OpenSSL'
-          echo "ls 'C:\Program Files\OpenSSL\bin'"
-          ls 'C:\Program Files\OpenSSL\bin'
+ 
           echo "ls 'C:\Strawberry\c'"
           ls 'C:\Strawberry\c'
           echo "ls 'C:\Strawberry\c\bin'"
           ls 'C:\Strawberry\c\bin'
+          echo "ls 'C:\Strawberry\c\include'"
+          ls 'C:\Strawberry\c\include'
+          echo "ls 'C:\Strawberry\c\lib'"
+          ls 'C:\Strawberry\c\lib'
+          echo "ls 'C:\Strawberry\c\libexec'"
+          ls 'C:\Strawberry\c\libexec'
+          echo "ls 'C:\Strawberry\c\x86_64-w64-mingw32'"
+          ls 'C:\Strawberry\c\x86_64-w64-mingw32'
+
+
+
+
           echo "ls 'C:\Program Files\Git\mingw64'"
           ls 'C:\Program Files\Git\mingw64'
           echo "ls 'C:\Program Files\Git\mingw64\bin'"
           ls 'C:\Program Files\Git\mingw64\bin'
-          echo "ls 'C:\Program Files\Git\usr'"
-          ls 'C:\Program Files\Git\usr'
-          echo "ls 'C:\Program Files\Git\usr\bin'"
-          ls 'C:\Program Files\Git\usr\bin'
-          echo "ls 'C:\Program Files (x86)\Subversion'"
-          ls 'C:\Program Files (x86)\Subversion'
-          echo "ls 'C:\Program Files (x86)\Subversion\bin'"
-          ls 'C:\Program Files (x86)\Subversion\bin'
+          echo "ls 'C:\Program Files\Git\mingw64\lib'"
+          ls 'C:\Program Files\Git\mingw64\lib'
+          echo "ls 'C:\Program Files\Git\mingw64\libexec'"
+          ls 'C:\Program Files\Git\mingw64\libexec'
+
 
 
 
