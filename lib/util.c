@@ -992,7 +992,7 @@ Cleanup:
 
   if (ptr_modulus) { _ykpiv_free(state, modulus); }
   if (ptr_exp) { _ykpiv_free(state, ptr_exp); }
-  if (ptr_point) { _ykpiv_free(state, ptr_exp); }
+  if (ptr_point) { _ykpiv_free(state, ptr_point); }
 
   _ykpiv_end_transaction(state);
   return res;

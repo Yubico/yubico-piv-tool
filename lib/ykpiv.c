@@ -1747,7 +1747,8 @@ ykpiv_rc _ykpiv_save_object(
   }
   *dataptr++ = 0x53;
   dataptr += _ykpiv_set_length(dataptr, len);
-  memcpy(dataptr, indata, len);
+  if(indata)
+    memcpy(dataptr, indata, len);
   dataptr += len;
 
   if((res = _ykpiv_transfer_data(state, templ, data, (long)(dataptr - data), NULL, &outlen,
