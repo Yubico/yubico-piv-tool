@@ -60,6 +60,7 @@ macro (find_libcrypto)
                     else(LIBCRYPTO_FOUND)
                         message (FATAL_ERROR "libcrypto not found. Aborting...")
                     endif(LIBCRYPTO_FOUND)
+                    set(OPENSSL_VERSION ${LIBCRYPTO_VERSION})
 
             endif(OPENSSL_STATIC_LINK)
         endif(NOT OpenSSL_FOUND)

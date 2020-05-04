@@ -45,16 +45,16 @@ jobs:
           cp yubico-piv-tool-$RELEASE_VERION.pkg artifact/
           rm -rf pkg
 
-      - name: Install yubico-piv-tool from pkg installer
-        run: |
-          export RELEASE_VERION=2.1.0
+ #     - name: Install yubico-piv-tool from pkg installer
+ #       run: |
+ #         export RELEASE_VERION=2.1.0
 
-          cd macos
-          sudo installer -verbose -store -pkg "$PWD/yubico-piv-tool-$RELEASE_VERION.pkg" -target /
+#          cd macos
+#          sudo installer -verbose -store -pkg "$PWD/yubico-piv-tool-$RELEASE_VERION.pkg" -target /
 #          yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v1
-        with:
-          name: yubico-piv-tool-mac
-          path: macos/artifact
+#      - name: Upload artifact
+#        uses: actions/upload-artifact@v1
+#        with:
+#          name: yubico-piv-tool-mac
+#          path: macos/artifact
