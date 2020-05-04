@@ -13,7 +13,7 @@ jobs:
 
       - name: build
         run: |
- 
+
           echo "ls 'C:\Strawberry\c'"
           ls 'C:\Strawberry\c'
           echo "ls 'C:\Strawberry\c\bin'"
@@ -27,17 +27,12 @@ jobs:
           echo "ls 'C:\Strawberry\c\x86_64-w64-mingw32'"
           ls 'C:\Strawberry\c\x86_64-w64-mingw32'
 
-
-
-
-          echo "ls 'C:\Program Files\Git\mingw64'"
-          ls 'C:\Program Files\Git\mingw64'
-          echo "ls 'C:\Program Files\Git\mingw64\bin'"
-          ls 'C:\Program Files\Git\mingw64\bin'
-          echo "ls 'C:\Program Files\Git\mingw64\lib'"
-          ls 'C:\Program Files\Git\mingw64\lib'
-          echo "ls 'C:\Program Files\Git\mingw64\libexec'"
-          ls 'C:\Program Files\Git\mingw64\libexec'
+          echo "ls 'C:\Strawberry\c\x86_64-w64-mingw32\bin'"
+          ls 'C:\Strawberry\c\x86_64-w64-mingw32\bin'
+          echo "ls 'C:\Strawberry\c\x86_64-w64-mingw32\include'"
+          ls 'C:\Strawberry\c\x86_64-w64-mingw32\include'
+          echo "ls 'C:\Strawberry\c\x86_64-w64-mingw32\lib'"
+          ls 'C:\Strawberry\c\x86_64-w64-mingw32\lib'
 
 
 
