@@ -18,6 +18,9 @@ jobs:
 
       - name: build
         run: |
+          echo "mkdir cmake_build; cd cmake_build"
+          mkdir cmake_build; cd cmake_build
+
 
 #          echo "ls 'C:\Strawberry\c'"
 #          ls 'C:\Strawberry\c'
@@ -31,8 +34,6 @@ jobs:
 
 
 
-          echo "mkdir cmake_build; cd cmake_build"
-          mkdir cmake_build; cd cmake_build
 
 #          echo "cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON -DBACKEND=winscard -DOPENSSL_ROOT_DIR=C:\Program Files\OpenSSL .."
 #          cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON -DBACKEND=winscard -DOPENSSL_ROOT_DIR='C:\Program Files\OpenSSL'  ..
