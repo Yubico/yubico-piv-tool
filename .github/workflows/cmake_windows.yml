@@ -15,12 +15,46 @@ jobs:
         run: |
           echo "ls C:\Program Files\OpenSSL"
           ls 'C:\Program Files\OpenSSL'
+          echo "ls 'C:\Program Files\OpenSSL\bin'"
+          ls 'C:\Program Files\OpenSSL\bin'
+          echo "ls 'C:\Strawberry\c'"
+          ls 'C:\Strawberry\c'
+          echo "ls 'C:\Strawberry\c\bin'"
+          ls 'C:\Strawberry\c\bin'
+          echo "ls 'C:\Program Files\Git\mingw64'"
+          ls 'C:\Program Files\Git\mingw64'
+          echo "ls 'C:\Program Files\Git\mingw64\bin'"
+          ls 'C:\Program Files\Git\mingw64\bin'
+          echo "ls 'C:\Program Files\Git\usr'"
+          ls 'C:\Program Files\Git\usr'
+          echo "ls 'C:\Program Files\Git\usr\bin'"
+          ls 'C:\Program Files\Git\usr\bin'
+          echo "ls 'C:\Program Files (x86)\Subversion'"
+          ls 'C:\Program Files (x86)\Subversion'
+          echo "ls 'C:\Program Files (x86)\Subversion\bin'"
+          ls 'C:\Program Files (x86)\Subversion\bin'
 
-          echo "mkdir cmake_build; cd cmake_build"
-          mkdir cmake_build; cd cmake_build
 
-          echo "cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON -DBACKEND=winscard -DOPENSSL_ROOT_DIR=C:\Program Files\OpenSSL .."
-          cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON -DBACKEND=winscard -DOPENSSL_ROOT_DIR='C:\Program Files\OpenSSL' ..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#          echo "mkdir cmake_build; cd cmake_build"
+#          mkdir cmake_build; cd cmake_build
+
+#          echo "cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON -DBACKEND=winscard -DOPENSSL_ROOT_DIR=C:\Program Files\OpenSSL .."
+#          cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON -DBACKEND=winscard -DOPENSSL_ROOT_DIR='C:\Program Files\OpenSSL'  ..
 
 #          echo cmake --build . -v
 #          cmake --build . -v
