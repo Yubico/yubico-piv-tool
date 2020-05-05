@@ -25,7 +25,7 @@ jobs:
 
       - name: build
         run: |
-          $env:Path +=";C:/vcpkg/packages/openssl-windows_x86-windows"
+          $env:Path +=";C:/vcpkg/packages/openssl-windows_x86-windows;C:/vcpkg/packages/getopt-win32_x86-windows"
 
           echo PATH
           $Env:path.Split(';')
