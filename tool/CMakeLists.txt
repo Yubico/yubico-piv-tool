@@ -40,12 +40,12 @@ set (
 )
 
 if(WIN32)
-    set(SOURCE cmdline.c)
+    set(SOURCE ${SOURCE} cmdline.c)
 else(WIN32)
     include(${CMAKE_SOURCE_DIR}/cmake/gengetopt.cmake)
     find_gengetopt()
     add_gengetopt_files(cmdline)
-    set(SOURCE ${GGO_C})
+    set(SOURCE ${SOURCE} ${GGO_C})
 endif(WIN32)
 
 if(${OPENSSL_VERSION} VERSION_LESS 1.1.0)
