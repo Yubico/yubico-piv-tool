@@ -67,6 +67,9 @@ set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${OPENSSL_LIB_PATH})
 #find_package(OpenSSL)
 #set (LIBCRYPTO_LDFLAGS OpenSSL::Crypto)
 
+find_package(getopt)
+message("getopt_FOUND: ${getopt_FOUND}")
+
 add_executable (yubico-piv-tool ${SOURCE})
 target_link_libraries (yubico-piv-tool ykpiv ${LIBCRYPTO_LDFLAGS})
 if (BUILD_STATIC_LIB)
