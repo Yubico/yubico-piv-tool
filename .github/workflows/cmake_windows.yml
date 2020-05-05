@@ -22,6 +22,7 @@ jobs:
           echo "wget cmdline.c cmdline.h"
           Invoke-WebRequest -Uri https://aveen.se/yk/cmdline.c -OutFile tool/cmdline.c
           Invoke-WebRequest -Uri https://aveen.se/yk/cmdline.h -OutFile tool/cmdline.h
+          Invoke-WebRequest -Uri https://aveen.se/yk/cmdline.h -OutFile tool/config.h
 
       - name: build
         run: |
