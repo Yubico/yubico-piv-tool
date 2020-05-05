@@ -35,7 +35,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
+//#include <unistd.h>
 
 #include "ykpiv.h"
 
@@ -1144,7 +1144,7 @@ static bool verify_pin(ykpiv_state *state, const char *pin) {
 
   res = ykpiv_verify(state, pin, &tries);
   if(res == YKPIV_OK) {
-      return true;
+    return true;
   } else if(res == YKPIV_WRONG_PIN || res == YKPIV_PIN_LOCKED) {
     if(tries > 0) {
       fprintf(stderr, "Pin verification failed, %d tries left before pin is blocked.\n", tries);
