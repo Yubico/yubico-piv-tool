@@ -16,6 +16,9 @@ jobs:
           echo "vcpkg install openssl:x86-windows"
           vcpkg install openssl:x86-windows
 
+          echo choco list
+          choco list
+
       - name: build
         run: |
           echo "$env:Path +=';C:/vcpkg/packages/openssl-windows_x86-windows'"
