@@ -27,14 +27,6 @@ jobs:
         run: |
           $env:Path +=";C:/vcpkg/packages/openssl-windows_x86-windows"
 
-          echo PATH
-          $Env:path.Split(';')
-          echo LIB
-          $Env:lib
-          echo INCLUDE
-          $Env:include
-
-
           echo "mkdir cmake_build; cd cmake_build"
           mkdir cmake_build; cd cmake_build
 
@@ -44,8 +36,14 @@ jobs:
           echo cmake --build . -v
           cmake --build . -v
 
-          echo "yubico-piv-tool.exe"
+          echo tool/Debug
           cd tool/Debug
+
+          echo cp getopt.dll libcrypto.dll
+          cp C:/vcpkg/packages/openssl-windows_x86-windows/bin/libcrypto-1_1.dll .
+          cp C:/vcpkg/packages/getopt-win32_x86-windows/bin/getopt.dll
+
+          echo "yubico-piv-tool.exe"
           yubico-piv-tool.exe --version
 
 
