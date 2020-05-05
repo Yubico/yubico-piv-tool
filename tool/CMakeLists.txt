@@ -67,7 +67,7 @@ set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${OPENSSL_LIB_PATH})
 #find_package(OpenSSL)
 #set (LIBCRYPTO_LDFLAGS OpenSSL::Crypto)
 
-find_library(GETOPT getopt)
+find_library(GETOPT getopt PATHS ${GENGETOPT_PATH})
 message("getopt: ${GETOPT}")
 
 add_executable (yubico-piv-tool ${SOURCE})
