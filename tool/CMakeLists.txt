@@ -33,18 +33,20 @@ find_libcrypto()
 include(${CMAKE_SOURCE_DIR}/cmake/pcscd.cmake)
 find_pcscd()
 
-if(NOT WIN32)
-    include(${CMAKE_SOURCE_DIR}/cmake/gengetopt.cmake)
-    find_gengetopt()
-    add_gengetopt_files (cmdline)
-endif(NOT WIN32)
-
 set (
         SOURCE
-        ${GGO_C}
         util.c
         yubico-piv-tool.c
 )
+
+if(WIN32)
+    set(SOURCE cmdline.c)
+else(WIN32)
+    include(${CMAKE_SOURCE_DIR}/cmake/gengetopt.cmake)
+    find_gengetopt()
+    add_gengetopt_files(cmdline)
+    set(SOURCE ${GGO_C})
+endif(WIN32)
 
 if(${OPENSSL_VERSION} VERSION_LESS 1.1.0)
     set(SOURCE ${SOURCE} openssl-compat.c)
