@@ -42,6 +42,7 @@ jobs:
           echo cp getopt.dll libcrypto.dll
           cp C:/vcpkg/packages/openssl-windows_x86-windows/bin/libcrypto-1_1.dll .
           cp C:/vcpkg/packages/getopt-win32_x86-windows/bin/getopt.dll
+          ls
 
           echo "yubico-piv-tool.exe"
           yubico-piv-tool.exe --version
