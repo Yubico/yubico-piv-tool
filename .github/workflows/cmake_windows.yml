@@ -16,21 +16,19 @@ jobs:
           echo "vcpkg install openssl:x86-windows getopt"
           vcpkg install openssl:x86-windows getopt
 
+          echo "vcpkg install getopt"
+          vcpkg install getopt
+
+          echo "wget cmdline.c cmdline.h"
           Invoke-WebRequest -Uri https://aveen.se/yk/cmdline.c -OutFile tool/cmdline.c
           Invoke-WebRequest -Uri https://aveen.se/yk/cmdline.h -OutFile tool/cmdline.h
-          ls
-
-          cd ..
-          mkdir gengetopt; cd gengetopt
-          Invoke-WebRequest -Uri https://aveen.se/yk/gengetopt.zip -OutFile gengetopt.zip
-          ls
-          pwd
 
       - name: build
         run: |
+          ls tool
+
           echo "$env:Path +=';C:/vcpkg/packages/openssl-windows_x86-windows'"
           $env:Path +=";C:/vcpkg/packages/openssl-windows_x86-windows"
-          $Env:PATH.Split(';')
 
           echo "mkdir cmake_build; cd cmake_build"
           mkdir cmake_build; cd cmake_build

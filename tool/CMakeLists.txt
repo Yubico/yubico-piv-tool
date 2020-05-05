@@ -33,9 +33,11 @@ find_libcrypto()
 include(${CMAKE_SOURCE_DIR}/cmake/pcscd.cmake)
 find_pcscd()
 
-include(${CMAKE_SOURCE_DIR}/cmake/gengetopt.cmake)
-find_gengetopt()
-add_gengetopt_files (cmdline)
+if(NOT WIN32)
+    include(${CMAKE_SOURCE_DIR}/cmake/gengetopt.cmake)
+    find_gengetopt()
+    add_gengetopt_files (cmdline)
+endif(NOT WIN32)
 
 set (
         SOURCE
