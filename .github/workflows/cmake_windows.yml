@@ -25,7 +25,7 @@ jobs:
 
       - name: build
         run: |
-          $env:Path +=";C:/vcpkg/packages/openssl-windows_x86-windows"
+          $env:Path +=";C:/vcpkg/packages/openssl-windows_x86-windows;C:/vcpkg/packages/getopt-win32_x86-windows"
 
           echo PATH
           $Env:path.Split(';')
@@ -38,8 +38,8 @@ jobs:
           echo "mkdir cmake_build; cd cmake_build"
           mkdir cmake_build; cd cmake_build
 
-          echo "cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON -DBACKEND=winscard -DGENGETOPT_PATH=C:/vcpkg/packages/getopt-win32_x86-windows .."
-          cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON -DBACKEND=winscard -DGENGETOPT_PATH=C:/vcpkg/packages/getopt-win32_x86-windows  ..
+          echo "cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON -DBACKEND=winscard .."
+          cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON -DBACKEND=winscard  ..
 
           echo cmake --build . -v
           cmake --build . -v
