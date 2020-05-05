@@ -55,6 +55,7 @@ endif()
 include_directories (
         ${CMAKE_CURRENT_SOURCE_DIR}/../lib
         ${CMAKE_CURRENT_SOURCE_DIR}
+        ${GETOPT_INCLUDE_DIR}
 )
 
 if (CMAKE_C_COMPILER_ID MATCHES Clang)
