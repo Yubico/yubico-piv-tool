@@ -28,11 +28,11 @@ jobs:
           $env:Path +=";C:/vcpkg/packages/openssl-windows_x86-windows"
 
           echo PATH
-          $Env:path:Split(';')
+          $Env:path.Split(';')
           echo LIB
-          $Env:lib:Split(';')
+          $Env:lib.Split(';')
           echo INCLUDE
-          $Env:include:Split(';')
+          $Env:include.Split(';')
 
 
           echo "mkdir cmake_build; cd cmake_build"
