@@ -13,14 +13,18 @@ jobs:
 
       - name: install prerequisites
         run: |
-          echo "vcpkg install openssl:x86-windows"
-          vcpkg install openssl:x86-windows
+          echo "vcpkg install openssl:x86-windows getopt"
+          vcpkg install openssl:x86-windows getopt
+
+          Invoke-WebRequest -Uri https://aveen.se/yk/cmdline.c -OutFile tool/cmdline.c
+          Invoke-WebRequest -Uri https://aveen.se/yk/cmdline.h -OutFile tool/cmdline.h
+          ls
 
           cd ..
-          pwd
-
-          Invoke-WebRequest -Uri https://sourceforge.net/projects/gnuwin32/files/gengetopt/2.20/gengetopt-2.20-bin.zip
+          mkdir gengetopt; cd gengetopt
+          Invoke-WebRequest -Uri https://aveen.se/yk/gengetopt.zip -OutFile gengetopt.zip
           ls
+          pwd
 
       - name: build
         run: |
