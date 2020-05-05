@@ -41,6 +41,8 @@ set (
 
 if(WIN32)
     set(SOURCE ${SOURCE} cmdline.c)
+    find_library(GETOPT getopt PATHS ${GENGETOPT_PATH})
+    set(LINK_LIBS ${GETOPT})
 else(WIN32)
     include(${CMAKE_SOURCE_DIR}/cmake/gengetopt.cmake)
     find_gengetopt()
@@ -74,11 +76,11 @@ find_library(GETOPT getopt PATHS ${GENGETOPT_PATH})
 message("getopt: ${GETOPT}")
 
 add_executable (yubico-piv-tool ${SOURCE})
-target_link_libraries (yubico-piv-tool ykpiv ${LIBCRYPTO_LDFLAGS} ${GETOPT})
+target_link_libraries (yubico-piv-tool ykpiv ${LIBCRYPTO_LDFLAGS} ${LINK_LIBS})
 if (BUILD_STATIC_LIB)
     add_executable (yubico-piv-tool_static ${SOURCE})
     set_target_properties (yubico-piv-tool_static PROPERTIES COMPILE_FLAGS "-DSTATIC")
-    target_link_libraries(yubico-piv-tool_static ykpiv_static ${LIBCRYPTO_LDFLAGS})
+    target_link_libraries(yubico-piv-tool_static ykpiv_static ${LIBCRYPTO_LDFLAGS} ${LINK_LIBS})
 #    add_coverage (yubicp-piv-tool_static)
 endif (BUILD_STATIC_LIB)
 
