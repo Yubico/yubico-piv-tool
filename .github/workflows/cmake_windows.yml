@@ -39,12 +39,8 @@ jobs:
           echo tool/Debug
           cd tool/Debug
 
-          echo cp getopt.dll libcrypto.dll
-          cp C:/vcpkg/packages/openssl-windows_x86-windows/bin/libcrypto-1_1.dll .
-          cp C:/vcpkg/packages/getopt-win32_x86-windows/bin/getopt.dll
-          ls
-
           echo "yubico-piv-tool.exe"
+          $env:Path +=";C:/vcpkg/packages/openssl-windows_x86-windows/bin;C:/vcpkg/packages/getopt-win32_x86-windows/bin"
           yubico-piv-tool.exe --version
 
 
