@@ -16,12 +16,17 @@ jobs:
           echo "vcpkg install openssl:x86-windows"
           vcpkg install openssl:x86-windows
 
-          echo choco list gengetopt
-          choco list gengetopt
+#          echo choco list gengetopt
+#          choco list gengetopt
 
           echo vcpkg search genetopt
           vcpkg search genetopt
 
+          cd ..
+          pwd
+
+          Invoke-WebRequest -Uri https://sourceforge.net/projects/gnuwin32/files/gengetopt/2.20/gengetopt-2.20-bin.zip
+          ls
 
       - name: build
         run: |
