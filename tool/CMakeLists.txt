@@ -74,7 +74,7 @@ find_library(GETOPT getopt PATHS ${GENGETOPT_PATH})
 message("getopt: ${GETOPT}")
 
 add_executable (yubico-piv-tool ${SOURCE})
-target_link_libraries (yubico-piv-tool ykpiv ${LIBCRYPTO_LDFLAGS})
+target_link_libraries (yubico-piv-tool ykpiv ${LIBCRYPTO_LDFLAGS} ${GETOPT})
 if (BUILD_STATIC_LIB)
     add_executable (yubico-piv-tool_static ${SOURCE})
     set_target_properties (yubico-piv-tool_static PROPERTIES COMPILE_FLAGS "-DSTATIC")
