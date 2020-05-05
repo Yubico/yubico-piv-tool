@@ -16,12 +16,6 @@ jobs:
           echo "vcpkg install openssl:x86-windows"
           vcpkg install openssl:x86-windows
 
-#          echo choco list gengetopt
-#          choco list gengetopt
-
-          echo vcpkg search genetopt
-          vcpkg search genetopt
-
           cd ..
           pwd
 
