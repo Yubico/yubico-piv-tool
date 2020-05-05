@@ -45,8 +45,6 @@ else(WIN32)
     include(${CMAKE_SOURCE_DIR}/cmake/gengetopt.cmake)
     find_gengetopt()
     add_gengetopt_files(cmdline)
-    add_definitions (-DPACKAGE="yubico-piv-tool")
-    add_definitions (-DVERSION="${yubico_piv_tool_VERSION_MAJOR}.${yubico_piv_tool_VERSION_MINOR}.${yubico_piv_tool_VERSION_PATCH}")
     set(SOURCE ${SOURCE} ${GGO_C})
 endif(WIN32)
 
