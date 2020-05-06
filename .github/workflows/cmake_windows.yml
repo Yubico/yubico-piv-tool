@@ -50,6 +50,8 @@ jobs:
 
       - name: build for x86 architecture
         run: |
+          pwd
+          ls
           $env:Path +=";C:/vcpkg/packages/openssl-windows_x86-windows"
 
           echo "mkdir cmake_build32; cd cmake_build32"
