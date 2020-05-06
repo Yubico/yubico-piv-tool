@@ -10,6 +10,7 @@ macro (find_libcrypto)
                 set(LIBCRYPTO_LIBRARIES ${LIBCRYPTO_LIBRARIES} ${OPENSSL_LIBRARIES})
 
                 if(VERBOSE_CMAKE)
+                    message("OpenSSL: ${OpenSSL}")
                     message("LIBCRYPTO_LDFLAGS: ${LIBCRYPTO_LDFLAGS}")
                     message("LIBCRYPTO_INCLUDE_DIRS: ${LIBCRYPTO_INCLUDE_DIRS}")
                     message("LIBCRYPTO_VERSION: ${LIBCRYPTO_VERSION}")
