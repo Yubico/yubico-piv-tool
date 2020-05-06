@@ -41,6 +41,7 @@ jobs:
 
           echo "yubico-piv-tool.exe"
           $env:Path +=";C:/vcpkg/packages/openssl-windows_x86-windows/bin;C:/vcpkg/packages/getopt-win32_x86-windows/bin"
+          cp ../../lib/Debug/ykpiv.dll .
           yubico-piv-tool.exe --version
 
 
