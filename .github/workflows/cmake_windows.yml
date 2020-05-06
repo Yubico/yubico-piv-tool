@@ -41,21 +41,6 @@ jobs:
         with:
           name: yubico-piv-tool-src
 
-      - name: command tests
-        run: |
-
-          echo "cd C:/vcpkg"
-          cd C:/vcpkg
-
-          dir
-
-          echo "cd C:/vcpkg/packages"
-          cd C:/vcpkg/packages
-
-          echo dir
-          dir
-
-
       - name: Extract source
         run: |
           echo "cd yubico-piv-tool-src"
@@ -68,6 +53,16 @@ jobs:
         run: |
           echo "vcpkg install openssl:x86-windows"
           vcpkg install openssl:x86-windows
+
+          echo ----------------------
+          mkdir tmp
+          cd tmp
+          echo "cp C:/vcpkg/packages/openssl-windows_x86-windows/bin/libcrypto-1_1.dll ."
+          cp C:/vcpkg/packages/openssl-windows_x86-windows/bin/libcrypto-1_1.dll .
+          dir
+          cd ..
+          rm -r tmp
+          echo ----------------------
 
           echo "vcpkg install getopt:x86-windows"
           vcpkg install getopt:x86-windows
