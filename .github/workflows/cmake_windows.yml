@@ -20,9 +20,12 @@ jobs:
           echo "vcpkg install openssl:x64-windows"
           vcpkg install openssl:x64-windows
 
+          echo "vcpkg install getopt:x64-windows"
+          vcpkg install getopt:x64-windows
+
       - name: build for x64 architecture
         run: |
-          $env:Path +=";C:/vcpkg/packages/openssl-windows_x64-windows"
+          $env:Path +=";C:/vcpkg/packages/openssl_x64-windows"
 
           echo "mkdir cmake_build64; cd cmake_build64"
           mkdir cmake_build64; cd cmake_build64
