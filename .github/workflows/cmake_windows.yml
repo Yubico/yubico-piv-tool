@@ -46,7 +46,10 @@ jobs:
           pwd
           echo "ls"
           ls
-
+          echo "cd yubico-piv-tool-src"
+          cd yubico-piv-tool-src
+          echo "ls"
+          ls
 #      - name: install prerequisites for x86 architecture
 #        run: |
 #          echo "vcpkg install openssl:x86-windows"
