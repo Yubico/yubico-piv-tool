@@ -94,6 +94,8 @@ jobs:
           echo "cmake --install ."
           cmake --install  .
 
+          dir
+
           echo "cp libcrypto.dll and getopt.dll"
 
           echo "cd final_install/bin"
