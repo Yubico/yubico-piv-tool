@@ -43,31 +43,10 @@ jobs:
 
       - name: command tests
         run: |
-          echo "mkdir -p tmp1"
-          mkdir -p tmp1
 
-          echo "mkdir -p tmp1/tmp2/tmp3"
-          mkdir -p tmp1/tmp2/tmp3
+          echo "cd C:/vcpkg"
+          cd C:/vcpkg
 
-          echo "cd tmp1"
-          cd tmp1
-
-          echo "echo test > test.txt"
-          echo test > test.txt
-
-          echo "dir"
-          dir
-
-          echo "cp test.txt tmp2/"
-          cp test.txt tmp2/
-
-          echo "cp test.txt tmp2/tmp3/"
-          cp test.txt tmp2/tmp3/
-
-          echo "cd tmp2/tmp3"
-          cd tmp2/tmp3
-
-          echo dir
           dir
 
           echo "cd C:/vcpkg/packages"
