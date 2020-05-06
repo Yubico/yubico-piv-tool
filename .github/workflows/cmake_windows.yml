@@ -95,9 +95,17 @@ jobs:
           cmake --install  .
 
           echo "cp libcrypto.dll and getopt.dll"
+
+          echo "final_install/bin"
           cd final_install/bin
-          cp C:/vcpkg/packages/openssl-windows_x86-windows/bin/libcrypto-1_1.dll .
+
+          echo "cp C:/vcpkg/packages/openssl-windows_x86-windows/bin/libcrypto-1_1.dll ."
+          cp 'C:/vcpkg/packages/openssl-windows_x86-windows/bin/libcrypto-1_1.dll' .
+
+          echo "cp C:/vcpkg/packages/getopt-win32_x86-windows/bin/getopt.dll ."
           cp C:/vcpkg/packages/getopt-win32_x86-windows/bin/getopt.dll .
+
+          echo dir
           dir
 
           echo "yubico-piv-tool.exe --version"
