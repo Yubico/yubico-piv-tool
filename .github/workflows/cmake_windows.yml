@@ -25,9 +25,10 @@ jobs:
 
       - name: build for x64 architecture
         run: |
+
           $env:Path +=";C:/vcpkg/packages/openssl_x64-windows/bin"
 
-          $Env:path.Split(';'):
+          $Env:Path.Split(';'):
 
           ls C:/vcpkg/packages/openssl_x64-windows/bin
 
