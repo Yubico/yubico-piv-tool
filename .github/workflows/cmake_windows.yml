@@ -50,8 +50,8 @@ jobs:
           cd yubico-piv-tool-src
           echo "ls"
           ls
-          echo "tar xfa yubico-piv-tool-src.tar.gz"
-          tar xfa yubico-piv-tool-src.tar.gz
+          echo "tar xf yubico-piv-tool-src.tar.gz"
+          tar xf yubico-piv-tool-src.tar.gz
           echo "cd yubico-piv-tool-src"
           cd yubico-piv-tool-src
           echo "ls"
