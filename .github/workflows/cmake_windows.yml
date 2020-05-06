@@ -11,27 +11,19 @@ jobs:
       - name: checkout
         uses: actions/checkout@v1
 
-      - name: install prerequisites
+      - name: build for x64 architecture
         run: |
-          echo "vcpkg install openssl:x86-windows getopt"
-          vcpkg install openssl:x86-windows getopt
+          $env:Path +=";C:\Strawberry"
+          $Env:path.Split(';')
 
-          echo "vcpkg install getopt"
-          vcpkg install getopt
+          echo "ls C:\Strawberry\bin"
+          ls C:/Strawberry/bin
 
-          echo "wget cmdline.c cmdline.h"
-          Invoke-WebRequest -Uri https://aveen.se/yk/cmdline.c -OutFile tool/cmdline.c
-          Invoke-WebRequest -Uri https://aveen.se/yk/cmdline.h -OutFile tool/cmdline.h
+          echo "mkdir cmake_build64; cd cmake_build64"
+          mkdir cmake_build64; cd cmake_build64
 
-      - name: build
-        run: |
-          $env:Path +=";C:/vcpkg/packages/openssl-windows_x86-windows"
-
-          echo "mkdir cmake_build; cd cmake_build"
-          mkdir cmake_build; cd cmake_build
-
-          echo "cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DGENGETOPT_PATH=C:/vcpkg/packages/getopt-win32_x86-windows/lib .."
-          cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DGENGETOPT_PATH=C:/vcpkg/packages/getopt-win32_x86-windows/lib ..
+          echo "cmake -A Win64 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard .."
+          cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard ..
 
           echo cmake --build . -v
           cmake --build . -v
@@ -39,10 +31,44 @@ jobs:
           echo tool/Debug
           cd tool/Debug
 
-          echo "yubico-piv-tool.exe"
+          echo "yubico-piv-tool.exe --version"
           $env:Path +=";C:/vcpkg/packages/openssl-windows_x86-windows/bin;C:/vcpkg/packages/getopt-win32_x86-windows/bin"
-          cp ../../lib/Debug/ykpiv.dll .
+          cp ../../lib/Debug/ykpiv.* .
           yubico-piv-tool.exe --version
+
+
+#      - name: install prerequisites for x86 architecture
+#        run: |
+#          echo "vcpkg install openssl:x86-windows getopt"
+#          vcpkg install openssl:x86-windows getopt
+
+#          echo "vcpkg install getopt"
+#          vcpkg install getopt
+
+#          echo "wget cmdline.c cmdline.h"
+#          Invoke-WebRequest -Uri https://aveen.se/yk/cmdline.c -OutFile tool/cmdline.c
+#          Invoke-WebRequest -Uri https://aveen.se/yk/cmdline.h -OutFile tool/cmdline.h
+
+#      - name: build for x86 architecture
+#        run: |
+#          $env:Path +=";C:/vcpkg/packages/openssl-windows_x86-windows"
+
+#          echo "mkdir cmake_build32; cd cmake_build32"
+#          mkdir cmake_build32; cd cmake_build32
+
+#          echo "cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DGENGETOPT_PATH=C:/vcpkg/packages/getopt-win32_x86-windows/lib .."
+#          cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DGENGETOPT_PATH=C:/vcpkg/packages/getopt-win32_x86-windows/lib ..
+
+#          echo cmake --build . -v
+#          cmake --build . -v
+
+#          echo tool/Debug
+#          cd tool/Debug
+
+#          echo "yubico-piv-tool.exe --version"
+#          $env:Path +=";C:/vcpkg/packages/openssl-windows_x86-windows/bin;C:/vcpkg/packages/getopt-win32_x86-windows/bin"
+#          cp ../../lib/Debug/ykpiv.* .
+#          yubico-piv-tool.exe --version
 
 
 
