@@ -40,6 +40,8 @@ set (
 )
 
 if(WIN32)
+    add_definitions (-DPACKAGE="yubico-piv-tool")
+    add_definitions (-DVERSION="${yubico_piv_tool_VERSION_MAJOR}.${yubico_piv_tool_VERSION_MINOR}.${yubico_piv_tool_VERSION_PATCH}")
     set(SOURCE ${SOURCE} cmdline.c)
     find_library(GETOPT getopt PATHS ${GENGETOPT_PATH})
     set(LINK_LIBS ${GETOPT})
