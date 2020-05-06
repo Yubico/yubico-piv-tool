@@ -95,7 +95,7 @@ jobs:
           cmake --install  .
 
           dir
-          
+
           echo "cd final_install/bin"
           cd final_install/bin
           dir
@@ -109,4 +109,4 @@ jobs:
           dir
 
           echo "yubico-piv-tool.exe --version"
-          yubico-piv-tool.exe --version
+          .\yubico-piv-tool.exe --version
