@@ -40,33 +40,38 @@ jobs:
         with:
           name: yubico-piv-tool-src
 
-      - name: install prerequisites for x86 architecture
+      - name: orientation
         run: |
-          echo "vcpkg install openssl:x86-windows"
-          vcpkg install openssl:x86-windows
-
-          echo "vcpkg install getopt"
-          vcpkg install getopt
-
-      - name: build for x86 architecture
-        run: |
+          echo "pwd"
           pwd
+          echo "ls"
           ls
-          $env:Path +=";C:/vcpkg/packages/openssl-windows_x86-windows"
 
-          echo "mkdir cmake_build32; cd cmake_build32"
-          mkdir cmake_build32; cd cmake_build32
+#      - name: install prerequisites for x86 architecture
+#        run: |
+#          echo "vcpkg install openssl:x86-windows"
+#          vcpkg install openssl:x86-windows
 
-          echo "cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DGENGETOPT_PATH=C:/vcpkg/packages/getopt-win32_x86-windows/lib .."
-          cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DGENGETOPT_PATH=C:/vcpkg/packages/getopt-win32_x86-windows/lib ..
+#          echo "vcpkg install getopt"
+#          vcpkg install getopt
 
-          echo cmake --build . -v
-          cmake --build . -v
+#      - name: build for x86 architecture
+#        run: |
+#          $env:Path +=";C:/vcpkg/packages/openssl-windows_x86-windows"
 
-          echo tool/Debug
-          cd tool/Debug
+#          echo "mkdir cmake_build32; cd cmake_build32"
+#          mkdir cmake_build32; cd cmake_build32
 
-          echo "yubico-piv-tool.exe --version"
-          $env:Path +=";C:/vcpkg/packages/openssl-windows_x86-windows/bin;C:/vcpkg/packages/getopt-win32_x86-windows/bin"
-          cp ../../lib/Debug/ykpiv.* .
-          yubico-piv-tool.exe --version
+#          echo "cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DGENGETOPT_PATH=C:/vcpkg/packages/getopt-win32_x86-windows/lib .."
+#          cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DGENGETOPT_PATH=C:/vcpkg/packages/getopt-win32_x86-windows/lib ..
+
+#          echo cmake --build . -v
+#          cmake --build . -v
+
+#          echo tool/Debug
+#          cd tool/Debug
+
+#          echo "yubico-piv-tool.exe --version"
+#          $env:Path +=";C:/vcpkg/packages/openssl-windows_x86-windows/bin;C:/vcpkg/packages/getopt-win32_x86-windows/bin"
+#          cp ../../lib/Debug/ykpiv.* .
+#          yubico-piv-tool.exe --version
