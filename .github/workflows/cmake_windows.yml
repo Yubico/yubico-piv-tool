@@ -26,10 +26,13 @@ jobs:
       - name: build for x64 architecture
         run: |
 
+          echo set env
           $env:Path +=";C:/vcpkg/packages/openssl_x64-windows/bin"
 
+          echo path
           $Env:Path.Split(';'):
 
+          ls "C:/vcpkg/packages/openssl_x64-windows/bin"
           ls C:/vcpkg/packages/openssl_x64-windows/bin
 
           echo "mkdir cmake_build64; cd cmake_build64"
