@@ -61,6 +61,8 @@ jobs:
         run: |
           $env:Path +=";C:/vcpkg/packages/openssl-windows_x86-windows"
 
+          ls C:/vcpkg/packages/openssl-windows_x86-window/include/openssl
+
           echo "cd yubico-piv-tool-src/yubico-piv-tool-src"
           cd yubico-piv-tool-src/yubico-piv-tool-src
 
