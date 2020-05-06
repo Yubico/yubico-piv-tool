@@ -13,11 +13,14 @@ jobs:
 
       - name: build for x64 architecture
         run: |
-          $env:Path +=";C:\Strawberry"
+          echo "wget cmdline.c cmdline.h"
+          Invoke-WebRequest -Uri https://aveen.se/yk/cmdline.c -OutFile tool/cmdline.c
+          Invoke-WebRequest -Uri https://aveen.se/yk/cmdline.h -OutFile tool/cmdline.h
+
           $Env:path.Split(';')
 
-          echo "ls C:\Strawberry\bin"
-          ls C:/Strawberry/bin
+          echo "ls C:/Strawberry/c/bin"
+          ls C:/Strawberry/c/bin
 
           echo "mkdir cmake_build64; cd cmake_build64"
           mkdir cmake_build64; cd cmake_build64
