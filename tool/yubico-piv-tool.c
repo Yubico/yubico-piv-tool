@@ -41,6 +41,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <openssl/applink.c>
 #endif
 
 #include "openssl-compat.h"
