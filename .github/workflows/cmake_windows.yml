@@ -85,8 +85,8 @@ jobs:
           echo "rm -r cmake_build32; mkdir cmake_build32; cd cmake_build32"
           rm -r cmake_build32; mkdir cmake_build32; cd cmake_build32
 
-          echo "cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DGENGETOPT_PATH=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DCMAKE_INSTALL_PREFIX=D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\win_build32\final_install .."
-          cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DGENGETOPT_PATH=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DCMAKE_INSTALL_PREFIX=D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\win_build32\final_install ..
+          echo "cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DGENGETOPT_PATH=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DCMAKE_INSTALL_PREFIX=D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\cmake_build32\final_install .."
+          cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DGENGETOPT_PATH=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DCMAKE_INSTALL_PREFIX=D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\cmake_build32\final_install ..
 
           echo "cmake --build . --config Release"
           cmake --build . --config Release
@@ -99,9 +99,6 @@ jobs:
           echo "cp libcrypto.dll and getopt.dll"
 
           echo "cd final_install/bin"
-          cd final_install
-          dir
-          cd bin
           dir
 
           echo "cp C:/vcpkg/packages/openssl-windows_x86-windows/bin/libcrypto-1_1.dll ."
@@ -110,7 +107,6 @@ jobs:
           echo "cp C:/vcpkg/packages/getopt-win32_x86-windows/bin/getopt.dll ."
           cp C:/vcpkg/packages/getopt-win32_x86-windows/bin/getopt.dll .
 
-          echo dir
           dir
 
           echo "yubico-piv-tool.exe --version"
