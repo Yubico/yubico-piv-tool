@@ -54,15 +54,15 @@ jobs:
           echo "vcpkg install openssl:x86-windows"
           vcpkg install openssl:x86-windows
 
-          echo ----------------------
-          mkdir tmp
-          cd tmp
-          echo "cp C:/vcpkg/packages/openssl-windows_x86-windows/bin/libcrypto-1_1.dll ."
-          cp C:/vcpkg/packages/openssl-windows_x86-windows/bin/libcrypto-1_1.dll .
-          dir
-          cd ..
-          rm -r tmp
-          echo ----------------------
+#          echo ----------------------
+#          mkdir tmp
+#          cd tmp
+#          echo "cp C:/vcpkg/packages/openssl-windows_x86-windows/bin/libcrypto-1_1.dll ."
+#          cp C:/vcpkg/packages/openssl-windows_x86-windows/bin/libcrypto-1_1.dll .
+#          dir
+#          cd ..
+#          rm -r tmp
+#          echo ----------------------
 
           echo "vcpkg install getopt:x86-windows"
           vcpkg install getopt:x86-windows
