@@ -29,7 +29,7 @@ jobs:
 
           cd ..
           rm -r cmake_build
-          tar --exclude .git --transform="s/^\./yubico-piv-tool-src/" -czf yubico-piv-tool-src.tar.gz .
+          tar --exclude .git --transform="s/^\./yubico-piv-tool-src/" -czf ../yubico-piv-tool-src.tar.gz .
 
           cd ..
           mkdir artifact
