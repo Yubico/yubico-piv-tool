@@ -57,11 +57,14 @@ jobs:
           echo "vcpkg install getopt"
           vcpkg install getopt
 
+          echo listing openssl includes
+          cd 'C:\vcpkg\packages\openssl-windows_x86-window\include\openssl'
+          ls
+
       - name: build for x86 architecture
         run: |
           $env:Path +=";C:/vcpkg/packages/openssl-windows_x86-windows"
 
-          ls 'C:\vcpkg\packages\openssl-windows_x86-window\include\openssl'
 
           echo "cd yubico-piv-tool-src/yubico-piv-tool-src"
           cd yubico-piv-tool-src/yubico-piv-tool-src
