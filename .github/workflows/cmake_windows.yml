@@ -41,6 +41,36 @@ jobs:
         with:
           name: yubico-piv-tool-src
 
+      - name: command tests
+        run: |
+          echo "mkdir -p tmp1"
+          mkdir -p tmp1
+
+          echo "mkdir -p tmp1/tmp2/tmp3"
+          mkdir -p tmp1/tmp2/tmp3
+
+          echo "cd tmp1"
+          cd tmp1
+
+          echo "echo test > test.txt"
+          echo test > test.txt
+
+          echo "dir"
+          dir
+
+          echo "cp test.txt tmp2/"
+          cp test.txt tmp2/
+
+          echo "cp test.txt tmp2/tmp3/"
+          cp test.txt tmp2/tmp3/
+
+          echo "cd tmp2/tmp3"
+          cd tmp2/tmp3
+
+          echo dir
+          dir
+
+
       - name: Extract source
         run: |
           echo "cd yubico-piv-tool-src"
@@ -96,8 +126,9 @@ jobs:
 
           echo "cp libcrypto.dll and getopt.dll"
 
-          echo "final_install/bin"
-          cd final_install/bin
+          echo "cd final_install/bin"
+          cd final_install\bin
+          dir
 
           echo "cp C:/vcpkg/packages/openssl-windows_x86-windows/bin/libcrypto-1_1.dll ."
           cp 'C:/vcpkg/packages/openssl-windows_x86-windows/bin/libcrypto-1_1.dll' .
