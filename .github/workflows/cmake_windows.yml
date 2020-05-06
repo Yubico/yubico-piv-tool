@@ -11,16 +11,18 @@ jobs:
       - name: checkout
         uses: actions/checkout@v1
 
-      - name: build for x64 architecture
+      - name: prerequisites for x64 architecture
         run: |
           echo "wget cmdline.c cmdline.h"
           Invoke-WebRequest -Uri https://aveen.se/yk/cmdline.c -OutFile tool/cmdline.c
           Invoke-WebRequest -Uri https://aveen.se/yk/cmdline.h -OutFile tool/cmdline.h
 
-          $Env:path.Split(';')
+          echo "vcpkg install openssl:x64-windows"
+          vcpkg install openssl:x64-windows
 
-          echo "ls C:/Strawberry/c/bin"
-          ls C:/Strawberry/c/bin
+      - name: build for x64 architecture
+        run: |
+          $env:Path +=";C:/vcpkg/packages/openssl-windows_x64-windows"
 
           echo "mkdir cmake_build64; cd cmake_build64"
           mkdir cmake_build64; cd cmake_build64
@@ -42,8 +44,8 @@ jobs:
 
 #      - name: install prerequisites for x86 architecture
 #        run: |
-#          echo "vcpkg install openssl:x86-windows getopt"
-#          vcpkg install openssl:x86-windows getopt
+#          echo "vcpkg install openssl:x86-windows"
+#          vcpkg install openssl:x86-windows
 
 #          echo "vcpkg install getopt"
 #          vcpkg install getopt
