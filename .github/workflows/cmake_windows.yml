@@ -59,7 +59,7 @@ jobs:
 
       - name: build for x86 architecture
         run: |
-          $env:Path +=";C:/vcpkg/packages/openssl-windows_x86-windows"
+          $env:Path ="C:/vcpkg/packages/openssl-windows_x86-windows;$env:Path"
           $env:include ="C:/vcpkg/packages/openssl-windows_x86-windows/include;$env:include"
 
           echo "cd yubico-piv-tool-src/yubico-piv-tool-src"
@@ -76,7 +76,7 @@ jobs:
 
       - name: build and install for x86 architecture
         run: |
-          $env:Path +=";C:/vcpkg/packages/openssl-windows_x86-windows"
+          $env:Path ="C:/vcpkg/packages/openssl-windows_x86-windows;$env:Path"
           $env:include ="C:/vcpkg/packages/openssl-windows_x86-windows/include;$env:include"
 
           echo "cd yubico-piv-tool-src/yubico-piv-tool-src"
@@ -94,11 +94,8 @@ jobs:
           echo "cmake --install ."
           cmake --install  .
 
-          dir
-
           echo "cd final_install/bin"
           cd final_install/bin
-          dir
 
           echo "cp C:/vcpkg/packages/openssl-windows_x86-windows/bin/libcrypto-1_1.dll ."
           cp 'C:/vcpkg/packages/openssl-windows_x86-windows/bin/libcrypto-1_1.dll' .
@@ -106,7 +103,80 @@ jobs:
           echo "cp C:/vcpkg/packages/getopt-win32_x86-windows/bin/getopt.dll ."
           cp C:/vcpkg/packages/getopt-win32_x86-windows/bin/getopt.dll .
 
-          dir
+          echo "yubico-piv-tool.exe --version"
+          .\yubico-piv-tool.exe --version
+
+  job_3:
+    name: Build Windows x64
+    needs: job_1
+    runs-on: windows-latest
+    steps:
+      - name: Download source from job_1
+        uses: actions/download-artifact@v1
+        with:
+          name: yubico-piv-tool-src
+
+      - name: Extract source
+        run: |
+          echo "cd yubico-piv-tool-src"
+          cd yubico-piv-tool-src
+
+          echo "tar xf yubico-piv-tool-src.tar.gz"
+          tar xf yubico-piv-tool-src.tar.gz
+
+      - name: install prerequisites for x64 architecture
+        run: |
+          echo "vcpkg install openssl:x64-windows"
+          vcpkg install openssl:x64-windows
+
+          echo "vcpkg install getopt:x64-windows"
+          vcpkg install getopt:x64-windows
+
+      - name: build for x64 architecture
+        run: |
+          $env:Path ="C:/vcpkg/packages/openssl-windows_x64-windows;$env:Path"
+          $env:include ="C:/vcpkg/packages/openssl-windows_x64-windows/include;$env:include"
+
+          echo "cd yubico-piv-tool-src/yubico-piv-tool-src"
+          cd yubico-piv-tool-src/yubico-piv-tool-src
+
+          echo "mkdir cmake_build; cd cmake_build"
+          mkdir cmake_build; cd cmake_build
+
+          echo "cmake -A x64 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard .."
+          cmake -A x64 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard ..
+
+          echo cmake --build . -v
+          cmake --build . -v
+
+      - name: build and install for x64 architecture
+        run: |
+          $env:Path ="C:/vcpkg/packages/openssl-windows_x64-windows;$env:Path"
+          $env:include ="C:/vcpkg/packages/openssl-windows_x64-windows/include;$env:include"
+
+          echo "cd yubico-piv-tool-src/yubico-piv-tool-src"
+          cd yubico-piv-tool-src/yubico-piv-tool-src
+
+          echo "rm -r cmake_build; mkdir cmake_build; cd cmake_build"
+          rm -r cmake_build; mkdir cmake_build; cd cmake_build
+
+          echo "cmake -A x64 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard -DCMAKE_INSTALL_PREFIX=D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\cmake_build\final_install .."
+          cmake -A x64 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard -DCMAKE_INSTALL_PREFIX=D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\cmake_build\final_install ..
+
+          echo "cmake --build . --config Release"
+          cmake --build . --config Release
+
+          echo "cmake --install ."
+          cmake --install  .
+
+          echo "cd final_install/bin"
+          cd final_install/bin
+
+          echo "cp C:/vcpkg/packages/openssl-windows_x64-windows/bin/libcrypto-1_1-x64.dll ."
+          cp 'C:/vcpkg/packages/openssl-windows_x64-windows/bin/libcrypto-1_1-x64.dll' .
+
+          echo "cp C:/vcpkg/packages/getopt-win32_x64-windows/bin/getopt.dll ."
+          cp C:/vcpkg/packages/getopt-win32_x64-windows/bin/getopt.dll .
 
           echo "yubico-piv-tool.exe --version"
           .\yubico-piv-tool.exe --version
