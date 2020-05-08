@@ -146,8 +146,8 @@ jobs:
 
           $env:OPENSSL_ROOT_DIR ="C:\vcpkg\packages\openssl-windows_x64-windows"
 
-          echo "cmake -A x64 -DVERBOSE_CMAKE=ON -DBACKEND=winscard .."
-          cmake -A x64 -DVERBOSE_CMAKE=ON -DBACKEND=winscard ..
+          echo "cmake -A x64 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DGENGETOPT_PATH=C:/vcpkg/packages/getopt-win32_x64-windows/lib .."
+          cmake -A x64 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DGENGETOPT_PATH=C:/vcpkg/packages/getopt-win32_x64-windows/lib ..
 
           echo cmake --build . -v
           cmake --build . -v
