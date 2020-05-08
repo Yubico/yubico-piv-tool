@@ -143,6 +143,8 @@ jobs:
           echo "mkdir cmake_build; cd cmake_build"
           mkdir cmake_build; cd cmake_build
 
+          $env:OPENSSL_ROOT_DIR ="C:/vcpkg/packages/openssl-windows_x64-windows"
+
           echo "cmake -A x64 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake .."
           cmake -A x64 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake ..
 
