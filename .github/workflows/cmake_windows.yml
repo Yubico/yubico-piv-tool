@@ -154,20 +154,19 @@ jobs:
 
       - name: build and install for x64 architecture
         run: |
-          $env:Path ="C:/vcpkg/packages/openssl-windows_x64-windows;$env:Path"
-          $env:include ="C:/vcpkg/packages/openssl-windows_x64-windows/include;$env:include"
-
           echo "cd yubico-piv-tool-src/yubico-piv-tool-src"
           cd yubico-piv-tool-src/yubico-piv-tool-src
 
           echo "rm -r cmake_build; mkdir cmake_build; cd cmake_build"
           rm -r cmake_build; mkdir cmake_build; cd cmake_build
 
-          echo "cmake -A x64 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard -DCMAKE_INSTALL_PREFIX=D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\cmake_build\final_install .."
-          cmake -A x64 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard -DCMAKE_INSTALL_PREFIX=D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\cmake_build\final_install ..
+          $env:OPENSSL_ROOT_DIR ="C:\vcpkg\packages\openssl-windows_x64-windows"
 
-          echo "cmake --build . --config Release"
-          cmake --build . --config Release
+          echo "cmake -A x64 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard -DCMAKE_INSTALL_PREFIX=D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\cmake_build\final_install -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DGENGETOPT_PATH=C:/vcpkg/packages/getopt-win32_x64-windows/lib .."
+          cmake -A x64 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard -DCMAKE_INSTALL_PREFIX=D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\cmake_build\final_install -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DGENGETOPT_PATH=C:/vcpkg/packages/getopt-win32_x64-windows/lib ..
+
+          echo "cmake --build . -v --config Release"
+          cmake --build . -v --config Release
 
           echo "cmake --install ."
           cmake --install  .
