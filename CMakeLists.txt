@@ -56,9 +56,6 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
         set(_WIN32 1)
     else("${CMAKE_GENERATOR_PLATFORM}" STREQUAL "Win32")
         message("win64")
-        unset(WIN32)
-        message("        CFLAGS:           ${CMAKE_C_FLAGS}")
-        message("        CPPFLAGS:         ${CMAKE_CXX_FLAGS}")
     endif("${CMAKE_GENERATOR_PLATFORM}" STREQUAL "Win32")
 
     #[[set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-use-linker-plugin -static-libgcc")
@@ -165,7 +162,6 @@ add_custom_target (
 )
 
 #coverage_evaluate()
-
 
 message("Summary of build options:")
 message("")
