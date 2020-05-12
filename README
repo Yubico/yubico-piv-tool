@@ -56,8 +56,8 @@ steps below.
 Please make sure to have recent versions of the following packages 
 installed on your system. 
 
-  autoconf automake libtool libssl pkg-config check libpcsc gengetopt 
-  help2man
+  autoconf automake libtool libssl-dev pkg-config check libpcsclite-dev \
+  gengetopt help2man make
 
 Help2man is used to generate the manpages.  
 Gengetopt version 2.22.6 or later is needed for command line parameter 
