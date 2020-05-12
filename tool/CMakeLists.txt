@@ -43,8 +43,9 @@ if(WIN32)
     add_definitions (-DPACKAGE="yubico-piv-tool")
     add_definitions (-DVERSION="${yubico_piv_tool_VERSION_MAJOR}.${yubico_piv_tool_VERSION_MINOR}.${yubico_piv_tool_VERSION_PATCH}")
     set(SOURCE ${SOURCE} cmdline.c)
-    find_library(GETOPT getopt PATHS ${GENGETOPT_PATH})
-    set(LINK_LIBS ${GETOPT})
+    find_library(GETOPT getopt PATHS ${GETOPT_LIB_DIR})
+    set(LINK_LIBS_WIN ${GETOPT})
+    include_directories(${GETOPT_INCLUDE_DIR})
 else(WIN32)
     include(${CMAKE_SOURCE_DIR}/cmake/gengetopt.cmake)
     find_gengetopt()
@@ -59,7 +60,6 @@ endif()
 include_directories (
         ${CMAKE_CURRENT_SOURCE_DIR}/../lib
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${GETOPT_INCLUDE_DIR}
 )
 
 if (CMAKE_C_COMPILER_ID MATCHES Clang)
@@ -70,19 +70,12 @@ endif ()
 
 list(APPEND LCOV_REMOVE_PATTERNS "'${PROJECT_SOURCE_DIR}/tool/cmdline.c'")
 
-set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${OPENSSL_LIB_PATH})
-#find_package(OpenSSL)
-#set (LIBCRYPTO_LDFLAGS OpenSSL::Crypto)
-
-find_library(GETOPT getopt PATHS ${GENGETOPT_PATH})
-message("getopt: ${GETOPT}")
-
 add_executable (yubico-piv-tool ${SOURCE})
-target_link_libraries (yubico-piv-tool ykpiv ${LIBCRYPTO_LDFLAGS} ${LINK_LIBS})
+target_link_libraries (yubico-piv-tool ykpiv ${LIBCRYPTO_LDFLAGS} ${LINK_LIBS_WIN})
 if (BUILD_STATIC_LIB)
     add_executable (yubico-piv-tool_static ${SOURCE})
     set_target_properties (yubico-piv-tool_static PROPERTIES COMPILE_FLAGS "-DSTATIC")
-    target_link_libraries(yubico-piv-tool_static ykpiv_static ${LIBCRYPTO_LDFLAGS} ${LINK_LIBS})
+    target_link_libraries(yubico-piv-tool_static ykpiv_static ${LIBCRYPTO_LDFLAGS} ${LINK_LIBS_WIN})
 #    add_coverage (yubicp-piv-tool_static)
 endif (BUILD_STATIC_LIB)
 

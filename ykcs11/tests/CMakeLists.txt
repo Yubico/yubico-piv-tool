@@ -33,12 +33,16 @@ find_check()
 if(NOT DEFINED SKIP_TESTS)
     if(ENABLE_HARDWARE_TESTS)
         find_program (BASH_PROGRAM bash)
-        add_test(
-            NAME reset_tests
-            COMMAND ${BASH_PROGRAM} ${CMAKE_CURRENT_SOURCE_DIR}/reset.sh
-        )
-        set_property(TEST reset_tests APPEND PROPERTY ENVIRONMENT "EXEEXT=${CMAKE_EXECUTABLE_SUFFIX}")
-        set_property(TEST reset_tests APPEND PROPERTY ENVIRONMENT "YKPIV_ENV_HWTESTS_CONFIRMED=${HW_TESTS}")
+        if(BASH_PROGRAM_FOUND)
+            add_test(
+                NAME reset_tests
+                COMMAND ${BASH_PROGRAM} ${CMAKE_CURRENT_SOURCE_DIR}/reset.sh
+            )
+            set_property(TEST reset_tests APPEND PROPERTY ENVIRONMENT "EXEEXT=${CMAKE_EXECUTABLE_SUFFIX}")
+            set_property(TEST reset_tests APPEND PROPERTY ENVIRONMENT "YKPIV_ENV_HWTESTS_CONFIRMED=${HW_TESTS}")
+        else(BASH_PROGRAM_FOUND)
+            message("Cannot find 'bash'. Skipping basic tests...")
+        endif(BASH_PROGRAM_FOUND)
     endif(ENABLE_HARDWARE_TESTS)
 
     set(SOURCE_YKCS11_TESTS ykcs11_tests.c ykcs11_tests_util.c

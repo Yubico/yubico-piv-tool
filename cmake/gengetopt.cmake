@@ -18,7 +18,7 @@ macro (add_gengetopt_files _basename)
     set (_ggo_g ${CMAKE_CURRENT_SOURCE_DIR}/${_basename}.ggo)
 
     execute_process(
-            COMMAND gengetopt --conf-parser -i ${_ggo_g} --output-dir ${CMAKE_CURRENT_SOURCE_DIR}
+            COMMAND gengetopt -i ${_ggo_g} --output-dir ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
     #add_custom_target(my_target

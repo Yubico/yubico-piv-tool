@@ -15,8 +15,7 @@ set(YKCS11_DBG "1" CACHE STRING "Enable/disable YKCS11 debug messages. Possible 
 set(BACKEND "check" CACHE STRING "use specific backend/linkage; 'pcsc', 'macscard' or'winscard'")
 set(PCSC_LIB "" CACHE STRING "Name of custom PCSC lib")
 set(PCSC_DIR "" CACHE STRING "Path to custom PCSC lib dir (use with PCSC_LIB")
-set(OPENSSL_DIR "" CACHE STRING "Path to look for OpenSSL libraries")
-set(GENGETOPT_PATH "" CACHE STRING "Path to look for gengetopt program")
+set(GETOPT_LIB_DIR "" CACHE STRING "Path to look for getopt libraries")
 set(GETOPT_INCLUDE_DIR "" CACHE STRING "Path to look for getopt.h file")
 set(CHECK_PATH "" CACHE STRING "Path to look for 'check', the test framework for C. If 'check' is not found, tests are skipped")
 
