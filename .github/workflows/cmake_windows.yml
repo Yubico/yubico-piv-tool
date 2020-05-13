@@ -101,8 +101,8 @@ jobs:
           echo "cmake --install ."
           cmake --install  .
 
-          echo "cd D:\a\yubico-piv-tool\final_install"
-          cd 'D:\a\yubico-piv-tool\final_install'
+          echo "cd D:\a\yubico-piv-tool\final_install\bin"
+          cd 'D:\a\yubico-piv-tool\final_install\bin'
 
           echo "cp C:/vcpkg/packages/openssl-windows_x86-windows/bin/libcrypto-1_1.dll ."
           cp 'C:/vcpkg/packages/openssl-windows_x86-windows/bin/libcrypto-1_1.dll' .
@@ -185,8 +185,8 @@ jobs:
           echo "cmake --install ."
           cmake --install  .
 
-          echo "cd D:\a\yubico-piv-tool\final_install"
-          cd 'D:\a\yubico-piv-tool\final_install'
+          echo "cd D:\a\yubico-piv-tool\final_install\bin"
+          cd 'D:\a\yubico-piv-tool\final_install\bin'
 
           echo "cp C:/vcpkg/packages/openssl-windows_x64-windows/bin/libcrypto-1_1-x64.dll ."
           cp 'C:/vcpkg/packages/openssl-windows_x64-windows/bin/libcrypto-1_1-x64.dll' .
