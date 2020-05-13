@@ -83,14 +83,6 @@ extern "C"
 #define YKPIV_VERSION_PATCH @YKPIV_VERSION_PATCH@
 
     /**
-     * _WINDOWS
-     *
-     * Pre-processor symbol that describes the system.
-     */
-#cmakedefine _WINDOWS @_WINDOWS@
-
-
-    /**
      * _WIN32
      *
      * Pre-processor symbol that describes the Windows system architecture.

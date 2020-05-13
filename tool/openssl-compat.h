@@ -10,8 +10,6 @@
 #ifndef LIBCRYPTO_COMPAT_H
 #define LIBCRYPTO_COMPAT_H
 
-#ifndef _WINDOWS
-
 #include <openssl/opensslv.h>
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
 
@@ -68,6 +66,5 @@ int RSA_padding_check_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
 
 #endif
 
-#endif /* _WINDOWS */
 #endif /* OPENSSL_VERSION_NUMBER || LIBRESSL_VERSION_NUMBER */
 #endif /* LIBCRYPTO_COMPAT_H */

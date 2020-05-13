@@ -34,10 +34,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-//#include <unistd.h>
 
 #include "util.h"
-#include "../../lib/ykpiv-config.h"
 
 #ifdef _WIN32
 #include <openssl/applink.c>

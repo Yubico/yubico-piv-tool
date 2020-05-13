@@ -282,10 +282,11 @@ EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   EVP_PKEY       *evp;
   EC_KEY         *eck;
   const BIGNUM   *bn;
-  CK_CHAR        pvt[key_len];
   X509           *cert;
   ASN1_TIME      *tm;
   CK_BYTE        i, j;
+  CK_CHAR        *pvt;
+  pvt = malloc(key_len);
 
   CK_ULONG    class_k = CKO_PRIVATE_KEY;
   CK_ULONG    class_c = CKO_CERTIFICATE;
@@ -364,7 +365,7 @@ EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   }
 
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
-
+  free(pvt);
   return eck;
 }
 
@@ -374,11 +375,13 @@ void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int k
   ASN1_TIME   *tm;
   CK_BYTE     i, j;
   CK_BYTE     e[] = {0x01, 0x00, 0x01};
-  CK_BYTE     p[keylen / 16];
-  CK_BYTE     q[keylen / 16];
-  CK_BYTE     dp[keylen / 16];
-  CK_BYTE     dq[keylen / 16];
-  CK_BYTE     qinv[keylen / 16];
+  CK_BYTE     *p, *q, *dp, *dq, *qinv;
+  p = malloc(keylen / 16);
+  q = malloc(keylen / 16);
+  dp = malloc(keylen / 16);
+  dq = malloc(keylen / 16);
+  qinv = malloc(keylen / 16);
+
   BIGNUM      *e_bn;
   CK_ULONG    class_k = CKO_PRIVATE_KEY;
   CK_ULONG    class_c = CKO_CERTIFICATE;
@@ -470,6 +473,11 @@ void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int k
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
 
   evp = X509_get_pubkey(cert);
+  free(p);
+  free(q);
+  free(dp);
+  free(dq);
+  free(qinv);
 }
 
 void generate_ec_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_BYTE n_keys,

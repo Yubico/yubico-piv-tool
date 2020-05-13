@@ -27,7 +27,7 @@
 
 message("ykcs11/tests/CMakeList.txt")
 
-include(${CMAKE_SOURCE_DIR}/cmake/check.cmake)
+include(check)
 find_check()
 
 if(NOT DEFINED SKIP_TESTS)

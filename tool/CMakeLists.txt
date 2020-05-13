@@ -37,7 +37,10 @@ set (
         SOURCE
         util.c
         yubico-piv-tool.c
+        openssl-compat.c
 )
+
+include_directories (${CMAKE_CURRENT_SOURCE_DIR}/../lib ${CMAKE_CURRENT_SOURCE_DIR})
 
 if(WIN32)
     add_definitions (-DPACKAGE="yubico-piv-tool")
@@ -52,10 +55,6 @@ else(WIN32)
     add_gengetopt_files(cmdline)
     set(SOURCE ${SOURCE} ${GGO_C})
 endif(WIN32)
-
-if(${OPENSSL_VERSION} VERSION_LESS 1.1.0)
-    set(SOURCE ${SOURCE} openssl-compat.c)
-endif()
 
 include_directories (
         ${CMAKE_CURRENT_SOURCE_DIR}/../lib

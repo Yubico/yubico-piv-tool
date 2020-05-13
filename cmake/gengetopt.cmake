@@ -1,6 +1,6 @@
 macro (find_gengetopt)
     if (NOT GENGETOPT_EXECUTABLE)
-        find_program (GENGETOPT_EXECUTABLE gengetopt ${GENGETOPT_PATH})
+        find_program (GENGETOPT_EXECUTABLE gengetopt)
         if (NOT GENGETOPT_EXECUTABLE)
             message (FATAL_ERROR "gengetopt not found. Aborting...")
         endif ()
@@ -18,12 +18,8 @@ macro (add_gengetopt_files _basename)
     set (_ggo_g ${CMAKE_CURRENT_SOURCE_DIR}/${_basename}.ggo)
 
     execute_process(
-            COMMAND gengetopt -i ${_ggo_g} --output-dir ${CMAKE_CURRENT_SOURCE_DIR}
+            COMMAND gengetopt --conf-parser -i ${_ggo_g} --output-dir ${CMAKE_CURRENT_SOURCE_DIR}
     )
-
-    #add_custom_target(my_target
-    #        ALL # Force target to be built with default build target.
-    #        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/utils.c)
 
     set (GGO_C ${_ggo_c})
     set (GGO_H ${_ggo_h})

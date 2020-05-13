@@ -1,6 +1,6 @@
 macro (find_libcrypto)
 
-    if(_WINDOWS)
+    if(WIN32)
         if(NOT OpenSSL_FOUND)
             find_package(OpenSSL REQUIRED)
             if(OpenSSL_FOUND)
@@ -21,7 +21,7 @@ macro (find_libcrypto)
             endif(OpenSSL_FOUND)
         endif(NOT OpenSSL_FOUND)
 
-    else(_WINDOWS)
+    else(WIN32)
 
         if(NOT OpenSSL_FOUND)
             if(OPENSSL_STATIC_LINK)
@@ -70,6 +70,6 @@ macro (find_libcrypto)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${LIBCRYPTO_CFLAGS}")
         link_directories(${LIBCRYPTO_LIBRARY_DIRS})
 
-     endif(_WINDOWS)
+     endif(WIN32)
 
 endmacro()

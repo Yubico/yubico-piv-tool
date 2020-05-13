@@ -31,7 +31,7 @@ else ()
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIE -pie")
 endif ()
 
-include(${CMAKE_SOURCE_DIR}/cmake/check.cmake)
+include(check)
 find_check()
 
 if(NOT DEFINED SKIP_TESTS)
