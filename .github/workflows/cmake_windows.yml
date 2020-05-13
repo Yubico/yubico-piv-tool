@@ -92,8 +92,8 @@ jobs:
           echo "rm -r build; mkdir build; cd build"
           rm -r build; mkdir build; cd build
 
-          echo "cmake -A Win32 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DCMAKE_INSTALL_PREFIX=D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\cmake_build32\final_install .."
-          cmake -A Win32 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DCMAKE_INSTALL_PREFIX=D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\cmake_build32\final_install ..
+          echo "cmake -A Win32 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DCMAKE_INSTALL_PREFIX=D:\a\yubico-piv-tool\final_install .."
+          cmake -A Win32 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DCMAKE_INSTALL_PREFIX=D:\a\yubico-piv-tool\final_install ..
 
           echo "cmake --build . --config Release"
           cmake --build . --config Release
@@ -101,8 +101,8 @@ jobs:
           echo "cmake --install ."
           cmake --install  .
 
-          echo "cd final_install/bin"
-          cd final_install/bin
+          echo "cd D:\a\yubico-piv-tool\final_install"
+          cd 'D:\a\yubico-piv-tool\final_install'
 
           echo "cp C:/vcpkg/packages/openssl-windows_x86-windows/bin/libcrypto-1_1.dll ."
           cp 'C:/vcpkg/packages/openssl-windows_x86-windows/bin/libcrypto-1_1.dll' .
@@ -176,8 +176,8 @@ jobs:
 
           $env:OPENSSL_ROOT_DIR ="C:\vcpkg\packages\openssl-windows_x64-windows"
 
-          echo "cmake -A x64 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DCMAKE_INSTALL_PREFIX=D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\cmake_build\final_install .."
-          cmake -A x64 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DCMAKE_INSTALL_PREFIX=D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\cmake_build\final_install ..
+          echo "cmake -A x64 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DCMAKE_INSTALL_PREFIX=D:\a\yubico-piv-tool\final_install .."
+          cmake -A x64 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DCMAKE_INSTALL_PREFIX=D:\a\yubico-piv-tool\final_install ..
 
           echo "cmake --build . -v --config Release"
           cmake --build . -v --config Release
@@ -185,8 +185,8 @@ jobs:
           echo "cmake --install ."
           cmake --install  .
 
-          echo "cd final_install/bin"
-          cd final_install/bin
+          echo "cd D:\a\yubico-piv-tool\final_install"
+          cd 'D:\a\yubico-piv-tool\final_install'
 
           echo "cp C:/vcpkg/packages/openssl-windows_x64-windows/bin/libcrypto-1_1-x64.dll ."
           cp 'C:/vcpkg/packages/openssl-windows_x64-windows/bin/libcrypto-1_1-x64.dll' .
