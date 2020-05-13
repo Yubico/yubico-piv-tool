@@ -92,8 +92,8 @@ jobs:
           echo "rm -r build; mkdir build; cd build"
           rm -r build; mkdir build; cd build
 
-          echo "cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DGENGETOPT_PATH=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DCMAKE_INSTALL_PREFIX=D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\cmake_build32\final_install .."
-          cmake -A Win32 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DGENGETOPT_PATH=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DCMAKE_INSTALL_PREFIX=D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\cmake_build32\final_install ..
+          echo "cmake -A Win32 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DCMAKE_INSTALL_PREFIX=D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\cmake_build32\final_install .."
+          cmake -A Win32 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DCMAKE_INSTALL_PREFIX=D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\cmake_build32\final_install ..
 
           echo "cmake --build . --config Release"
           cmake --build . --config Release
@@ -176,8 +176,8 @@ jobs:
 
           $env:OPENSSL_ROOT_DIR ="C:\vcpkg\packages\openssl-windows_x64-windows"
 
-          echo "cmake -A x64 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard -DCMAKE_INSTALL_PREFIX=D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\cmake_build\final_install -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DGENGETOPT_PATH=C:/vcpkg/packages/getopt-win32_x64-windows/lib .."
-          cmake -A x64 -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=OFF -DBACKEND=winscard -DCMAKE_INSTALL_PREFIX=D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\cmake_build\final_install -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DGENGETOPT_PATH=C:/vcpkg/packages/getopt-win32_x64-windows/lib ..
+          echo "cmake -A x64 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DCMAKE_INSTALL_PREFIX=D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\cmake_build\final_install .."
+          cmake -A x64 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DCMAKE_INSTALL_PREFIX=D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\cmake_build\final_install ..
 
           echo "cmake --build . -v --config Release"
           cmake --build . -v --config Release
