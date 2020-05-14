@@ -118,6 +118,36 @@ jobs:
         run: |
           ls
 
+          echo "create lisenses and share directories"
+          cd D:\a\yubico-piv-tool\final_install
+          mkdir licenses
+          mkdir -p share\man\man1
+          ls
+          echo "copy licenses"
+          ls 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src'
+          cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\COPYING' licenses\yubico-piv-tool.txt
+          ls licenses
+          ls 'C:\vcpkg\buildtrees'
+          ls 'C:\vcpkg\buildtrees\openssl-windows\src\'
+          Get-ChildItem -Path C:\vcpkg\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName}
+          $license=(Get-ChildItem -Path C:\vcpkg\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
+          echo $license
+          cp $license licenses\openssl.txt
+          ls licenses
+          Get-ChildItem -Path C:\vcpkg\buildtrees\getopt-win32\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName}
+          $license=(Get-ChildItem -Path C:\vcpkg\buildtrees\getopt-win32\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
+          echo $license
+          cp $license licenses\getopt.txt
+          ls licenses
+
+
+          echo "copy openssl header files"
+          cp -r 'C:\vcpkg\packages\openssl-windows_x64-windows\include\openssl' include\
+          ls include
+
+          cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\tool\yubico-piv-tool.1' share\man\man1\
+          ls
+
       - name: Upload artifact
         uses: actions/upload-artifact@v1
         with:
@@ -236,6 +266,9 @@ jobs:
           echo "copy openssl header files"
           cp -r 'C:\vcpkg\packages\openssl-windows_x64-windows\include\openssl' include\
           ls include
+
+          cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\tool\yubico-piv-tool.1' share\man\man1\
+          ls
 
       - name: Upload artifact
         uses: actions/upload-artifact@v1
