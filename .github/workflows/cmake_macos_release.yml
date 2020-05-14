@@ -73,9 +73,8 @@ jobs:
         run: |
           export RELEASE_VERION=2.1.0
 
-          echo "cd yubico-piv-tool-src/yubico-piv-tool-src"
-          cd yubico-piv-tool-src/yubico-piv-tool-src
-          cd macos
+          echo "cd yubico-piv-tool-src/yubico-piv-tool-src/macos"
+          cd yubico-piv-tool-src/yubico-piv-tool-src/macos
           mkdir -p pkg/root pkg/comp
           unzip artifact/yubico-piv-tool-$RELEASE_VERION-mac.zip -d pkg/root/
 
@@ -92,7 +91,8 @@ jobs:
         run: |
           export RELEASE_VERION=2.1.0
 
-          cd macos
+          echo "cd yubico-piv-tool-src/yubico-piv-tool-src/macos"
+          cd yubico-piv-tool-src/yubico-piv-tool-src/macos
           sudo installer -verbose -store -pkg "$PWD/yubico-piv-tool-$RELEASE_VERION.pkg" -target /
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
