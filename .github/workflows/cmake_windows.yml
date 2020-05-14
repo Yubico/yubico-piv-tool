@@ -118,40 +118,6 @@ jobs:
         run: |
           ls
 
-          echo "cd yubico-piv-tool-src/yubico-piv-tool-src"
-          cd yubico-piv-tool-src/yubico-piv-tool-src
-
-          mkdir licenses
-          mkdir -p share\man\man1
-          ls
-
-          echo "copy licenses"
-          ls 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src'
-          cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\COPYING' licenses\yubico-piv-tool.txt
-          ls licenses
-          Get-ChildItem -Path C:\vcpkg\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName}
-          $license=(Get-ChildItem -Path C:\vcpkg\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
-          echo license=$license
-
-          echo "cp $license licenses\openssl.txt'"
-          cp $license licenses\openssl.txt'
-
-          Get-ChildItem -Path C:\vcpkg\buildtrees\getopt-win32\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName}
-          $license=(Get-ChildItem -Path C:\vcpkg\buildtrees\getopt-win32\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
-          echo license=$license
-
-          echo "cp $license licenses\getopt.txt'"
-          cp $license licenses\getopt.txt'
-
-          echo "copy manpages"
-          echo "cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\tool\yubico-piv-tool.1' share\man\man1"
-          cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\tool\yubico-piv-tool.1' share\man\man1
-
-          echo "copy openssl header files"
-          cp -r 'C:\vcpkg\packages\openssl-windows_x86-windows\include\openssl' include\
-
-          ls
-
       - name: Upload artifact
         uses: actions/upload-artifact@v1
         with:
@@ -257,12 +223,19 @@ jobs:
           ls 'C:\vcpkg\buildtrees\openssl-windows\src\'
           Get-ChildItem -Path C:\vcpkg\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName}
           $license=(Get-ChildItem -Path C:\vcpkg\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
-          cp $license licenses\openssl.txt'
+          echo $license
+          cp $license licenses\openssl.txt
+          ls licenses
+          Get-ChildItem -Path C:\vcpkg\buildtrees\getopt-win32\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName}
           $license=(Get-ChildItem -Path C:\vcpkg\buildtrees\getopt-win32\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
-          cp $license licenses\getopt.txt'
+          echo $license
+          cp $license licenses\getopt.txt
+          ls licenses
+
 
           echo "copy openssl header files"
           cp -r 'C:\vcpkg\packages\openssl-windows_x64-windows\include\openssl' include\
+          ls include
 
       - name: Upload artifact
         uses: actions/upload-artifact@v1
