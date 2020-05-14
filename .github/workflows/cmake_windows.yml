@@ -116,11 +116,14 @@ jobs:
 
       - name: Add licenses, manpages and include files to install package
         run: |
+
+          ls
           echo "create lisenses and share directories"
-          cd D:\a\yubico-piv-tool\final_install
+          cd 'D:\a\yubico-piv-tool\final_install'
+          ls
           mkdir licenses
           mkdir -p share\man\man1
-
+          ls
           echo "cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\COPYING' licenses\yubico-piv-tool.txt"
           cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\COPYING' licenses\yubico-piv-tool.txt
 
