@@ -1430,6 +1430,7 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
         default:
           fprintf(output, "Unknown\n");
       }
+      EVP_PKEY_free(key);
     }
     subj = X509_get_subject_name(x509);
     if(!subj) {
@@ -1552,7 +1553,7 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
   unsigned char data[1024];
   unsigned int data_len;
   X509 *x509 = NULL;
-  EVP_PKEY *pubkey;
+  EVP_PKEY *pubkey = NULL;
   FILE *input_file = open_file(input_file_name, key_file_mode(cert_format, false));
 
   if(!input_file) {
@@ -1672,6 +1673,9 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
     }
   }
 test_out:
+  if(pubkey) {
+    EVP_PKEY_free(pubkey);
+  }
   if(x509) {
     X509_free(x509);
   }
@@ -1685,7 +1689,7 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
     const char *input_file_name, enum enum_key_format cert_format, int verbose) {
   bool ret = false;
   X509 *x509 = NULL;
-  EVP_PKEY *pubkey;
+  EVP_PKEY *pubkey = NULL;
   EC_KEY *tmpkey = NULL;
   FILE *input_file = open_file(input_file_name, key_file_mode(cert_format, false));
 
@@ -1811,6 +1815,9 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
 decipher_out:
   if(tmpkey) {
     EC_KEY_free(tmpkey);
+  }
+  if(pubkey) {
+    EVP_PKEY_free(pubkey);
   }
   if(x509) {
     X509_free(x509);
