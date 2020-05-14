@@ -18,6 +18,7 @@ jobs:
         run: |
           mkdir cmake_build; cd cmake_build
           cmake ..
+          make
           cd ..
           rm -r cmake_build
           rm README.adoc
@@ -113,6 +114,29 @@ jobs:
           echo "yubico-piv-tool.exe --version"
           .\yubico-piv-tool.exe --version
 
+      -name: Add licenses, manpages and include files to install package
+        run: |
+          echo "create lisenses and share directories"
+          cd D:\a\yubico-piv-tool\final_install
+          mkdir licenses
+          mkdir -p share\man\man1
+
+          echo "copy licenses"
+          cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\COPYING' licenses\yubico-piv-tool.txt
+          $license=(Get-ChildItem -Path C:\vcpkg\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
+          cp $license licenses\openssl.txt'
+          $license=(Get-ChildItem -Path C:\vcpkg\buildtrees\getopt-win32\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
+          cp $license licenses\getopt.txt'
+
+          echo "copy openssl header files"
+          cp -r 'C:\vcpkg\packages\openssl-windows_x86-windows\include\openssl' include\
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: yubico-piv-tool-win32
+          path: D:\a\yubico-piv-tool\final_install
+
   job_3:
     name: Build Windows x64
     needs: job_1
@@ -196,3 +220,26 @@ jobs:
 
           echo "yubico-piv-tool.exe --version"
           .\yubico-piv-tool.exe --version
+
+      -name: Add licenses, manpages and include files to install package
+       run: |
+          echo "create lisenses and share directories"
+          cd D:\a\yubico-piv-tool\final_install
+          mkdir licenses
+          mkdir -p share\man\man1
+
+          echo "copy licenses"
+          cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\COPYING' licenses\yubico-piv-tool.txt
+          $license=(Get-ChildItem -Path C:\vcpkg\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
+          cp $license licenses\openssl.txt'
+          $license=(Get-ChildItem -Path C:\vcpkg\buildtrees\getopt-win32\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
+          cp $license licenses\getopt.txt'
+
+          echo "copy openssl header files"
+          cp -r 'C:\vcpkg\packages\openssl-windows_x64-windows\include\openssl' include\
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: yubico-piv-tool-win64
+          path: D:\a\yubico-piv-tool\final_install
