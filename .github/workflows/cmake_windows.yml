@@ -142,7 +142,7 @@ jobs:
 
 
           echo "copy openssl header files"
-          cp -r 'C:\vcpkg\packages\openssl-windows_x64-windows\include\openssl' include\
+          cp -r 'C:\vcpkg\packages\openssl-windows_x86-windows\include\openssl' include\
           ls include
 
           cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\tool\yubico-piv-tool.1' share\man\man1\
