@@ -22,7 +22,7 @@ jobs:
           cd ..
           rm -r cmake_build
           rm README.adoc
-          tar --exclude .git --transform="s/^\./yubico-piv-tool-src/" -czf ../yubico-piv-tool-src.tar.gz .
+          tar --exclude .git* --transform="s/^\./yubico-piv-tool-src/" -czf ../yubico-piv-tool-src.tar.gz .
           cd ..
           mkdir artifact
           mv yubico-piv-tool-src.tar.gz artifact/
@@ -121,15 +121,31 @@ jobs:
           mkdir licenses
           mkdir -p share\man\man1
 
-          echo "copy licenses"
+          echo "cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\COPYING' licenses\yubico-piv-tool.txt"
           cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\COPYING' licenses\yubico-piv-tool.txt
+
+          Get-ChildItem -Path C:\vcpkg\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName}
           $license=(Get-ChildItem -Path C:\vcpkg\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
+          echo license=$license
+
+          echo "cp $license licenses\openssl.txt'"
           cp $license licenses\openssl.txt'
+
+          Get-ChildItem -Path C:\vcpkg\buildtrees\getopt-win32\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName}
           $license=(Get-ChildItem -Path C:\vcpkg\buildtrees\getopt-win32\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
+          echo license=$license
+
+          echo "cp $license licenses\getopt.txt'"
           cp $license licenses\getopt.txt'
+
+          echo "copy manpages"
+          echo "cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\tool\yubico-piv-tool.1' share\man\man1"
+          cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\tool\yubico-piv-tool.1' share\man\man1
 
           echo "copy openssl header files"
           cp -r 'C:\vcpkg\packages\openssl-windows_x86-windows\include\openssl' include\
+
+          ls
 
       - name: Upload artifact
         uses: actions/upload-artifact@v1
