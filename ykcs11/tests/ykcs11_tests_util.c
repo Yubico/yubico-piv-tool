@@ -682,6 +682,7 @@ void test_ec_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session
           EVP_DigestInit_ex(mdctx, md, NULL);
           EVP_DigestUpdate(mdctx, data, data_len);
           EVP_DigestFinal_ex(mdctx, hdata, &hdata_len);
+          EVP_MD_CTX_destroy(mdctx);
         }
 
         construct_der_encoded_sig(sig, der_encoded, key_len);
@@ -864,6 +865,7 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
           asrt(EVP_DigestInit_ex(md_ctx, get_md_type(mech_type), NULL), 1, "DIGEST INIT");
           asrt(EVP_DigestUpdate(md_ctx, data, pss_params.sLen), 1, "DIGEST UPDATE");
           asrt(EVP_DigestFinal_ex(md_ctx, digest_data, &digest_data_len), 1, "DIGEST FINAL");
+          EVP_MD_CTX_destroy(md_ctx);
 
           asrt(RSA_verify_PKCS1_PSS_mgf1(rsak, digest_data, get_md_type(pss_params.hashAlg), get_md_type(pss_params.mgf), pss_buf, pss_params.sLen), 1, "VERIFY PSS SIGNATURE");
         }
@@ -898,6 +900,7 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
           asrt(EVP_DigestInit_ex(md_ctx, get_md_type(mech_type), NULL), 1, "DIGEST INIT");
           asrt(EVP_DigestUpdate(md_ctx, data, pss_params.sLen), 1, "DIGEST UPDATE");
           asrt(EVP_DigestFinal_ex(md_ctx, digest_data, &digest_data_len), 1, "DIGEST FINAL");
+          EVP_MD_CTX_destroy(md_ctx);
 
           asrt(RSA_verify_PKCS1_PSS_mgf1(rsak, digest_data, get_md_type(pss_params.hashAlg), get_md_type(pss_params.mgf), pss_buf, pss_params.sLen), 1, "VERIFY PSS SIGNATURE");
         }

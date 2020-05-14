@@ -1598,6 +1598,7 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
       fprintf(stderr, "Test data hashes as: ");
       dump_data(data, data_len, stderr, true, format_arg_hex);
     }
+    EVP_MD_CTX_destroy(mdctx);
   }
 
   {
