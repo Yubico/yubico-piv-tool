@@ -114,7 +114,7 @@ jobs:
           echo "yubico-piv-tool.exe --version"
           .\yubico-piv-tool.exe --version
 
-      -name: Add licenses, manpages and include files to install package
+      - name: Add licenses, manpages and include files to install package
         run: |
           echo "create lisenses and share directories"
           cd D:\a\yubico-piv-tool\final_install
@@ -221,8 +221,8 @@ jobs:
           echo "yubico-piv-tool.exe --version"
           .\yubico-piv-tool.exe --version
 
-      -name: Add licenses, manpages and include files to install package
-       run: |
+      - name: Add licenses, manpages and include files to install package
+        run: |
           echo "create lisenses and share directories"
           cd D:\a\yubico-piv-tool\final_install
           mkdir licenses

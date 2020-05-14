@@ -19,21 +19,23 @@ jobs:
           echo sudo apt install libpcsclite-dev check gengetopt help2man
           sudo apt install libpcsclite-dev check gengetopt help2man
 
-#      - name: Create tar.gz
-#        run: |
-#          echo "mkdir cmake_build; cd cmake_build"
-#          mkdir cmake_build; cd cmake_build
+      - name: Create tar.gz
+        run: |
+          echo "mkdir cmake_build; cd cmake_build"
+          mkdir cmake_build; cd cmake_build
 
-#          echo cmake ..
-#          cmake ..
+          echo cmake ..
+          cmake ..
 
-#          cd ..
-#          rm -r cmake_build
-#          tar --exclude .git --transform="s/^\./yubico-piv-tool-src/" -czf ../yubico-piv-tool-src.tar.gz .
+          echo make
+          make
+          cd ..
+          rm -r cmake_build
+          tar --exclude .git --transform="s/^\./yubico-piv-tool-src/" -czf ../yubico-piv-tool-src.tar.gz .
 
-#          cd ..
-#          mkdir artifact
-#          mv yubico-piv-tool-src.tar.gz artifact/
+          cd ..
+          mkdir artifact
+          mv yubico-piv-tool-src.tar.gz artifact/
 
       - name: Build and install
         run: |
@@ -88,8 +90,8 @@ jobs:
           echo "yubico-piv-tool --help | grep 'Usage: yubico-piv-tool'"
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
-#      - name: Upload artifact
-#        uses: actions/upload-artifact@v1
-#        with:
-#          name: yubico-piv-tool-src
-#          path: ../artifact
+      - name: Upload artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: yubico-piv-tool-src
+          path: ../artifact
