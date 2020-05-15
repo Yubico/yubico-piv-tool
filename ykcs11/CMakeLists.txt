@@ -80,22 +80,21 @@ if(WIN32)
 else(WIN32)
     target_link_libraries(ykcs11 ykpiv ${LIBCRYPTO_LDFLAGS})
 endif(WIN32)
+add_coverage (ykcs11)
 
 if(BUILD_STATIC_LIB)
     add_library (ykcs11_static STATIC ${SOURCE})
     set_target_properties (ykcs11_static PROPERTIES POSITION_INDEPENDENT_CODE on OUTPUT_NAME ykcs11)
     set_target_properties (ykcs11_static PROPERTIES COMPILE_FLAGS "-DSTATIC " )
     target_link_libraries (ykcs11_static ykpiv_static ${LIBCRYPTO_LDFLAGS})
+    add_coverage (ykcs11_static)
 endif(BUILD_STATIC_LIB)
-
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     # glibc provides the iconv functionality out of the box, this
     # will probably be required on other platforms besides macOS.
     set_target_properties(ykcs11 PROPERTIES LINK_FLAGS "-liconv")
 endif()
-
-#add_coverage (ykcs11)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ykcs11.pc.in ${CMAKE_CURRENT_SOURCE_DIR}/ykcs11.pc @ONLY)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ykcs11-config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/ykcs11-config.h @ONLY)

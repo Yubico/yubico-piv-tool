@@ -92,7 +92,7 @@ if (NOT DISABLE_LTO)
 endif ()
 
 enable_testing()
-#find_package(codecov)
+find_package(codecov)
 
 add_subdirectory (lib)
 if(NOT BUILD_ONLY_LIB)
@@ -112,14 +112,7 @@ add_custom_target (
         ${CMAKE_SOURCE_DIR}/lib ${CMAKE_SOURCE_DIR}/tool ${CMAKE_SOURCE_DIR}/ykcs11
 )
 
-set(ARCHIVE_NAME ${CMAKE_PROJECT_NAME}-${yubico_piv_tool_VERSION_MAJOR}.${yubico_piv_tool_VERSION_MINOR}.${yubico_piv_tool_VERSION_PATCH})
-add_custom_target (
-        dist
-        COMMAND git archive --prefix=${ARCHIVE_NAME}/ HEAD | gzip > ${CMAKE_BINARY_DIR}/${ARCHIVE_NAME}.tar.gz
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-)
-
-#coverage_evaluate()
+coverage_evaluate()
 
 message("Summary of build options:")
 message("")

@@ -91,6 +91,22 @@ situations, running ./configure should automatically find the proper
 backend to use. To turn on all warnings add --enable-gcc-warnings to 
 ./configure
 
+==== Coverage
+
+Code coverage is provided courtesy of lcov and https://github.com/RWTH-HPC/CMake-codecov[CMake-codecov]. This currently only works with `make`.
+
+Enable coverage with
+
+ $ cmake -DENABLE_COVERAGE=1 ..
+
+You can then build the project normally and run some executables (for example running the tests with `make test`).
+
+At this point coverage evaluation can be generated with gcov/lcov related targets. For example
+
+ $ make lcov
+
+will generate a single HTML report in `./lcov/html/all_targets/index.html`
+
 === Portability
 The main development platform is Debian GNU/Linux.  The project is
 cross-compiled to Windows using MinGW (see windows.mk) using the PCSC

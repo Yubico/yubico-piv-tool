@@ -43,19 +43,15 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 add_library(ykpiv SHARED ${SOURCE})
 set_target_properties(ykpiv PROPERTIES BUILD_RPATH "${CMAKE_BINARY_DIR}/lib")
 set_target_properties(ykpiv PROPERTIES SOVERSION ${yubico_piv_tool_VERSION_MAJOR})
+target_link_libraries (ykpiv ${LIBCRYPTO_LIBRARIES} ${PCSC_LIBRARIES} ${PCSC_WIN_LIBS} ${PCSC_MACOSX_LIBS} ${PCSC_CUSTOM_LIBS} ${ADDITIONAL_LIBRARY})
+add_coverage (ykpiv)
 
 if(BUILD_STATIC_LIB)
     add_library (ykpiv_static STATIC ${STATIC_SOURCE})
     set_target_properties (ykpiv_static PROPERTIES POSITION_INDEPENDENT_CODE on OUTPUT_NAME ykpiv)
     set_target_properties (ykpiv_static PROPERTIES COMPILE_FLAGS "-DSTATIC " )
-    #add_coverage (ykpiv_static)
-endif(BUILD_STATIC_LIB)
-
-#add_coverage (ykpiv)
-
-target_link_libraries (ykpiv ${LIBCRYPTO_LIBRARIES} ${PCSC_LIBRARIES} ${PCSC_WIN_LIBS} ${PCSC_MACOSX_LIBS} ${PCSC_CUSTOM_LIBS} ${ADDITIONAL_LIBRARY})
-if(BUILD_STATIC_LIB)
     target_link_libraries (ykpiv_static ${LIBCRYPTO_LIBRARIES} ${PCSC_LIBRARIES} ${PCSC_WIN_LIBS} ${PCSC_MACOSX_LIBS} ${PCSC_CUSTOM_LIBS} ${ADDITIONAL_LIBRARY})
+    add_coverage (ykpiv_static)
 endif(BUILD_STATIC_LIB)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ykpiv.pc.in ${CMAKE_CURRENT_BINARY_DIR}/ykpiv.pc @ONLY)

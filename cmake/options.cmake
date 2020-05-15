@@ -10,6 +10,7 @@ option(ENABLE_GCC_WARN "Turn on lots of GCC warnings (for developers)" OFF)
 option(GENERATE_MAN_PAGES "Generate man pages for the command line tool" ON)
 option(DISABLE_LTO "Disable/enable turning on Link Time Optimization" ON)
 option(OPENSSL_STATIC_LINK "Statically link to OpenSSL" OFF)
+option(ENABLE_COVERAGE "Enable/disable codecov evaluation" OFF)
 
 #set(YKCS11_DBG "1" CACHE STRING "Enable/disable YKCS11 debug messages. Possible values is 0 through 9")
 set(BACKEND "check" CACHE STRING "use specific backend/linkage; 'pcsc', 'macscard' or'winscard'")
