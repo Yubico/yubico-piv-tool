@@ -1,9 +1,7 @@
 name: CMake Build Ubuntu
-# This workflow is triggered on pushes to the repository.
-on:
-  push:
-    branches:
-      - cmake
+# This workflow is triggered on pushes to the repository. This is a test machine and nothing produced here will be used
+# in the official release
+on: [push]
 
 jobs:
   build:
@@ -18,25 +16,6 @@ jobs:
         run: |
           echo sudo apt install libpcsclite-dev check gengetopt help2man
           sudo apt install libpcsclite-dev check gengetopt help2man
-
-      - name: Create tar.gz
-        run: |
-          echo "mkdir cmake_build; cd cmake_build"
-          mkdir cmake_build; cd cmake_build
-
-          echo cmake ..
-          cmake ..
-
-          echo make
-          make
-          cd ..
-          rm -r cmake_build
-          rm README.adoc
-          tar --exclude .git --exclude .github --exclude .gitignore --transform="s/^\./yubico-piv-tool-src/" -czf ../yubico-piv-tool-src.tar.gz .
-
-          cd ..
-          mkdir artifact
-          mv yubico-piv-tool-src.tar.gz artifact/
 
       - name: Build and install
         run: |
@@ -90,9 +69,3 @@ jobs:
 
           echo "yubico-piv-tool --help | grep 'Usage: yubico-piv-tool'"
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v1
-        with:
-          name: yubico-piv-tool-src
-          path: ../artifact

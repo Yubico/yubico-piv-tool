@@ -1,4 +1,6 @@
 name: CMake Build Windows
+# This machine tests building the software on a both 32 and 64 Windows architecture.
+# The binaries used on the official release are also produced here and are downloadable as artifacts
 
 on: [push]
 
@@ -16,16 +18,12 @@ jobs:
           sudo apt install libpcsclite-dev check gengetopt help2man
       - name: Create tar.gz
         run: |
-          mkdir cmake_build; cd cmake_build
-          cmake ..
-          make
-          cd ..
-          rm -r cmake_build
-          rm README.adoc
-          tar --exclude .git --exclude .github --exclude .gitignore --transform="s/^\./yubico-piv-tool-src/" -czf ../yubico-piv-tool-src.tar.gz .
+          export RELEASE_VERION=2.1.0
+
+          ./make_src_dist.sh $RELEASE_VERION
           cd ..
           mkdir artifact
-          mv yubico-piv-tool-src.tar.gz artifact/
+          mv yubico-piv-tool/yubico-piv-tool-$RELEASE_VERION.tar.gz artifact/
       - name: Upload artifact
         uses: actions/upload-artifact@v1
         with:
@@ -75,17 +73,18 @@ jobs:
           echo "cmake -A Win32 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x86-windows .."
           cmake -A Win32 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x86-windows ..
 
-          echo cmake --build . -v
+          echo "cmake --build . -v"
           cmake --build . -v
 
           echo "ctest.exe -C Debug"
           $env:Path +=";C:/vcpkg/packages/check_x86-windows/bin;C:/vcpkg/packages/openssl-windows_x86-windows/bin;D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\build\lib\Debug"
           ctest.exe -C Debug
 
-      - name: build and install for x86 architecture
+      - name: Install for x86 architecture
         run: |
-          $env:Path ="C:/vcpkg/packages/openssl-windows_x86-windows;$env:Path"
-          $env:include ="C:/vcpkg/packages/openssl-windows_x86-windows/include;$env:include"
+#          $env:Path ="C:/vcpkg/packages/openssl-windows_x86-windows;$env:Path"
+#          $env:include ="C:/vcpkg/packages/openssl-windows_x86-windows/include;$env:include"
+          $env:OPENSSL_ROOT_DIR ="C:/vcpkg/packages/openssl-windows_x86-windows"
 
           echo "cd yubico-piv-tool-src/yubico-piv-tool-src"
           cd yubico-piv-tool-src/yubico-piv-tool-src
@@ -116,37 +115,48 @@ jobs:
 
       - name: Add licenses, manpages and include files to install package
         run: |
-          ls
-
-          echo "create lisenses and share directories"
+          echo "cd D:\a\yubico-piv-tool\final_install"
           cd D:\a\yubico-piv-tool\final_install
+
+          echo "mkdir licenses"
           mkdir licenses
+
+          echo "mkdir -p share\man\man1"
           mkdir -p share\man\man1
-          ls
+
           echo "copy licenses"
-          ls 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src'
+#          ls 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src'
+
+          echo "cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\COPYING' licenses\yubico-piv-tool.txt"
           cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\COPYING' licenses\yubico-piv-tool.txt
-          ls licenses
-          ls 'C:\vcpkg\buildtrees'
-          ls 'C:\vcpkg\buildtrees\openssl-windows\src\'
-          Get-ChildItem -Path C:\vcpkg\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName}
+#          ls licenses
+#          ls 'C:\vcpkg\buildtrees'
+#          ls 'C:\vcpkg\buildtrees\openssl-windows\src\'
+#          Get-ChildItem -Path C:\vcpkg\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName}
+
+          echo "license=(Get-ChildItem -Path C:\vcpkg\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})"
           $license=(Get-ChildItem -Path C:\vcpkg\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
-          echo $license
+          echo license=$license
+
+          echo "cp $license licenses\openssl.txt"
           cp $license licenses\openssl.txt
-          ls licenses
-          Get-ChildItem -Path C:\vcpkg\buildtrees\getopt-win32\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName}
+#          ls licenses
+
+#          Get-ChildItem -Path C:\vcpkg\buildtrees\getopt-win32\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName}
+          echo "license=(Get-ChildItem -Path C:\vcpkg\buildtrees\getopt-win32\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})"
           $license=(Get-ChildItem -Path C:\vcpkg\buildtrees\getopt-win32\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
-          echo $license
+          echo license=$license
+
+          echo "cp $license licenses\getopt.txt"
           cp $license licenses\getopt.txt
-          ls licenses
+#          ls licenses
 
-
-          echo "copy openssl header files"
+          echo "cp -r 'C:\vcpkg\packages\openssl-windows_x86-windows\include\openssl' include\"
           cp -r 'C:\vcpkg\packages\openssl-windows_x86-windows\include\openssl' include\
-          ls include
+#          ls include
 
+          echo "cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\tool\yubico-piv-tool.1' share\man\man1\"
           cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\tool\yubico-piv-tool.1' share\man\man1\
-          ls
 
       - name: Upload artifact
         uses: actions/upload-artifact@v1
@@ -172,10 +182,6 @@ jobs:
           echo "tar xf yubico-piv-tool-src.tar.gz"
           tar xf yubico-piv-tool-src.tar.gz
 
-      - name: get env variables
-        run: |
-          Get-ChildItem env:
-
       - name: install prerequisites for x64 architecture
         run: |
           echo "vcpkg install openssl:x64-windows"
@@ -195,19 +201,21 @@ jobs:
           echo "mkdir build; cd build"
           mkdir build; cd build
 
-          $env:OPENSSL_ROOT_DIR ="C:\vcpkg\packages\openssl-windows_x64-windows"
+#          $env:OPENSSL_ROOT_DIR ="C:\vcpkg\packages\openssl-windows_x64-windows"
+          $env:Path ="C:\vcpkg\packages\openssl-windows_x64-windows;$env:Path"
+          $env:include ="C:\vcpkg\packages\openssl-windows_x64-windows/include;$env:include"
 
           echo "cmake -A x64 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x64-windows .."
           cmake -A x64 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x64-windows ..
 
-          echo cmake --build . -v
+          echo "cmake --build . -v"
           cmake --build . -v
 
           echo "ctest.exe -C Debug"
           $env:Path +=";C:/vcpkg/packages/check_x64-windows/bin;C:/vcpkg/packages/openssl-windows_x64-windows/bin;D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\build\lib\Debug"
           ctest.exe -C Debug
 
-      - name: build and install for x64 architecture
+      - name: Install for x64 architecture
         run: |
           echo "cd yubico-piv-tool-src/yubico-piv-tool-src"
           cd yubico-piv-tool-src/yubico-piv-tool-src
@@ -240,35 +248,48 @@ jobs:
 
       - name: Add licenses, manpages and include files to install package
         run: |
-          echo "create lisenses and share directories"
+          echo "cd D:\a\yubico-piv-tool\final_install"
           cd D:\a\yubico-piv-tool\final_install
+
+          echo "mkdir licenses"
           mkdir licenses
+
+          echo "mkdir -p share\man\man1"
           mkdir -p share\man\man1
-          ls
-          echo "copy licenses"
-          ls 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src'
+
+#          echo "copy licenses"
+#          ls 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src'
+          echo "cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\COPYING' licenses\yubico-piv-tool.txt"
           cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\COPYING' licenses\yubico-piv-tool.txt
-          ls licenses
-          ls 'C:\vcpkg\buildtrees'
-          ls 'C:\vcpkg\buildtrees\openssl-windows\src\'
-          Get-ChildItem -Path C:\vcpkg\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName}
+#          ls licenses
+#          ls 'C:\vcpkg\buildtrees'
+#          ls 'C:\vcpkg\buildtrees\openssl-windows\src\'
+#          Get-ChildItem -Path C:\vcpkg\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName}
+
+          echo "license=(Get-ChildItem -Path C:\vcpkg\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})"
           $license=(Get-ChildItem -Path C:\vcpkg\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
-          echo $license
+          echo license=$license
+
+          echo "cp $license licenses\openssl.txt"
           cp $license licenses\openssl.txt
-          ls licenses
-          Get-ChildItem -Path C:\vcpkg\buildtrees\getopt-win32\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName}
+#          ls licenses
+#          Get-ChildItem -Path C:\vcpkg\buildtrees\getopt-win32\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName}
+
+          echo "license=(Get-ChildItem -Path C:\vcpkg\buildtrees\getopt-win32\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})"
           $license=(Get-ChildItem -Path C:\vcpkg\buildtrees\getopt-win32\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
-          echo $license
+          echo license=$license
+
+          echo "cp $license licenses\getopt.txt"
           cp $license licenses\getopt.txt
-          ls licenses
+#          ls licenses
 
 
-          echo "copy openssl header files"
+          echo "cp -r 'C:\vcpkg\packages\openssl-windows_x64-windows\include\openssl' include\"
           cp -r 'C:\vcpkg\packages\openssl-windows_x64-windows\include\openssl' include\
-          ls include
+#          ls include
 
+          echo "cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\tool\yubico-piv-tool.1' share\man\man1\"
           cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\tool\yubico-piv-tool.1' share\man\man1\
-          ls
 
       - name: Upload artifact
         uses: actions/upload-artifact@v1

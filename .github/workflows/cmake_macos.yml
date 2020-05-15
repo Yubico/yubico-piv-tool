@@ -1,9 +1,6 @@
 name: CMake Build MacOS
 # This workflow is triggered on pushes to the repository.
-on:
-  push:
-    branches:
-      - cmake
+on: [push]
 
 jobs:
   build:
