@@ -9,4 +9,12 @@ cmake ..
 make
 cd ..
 rm -r dist_build
+
+set +e
 tar --exclude README.adoc --exclude .git --exclude .github --exclude .gitignore --transform="s/^\./yubico-piv-tool-$VERSION/" -czf yubico-piv-tool-$VERSION.tar.gz .
+exitcode=$?
+echo exitcode=$exitcode
+if [ "$exitcode" != "1" ] && [ "$exitcode" != "0" ]; then
+    exit $exitcode
+fi
+set -e
