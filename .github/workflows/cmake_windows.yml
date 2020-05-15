@@ -265,8 +265,6 @@ jobs:
           echo "mkdir -p share\man\man1"
           mkdir -p share\man\man1
 
-          echo "cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\COPYING' licenses\yubico-piv-tool.txt"
-
           cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\COPYING' licenses\yubico-piv-tool.txt
           ls
           ls licenses
