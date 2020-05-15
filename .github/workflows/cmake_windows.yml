@@ -131,6 +131,12 @@ jobs:
           mkdir -p share\man\man1
 
           echo "cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\COPYING' licenses\yubico-piv-tool.txt"
+
+          ls D:\a\yubico-piv-tool\
+          ls D:\a\yubico-piv-tool\yubico-piv-tool\
+          ls D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\
+          ls D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\
+
           cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\COPYING' licenses\yubico-piv-tool.txt
 
           echo "license=(Get-ChildItem -Path C:\vcpkg\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})"
@@ -260,6 +266,12 @@ jobs:
           mkdir -p share\man\man1
 
           echo "cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\COPYING' licenses\yubico-piv-tool.txt"
+
+          ls D:\a\yubico-piv-tool\
+          ls D:\a\yubico-piv-tool\yubico-piv-tool\
+          ls D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\
+          ls D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\
+
           cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\COPYING' licenses\yubico-piv-tool.txt
 
           echo "license=(Get-ChildItem -Path C:\vcpkg\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})"
