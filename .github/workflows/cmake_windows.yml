@@ -1,6 +1,8 @@
 name: CMake Build Windows
 # This machine tests building the software on a both 32 and 64 Windows architecture.
 # The binaries used on the official release are also produced here and are downloadable as artifacts
+# Since this is where the release binaries are build, make sure to update the version number in this file. Search for
+# the 'RELEASE_VERSION' variable and update its value wherever its found
 
 on: [push]
 
@@ -18,12 +20,12 @@ jobs:
           sudo apt install libpcsclite-dev check gengetopt help2man
       - name: Create tar.gz
         run: |
-          export RELEASE_VERION=2.1.0
+          export RELEASE_VERSION=2.1.0
 
-          ./make_src_dist.sh $RELEASE_VERION
+          ./make_src_dist.sh $RELEASE_VERSION
           cd ..
           mkdir artifact
-          mv yubico-piv-tool/yubico-piv-tool-$RELEASE_VERION.tar.gz artifact/
+          mv yubico-piv-tool/yubico-piv-tool-$RELEASE_VERSION.tar.gz artifact/
       - name: Upload artifact
         uses: actions/upload-artifact@v1
         with:
@@ -42,11 +44,13 @@ jobs:
 
       - name: Extract source
         run: |
+          $env:RELEASE_VERSION="2.1.0"
+
           echo "cd yubico-piv-tool-src"
           cd yubico-piv-tool-src
 
-          echo "tar xf yubico-piv-tool-src.tar.gz"
-          tar xf yubico-piv-tool-src.tar.gz
+          echo "tar xf yubico-piv-tool-$env:RELEASE_VERSION.tar.gz"
+          tar xf yubico-piv-tool-$env:RELEASE_VERSION.tar.gz
 
       - name: install prerequisites for x86 architecture
         run: |
@@ -61,11 +65,12 @@ jobs:
 
       - name: build for x86 architecture
         run: |
+          $env:RELEASE_VERSION="2.1.0"
           $env:Path ="C:/vcpkg/packages/openssl-windows_x86-windows;$env:Path"
           $env:include ="C:/vcpkg/packages/openssl-windows_x86-windows/include;$env:include"
 
-          echo "cd yubico-piv-tool-src/yubico-piv-tool-src"
-          cd yubico-piv-tool-src/yubico-piv-tool-src
+          echo "cd yubico-piv-tool-src/yubico-piv-tool-$env:RELEASE_VERSION"
+          cd yubico-piv-tool-src/yubico-piv-tool-$env:RELEASE_VERSION
 
           echo "mkdir build; cd build"
           mkdir build; cd build
@@ -82,12 +87,11 @@ jobs:
 
       - name: Install for x86 architecture
         run: |
+          $env:RELEASE_VERSION="2.1.0"
           $env:OPENSSL_ROOT_DIR ="C:/vcpkg/packages/openssl-windows_x86-windows"
-#          $env:Path ="C:/vcpkg/packages/openssl-windows_x86-windows;$env:Path"
-#          $env:include ="C:/vcpkg/packages/openssl-windows_x86-windows/include;$env:include"
 
-          echo "cd yubico-piv-tool-src/yubico-piv-tool-src"
-          cd yubico-piv-tool-src/yubico-piv-tool-src
+          echo "cd yubico-piv-tool-src/yubico-piv-tool-$env:RELEASE_VERSION"
+          cd yubico-piv-tool-src/yubico-piv-tool-$env:RELEASE_VERSION
 
           echo "rm -r build; mkdir build; cd build"
           rm -r build; mkdir build; cd build
@@ -115,6 +119,8 @@ jobs:
 
       - name: Add licenses, manpages and include files to install package
         run: |
+          $env:RELEASE_VERSION="2.1.0"
+
           echo "cd D:\a\yubico-piv-tool\final_install"
           cd D:\a\yubico-piv-tool\final_install
 
@@ -125,10 +131,10 @@ jobs:
           mkdir -p share\man\man1
 
           echo "copy licenses"
-#          ls 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src'
+#          ls 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION'
 
-          echo "cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\COPYING' licenses\yubico-piv-tool.txt"
-          cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\COPYING' licenses\yubico-piv-tool.txt
+          echo "cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\COPYING' licenses\yubico-piv-tool.txt"
+          cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\COPYING' licenses\yubico-piv-tool.txt
 #          ls licenses
 #          ls 'C:\vcpkg\buildtrees'
 #          ls 'C:\vcpkg\buildtrees\openssl-windows\src\'
@@ -155,8 +161,8 @@ jobs:
           cp -r 'C:\vcpkg\packages\openssl-windows_x86-windows\include\openssl' include\
 #          ls include
 
-          echo "cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\tool\yubico-piv-tool.1' share\man\man1\"
-          cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\tool\yubico-piv-tool.1' share\man\man1\
+          echo "cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\tool\yubico-piv-tool.1' share\man\man1\"
+          cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\tool\yubico-piv-tool.1' share\man\man1\
 
       - name: Upload artifact
         uses: actions/upload-artifact@v1
@@ -176,11 +182,13 @@ jobs:
 
       - name: Extract source
         run: |
+          $env:RELEASE_VERSION="2.1.0"
+
           echo "cd yubico-piv-tool-src"
           cd yubico-piv-tool-src
 
-          echo "tar xf yubico-piv-tool-src.tar.gz"
-          tar xf yubico-piv-tool-src.tar.gz
+          echo "tar xf yubico-piv-tool-$env:RELEASE_VERSION.tar.gz"
+          tar xf yubico-piv-tool-$env:RELEASE_VERSION.tar.gz
 
       - name: install prerequisites for x64 architecture
         run: |
@@ -195,8 +203,10 @@ jobs:
 
       - name: build for x64 architecture
         run: |
-          echo "cd yubico-piv-tool-src/yubico-piv-tool-src"
-          cd yubico-piv-tool-src/yubico-piv-tool-src
+          $env:RELEASE_VERSION="2.1.0"
+
+          echo "cd yubico-piv-tool-src/yubico-piv-tool-$env:RELEASE_VERSION"
+          cd yubico-piv-tool-src/yubico-piv-tool-$env:RELEASE_VERSION
 
           echo "mkdir build; cd build"
           mkdir build; cd build
@@ -217,8 +227,10 @@ jobs:
 
       - name: Install for x64 architecture
         run: |
-          echo "cd yubico-piv-tool-src/yubico-piv-tool-src"
-          cd yubico-piv-tool-src/yubico-piv-tool-src
+          $env:RELEASE_VERSION="2.1.0"
+
+          echo "cd yubico-piv-tool-src/yubico-piv-tool-$env:RELEASE_VERSION"
+          cd yubico-piv-tool-src/yubico-piv-tool-$env:RELEASE_VERSION
 
           echo "rm -r build; mkdir build; cd build"
           rm -r build; mkdir build; cd build
@@ -248,6 +260,8 @@ jobs:
 
       - name: Add licenses, manpages and include files to install package
         run: |
+          $env:RELEASE_VERSION="2.1.0"
+
           echo "cd D:\a\yubico-piv-tool\final_install"
           cd D:\a\yubico-piv-tool\final_install
 
@@ -258,9 +272,9 @@ jobs:
           mkdir -p share\man\man1
 
 #          echo "copy licenses"
-#          ls 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src'
-          echo "cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\COPYING' licenses\yubico-piv-tool.txt"
-          cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\COPYING' licenses\yubico-piv-tool.txt
+#          ls 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION'
+          echo "cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\COPYING' licenses\yubico-piv-tool.txt"
+          cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\COPYING' licenses\yubico-piv-tool.txt
 #          ls licenses
 #          ls 'C:\vcpkg\buildtrees'
 #          ls 'C:\vcpkg\buildtrees\openssl-windows\src\'
@@ -288,8 +302,8 @@ jobs:
           cp -r 'C:\vcpkg\packages\openssl-windows_x64-windows\include\openssl' include\
 #          ls include
 
-          echo "cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\tool\yubico-piv-tool.1' share\man\man1\"
-          cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\tool\yubico-piv-tool.1' share\man\man1\
+          echo "cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\tool\yubico-piv-tool.1' share\man\man1\"
+          cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\tool\yubico-piv-tool.1' share\man\man1\
 
       - name: Upload artifact
         uses: actions/upload-artifact@v1

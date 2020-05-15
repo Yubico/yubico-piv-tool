@@ -19,9 +19,7 @@ jobs:
           sudo apt install libpcsclite-dev check gengetopt help2man
       - name: Create tar.gz
         run: |
-          export RELEASE_VERION=2.1.0
-
-          ./make_src_dist.sh $RELEASE_VERION
+          ./make_src_dist.sh 2.1.0
           cd ..
           mkdir artifact
           mv yubico-piv-tool/yubico-piv-tool-$RELEASE_VERION.tar.gz artifact/
@@ -46,8 +44,8 @@ jobs:
           echo "cd yubico-piv-tool-src"
           cd yubico-piv-tool-src
 
-          echo "tar xf yubico-piv-tool-src.tar.gz"
-          tar xf yubico-piv-tool-src.tar.gz
+          echo "tar xf yubico-piv-tool-2.1.0.tar.gz"
+          tar xf yubico-piv-tool-2.1.0.tar.gz
 
       - name: Install prerequisites
         run: |
@@ -59,8 +57,8 @@ jobs:
           export RELEASE_VERION=2.1.0
           export INSTALL_PREFIX=/usr/local
 
-          echo "cd yubico-piv-tool-src/yubico-piv-tool-src"
-          cd yubico-piv-tool-src/yubico-piv-tool-src
+          echo "cd yubico-piv-tool-src/yubico-piv-tool-2.1.0"
+          cd yubico-piv-tool-src/yubico-piv-tool-2.1.0
           ./macos/make_pkg.sh $RELEASE_VERION $INSTALL_PREFIX
           mkdir macos/artifact
           mv macos/yubico-piv-tool-$RELEASE_VERION-mac.zip macos/artifact/
@@ -69,8 +67,8 @@ jobs:
         run: |
           export RELEASE_VERION=2.1.0
 
-          echo "cd yubico-piv-tool-src/yubico-piv-tool-src/macos"
-          cd yubico-piv-tool-src/yubico-piv-tool-src/macos
+          echo "cd yubico-piv-tool-src/yubico-piv-tool-2.1.0/macos"
+          cd yubico-piv-tool-src/yubico-piv-tool-2.1.0/macos
           mkdir -p pkg/root pkg/comp
           unzip artifact/yubico-piv-tool-$RELEASE_VERION-mac.zip -d pkg/root/
 
@@ -87,8 +85,8 @@ jobs:
         run: |
           export RELEASE_VERION=2.1.0
 
-          echo "cd yubico-piv-tool-src/yubico-piv-tool-src/macos"
-          cd yubico-piv-tool-src/yubico-piv-tool-src/macos
+          echo "cd yubico-piv-tool-src/yubico-piv-tool-2.1.0/macos"
+          cd yubico-piv-tool-src/yubico-piv-tool-2.1.0/macos
           sudo installer -verbose -store -pkg "$PWD/yubico-piv-tool-$RELEASE_VERION.pkg" -target /
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
@@ -96,4 +94,4 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: yubico-piv-tool-mac
-          path: yubico-piv-tool-src/yubico-piv-tool-src/macos/artifact
+          path: yubico-piv-tool-src/yubico-piv-tool-2.1.0/macos/artifact
