@@ -30,6 +30,9 @@ macro (find_libcrypto)
                 find_package(OpenSSL REQUIRED)
                 if(OpenSSL_FOUND)
                     set(LIBCRYPTO_LDFLAGS OpenSSL::Crypto -ldl)
+                    set(LIBCRYPTO_INCLUDE_DIRS ${OPENSSL_INCLUDE_DIR})
+                    set(LIBCRYPTO_VERSION ${OPENSSL_VERSION})
+                    set(LIBCRYPTO_LIBRARIES ${LIBCRYPTO_LIBRARIES} ${OPENSSL_LIBRARIES})
 
                     if(VERBOSE_CMAKE)
                         message("LIBCRYPTO_LDFLAGS: ${LIBCRYPTO_LDFLAGS}")
@@ -66,10 +69,11 @@ macro (find_libcrypto)
             endif(OPENSSL_STATIC_LINK)
         endif(NOT OpenSSL_FOUND)
 
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${LIBCRYPTO_CFLAGS}")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${LIBCRYPTO_CFLAGS}")
-        link_directories(${LIBCRYPTO_LIBRARY_DIRS})
-
      endif(WIN32)
+
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${LIBCRYPTO_CFLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${LIBCRYPTO_CFLAGS}")
+    link_directories(${LIBCRYPTO_LIBRARY_DIRS})
+    include_directories(${LIBCRYPTO_INCLUDE_DIRS})
 
 endmacro()

@@ -46,26 +46,27 @@ jobs:
           echo "objdump --syms /usr/local/lib/libykcs11.dylib | grep C_Sign"
           objdump --syms /usr/local/lib/libykcs11.dylib | grep C_Sign
 
-#      - name: Build using OpenSSL static link
-#        run: |
-#          echo "rm -rf cmake_build; mkdir cmake_build; cd cmake_build"
-#          rm -rf cmake_build; mkdir cmake_build; cd cmake_build
-#          echo cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON -DOPENSSL_STATIC_LINK=ON
-#          cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON -DOPENSSL_STATIC_LINK=ON
+      - name: Build using OpenSSL static link
+        run: |
+          echo "rm -rf cmake_build; mkdir cmake_build; cd cmake_build"
+          rm -rf cmake_build; mkdir cmake_build; cd cmake_build
 
-#          echo make
-#          make
+          echo cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON -DOPENSSL_STATIC_LINK=ON -DBACKEND=macscard
+          cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON -DOPENSSL_STATIC_LINK=ON -DBACKEND=macscard
 
-#          echo make test
-#          make test
+          echo make
+          make
 
-#          echo "otool -L {yubico-piv-tool/libykpiv.dylib/libykcs11.dylib} | grep libcrypto"
-#          otool -L tool/yubico-piv-tool | grep libcrypto | wc -l | grep 0
-#          otool -L lib/libykpiv.dylib | grep libcrypto | wc -l | grep 0
-#          otool -L ykcs11/libykcs11.dylib | grep libcrypto | wc -l | grep 0
+          echo make test
+          make test
 
-#          echo sudo make install
-#          sudo make install
+          echo "otool -L {yubico-piv-tool/libykpiv.dylib/libykcs11.dylib} | grep libcrypto"
+          otool -L tool/yubico-piv-tool | grep libcrypto | wc -l | grep 0
+          otool -L lib/libykpiv.dylib | grep libcrypto | wc -l | grep 0
+          otool -L ykcs11/libykcs11.dylib | grep libcrypto | wc -l | grep 0
 
-#          echo "yubico-piv-tool --help | grep 'Usage: yubico-piv-tool'"
-#          yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
+          echo sudo make install
+          sudo make install
+
+          echo "yubico-piv-tool --help | grep 'Usage: yubico-piv-tool'"
+          yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
