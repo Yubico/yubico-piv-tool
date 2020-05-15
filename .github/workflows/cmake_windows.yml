@@ -82,9 +82,9 @@ jobs:
 
       - name: Install for x86 architecture
         run: |
+          $env:OPENSSL_ROOT_DIR ="C:/vcpkg/packages/openssl-windows_x86-windows"
 #          $env:Path ="C:/vcpkg/packages/openssl-windows_x86-windows;$env:Path"
 #          $env:include ="C:/vcpkg/packages/openssl-windows_x86-windows/include;$env:include"
-          $env:OPENSSL_ROOT_DIR ="C:/vcpkg/packages/openssl-windows_x86-windows"
 
           echo "cd yubico-piv-tool-src/yubico-piv-tool-src"
           cd yubico-piv-tool-src/yubico-piv-tool-src
