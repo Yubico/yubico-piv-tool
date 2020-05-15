@@ -132,10 +132,6 @@ jobs:
 
           echo "cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\COPYING' licenses\yubico-piv-tool.txt"
           cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\COPYING' licenses\yubico-piv-tool.txt
-#          ls licenses
-#          ls 'C:\vcpkg\buildtrees'
-#          ls 'C:\vcpkg\buildtrees\openssl-windows\src\'
-#          Get-ChildItem -Path C:\vcpkg\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName}
 
           echo "license=(Get-ChildItem -Path C:\vcpkg\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})"
           $license=(Get-ChildItem -Path C:\vcpkg\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
@@ -143,20 +139,16 @@ jobs:
 
           echo "cp $license licenses\openssl.txt"
           cp $license licenses\openssl.txt
-#          ls licenses
 
-#          Get-ChildItem -Path C:\vcpkg\buildtrees\getopt-win32\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName}
           echo "license=(Get-ChildItem -Path C:\vcpkg\buildtrees\getopt-win32\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})"
           $license=(Get-ChildItem -Path C:\vcpkg\buildtrees\getopt-win32\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
           echo license=$license
 
           echo "cp $license licenses\getopt.txt"
           cp $license licenses\getopt.txt
-#          ls licenses
 
           echo "cp -r 'C:\vcpkg\packages\openssl-windows_x86-windows\include\openssl' include\"
           cp -r 'C:\vcpkg\packages\openssl-windows_x86-windows\include\openssl' include\
-#          ls include
 
           echo "cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\tool\yubico-piv-tool.1' share\man\man1\"
           cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\tool\yubico-piv-tool.1' share\man\man1\
@@ -208,7 +200,6 @@ jobs:
           echo "mkdir build; cd build"
           mkdir build; cd build
 
-#          $env:OPENSSL_ROOT_DIR ="C:\vcpkg\packages\openssl-windows_x64-windows"
           $env:Path ="C:\vcpkg\packages\openssl-windows_x64-windows;$env:Path"
           $env:include ="C:\vcpkg\packages\openssl-windows_x64-windows/include;$env:include"
 
@@ -268,14 +259,8 @@ jobs:
           echo "mkdir -p share\man\man1"
           mkdir -p share\man\man1
 
-#          echo "copy licenses"
-#          ls 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION'
           echo "cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\COPYING' licenses\yubico-piv-tool.txt"
           cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\COPYING' licenses\yubico-piv-tool.txt
-#          ls licenses
-#          ls 'C:\vcpkg\buildtrees'
-#          ls 'C:\vcpkg\buildtrees\openssl-windows\src\'
-#          Get-ChildItem -Path C:\vcpkg\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName}
 
           echo "license=(Get-ChildItem -Path C:\vcpkg\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})"
           $license=(Get-ChildItem -Path C:\vcpkg\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
@@ -283,8 +268,6 @@ jobs:
 
           echo "cp $license licenses\openssl.txt"
           cp $license licenses\openssl.txt
-#          ls licenses
-#          Get-ChildItem -Path C:\vcpkg\buildtrees\getopt-win32\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName}
 
           echo "license=(Get-ChildItem -Path C:\vcpkg\buildtrees\getopt-win32\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})"
           $license=(Get-ChildItem -Path C:\vcpkg\buildtrees\getopt-win32\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
@@ -292,12 +275,10 @@ jobs:
 
           echo "cp $license licenses\getopt.txt"
           cp $license licenses\getopt.txt
-#          ls licenses
 
 
           echo "cp -r 'C:\vcpkg\packages\openssl-windows_x64-windows\include\openssl' include\"
           cp -r 'C:\vcpkg\packages\openssl-windows_x64-windows\include\openssl' include\
-#          ls include
 
           echo "cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\tool\yubico-piv-tool.1' share\man\man1\"
           cp 'D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\tool\yubico-piv-tool.1' share\man\man1\
