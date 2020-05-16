@@ -37,12 +37,12 @@
 #include <windows.h>
 #endif
 
-#include "openssl-compat.h"
 #include <openssl/bn.h>
 #include <openssl/evp.h>
 #include <openssl/x509.h>
 #include <openssl/rsa.h>
 
+#include "openssl-compat.h"
 #include "ykpiv.h"
 
 #include "cmdline.h"

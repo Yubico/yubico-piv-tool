@@ -55,7 +55,6 @@ if(NOT DEFINED SKIP_TESTS)
             ../objects.c
             ../mechanisms.c
             ../../tool/util.c
-            ../../tool/openssl-compat.c
     )
 
     add_executable(test_ykcs11 ${SOURCE_YKCS11_TESTS})
