@@ -43,11 +43,8 @@ set(
         openssl_utils.c
         objects.c
         ../tool/util.c
+        ../tool/openssl-compat.c
 )
-
-if(${OPENSSL_VERSION} VERSION_LESS 1.1.0)
-    set(SOURCE ${SOURCE} ../tool/openssl-compat.c)
-endif()
 
 include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}/../lib
