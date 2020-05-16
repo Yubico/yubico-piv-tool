@@ -45,14 +45,17 @@ if(NOT DEFINED SKIP_TESTS)
         endif(BASH_PROGRAM_FOUND)
     endif(ENABLE_HARDWARE_TESTS)
 
-    set(SOURCE_YKCS11_TESTS ykcs11_tests.c ykcs11_tests_util.c
-        ../ykcs11.c
-        ../openssl_utils.c
-        ../utils.c
-        ../token.c
-        ../objects.c
-        ../mechanisms.c
-        ../../tool/util.c
+    set(SOURCE_YKCS11_TESTS
+            ykcs11_tests.c
+            ykcs11_tests_util.c
+            ../ykcs11.c
+            ../openssl_utils.c
+            ../utils.c
+            ../token.c
+            ../objects.c
+            ../mechanisms.c
+            ../../tool/util.c
+            ../../tool/openssl-compat.c
     )
 
     add_executable(test_ykcs11 ${SOURCE_YKCS11_TESTS})
