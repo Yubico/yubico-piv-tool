@@ -1,0 +1,54 @@
+name: Ubuntu with LibreSSL
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      # This action checks-out the repository under $GITHUB_WORKSPACE, so the workflow can access it.
+      - name: checkout
+        uses: actions/checkout@v2
+      - name: Install prerequisites
+        run: |
+          echo sudo apt install libpcsclite-dev check gengetopt help2man libre
+          sudo apt install libpcsclite-dev check gengetopt help2man
+      - name: Install LibreSSL from source
+        run: |
+          cd ..
+          wget http://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-3.1.1.tar.gz
+          tar -xzvf libressl-2.0.2.tar.gz
+          cd libressl-3.1.1
+          ./autogen.sh
+          ./configure
+          make check
+          sudo make install
+
+      - name: Build and install
+        run: |
+          echo "mkdir cmake_build; cd cmake_build"
+          mkdir cmake_build; cd cmake_build
+
+          echo cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON
+          cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON
+
+          echo make
+          make
+
+          echo make test
+          make test
+
+          echo "ldd {yubico-piv-tool/libykpiv.so/libykcs11.so} | grep libcrypto.so"
+          ldd tool/yubico-piv-tool | grep libcrypto.so
+          ldd lib/libykpiv.so | grep libcrypto.so
+          ldd ykcs11/libykcs11.so | grep libcrypto.so
+
+          echo sudo make install
+          sudo make install
+
+          echo "yubico-piv-tool --help | grep 'Usage: yubico-piv-tool'"
+          yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
+
+          echo "objdump -T /usr/local/lib/libykcs11.so | grep C_Sign"
+          objdump -T /usr/local/lib/libykcs11.so | grep C_Sign
