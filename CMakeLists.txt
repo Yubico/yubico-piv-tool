@@ -96,8 +96,9 @@ find_package(codecov)
 
 add_subdirectory (lib)
 if(NOT BUILD_ONLY_LIB)
-    add_subdirectory (ykcs11)
-    add_subdirectory (tool)
+    add_subdirectory(common)
+    add_subdirectory(ykcs11)
+    add_subdirectory(tool)
 endif()
 
 add_custom_target (

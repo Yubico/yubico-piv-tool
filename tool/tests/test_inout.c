@@ -35,7 +35,7 @@
 #include <string.h>
 #include <assert.h>
 
-#include "util.h"
+#include "../../common/util.h"
 
 #ifdef _WIN32
 #include <openssl/applink.c>

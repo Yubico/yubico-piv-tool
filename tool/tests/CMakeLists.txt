@@ -32,21 +32,15 @@ find_check()
 
 if(NOT DEFINED SKIP_TESTS)
 
-    set(SOURCE_PARSE_NAME parse_name.c ../util.c)
-    set(SOURCE_TEST_INOUT test_inout.c ../util.c)
+    set(SOURCE_PARSE_NAME parse_name.c)
+    set(SOURCE_TEST_INOUT test_inout.c)
 
 
     add_executable(test_parse_name ${SOURCE_PARSE_NAME})
     add_executable (test_inout ${SOURCE_TEST_INOUT})
 
-    if(WIN32)
-        set(YKPIV_LIB_LINK ykpiv_static)
-    else(WIN32)
-        set(YKPIV_LIB_LINK ykpiv)
-    endif(WIN32)
-
-    target_link_libraries(test_parse_name ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS} ${YKPIV_LIB_LINK})
-    target_link_libraries(test_inout ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS} ${YKPIV_LIB_LINK})
+    target_link_libraries(test_parse_name ykpivcommon ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
+    target_link_libraries(test_inout ykpivcommon ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
 
 
     add_test(

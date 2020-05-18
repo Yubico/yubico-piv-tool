@@ -1,4 +1,4 @@
-#include "../../tool/openssl-compat.h"
+#include "../../common/openssl-compat.h"
 
 #include <string.h>
 #include <stdlib.h>

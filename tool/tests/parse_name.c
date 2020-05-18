@@ -39,7 +39,7 @@
 
 #include <openssl/x509.h>
 
-#include "util.h"
+#include "../../common/util.h"
 
 struct name {
   const char *name;

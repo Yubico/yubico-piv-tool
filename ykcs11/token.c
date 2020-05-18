@@ -36,7 +36,7 @@
 #include "openssl_utils.h"
 
 #include <stdbool.h>
-#include "../tool/util.h"
+#include "../common/util.h"
 
 #define MIN_RSA_KEY_SIZE 1024
 #define MAX_RSA_KEY_SIZE 2048

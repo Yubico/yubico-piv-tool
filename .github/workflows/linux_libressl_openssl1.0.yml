@@ -1,22 +1,22 @@
-name: Ubuntu with LibreSSL
+name: Ubuntu with LibreSSL and OpenSSL 1.0
 on: [push]
 
 jobs:
-  build:
 
+  job_1:
+    name: Build with LibreSSL
     runs-on: ubuntu-latest
-
     steps:
-      # This action checks-out the repository under $GITHUB_WORKSPACE, so the workflow can access it.
       - name: checkout
         uses: actions/checkout@v2
       - name: Install prerequisites
         run: |
-          echo sudo apt install libpcsclite-dev check gengetopt help2man libre
+          echo sudo apt install libpcsclite-dev check gengetopt help2man
           sudo apt install libpcsclite-dev check gengetopt help2man
       - name: Install LibreSSL from source
         run: |
           cd ..
+          pwd
           wget http://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-3.1.1.tar.gz
           tar -xzvf libressl-3.1.1.tar.gz
           cd libressl-3.1.1
@@ -26,6 +26,45 @@ jobs:
           make
           make test
           sudo make install
+
+      - name: Build and install
+        run: |
+          echo "mkdir cmake_build; cd cmake_build"
+          mkdir cmake_build; cd cmake_build
+
+          echo cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON
+          cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON
+
+          echo make
+          make
+
+          echo make test
+          make test
+
+          echo "ldd {yubico-piv-tool/libykpiv.so/libykcs11.so} | grep libcrypto.so"
+          ldd tool/yubico-piv-tool | grep libcrypto.so
+          ldd lib/libykpiv.so | grep libcrypto.so
+          ldd ykcs11/libykcs11.so | grep libcrypto.so
+
+          echo sudo make install
+          sudo make install
+
+          echo "yubico-piv-tool --help | grep 'Usage: yubico-piv-tool'"
+          yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
+
+          echo "objdump -T /usr/local/lib/libykcs11.so | grep C_Sign"
+          objdump -T /usr/local/lib/libykcs11.so | grep C_Sign
+
+  job_2:
+    name: Build with OpenSSL 1.0
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+      - name: Install prerequisites
+        run: |
+          echo sudo apt install libpcsclite-dev check gengetopt help2man openssl1.0
+          sudo apt install libpcsclite-dev check gengetopt help2man openssl1.0
 
       - name: Build and install
         run: |

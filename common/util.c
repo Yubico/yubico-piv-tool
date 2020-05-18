@@ -45,7 +45,6 @@
 #include "openssl-compat.h"
 #include "ykpiv.h"
 
-#include "cmdline.h"
 #include "util.h"
 
 FILE *open_file(const char *file_name, enum file_mode mode) {

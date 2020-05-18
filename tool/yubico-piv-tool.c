@@ -44,7 +44,7 @@
 #include <openssl/applink.c>
 #endif
 
-#include "openssl-compat.h"
+#include "../common/openssl-compat.h"
 #include <openssl/bn.h>
 #include <openssl/des.h>
 #include <openssl/pem.h>
@@ -54,7 +54,7 @@
 #include <openssl/x509v3.h>
 
 #include "cmdline.h"
-#include "util.h"
+#include "../common/util.h"
 
 #define MAX(a,b) (a) > (b) ? (a) : (b)
 

@@ -42,8 +42,6 @@ set(
         utils.c
         openssl_utils.c
         objects.c
-        ../tool/util.c
-        ../tool/openssl-compat.c
 )
 
 include_directories(
@@ -72,18 +70,14 @@ endif(NOT ${ENABLE_HARDWARE_TESTS})
 
 add_library(ykcs11 SHARED ${SOURCE})
 set_target_properties (ykcs11 PROPERTIES SOVERSION ${YKCS11_VERSION_MAJOR})
-if(WIN32)
-    target_link_libraries(ykcs11 ykpiv_static ${LIBCRYPTO_LDFLAGS})
-else(WIN32)
-    target_link_libraries(ykcs11 ykpiv ${LIBCRYPTO_LDFLAGS})
-endif(WIN32)
+target_link_libraries(ykcs11 ykpivcommon ${LIBCRYPTO_LDFLAGS})
 add_coverage (ykcs11)
 
 if(BUILD_STATIC_LIB)
     add_library (ykcs11_static STATIC ${SOURCE})
     set_target_properties (ykcs11_static PROPERTIES POSITION_INDEPENDENT_CODE on OUTPUT_NAME ykcs11)
     set_target_properties (ykcs11_static PROPERTIES COMPILE_FLAGS "-DSTATIC " )
-    target_link_libraries (ykcs11_static ykpiv_static ${LIBCRYPTO_LDFLAGS})
+    target_link_libraries (ykcs11_static ykpivcommon ${LIBCRYPTO_LDFLAGS})
     add_coverage (ykcs11_static)
 endif(BUILD_STATIC_LIB)
 
