@@ -377,7 +377,7 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
       fprintf(stderr, "Failed to load PKCS12 from file.\n");
       goto import_out;
     }
-    if(PKCS12_parse(p12, password, &private_key, &cert, NULL) == 0) {
+    if(PKCS12_parse(p12, password, &private_key, &cert, NULL) == 0 || private_key == NULL) {
       fprintf(stderr, "Failed to parse PKCS12 structure. (wrong password?)\n");
       goto import_out;
     }
@@ -1431,6 +1431,7 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
         default:
           fprintf(output, "Unknown\n");
       }
+      EVP_PKEY_free(key);
     }
     subj = X509_get_subject_name(x509);
     if(!subj) {
@@ -1553,7 +1554,7 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
   unsigned char data[1024];
   unsigned int data_len;
   X509 *x509 = NULL;
-  EVP_PKEY *pubkey;
+  EVP_PKEY *pubkey = NULL;
   FILE *input_file = open_file(input_file_name, key_file_mode(cert_format, false));
 
   if(!input_file) {
@@ -1580,7 +1581,7 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
 
   md = get_hash(hash, NULL, NULL);
   if(md == NULL) {
-    return false;
+    goto test_out;
   }
 
   {
@@ -1588,7 +1589,7 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
     EVP_MD_CTX *mdctx;
     if(RAND_bytes(rand, sizeof(rand)) <= 0) {
       fprintf(stderr, "error: no randomness.\n");
-      return false;
+      goto test_out;
     }
 
     mdctx = EVP_MD_CTX_create();
@@ -1599,6 +1600,7 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
       fprintf(stderr, "Test data hashes as: ");
       dump_data(data, data_len, stderr, true, format_arg_hex);
     }
+    EVP_MD_CTX_destroy(mdctx);
   }
 
   {
@@ -1672,6 +1674,9 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
     }
   }
 test_out:
+  if(pubkey) {
+    EVP_PKEY_free(pubkey);
+  }
   if(x509) {
     X509_free(x509);
   }
@@ -1685,7 +1690,7 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
     const char *input_file_name, enum enum_key_format cert_format, int verbose) {
   bool ret = false;
   X509 *x509 = NULL;
-  EVP_PKEY *pubkey;
+  EVP_PKEY *pubkey = NULL;
   EC_KEY *tmpkey = NULL;
   FILE *input_file = open_file(input_file_name, key_file_mode(cert_format, false));
 
@@ -1811,6 +1816,9 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
 decipher_out:
   if(tmpkey) {
     EC_KEY_free(tmpkey);
+  }
+  if(pubkey) {
+    EVP_PKEY_free(pubkey);
   }
   if(x509) {
     X509_free(x509);
@@ -1976,6 +1984,7 @@ int main(int argc, char *argv[]) {
         if(!args_info.subject_arg) {
           fprintf(stderr, "The '%s' action needs a subject (-S) to operate on.\n",
               cmdline_parser_action_values[action]);
+          cmdline_parser_free(&args_info);
           return EXIT_FAILURE;
         }
         /* fall through */
@@ -1990,6 +1999,7 @@ int main(int argc, char *argv[]) {
         if(args_info.slot_arg == slot__NULL) {
           fprintf(stderr, "The '%s' action needs a slot (-s) to operate on.\n",
               cmdline_parser_action_values[action]);
+          cmdline_parser_free(&args_info);
           return EXIT_FAILURE;
         }
         break;
@@ -1997,6 +2007,7 @@ int main(int argc, char *argv[]) {
         if(!args_info.pin_retries_given || !args_info.puk_retries_given) {
           fprintf(stderr, "The '%s' action needs both --pin-retries and --puk-retries arguments.\n",
               cmdline_parser_action_values[action]);
+          cmdline_parser_free(&args_info);
           return EXIT_FAILURE;
         }
         break;
@@ -2005,6 +2016,7 @@ int main(int argc, char *argv[]) {
         if(!args_info.id_given) {
           fprintf(stderr, "The '%s' action needs the --id argument.\n",
               cmdline_parser_action_values[action]);
+          cmdline_parser_free(&args_info);
           return EXIT_FAILURE;
         }
         break;
@@ -2027,11 +2039,14 @@ int main(int argc, char *argv[]) {
 
   if(ykpiv_init(&state, verbosity) != YKPIV_OK) {
     fprintf(stderr, "Failed initializing library.\n");
+    cmdline_parser_free(&args_info);
     return EXIT_FAILURE;
   }
 
   if(ykpiv_connect(state, args_info.reader_arg) != YKPIV_OK) {
     fprintf(stderr, "Failed to connect to yubikey.\nTry removing and reconnecting the device.");
+    ykpiv_done(state);
+    cmdline_parser_free(&args_info);
     return EXIT_FAILURE;
   }
 
@@ -2046,6 +2061,8 @@ int main(int argc, char *argv[]) {
           }
           if(!read_pw("Password", pwbuf, sizeof(pwbuf), false, args_info.stdin_input_flag)) {
             fprintf(stderr, "Failed to get password.\n");
+            ykpiv_done(state);
+            cmdline_parser_free(&args_info);
             return EXIT_FAILURE;
           }
           password = pwbuf;
@@ -2069,17 +2086,23 @@ int main(int argc, char *argv[]) {
           if(args_info.key_given && args_info.key_orig == NULL) {
             if(!read_pw("management key", keybuf, sizeof(keybuf), false, args_info.stdin_input_flag)) {
               fprintf(stderr, "Failed to read management key from stdin,\n");
+              ykpiv_done(state);
+              cmdline_parser_free(&args_info);
               return EXIT_FAILURE;
             }
             key_ptr = keybuf;
           }
           if(ykpiv_hex_decode(key_ptr, strlen(key_ptr), key, &key_len) != YKPIV_OK) {
             fprintf(stderr, "Failed decoding key!\n");
+            ykpiv_done(state);
+            cmdline_parser_free(&args_info);
             return EXIT_FAILURE;
           }
 
           if(ykpiv_authenticate(state, key) != YKPIV_OK) {
             fprintf(stderr, "Failed authentication with the application.\n");
+            ykpiv_done(state);
+            cmdline_parser_free(&args_info);
             return EXIT_FAILURE;
           }
           if(verbosity) {
@@ -2229,6 +2252,8 @@ int main(int argc, char *argv[]) {
         if(!pin) {
           if (!read_pw("PIN", pinbuf, sizeof(pinbuf), false, args_info.stdin_input_flag)) {
             fprintf(stderr, "Failed to get PIN.\n");
+            ykpiv_done(state);
+            cmdline_parser_free(&args_info);
             return EXIT_FAILURE;
           }
           pin = pinbuf;
@@ -2253,6 +2278,8 @@ int main(int argc, char *argv[]) {
         if(!pin) {
           if (!read_pw(name, pinbuf, sizeof(pinbuf), false, args_info.stdin_input_flag)) {
             fprintf(stderr, "Failed to get %s.\n", name);
+            ykpiv_done(state);
+            cmdline_parser_free(&args_info);
             return EXIT_FAILURE;
           }
           pin = pinbuf;
@@ -2260,6 +2287,8 @@ int main(int argc, char *argv[]) {
         if(!new_pin) {
           if (!read_pw(new_name, new_pinbuf, sizeof(new_pinbuf), true, args_info.stdin_input_flag)) {
             fprintf(stderr, "Failed to get %s.\n", new_name);
+            ykpiv_done(state);
+            cmdline_parser_free(&args_info);
             return EXIT_FAILURE;
           }
           new_pin = new_pinbuf;
@@ -2366,5 +2395,6 @@ int main(int argc, char *argv[]) {
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L)
   EVP_cleanup();
 #endif
+  cmdline_parser_free(&args_info);
   return ret;
 }
