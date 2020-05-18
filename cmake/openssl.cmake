@@ -70,7 +70,7 @@ macro (find_libcrypto)
         endif(NOT OpenSSL_FOUND)
 
      endif(WIN32)
-
+    message("        OpenSSL version:   ${OPENSSL_VERSION}")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${LIBCRYPTO_CFLAGS}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${LIBCRYPTO_CFLAGS}")
     link_directories(${LIBCRYPTO_LIBRARY_DIRS})

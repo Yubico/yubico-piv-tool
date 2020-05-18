@@ -48,19 +48,13 @@ if(NOT DEFINED SKIP_TESTS)
     set(SOURCE_YKCS11_TESTS
             ykcs11_tests.c
             ykcs11_tests_util.c
-            ../ykcs11.c
-            ../openssl_utils.c
-            ../utils.c
-            ../token.c
-            ../objects.c
-            ../mechanisms.c
     )
 
     add_executable(test_ykcs11 ${SOURCE_YKCS11_TESTS})
     if(WIN32)
-        target_link_libraries(test_ykcs11 ykpivcommon ${LIBCRYPTO_LDFLAGS})
+        target_link_libraries(test_ykcs11 ykcs11_static ${LIBCRYPTO_LDFLAGS})
     else(WIN32)
-        target_link_libraries(test_ykcs11 ykpivcommon ${LIBCRYPTO_LDFLAGS} pthread)
+        target_link_libraries(test_ykcs11 ykcs11 ${LIBCRYPTO_LDFLAGS} pthread)
     endif(WIN32)
 
     add_test(
