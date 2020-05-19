@@ -302,7 +302,7 @@ EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
     {CKA_KEY_TYPE, &kt, sizeof(kt)},
     {CKA_ID, &id, sizeof(id)},
     {CKA_EC_PARAMS, ec_params, ec_params_len},
-    {CKA_VALUE, pvt, sizeof(pvt)}
+    {CKA_VALUE, pvt, key_len}
   };
 
   CK_ATTRIBUTE publicKeyTemplate[] = {
@@ -400,11 +400,11 @@ void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int k
     {CKA_KEY_TYPE, &kt, sizeof(kt)},
     {CKA_ID, &id, sizeof(id)},
     {CKA_PUBLIC_EXPONENT, e, sizeof(e)},
-    {CKA_PRIME_1, p, sizeof(p)},
-    {CKA_PRIME_2, q, sizeof(q)},
-    {CKA_EXPONENT_1, dp, sizeof(dp)},
-    {CKA_EXPONENT_2, dq, sizeof(dq)},
-    {CKA_COEFFICIENT, qinv, sizeof(qinv)}
+    {CKA_PRIME_1, p, (keylen / 16)},
+    {CKA_PRIME_2, q, (keylen / 16)},
+    {CKA_EXPONENT_1, dp, (keylen / 16)},
+    {CKA_EXPONENT_2, dq, (keylen / 16)},
+    {CKA_COEFFICIENT, qinv, (keylen / 16)}
   };
 
   CK_ATTRIBUTE publicKeyTemplate[] = {

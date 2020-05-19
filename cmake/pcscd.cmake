@@ -62,7 +62,7 @@ macro (find_pcscd)
             message (FATAL_ERROR "pcscd not found. Aborting...")
         endif(PCSC_FOUND)
     endif()
-    
+
     if(${PCSC_LIB} NOT STREQUAL "")
         message("Checking for PCSC with custom lib")
         find_file(PCSC_WINSCARD_H_FOUND PCSC/winscard.h)
