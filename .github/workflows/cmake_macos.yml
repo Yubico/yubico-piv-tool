@@ -23,8 +23,8 @@ jobs:
           echo cd cmake_build
           cd cmake_build
 
-          echo cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON -DBACKEND=macscard
-          cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON -DBACKEND=macscard
+          echo cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON
+          cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON
 
           echo make
           make
