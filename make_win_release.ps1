@@ -1,0 +1,74 @@
+$RELEASE_VERSION=$args[0]
+$CMAKE_ARCH=$args[1]
+$VCPKG_PATH=$args[2]
+
+if($CMAKE_ARCH -eq "Win32") {
+    $ARCH="x86"
+}
+else
+{
+    $ARCH="x64"
+}
+
+$SOURCE_DIR="$PSScriptRoot"
+$BUILD_DIR="$SOURCE_DIR/win32_release"
+$RELEASE_DIR="$BUILD_DIR/yubico-piv-tool-$RELEASE_VERSION-$ARCH"
+$LICENSES_DIR="$RELEASE_DIR/licenses"
+$SHARE_DIR="$RELEASE_DIR/share/man/man1"
+$BIN_ARCHIVE="$SOURCE_DIR/yubico-piv-tool-$RELEASE_VERSION-$ARCH.zip"
+
+# Install prerequisites
+cd $VCPKG_PATH
+.\vcpkg.exe install openssl:$ARCH-windows
+.\vcpkg.exe install getopt:$ARCH-windows
+
+$env:OPENSSL_ROOT_DIR ="$VCPKG_PATH/packages/openssl-windows_$ARCH-windows"
+
+# Build for x86 architecture
+cd $SOURCE_DIR
+mkdir $BUILD_DIR; cd $BUILD_DIR
+cmake -A "$CMAKE_ARCH" -DVERBOSE_CMAKE=ON -DGETOPT_LIB_DIR="$VCPKG_PATH/packages/getopt-win32_$ARCH-windows/lib" -DGETOPT_INCLUDE_DIR="$VCPKG_PATH/packages/getopt-win32_$ARCH-windows/include" -DCMAKE_INSTALL_PREFIX="$RELEASE_DIR" ..
+cmake --build . -v --config Release
+cmake --install .
+cd $RELEASE_DIR/bin
+if($ARCH -eq "x86")
+{
+    cp $VCPKG_PATH/packages/openssl-windows_x86-windows/bin/libcrypto-1_1.dll .
+    cp $VCPKG_PATH/packages/getopt-win32_x86-windows/bin/getopt.dll .
+}
+else
+{
+    cp $VCPKG_PATH/packages/openssl-windows_x64-windows/bin/libcrypto-1_1-x64.dll .
+    cp $VCPKG_PATH/packages/getopt-win32_x64-windows/bin/getopt.dll .
+}
+
+# Create missing directories
+mkdir -p $LICENSES_DIR
+mkdir -p $SHARE_DIR
+
+# Copy licenses
+$license=(Get-ChildItem -Path $SOURCE_DIR -Filter COPYING -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
+cp $license $LICENSES_DIR\yubico-piv-tool.txt
+
+$license=(Get-ChildItem -Path $VCPKG_PATH\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
+cp $license $LICENSES_DIR\openssl.txt
+
+$license=(Get-ChildItem -Path $VCPKG_PATH\buildtrees\getopt-win32\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
+cp $license $LICENSES_DIR\getopt.txt
+
+# Copy OpenSSL header files
+cp -r $VCPKG_PATH\packages\openssl-windows_$ARCH-windows\include\openssl $RELEASE_DIR/include/
+
+# Copy manpages
+$manpage=(Get-ChildItem -Path $SOURCE_DIR -Filter yubico-piv-tool.1 -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
+cp $manpage $SHARE_DIR
+
+# Create a zip with the binaries
+Add-Type -Assembly System.IO.Compression.FileSystem
+$compressionLevel = [System.IO.Compression.CompressionLevel]::Optimal
+[System.IO.Compression.ZipFile]::CreateFromDirectory($RELEASE_DIR, $BIN_ARCHIVE, $compressionLevel, $true)
+
+
+# Clean directory
+cd $SOURCE_DIR
+rm -r $BUILD_DIR
