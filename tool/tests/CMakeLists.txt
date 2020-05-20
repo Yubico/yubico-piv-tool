@@ -27,6 +27,8 @@
 
 #set(LOG_COMPILER "${VALGRIND}")
 
+message("lib/tool/CMakeList.txt")
+
 include(check)
 find_check()
 
