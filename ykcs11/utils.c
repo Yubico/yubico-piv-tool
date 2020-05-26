@@ -47,7 +47,12 @@
 #include <string.h>
 
 CK_BBOOL is_yubico_reader(const char* reader_name) {
-  return !strncmp(reader_name, "Yubico", 6);
+  static const char *prefix = NULL;
+  if (prefix == NULL)
+    prefix = getenv("YKCS11_READER_PREFIX");
+  if (prefix == NULL)
+    prefix = "Yubico";
+  return !strncmp(reader_name, prefix, strlen(prefix));
 }
 
 size_t memstrcpy(unsigned char *dst, size_t size, const char *src) {
