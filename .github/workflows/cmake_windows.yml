@@ -93,7 +93,6 @@ jobs:
           ls
           ls bin
 
-          echo "dumpbin.exe /DEPENDENTS bin\libcrypto-1_1.dll"
           dumpbin.exe /DEPENDENTS bin\libcrypto-1_1.dll
 
 
