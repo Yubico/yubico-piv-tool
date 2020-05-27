@@ -63,6 +63,41 @@ jobs:
           echo "vcpkg install check:x86-windows"
           vcpkg install check:x86-windows
 
+
+      - name: install openssl from source
+        run: |
+          cd ..
+          $HOME_DIR="$PSScriptRoot"
+
+          echo "cp -r C:/vcpkg/buildtrees/openssl-windows/src/openssl-1-b1f8ae3e6c openssl_32"
+          cp -r C:/vcpkg/buildtrees/openssl-windows/src/openssl-1-b1f8ae3e6c openssl_32
+
+          echo cd openssl_32
+          cd openssl_32
+
+          echo "perl Configure VC-WIN32 --prefix=$HOME_DIR/Build-OpenSSL-VC-32"
+          perl Configure VC-WIN32 --prefix="$HOME_DIR/Build-OpenSSL-VC-32"
+
+          echo "ms\do_ms"
+          ms\do_ms
+
+          echo "nmake -f ms\nt.mak"
+          nmake -f ms\nt.mak
+
+          echo "nmake -f ms\nt.mak install
+          nmake -f ms\nt.mak install
+
+          echo "cd $HOME_DIR/Build-OpenSSL-VC-32"
+          cd $HOME_DIR/Build-OpenSSL-VC-32
+
+          ls
+          ls bin
+
+          echo "dumpbin.exe /DEPENDENTS bin\libcrypto-1_1.dll"
+          dumpbin.exe /DEPENDENTS bin\libcrypto-1_1.dll
+
+
+
       - name: build for x86 architecture
         run: |
           $env:RELEASE_VERSION="2.1.0"
