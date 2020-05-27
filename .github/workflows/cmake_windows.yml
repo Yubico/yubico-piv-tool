@@ -69,25 +69,25 @@ jobs:
           cd ..
           $HOME_DIR="$PSScriptRoot"
 
-          echo "cp -r C:/vcpkg/buildtrees/openssl-windows/src/openssl-1-b1f8ae3e6c openssl_32"
+          echo "cp -r openssl-1-b1f8ae3e6c openssl_32"
           cp -r C:/vcpkg/buildtrees/openssl-windows/src/openssl-1-b1f8ae3e6c openssl_32
 
-          echo cd openssl_32
+          echo "cd openssl_32"
           cd openssl_32
 
-          echo "perl Configure VC-WIN32 --prefix=$HOME_DIR/Build-OpenSSL-VC-32"
+          echo "perl Configure"
           perl Configure VC-WIN32 --prefix="$HOME_DIR/Build-OpenSSL-VC-32"
 
-          echo "ms\do_ms"
+          echo "ms"
           ms\do_ms
 
-          echo "nmake -f ms\nt.mak"
+          echo "nmake"
           nmake -f ms\nt.mak
 
-          echo "nmake -f ms\nt.mak install
+          echo "nmake install"
           nmake -f ms\nt.mak install
 
-          echo "cd $HOME_DIR/Build-OpenSSL-VC-32"
+          echo "cd Build-OpenSSL-VC-32"
           cd $HOME_DIR/Build-OpenSSL-VC-32
 
           ls
