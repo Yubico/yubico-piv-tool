@@ -14,8 +14,8 @@ jobs:
         uses: actions/checkout@v2
       - name: Install prerequisites
         run: |
-          echo sudo apt install libpcsclite-dev check gengetopt help2man opensc-pkcs11
-          sudo apt install libpcsclite-dev check gengetopt help2man opensc-pkcs11
+          echo sudo apt install libpcsclite-dev check gengetopt help2man opensc
+          sudo apt install libpcsclite-dev check gengetopt help2man opensc
 
       - name: Build and install
         run: |
