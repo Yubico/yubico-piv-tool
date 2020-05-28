@@ -36,7 +36,7 @@ jobs:
           ldd lib/libykpiv.so | grep libcrypto.so
           ldd ykcs11/libykcs11.so | grep libcrypto.so
 
-          pkcs11-tool --module lib/libykcs11.so --show-info
+          pkcs11-tool --module ykcs11/libykcs11.so --show-info
 
           echo sudo make install
           sudo make install
@@ -47,8 +47,8 @@ jobs:
           echo "objdump -T /usr/local/lib/libykcs11.so | grep C_Sign"
           objdump -T /usr/local/lib/libykcs11.so | grep C_Sign
 
-          echo "ls /usr/local/lib/libyk*"
-          ls /usr/local/lib/libyk*
+          echo "ls -l /usr/local/lib/libyk*"
+          ls -l /usr/local/lib/libyk*
           pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info
 
       - name: Build using OpenSSL static link
@@ -70,7 +70,7 @@ jobs:
           ldd lib/libykpiv.so | grep libcrypto.so | wc -l | grep 0
           ldd ykcs11/libykcs11.so | grep libcrypto.so | wc -l | grep 0
 
-          pkcs11-tool --module lib/libykcs11.so --show-info
+          pkcs11-tool --module ykcs11/libykcs11.so --show-info
 
           echo sudo make install
           sudo make install
