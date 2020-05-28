@@ -50,6 +50,8 @@ jobs:
           echo "ls -l /usr/local/lib/libyk*"
           ls -l /usr/local/lib/libyk*
 
+          echo "pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico"
+          pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico
 
       - name: Build using OpenSSL static link
         run: |
@@ -80,6 +82,9 @@ jobs:
 
           echo "ls -l /usr/local/lib/libyk*"
           ls -l /usr/local/lib/libyk*
+
+          echo "ls -l /usr/local/lib/libcrypto*"
+          ls -l /usr/local/lib/libcrypto*
 
           echo "pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico"
           pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico

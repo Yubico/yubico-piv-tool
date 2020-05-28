@@ -146,7 +146,7 @@ jobs:
       - name: Test upload ykcs11 with OpenSC
         run: |
           cd D:\a\
-          Invoke-WebRequest -Uri -UseBasicParsing https://github.com/OpenSC/OpenSC/releases/download/0.20.0/OpenSC-0.20.0_win32.msi -OutFile OpenSC-0.20.0_win32.msi
+          Invoke-WebRequest -Uri https://github.com/OpenSC/OpenSC/releases/download/0.20.0/OpenSC-0.20.0_win32.msi -OutFile OpenSC-0.20.0_win32.msi -UseBasicParsing
 
           mkdir OpenSC
           msiexec /i OpenSC-0.20.0_win32.msi.msi /quiet /l .\log.txt TARGETDIR="D:\a\OpenSC"
@@ -277,7 +277,7 @@ jobs:
       - name: Test upload ykcs11 with OpenSC
         run: |
           cd D:\a\
-          Invoke-WebRequest -Uri -UseBasicParsing https://github.com/OpenSC/OpenSC/releases/download/0.20.0/OpenSC-0.20.0_win64.msi -OutFile OpenSC-0.20.0_win64.msi
+          Invoke-WebRequest -Uri https://github.com/OpenSC/OpenSC/releases/download/0.20.0/OpenSC-0.20.0_win64.msi -OutFile OpenSC-0.20.0_win64.msi -UseBasicParsing
 
           mkdir OpenSC
           msiexec /i OpenSC-0.20.0_win32.msi.msi /quiet /l .\log.txt TARGETDIR="D:\a\OpenSC"
