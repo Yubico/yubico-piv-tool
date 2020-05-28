@@ -143,6 +143,18 @@ jobs:
           $manpage=(Get-ChildItem -Path D:\a\yubico-piv-tool\yubico-piv-tool\ -Filter yubico-piv-tool.1 -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
           cp $manpage share\man\man1\
 
+      - name: Test upload ykcs11 with OpenSC
+        run: |
+          cd D:\a\
+          Invoke-WebRequest -Uri -UseBasicParsing https://github.com/OpenSC/OpenSC/releases/download/0.20.0/OpenSC-0.20.0_win32.msi -OutFile OpenSC-0.20.0_win32.msi
+
+          mkdir OpenSC
+          msiexec /i OpenSC-0.20.0_win32.msi.msi /quiet /l .\log.txt TARGETDIR="D:\a\OpenSC"
+          ls OpenSC
+
+          cd D:\a\yubico-piv-tool\final_install\bin
+          'D:\a\OpenSC\tools\pkcs11-tool.exe' --module libykcs11.dll --show-info
+
       - name: Upload artifact
         uses: actions/upload-artifact@v1
         with:
@@ -261,6 +273,18 @@ jobs:
           echo "copy man pages"
           $manpage=(Get-ChildItem -Path D:\a\yubico-piv-tool\yubico-piv-tool\ -Filter yubico-piv-tool.1 -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
           cp $manpage share\man\man1\
+
+      - name: Test upload ykcs11 with OpenSC
+        run: |
+          cd D:\a\
+          Invoke-WebRequest -Uri -UseBasicParsing https://github.com/OpenSC/OpenSC/releases/download/0.20.0/OpenSC-0.20.0_win64.msi -OutFile OpenSC-0.20.0_win64.msi
+
+          mkdir OpenSC
+          msiexec /i OpenSC-0.20.0_win32.msi.msi /quiet /l .\log.txt TARGETDIR="D:\a\OpenSC"
+          ls OpenSC
+
+          cd D:\a\yubico-piv-tool\final_install\bin
+          'D:\a\OpenSC\tools\pkcs11-tool.exe' --module libykcs11.dll --show-info
 
       - name: Upload artifact
         uses: actions/upload-artifact@v1

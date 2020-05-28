@@ -13,8 +13,8 @@ jobs:
         uses: actions/checkout@v2
       - name: Install prerequisites
         run: |
-          echo brew install pkg-config check gengetopt help2man
-          brew install pkg-config check gengetopt help2man
+          echo brew install pkg-config check gengetopt help2man opensc-pkcs11
+          brew install pkg-config check gengetopt help2man opensc-pkcs11
       - name: run cmake
         run: |
           echo mkdir cmake_build
@@ -46,6 +46,8 @@ jobs:
           echo "objdump --syms /usr/local/lib/libykcs11.dylib | grep C_Sign"
           objdump --syms /usr/local/lib/libykcs11.dylib | grep C_Sign
 
+          pkcs11-tool --module /usr/local/lib/libykcs11.dylib --show-info
+
       - name: Build using OpenSSL static link
         run: |
           export PKG_CONFIG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig:PKG_CONFIG_PATH
@@ -72,3 +74,5 @@ jobs:
 
           echo "yubico-piv-tool --help | grep 'Usage: yubico-piv-tool'"
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
+
+          pkcs11-tool --module /usr/local/lib/libykcs11.dylib --show-info
