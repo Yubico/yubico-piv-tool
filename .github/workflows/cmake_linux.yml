@@ -36,6 +36,8 @@ jobs:
           ldd lib/libykpiv.so | grep libcrypto.so
           ldd ykcs11/libykcs11.so | grep libcrypto.so
 
+          pkcs11-tool --module lib/libykcs11.so --show-info
+
           echo sudo make install
           sudo make install
 
@@ -67,6 +69,8 @@ jobs:
           ldd tool/yubico-piv-tool | grep libcrypto.so | wc -l | grep 0
           ldd lib/libykpiv.so | grep libcrypto.so | wc -l | grep 0
           ldd ykcs11/libykcs11.so | grep libcrypto.so | wc -l | grep 0
+
+          pkcs11-tool --module lib/libykcs11.so --show-info
 
           echo sudo make install
           sudo make install
