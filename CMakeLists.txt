@@ -28,7 +28,6 @@
 cmake_minimum_required (VERSION 3.10)
 cmake_policy(SET CMP0025 NEW)
 set (CMAKE_C_STANDARD 99)
-#set (CMAKE_C_STANDARD 11)
 
 project (yubico-piv-tool)
 
@@ -36,90 +35,108 @@ set (yubico_piv_tool_VERSION_MAJOR 2)
 set (yubico_piv_tool_VERSION_MINOR 1)
 set (yubico_piv_tool_VERSION_PATCH 0)
 set (VERSION "${yubico_piv_tool_VERSION_MAJOR}.${yubico_piv_tool_VERSION_MINOR}.${yubico_piv_tool_VERSION_PATCH}")
-include(${CMAKE_SOURCE_DIR}/cmake/options.cmake)
+
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
+include(${CMAKE_SOURCE_DIR}/cmake/options.cmake)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
 endif()
 
-if(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
-    if(NOT ${CMAKE_BUILD_TYPE} STREQUAL "Release")
-        set(ENV{PKG_CONFIG_PATH} "/usr/local/opt/openssl@1.1/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
-    endif(NOT ${CMAKE_BUILD_TYPE} STREQUAL "Release")
-    #set(ENV{PKG_CONFIG_PATH} "/usr/local/opt/pcsc-lite/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
-endif(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+include(CheckCCompilerFlag)
 
-if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+if(WIN32)
+    add_definitions(-DWIN32_LEAN_AND_MEAN)
     set(_WIN32 ${WIN32})
+    set(_WINDOWS ${WIN32})
+endif()
 
-    set (GENERATE_MAN_PAGES OFF)
-
-    if (NOT LIBCRYPTO_LDFLAGS)
-        set (LIBCRYPTO_LIBRARIES "bcrypt")
+if(MSVC)
+    if((NOT GETOPT_LIB_DIR) OR (NOT GETOPT_INCLUDE_DIR))
+        message(FATAL_ERROR "please provide definitions for "
+                "GETOPT_LIB_DIR and GETOPT_INCLUDE_DIR when building "
+                "under msvc")
     endif()
+    set(MSVC_DISABLED_WARNINGS_LIST
+            "C4200" # nonstandard extension used: zero-sized array in struct/union;
+            "C4204" # nonstandard extension used: non-constant aggregate initializer;
+            "C4706" # assignment within conditional expression;
+            "C4996" # The POSIX name for this item is deprecated. Instead, use the ISO C and C++ conformant name
 
-else(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+            "C4473" # Not enough arguments passed for format string placeholders
+            "C4244" # Conversion from 'int' to 'unsigned char', possible loss of data
+            "C4152" # Nonstandard extension, function/data pointer conversion in expression (openssl/applink.c)
+            "C4068" # Unknown pragma
+            "C4701" # Potentially uninitialized local variable
+            "C4703" # Potentially uninitialized local pointer
+            "C4100" # 'param': unreferenced formal parameter (unsupported pkcs11 functions)
+            "C4221" # Nonstandard extension used: 'pValue': cannot be initialized using address of automatic variable (ykcs11_tests_util)
+            "C4057" # 'const char *' differs in indirection to slightly different base types from 'const CK_CHAR_PTR' (ykcs11 tests)
+            "C4245" # Conversion from 'int' to 'CK_ULONG' (ykcs11 tests)
+            "C4013" # '_getpid' undefined; assuming extern returning int (ykcs11/utils.c)
+            "C4702" # Unreachable code (mechanisms.c:is_RSA_mechanism)
+            "C4133" # Incompatible types: from 'ykpiv_rc' (enum) to 'int'
+            "C4267" # Conversion from 'size_t' to 'CK_ULONG'
+            "C4312" # Conversion from 'unsigned int' to 'void *' of greater size (ykcs11/utils.c:noop_create_mutex)
+            )
+    # The construction in the following 3 lines was taken from LibreSSL's
+    # CMakeLists.txt.
+    string(REPLACE "C" " -wd" MSVC_DISABLED_WARNINGS_STR ${MSVC_DISABLED_WARNINGS_LIST})
+    string(REGEX REPLACE "[/-]W[1234][ ]?" "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -MP -W4 ${MSVC_DISABLED_WARNINGS_STR}")
+
+    set(BUILD_SHARED_LIBS ON)
+
+    set(GENERATE_MAN_PAGES OFF)
+    set(LIBCRYPTO_LIBRARIES ${LIBCRYPTO_LIBRARIES} bcrypt)
+else()
     find_package (PkgConfig REQUIRED)
 
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -w") # -g -O2
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Werror")
-    if(ENABLE_GCC_WARN)
-        set (WARN_FLAGS "")
-        set (WARN_FLAGS "${WARN_FLAGS} -Wsystem-headers")
-        set (WARN_FLAGS "${WARN_FLAGS} -Wpadded")
-        set (WARN_FLAGS "${WARN_FLAGS} -Wc++-compat")
-        set (WARN_FLAGS "${WARN_FLAGS} -Wtraditional")
-        set (WARN_FLAGS "${WARN_FLAGS} -Wtraditional-conversion")
-        set (WARN_FLAGS "${WARN_FLAGS} -Wconversion")
-        set (WARN_FLAGS "${WARN_FLAGS} -Wsuggest-attribute=pure")
-        set (WARN_FLAGS "${WARN_FLAGS} -Wsuggest-attribute=const")
-        set (WARN_FLAGS "${WARN_FLAGS} -Waggregate-return")
-        set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${WARN_FLAGS}")
-    endif(ENABLE_GCC_WARN)
-endif(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -w") # -g -O2
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Werror")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wshadow")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wwrite-strings")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wmissing-prototypes")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wbad-function-cast")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pedantic")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector-all")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99")
 
-if (NOT DISABLE_LTO)
-    if (CMAKE_C_COMPILER_ID STREQUAL GNU)
-        if (CMAKE_C_COMPILER_VERSION VERSION_GREATER 6.0)
-            set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -flto")
-        endif ()
-    else ()
-        if (CMAKE_C_COMPILER_VERSION VERSION_GREATER 7.0)
-            set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -flto")
-        endif ()
-    endif ()
-endif ()
+    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g2")
+    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer")
+endif()
+
+# Use -Wshorten-64-to-32 if available.
+check_c_compiler_flag("-Wshorten-64-to-32" HAVE_SHORTEN_64_TO_32)
+if(HAVE_SHORTEN_64_TO_32)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wshorten-64-to-32")
+endif()
+
+# Avoid https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66425
+if(CMAKE_COMPILER_IS_GNUCC)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-result")
+endif()
+
+include(${CMAKE_SOURCE_DIR}/cmake/openssl.cmake)
+find_libcrypto()
+include_directories(${LIBCRYPTO_INCLUDE_DIRS})
 
 enable_testing()
-find_package(codecov)
 
 add_subdirectory (lib)
 if(NOT BUILD_ONLY_LIB)
-    add_subdirectory(common)
     add_subdirectory(ykcs11)
     add_subdirectory(tool)
 endif()
 
-add_custom_target (
-        cppcheck
-        COMMENT "Running cppcheck"
-        COMMAND /usr/bin/cppcheck
-        --enable=warning,style,unusedFunction,missingInclude
-        --template="[{severity}][{id}] {message} {callstack} \(On {file}:{line}\)"
-        -i ${CMAKE_SOURCE_DIR}/tool/cmdline.c
-        --verbose
-        --quiet
-        ${CMAKE_SOURCE_DIR}/lib ${CMAKE_SOURCE_DIR}/tool ${CMAKE_SOURCE_DIR}/ykcs11
-)
-
-coverage_evaluate()
-
-message("Summary of build options:")
+message("Build summary:")
 message("")
 message("        Version:          ${VERSION}")
 message("        Host type:        ${CMAKE_SYSTEM_NAME}")
 message("        Install prefix:   ${CMAKE_PREFIX_PATH}")
+message("        Compiler:         ${CMAKE_C_COMPILER}")
 message("        Compiler ID:      ${CMAKE_C_COMPILER_ID}")
 message("        CFLAGS:           ${CMAKE_C_FLAGS}")
 message("        CPPFLAGS:         ${CMAKE_CXX_FLAGS}")
@@ -136,6 +153,7 @@ message("                LIBS:     ${PCSC_MACOSX_LIBS}")
 message("        Custom PCSC")
 message("                LIBS:     ${PCSC_CUSTOM_LIBS}")
 message("")
+message("        Install prefix:    ${CMAKE_INSTALL_PREFIX}")
 message("        Install targets")
 message("                Libraries  ${YKPIV_INSTALL_LIB_DIR}")
 message("                Includes   ${YKPIV_INSTALL_INC_DIR}")

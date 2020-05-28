@@ -29,8 +29,8 @@ jobs:
           echo "mkdir cmake_build; cd cmake_build"
           mkdir cmake_build; cd cmake_build
 
-          echo "PKG_CONFIG_PATH=/home/runner/work/yubico-piv-tool/libressl-3.1.1/build/pkgconfig cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON"
-          PKG_CONFIG_PATH=/home/runner/work/yubico-piv-tool/libressl-3.1.1/build/pkgconfig cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON
+          echo "PKG_CONFIG_PATH=/home/runner/work/yubico-piv-tool/libressl-3.1.1/build/pkgconfig cmake .. -DVERBOSE_CMAKE=ON"
+          PKG_CONFIG_PATH=/home/runner/work/yubico-piv-tool/libressl-3.1.1/build/pkgconfig cmake .. -DVERBOSE_CMAKE=ON
 
           echo make
           make
@@ -77,8 +77,8 @@ jobs:
           echo "mkdir cmake_build; cd cmake_build"
           mkdir cmake_build; cd cmake_build
 
-          echo "PKG_CONFIG_PATH=/home/runner/work/yubico-piv-tool/openssl1.0/lib/pkgconfig cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON"
-          PKG_CONFIG_PATH=/home/runner/work/yubico-piv-tool/openssl1.0/lib/pkgconfig cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON
+          echo "PKG_CONFIG_PATH=/home/runner/work/yubico-piv-tool/openssl1.0/lib/pkgconfig cmake .. -DVERBOSE_CMAKE=ON"
+          PKG_CONFIG_PATH=/home/runner/work/yubico-piv-tool/openssl1.0/lib/pkgconfig cmake .. -DVERBOSE_CMAKE=ON
 
           echo make
           make

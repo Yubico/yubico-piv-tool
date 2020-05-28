@@ -1221,7 +1221,6 @@ static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state) {
   uint8_t data[0xff];
   uint32_t recv_len = sizeof(data);
   int sw;
-  uint8_t *p_temp = NULL;
 
   if (!state) {
     return YKPIV_ARGUMENT_ERROR;

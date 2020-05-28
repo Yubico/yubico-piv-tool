@@ -27,11 +27,11 @@
 
 message("lib/tests/CMakeList.txt")
 
-if (CMAKE_C_COMPILER_ID MATCHES Clang)
+if(CMAKE_C_COMPILER_ID MATCHES Clang)
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIE")
-else ()
+elseif(NOT MSVC)
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIE -pie")
-endif ()
+endif()
 
 include(check)
 find_check()
@@ -45,15 +45,9 @@ if(NOT DEFINED SKIP_TESTS)
     add_executable(test_api ${SOURCE_API})
     add_executable(test_parse_key ${SOURCE_PARSE_KEY})
 
-    if(WIN32)
-        set(YKPIV_LIB_LINK ykpiv_static)
-    else(WIN32)
-        set(YKPIV_LIB_LINK ykpiv)
-    endif(WIN32)
-
-    target_link_libraries(test_basic ${YKPIV_LIB_LINK} ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
-    target_link_libraries(test_api ${YKPIV_LIB_LINK} ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
-    target_link_libraries(test_parse_key ${YKPIV_LIB_LINK} ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
+    target_link_libraries(test_basic ykpiv_shared ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
+    target_link_libraries(test_api ykpiv_shared ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
+    target_link_libraries(test_parse_key ykpiv_shared ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
 
     add_test(
         NAME basic

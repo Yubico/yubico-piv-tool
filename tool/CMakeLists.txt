@@ -27,20 +27,14 @@
 
 message("tool/CMakeList.txt")
 
-include(${CMAKE_SOURCE_DIR}/cmake/openssl.cmake)
-find_libcrypto()
-
-include(${CMAKE_SOURCE_DIR}/cmake/pcscd.cmake)
-find_pcscd()
-
 set (SOURCE yubico-piv-tool.c)
-
-include_directories (${CMAKE_CURRENT_SOURCE_DIR}/../lib ${CMAKE_CURRENT_SOURCE_DIR})
 
 if(WIN32)
     add_definitions (-DPACKAGE="yubico-piv-tool")
     add_definitions (-DVERSION="${yubico_piv_tool_VERSION_MAJOR}.${yubico_piv_tool_VERSION_MINOR}.${yubico_piv_tool_VERSION_PATCH}")
+
     set(SOURCE ${SOURCE} cmdline.c)
+
     find_library(GETOPT getopt PATHS ${GETOPT_LIB_DIR})
     set(LINK_LIBS_WIN ${GETOPT})
     include_directories(${GETOPT_INCLUDE_DIR})
@@ -56,26 +50,10 @@ include_directories (
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-if (CMAKE_C_COMPILER_ID MATCHES Clang)
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIE")
-else ()
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIE -pie")
-endif ()
-
-list(APPEND LCOV_REMOVE_PATTERNS "'${PROJECT_SOURCE_DIR}/tool/cmdline.c'")
-
 add_executable (yubico-piv-tool ${SOURCE})
-target_link_libraries (yubico-piv-tool ykpivcommon ${LIBCRYPTO_LDFLAGS} ${LINK_LIBS_WIN})
-add_coverage (yubico-piv-tool)
-if (BUILD_STATIC_LIB)
-    add_executable (yubico-piv-tool_static ${SOURCE})
-    set_target_properties (yubico-piv-tool_static PROPERTIES COMPILE_FLAGS "-DSTATIC")
-    target_link_libraries(yubico-piv-tool_static ykpivcommon ${LIBCRYPTO_LDFLAGS} ${LINK_LIBS_WIN})
-    add_coverage (yubico-piv-tool_static)
-endif (BUILD_STATIC_LIB)
+target_link_libraries(yubico-piv-tool ${LIBCRYPTO_LDFLAGS} ${LINK_LIBS_WIN} ykpiv_shared)
 
 set_target_properties(yubico-piv-tool PROPERTIES INSTALL_RPATH "${YKPIV_INSTALL_LIB_DIR}")
-
 install(
         TARGETS yubico-piv-tool
         ARCHIVE DESTINATION "${YKPIV_INSTALL_LIB_DIR}"

@@ -51,11 +51,7 @@ if(NOT DEFINED SKIP_TESTS)
     )
 
     add_executable(test_ykcs11 ${SOURCE_YKCS11_TESTS})
-    if(WIN32)
-        target_link_libraries(test_ykcs11 ykcs11_static ${LIBCRYPTO_LDFLAGS})
-    else(WIN32)
-        target_link_libraries(test_ykcs11 ykcs11 ${LIBCRYPTO_LDFLAGS} pthread)
-    endif(WIN32)
+    target_link_libraries(test_ykcs11 ykcs11_shared ${LIBCRYPTO_LDFLAGS})
 
     add_test(
         NAME test_ykcs11

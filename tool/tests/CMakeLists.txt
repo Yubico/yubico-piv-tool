@@ -25,8 +25,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#set(LOG_COMPILER "${VALGRIND}")
-
 message("lib/tool/CMakeList.txt")
 
 include(check)
@@ -37,13 +35,13 @@ if(NOT DEFINED SKIP_TESTS)
     set(SOURCE_PARSE_NAME parse_name.c)
     set(SOURCE_TEST_INOUT test_inout.c)
 
+    include_directories(${LIBCRYPTO_INCLUDE_DIRS})
 
     add_executable(test_parse_name ${SOURCE_PARSE_NAME})
     add_executable (test_inout ${SOURCE_TEST_INOUT})
 
-    target_link_libraries(test_parse_name ykpivcommon ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
-    target_link_libraries(test_inout ykpivcommon ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
-
+    target_link_libraries(test_parse_name ykpiv_shared ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
+    target_link_libraries(test_inout ykpiv_shared ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
 
     add_test(
         NAME test_parse_name

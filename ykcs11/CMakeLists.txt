@@ -27,12 +27,11 @@
 
 message("ykcs11/CMakeList.txt")
 
-include(${CMAKE_SOURCE_DIR}/cmake/openssl.cmake)
-find_libcrypto()
-
 link_directories(${PCSC_LIBRARY_DIRS})
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden")
 add_definitions(-DCRYPTOKI_EXPORTS)
+if(NOT WIN32)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden")
+endif(NOT WIN32)
 
 set(
         SOURCE
@@ -45,7 +44,7 @@ set(
 )
 
 include_directories(
-        ${CMAKE_CURRENT_SOURCE_DIR}/../lib
+        ${CMAKE_SOURCE_DIR}/lib
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${LIBCRYPTO_INCLUDE_DIRS}
 )
@@ -68,38 +67,39 @@ else(NOT ${ENABLE_HARDWARE_TESTS})
     set(HW_TESTS 1)
 endif(NOT ${ENABLE_HARDWARE_TESTS})
 
-add_library(ykcs11 SHARED ${SOURCE})
-set_target_properties (ykcs11 PROPERTIES SOVERSION ${YKCS11_VERSION_MAJOR})
-target_link_libraries(ykcs11 ykpivcommon ${LIBCRYPTO_LDFLAGS})
-add_coverage (ykcs11)
-
+# static library
 if(BUILD_STATIC_LIB)
-    add_library (ykcs11_static STATIC ${SOURCE})
-    set_target_properties (ykcs11_static PROPERTIES POSITION_INDEPENDENT_CODE on OUTPUT_NAME ykcs11)
-    set_target_properties (ykcs11_static PROPERTIES COMPILE_FLAGS "-DSTATIC " )
-    target_link_libraries (ykcs11_static ykpivcommon ${LIBCRYPTO_LDFLAGS})
-    add_coverage (ykcs11_static)
+    add_library(ykcs11 STATIC ${SOURCE})
+    target_link_libraries(ykcs11 ${LIBCRYPTO_LDFLAGS} ykpiv_static)
+    set_target_properties (ykcs11 PROPERTIES COMPILE_FLAGS "-DSTATIC ")
+    if(WIN32)
+        set_target_properties(ykcs11 PROPERTIES OUTPUT_NAME ykcs11_static)
+    endif()
 endif(BUILD_STATIC_LIB)
 
-if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    # glibc provides the iconv functionality out of the box, this
-    # will probably be required on other platforms besides macOS.
-    set_target_properties(ykcs11 PROPERTIES LINK_FLAGS "-liconv")
-endif()
+# dynamic library
+add_library(ykcs11_shared SHARED ${SOURCE})
+target_link_libraries(ykcs11_shared ${LIBCRYPTO_LDFLAGS} ykpiv_shared)
+set_target_properties(ykcs11_shared PROPERTIES SOVERSION ${YKCS11_VERSION_MAJOR})
+if(WIN32)
+    set_target_properties(ykcs11_shared PROPERTIES OUTPUT_NAME libykcs11)
+else(WIN32)
+    set_target_properties(ykcs11_shared PROPERTIES OUTPUT_NAME ykcs11)
+endif(WIN32)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ykcs11.pc.in ${CMAKE_CURRENT_SOURCE_DIR}/ykcs11.pc @ONLY)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ykcs11-config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/ykcs11-config.h @ONLY)
 
 set_target_properties(ykcs11 PROPERTIES INSTALL_RPATH "${YKPIV_INSTALL_LIB_DIR}")
 install(
-        TARGETS ykcs11
+        TARGETS ykcs11_shared
         ARCHIVE DESTINATION "${YKPIV_INSTALL_LIB_DIR}"
         LIBRARY DESTINATION "${YKPIV_INSTALL_LIB_DIR}"
         RUNTIME DESTINATION "${YKPIV_INSTALL_BIN_DIR}")
 
 if(BUILD_STATIC_LIB)
     install(
-        TARGETS ykcs11_static
+        TARGETS ykcs11
         ARCHIVE DESTINATION "${YKPIV_INSTALL_LIB_DIR}"
         LIBRARY DESTINATION "${YKPIV_INSTALL_LIB_DIR}"
         RUNTIME DESTINATION "${YKPIV_INSTALL_BIN_DIR}")

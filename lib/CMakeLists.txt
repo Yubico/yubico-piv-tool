@@ -27,44 +27,58 @@
 
 message("lib/CMakeList.txt")
 
-include(${CMAKE_SOURCE_DIR}/cmake/openssl.cmake)
-find_libcrypto()
-
 include(${CMAKE_SOURCE_DIR}/cmake/pcscd.cmake)
 find_pcscd()
 
 set(YKPIV_VERSION_STRING "${yubico_piv_tool_VERSION_MAJOR}.${yubico_piv_tool_VERSION_MINOR}.${yubico_piv_tool_VERSION_PATCH}")
 
-set(SOURCE ykpiv.c util.c version.c error.c internal.c)
-set(STATIC_SOURCE ${SOURCE})
+set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+set(SOURCE
+        ykpiv.c
+        util.c
+        version.c
+        error.c
+        internal.c
+        ../common/openssl-compat.c
+        ../common/util.c)
 
-add_library(ykpiv SHARED ${SOURCE})
-set_target_properties(ykpiv PROPERTIES BUILD_RPATH "${CMAKE_BINARY_DIR}/lib")
-set_target_properties(ykpiv PROPERTIES SOVERSION ${yubico_piv_tool_VERSION_MAJOR})
-target_link_libraries (ykpiv ${LIBCRYPTO_LIBRARIES} ${PCSC_LIBRARIES} ${PCSC_WIN_LIBS} ${PCSC_MACOSX_LIBS} ${PCSC_CUSTOM_LIBS} ${ADDITIONAL_LIBRARY})
-add_coverage (ykpiv)
+include_directories(
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/common
+)
 
+# static library
 if(BUILD_STATIC_LIB)
-    add_library (ykpiv_static STATIC ${STATIC_SOURCE})
-    set_target_properties (ykpiv_static PROPERTIES POSITION_INDEPENDENT_CODE on OUTPUT_NAME ykpiv)
-    set_target_properties (ykpiv_static PROPERTIES COMPILE_FLAGS "-DSTATIC " )
-    target_link_libraries (ykpiv_static ${LIBCRYPTO_LIBRARIES} ${PCSC_LIBRARIES} ${PCSC_WIN_LIBS} ${PCSC_MACOSX_LIBS} ${PCSC_CUSTOM_LIBS} ${ADDITIONAL_LIBRARY})
-    add_coverage (ykpiv_static)
+    add_library(ykpiv STATIC ${SOURCE})
+    target_link_libraries(ykpiv ${LIBCRYPTO_LIBRARIES} ${PCSC_LIBRARIES} ${PCSC_WIN_LIBS} ${PCSC_MACOSX_LIBS} ${PCSC_CUSTOM_LIBS})
+    set_target_properties (ykpiv PROPERTIES COMPILE_FLAGS "-DSTATIC ")
+    if(WIN32)
+        set_target_properties(ykpiv PROPERTIES OUTPUT_NAME ykpiv_static)
+    endif()
 endif(BUILD_STATIC_LIB)
+
+# dynamic library
+add_library(ykpiv_shared SHARED ${SOURCE})
+target_link_libraries(ykpiv_shared ${LIBCRYPTO_LIBRARIES} ${PCSC_LIBRARIES} ${PCSC_WIN_LIBS} ${PCSC_MACOSX_LIBS} ${PCSC_CUSTOM_LIBS})
+set_target_properties(ykpiv_shared PROPERTIES SOVERSION ${yubico_piv_tool_VERSION_MAJOR})
+if(WIN32)
+    set_target_properties(ykpiv_shared PROPERTIES OUTPUT_NAME libykpiv)
+else(WIN32)
+    set_target_properties(ykpiv_shared PROPERTIES OUTPUT_NAME ykpiv)
+endif(WIN32)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ykpiv.pc.in ${CMAKE_CURRENT_BINARY_DIR}/ykpiv.pc @ONLY)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ykpiv-config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/ykpiv-config.h @ONLY)
 
 install(
-        TARGETS ykpiv
+        TARGETS ykpiv_shared
         ARCHIVE DESTINATION ${YKPIV_INSTALL_LIB_DIR}
         LIBRARY DESTINATION ${YKPIV_INSTALL_LIB_DIR}
         RUNTIME DESTINATION ${YKPIV_INSTALL_BIN_DIR})
 if(BUILD_STATIC_LIB)
     install(
-        TARGETS ykpiv_static
+        TARGETS ykpiv
         ARCHIVE DESTINATION ${YKPIV_INSTALL_LIB_DIR}
         LIBRARY DESTINATION ${YKPIV_INSTALL_LIB_DIR}
         RUNTIME DESTINATION ${YKPIV_INSTALL_BIN_DIR})

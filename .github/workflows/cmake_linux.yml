@@ -22,8 +22,8 @@ jobs:
           echo "mkdir cmake_build; cd cmake_build"
           mkdir cmake_build; cd cmake_build
 
-          echo cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON
-          cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON
+          echo cmake .. -DVERBOSE_CMAKE=ON
+          cmake .. -DVERBOSE_CMAKE=ON
 
           echo make
           make
@@ -50,8 +50,8 @@ jobs:
           echo "rm -rf cmake_build; mkdir cmake_build; cd cmake_build"
           rm -rf cmake_build; mkdir cmake_build; cd cmake_build
 
-          echo cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON -DOPENSSL_STATIC_LINK=ON
-          cmake .. -DVERBOSE_CMAKE=ON -DENABLE_GCC_WARN=ON -DOPENSSL_STATIC_LINK=ON
+          echo cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_STATIC_LINK=ON
+          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_STATIC_LINK=ON
 
           echo make
           make

@@ -70,9 +70,9 @@ static void _asrt(const char *file, int line, CK_ULONG check, CK_ULONG expected,
 
 }
 
-static void get_functions(CK_FUNCTION_LIST_PTR_PTR funcs) {
+static void get_functions() {
 
-  if (C_GetFunctionList(funcs) != CKR_OK) {
+  if (C_GetFunctionList(&funcs) != CKR_OK) {
     fprintf(stderr, "Get function list failed\n");
     exit(EXIT_FAILURE);
   }
@@ -247,7 +247,7 @@ static void test_mechanism_list_and_info() {
 static void test_session() {
   dprintf(0, "TEST START: test_session()\n");
 
-  CK_SESSION_HANDLE session1, session2;
+  CK_SESSION_HANDLE session1;
   CK_SESSION_INFO   info;
 
   init_connection();
@@ -339,7 +339,7 @@ static void test_max_multiple_sessions() {
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_SESSION_COUNT, "MaxMultipleSession_OpenSession_TooMany");
 
   asrt(funcs->C_CloseAllSessions(0), CKR_OK, "MaxMultipleSessions_CloseAllSessions");
-  for(int i=1; i<=17; i++) {
+  for(i=1; i<=17; i++) {
     asrt(funcs->C_GetSessionInfo(i, &info), CKR_SESSION_HANDLE_INVALID, "MaxMultipleSessions_closedSessionsInfo");
   }
 
@@ -837,7 +837,7 @@ int destruction_confirmed(void) {
 
 int main(void) {
 
-  get_functions(&funcs);
+  get_functions();
 
   test_lib_info();
 

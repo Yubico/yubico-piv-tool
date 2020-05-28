@@ -283,8 +283,7 @@ EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   EC_KEY         *eck;
   const BIGNUM   *bn;
   X509           *cert;
-  ASN1_TIME      *tm;
-  CK_BYTE        i, j;
+  CK_BYTE        i;
   CK_CHAR        *pvt;
   pvt = malloc(key_len);
 
@@ -372,8 +371,7 @@ EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
 void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int keylen, EVP_PKEY* evp, RSA* rsak,
                     CK_BYTE n_keys, CK_OBJECT_HANDLE_PTR obj_cert, CK_OBJECT_HANDLE_PTR obj_pvtkey) {
   X509        *cert;
-  ASN1_TIME   *tm;
-  CK_BYTE     i, j;
+  CK_BYTE     i;
   CK_BYTE     e[] = {0x01, 0x00, 0x01};
   CK_BYTE     *p, *q, *dp, *dq, *qinv;
   p = malloc(keylen / 16);
@@ -516,7 +514,7 @@ void generate_ec_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
 
 void generate_rsa_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_ULONG key_size, CK_BYTE n_keys,
                       CK_OBJECT_HANDLE_PTR obj_pubkey, CK_OBJECT_HANDLE_PTR obj_pvtkey) {
-  CK_BYTE     i, j;
+  CK_BYTE     i;
   CK_BYTE     e[] = {0x01, 0x00, 0x01};
   CK_ULONG    class_k = CKO_PRIVATE_KEY;
   CK_ULONG    class_c = CKO_PUBLIC_KEY;
@@ -549,55 +547,50 @@ void generate_rsa_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
 }
 
 static void construct_der_encoded_sig(CK_BYTE sig[], CK_BYTE_PTR der_encoded, CK_ULONG key_len) {
-    CK_ULONG    der_encoded_len;
-    CK_BYTE_PTR der_ptr;
-    CK_BYTE_PTR r_ptr;
-    CK_BYTE_PTR s_ptr;
-    CK_ULONG    r_len;
-    CK_ULONG    s_len;
-    const EVP_MD *md;
-    EVP_MD_CTX *mdctx;
+  CK_BYTE_PTR der_ptr;
+  CK_BYTE_PTR r_ptr;
+  CK_BYTE_PTR s_ptr;
+  CK_ULONG r_len;
+  CK_ULONG s_len;
 
-      r_len = key_len;
-      s_len = key_len;
+  r_len = key_len;
+  s_len = key_len;
 
-      der_ptr = der_encoded;
-      *der_ptr++ = 0x30;
-      *der_ptr++ = 0xff; // placeholder, fix below
+  der_ptr = der_encoded;
+  *der_ptr++ = 0x30;
+  *der_ptr++ = 0xff; // placeholder, fix below
 
-      r_ptr = sig;
+  r_ptr = sig;
 
-      *der_ptr++ = 0x02;
-      *der_ptr++ = r_len;
-      if (*r_ptr >= 0x80) {
-        *(der_ptr - 1) = *(der_ptr - 1) + 1;
-        *der_ptr++ = 0x00;
-      }
-      else if (*r_ptr == 0x00 && *(r_ptr + 1) < 0x80) {
-        r_len--;
-        *(der_ptr - 1) = *(der_ptr - 1) - 1;
-        r_ptr++;
-      }
-      memcpy(der_ptr, r_ptr, r_len);
-      der_ptr+= r_len;
+  *der_ptr++ = 0x02;
+  *der_ptr++ = r_len;
+  if (*r_ptr >= 0x80) {
+    *(der_ptr - 1) = *(der_ptr - 1) + 1;
+    *der_ptr++ = 0x00;
+  } else if (*r_ptr == 0x00 && *(r_ptr + 1) < 0x80) {
+    r_len--;
+    *(der_ptr - 1) = *(der_ptr - 1) - 1;
+    r_ptr++;
+  }
+  memcpy(der_ptr, r_ptr, r_len);
+  der_ptr += r_len;
 
-      s_ptr = sig + key_len;
+  s_ptr = sig + key_len;
 
-      *der_ptr++ = 0x02;
-      *der_ptr++ = s_len;
-      if (*s_ptr >= 0x80) {
-        *(der_ptr - 1) = *(der_ptr - 1) + 1;
-        *der_ptr++ = 0x00;
-      }
-      else if (*s_ptr == 0x00 && *(s_ptr + 1) < 0x80) {
-        s_len--;
-        *(der_ptr - 1) = *(der_ptr - 1) - 1;
-        s_ptr++;
-      }
-      memcpy(der_ptr, s_ptr, s_len);
-      der_ptr+= s_len;
+  *der_ptr++ = 0x02;
+  *der_ptr++ = s_len;
+  if (*s_ptr >= 0x80) {
+    *(der_ptr - 1) = *(der_ptr - 1) + 1;
+    *der_ptr++ = 0x00;
+  } else if (*s_ptr == 0x00 && *(s_ptr + 1) < 0x80) {
+    s_len--;
+    *(der_ptr - 1) = *(der_ptr - 1) - 1;
+    s_ptr++;
+  }
+  memcpy(der_ptr, s_ptr, s_len);
+  der_ptr += s_len;
 
-      der_encoded[1] = der_ptr - der_encoded - 2;
+  der_encoded[1] = der_ptr - der_encoded - 2;
 }
 
 void test_ec_sign_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
@@ -710,9 +703,6 @@ void test_rsa_sign_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session,
   CK_BYTE     sig[256];
   CK_ULONG    sig_len;
   EVP_PKEY_CTX *ctx = NULL;
-
-  CK_BYTE     hdata[512];
-  CK_ULONG    hdata_len;
 
   CK_OBJECT_HANDLE obj_pubkey;
   CK_MECHANISM mech = {CKM_RSA_PKCS, NULL, 0};
