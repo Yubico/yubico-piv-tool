@@ -46,7 +46,7 @@ jobs:
           echo "objdump --syms /usr/local/lib/libykcs11.dylib | grep C_Sign"
           objdump --syms /usr/local/lib/libykcs11.dylib | grep C_Sign
 
-          pkcs11-tool --module /usr/local/lib/libykcs11.dylib --show-info
+          pkcs11-tool --module /usr/local/lib/libykcs11.dylib --show-info | grep Yubico
 
       - name: Build using OpenSSL static link
         run: |
@@ -75,4 +75,4 @@ jobs:
           echo "yubico-piv-tool --help | grep 'Usage: yubico-piv-tool'"
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
-          pkcs11-tool --module /usr/local/lib/libykcs11.dylib --show-info
+          pkcs11-tool --module /usr/local/lib/libykcs11.dylib --show-info | grep Yubico

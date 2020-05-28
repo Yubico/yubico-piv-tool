@@ -45,6 +45,8 @@ jobs:
           echo "objdump -T /usr/local/lib/libykcs11.so | grep C_Sign"
           objdump -T /usr/local/lib/libykcs11.so | grep C_Sign
 
+          echo "ls /usr/local/lib/libykcs11*"
+          ls /usr/local/lib/libykcs11*
           pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info
 
       - name: Build using OpenSSL static link
