@@ -45,6 +45,7 @@ macro (find_pcscd)
     endif(${BACKEND} STREQUAL ${BACKEND_ARG_WIN})
 
     if(${BACKEND} STREQUAL ${BACKEND_ARG_PCSC})
+        set(ENV{PKG_CONFIG_PATH} "${PCSCLITE_PKG_PATH}:$ENV{PKG_CONFIG_PATH}")
         pkg_check_modules(PCSC REQUIRED libpcsclite)
         if(PCSC_FOUND)
             if(VERBOSE_CMAKE)

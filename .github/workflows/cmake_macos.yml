@@ -23,8 +23,8 @@ jobs:
           echo cd cmake_build
           cd cmake_build
 
-          echo cmake .. -DVERBOSE_CMAKE=ON
-          cmake .. -DVERBOSE_CMAKE=ON
+          echo cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_PKG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig
+          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_PKG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig
 
           echo make
           make
@@ -48,6 +48,8 @@ jobs:
 
       - name: Build using OpenSSL static link
         run: |
+          export PKG_CONFIG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig:PKG_CONFIG_PATH
+
           echo "rm -rf cmake_build; mkdir cmake_build; cd cmake_build"
           rm -rf cmake_build; mkdir cmake_build; cd cmake_build
 

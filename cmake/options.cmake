@@ -17,6 +17,8 @@ set(PCSC_DIR "" CACHE STRING "Path to custom PCSC lib dir (use with PCSC_LIB")
 set(GETOPT_LIB_DIR "" CACHE STRING "Path to look for getopt libraries")
 set(GETOPT_INCLUDE_DIR "" CACHE STRING "Path to look for getopt.h file")
 set(CHECK_PATH "" CACHE STRING "Path to look for 'check', the test framework for C. If 'check' is not found, tests are skipped")
+set(OPENSSL_PKG_PATH "" CACHE STRING "Path to be prepended to 'PKG_CONFIG_PATH' evironment variable to look for libcrypto library")
+set(PCSCLITE_PKG_PATH "" CACHE STRING "Path to be prepended to 'PKG_CONFIG_PATH' environment variable to look for pcsc-lite library")
 
 # Set various install paths
 if (NOT DEFINED YKPIV_INSTALL_LIB_DIR)

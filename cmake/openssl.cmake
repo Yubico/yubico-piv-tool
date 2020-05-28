@@ -32,6 +32,7 @@ macro (find_libcrypto)
     else(WIN32 OR OPENSSL_STATIC_LINK)
         if(NOT LIBCRYPTO_FOUND)
 
+            set(ENV{PKG_CONFIG_PATH} "${OPENSSL_PKG_PATH}:$ENV{PKG_CONFIG_PATH}")
             pkg_check_modules(LIBCRYPTO REQUIRED libcrypto)
             if(LIBCRYPTO_FOUND)
                 if(VERBOSE_CMAKE)
