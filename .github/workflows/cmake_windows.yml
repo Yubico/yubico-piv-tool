@@ -81,8 +81,10 @@ jobs:
           echo "cmake --build . -v"
           cmake --build . -v
 
-          echo "ctest.exe -C Debug"
+          ls lib/Debug
+
           $env:Path +=";C:/vcpkg/packages/check_x86-windows/bin;C:/vcpkg/packages/openssl-windows_x86-windows/bin;D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\build\lib\Debug;D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-src\build\ykcs11\Debug"
+          echo "ctest.exe -C Debug"
           ctest.exe -C Debug
 
       - name: Install for x86 architecture
