@@ -40,6 +40,7 @@ jobs:
 
           echo sudo make install
           sudo make install
+          sudo ldconfig
 
           echo "yubico-piv-tool --help | grep 'Usage: yubico-piv-tool'"
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
@@ -76,6 +77,7 @@ jobs:
 
           echo sudo make install
           sudo make install
+          sudo ldconfig
 
           echo "yubico-piv-tool --help | grep 'Usage: yubico-piv-tool'"
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
