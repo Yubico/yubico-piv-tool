@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+  xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+  <?define ProductVersion="2.1.0" ?>
+  <?define ProductName="Yubico PIV Tool" ?>
+
+   <Product Id="*" UpgradeCode="9526bab3-b922-42ba-a094-12336f229566" Name="$(var.ProductName)" Version="$(var.ProductVersion)" Manufacturer="Yubico AB" Language="1033">
+      <Package InstallerVersion="301" Compressed="yes" InstallScope="perMachine" Platform="x86" Description="$(var.ProductName) $(var.ProductVersion)" />
+      <Media Id="1" Cabinet="yubicopivtool.cab" EmbedCab="yes"/>
+
+      <InstallExecuteSequence>
+        <RemoveExistingProducts Before="InstallInitialize" />
+      </InstallExecuteSequence>
+
+      <Directory Id="TARGETDIR" Name="SourceDir">
+         <Directory Id="ProgramFilesFolder" Name="PFiles">
+            <Directory Id="YubicoDir" Name="Yubico">
+                <Directory Id="INSTALLDIR" Name="Yubico PIV Tool">
+                </Directory>
+            </Directory>
+         </Directory>
+      </Directory>
+
+      <DirectoryRef Id="TARGETDIR">
+        <Merge Id="VCRedist" SourceFile="$(env.MERGEDPATH)" DiskId="1" Language="0"/>
+      </DirectoryRef>
+
+      <Feature Id="VCRedist" Title="Visual C++ Runtime" AllowAdvertise="no" Display="hidden" Level="1">
+        <MergeRef Id="VCRedist"/>
+      </Feature>
+
+      <Feature Id="DefaultFeature" Level="1">
+         <ComponentGroupRef Id="ApplicationFiles"/>
+      </Feature>
+
+   </Product>
+</Wix>
