@@ -60,7 +60,7 @@ jobs:
 
           echo "cd yubico-piv-tool-src/yubico-piv-tool-2.1.0"
           cd yubico-piv-tool-src/yubico-piv-tool-2.1.0
-          ./macos/make_pkg.sh $RELEASE_VERION $INSTALL_PREFIX
+          ./resources/macos/make_pkg.sh $RELEASE_VERION $INSTALL_PREFIX
           mkdir macos/artifact
           mv macos/yubico-piv-tool-$RELEASE_VERION-mac.zip macos/artifact/
 
