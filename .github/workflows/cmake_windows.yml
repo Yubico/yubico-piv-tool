@@ -148,13 +148,14 @@ jobs:
           cd D:\a\
           Invoke-WebRequest -Uri https://github.com/OpenSC/OpenSC/releases/download/0.20.0/OpenSC-0.20.0_win32.msi -OutFile OpenSC-0.20.0_win32.msi -UseBasicParsing
 
-          mkdir OpenSC
-          msiexec /i OpenSC-0.20.0_win32.msi /quiet /l .\log.txt TARGETDIR="D:\a\OpenSC"
-          ls
-          ls OpenSC
+          echo "msiexec /i OpenSC-0.20.0_win32.msi /quiet"
+          msiexec /i OpenSC-0.20.0_win32.msi /quiet
 
+          echo "cd D:\a\yubico-piv-tool\final_install\bin"
           cd D:\a\yubico-piv-tool\final_install\bin
-          & 'D:\a\OpenSC\OpenSC Project\OpenSC\tools\pkcs11-tool.exe' --module .\libykcs11.dll --show-info
+
+          echo "pkcs11-tool' --module libykcs11.dll --show-info"
+          & 'C:\Program Files (x86)\OpenSC Project\OpenSC\tools\pkcs11-tool.exe' --module .\libykcs11.dll --show-info
 
       - name: Upload artifact
         uses: actions/upload-artifact@v1
@@ -280,13 +281,14 @@ jobs:
           cd D:\a\
           Invoke-WebRequest -Uri https://github.com/OpenSC/OpenSC/releases/download/0.20.0/OpenSC-0.20.0_win64.msi -OutFile OpenSC-0.20.0_win64.msi -UseBasicParsing
 
-          
-          msiexec /i OpenSC-0.20.0_win64.msi /quiet /l .\log.txt TARGETDIR="D:\a\OpenSC"
+          msiexec /i OpenSC-0.20.0_win64.msi /quiet /l .\log.txt TARGETDIR="D:\a\"
           ls
-          ls OpenSC
 
+          echo "cd D:\a\yubico-piv-tool\final_install\bin"
           cd D:\a\yubico-piv-tool\final_install\bin
-          & 'D:\a\OpenSC\OpenSC Project\OpenSC\tools\pkcs11-tool.exe' --module .\libykcs11.dll --show-info
+
+          echo "pkcs11-tool.exe' --module libykcs11.dll --show-info"
+          & 'D:\a\OpenSC Project\OpenSC\tools\pkcs11-tool.exe' --module .\libykcs11.dll --show-info
 
       - name: Upload artifact
         uses: actions/upload-artifact@v1
