@@ -20,7 +20,7 @@ jobs:
           sudo apt install libpcsclite-dev check gengetopt help2man
       - name: Create tar.gz
         run: |
-          ./make_src_dist.sh 2.1.0
+          ./resources/make_src_dist.sh 2.1.0
           cd ..
           mkdir artifact
           mv yubico-piv-tool/yubico-piv-tool-2.1.0.tar.gz artifact/
