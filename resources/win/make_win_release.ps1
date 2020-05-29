@@ -10,7 +10,7 @@ else
     $ARCH="x64"
 }
 
-$SOURCE_DIR="$PSScriptRoot"
+$SOURCE_DIR="$PSScriptRoot/../.."
 $BUILD_DIR="$SOURCE_DIR/win32_release"
 $RELEASE_DIR="$BUILD_DIR/yubico-piv-tool-$RELEASE_VERSION-$ARCH"
 $LICENSES_DIR="$RELEASE_DIR/licenses"

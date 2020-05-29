@@ -61,15 +61,15 @@ jobs:
           echo "cd yubico-piv-tool-src/yubico-piv-tool-2.1.0"
           cd yubico-piv-tool-src/yubico-piv-tool-2.1.0
           ./resources/macos/make_pkg.sh $RELEASE_VERION $INSTALL_PREFIX
-          mkdir macos/artifact
-          mv macos/yubico-piv-tool-$RELEASE_VERION-mac.zip macos/artifact/
+          mkdir resources/macos/artifact
+          mv resources/macos/yubico-piv-tool-$RELEASE_VERION-mac.zip macos/artifact/
 
       - name: Create .pkg installer
         run: |
           export RELEASE_VERION=2.1.0
 
-          echo "cd yubico-piv-tool-src/yubico-piv-tool-2.1.0/macos"
-          cd yubico-piv-tool-src/yubico-piv-tool-2.1.0/macos
+          echo "cd yubico-piv-tool-src/yubico-piv-tool-2.1.0/resources/macos"
+          cd yubico-piv-tool-src/yubico-piv-tool-2.1.0/resources/macos
           mkdir -p pkg/root pkg/comp
           unzip artifact/yubico-piv-tool-$RELEASE_VERION-mac.zip -d pkg/root/
 
@@ -95,4 +95,4 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: yubico-piv-tool-mac
-          path: yubico-piv-tool-src/yubico-piv-tool-2.1.0/macos/artifact
+          path: yubico-piv-tool-src/yubico-piv-tool-2.1.0/resources/macos/artifact
