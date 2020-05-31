@@ -37,7 +37,7 @@ extern int verbose;
 
 #define DBG(x, ...) if(verbose) {                                                \
     fprintf (stderr, "debug: %s:%d (%s): ", __FILE__, __LINE__, __FUNCTION__); \
-    fprintf (stderr, x);                                                       \
+    fprintf (stderr, x, ##__VA_ARGS__);                                                       \
     fprintf (stderr, "\n");                                                    \
   }
 

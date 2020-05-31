@@ -105,7 +105,7 @@ extern "C"
      * enabled or disabled.
      * Default value is disabled
      */
-#define HW_TESTS @HW_TESTS@
+#cmakedefine HW_TESTS @HW_TESTS@
 
 #ifdef __cplusplus
 }

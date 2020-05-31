@@ -30,14 +30,13 @@
 
 option(BUILD_ONLY_LIB "Build only the library" OFF)
 option(BUILD_STATIC_LIB "Buid static libraries" ON)
-option(ENABLE_YKCS11_DBG "Enable/disable YKCS11 debug messages" OFF)
 option(ENABLE_HARDWARE_TESTS "Enable/disable tests that require a YubiKey to be plugged in" OFF)
 option(VERBOSE_CMAKE "Prints out trace messages when running the cmake script" OFF)
 option(GENERATE_MAN_PAGES "Generate man pages for the command line tool" ON)
 option(OPENSSL_STATIC_LINK "Statically link to OpenSSL" OFF)
 option(ENABLE_COVERAGE "Enable/disable codecov evaluation" OFF)
 
-#set(YKCS11_DBG "1" CACHE STRING "Enable/disable YKCS11 debug messages. Possible values is 0 through 9")
+set(YKCS11_DBG "0" CACHE STRING "Enable/disable YKCS11 debug messages. Possible values is 0 through 9")
 set(BACKEND "check" CACHE STRING "use specific backend/linkage; 'pcsc', 'macscard' or'winscard'")
 set(PCSC_LIB "" CACHE STRING "Name of custom PCSC lib")
 set(PCSC_DIR "" CACHE STRING "Path to custom PCSC lib dir (use with PCSC_LIB")
