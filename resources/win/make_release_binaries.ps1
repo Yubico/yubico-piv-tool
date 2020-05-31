@@ -14,7 +14,6 @@ $SOURCE_DIR="$PSScriptRoot/../.."
 $BUILD_DIR="$SOURCE_DIR/win32_release"
 $RELEASE_DIR="$BUILD_DIR/yubico-piv-tool-$RELEASE_VERSION-$ARCH"
 $LICENSES_DIR="$RELEASE_DIR/licenses"
-$SHARE_DIR="$RELEASE_DIR/share/man/man1"
 $BIN_ARCHIVE="$SOURCE_DIR/yubico-piv-tool-$RELEASE_VERSION-$ARCH.zip"
 
 # Install prerequisites
@@ -44,7 +43,6 @@ else
 
 # Create missing directories
 mkdir -p $LICENSES_DIR
-mkdir -p $SHARE_DIR
 
 # Copy licenses
 $license=(Get-ChildItem -Path $SOURCE_DIR -Filter COPYING -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
@@ -58,10 +56,6 @@ cp $license $LICENSES_DIR\getopt.txt
 
 # Copy OpenSSL header files
 cp -r $VCPKG_PATH\packages\openssl-windows_$ARCH-windows\include\openssl $RELEASE_DIR/include/
-
-# Copy manpages
-$manpage=(Get-ChildItem -Path $SOURCE_DIR -Filter yubico-piv-tool.1 -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
-cp $manpage $SHARE_DIR
 
 # Create a zip with the binaries
 Add-Type -Assembly System.IO.Compression.FileSystem
