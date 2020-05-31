@@ -57,7 +57,7 @@ if(NOT DEFINED SKIP_TESTS)
 
 
     find_program (BASH_PROGRAM bash)
-    if(BASH_PROGRAM_FOUND)
+    if(BASH_PROGRAM)
         configure_file (
             ${CMAKE_CURRENT_SOURCE_DIR}/cert.pem
             ${CMAKE_CURRENT_BINARY_DIR}/cert.pem
@@ -79,7 +79,7 @@ if(NOT DEFINED SKIP_TESTS)
         )
         set_property(TEST basic_tests APPEND PROPERTY ENVIRONMENT "VERSION=${VERSION}")
         set_property(TEST basic_tests APPEND PROPERTY ENVIRONMENT "EXEEXT=${CMAKE_EXECUTABLE_SUFFIX}")
-    else(BASH_PROGRAM_FOUND)
+    else(BASH_PROGRAM)
         message("Cannot find 'bash'. Skipping basic tests...")
-    endif(BASH_PROGRAM_FOUND)
+    endif(BASH_PROGRAM)
 endif(NOT DEFINED SKIP_TESTS)
