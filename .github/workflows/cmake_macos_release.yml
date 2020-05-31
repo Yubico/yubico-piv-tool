@@ -62,7 +62,7 @@ jobs:
           cd yubico-piv-tool-src/yubico-piv-tool-2.1.0
           ./resources/macos/make_pkg.sh $RELEASE_VERION $INSTALL_PREFIX
           mkdir resources/macos/artifact
-          mv resources/macos/yubico-piv-tool-$RELEASE_VERION-mac.zip macos/artifact/
+          mv resources/macos/yubico-piv-tool-$RELEASE_VERION-mac.zip resources/macos/artifact/
 
       - name: Create .pkg installer
         run: |
