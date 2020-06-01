@@ -19,9 +19,11 @@
                 </Directory>
             </Directory>
          </Directory>
+         <!-- Uncomment this block to add yubico-piv-tool binaries to the system path
          <Component Id="Path" Guid="afd4a96e-ef03-4851-9929-54a59bdab924">
            <Environment Id="PATH" Name="PATH" Value="[INSTALLDIR]\bin" Permanent="no" Part="last" Action="set" System="yes" />
          </Component>
+         -->
       </Directory>
 
       <DirectoryRef Id="TARGETDIR">
@@ -34,7 +36,9 @@
 
       <Feature Id="DefaultFeature" Level="1">
          <ComponentGroupRef Id="ApplicationFiles"/>
+         <!-- Uncomment this line to add yubico-piv-tool binaries to the system path
          <ComponentRef Id="Path" />
+         -->
       </Feature>
 
    </Product>

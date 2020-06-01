@@ -1,6 +1,13 @@
 $RELEASE_VERSION=$args[0]
 $CMAKE_ARCH=$args[1]
 $VCPKG_PATH=$args[2]
+$ZIP = "FALSE"
+if($args.length -eq 4)
+{
+    if($args[3] -eq "zip") {
+        $ZIP = "TRUE"
+    }
+}
 
 if($CMAKE_ARCH -eq "Win32") {
     $ARCH="x86"
@@ -12,9 +19,10 @@ else
 
 $SOURCE_DIR="$PSScriptRoot/../.."
 $BUILD_DIR="$SOURCE_DIR/win32_release"
-$RELEASE_DIR="$BUILD_DIR/yubico-piv-tool-$RELEASE_VERSION-$ARCH"
+$RELEASE_DIR="$SOURCE_DIR/yubico-piv-tool-$RELEASE_VERSION-$ARCH"
+$RELEASE_ARCHIVE="$SOURCE_DIR/yubico-piv-tool-$RELEASE_VERSION-$ARCH.zip"
 $LICENSES_DIR="$RELEASE_DIR/licenses"
-$BIN_ARCHIVE="$SOURCE_DIR/yubico-piv-tool-$RELEASE_VERSION-$ARCH.zip"
+
 
 # Install prerequisites
 cd $VCPKG_PATH
@@ -57,11 +65,14 @@ cp $license $LICENSES_DIR\getopt.txt
 # Copy OpenSSL header files
 cp -r $VCPKG_PATH\packages\openssl-windows_$ARCH-windows\include\openssl $RELEASE_DIR/include/
 
-# Create a zip with the binaries
-Add-Type -Assembly System.IO.Compression.FileSystem
-$compressionLevel = [System.IO.Compression.CompressionLevel]::Optimal
-[System.IO.Compression.ZipFile]::CreateFromDirectory($RELEASE_DIR, $BIN_ARCHIVE, $compressionLevel, $true)
-
+if($ZIP)
+{
+    # Create a zip with the binaries
+    Add-Type -Assembly System.IO.Compression.FileSystem
+    $compressionLevel = [System.IO.Compression.CompressionLevel]::Optimal
+    [System.IO.Compression.ZipFile]::CreateFromDirectory($RELEASE_DIR, $RELEASE_ARCHIVE, $compressionLevel, $true)
+    rm -r $RELEASE_DIR
+}
 
 # Clean directory
 cd $SOURCE_DIR
