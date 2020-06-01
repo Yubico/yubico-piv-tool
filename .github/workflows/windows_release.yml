@@ -75,7 +75,7 @@ jobs:
 
           $RELEASE_VERSION="2.1.0"
 
-          $PIVTOOL_SRC_DIR="D:\a\yubico-piv-tool\yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION"
+          $PIVTOOL_SRC_DIR="D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$RELEASE_VERSION"
 
           echo "$PIVTOOL_SRC_DIR/resources/win"
           cd $PIVTOOL_SRC_DIR/resources/win
@@ -93,8 +93,8 @@ jobs:
         run: |
           $RELEASE_VERSION="2.1.0"
 
-          echo "msiexec /i D:\a\yubico-piv-tool\yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION/resources/win/yubico-piv-tool-$RELEASE_VERSION-x86.msi /quiet"
-          msiexec /i D:\a\yubico-piv-tool\yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION/resources/win/yubico-piv-tool-$RELEASE_VERSION-x86.msi /quiet
+          echo "msiexec /i D:/a/yubico-piv-tool/yubico-piv-tool/yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION/resources/win/yubico-piv-tool-$RELEASE_VERSION-x86.msi /quiet"
+          msiexec /i D:/a/yubico-piv-tool/yubico-piv-tool/yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION/resources/win/yubico-piv-tool-$RELEASE_VERSION-x86.msi /quiet
 
           $env:PATH += ";C:\Program Files (x86)\Yubico\Yubico PIV Tool\bin"
 
@@ -162,7 +162,7 @@ jobs:
 
           $RELEASE_VERSION="2.1.0"
 
-          $PIVTOOL_SRC_DIR="D:\a\yubico-piv-tool\yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION"
+          $PIVTOOL_SRC_DIR="D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$RELEASE_VERSION"
 
           echo "$PIVTOOL_SRC_DIR/resources/win"
           cd $PIVTOOL_SRC_DIR/resources/win
@@ -180,8 +180,8 @@ jobs:
         run: |
           $RELEASE_VERSION="2.1.0"
 
-          echo "msiexec /i D:\a\yubico-piv-tool\yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION/resources/win/yubico-piv-tool-$RELEASE_VERSION-x86.msi /quiet"
-          msiexec /i D:\a\yubico-piv-tool\yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION/resources/win/yubico-piv-tool-$RELEASE_VERSION-x86.msi /quiet
+          echo "msiexec /i D:/a/yubico-piv-tool/yubico-piv-tool/yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION/resources/win/yubico-piv-tool-$RELEASE_VERSION-x86.msi /quiet"
+          msiexec /i D:/a/yubico-piv-tool/yubico-piv-tool/yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION/resources/win/yubico-piv-tool-$RELEASE_VERSION-x86.msi /quiet
 
           $env:PATH += ";C:\Program Files (x86)\Yubico\Yubico PIV Tool\bin"
 
