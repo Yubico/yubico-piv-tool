@@ -110,10 +110,10 @@ else()
 endif()
 
 # Use -Wshorten-64-to-32 if available.
-check_c_compiler_flag("-Wshorten-64-to-32" HAVE_SHORTEN_64_TO_32)
-if(HAVE_SHORTEN_64_TO_32)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wshorten-64-to-32")
-endif()
+#check_c_compiler_flag("-Wshorten-64-to-32" HAVE_SHORTEN_64_TO_32)
+#if(HAVE_SHORTEN_64_TO_32)
+#    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wshorten-64-to-32")
+#endif()
 
 # Avoid https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66425
 if(CMAKE_COMPILER_IS_GNUCC)
