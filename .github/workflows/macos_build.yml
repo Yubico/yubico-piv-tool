@@ -1,4 +1,4 @@
-name: CMake Build MacOS
+name: MacOS Build
 # This workflow is triggered on pushes to the repository.
 on: [push]
 

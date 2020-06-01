@@ -1,4 +1,4 @@
-name: CMake Build Windows
+name: Windows Build
 # This machine tests building the software on a both 32 and 64 Windows architecture.
 # The binaries used on the official release are also produced here and are downloadable as artifacts
 # Since this is where the release binaries are build, make sure to update the version number in this file. Search for

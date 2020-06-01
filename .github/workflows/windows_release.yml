@@ -1,4 +1,4 @@
-name: CMake Build Windows
+name: Windows Release
 # This machine tests building the software on a both 32 and 64 Windows architecture.
 # The binaries used on the official release are also produced here and are downloadable as artifacts
 # Since this is where the release binaries are build, make sure to update the version number in this file. Search for
@@ -63,12 +63,12 @@ jobs:
           echo "choco install visualstudio2019community --package-parameters '--add Microsoft.VisualStudio.Component.VC.Redist.MSM'"
           choco install visualstudio2019community --package-parameters "--add Microsoft.VisualStudio.Component.VC.Redist.MSM"
 
-      - name: Create Windows Install for x86 architecture
+      - name: Create Windows Installer for x86 architecture
         run: |
 
           $RELEASE_VERSION="2.1.0"
 
-          $PIVTOOL_SRC_DIR=D:\a\yubico-piv-tool\yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION
+          $PIVTOOL_SRC_DIR="D:\a\yubico-piv-tool\yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION"
 
           echo "$PIVTOOL_SRC_DIR/resources/win"
           cd $PIVTOOL_SRC_DIR/resources/win
@@ -150,12 +150,12 @@ jobs:
           echo "choco install visualstudio2019community --package-parameters '--add Microsoft.VisualStudio.Component.VC.Redist.MSM'"
           choco install visualstudio2019community --package-parameters "--add Microsoft.VisualStudio.Component.VC.Redist.MSM"
 
-      - name: Create Windows Install for x64 architecture
+      - name: Create Windows Installer for x64 architecture
         run: |
 
           $RELEASE_VERSION="2.1.0"
 
-          $PIVTOOL_SRC_DIR=D:\a\yubico-piv-tool\yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION
+          $PIVTOOL_SRC_DIR="D:\a\yubico-piv-tool\yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION"
 
           echo "$PIVTOOL_SRC_DIR/resources/win"
           cd $PIVTOOL_SRC_DIR/resources/win
