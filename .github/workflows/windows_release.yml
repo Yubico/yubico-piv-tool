@@ -52,6 +52,13 @@ jobs:
           echo "tar xf yubico-piv-tool-$RELEASE_VERSION.tar.gz"
           tar xf yubico-piv-tool-$RELEASE_VERSION.tar.gz
 
+          echo "ls yubico-piv-tool-src"
+          ls yubico-piv-tool-src
+
+          echo "ls yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION"
+          ls yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION
+
+
       - name: install prerequisites for x86 architecture
         run: |
           echo "vcpkg install openssl:x86-windows"
