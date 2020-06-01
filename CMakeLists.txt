@@ -59,7 +59,8 @@ if(MSVC)
                 "GETOPT_LIB_DIR and GETOPT_INCLUDE_DIR when building "
                 "under msvc")
     endif()
-    set(MSVC_DISABLED_WARNINGS_LIST
+    if(SUPRESS_MSVC_WARNINGS)
+        set(MSVC_DISABLED_WARNINGS_LIST
             "C4200" # nonstandard extension used: zero-sized array in struct/union;
             "C4204" # nonstandard extension used: non-constant aggregate initializer;
             "C4706" # assignment within conditional expression;
@@ -81,14 +82,14 @@ if(MSVC)
             "C4267" # Conversion from 'size_t' to 'CK_ULONG'
             "C4312" # Conversion from 'unsigned int' to 'void *' of greater size (ykcs11/utils.c:noop_create_mutex)
             )
-    # The construction in the following 3 lines was taken from LibreSSL's
-    # CMakeLists.txt.
-    string(REPLACE "C" " -wd" MSVC_DISABLED_WARNINGS_STR ${MSVC_DISABLED_WARNINGS_LIST})
-    string(REGEX REPLACE "[/-]W[1234][ ]?" "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -MP -W4 ${MSVC_DISABLED_WARNINGS_STR}")
+        # The construction in the following 3 lines was taken from LibreSSL's
+        # CMakeLists.txt.
+        string(REPLACE "C" " -wd" MSVC_DISABLED_WARNINGS_STR ${MSVC_DISABLED_WARNINGS_LIST})
+        string(REGEX REPLACE "[/-]W[1234][ ]?" "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -MP -W4 ${MSVC_DISABLED_WARNINGS_STR}")
+    endif(SUPRESS_MSVC_WARNINGS)
 
     set(BUILD_SHARED_LIBS ON)
-
     set(GENERATE_MAN_PAGES OFF)
     set(LIBCRYPTO_LIBRARIES ${LIBCRYPTO_LIBRARIES} bcrypt)
 else()
