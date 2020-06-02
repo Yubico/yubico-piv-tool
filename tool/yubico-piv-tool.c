@@ -2044,7 +2044,7 @@ int main(int argc, char *argv[]) {
   }
 
   if(ykpiv_connect(state, args_info.reader_arg) != YKPIV_OK) {
-    fprintf(stderr, "Failed to connect to yubikey.\nTry removing and reconnecting the device.");
+    fprintf(stderr, "Failed to connect to yubikey.\nTry removing and reconnecting the device.\n");
     ykpiv_done(state);
     cmdline_parser_free(&args_info);
     return EXIT_FAILURE;
