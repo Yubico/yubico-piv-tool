@@ -1,9 +1,7 @@
 $RELEASE_VERSION=$args[0]
 $CMAKE_ARCH=$args[1]
 $VCPKG_PATH=$args[2]
-$ZIP = "FALSE"
-if($args.length -eq 4)
-{
+if($args.length -eq 4) {
     if($args[3] -eq "zip") {
         $ZIP = "TRUE"
     }
@@ -11,9 +9,7 @@ if($args.length -eq 4)
 
 if($CMAKE_ARCH -eq "Win32") {
     $ARCH="x86"
-}
-else
-{
+} else {
     $ARCH="x64"
 }
 
@@ -71,6 +67,7 @@ if($ZIP)
     Add-Type -Assembly System.IO.Compression.FileSystem
     $compressionLevel = [System.IO.Compression.CompressionLevel]::Optimal
     [System.IO.Compression.ZipFile]::CreateFromDirectory($RELEASE_DIR, $RELEASE_ARCHIVE, $compressionLevel, $true)
+    cd $SOURCE_DIR
     rm -r $RELEASE_DIR
 }
 
