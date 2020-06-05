@@ -1293,7 +1293,7 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
   FILE *output_file = NULL;
   int key;
   unsigned int hash_len;
-  unsigned char hashed[EVP_MAX_MD_SIZE];
+  unsigned char hashed[EVP_MAX_MD_SIZE * 2];
   bool ret = false;
   int algo;
   const EVP_MD *md;
@@ -1385,7 +1385,7 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
   unsigned char data[YKPIV_OBJ_MAX_SIZE];
   const unsigned char *ptr = data;
   unsigned long len = sizeof(data);
-  unsigned long cert_len;
+  unsigned long offs, cert_len;
   X509 *x509 = NULL;
   X509_NAME *subj;
   BIO *bio = NULL;
@@ -1402,10 +1402,15 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     unsigned int md_len = sizeof(data);
     const ASN1_TIME *not_before, *not_after;
 
-    ptr += get_length(ptr, &cert_len);
+    offs = get_length(ptr, data + len, &cert_len);
+    if(!offs) {
+      fprintf(output, "Invalid cert length.\n");
+      goto cert_out;
+    }
+    ptr += offs;
     x509 = d2i_X509(NULL, &ptr, cert_len);
     if(!x509) {
-      fprintf(output, "Unknown data present.\n");
+      fprintf(output, "Invalid cert data.\n");
       goto cert_out;
     }
     {

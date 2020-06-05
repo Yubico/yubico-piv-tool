@@ -308,7 +308,7 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
 
       if(res == YKPIV_WRONG_PIN)
         return CKR_PIN_INCORRECT;
-        
+
       if(res == YKPIV_PIN_LOCKED)
         return CKR_PIN_LOCKED;
 
@@ -337,13 +337,13 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
         return CKR_DEVICE_ERROR;
       }
 
-      if(cfg.mgm_type != YKPIV_CONFIG_MGM_PROTECTED || cfg.protected_data_available != true) {
+      if(cfg.mgm_type != YKPIV_CONFIG_MGM_PROTECTED) {
         DBG("Device configuration invalid, no PIN-protected MGM key available");
         return CKR_USER_PIN_NOT_INITIALIZED;
       }
 
-      memcpy(key, cfg.protected_data, sizeof(key));
-      OPENSSL_cleanse(cfg.protected_data, sizeof(cfg.protected_data));
+      memcpy(key, cfg.mgm_key, sizeof(key));
+      OPENSSL_cleanse(cfg.mgm_key, sizeof(cfg.mgm_key));
     }
 
     if((res = ykpiv_authenticate(state, key)) != YKPIV_OK) {
@@ -352,7 +352,7 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
 
       if(res == YKPIV_AUTHENTICATION_ERROR)
         return CKR_PIN_INCORRECT;
-        
+
       return CKR_DEVICE_ERROR;
     }
 
@@ -369,10 +369,9 @@ CK_RV token_generate_key(ykpiv_state *state, CK_BYTE algorithm, CK_BYTE key, CK_
   unsigned char data[1024];
   unsigned char templ[] = {0, YKPIV_INS_GENERATE_ASYMMETRIC, 0, 0};
   unsigned char *certptr;
-  unsigned long len, offset, recv_len = sizeof(data);
+  unsigned long len, len_bytes, offs, recv_len = sizeof(data);
   char version[7];
   char label[32];
-  int len_bytes;
   int sw;
 
   switch(algorithm) {
@@ -390,12 +389,10 @@ CK_RV token_generate_key(ykpiv_state *state, CK_BYTE algorithm, CK_BYTE key, CK_
         DBG("Failed to communicate.");
         return CKR_DEVICE_ERROR;
       }
-      offset = 5;
       break;
 
     case YKPIV_ALGO_ECCP256:
     case YKPIV_ALGO_ECCP384:
-      offset = 3;
       break;
 
     default:
@@ -418,18 +415,17 @@ CK_RV token_generate_key(ykpiv_state *state, CK_BYTE algorithm, CK_BYTE key, CK_
   snprintf(label, sizeof(label), "YubiKey PIV Slot %x", key);
 
   // Create a new empty certificate for the key
+  offs = 2 + get_length(data + 2, data + recv_len, &len);
+  if(offs == 2)
+    return CKR_DEVICE_ERROR;
+
   len = recv_len;
   recv_len = sizeof(data);
-  CK_RV rv = do_create_empty_cert(data + offset, len - offset, algorithm, label, data, &recv_len);
+  CK_RV rv = do_create_empty_cert(data + offs, len - offs, algorithm, label, data, &recv_len);
   if(rv != CKR_OK)
     return rv;
 
-  if (recv_len < 0x80)
-    len_bytes = 1;
-  else if (recv_len < 0xff)
-    len_bytes = 2;
-  else
-    len_bytes = 3;
+  len_bytes = get_length_size(recv_len);
 
   certptr = data;
   memmove(data + len_bytes + 1, data, recv_len);

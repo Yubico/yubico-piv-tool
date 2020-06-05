@@ -45,11 +45,6 @@
 #include "debug.h"
 #include <stdlib.h>
 #include <string.h>
-//#include <unistd.h>
-//#include <pthread.h>
-
-
-
 
 CK_BBOOL is_yubico_reader(const char* reader_name) {
   return !strncmp(reader_name, "Yubico", 6);

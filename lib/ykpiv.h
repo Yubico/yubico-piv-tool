@@ -265,6 +265,7 @@ extern "C"
 #pragma pack(pop)
 
   typedef enum {
+    YKPIV_CONFIG_MGM_INVALID = -1,
     YKPIV_CONFIG_MGM_MANUAL = 0,
     YKPIV_CONFIG_MGM_DERIVED = 1,
     YKPIV_CONFIG_MGM_PROTECTED = 2
@@ -276,8 +277,7 @@ extern "C"
     uint8_t               puk_noblock_on_upgrade;
     uint32_t              pin_last_changed;
     ykpiv_config_mgm_type mgm_type;
-    uint8_t               protected_data_available;
-    uint8_t               protected_data[24];
+    uint8_t               mgm_key[24];
   } ykpiv_config;
 
   typedef struct _ykpiv_mgm {

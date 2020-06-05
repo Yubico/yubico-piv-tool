@@ -194,9 +194,9 @@ ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state);
 ykpiv_rc _ykpiv_end_transaction(ykpiv_state *state);
 ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state);
 ykpiv_rc _ykpiv_select_application(ykpiv_state *state);
+size_t _ykpiv_get_length_size(size_t length);
 size_t _ykpiv_set_length(unsigned char *buffer, size_t length);
-size_t _ykpiv_get_length(const unsigned char *buffer, size_t *len);
-bool _ykpiv_has_valid_length(const unsigned char* buffer, ptrdiff_t len);
+size_t _ykpiv_get_length(const unsigned char *buffer, const unsigned char* end, size_t *len);
 
 void* _ykpiv_alloc(ykpiv_state *state, size_t size);
 void* _ykpiv_realloc(ykpiv_state *state, void *address, size_t size);

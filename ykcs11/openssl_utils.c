@@ -105,21 +105,20 @@ CK_RV do_rsa_encrypt(ykcs11_pkey_t *key, int padding, const ykcs11_md_t* oaep_md
 CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, ykcs11_x509_t **cert) {
 
   const unsigned char *p = data; // Mandatory temp variable required by OpenSSL
-  unsigned long       cert_len;
+  unsigned long       offs, cert_len;
 
   if (*p == 0x70) {
     // The certificate is in "PIV" format 0x70 len 0x30 len ...
     p++;
-    p += get_length(p, &cert_len);
+    offs = get_length(p, data + len, &cert_len);
+    if(!offs)
+      return CKR_ARGUMENTS_BAD;
+    p += offs;
   }
   else {
-    // Raw certificate 0x30 len ...
-    cert_len = 0;
-    cert_len += get_length(p + 1, &cert_len) + 1;
+    // Raw certificate ...
+    cert_len = len;
   }
-
-  if (cert_len > len)
-    return CKR_ARGUMENTS_BAD;
 
   if(*cert)
     X509_free(*cert);
@@ -199,7 +198,7 @@ CK_RV do_create_rsa_key(CK_BYTE_PTR mod, CK_ULONG mod_len, CK_BYTE_PTR exp, CK_U
 CK_RV do_create_public_key(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm, ykcs11_pkey_t **pkey) {
   int curve_name = get_curve_name(algorithm);
   CK_BYTE_PTR eob = in + in_len;
-  unsigned long len;
+  unsigned long offs, len;
 
   if (curve_name == 0) {
     if(in >= eob)
@@ -208,10 +207,11 @@ CK_RV do_create_public_key(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm, 
     if (*in++ != 0x81)
       return CKR_GENERAL_ERROR;
 
-    if(!has_valid_length(in, eob - in))
+    offs = get_length(in, eob, &len);
+    if(!offs)
       return CKR_GENERAL_ERROR;
 
-    in += get_length(in, &len);
+    in += offs;
 
     CK_BYTE_PTR mod = in;
     CK_ULONG mod_len = len;
@@ -221,17 +221,14 @@ CK_RV do_create_public_key(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm, 
     if(in >= eob)
       return CKR_GENERAL_ERROR;
 
-    if(*in++ != 0x82)
+    if (*in++ != 0x82)
       return CKR_GENERAL_ERROR;
 
-    if(!has_valid_length(in, eob - in))
+    offs = get_length(in, eob, &len);
+    if(!offs)
       return CKR_GENERAL_ERROR;
 
-    in += get_length(in, &len);
-
-    if(in + len > eob)
-      return CKR_GENERAL_ERROR;
-
+    in += offs;    
     return do_create_rsa_key(mod, mod_len, in, len, pkey);
   }
   else {
@@ -241,14 +238,11 @@ CK_RV do_create_public_key(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm, 
     if(*in++ != 0x86)
       return CKR_GENERAL_ERROR;
 
-    if(!has_valid_length(in, eob - in))
+    offs = get_length(in, eob, &len);
+    if(!offs)
       return CKR_GENERAL_ERROR;
 
-    in += get_length(in, &len);
-
-    if(in + len > eob)
-      return CKR_GENERAL_ERROR;
-
+    in += offs;
     return do_create_ec_key(in, len, curve_name, pkey);
   }
 }

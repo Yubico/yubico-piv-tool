@@ -175,7 +175,7 @@ void* _ykpiv_realloc(ykpiv_state *state, void *address, size_t size) {
 }
 
 void _ykpiv_free(ykpiv_state *state, void *data) {
-  if (!data || !state || (!(state->allocator.pfn_free))) return;
+  if (!data || !state || !(state->allocator.pfn_free)) return;
   state->allocator.pfn_free(state->allocator.alloc_data, data);
 }
 
@@ -183,6 +183,16 @@ static void dump_hex(const unsigned char *buf, unsigned int len) {
   unsigned int i;
   for (i = 0; i < len; i++) {
     fprintf(stderr, "%02x ", buf[i]);
+  }
+}
+
+size_t _ykpiv_get_length_size(size_t length) {
+  if(length < 0x80) {
+    return 1;
+  } else if(length < 0x100) {
+    return 2;
+  } else {
+    return 3;
   }
 }
 
@@ -197,37 +207,25 @@ size_t _ykpiv_set_length(unsigned char *buffer, size_t length) {
   } else {
     *buffer++ = 0x82;
     *buffer++ = (length >> 8) & 0xff;
-    *buffer++ = (unsigned char)length & 0xff;
+    *buffer++ = length & 0xff;
     return 3;
   }
 }
 
-size_t _ykpiv_get_length(const unsigned char *buffer, size_t *len) {
-  if(buffer[0] < 0x81) {
+size_t _ykpiv_get_length(const unsigned char *buffer, const unsigned char* end, size_t *len) {
+  if(buffer + 1 <= end && buffer[0] < 0x80) {
     *len = buffer[0];
-    return 1;
-  } else if((*buffer & 0x7f) == 1) {
+    return buffer + 1 + *len <= end ? 1 : 0;
+  } else if(buffer + 2 <= end && buffer[0] == 0x81) {
     *len = buffer[1];
-    return 2;
-  } else if((*buffer & 0x7f) == 2) {
+    return buffer + 2 + *len <= end ? 2 : 0;
+  } else if(buffer + 3 <= end && buffer[0] == 0x82) {
     size_t tmp = buffer[1];
     *len = (tmp << 8) + buffer[2];
-    return 3;
+    return buffer + 3 + *len <= end ? 3 : 0;
   }
+  *len = 0;
   return 0;
-}
-
-bool _ykpiv_has_valid_length(const unsigned char* buffer, ptrdiff_t len) {
-  if ((len > 0) && (*buffer < 0x81)) {
-    return true;
-  }
-  else if ((len > 1) && ((*buffer & 0x7f) == 1)) {
-    return true;
-  }
-  else if ((len > 2) && ((*buffer & 0x7f) == 2)) {
-    return true;
-  }
-  return false;
 }
 
 static unsigned char *set_object(int object_id, unsigned char *buffer) {
@@ -1024,7 +1022,7 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   unsigned long recv_len = sizeof(data);
   size_t key_len = 0;
   int sw = 0;
-  size_t bytes;
+  size_t bytes, offs;
   size_t len = 0;
   ykpiv_rc res;
 
@@ -1056,22 +1054,16 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
     default:
       return YKPIV_ALGORITHM_ERROR;
   }
-  
-  if(in_len < 0x80) {
-    bytes = 1;
-  } else if(in_len < 0xff) {
-    bytes = 2;
-  } else {
-    bytes = 3;
-  }
 
+  bytes = _ykpiv_get_length_size(in_len);
+  
   *dataptr++ = 0x7c;
   dataptr += _ykpiv_set_length(dataptr, in_len + bytes + 3);
   *dataptr++ = 0x82;
   *dataptr++ = 0x00;
   *dataptr++ = YKPIV_IS_EC(algorithm) && decipher ? 0x85 : 0x81;
   dataptr += _ykpiv_set_length(dataptr, in_len);
-  memcpy(dataptr, sign_in, (size_t)in_len);
+  memcpy(dataptr, sign_in, in_len);
   dataptr += in_len;
 
   if((res = _ykpiv_transfer_data(state, templ, indata, (long)(dataptr - indata), data, &recv_len, &sw)) != YKPIV_OK) {
@@ -1096,21 +1088,23 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
     return YKPIV_PARSE_ERROR;
   }
   dataptr = data + 1;
-  dataptr += _ykpiv_get_length(dataptr, &len);
+  offs = _ykpiv_get_length(dataptr, data + recv_len, &len);
+  dataptr += offs;
   /* skip the 82 tag */
-  if(*dataptr != 0x82) {
+  if(!offs || *dataptr != 0x82) {
     if(state->verbose) {
       fprintf(stderr, "Failed parsing signature reply.\n");
     }
     return YKPIV_PARSE_ERROR;
   }
   dataptr++;
-  dataptr += _ykpiv_get_length(dataptr, &len);
-  if(len > *out_len) {
+  offs = _ykpiv_get_length(dataptr, data + recv_len, &len);
+  dataptr += offs;
+  if(!offs || len > *out_len) {
     if(state->verbose) {
       fprintf(stderr, "Wrong size on output buffer.\n");
     }
-    return YKPIV_SIZE_ERROR;
+    return YKPIV_PARSE_ERROR;
   }
   *out_len = len;
   memcpy(out, dataptr, len);
@@ -1203,7 +1197,7 @@ ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len) {
 
   if ((res = _ykpiv_get_version(state)) >= YKPIV_OK) {
     int result = snprintf(version, len, "%d.%d.%d", state->ver.major, state->ver.minor, state->ver.patch);
-    if(result < 0 || result >= len) {
+    if(result < 0 || result >= (int)len) {
       res = YKPIV_SIZE_ERROR;
     }
   }
@@ -1678,15 +1672,9 @@ ykpiv_rc _ykpiv_fetch_object(ykpiv_state *state, int object_id,
 
   if(sw == SW_SUCCESS) {
     size_t outlen = 0;
-    size_t offs = 0;
-    
-    if ((*len < 2) || !_ykpiv_has_valid_length(data + 1, (ptrdiff_t)(*len - 1))) {
-      return YKPIV_SIZE_ERROR;
-    }
-
-    offs = _ykpiv_get_length(data + 1, &outlen);
-    if(offs == 0) {
-      return YKPIV_SIZE_ERROR;
+    size_t offs = _ykpiv_get_length(data + 1, data + *len, &outlen);    
+    if(!offs) {
+      return YKPIV_PARSE_ERROR;
     }
     if(outlen + offs + 1 != *len) {
       if(state->verbose) {

@@ -125,6 +125,7 @@ ykcs11/tests/ykcs11_tests.log
 ykcs11/tests/ykcs11_tests.o
 ykcs11/tests/ykcs11_tests_util.o
 ykcs11/tests/ykcs11_tests.trs
+ykcs11/tests/ykcs11_tests.exe
 yubico-piv-tool.1.txt
 .DS_Store
 .vscode/c_cpp_properties.json

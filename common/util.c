@@ -166,12 +166,11 @@ parse_err:
 }
 
 size_t read_data(unsigned char *buf, size_t len, FILE* input, enum enum_format format) {
-  char raw_buf[YKPIV_OBJ_MAX_SIZE * 2];
-  size_t raw_len = sizeof(raw_buf);
-  raw_len = fread(raw_buf, 1, raw_len, input);
+  char raw_buf[YKPIV_OBJ_MAX_SIZE * 2 + 1];
+  size_t raw_len = fread(raw_buf, 1, sizeof(raw_buf), input);
   switch(format) {
     case format_arg_hex:
-      if(raw_buf[raw_len - 1] == '\n') {
+      if(raw_len > 0 && raw_buf[raw_len - 1] == '\n') {
         raw_len -= 1;
       }
       if(ykpiv_hex_decode(raw_buf, raw_len, buf, &len) != YKPIV_OK) {
@@ -241,47 +240,21 @@ void dump_data(const unsigned char *buf, unsigned int len, FILE *output, bool sp
   }
 }
 
-unsigned long get_length(const unsigned char *buffer, unsigned long *len) {
-  if(*buffer < 0x81) {
-    *len = buffer[0];
+unsigned long get_length_size(unsigned long length) {
+  if (length < 0x80) {
     return 1;
-  } else if((*buffer & 0x7f) == 1) {
-    *len = buffer[1];
+  } else if (length < 0x100) {
     return 2;
-  } else if((*buffer & 0x7f) == 2) {
-    *len = (buffer[1] << 8) + buffer[2];
+  } else {
     return 3;
   }
-  return 0;
-}
-
-bool has_valid_length(const unsigned char* buffer, ptrdiff_t len) {
-  if ((len > 0) && (*buffer < 0x81)) {
-    return true;
-  }
-  else if ((len > 1) && ((*buffer & 0x7f) == 1)) {
-    return true;
-  }
-  else if ((len > 2) && ((*buffer & 0x7f) == 2)) {
-    return true;
-  }
-  return false;
-}
-
-int get_curve_name(int key_algorithm) {
-  if(key_algorithm == YKPIV_ALGO_ECCP256) {
-    return NID_X9_62_prime256v1;
-  } else if(key_algorithm == YKPIV_ALGO_ECCP384) {
-    return NID_secp384r1;
-  }
-  return 0;
 }
 
 unsigned long set_length(unsigned char *buffer, unsigned long length) {
   if(length < 0x80) {
     *buffer++ = length;
     return 1;
-  } else if(length < 0xff) {
+  } else if(length < 0x100) {
     *buffer++ = 0x81;
     *buffer++ = length;
     return 2;
@@ -291,6 +264,31 @@ unsigned long set_length(unsigned char *buffer, unsigned long length) {
     *buffer++ = length & 0xff;
     return 3;
   }
+}
+
+unsigned long get_length(const unsigned char *buffer, const unsigned char *end, unsigned long *len) {
+  if(buffer + 1 <= end && buffer[0] < 0x80) {
+    *len = buffer[0];
+    return buffer + 1 + *len <= end ? 1 : 0;
+  } else if(buffer + 2 <= end && buffer[0] == 0x81) {
+    *len = buffer[1];
+    return buffer + 2 + *len <= end ? 2 : 0;
+  } else if(buffer + 3 <= end && buffer[0] == 0x82) {
+    size_t tmp = buffer[1];
+    *len = (tmp << 8) + buffer[2];
+    return buffer + 3 + *len <= end ? 3 : 0;
+  }
+  *len = 0;
+  return 0;
+}
+
+int get_curve_name(int key_algorithm) {
+  if(key_algorithm == YKPIV_ALGO_ECCP256) {
+    return NID_X9_62_prime256v1;
+  } else if(key_algorithm == YKPIV_ALGO_ECCP384) {
+    return NID_secp384r1;
+  }
+  return 0;
 }
 
 int get_slot_hex(enum enum_slot slot_enum) {

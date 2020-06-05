@@ -263,36 +263,6 @@ static const char *certificate_pem =
   "cbJb2PEXibNEQG234riKxm7x7vNDLL79Jwtc\n"
   "-----END CERTIFICATE-----\n";
 
-static bool set_component(unsigned char *in_ptr, const BIGNUM *bn, int element_len) {
-  int real_len = BN_num_bytes(bn);
-
-  if(real_len > element_len) {
-    return false;
-  }
-  memset(in_ptr, 0, (size_t)(element_len - real_len));
-  in_ptr += element_len - real_len;
-  BN_bn2bin(bn, in_ptr);
-
-  return true;
-}
-
-static bool prepare_rsa_signature(const unsigned char *in, unsigned int in_len, unsigned char *out, unsigned int *out_len, int nid) {
-  X509_SIG *digestInfo;
-  X509_ALGOR *algor;
-  ASN1_OCTET_STRING *digest;
-  unsigned char data[1024];
-
-  memcpy(data, in, in_len);
-
-  digestInfo = X509_SIG_new();
-  X509_SIG_getm(digestInfo, &algor, &digest);
-  algor->algorithm = OBJ_nid2obj(nid);
-  X509_ALGOR_set0(algor, OBJ_nid2obj(nid), V_ASN1_NULL, NULL);
-  ASN1_STRING_set(digest, data, in_len);
-  *out_len = (unsigned int)i2d_X509_SIG(digestInfo, &out);
-  X509_SIG_free(digestInfo);
-  return true;
-}
 
 static void import_key(unsigned char slot, unsigned char pin_policy) {
   ykpiv_rc res;

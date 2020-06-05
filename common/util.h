@@ -46,9 +46,9 @@ enum file_mode {
 
 size_t read_data(unsigned char*, size_t, FILE*, enum enum_format);
 void dump_data(unsigned const char*, unsigned int, FILE*, bool, enum enum_format);
+unsigned long get_length_size(unsigned long);
 unsigned long set_length(unsigned char*, unsigned long);
-unsigned long get_length(const unsigned char*, unsigned long*);
-bool has_valid_length(const unsigned char*, ptrdiff_t);
+unsigned long get_length(const unsigned char*, const unsigned char*, unsigned long*);
 int get_curve_name(int);
 X509_NAME *parse_name(const char*);
 unsigned char get_algorithm(EVP_PKEY*);
