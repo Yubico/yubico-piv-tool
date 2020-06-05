@@ -84,7 +84,6 @@ add_coverage(ykcs11_shared)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ykcs11.pc.in ${CMAKE_CURRENT_SOURCE_DIR}/ykcs11.pc @ONLY)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ykcs11-config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/ykcs11-config.h @ONLY)
 
-set_target_properties(ykcs11 PROPERTIES INSTALL_RPATH "${YKPIV_INSTALL_LIB_DIR}")
 install(
         TARGETS ykcs11_shared
         ARCHIVE DESTINATION "${YKPIV_INSTALL_LIB_DIR}"
