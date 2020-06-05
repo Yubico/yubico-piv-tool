@@ -25,6 +25,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+include(GNUInstallDirs)
+
 #These are the Variables that can be overridden with the command line arguments in the form:
 # cmake -DVARIABLE1=VALUE1 -DVARIABLE2=VALUE2
 
@@ -48,22 +50,8 @@ set(OPENSSL_PKG_PATH "" CACHE STRING "Path to be prepended to 'PKG_CONFIG_PATH' 
 set(PCSCLITE_PKG_PATH "" CACHE STRING "Path to be prepended to 'PKG_CONFIG_PATH' environment variable to look for pcsc-lite library")
 
 # Set various install paths
-if (NOT DEFINED YKPIV_INSTALL_LIB_DIR)
-    set(YKPIV_INSTALL_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib${LIB_SUFFIX}" CACHE PATH "Installation directory for libraries")
-endif ()
-
-if (NOT DEFINED YKPIV_INSTALL_INC_DIR)
-    set(YKPIV_INSTALL_INC_DIR "${CMAKE_INSTALL_PREFIX}/include" CACHE PATH "Installation directory for headers")
-endif ()
-
-if (NOT DEFINED YKPIV_INSTALL_BIN_DIR)
-    set(YKPIV_INSTALL_BIN_DIR "${CMAKE_INSTALL_PREFIX}/bin" CACHE PATH "Installation directory for executables")
-endif ()
-
-if (NOT DEFINED YKPIV_INSTALL_MAN_DIR)
-    set(YKPIV_INSTALL_MAN_DIR "${CMAKE_INSTALL_PREFIX}/share/man" CACHE PATH "Installation directory for manual pages")
-endif ()
-
-if (NOT DEFINED YKPIV_INSTALL_PKGCONFIG_DIR)
-    set(YKPIV_INSTALL_PKGCONFIG_DIR "${CMAKE_INSTALL_PREFIX}/lib/pkgconfig" CACHE PATH "Installation directory for pkgconfig (.pc) files")
-endif ()
+set(YKPIV_INSTALL_LIB_DIR ${CMAKE_INSTALL_LIBDIR} CACHE PATH "Installation directory for libraries")
+set(YKPIV_INSTALL_INC_DIR ${CMAKE_INSTALL_INCLUDEDIR} CACHE PATH "Installation directory for headers")
+set(YKPIV_INSTALL_BIN_DIR ${CMAKE_INSTALL_BINDIR} CACHE PATH "Installation directory for executables")
+set(YKPIV_INSTALL_MAN_DIR ${CMAKE_INSTALL_MANDIR} CACHE PATH "Installation directory for manual pages")
+set(YKPIV_INSTALL_PKGCONFIG_DIR "${CMAKE_INSTALL_LIBDIR}/pkgconfig" CACHE PATH "Installation directory for pkgconfig (.pc) files")
