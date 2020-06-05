@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 Yubico AB
+ * Copyright (c) 2014-2020 Yubico AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
 
 #include "ykpiv.h"
 #include "internal.h"
-#include "../../tool/openssl-compat.h"
+#include "../../common/openssl-compat.h"
 
 #include <stddef.h>
 #include <stdio.h>
@@ -39,7 +39,7 @@
 
 #include <check.h>
 
-#ifdef __MINGW32__
+#ifdef _WIN32
 #define dprintf(fd, ...) fprintf(stdout, __VA_ARGS__)
 #endif
 

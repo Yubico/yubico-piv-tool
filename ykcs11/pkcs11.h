@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016 Yubico AB
+ * Copyright (c) 2015-2017,2019-2020 Yubico AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -127,7 +127,11 @@ extern "C" {
 
 #else
 
+#ifdef CRYPTOKI_EXPORTS
+#define CK_SPEC __attribute__((visibility("default")))
+#else
 #define CK_SPEC
+#endif
 
 #endif
 

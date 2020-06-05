@@ -1,0 +1,140 @@
+name: Windows Build
+# This machine tests building the software on a both 32 and 64 Windows architecture.
+# The binaries used on the official release are also produced here and are downloadable as artifacts
+# Since this is where the release binaries are build, make sure to update the version number in this file. Search for
+# the 'RELEASE_VERSION' variable and update its value wherever its found
+
+on: [push]
+
+jobs:
+
+  job_1:
+    name: Build dist with Linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+
+      - name: Install prerequisites
+        run: |
+          sudo apt install libpcsclite-dev check gengetopt help2man
+      - name: Create tar.gz
+        run: |
+          export RELEASE_VERSION=2.1.0
+
+          ./resources/make_src_dist.sh $RELEASE_VERSION
+          cd ..
+          mkdir artifact
+          mv yubico-piv-tool/yubico-piv-tool-$RELEASE_VERSION.tar.gz artifact/
+      - name: Upload artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: yubico-piv-tool-src
+          path: ../artifact
+
+  job_2:
+    name: Build Windows x86
+    needs: job_1
+    runs-on: windows-latest
+    steps:
+      - name: Download source from job_1
+        uses: actions/download-artifact@v1
+        with:
+          name: yubico-piv-tool-src
+
+      - name: Extract source
+        run: |
+          $env:RELEASE_VERSION="2.1.0"
+
+          echo "cd yubico-piv-tool-src"
+          cd yubico-piv-tool-src
+
+          echo "tar xf yubico-piv-tool-$env:RELEASE_VERSION.tar.gz"
+          tar xf yubico-piv-tool-$env:RELEASE_VERSION.tar.gz
+
+      - name: install prerequisites for x86 architecture
+        run: |
+          echo "vcpkg install openssl:x86-windows"
+          vcpkg install openssl:x86-windows
+
+          echo "vcpkg install getopt:x86-windows"
+          vcpkg install getopt:x86-windows
+
+          echo "vcpkg install check:x86-windows"
+          vcpkg install check:x86-windows
+
+      - name: build for x86 architecture
+        run: |
+          $env:RELEASE_VERSION="2.1.0"
+          $env:Path ="C:/vcpkg/packages/openssl-windows_x86-windows;$env:Path"
+          $env:include ="C:/vcpkg/packages/openssl-windows_x86-windows/include;$env:include"
+
+          echo "cd yubico-piv-tool-src/yubico-piv-tool-$env:RELEASE_VERSION"
+          cd yubico-piv-tool-src/yubico-piv-tool-$env:RELEASE_VERSION
+
+          echo "mkdir build; cd build"
+          mkdir build; cd build
+
+          echo "cmake -A Win32 -DVERBOSE_CMAKE=ON -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x86-windows .."
+          cmake -A Win32 -DVERBOSE_CMAKE=ON -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x86-windows ..
+
+          echo "cmake --build . -v"
+          cmake --build . -v
+          $env:Path +=";C:/vcpkg/packages/check_x86-windows/bin;C:/vcpkg/packages/openssl-windows_x86-windows/bin;D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\build\lib\Debug;D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\build\ykcs11\Debug"
+
+          echo "ctest.exe -C Debug"
+          ctest.exe -C Debug
+
+  job_3:
+    name: Build Windows x64
+    needs: job_1
+    runs-on: windows-latest
+    steps:
+      - name: Download source from job_1
+        uses: actions/download-artifact@v1
+        with:
+          name: yubico-piv-tool-src
+
+      - name: Extract source
+        run: |
+          $env:RELEASE_VERSION="2.1.0"
+
+          echo "cd yubico-piv-tool-src"
+          cd yubico-piv-tool-src
+
+          echo "tar xf yubico-piv-tool-$env:RELEASE_VERSION.tar.gz"
+          tar xf yubico-piv-tool-$env:RELEASE_VERSION.tar.gz
+
+      - name: install prerequisites for x64 architecture
+        run: |
+          echo "vcpkg install openssl:x64-windows"
+          vcpkg install openssl:x64-windows
+
+          echo "vcpkg install getopt:x64-windows"
+          vcpkg install getopt:x64-windows
+
+          echo "vcpkg install check:x64-windows"
+          vcpkg install check:x64-windows
+
+      - name: build for x64 architecture
+        run: |
+          $env:RELEASE_VERSION="2.1.0"
+
+          echo "cd yubico-piv-tool-src/yubico-piv-tool-$env:RELEASE_VERSION"
+          cd yubico-piv-tool-src/yubico-piv-tool-$env:RELEASE_VERSION
+
+          echo "mkdir build; cd build"
+          mkdir build; cd build
+
+          $env:Path ="C:\vcpkg\packages\openssl-windows_x64-windows;$env:Path"
+          $env:include ="C:\vcpkg\packages\openssl-windows_x64-windows/include;$env:include"
+
+          echo "cmake -A x64 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x64-windows .."
+          cmake -A x64 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x64-windows ..
+
+          echo "cmake --build . -v"
+          cmake --build . -v
+
+          echo "ctest.exe -C Debug"
+          $env:Path +=";C:/vcpkg/packages/check_x64-windows/bin;C:/vcpkg/packages/openssl-windows_x64-windows/bin;D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\build\lib\Debug;D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\build\ykcs11\Debug"
+          ctest.exe -C Debug

@@ -1,0 +1,75 @@
+Source: yubico-piv-tool
+Maintainer: Debian Authentication Maintainers <pkg-auth-maintainers@lists.alioth.debian.org>
+Uploaders: Simon Josefsson <simon@josefsson.org>, Klas Lindfors <klas@yubico.com>, Dain Nilsson <dain@yubico.com>, Alessio Di Mauro <alessio@yubico.com>, Aveen Ismail <aveen.ismail@yubico.com>
+Section: utils
+Priority: extra
+Build-Depends: debhelper (>= 9), pkg-config, libpcsclite-dev, libssl-dev, gengetopt, help2man, dh-autoreconf, chrpath, check
+Standards-Version: 4.1.4
+Homepage: https://developers.yubico.com/yubico-piv-tool/
+
+Package: libykpiv1
+Architecture: any
+Section: libs
+Pre-Depends: ${misc:Pre-Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Recommends: pcscd
+Replaces: libykpiv0
+Conflicts: libykpiv0
+Description: Library for communication with the YubiKey PIV
+ application. The Yubico PIV tool is used for interacting with the
+ Personal Identity Verification Card (PIV) application on a YubiKey.
+ With it you may generate keys on the device, import keys and
+ certificates, create certificate requests, and other operations. A
+ shared library, a PKCS#11 module a command-line tool are included.
+ .
+ This package contains the run-time shared library.  You normally don't
+ need to install it manually.
+
+Package: libykpiv-dev
+Architecture: any
+Section: libdevel
+Depends: ${shlibs:Depends}, ${misc:Depends}, libykpiv1 (= ${binary:Version})
+Description: Library for communication with the YubiKey PIV
+ application. The Yubico PIV tool is used for interacting with the
+ Personal Identity Verification Card (PIV) application on a YubiKey.
+ With it you may generate keys on the device, import keys and
+ certificates, create certificate requests, and other operations. A
+ shared library, a PKCS#11 module and a command-line tool are
+ included.
+ .
+ This package contains the development files for the library.
+
+Package: ykcs11
+Architecture: any
+Section: libs
+Depends: ${shlibs:Depends}, ${misc:Depends}, libykpiv1 (= ${binary:Version})
+Breaks: libykcs11-1 (<< 1.4.1~)
+Replaces: libykcs11-1 (<< 1.4.1~)
+Description: PKCS#11 module for communication with the YubiKey PIV
+ application. The Yubico PIV tool is used for interacting with the
+ Personal Identity Verification Card (PIV) application on a YubiKey.
+ With it you may generate keys on the device, import keys and
+ certificates, create certificate requests, and other operations. A
+ shared library, a PKCS#11 module and a command-line tool are
+ included.
+ .
+ This package contains the PKCS#11 module.
+
+Package: libykcs11-1
+Architecture: all
+Section: oldlibs
+Depends: ykcs11, ${misc:Depends}
+Description: transitional package
+ This is a transitional package. It can safely be removed.
+
+Package: yubico-piv-tool
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Command line tool for the YubiKey PIV application. The
+ Yubico PIV tool is used for interacting with the Personal Identity
+ Verification Card (PIV) application on a YubiKey. With it you may
+ generate keys on the device, import keys and certificates, create
+ certificate requests, and other operations. A shared library, a
+ PKCS#11 module and command-line tool are included.
+ .
+ This package contains the command-line tool.

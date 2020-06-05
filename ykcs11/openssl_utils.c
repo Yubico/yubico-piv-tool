@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016 Yubico AB
+ * Copyright (c) 2015-2020 Yubico AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,8 @@
 #include "openssl_utils.h"
 #include <stdbool.h>
 #include "ykpiv.h"
-#include "../tool/util.h" // TODO: share this better?
-#include "../tool/openssl-compat.h" // TODO: share this better?
+#include "../common/util.h"
+#include "../common/openssl-compat.h"
 #include "debug.h"
 #include <string.h>
 

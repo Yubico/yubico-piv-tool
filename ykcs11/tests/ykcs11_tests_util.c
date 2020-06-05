@@ -1,4 +1,34 @@
-#include "../../tool/openssl-compat.h"
+/*
+ * Copyright (c) 2019-2020 Yubico AB
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
+
+#include "../../common/openssl-compat.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -282,10 +312,10 @@ EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   EVP_PKEY       *evp;
   EC_KEY         *eck;
   const BIGNUM   *bn;
-  CK_CHAR        pvt[key_len];
   X509           *cert;
-  ASN1_TIME      *tm;
-  CK_BYTE        i, j;
+  CK_BYTE        i;
+  CK_CHAR        *pvt;
+  pvt = malloc(key_len);
 
   CK_ULONG    class_k = CKO_PRIVATE_KEY;
   CK_ULONG    class_c = CKO_CERTIFICATE;
@@ -301,7 +331,7 @@ EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
     {CKA_KEY_TYPE, &kt, sizeof(kt)},
     {CKA_ID, &id, sizeof(id)},
     {CKA_EC_PARAMS, ec_params, ec_params_len},
-    {CKA_VALUE, pvt, sizeof(pvt)}
+    {CKA_VALUE, pvt, key_len}
   };
 
   CK_ATTRIBUTE publicKeyTemplate[] = {
@@ -364,21 +394,22 @@ EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   }
 
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
-
+  free(pvt);
   return eck;
 }
 
 void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int keylen, EVP_PKEY* evp, RSA* rsak,
                     CK_BYTE n_keys, CK_OBJECT_HANDLE_PTR obj_cert, CK_OBJECT_HANDLE_PTR obj_pvtkey) {
   X509        *cert;
-  ASN1_TIME   *tm;
-  CK_BYTE     i, j;
+  CK_BYTE     i;
   CK_BYTE     e[] = {0x01, 0x00, 0x01};
-  CK_BYTE     p[keylen / 16];
-  CK_BYTE     q[keylen / 16];
-  CK_BYTE     dp[keylen / 16];
-  CK_BYTE     dq[keylen / 16];
-  CK_BYTE     qinv[keylen / 16];
+  CK_BYTE     *p, *q, *dp, *dq, *qinv;
+  p = malloc(keylen / 16);
+  q = malloc(keylen / 16);
+  dp = malloc(keylen / 16);
+  dq = malloc(keylen / 16);
+  qinv = malloc(keylen / 16);
+
   BIGNUM      *e_bn;
   CK_ULONG    class_k = CKO_PRIVATE_KEY;
   CK_ULONG    class_c = CKO_CERTIFICATE;
@@ -397,11 +428,11 @@ void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int k
     {CKA_KEY_TYPE, &kt, sizeof(kt)},
     {CKA_ID, &id, sizeof(id)},
     {CKA_PUBLIC_EXPONENT, e, sizeof(e)},
-    {CKA_PRIME_1, p, sizeof(p)},
-    {CKA_PRIME_2, q, sizeof(q)},
-    {CKA_EXPONENT_1, dp, sizeof(dp)},
-    {CKA_EXPONENT_2, dq, sizeof(dq)},
-    {CKA_COEFFICIENT, qinv, sizeof(qinv)}
+    {CKA_PRIME_1, p, (keylen / 16)},
+    {CKA_PRIME_2, q, (keylen / 16)},
+    {CKA_EXPONENT_1, dp, (keylen / 16)},
+    {CKA_EXPONENT_2, dq, (keylen / 16)},
+    {CKA_COEFFICIENT, qinv, (keylen / 16)}
   };
 
   CK_ATTRIBUTE publicKeyTemplate[] = {
@@ -470,6 +501,11 @@ void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int k
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
 
   evp = X509_get_pubkey(cert);
+  free(p);
+  free(q);
+  free(dp);
+  free(dq);
+  free(qinv);
 }
 
 void generate_ec_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_BYTE n_keys,
@@ -508,7 +544,7 @@ void generate_ec_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
 
 void generate_rsa_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_ULONG key_size, CK_BYTE n_keys,
                       CK_OBJECT_HANDLE_PTR obj_pubkey, CK_OBJECT_HANDLE_PTR obj_pvtkey) {
-  CK_BYTE     i, j;
+  CK_BYTE     i;
   CK_BYTE     e[] = {0x01, 0x00, 0x01};
   CK_ULONG    class_k = CKO_PRIVATE_KEY;
   CK_ULONG    class_c = CKO_PUBLIC_KEY;
@@ -541,55 +577,50 @@ void generate_rsa_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
 }
 
 static void construct_der_encoded_sig(CK_BYTE sig[], CK_BYTE_PTR der_encoded, CK_ULONG key_len) {
-    CK_ULONG    der_encoded_len;
-    CK_BYTE_PTR der_ptr;
-    CK_BYTE_PTR r_ptr;
-    CK_BYTE_PTR s_ptr;
-    CK_ULONG    r_len;
-    CK_ULONG    s_len;
-    const EVP_MD *md;
-    EVP_MD_CTX *mdctx;
+  CK_BYTE_PTR der_ptr;
+  CK_BYTE_PTR r_ptr;
+  CK_BYTE_PTR s_ptr;
+  CK_ULONG r_len;
+  CK_ULONG s_len;
 
-      r_len = key_len;
-      s_len = key_len;
+  r_len = key_len;
+  s_len = key_len;
 
-      der_ptr = der_encoded;
-      *der_ptr++ = 0x30;
-      *der_ptr++ = 0xff; // placeholder, fix below
+  der_ptr = der_encoded;
+  *der_ptr++ = 0x30;
+  *der_ptr++ = 0xff; // placeholder, fix below
 
-      r_ptr = sig;
+  r_ptr = sig;
 
-      *der_ptr++ = 0x02;
-      *der_ptr++ = r_len;
-      if (*r_ptr >= 0x80) {
-        *(der_ptr - 1) = *(der_ptr - 1) + 1;
-        *der_ptr++ = 0x00;
-      }
-      else if (*r_ptr == 0x00 && *(r_ptr + 1) < 0x80) {
-        r_len--;
-        *(der_ptr - 1) = *(der_ptr - 1) - 1;
-        r_ptr++;
-      }
-      memcpy(der_ptr, r_ptr, r_len);
-      der_ptr+= r_len;
+  *der_ptr++ = 0x02;
+  *der_ptr++ = r_len;
+  if (*r_ptr >= 0x80) {
+    *(der_ptr - 1) = *(der_ptr - 1) + 1;
+    *der_ptr++ = 0x00;
+  } else if (*r_ptr == 0x00 && *(r_ptr + 1) < 0x80) {
+    r_len--;
+    *(der_ptr - 1) = *(der_ptr - 1) - 1;
+    r_ptr++;
+  }
+  memcpy(der_ptr, r_ptr, r_len);
+  der_ptr += r_len;
 
-      s_ptr = sig + key_len;
+  s_ptr = sig + key_len;
 
-      *der_ptr++ = 0x02;
-      *der_ptr++ = s_len;
-      if (*s_ptr >= 0x80) {
-        *(der_ptr - 1) = *(der_ptr - 1) + 1;
-        *der_ptr++ = 0x00;
-      }
-      else if (*s_ptr == 0x00 && *(s_ptr + 1) < 0x80) {
-        s_len--;
-        *(der_ptr - 1) = *(der_ptr - 1) - 1;
-        s_ptr++;
-      }
-      memcpy(der_ptr, s_ptr, s_len);
-      der_ptr+= s_len;
+  *der_ptr++ = 0x02;
+  *der_ptr++ = s_len;
+  if (*s_ptr >= 0x80) {
+    *(der_ptr - 1) = *(der_ptr - 1) + 1;
+    *der_ptr++ = 0x00;
+  } else if (*s_ptr == 0x00 && *(s_ptr + 1) < 0x80) {
+    s_len--;
+    *(der_ptr - 1) = *(der_ptr - 1) - 1;
+    s_ptr++;
+  }
+  memcpy(der_ptr, s_ptr, s_len);
+  der_ptr += s_len;
 
-      der_encoded[1] = der_ptr - der_encoded - 2;
+  der_encoded[1] = der_ptr - der_encoded - 2;
 }
 
 void test_ec_sign_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
@@ -702,9 +733,6 @@ void test_rsa_sign_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session,
   CK_BYTE     sig[256];
   CK_ULONG    sig_len;
   EVP_PKEY_CTX *ctx = NULL;
-
-  CK_BYTE     hdata[512];
-  CK_ULONG    hdata_len;
 
   CK_OBJECT_HANDLE obj_pubkey;
   CK_MECHANISM mech = {CKM_RSA_PKCS, NULL, 0};

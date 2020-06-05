@@ -6,8 +6,7 @@ sudo apt-get install -qq software-properties-common
 sudo add-apt-repository -y ppa:yubico/stable
 sudo apt-get update -qq && apt-get -qq upgrade
 sudo apt-get install -qq \
-    autoconf \
-    automake \
+    cmake \
     check \
     gengetopt \
     help2man \

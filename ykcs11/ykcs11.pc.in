@@ -25,12 +25,12 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-prefix=@prefix@
-exec_prefix=@exec_prefix@
-libdir=@libdir@
-includedir=@includedir@
+prefix=@CMAKE_INSTALL_PREFIX@
+exec_prefix=@CMAKE_INSTALL_PREFIX@
+libdir=@YKPIV_INSTALL_LIB_DIR@
+includedir=@YKPIV_INSTALL_INC_DIR@
 
-Name: @PACKAGE@
+Name: @CMAKE_PROJECT_NAME@
 Description: Yubico PIV PKCS#11 Module
 URL: https://www.yubico.com/
 Version: @VERSION@

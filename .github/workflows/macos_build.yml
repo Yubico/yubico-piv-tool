@@ -1,0 +1,78 @@
+name: MacOS Build
+# This workflow is triggered on pushes to the repository.
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: macos-latest
+
+    steps:
+      # This action checks-out the repository under $GITHUB_WORKSPACE, so the workflow can access it.
+      - name: checkout
+        uses: actions/checkout@v2
+      - name: Install prerequisites
+        run: |
+          echo brew install pkg-config check gengetopt help2man opensc
+          brew install pkg-config check gengetopt help2man opensc
+      - name: run cmake
+        run: |
+          echo mkdir cmake_build
+          mkdir cmake_build
+
+          echo cd cmake_build
+          cd cmake_build
+
+          echo cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_PKG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig
+          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_PKG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig
+
+          echo make
+          make
+
+          echo make test
+          make test
+
+          echo "otool -L {yubico-piv-tool/libykpiv.dylib/libykcs11.dylib} | grep libcrypto"
+          otool -L tool/yubico-piv-tool | grep libcrypto
+          otool -L lib/libykpiv.dylib | grep libcrypto
+          otool -L ykcs11/libykcs11.dylib | grep libcrypto
+
+          echo make install
+          make install
+
+          echo "yubico-piv-tool --help | grep 'Usage: yubico-piv-tool'"
+          yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
+
+          echo "objdump --syms /usr/local/lib/libykcs11.dylib | grep C_Sign"
+          objdump --syms /usr/local/lib/libykcs11.dylib | grep C_Sign
+
+          pkcs11-tool --module /usr/local/lib/libykcs11.dylib --show-info | grep Yubico
+
+      - name: Build using OpenSSL static link
+        run: |
+          export PKG_CONFIG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig:PKG_CONFIG_PATH
+
+          echo "rm -rf cmake_build; mkdir cmake_build; cd cmake_build"
+          rm -rf cmake_build; mkdir cmake_build; cd cmake_build
+
+          echo cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_STATIC_LINK=ON -DBACKEND=macscard
+          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_STATIC_LINK=ON -DBACKEND=macscard
+
+          echo make
+          make
+
+          echo make test
+          make test
+
+          echo "otool -L {yubico-piv-tool/libykpiv.dylib/libykcs11.dylib} | grep libcrypto"
+          otool -L tool/yubico-piv-tool | grep libcrypto | wc -l | grep 0
+          otool -L lib/libykpiv.dylib | grep libcrypto | wc -l | grep 0
+          otool -L ykcs11/libykcs11.dylib | grep libcrypto | wc -l | grep 0
+
+          echo sudo make install
+          sudo make install
+
+          echo "yubico-piv-tool --help | grep 'Usage: yubico-piv-tool'"
+          yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
+
+          pkcs11-tool --module /usr/local/lib/libykcs11.dylib --show-info | grep Yubico

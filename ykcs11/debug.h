@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016 Yubico AB
+ * Copyright (c) 2015-2016,2020 Yubico AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,9 +35,9 @@
 
 extern int verbose;
 
-#define DBG(x...) if(verbose) {                                                \
+#define DBG(x, ...) if(verbose) {                                                \
     fprintf (stderr, "debug: %s:%d (%s): ", __FILE__, __LINE__, __FUNCTION__); \
-    fprintf (stderr, x);                                                       \
+    fprintf (stderr, x, ##__VA_ARGS__);                                                       \
     fprintf (stderr, "\n");                                                    \
   }
 

@@ -15,12 +15,10 @@ see https://developers.yubico.com/PIV/
 === License
 In general the project is covered by the following BSD license.  The
 file ykcs11/pkcs11.h has additional copyright and licensing
-information, please see it for more information.  Some other files
-(e.g., m4/*) have other licenses too but are only part of the build
-infrastructure.
+information, please see it for more information.
 
 ----
-   Copyright (c) 2014-2016 Yubico AB
+   Copyright (c) 2014-2020 Yubico AB
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -51,13 +49,12 @@ infrastructure.
 === Building on POSIX platforms
 Either clone from Git or download and unpackage the tarball, then make 
 sure you have the pre-requisites installed and build following the 
-steps below. 
+steps below from the `yubico-piv-tool` directory.
 
 Please make sure to have recent versions of the following packages 
 installed on your system. 
 
-  autoconf automake libtool libssl pkg-config check libpcsc gengetopt 
-  help2man
+  cmake libtool openssl pkg-config check libpcsclite-dev gengetopt help2man
 
 Help2man is used to generate the manpages.  
 Gengetopt version 2.22.6 or later is needed for command line parameter 
@@ -65,15 +62,15 @@ handling. The
 link:https://github.com/Yubico/yubico-piv-tool/tree/master/vagrant/development[Vagrant
 VM] has all these dependencies preinstalled.
 
-  $ autoreconf --install
-  $ ./configure
+  $ mkdir build; cd build
+  $ cmake ..
   $ make
   $ sudo make install
 
-On macos you might need to point out homebrew openssl version when 
+On macos, you might need to point out homebrew openssl version when
 running pkg-config.
 
-  $ PKG_CONFIG_PATH="/usr/local/opt/openssl@1.1/lib/pkgconfig" ./configure
+  $ PKG_CONFIG_PATH="/usr/local/opt/openssl@1.1/lib/pkgconfig" cmake ..
 
 Don't forget you might need to be root for the last command. On Linux 
 it might be needed to update your linked libraries after install
@@ -81,21 +78,35 @@ it might be needed to update your linked libraries after install
   sudo ldconfig
 
 The backend to use is decided at compile time, see the summary at the
-end of the ./configure output.  Use --with-backend=foo to chose
-backend, replacing foo with the backend you want to use.  The backends
-available are "pcsc", "macscard", and "winscard" using the PCSC
+end of the `cmake` output.  Use `--with-backend=foo` to choose
+backend, replacing `foo` with the backend you want to use.  The backends
+available are "pcsc", "macscard" and "winscard" using the PCSC
 interface, with slightly different shared library linkage and
 header file names: "pcsc" is used under GNU-like systems, "macscard"
 under Mac OS X, and "winscard" is used under Windows.  In most
-situations, running ./configure should automatically find the proper
-backend to use. To turn on all warnings add --enable-gcc-warnings to 
-./configure
+situations, running `cmake` should automatically find the proper
+backend to use.
+
+==== Coverage
+
+Code coverage is provided courtesy of lcov and https://github.com/RWTH-HPC/CMake-codecov[CMake-codecov]. This currently only works with `make`.
+
+Enable coverage with
+
+ $ cmake -DENABLE_COVERAGE=1 ..
+
+You can then build the project normally and run some executables (for example running the tests with `make test`).
+
+At this point coverage evaluation can be generated with gcov/lcov related targets. For example
+
+ $ make lcov
+
+will generate a single HTML report in `./lcov/html/all_targets/index.html`
 
 === Portability
-The main development platform is Debian GNU/Linux.  The project is
-cross-compiled to Windows using MinGW (see windows.mk) using the PCSC
-backend.  It may also be built for Mac OS X (see mac.mk), also using
-the PCSC backend.
+The main development platform is Debian GNU/Linux.
+The project compiles on Windows using MSVC and the PCSC backend.
+It can also be built for Mac OS X, also using the PCSC backend.
 
 === Example Usage
 For a list of all available options --help can be given. For more information

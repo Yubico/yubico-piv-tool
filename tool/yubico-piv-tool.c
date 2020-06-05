@@ -1,5 +1,5 @@
  /*
- * Copyright (c) 2014-2016 Yubico AB
+ * Copyright (c) 2014-2020 Yubico AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,15 +35,16 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
+//#include <unistd.h>
 
 #include "ykpiv.h"
 
 #ifdef _WIN32
 #include <windows.h>
+#include <openssl/applink.c>
 #endif
 
-#include "openssl-compat.h"
+#include "../common/openssl-compat.h"
 #include <openssl/bn.h>
 #include <openssl/des.h>
 #include <openssl/pem.h>
@@ -53,7 +54,7 @@
 #include <openssl/x509v3.h>
 
 #include "cmdline.h"
-#include "util.h"
+#include "../common/util.h"
 
 #define MAX(a,b) (a) > (b) ? (a) : (b)
 
@@ -1144,7 +1145,7 @@ static bool verify_pin(ykpiv_state *state, const char *pin) {
 
   res = ykpiv_verify(state, pin, &tries);
   if(res == YKPIV_OK) {
-      return true;
+    return true;
   } else if(res == YKPIV_WRONG_PIN || res == YKPIV_PIN_LOCKED) {
     if(tries > 0) {
       fprintf(stderr, "Pin verification failed, %d tries left before pin is blocked.\n", tries);
@@ -2043,7 +2044,7 @@ int main(int argc, char *argv[]) {
   }
 
   if(ykpiv_connect(state, args_info.reader_arg) != YKPIV_OK) {
-    fprintf(stderr, "Failed to connect to yubikey.\nTry removing and reconnecting the device.");
+    fprintf(stderr, "Failed to connect to yubikey.\nTry removing and reconnecting the device.\n");
     ykpiv_done(state);
     cmdline_parser_free(&args_info);
     return EXIT_FAILURE;

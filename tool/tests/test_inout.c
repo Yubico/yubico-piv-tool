@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016 Yubico AB
+ * Copyright (c) 2015-2017,2020 Yubico AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,11 +34,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-#include <unistd.h>
 
-#include "util.h"
+#include "../../common/util.h"
 
 #ifdef _WIN32
+#include <openssl/applink.c>
 #define pipe(fds) _pipe(fds,4096, 0)
 #endif
 

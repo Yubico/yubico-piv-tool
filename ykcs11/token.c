@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016 Yubico AB
+ * Copyright (c) 2015-2016,2019-2020 Yubico AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 #include "openssl_utils.h"
 
 #include <stdbool.h>
-#include "../tool/util.h"
+#include "../common/util.h"
 
 #define MIN_RSA_KEY_SIZE 1024
 #define MAX_RSA_KEY_SIZE 2048

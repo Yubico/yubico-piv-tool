@@ -1,0 +1,85 @@
+name: Ubuntu Build
+# This workflow is triggered on pushes to the repository. This is a test machine and nothing produced here will be used
+# in the official release
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      # This action checks-out the repository under $GITHUB_WORKSPACE, so the workflow can access it.
+      - name: checkout
+        uses: actions/checkout@v2
+      - name: Install prerequisites
+        run: |
+          echo sudo apt install libpcsclite-dev check gengetopt help2man openssl opensc
+          sudo apt install libpcsclite-dev check gengetopt help2man openssl opensc
+
+      - name: Build and install
+        run: |
+          echo ">> mkdir cmake_build; cd cmake_build"
+          mkdir cmake_build; cd cmake_build
+
+          echo ">> cmake .. -DVERBOSE_CMAKE=ON"
+          cmake .. -DVERBOSE_CMAKE=ON
+
+          echo ">> make"
+          make
+
+          echo ">> make test"
+          make test
+
+          echo ">> ldd {yubico-piv-tool/libykpiv.so/libykcs11.so} | grep libcrypto.so"
+          ldd tool/yubico-piv-tool | grep libcrypto.so
+          ldd lib/libykpiv.so | grep libcrypto.so
+          ldd ykcs11/libykcs11.so | grep libcrypto.so
+
+          echo ">> pkcs11-tool --module ykcs11/libykcs11.so --show-info | grep Yubico"
+          pkcs11-tool --module ykcs11/libykcs11.so --show-info | grep Yubico
+
+          echo ">> sudo make install"
+          sudo make install
+          sudo ldconfig
+
+          echo ">> yubico-piv-tool --help | grep 'Usage: yubico-piv-tool'"
+          yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
+
+          echo ">> objdump -T /usr/local/lib/libykcs11.so | grep C_Sign"
+          objdump -T /usr/local/lib/libykcs11.so | grep C_Sign
+
+          echo ">> pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico"
+          pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico
+
+      - name: Build using OpenSSL static link
+        run: |
+          echo ">> rm -rf cmake_build; mkdir cmake_build; cd cmake_build"
+          rm -rf cmake_build; mkdir cmake_build; cd cmake_build
+
+          echo ">> cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_STATIC_LINK=ON"
+          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_STATIC_LINK=ON
+
+          echo ">> make"
+          make
+
+          echo ">> make test"
+          make test
+
+          echo ">> ldd {yubico-piv-tool/libykpiv.so/libykcs11.so} | grep libcrypto.so | wc -l | grep 0"
+          ldd tool/yubico-piv-tool | grep libcrypto.so | wc -l | grep 0
+          ldd lib/libykpiv.so | grep libcrypto.so | wc -l | grep 0
+          ldd ykcs11/libykcs11.so | grep libcrypto.so | wc -l | grep 0
+
+          echo ">> pkcs11-tool --module ykcs11/libykcs11.so --show-info | grep Yubico"
+          pkcs11-tool --module ykcs11/libykcs11.so --show-info | grep Yubico
+
+          echo ">> sudo make install"
+          sudo make install
+          sudo ldconfig
+
+          echo ">> yubico-piv-tool --help | grep 'Usage: yubico-piv-tool'"
+          yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
+
+          echo ">> pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico"
+          pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico
