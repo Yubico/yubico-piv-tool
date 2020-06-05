@@ -3,11 +3,11 @@
 # This script has to be run from the source directory
 
 VERSION=$1 # Full yubico-piv-tool version, tex 2.1.0
-MAJOR_VERSION=${VERSION:0:1}
-CMAKE_INSTALL_PREFIX=$2 # The value of the CMAKE_INSTALL_PREFIX, tex /usr/local. Can be displayed by running "cmake -L | grep CMAKE_INSTALL_PREFIX"
+SO_VERSION=$2
+CMAKE_INSTALL_PREFIX=$3 # The value of the CMAKE_INSTALL_PREFIX, tex /usr/local. Can be displayed by running "cmake -L | grep CMAKE_INSTALL_PREFIX"
 
 echo VERSION: $VERSION
-echo MAJOR_VERSION: $MAJOR_VERSION
+echo SO_VERSION: $SO_VERSION
 echo CMAKE_INSTALL_PREFIX: $CMAKE_INSTALL_PREFIX
 
 PACKAGE=yubico-piv-tool
@@ -67,13 +67,13 @@ rm -rf $FINAL_INSTALL_DIR/lib/pkgconfig
 # Fix paths
 chmod u+w $FINAL_INSTALL_DIR/lib/libcrypto.1.1.dylib
 install_name_tool -id @loader_path/libcrypto.1.1.dylib $FINAL_INSTALL_DIR/lib/libcrypto.1.1.dylib
-install_name_tool -id @loader_path/libykpiv.$MAJOR_VERSION.dylib $FINAL_INSTALL_DIR/lib/libykpiv.$MAJOR_VERSION.dylib
-install_name_tool -id @loader_path/libykcs11.$MAJOR_VERSION.dylib $FINAL_INSTALL_DIR/lib/libykcs11.$MAJOR_VERSION.dylib
-install_name_tool -change $FINAL_INSTALL_DIR/lib/libcrypto.1.1.dylib @loader_path/libcrypto.1.1.dylib $FINAL_INSTALL_DIR/lib/libykpiv.$MAJOR_VERSION.dylib
-install_name_tool -change $FINAL_INSTALL_DIR/lib/libcrypto.1.1.dylib @loader_path/libcrypto.1.1.dylib $FINAL_INSTALL_DIR/lib/libykcs11.$MAJOR_VERSION.dylib
+install_name_tool -id @loader_path/libykpiv.$SO_VERSION.dylib $FINAL_INSTALL_DIR/lib/libykpiv.$SO_VERSION.dylib
+install_name_tool -id @loader_path/libykcs11.$SO_VERSION.dylib $FINAL_INSTALL_DIR/lib/libykcs11.$SO_VERSION.dylib
+install_name_tool -change $FINAL_INSTALL_DIR/lib/libcrypto.1.1.dylib @loader_path/libcrypto.1.1.dylib $FINAL_INSTALL_DIR/lib/libykpiv.$SO_VERSION.dylib
+install_name_tool -change $FINAL_INSTALL_DIR/lib/libcrypto.1.1.dylib @loader_path/libcrypto.1.1.dylib $FINAL_INSTALL_DIR/lib/libykcs11.$SO_VERSION.dylib
 install_name_tool -change $FINAL_INSTALL_DIR/lib/libcrypto.1.1.dylib @executable_path/../lib/libcrypto.1.1.dylib $FINAL_INSTALL_DIR/bin/yubico-piv-tool
-install_name_tool -change $FINAL_INSTALL_DIR/lib/libykpiv.$MAJOR_VERSION.dylib @loader_path/libykpiv.$MAJOR_VERSION.dylib $FINAL_INSTALL_DIR/lib/libykcs11.$MAJOR_VERSION.dylib
-install_name_tool -change $FINAL_INSTALL_DIR/lib/libykpiv.$MAJOR_VERSION.dylib @executable_path/../lib/libykpiv.$MAJOR_VERSION.dylib $FINAL_INSTALL_DIR/bin/yubico-piv-tool;
+install_name_tool -change $FINAL_INSTALL_DIR/lib/libykpiv.$SO_VERSION.dylib @loader_path/libykpiv.$SO_VERSION.dylib $FINAL_INSTALL_DIR/lib/libykcs11.$SO_VERSION.dylib
+install_name_tool -change $FINAL_INSTALL_DIR/lib/libykpiv.$SO_VERSION.dylib @executable_path/../lib/libykpiv.$SO_VERSION.dylib $FINAL_INSTALL_DIR/bin/yubico-piv-tool;
 if otool -L $FINAL_INSTALL_DIR/lib/*.dylib $FINAL_INSTALL_DIR/bin/* | grep '$FINAL_INSTALL_DIR' | grep -q compatibility; then
 	echo "something is incorrectly linked!";
 	exit 1;
