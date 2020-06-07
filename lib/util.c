@@ -894,8 +894,8 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
   }
 
   if ((YKPIV_ALGO_RSA1024 == algorithm) || (YKPIV_ALGO_RSA2048 == algorithm)) {
-    unsigned char *data_ptr = data + 5;
-    size_t len = 0;
+    size_t len;
+    unsigned char *data_ptr = data + 2 + _ykpiv_get_length(data + 2, data + recv_len, &len);
 
     if (*data_ptr != TAG_RSA_MODULUS) {
       if (state->verbose) { fprintf(stderr, "Failed to parse public key structure (modulus).\n"); }
