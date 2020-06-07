@@ -1331,6 +1331,8 @@ Cleanup:
 ykpiv_rc ykpiv_get_serial(ykpiv_state *state, uint32_t *p_serial) {
   ykpiv_rc res = YKPIV_OK;
 
+  if (!state || !p_serial) return YKPIV_ARGUMENT_ERROR;
+
   if ((res = _ykpiv_begin_transaction(state)) != YKPIV_OK) return res;
   if ((res = _ykpiv_ensure_application_selected(state)) != YKPIV_OK) goto Cleanup;
 

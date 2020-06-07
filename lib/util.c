@@ -1496,6 +1496,7 @@ static ykpiv_rc _get_metadata_item(uint8_t *data, size_t cb_data, uint8_t tag, u
   uint8_t *p_temp = data;
   size_t  offs, cb_temp = 0;
   uint8_t tag_temp = 0;
+  bool found = false;
 
   if (!data || !pp_item || !pcb_item) return YKPIV_GENERIC_ERROR;
 
@@ -1514,15 +1515,19 @@ static ykpiv_rc _get_metadata_item(uint8_t *data, size_t cb_data, uint8_t tag, u
 
     if (tag_temp == tag) {
       // found tag
+      found = true;
       break;
     }
 
     p_temp += cb_temp;
   }
 
-  *pp_item = p_temp;
-  *pcb_item = cb_temp;
-  return YKPIV_OK;
+  if (found) {
+    *pp_item = p_temp;
+    *pcb_item = cb_temp;
+  }
+
+  return found ? YKPIV_OK : YKPIV_GENERIC_ERROR;
 }
 
 ykpiv_rc ykpiv_util_parse_metadata(uint8_t *data, size_t data_len, ykpiv_metadata *metadata) {
