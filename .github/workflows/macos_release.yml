@@ -23,7 +23,7 @@ jobs:
           ./resources/make_src_dist.sh 2.1.0
           cd ..
           mkdir artifact
-          mv yubico-piv-tool/yubico-piv-tool-2.1.0.tar.gz artifact/
+          mv $GITHUB_WORKSPACE/yubico-piv-tool-2.1.0.tar.gz artifact/
       - name: Upload artifact
         uses: actions/upload-artifact@v1
         with:

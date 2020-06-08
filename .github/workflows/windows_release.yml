@@ -25,7 +25,7 @@ jobs:
           ./resources/make_src_dist.sh $RELEASE_VERSION
           cd ..
           mkdir artifact
-          mv yubico-piv-tool/yubico-piv-tool-$RELEASE_VERSION.tar.gz artifact/
+          mv $GITHUB_WORKSPACE/yubico-piv-tool-$RELEASE_VERSION.tar.gz artifact/
       - name: Upload artifact
         uses: actions/upload-artifact@v1
         with:
@@ -52,13 +52,6 @@ jobs:
           echo "tar xf yubico-piv-tool-$RELEASE_VERSION.tar.gz"
           tar xf yubico-piv-tool-$RELEASE_VERSION.tar.gz
 
-          echo "ls"
-          ls
-
-          echo "ls yubico-piv-tool-$RELEASE_VERSION"
-          ls yubico-piv-tool-$RELEASE_VERSION
-
-
       - name: install prerequisites for x86 architecture
         run: |
           echo "choco install visualstudio2019community --package-parameters '--add Microsoft.VisualStudio.Component.VC.Redist.MSM'"
@@ -68,7 +61,7 @@ jobs:
         run: |
           $RELEASE_VERSION="2.1.0"
 
-          $PIVTOOL_SRC_DIR="D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$RELEASE_VERSION"
+          $PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$RELEASE_VERSION"
 
           echo "$PIVTOOL_SRC_DIR/resources/win"
           cd $PIVTOOL_SRC_DIR/resources/win
@@ -85,7 +78,7 @@ jobs:
 
           $RELEASE_VERSION="2.1.0"
 
-          $PIVTOOL_SRC_DIR="D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$RELEASE_VERSION"
+          $PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$RELEASE_VERSION"
           $MERGEDPATH = Get-ChildItem "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Redist\MSVC\14.*\MergeModules\Microsoft_VC142_CRT_x86.msm"
 
           echo "$PIVTOOL_SRC_DIR/resources/win"
@@ -101,8 +94,8 @@ jobs:
           cd D:\a\
           mkdir installDir
 
-          echo "cd D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-2.1.0\resources\win"
-          cd "D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-2.1.0\resources\win"
+          echo "cd $env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-2.1.0\resources\win"
+          cd "$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-2.1.0\resources\win"
 
           echo "msiexec /i yubico-piv-tool-$RELEASE_VERSION-x86.msi TARGETDIR=D:\a\installDir /quiet"
           msiexec /i yubico-piv-tool-$RELEASE_VERSION-x86.msi TARGETDIR="D:\a\installDir" /quiet
@@ -164,7 +157,7 @@ jobs:
         run: |
           $RELEASE_VERSION="2.1.0"
 
-          $PIVTOOL_SRC_DIR="D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$RELEASE_VERSION"
+          $PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$RELEASE_VERSION"
 
           echo "$PIVTOOL_SRC_DIR/resources/win"
           cd $PIVTOOL_SRC_DIR/resources/win
@@ -181,7 +174,7 @@ jobs:
 
           $RELEASE_VERSION="2.1.0"
 
-          $PIVTOOL_SRC_DIR="D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$RELEASE_VERSION"
+          $PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$RELEASE_VERSION"
           $MERGEDPATH = Get-ChildItem "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Redist\MSVC\14.26.28720\MergeModules\Microsoft_VC142_CRT_x64.msm"
 
           echo "$PIVTOOL_SRC_DIR/resources/win"
@@ -197,7 +190,7 @@ jobs:
           cd D:/a
           mkdir installDir
 
-          cd D:/a/yubico-piv-tool/yubico-piv-tool/yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION/resources/win
+          cd $env:GITHUB_WORKSPACE/yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION/resources/win
 
           echo "msiexec /i yubico-piv-tool-$RELEASE_VERSION-x64.msi TARGETDIR=D:/a/installDir /quiet"
           msiexec /i yubico-piv-tool-$RELEASE_VERSION-x64.msi TARGETDIR="D:/a/installDir" /quiet

@@ -25,7 +25,7 @@ jobs:
           ./resources/make_src_dist.sh $RELEASE_VERSION
           cd ..
           mkdir artifact
-          mv yubico-piv-tool/yubico-piv-tool-$RELEASE_VERSION.tar.gz artifact/
+          mv $GITHUB_WORKSPACE/yubico-piv-tool-$RELEASE_VERSION.tar.gz artifact/
       - name: Upload artifact
         uses: actions/upload-artifact@v1
         with:
@@ -80,7 +80,7 @@ jobs:
 
           echo "cmake --build . -v"
           cmake --build . -v
-          $env:Path +=";C:/vcpkg/packages/check_x86-windows/bin;C:/vcpkg/packages/openssl-windows_x86-windows/bin;D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\build\lib\Debug;D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\build\ykcs11\Debug"
+          $env:Path +=";C:/vcpkg/packages/check_x86-windows/bin;C:/vcpkg/packages/openssl-windows_x86-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\build\ykcs11\Debug"
 
           echo "ctest.exe -C Debug"
           ctest.exe -C Debug
@@ -136,5 +136,5 @@ jobs:
           cmake --build . -v
 
           echo "ctest.exe -C Debug"
-          $env:Path +=";C:/vcpkg/packages/check_x64-windows/bin;C:/vcpkg/packages/openssl-windows_x64-windows/bin;D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\build\lib\Debug;D:\a\yubico-piv-tool\yubico-piv-tool\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\build\ykcs11\Debug"
+          $env:Path +=";C:/vcpkg/packages/check_x64-windows/bin;C:/vcpkg/packages/openssl-windows_x64-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\build\ykcs11\Debug"
           ctest.exe -C Debug
