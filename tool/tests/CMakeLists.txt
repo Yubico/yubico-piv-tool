@@ -59,7 +59,7 @@ if(NOT DEFINED SKIP_TESTS)
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/tool/tests/
     )
 
-    if(NOT WIN32)
+    if(NOT WIN32 AND ENABLE_HARDWARE_TESTS)
         configure_file (
             ${CMAKE_CURRENT_SOURCE_DIR}/cert.pem
             ${CMAKE_CURRENT_BINARY_DIR}/cert.pem
@@ -82,7 +82,7 @@ if(NOT DEFINED SKIP_TESTS)
         set_property(TEST basic_tests APPEND PROPERTY ENVIRONMENT "VERSION=${VERSION}")
         set_property(TEST basic_tests APPEND PROPERTY ENVIRONMENT "EXEEXT=${CMAKE_EXECUTABLE_SUFFIX}")
         set_property(TEST basic_tests APPEND PROPERTY ENVIRONMENT "YKPIV_ENV_HWTESTS_CONFIRMED=${HW_TESTS}")
-    else(NOT WIN32)
+    else(NOT WIN32 AND ENABLE_HARDWARE_TESTS)
         message("Running on Windows. Skipping basic tests...")
-    endif(NOT WIN32)
+    endif(NOT WIN32 AND ENABLE_HARDWARE_TESTS)
 endif(NOT DEFINED SKIP_TESTS)
