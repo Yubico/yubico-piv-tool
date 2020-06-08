@@ -57,16 +57,9 @@ fi
 ################################################################################
 ################################################################################
 
-# Verify that --enable-hardware-tests was a build flag.
-! $(set -e && cat "$ROOT_MAKEFILE" |grep "^DEFS =" | grep -- "-DHW_TESTS" >/dev/null)
-HW_TESTS=$?
-if [[ $HW_TESTS -eq 0 ]]; then
-    exit 0
-fi
-
 # Verify that user has confirmed destructive hw-tests
 if [ "x$YKPIV_ENV_HWTESTS_CONFIRMED" != "x1" ]; then
-    printf "\n***\n*** Hardware tests skipped.  Run \"make hwcheck\".\n***\n\n" >&0
+    printf "\n***\n*** Hardware tests skipped.  Use \"-DENABLE_HARDWARE_TESTS=ON\" build flag.\n***\n\n" >&0
     exit 77 # exit code 77 == skipped tests
 fi
 

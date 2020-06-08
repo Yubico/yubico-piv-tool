@@ -32,6 +32,10 @@ find_check()
 
 if(NOT DEFINED SKIP_TESTS)
 
+    if(${ENABLE_HARDWARE_TESTS})
+        set(HW_TESTS 1)
+    endif(${ENABLE_HARDWARE_TESTS})
+
     set(SOURCE_PARSE_NAME parse_name.c)
     set(SOURCE_TEST_INOUT test_inout.c)
 
@@ -77,6 +81,7 @@ if(NOT DEFINED SKIP_TESTS)
         )
         set_property(TEST basic_tests APPEND PROPERTY ENVIRONMENT "VERSION=${VERSION}")
         set_property(TEST basic_tests APPEND PROPERTY ENVIRONMENT "EXEEXT=${CMAKE_EXECUTABLE_SUFFIX}")
+        set_property(TEST basic_tests APPEND PROPERTY ENVIRONMENT "YKPIV_ENV_HWTESTS_CONFIRMED=${HW_TESTS}")
     else(NOT WIN32)
         message("Running on Windows. Skipping basic tests...")
     endif(NOT WIN32)
