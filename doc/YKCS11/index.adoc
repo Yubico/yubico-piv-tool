@@ -9,8 +9,8 @@ https://docs.oasis-open.org/pkcs11/pkcs11-base/v2.40/os/pkcs11-base-v2.40-os.htm
 YKCS11 is automatically built as part of `yubico-piv-tool` and the
 following command will suffice:
 
-  $ autoreconf --install
-  $ ./configure
+  $ mkdir build; cd build
+  $ cmake ..
   $ make
   $ sudo make install
 
@@ -19,11 +19,44 @@ More info about building `yubico-piv-tool` can be found in the related
 
 Once installed, the module will be found by default in
 `/usr/local/lib/libykcs11.so` otherwise it will be built locally in
-`yubico-piv-tool/ykcs11/.libs/libykcs11.so`
+`yubico-piv-tool/build/ykcs11/libykcs11.so`
 
 === Portability
-The module has been developed and tested using Ubuntu Linux and MacOS. It is however possible to cross-compile it for Windows too using the relative makefiles (windows.mk and mac.mk).
-Both MacOS and Windows use PCSC as a backend.
+The module has been developed and tested using Ubuntu Linux, MacOS and Windows. Both MacOS and Windows use PCSC as
+a backend.
+
+=== YKCS11 on Windows
+After installing yubico-piv-tool using the windows installer, the `Yubico PIV Tool\bin` directory needs to be added to
+the system path in order for other applications to be able to load it. This is because the `libykcs11.dll` is dynamically
+linked to `libykpiv.dll` and to `libcrypto-1_1.dll` and both of them need to be accessible for ykcs11 to be useful.
+
+On Windows 10, setting the system path is done by following these steps:
+
+1- Go to Control Panel → System and Security → System → Advanced system setting
+
+2- Click “Environment Variables…“
+
+3- Under System Variables, highlight “Path“ and click “Edit…“
+
+4- Click “New“ and add the absolute path to yubico-piv-tool/bin
+
+If setting the system path is not desirable, the `libykpiv.dll` and `libcrypto-1_1.dll` can be copied into the same
+directory as the application that needs to access the ykcs11 module.
+
+==== A Note for Developers
+If `LoadLibrary` is called with an absolute path, it will *not* look for dependencies of the specified DLL in that
+directory, but rather in the startup directory of the application that calls `LoadLibrary`. The solution is to either:
+
+- Call `LoadLibraryEx` with the flag `LOAD_WITH_ALTERED_SEARCH_PATH` for absolute paths
+
+- Add the directory where ykcs11 is located to the system PATH
+
+- Or copy the dependencies into the application directory.
+
+Please note that calling `LoadLibraryEx` with that flag for a non-absolute path is undefined behavior according to
+MS docs. For example, the way Pkcs11Interop does it is to set a variable to `LOAD_WITH_ALTERED_SEARCH_PATH` if the
+path looks absolute, and 0 otherwise; and then always calling `LoadLibraryEx`. If the flags is `0` then `LoadLibraryEx`
+behaves exactly like `LoadLibrary`.
 
 ==== Key Mapping
 The module provides access to all 25 keys that can be stored on the YubiKey PIV application. These keys correspond to the keys in the PIV slots as described in https://developers.yubico.com/PIV/Introduction/Certificate_slots.html[PIV Certificate Slots] and are accessible through `yubico-piv-tool`.
@@ -74,20 +107,28 @@ require a new login. This is supported by the module through the `CONTEXT_SPECIF
 user in accordance with the specifications.
 
 ==== OpenSSL
-The YubiKey only supports functions that require an asymmetrinc private key. Functions that do not, like encryption, signature verification, hashing and generation of a random number, are done by OpenSSL.
+The YubiKey only supports functions that require an asymmetrinc private key. Functions that do not, like encryption,
+signature verification, hashing and generation of a random number, are done by OpenSSL.
 
-Also, the YubiKey only performs raw decryption and signature. So when padding is used, for example OAEP and PSS padding, applying and removing the padding is handled using OpenSSL functions.
+Also, the YubiKey only performs raw decryption and signature. So when padding is used, for example OAEP and PSS padding,
+applying and removing the padding is handled using OpenSSL functions.
 
 ==== Testing
 Apart from the internal tests, the YKCS11 has also been tested with the Pkcs11Interop .NET library
 
 ==== Debugging
 By default, the module has debugging disabled. This is _highly_ verbose
-and might be confusing. In order to enabled it rebuild the project as
-follows:
+and might be confusing.
 
-  $ autoreconf --install
-  $ ./configure --enable-ykcs11-debug
+To enable debugging of the ykcs11 module, the variable `YKCS11_DBG` needs to be set to a numerical value `1` to `9`
+(the value `0` indicates disabled debugging). `YKCS11_DBG` can be set in one of the following ways:
+
+1. Set the environment variable `YKCS11_DBG`
+
+2. Rebuild the project as follows (`2` here is an example):
+
+  $ mkdir build; cd build
+  $ cmake .. -DYKCS11_DBG=2
   $ make
   $ sudo make install
 
