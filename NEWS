@@ -1,5 +1,20 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
+* Version 2.1.0 (released 2020-06-08)
+
+** Replaced building with autotool with building with cmake
+** Security fixes for https://www.yubico.com/support/security-advisories/ysa-2020-02/[YSA-2020-02]
+** ykpiv: Fixed potential memory leaks
+** ykpiv: Use PIN-protected MGMT key if the device is configured that way
+** ykpiv: Added attestation to CSR if requested
+** ykpiv: Fixed compatibility with LibreSSL
+** ykcs11: Improved handling of error codes
+** ykcs11: Improved handling of examples in the PKCS11 specifications
+** ykcs11: Added the possibility to have debug output as a runtime setting
+** ykcs11: Added support to unblock PIN with PUK
+** ykcs11: Make C_SetPIN backwards compatible while also allowing unblock PIN
+** tests: Improved tests
+
 * Version 2.0.0 (released 2020-01-29)
 
 ** ykpiv: Added ykpiv_get_metadata and ykpiv_util_parse_metadata to read and parse private key metadata (supported from YK 5.3).
