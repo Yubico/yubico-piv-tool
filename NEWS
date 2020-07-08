@@ -1,9 +1,9 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
-* Version 2.1.0 (released 2020-06-08)
+* Version 2.1.0 (released 2020-07-08)
 
 ** Replaced building with autotool with building with cmake
-** Security fixes for https://www.yubico.com/support/security-advisories/ysa-2020-02/[YSA-2020-02]
+** Security update for https://www.yubico.com/support/security-advisories/ysa-2020-02/[YSA-2020-02]
 ** ykpiv: Fixed potential memory leaks
 ** ykpiv: Use PIN-protected MGMT key if the device is configured that way
 ** ykpiv: Added attestation to CSR if requested
