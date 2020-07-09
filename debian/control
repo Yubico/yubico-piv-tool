@@ -3,7 +3,7 @@ Maintainer: Debian Authentication Maintainers <pkg-auth-maintainers@lists.alioth
 Uploaders: Simon Josefsson <simon@josefsson.org>, Klas Lindfors <klas@yubico.com>, Dain Nilsson <dain@yubico.com>, Alessio Di Mauro <alessio@yubico.com>, Aveen Ismail <aveen.ismail@yubico.com>
 Section: utils
 Priority: extra
-Build-Depends: debhelper (>= 9), pkg-config, libpcsclite-dev, libssl-dev, gengetopt, help2man, dh-autoreconf, chrpath, check
+Build-Depends: debhelper (>= 9), pkg-config, libpcsclite-dev, libssl-dev, gengetopt, help2man, dh-autoreconf, chrpath, check, cmake (>=3.10)
 Standards-Version: 4.1.4
 Homepage: https://developers.yubico.com/yubico-piv-tool/
 

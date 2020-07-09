@@ -1,28 +1,29 @@
 #!/usr/bin/make -f
 
+DH_VERBOSE = 1
+export DH_OPTIONS=-v
+
 BUILDDIR = build_dir
 
 # second called by launchpad
-build:
+build: build-indep build-arch
+
+build-indep:
+	# nothing to be done
+
+build-arch:
 	mkdir $(BUILDDIR);
 	cd $(BUILDDIR); cmake -DCMAKE_INSTALL_PREFIX=../debian/tmp/usr ..
 	make -C $(BUILDDIR)
-
-build-indep:
-    # nothing to be done
-
-build-arch:
-	# nothing to be done
 
 # third called by launchpad
 binary: binary-indep binary-arch
 
 binary-indep:
-    # nothing to be done
+	# nothing to be done
 
 binary-arch:
-	cd $(BUILDDIR)
-	cmake -P cmake_install.cmake
+	cd $(BUILDDIR); cmake -P cmake_install.cmake
 	mkdir debian/tmp/DEBIAN
 	dpkg-gencontrol -pyubico-piv-tool
 	dpkg --build debian/tmp ..
