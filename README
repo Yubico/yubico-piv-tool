@@ -72,6 +72,9 @@ running pkg-config.
 
   $ PKG_CONFIG_PATH="/usr/local/opt/openssl@1.1/lib/pkgconfig" cmake ..
 
+To statically link to OpenSSL (the `libcrypto` library), use the cmake
+option `-DOPENSSL_STATIC_LINK=ON`
+
 Don't forget you might need to be root for the last command. On Linux 
 it might be needed to update your linked libraries after install
 
