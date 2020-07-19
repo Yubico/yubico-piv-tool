@@ -53,7 +53,7 @@ jobs:
           echo brew install pkg-config check gengetopt help2man
           brew install pkg-config check gengetopt help2man
 
-      - name: Build macos executables archive
+      - name: Build MacOS binaries
         run: |
           export RELEASE_VERION=2.1.0
           export INSTALL_PREFIX=/usr/local
@@ -64,25 +64,15 @@ jobs:
           mkdir resources/macos/artifact
           mv resources/macos/yubico-piv-tool-$RELEASE_VERION-mac.zip resources/macos/artifact/
 
-      - name: Create .pkg installer
+      - name: Create installer
         run: |
           export RELEASE_VERION=2.1.0
 
-          echo "cd yubico-piv-tool-src/yubico-piv-tool-2.1.0/resources/macos"
-          cd yubico-piv-tool-src/yubico-piv-tool-2.1.0/resources/macos
-          mkdir -p pkg/root pkg/comp
-          unzip artifact/yubico-piv-tool-$RELEASE_VERION-mac.zip -d pkg/root/
+          echo "cd yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERION"
+          cd yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERION
+          ./resources/macos/make_installer.sh $RELEASE_VERION $GITHUB_WORKSPACE/yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERION/resources/macos/artifact/yubico-piv-tool-$RELEASE_VERION-mac.zip
 
-          echo pkgbuild --root=$PWD/pkg/root/ --identifier com.yubico.yubico-piv-tool --version $RELEASE_VERION $PWD/pkg/comp/yubico-piv-tool.pkg
-          pkgbuild --root="$PWD/pkg/root/" --identifier "com.yubico.yubico-piv-tool" --version "$RELEASE_VERION" "$PWD/pkg/comp/yubico-piv-tool.pkg"
-
-          echo productbuild  --package-path $PWD/pkg/comp --distribution $PWD/distribution.xml $PWD/yubico-piv-tool-$RELEASE_VERION.pkg
-          productbuild  --package-path "$PWD/pkg/comp" --distribution "$PWD/distribution.xml" "$PWD/yubico-piv-tool-$RELEASE_VERION.pkg"
-
-          cp yubico-piv-tool-$RELEASE_VERION.pkg artifact/
-          rm -rf pkg
-
-      - name: Install yubico-piv-tool from pkg installer
+      - name: Install yubico-piv-tool from installer
         run: |
           export RELEASE_VERION=2.1.0
 

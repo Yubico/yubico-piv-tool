@@ -1,5 +1,5 @@
 #!/bin/bash
-# Script to produce an OS X installer .pkg
+# Script to produce an OS X binaries
 # This script has to be run from the source directory
 
 VERSION=$1 # Full yubico-piv-tool version, tex 2.1.0

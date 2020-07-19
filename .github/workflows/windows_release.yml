@@ -73,6 +73,9 @@ jobs:
           ./yubico-piv-tool.exe --version
           ./yubico-piv-tool.exe --help
 
+          mkdir $env:GITHUB_WORKSPACE/artifact
+          cp -r $PIVTOOL_SRC_DIR/yubico-piv-tool-$RELEASE_VERSION-x86 $env:GITHUB_WORKSPACE/artifact/
+
       - name: Create Windows Installer
         run: |
 
@@ -87,46 +90,11 @@ jobs:
           echo "./make_installer.ps1 $PIVTOOL_SRC_DIR/yubico-piv-tool-$RELEASE_VERSION-x86 2.1.0 x86 $env:WIX\bin $MERGEDPATH"
           ./make_installer.ps1 $PIVTOOL_SRC_DIR/yubico-piv-tool-$RELEASE_VERSION-x86 2.1.0 x86 $env:WIX\bin "$MERGEDPATH"
 
-      - name: Install yubico-piv-tool
-        run: |
-          $RELEASE_VERSION="2.1.0"
-
-          cd D:\a\
-          mkdir installDir
-
-          echo "cd $env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-2.1.0\resources\win"
-          cd "$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-2.1.0\resources\win"
-
-          echo "msiexec /i yubico-piv-tool-$RELEASE_VERSION-x86.msi TARGETDIR=D:\a\installDir /quiet"
-          msiexec /i yubico-piv-tool-$RELEASE_VERSION-x86.msi TARGETDIR="D:\a\installDir" /quiet
-
-          echo "ls D:\a\installDir"
-          ls 'D:\a\installDir'
-          cd D:\a\
-
-          $env:PATH += ";D:\a\installDir\Yubico\Yubico PIV Tool\bin"
-
-          echo "yubico-piv-tool.exe --version"
-          yubico-piv-tool.exe --version
-
-          echo "yubico-piv-tool.exe --help"
-          yubico-piv-tool.exe --help
-
-      - name: Upload ykcs11 with OpenSC
-        run: |
-          cd D:\a\
-          Invoke-WebRequest -Uri https://github.com/OpenSC/OpenSC/releases/download/0.20.0/OpenSC-0.20.0_win32.msi -OutFile OpenSC-0.20.0_win32.msi -UseBasicParsing
-
-          echo "msiexec /i OpenSC-0.20.0_win32.msi TARGETDIR=D:\a\installDir /quiet"
-          msiexec /i OpenSC-0.20.0_win32.msi TARGETDIR="D:\a\installDir" /quiet
-
-          echo "cd D:\a\installDir\OpenSC Project\OpenSC\tools"
-          cd "D:\a\installDir\OpenSC Project\OpenSC\tools"
-
-          $env:PATH += ";D:\a\installDir\Yubico\Yubico PIV Tool\bin"
-
-          echo "pkcs11-tool' --module 'D:\a\installDir\Yubico\Yubico PIV Tool\bin\libykcs11.dll' --show-info"
-          pkcs11-tool.exe --module 'D:\a\installDir\Yubico\Yubico PIV Tool\bin\libykcs11.dll' --show-info
+      - name: Upload artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: yubico-piv-tool-win32
+          path: artifact
 
   job_3:
     name: Build Windows x64
@@ -169,6 +137,9 @@ jobs:
           ./yubico-piv-tool.exe --version
           ./yubico-piv-tool.exe --help
 
+          mkdir $env:GITHUB_WORKSPACE/artifact
+          cp -r $PIVTOOL_SRC_DIR/yubico-piv-tool-$RELEASE_VERSION-x64 $env:GITHUB_WORKSPACE/artifact/
+
       - name: Create Windows Installer for x64 architecture
         run: |
 
@@ -183,39 +154,8 @@ jobs:
           echo "./make_installer.ps1 $PIVTOOL_SRC_DIR/yubico-piv-tool-$RELEASE_VERSION-x64 2.1.0 x64 $env:WIX\bin $MERGEDPATH"
           ./make_installer.ps1 $PIVTOOL_SRC_DIR/yubico-piv-tool-$RELEASE_VERSION-x64 2.1.0 x64 $env:WIX\bin "$MERGEDPATH"
 
-      - name: Install yubico-piv-tool
-        run: |
-          $RELEASE_VERSION="2.1.0"
-
-          cd D:/a
-          mkdir installDir
-
-          cd $env:GITHUB_WORKSPACE/yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION/resources/win
-
-          echo "msiexec /i yubico-piv-tool-$RELEASE_VERSION-x64.msi TARGETDIR=D:/a/installDir /quiet"
-          msiexec /i yubico-piv-tool-$RELEASE_VERSION-x64.msi TARGETDIR="D:/a/installDir" /quiet
-          $env:PATH += ";D:/a/installDir/Yubico/Yubico PIV Tool/bin"
-
-          cd D:/a
-
-          echo "yubico-piv-tool.exe --version"
-          yubico-piv-tool.exe --version
-
-          echo "yubico-piv-tool.exe --help"
-          yubico-piv-tool.exe --help
-
-      - name: Test upload ykcs11 with OpenSC
-        run: |
-          cd D:\a\
-          Invoke-WebRequest -Uri https://github.com/OpenSC/OpenSC/releases/download/0.20.0/OpenSC-0.20.0_win64.msi -OutFile OpenSC-0.20.0_win64.msi -UseBasicParsing
-
-          echo "msiexec /i OpenSC-0.20.0_win64.msi TARGETDIR=D:/a/installDir /quiet"
-          msiexec /i OpenSC-0.20.0_win64.msi TARGETDIR="D:/a/installDir" /quiet
-
-          echo "cd D:/a/installDir/OpenSC Project/OpenSC/tools"
-          cd "D:/a/installDir/OpenSC Project/OpenSC/tools"
-
-          $env:PATH += ";D:/a/installDir/Yubico/Yubico PIV Tool/bin"
-
-          echo "pkcs11-tool' --module 'D:\a\installDir\Yubico\Yubico PIV Tool\bin\libykcs11.dll' --show-info"
-          pkcs11-tool.exe --module 'D:\a\installDir\Yubico\Yubico PIV Tool\bin\libykcs11.dll' --show-info
+      - name: Upload artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: yubico-piv-tool-win64
+          path: artifact
