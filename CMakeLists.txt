@@ -25,7 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-cmake_minimum_required (VERSION 3.10)
+cmake_minimum_required (VERSION 3.5)
 cmake_policy(SET CMP0025 NEW)
 set (CMAKE_C_STANDARD 99)
 
@@ -33,7 +33,7 @@ project (yubico-piv-tool)
 
 set (yubico_piv_tool_VERSION_MAJOR 2)
 set (yubico_piv_tool_VERSION_MINOR 1)
-set (yubico_piv_tool_VERSION_PATCH 0)
+set (yubico_piv_tool_VERSION_PATCH 1)
 set (VERSION "${yubico_piv_tool_VERSION_MAJOR}.${yubico_piv_tool_VERSION_MINOR}.${yubico_piv_tool_VERSION_PATCH}")
 set (SO_VERSION 1)
 

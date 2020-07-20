@@ -1,5 +1,9 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
+* Version 2.1.1 (released 2020-07-20)
+
+** Fixed missing dependency when building debian package
+
 * Version 2.1.0 (released 2020-07-08)
 
 ** Replaced building with autotool with building with cmake
