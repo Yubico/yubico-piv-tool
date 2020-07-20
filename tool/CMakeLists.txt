@@ -27,7 +27,10 @@
 
 message("tool/CMakeList.txt")
 
-set (SOURCE yubico-piv-tool.c)
+set (SOURCE
+        yubico-piv-tool.c
+        ../common/openssl-compat.c
+        ../common/util.c)
 
 if(WIN32)
     add_definitions (-DPACKAGE="yubico-piv-tool")

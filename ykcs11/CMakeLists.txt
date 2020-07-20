@@ -41,6 +41,8 @@ set(
         utils.c
         openssl_utils.c
         objects.c
+        ../common/openssl-compat.c
+        ../common/util.c
 )
 
 include_directories(

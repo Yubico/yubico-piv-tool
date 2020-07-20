@@ -52,6 +52,22 @@ jobs:
           echo ">> pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico"
           pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico
 
+      - name: Build debian package
+        run: |
+          mkdir build_dir;
+          cd build_dir; cmake -DCMAKE_INSTALL_PREFIX=../debian/tmp/usr ..
+          cd ..
+          make -C build_dir
+          cd build_dir; cmake -P cmake_install.cmake
+          cd ..
+          mkdir debian/tmp/DEBIAN
+          dpkg-gencontrol -pyubico-piv-tool
+          dpkg --build debian/tmp build_dir/
+
+          sudo apt install ./yubico-piv-tool_*_amd64.deb
+
+          yubico-piv-tool -a status | grep "Failed to connect to yubikey."
+
       - name: Build using OpenSSL static link
         run: |
           echo ">> rm -rf cmake_build; mkdir cmake_build; cd cmake_build"
