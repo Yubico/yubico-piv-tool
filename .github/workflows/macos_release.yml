@@ -74,11 +74,11 @@ jobs:
 
       - name: Install yubico-piv-tool from installer
         run: |
-          export RELEASE_VERISON=2.1.1
+          export RELEASE_VERSION=2.1.1
 
-          echo "cd yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERISON/resources/macos"
-          cd yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERISON/resources/macos
-          sudo installer -verbose -store -pkg "$PWD/yubico-piv-tool-$RELEASE_VERION.pkg" -target /
+          echo "cd yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION/resources/macos"
+          cd yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION/resources/macos
+          sudo installer -verbose -store -pkg "$PWD/yubico-piv-tool-$RELEASE_VERSION.pkg" -target /
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
       - name: Upload artifact

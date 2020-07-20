@@ -52,6 +52,10 @@ jobs:
           echo ">> pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico"
           pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico
 
+          cd /usr/local
+          sudo rm bin/yubico-piv-tool
+          sudo rm lib/libyk*
+
       - name: Build debian package
         run: |
           mkdir build_dir;
@@ -63,7 +67,7 @@ jobs:
           mkdir debian/tmp/DEBIAN
           dpkg-gencontrol -pyubico-piv-tool
           dpkg --build debian/tmp build_dir/
-
+          cd build_dir
           sudo apt install ./yubico-piv-tool_*_amd64.deb
 
           yubico-piv-tool -a status | grep "Failed to connect to yubikey."
