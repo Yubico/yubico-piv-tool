@@ -1,9 +1,10 @@
+Set-PSDebug -Trace 1
+
 $SOURCE_DIR=$args[0] # Directory containing signed binaries
 $RELEASE_VERSION=$args[1] # yubico-piv-tool version
 $ARCH=$args[2] # x86 or x64
 $WIX_PATH=$args[3] # Absolute path to the WixTools binaries
 $MERGE_MODULE=$args[4] # Absolute path containing Microsoft_VC142_CRT_x86.msm or Microsoft_VC142_CRT_x64.msm
-
 
 $WD="$PSScriptRoot"
 $env:PATH += ";$WIX_PATH"

@@ -1,8 +1,8 @@
 name: Windows Release
 # This machine tests building the software on a both 32 and 64 Windows architecture.
 # The binaries used on the official release are also produced here and are downloadable as artifacts
-# Since this is where the release binaries are build, make sure to update the version number in this file. Search for
-# the 'RELEASE_VERSION' variable and update its value wherever its found
+# Since this is where the release binaries are build, make sure to update the 'RELEASE_VERSION' environment variable
+# defined by all 3 jobs
 
 on: [push]
 
@@ -11,16 +11,19 @@ jobs:
   job_1:
     name: Build dist with Linux
     runs-on: ubuntu-latest
+    env:
+      RELEASE_VERSION: 2.1.1
     steps:
       - name: checkout
         uses: actions/checkout@v2
 
       - name: Install prerequisites
         run: |
+          set -x
           sudo apt install libpcsclite-dev check gengetopt help2man
       - name: Create tar.gz
         run: |
-          export RELEASE_VERSION=2.1.1
+          set -x
 
           ./resources/make_src_dist.sh $RELEASE_VERSION
           cd ..
@@ -36,6 +39,8 @@ jobs:
     name: Build Windows x86
     needs: job_1
     runs-on: windows-latest
+    env:
+      RELEASE_VERSION: 2.1.1
     steps:
       - name: Download source from job_1
         uses: actions/download-artifact@v1
@@ -44,51 +49,38 @@ jobs:
 
       - name: Extract source
         run: |
-          $RELEASE_VERSION="2.1.1"
-
-          echo "cd yubico-piv-tool-src"
+          Set-PSDebug -Trace 1
           cd yubico-piv-tool-src
-
-          echo "tar xf yubico-piv-tool-$RELEASE_VERSION.tar.gz"
-          tar xf yubico-piv-tool-$RELEASE_VERSION.tar.gz
+          tar xf yubico-piv-tool-$env:RELEASE_VERSION.tar.gz
 
       - name: install prerequisites for x86 architecture
         run: |
-          echo "choco install visualstudio2019community --package-parameters '--add Microsoft.VisualStudio.Component.VC.Redist.MSM'"
+          Set-PSDebug -Trace 1
           choco install visualstudio2019community --package-parameters "--add Microsoft.VisualStudio.Component.VC.Redist.MSM"
 
       - name: Make release binaries
         run: |
-          $RELEASE_VERSION="2.1.1"
+          Set-PSDebug -Trace 1
+          $PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION"
 
-          $PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$RELEASE_VERSION"
-
-          echo "$PIVTOOL_SRC_DIR/resources/win"
           cd $PIVTOOL_SRC_DIR/resources/win
+          ./make_release_binaries.ps1 $env:RELEASE_VERSION Win32 C:/vcpkg
 
-          echo "./make_release_binaries.ps1 $RELEASE_VERSION Win32 C:/vcpkg"
-          ./make_release_binaries.ps1 $RELEASE_VERSION Win32 C:/vcpkg
-
-          cd $PIVTOOL_SRC_DIR/yubico-piv-tool-$RELEASE_VERSION-x86/bin
+          cd $PIVTOOL_SRC_DIR/yubico-piv-tool-$env:RELEASE_VERSION-x86/bin
           ./yubico-piv-tool.exe --version
           ./yubico-piv-tool.exe --help
 
           mkdir $env:GITHUB_WORKSPACE/artifact
-          cp -r $PIVTOOL_SRC_DIR/yubico-piv-tool-$RELEASE_VERSION-x86 $env:GITHUB_WORKSPACE/artifact/
+          cp -r $PIVTOOL_SRC_DIR/yubico-piv-tool-$env:RELEASE_VERSION-x86 $env:GITHUB_WORKSPACE/artifact/
 
       - name: Create Windows Installer
         run: |
-
-          $RELEASE_VERSION="2.1.1"
-
-          $PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$RELEASE_VERSION"
+          Set-PSDebug -Trace 1
+          $PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION"
           $MERGEDPATH = Get-ChildItem "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Redist\MSVC\14.*\MergeModules\Microsoft_VC142_CRT_x86.msm"
 
-          echo "$PIVTOOL_SRC_DIR/resources/win"
           cd $PIVTOOL_SRC_DIR/resources/win
-
-          echo "./make_installer.ps1 $PIVTOOL_SRC_DIR/yubico-piv-tool-$RELEASE_VERSION-x86 $RELEASE_VERSION x86 $env:WIX\bin $MERGEDPATH"
-          ./make_installer.ps1 $PIVTOOL_SRC_DIR/yubico-piv-tool-$RELEASE_VERSION-x86 $RELEASE_VERSION x86 $env:WIX\bin "$MERGEDPATH"
+          ./make_installer.ps1 $PIVTOOL_SRC_DIR/yubico-piv-tool-$env:RELEASE_VERSION-x86 $env:RELEASE_VERSION x86 $env:WIX\bin "$MERGEDPATH"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v1
@@ -100,6 +92,8 @@ jobs:
     name: Build Windows x64
     needs: job_1
     runs-on: windows-latest
+    env:
+      RELEASE_VERSION: 2.1.1
     steps:
       - name: Download source from job_1
         uses: actions/download-artifact@v1
@@ -108,51 +102,38 @@ jobs:
 
       - name: Extract source
         run: |
-          $env:RELEASE_VERSION="2.1.1"
-
-          echo "cd yubico-piv-tool-src"
+          Set-PSDebug -Trace 1
           cd yubico-piv-tool-src
-
-          echo "tar xf yubico-piv-tool-$env:RELEASE_VERSION.tar.gz"
           tar xf yubico-piv-tool-$env:RELEASE_VERSION.tar.gz
 
       - name: Install prerequisites for x64 architecture
         run: |
-          echo "choco install visualstudio2019community --package-parameters '--add Microsoft.VisualStudio.Component.VC.Redist.MSM'"
+          Set-PSDebug -Trace 1
           choco install visualstudio2019community --package-parameters "--add Microsoft.VisualStudio.Component.VC.Redist.MSM"
 
       - name: Make release binaries
         run: |
-          $RELEASE_VERSION="2.1.1"
+          Set-PSDebug -Trace 1
+          $PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION"
 
-          $PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$RELEASE_VERSION"
-
-          echo "$PIVTOOL_SRC_DIR/resources/win"
           cd $PIVTOOL_SRC_DIR/resources/win
+          ./make_release_binaries.ps1 $env:RELEASE_VERSION x64 C:/vcpkg
 
-          echo "./make_release_binaries.ps1 $RELEASE_VERSION x64 C:/vcpkg"
-          ./make_release_binaries.ps1 $RELEASE_VERSION x64 C:/vcpkg
-
-          cd $PIVTOOL_SRC_DIR/yubico-piv-tool-$RELEASE_VERSION-x64/bin
+          cd $PIVTOOL_SRC_DIR/yubico-piv-tool-$env:RELEASE_VERSION-x64/bin
           ./yubico-piv-tool.exe --version
           ./yubico-piv-tool.exe --help
 
           mkdir $env:GITHUB_WORKSPACE/artifact
-          cp -r $PIVTOOL_SRC_DIR/yubico-piv-tool-$RELEASE_VERSION-x64 $env:GITHUB_WORKSPACE/artifact/
+          cp -r $PIVTOOL_SRC_DIR/yubico-piv-tool-$env:RELEASE_VERSION-x64 $env:GITHUB_WORKSPACE/artifact/
 
       - name: Create Windows Installer for x64 architecture
         run: |
-
-          $RELEASE_VERSION="2.1.1"
-
-          $PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$RELEASE_VERSION"
+          Set-PSDebug -Trace 1
+          $PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION"
           $MERGEDPATH = Get-ChildItem "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Redist\MSVC\14.26.28720\MergeModules\Microsoft_VC142_CRT_x64.msm"
 
-          echo "$PIVTOOL_SRC_DIR/resources/win"
           cd $PIVTOOL_SRC_DIR/resources/win
-
-          echo "./make_installer.ps1 $PIVTOOL_SRC_DIR/yubico-piv-tool-$RELEASE_VERSION-x64 $RELEASE_VERSION x64 $env:WIX\bin $MERGEDPATH"
-          ./make_installer.ps1 $PIVTOOL_SRC_DIR/yubico-piv-tool-$RELEASE_VERSION-x64 $RELEASE_VERSION x64 $env:WIX\bin "$MERGEDPATH"
+          ./make_installer.ps1 $PIVTOOL_SRC_DIR/yubico-piv-tool-$env:RELEASE_VERSION-x64 $env:RELEASE_VERSION x64 $env:WIX\bin "$MERGEDPATH"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v1

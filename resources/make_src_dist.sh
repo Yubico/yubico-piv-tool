@@ -10,6 +10,7 @@ cd ..
 rm -r dist_build
 
 set +e
+set -x
 
 tar --exclude README.adoc --exclude .git --exclude .github --exclude .gitignore --transform="s/^\./yubico-piv-tool-$VERSION/" -czf yubico-piv-tool-$VERSION.tar.gz .
 exitcode=$?
