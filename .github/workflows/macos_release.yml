@@ -63,15 +63,15 @@ jobs:
 
           cd yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION
           ./resources/macos/make_release_binaries.sh $RELEASE_VERSION 1 $INSTALL_PREFIX
-          mkdir resources/macos/artifact
-          mv resources/macos/yubico-piv-tool-$RELEASE_VERSION-mac.zip resources/macos/artifact/
+          mkdir $GITHUB_WORKSPACE/artifact
+          mv resources/macos/yubico-piv-tool-$RELEASE_VERSION-mac.zip $GITHUB_WORKSPACE/artifact/
 
       - name: Create installer
         run: |
           set -x
 
           cd yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION
-          ./resources/macos/make_installer.sh $RELEASE_VERSION $GITHUB_WORKSPACE/yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION/resources/macos/artifact/yubico-piv-tool-$RELEASE_VERSION-mac.zip
+          ./resources/macos/make_installer.sh $RELEASE_VERSION $GITHUB_WORKSPACE/artifact/yubico-piv-tool-$RELEASE_VERSION-mac.zip
 
       - name: Install yubico-piv-tool from installer
         run: |
@@ -85,4 +85,4 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: yubico-piv-tool-mac
-          path: yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION/resources/macos/artifact
+          path: artifact

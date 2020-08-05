@@ -1,3 +1,5 @@
+Set-PSDebug -Trace 1
+
 $RELEASE_VERSION=$args[0]
 $CMAKE_ARCH=$args[1]
 $VCPKG_PATH=$args[2]
