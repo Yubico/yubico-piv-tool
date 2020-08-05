@@ -20,6 +20,7 @@ jobs:
           sudo apt install libpcsclite-dev check gengetopt help2man
       - name: Create tar.gz
         run: |
+          set -x
           ./resources/make_src_dist.sh 2.1.1
           cd ..
           mkdir artifact
@@ -42,23 +43,21 @@ jobs:
 
       - name: Extract source
         run: |
-          echo "cd yubico-piv-tool-src"
+          set -x
           cd yubico-piv-tool-src
-
-          echo "tar xf yubico-piv-tool-2.1.1.tar.gz"
           tar xf yubico-piv-tool-2.1.1.tar.gz
 
       - name: Install prerequisites
         run: |
-          echo brew install pkg-config check gengetopt help2man
+          set -x
           brew install pkg-config check gengetopt help2man
 
       - name: Build MacOS binaries
         run: |
+          set -x
           export RELEASE_VERSION=2.1.1
           export INSTALL_PREFIX=/usr/local
 
-          echo "cd yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION"
           cd yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION
           ./resources/macos/make_release_binaries.sh $RELEASE_VERSION 1 $INSTALL_PREFIX
           mkdir resources/macos/artifact
@@ -66,17 +65,17 @@ jobs:
 
       - name: Create installer
         run: |
+          set -x
           export RELEASE_VERSION=2.1.1
 
-          echo "cd yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION"
           cd yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION
           ./resources/macos/make_installer.sh $RELEASE_VERSION $GITHUB_WORKSPACE/yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION/resources/macos/artifact/yubico-piv-tool-$RELEASE_VERSION-mac.zip
 
       - name: Install yubico-piv-tool from installer
         run: |
+          set -x
           export RELEASE_VERSION=2.1.1
 
-          echo "cd yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION/resources/macos"
           cd yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION/resources/macos
           sudo installer -verbose -store -pkg "$PWD/yubico-piv-tool-$RELEASE_VERSION.pkg" -target /
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"

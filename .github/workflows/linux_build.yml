@@ -46,6 +46,7 @@ jobs:
 
       - name: Build debian package
         run: |
+          set -x
           mkdir build_dir;
           cd build_dir; cmake -DCMAKE_INSTALL_PREFIX=../debian/tmp/usr ..
           cd ..
@@ -62,32 +63,22 @@ jobs:
 
       - name: Build using OpenSSL static link
         run: |
-          echo ">> rm -rf cmake_build; mkdir cmake_build; cd cmake_build"
+          set -x
+
           rm -rf cmake_build; mkdir cmake_build; cd cmake_build
-
-          echo ">> cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_STATIC_LINK=ON"
           cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_STATIC_LINK=ON
-
-          echo ">> make"
           make
-
-          echo ">> make test"
           make test
 
-          echo ">> ldd {yubico-piv-tool/libykpiv.so/libykcs11.so} | grep libcrypto.so | wc -l | grep 0"
           ldd tool/yubico-piv-tool | grep libcrypto.so | wc -l | grep 0
           ldd lib/libykpiv.so | grep libcrypto.so | wc -l | grep 0
           ldd ykcs11/libykcs11.so | grep libcrypto.so | wc -l | grep 0
 
-          echo ">> pkcs11-tool --module ykcs11/libykcs11.so --show-info | grep Yubico"
           pkcs11-tool --module ykcs11/libykcs11.so --show-info | grep Yubico
 
-          echo ">> sudo make install"
           sudo make install
           sudo ldconfig
 
-          echo ">> yubico-piv-tool --help | grep 'Usage: yubico-piv-tool'"
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
-          echo ">> pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico"
           pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico

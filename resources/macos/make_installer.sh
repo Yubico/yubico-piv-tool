@@ -1,6 +1,7 @@
 #!/bin/bash
 # Script to produce an OS X installer .pkg
 # This script has to be run from the source directory
+set -x
 
 RELEASE_VERION=$1
 SRC_ZIP=$2
@@ -21,8 +22,6 @@ cd $MAC_DIR
 mkdir -p $PKG_ROOT $PKG_COMP
 unzip $SRC_ZIP -d $PKG_ROOT/
 
-echo pkgbuild --root=$$PKG_ROOT --identifier com.yubico.yubico-piv-tool --version $RELEASE_VERION $PKG_COMP/yubico-piv-tool.pkg
 pkgbuild --root="$PKG_ROOT" --identifier "com.yubico.yubico-piv-tool" --version "$RELEASE_VERION" "$PKG_COMP/yubico-piv-tool.pkg"
 
-echo productbuild  --package-path $PKG_COMP --distribution $MAC_DIR/distribution.xml $MAC_DIR/yubico-piv-tool-$RELEASE_VERION.pkg
 productbuild  --package-path "$PKG_COMP" --distribution "$MAC_DIR/distribution.xml" "$MAC_DIR/yubico-piv-tool-$RELEASE_VERION.pkg"

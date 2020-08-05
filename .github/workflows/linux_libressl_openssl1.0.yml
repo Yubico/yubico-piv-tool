@@ -11,10 +11,11 @@ jobs:
         uses: actions/checkout@v2
       - name: Install prerequisites
         run: |
-          echo sudo apt install libpcsclite-dev check gengetopt help2man
+          set -x
           sudo apt install libpcsclite-dev check gengetopt help2man
       - name: Install LibreSSL from source
         run: |
+          set -x
           cd ..
           wget http://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-3.1.1.tar.gz
           tar -xzvf libressl-3.1.1.tar.gz
@@ -26,30 +27,20 @@ jobs:
 
       - name: Build and install
         run: |
-          echo "mkdir cmake_build; cd cmake_build"
+          set -x
           mkdir cmake_build; cd cmake_build
-
-          echo "PKG_CONFIG_PATH=/home/runner/work/yubico-piv-tool/libressl-3.1.1/build/pkgconfig cmake .. -DVERBOSE_CMAKE=ON"
           PKG_CONFIG_PATH=/home/runner/work/yubico-piv-tool/libressl-3.1.1/build/pkgconfig cmake .. -DVERBOSE_CMAKE=ON
-
-          echo make
           make
-
-          echo make test
           make test
 
-          echo "ldd {yubico-piv-tool/libykpiv.so/libykcs11.so} | grep libcrypto.so"
           ldd tool/yubico-piv-tool | grep libcrypto.so
           ldd lib/libykpiv.so | grep libcrypto.so
           ldd ykcs11/libykcs11.so | grep libcrypto.so
 
-          echo sudo make install
           sudo make install
 
-          echo "yubico-piv-tool --help | grep 'Usage: yubico-piv-tool'"
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
-          echo "objdump -T /usr/local/lib/libykcs11.so | grep C_Sign"
           objdump -T /usr/local/lib/libykcs11.so | grep C_Sign
 
   job_2:
@@ -60,11 +51,12 @@ jobs:
         uses: actions/checkout@v2
       - name: Install prerequisites
         run: |
-          echo sudo apt install libpcsclite-dev check gengetopt help2man
+          set -x
           sudo apt install libpcsclite-dev check gengetopt help2man
 
       - name: Install OpenSSL 1.0 from source
         run: |
+          set -x
           cd ..
           wget https://www.openssl.org/source/openssl-1.0.2u.tar.gz
           tar -xzvf openssl-1.0.2u.tar.gz
@@ -74,28 +66,18 @@ jobs:
 
       - name: Build and install
         run: |
-          echo "mkdir cmake_build; cd cmake_build"
+          set -x
           mkdir cmake_build; cd cmake_build
-
-          echo "PKG_CONFIG_PATH=/home/runner/work/yubico-piv-tool/openssl1.0/lib/pkgconfig cmake .. -DVERBOSE_CMAKE=ON"
           PKG_CONFIG_PATH=/home/runner/work/yubico-piv-tool/openssl1.0/lib/pkgconfig cmake .. -DVERBOSE_CMAKE=ON
-
-          echo make
           make
-
-          echo make test
           make test
 
-          echo "ldd {yubico-piv-tool/libykpiv.so/libykcs11.so} | grep libcrypto.so"
           ldd tool/yubico-piv-tool | grep libcrypto.so
           ldd lib/libykpiv.so | grep libcrypto.so
           ldd ykcs11/libykcs11.so | grep libcrypto.so
 
-          echo sudo make install
           sudo make install
 
-          echo "yubico-piv-tool --help | grep 'Usage: yubico-piv-tool'"
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
-          echo "objdump -T /usr/local/lib/libykcs11.so | grep C_Sign"
           objdump -T /usr/local/lib/libykcs11.so | grep C_Sign
