@@ -11,17 +11,19 @@ jobs:
   job_1:
     name: Build dist with Linux
     runs-on: ubuntu-latest
+    env:
+      RELEASE_VERSION: x
     steps:
       - name: checkout
         uses: actions/checkout@v2
 
       - name: Install prerequisites
         run: |
+          set -x
           sudo apt install libpcsclite-dev check gengetopt help2man
       - name: Create tar.gz
         run: |
-          export RELEASE_VERSION=2.1.0
-
+          set -x
           ./resources/make_src_dist.sh $RELEASE_VERSION
           cd ..
           mkdir artifact
@@ -36,6 +38,8 @@ jobs:
     name: Build Windows x86
     needs: job_1
     runs-on: windows-latest
+    env:
+      RELEASE_VERSION: x
     steps:
       - name: Download source from job_1
         uses: actions/download-artifact@v1
@@ -44,7 +48,7 @@ jobs:
 
       - name: Extract source
         run: |
-          $env:RELEASE_VERSION="2.1.0"
+          Set-PSDebug -Trace 1
 
           echo "cd yubico-piv-tool-src"
           cd yubico-piv-tool-src
@@ -54,6 +58,7 @@ jobs:
 
       - name: install prerequisites for x86 architecture
         run: |
+          Set-PSDebug -Trace 1
           echo "vcpkg install openssl:x86-windows"
           vcpkg install openssl:x86-windows
 
@@ -65,7 +70,7 @@ jobs:
 
       - name: build for x86 architecture
         run: |
-          $env:RELEASE_VERSION="2.1.0"
+          Set-PSDebug -Trace 1
           $env:Path ="C:/vcpkg/packages/openssl-windows_x86-windows;$env:Path"
           $env:include ="C:/vcpkg/packages/openssl-windows_x86-windows/include;$env:include"
 
@@ -89,6 +94,8 @@ jobs:
     name: Build Windows x64
     needs: job_1
     runs-on: windows-latest
+    env:
+      RELEASE_VERSION: x
     steps:
       - name: Download source from job_1
         uses: actions/download-artifact@v1
@@ -97,7 +104,6 @@ jobs:
 
       - name: Extract source
         run: |
-          $env:RELEASE_VERSION="2.1.0"
 
           echo "cd yubico-piv-tool-src"
           cd yubico-piv-tool-src
@@ -118,7 +124,6 @@ jobs:
 
       - name: build for x64 architecture
         run: |
-          $env:RELEASE_VERSION="2.1.0"
 
           echo "cd yubico-piv-tool-src/yubico-piv-tool-$env:RELEASE_VERSION"
           cd yubico-piv-tool-src/yubico-piv-tool-$env:RELEASE_VERSION

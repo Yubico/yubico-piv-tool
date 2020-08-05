@@ -11,6 +11,8 @@ jobs:
   job_1:
     name: Build dist with Linux
     runs-on: ubuntu-latest
+    env:
+      RELEASE_VERSION: 2.1.1
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -21,10 +23,10 @@ jobs:
       - name: Create tar.gz
         run: |
           set -x
-          ./resources/make_src_dist.sh 2.1.1
+          ./resources/make_src_dist.sh $RELEASE_VERSION
           cd ..
           mkdir artifact
-          mv $GITHUB_WORKSPACE/yubico-piv-tool-2.1.1.tar.gz artifact/
+          mv $GITHUB_WORKSPACE/yubico-piv-tool-$RELEASE_VERSION.tar.gz artifact/
       - name: Upload artifact
         uses: actions/upload-artifact@v1
         with:
@@ -35,6 +37,8 @@ jobs:
     name: Build pkg from source
     needs: job_1
     runs-on: macos-latest
+    env:
+      RELEASE_VERSION: 2.1.1
     steps:
       - name: Download source from job_1
         uses: actions/download-artifact@v1
@@ -45,7 +49,7 @@ jobs:
         run: |
           set -x
           cd yubico-piv-tool-src
-          tar xf yubico-piv-tool-2.1.1.tar.gz
+          tar xf yubico-piv-tool-$RELEASE_VERSION.tar.gz
 
       - name: Install prerequisites
         run: |
@@ -55,7 +59,6 @@ jobs:
       - name: Build MacOS binaries
         run: |
           set -x
-          export RELEASE_VERSION=2.1.1
           export INSTALL_PREFIX=/usr/local
 
           cd yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION
@@ -66,7 +69,6 @@ jobs:
       - name: Create installer
         run: |
           set -x
-          export RELEASE_VERSION=2.1.1
 
           cd yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION
           ./resources/macos/make_installer.sh $RELEASE_VERSION $GITHUB_WORKSPACE/yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION/resources/macos/artifact/yubico-piv-tool-$RELEASE_VERSION-mac.zip
@@ -74,7 +76,6 @@ jobs:
       - name: Install yubico-piv-tool from installer
         run: |
           set -x
-          export RELEASE_VERSION=2.1.1
 
           cd yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION/resources/macos
           sudo installer -verbose -store -pkg "$PWD/yubico-piv-tool-$RELEASE_VERSION.pkg" -target /
@@ -84,4 +85,4 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: yubico-piv-tool-mac
-          path: yubico-piv-tool-src/yubico-piv-tool-2.1.1/resources/macos/artifact
+          path: yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION/resources/macos/artifact

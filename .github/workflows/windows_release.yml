@@ -11,16 +11,19 @@ jobs:
   job_1:
     name: Build dist with Linux
     runs-on: ubuntu-latest
+    env:
+      RELEASE_VERSION: 2.1.1
     steps:
       - name: checkout
         uses: actions/checkout@v2
 
       - name: Install prerequisites
         run: |
+          set -x
           sudo apt install libpcsclite-dev check gengetopt help2man
       - name: Create tar.gz
         run: |
-          export RELEASE_VERSION=2.1.1
+          set -x
 
           ./resources/make_src_dist.sh $RELEASE_VERSION
           cd ..
@@ -36,6 +39,8 @@ jobs:
     name: Build Windows x86
     needs: job_1
     runs-on: windows-latest
+    env:
+      RELEASE_VERSION: 2.1.1
     steps:
       - name: Download source from job_1
         uses: actions/download-artifact@v1
@@ -44,7 +49,7 @@ jobs:
 
       - name: Extract source
         run: |
-          $RELEASE_VERSION="2.1.1"
+          Set-PSDebug -Trace 1
 
           echo "cd yubico-piv-tool-src"
           cd yubico-piv-tool-src
@@ -54,12 +59,13 @@ jobs:
 
       - name: install prerequisites for x86 architecture
         run: |
+          Set-PSDebug -Trace 1
           echo "choco install visualstudio2019community --package-parameters '--add Microsoft.VisualStudio.Component.VC.Redist.MSM'"
           choco install visualstudio2019community --package-parameters "--add Microsoft.VisualStudio.Component.VC.Redist.MSM"
 
       - name: Make release binaries
         run: |
-          $RELEASE_VERSION="2.1.1"
+          Set-PSDebug -Trace 1
 
           $PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$RELEASE_VERSION"
 
@@ -78,9 +84,6 @@ jobs:
 
       - name: Create Windows Installer
         run: |
-
-          $RELEASE_VERSION="2.1.1"
-
           $PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$RELEASE_VERSION"
           $MERGEDPATH = Get-ChildItem "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Redist\MSVC\14.*\MergeModules\Microsoft_VC142_CRT_x86.msm"
 
@@ -100,6 +103,8 @@ jobs:
     name: Build Windows x64
     needs: job_1
     runs-on: windows-latest
+    env:
+      RELEASE_VERSION: 2.1.1
     steps:
       - name: Download source from job_1
         uses: actions/download-artifact@v1
@@ -108,8 +113,6 @@ jobs:
 
       - name: Extract source
         run: |
-          $env:RELEASE_VERSION="2.1.1"
-
           echo "cd yubico-piv-tool-src"
           cd yubico-piv-tool-src
 
@@ -123,8 +126,6 @@ jobs:
 
       - name: Make release binaries
         run: |
-          $RELEASE_VERSION="2.1.1"
-
           $PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$RELEASE_VERSION"
 
           echo "$PIVTOOL_SRC_DIR/resources/win"
@@ -142,9 +143,6 @@ jobs:
 
       - name: Create Windows Installer for x64 architecture
         run: |
-
-          $RELEASE_VERSION="2.1.1"
-
           $PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$RELEASE_VERSION"
           $MERGEDPATH = Get-ChildItem "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Redist\MSVC\14.26.28720\MergeModules\Microsoft_VC142_CRT_x64.msm"
 
