@@ -1,8 +1,6 @@
 name: MacOS Release
 # This workflow is triggered on pushes to the repository. This is machine tests that everything is set for a release
-# build. Nothing produced here will be used in the official release but these are the commands that will be used to make
-# the release
-# The version number in these builds is just an example and is not tied to any specific actual version
+# build. The binaries produced here can be used to make the release
 
 on: [push]
 
