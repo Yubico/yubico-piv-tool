@@ -14,42 +14,30 @@ jobs:
         uses: actions/checkout@v2
       - name: Install prerequisites
         run: |
-          echo sudo apt install libpcsclite-dev check gengetopt help2man openssl opensc
+          set -x
           sudo apt install libpcsclite-dev check gengetopt help2man openssl opensc
 
       - name: Build and install
         run: |
-          echo ">> mkdir cmake_build; cd cmake_build"
+          set -x
           mkdir cmake_build; cd cmake_build
-
-          echo ">> cmake .. -DVERBOSE_CMAKE=ON"
           cmake .. -DVERBOSE_CMAKE=ON
-
-          echo ">> make"
           make
-
-          echo ">> make test"
           make test
 
-          echo ">> ldd {yubico-piv-tool/libykpiv.so/libykcs11.so} | grep libcrypto.so"
           ldd tool/yubico-piv-tool | grep libcrypto.so
           ldd lib/libykpiv.so | grep libcrypto.so
           ldd ykcs11/libykcs11.so | grep libcrypto.so
 
-          echo ">> pkcs11-tool --module ykcs11/libykcs11.so --show-info | grep Yubico"
+          ./tool/yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
           pkcs11-tool --module ykcs11/libykcs11.so --show-info | grep Yubico
 
-          echo ">> sudo make install"
           sudo make install
           sudo ldconfig
 
-          echo ">> yubico-piv-tool --help | grep 'Usage: yubico-piv-tool'"
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
-          echo ">> objdump -T /usr/local/lib/libykcs11.so | grep C_Sign"
           objdump -T /usr/local/lib/libykcs11.so | grep C_Sign
-
-          echo ">> pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico"
           pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico
 
           cd /usr/local
@@ -70,7 +58,7 @@ jobs:
           cd build_dir
           sudo apt install ./yubico-piv-tool_*_amd64.deb
 
-          yubico-piv-tool -a status | grep "Failed to connect to yubikey."
+          (set +e; yubico-piv-tool -a status; true) 2>&1 >/dev/null | grep "Failed to connect to yubikey."
 
       - name: Build using OpenSSL static link
         run: |
