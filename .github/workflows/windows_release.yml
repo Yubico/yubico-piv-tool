@@ -91,7 +91,8 @@ jobs:
           mkdir installDir
 
           cd "$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\resources\win"
-          msiexec /i yubico-piv-tool-$RELEASE_VERSION-x86.msi TARGETDIR="D:\a\installDir" INSTALLDIR="D:\a\installDir" /quiet /l $env:GITHUB_WORKSPACE/artifact/log.txt
+          msiexec /i yubico-piv-tool-$RELEASE_VERSION-x86.msi TARGETDIR="D:\a\installDir" INSTALLDIR="D:\a\installDir" /quiet /l ./log.txt
+          cp ./log.txt $env:GITHUB_WORKSPACE/artifact/
 
 #          echo "ls D:\a\installDir"
 #          ls 'D:\a\installDir'
