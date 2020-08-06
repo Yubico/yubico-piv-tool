@@ -81,7 +81,8 @@ jobs:
 
           cd $PIVTOOL_SRC_DIR/resources/win
           ./make_installer.ps1 $PIVTOOL_SRC_DIR/yubico-piv-tool-$env:RELEASE_VERSION-x86 $env:RELEASE_VERSION x86 $env:WIX\bin "$MERGEDPATH"
-
+          ls
+          cp yubico-piv-tool-$RELEASE_VERSION-x86.msi $env:GITHUB_WORKSPACE/artifact/
 
 
       - name: Install yubico-piv-tool
@@ -91,8 +92,8 @@ jobs:
           mkdir installDir
 
           cd "$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\resources\win"
-          msiexec /i yubico-piv-tool-$RELEASE_VERSION-x86.msi TARGETDIR="D:\a\installDir" INSTALLDIR="D:\a\installDir" /quiet /l ./log.txt
-          cp ./log.txt $env:GITHUB_WORKSPACE/artifact/
+          msiexec /i yubico-piv-tool-$RELEASE_VERSION-x86.msi /quiet /l ./log.txt
+#          cp ./log.txt $env:GITHUB_WORKSPACE/artifact/
 
 #          echo "ls D:\a\installDir"
 #          ls 'D:\a\installDir'
