@@ -91,8 +91,8 @@ jobs:
           cd D:\a\
           mkdir installDir
           ls 'D:\a\installDir'
-          
-          cd "$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION/resources/win"
+
+          cd "$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\resources\win"
           msiexec /i yubico-piv-tool-$env:RELEASE_VERSION-x86.msi INSTALLDIR="D:\a\installDir" /quiet /l $env:GITHUB_WORKSPACE/artifact/log.txt
           ls 'D:\a\installDir'
 #          cd D:\a\

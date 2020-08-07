@@ -82,3 +82,24 @@ jobs:
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
           pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico
+
+      - name: Build only library (no CLI and no ykcs11)
+        run: |
+          set -x
+
+          rm -rf cmake_build; mkdir cmake_build; cd cmake_build
+          cmake .. -DVERBOSE_CMAKE=ON -DBUILD_ONLY_LIB=ON
+          make
+          make test
+
+      - name: Build only dynamic libaries
+        run: |
+          set -x
+
+          rm -rf cmake_build; mkdir cmake_build; cd cmake_build
+          cmake .. -DVERBOSE_CMAKE=ON -DBUILD_STATIC_LIB=OFF
+          make
+          make test
+
+          ./tool/yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
+          pkcs11-tool --module ykcs11/libykcs11.so --show-info | grep Yubico
