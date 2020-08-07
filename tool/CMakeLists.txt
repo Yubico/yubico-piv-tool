@@ -69,8 +69,10 @@ if (GENERATE_MAN_PAGES)
     add_help2man_manpage (yubico-piv-tool.1 yubico-piv-tool)
 
     add_custom_target (yubico-piv-tool-man ALL DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/yubico-piv-tool.1)
+    install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/yubico-piv-tool.1" DESTINATION "${YKPIV_INSTALL_MAN_DIR}/man1")
 endif(GENERATE_MAN_PAGES)
 
+# If somehow a manpage was generated before configure started, install that too
 find_file(MAN_PAGE yubico-piv-tool.1 PATHS ${CMAKE_CURRENT_SOURCE_DIR})
 if(MAN_PAGE)
     install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/yubico-piv-tool.1" DESTINATION "${YKPIV_INSTALL_MAN_DIR}/man1")
