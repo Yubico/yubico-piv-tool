@@ -1547,6 +1547,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     session->slot->local[id] = CK_FALSE;
 
+    add_object(session->slot, pvtk_id);
+
+    // No attestation can be created for imported objects
+
+    sort_objects(session->slot);
+
     locking.pfnUnlockMutex(session->slot->mutex);
     *phObject = (CK_OBJECT_HANDLE)pvtk_id;
     break;
