@@ -92,7 +92,7 @@ jobs:
           make
           make test
 
-          ldd ykcs11/libykcs11.so | grep libcrypto.so | wc -l | grep 0
+          ldd ykcs11/libykcs11.so | grep libcrypto.so
 
           pkcs11-tool --module ykcs11/libykcs11.so --show-info | grep Yubico
 
