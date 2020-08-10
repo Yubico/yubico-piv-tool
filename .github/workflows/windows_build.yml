@@ -72,7 +72,7 @@ jobs:
           $env:include ="C:/vcpkg/packages/openssl-windows_x86-windows/include;$env:include"
 
           cd yubico-piv-tool-src/yubico-piv-tool-
-          rm -rf build; mkdir build; cd build
+          rm -r build; mkdir build; cd build
           cmake -A Win32 -DVERBOSE_CMAKE=ON -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x86-windows -DYKCS11_DBG=3 ..
           cmake --build . -v
           $env:Path +=";C:/vcpkg/packages/check_x86-windows/bin;C:/vcpkg/packages/openssl-windows_x86-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
@@ -85,7 +85,7 @@ jobs:
           $env:include ="C:/vcpkg/packages/openssl-windows_x86-windows/include;$env:include"
 
           cd yubico-piv-tool-src/yubico-piv-tool-
-          rm -rf build; mkdir build; cd build
+          rm -r build; mkdir build; cd build
           cmake -A Win32 -DVERBOSE_CMAKE=ON -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x86-windows -DBUILD_ONLY_LIB=ON ..
           cmake --build . -v
           $env:Path +=";C:/vcpkg/packages/check_x86-windows/bin;C:/vcpkg/packages/openssl-windows_x86-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
@@ -98,7 +98,7 @@ jobs:
           $env:include ="C:/vcpkg/packages/openssl-windows_x86-windows/include;$env:include"
 
           cd yubico-piv-tool-src/yubico-piv-tool-
-          rm -rf build; mkdir build; cd build
+          rm -r build; mkdir build; cd build
           cmake -A Win32 -DVERBOSE_CMAKE=ON -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x86-windows -DBUILD_STATIC_LIB=OFF ..
           cmake --build . -v
           $env:Path +=";C:/vcpkg/packages/check_x86-windows/bin;C:/vcpkg/packages/openssl-windows_x86-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
@@ -149,7 +149,7 @@ jobs:
           $env:include ="C:\vcpkg\packages\openssl-windows_x64-windows/include;$env:include"
 
           cd yubico-piv-tool-src/yubico-piv-tool-
-          rm -rf build; mkdir build; cd build
+          rm -r build; mkdir build; cd build
           cmake -A x64 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x64-windows -DYKCS11_DBG=3 ..
           cmake --build . -v
           $env:Path +=";C:/vcpkg/packages/check_x64-windows/bin;C:/vcpkg/packages/openssl-windows_x64-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
@@ -162,7 +162,7 @@ jobs:
           $env:include ="C:\vcpkg\packages\openssl-windows_x64-windows/include;$env:include"
 
           cd yubico-piv-tool-src/yubico-piv-tool-
-          rm -rf build; mkdir build; cd build
+          rm -r build; mkdir build; cd build
           cmake -A x64 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x64-windows -DBUILD_ONLY_LIB=ON ..
           cmake --build . -v
           $env:Path +=";C:/vcpkg/packages/check_x64-windows/bin;C:/vcpkg/packages/openssl-windows_x64-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
@@ -175,7 +175,7 @@ jobs:
           $env:include ="C:\vcpkg\packages\openssl-windows_x64-windows/include;$env:include"
 
           cd yubico-piv-tool-src/yubico-piv-tool-
-          rm -rf build; mkdir build; cd build
+          rm -r build; mkdir build; cd build
           cmake -A x64 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x64-windows -DBUILD_STATIC_LIB=OFF ..
           cmake --build . -v
           $env:Path +=";C:/vcpkg/packages/check_x64-windows/bin;C:/vcpkg/packages/openssl-windows_x64-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"

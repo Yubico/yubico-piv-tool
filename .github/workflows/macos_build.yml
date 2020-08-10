@@ -66,7 +66,7 @@ jobs:
 
           otool -L ykcs11/libykcs11.dylib | grep libcrypto
 
-          pkcs11-tool --module ykcs11/libykcs11.so --show-info | grep Yubico
+          pkcs11-tool --module ykcs11/libykcs11.dylib --show-info | grep Yubico
 
       - name: Build only library (no CLI and no ykcs11)
         run: |
