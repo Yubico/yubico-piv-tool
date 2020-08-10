@@ -20,7 +20,7 @@ jobs:
       - name: Build and install
         run: |
           set -x
-          mkdir cmake_build; cd cmake_build
+          mkdir build; cd build
           cmake .. -DVERBOSE_CMAKE=ON
           make
           make test
@@ -44,7 +44,7 @@ jobs:
           sudo rm bin/yubico-piv-tool
           sudo rm lib/libyk*
 
-      - name: Build debian package
+      - name: Build and install debian package
         run: |
           set -x
           mkdir build_dir;
@@ -65,7 +65,7 @@ jobs:
         run: |
           set -x
 
-          rm -rf cmake_build; mkdir cmake_build; cd cmake_build
+          rm -rf build; mkdir build; cd build
           cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_STATIC_LINK=ON
           make
           make test
@@ -82,3 +82,32 @@ jobs:
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
           pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico
+
+      - name: Build with YKCS11_DBG is set
+        run: |
+          set -x
+
+          rm -rf build; mkdir build; cd build
+          cmake .. -DVERBOSE_CMAKE=ON -DYKCS11_DBG=3
+          make
+          make test
+
+          ldd ykcs11/libykcs11.so | grep libcrypto.so
+
+          pkcs11-tool --module ykcs11/libykcs11.so --show-info | grep Yubico
+
+      - name: Build only library (no CLI and no ykcs11)
+        run: |
+          set -x
+          rm -rf build; mkdir build; cd build
+          cmake .. -DVERBOSE_CMAKE=ON -DBUILD_ONLY_LIB=ON
+          make
+          make test
+
+      - name: Build only dynamic libaries
+        run: |
+          set -x
+          rm -rf build; mkdir build; cd build
+          cmake .. -DVERBOSE_CMAKE=ON -DBUILD_STATIC_LIB=OFF
+          make
+          make test

@@ -81,6 +81,13 @@ jobs:
 
           cd $PIVTOOL_SRC_DIR/resources/win
           ./make_installer.ps1 $PIVTOOL_SRC_DIR/yubico-piv-tool-$env:RELEASE_VERSION-x86 $env:RELEASE_VERSION x86 $env:WIX\bin "$MERGEDPATH"
+          cp $PIVTOOL_SRC_DIR/resources/win/yubico-piv-tool-$env:RELEASE_VERSION-x86.msi $env:GITHUB_WORKSPACE/artifact/
+
+      - name: Install yubico-piv-tool
+        run: |
+          Set-PSDebug -Trace 1
+          cd "$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\resources\win"
+          msiexec /i yubico-piv-tool-$env:RELEASE_VERSION-x86.msi /quiet /log $env:GITHUB_WORKSPACE/artifact/log_x86.txt
 
       - name: Upload artifact
         uses: actions/upload-artifact@v1
@@ -134,6 +141,12 @@ jobs:
 
           cd $PIVTOOL_SRC_DIR/resources/win
           ./make_installer.ps1 $PIVTOOL_SRC_DIR/yubico-piv-tool-$env:RELEASE_VERSION-x64 $env:RELEASE_VERSION x64 $env:WIX\bin "$MERGEDPATH"
+
+      - name: Install yubico-piv-tool
+        run: |
+          Set-PSDebug -Trace 1
+          cd "$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\resources\win"
+          msiexec /i yubico-piv-tool-$env:RELEASE_VERSION-x64.msi /quiet
 
       - name: Upload artifact
         uses: actions/upload-artifact@v1
