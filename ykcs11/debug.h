@@ -41,12 +41,7 @@ extern int verbose;
     fprintf (stderr, "\n");                                                    \
   }
 
-#if YKCS11_DINOUT
 #define DIN DBG(("In"));
 #define DOUT DBG(("Out"));
-#else
-#define DIN
-#define DOUT
-#endif
 
 #endif
