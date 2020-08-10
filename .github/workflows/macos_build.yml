@@ -15,11 +15,11 @@ jobs:
         run: |
           set -x
           brew install pkg-config check gengetopt help2man opensc
-      - name: run cmake
+      - name: Build and install
         run: |
           set -x
-          mkdir cmake_build
-          cd cmake_build
+          mkdir build
+          cd build
           cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_PKG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig
           make
           make test
@@ -39,7 +39,7 @@ jobs:
           set -x
           export PKG_CONFIG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig:PKG_CONFIG_PATH
 
-          rm -rf cmake_build; mkdir cmake_build; cd cmake_build
+          rm -rf build; mkdir build; cd build
           cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_STATIC_LINK=ON -DBACKEND=macscard
           make
           make test
@@ -53,3 +53,37 @@ jobs:
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
           pkcs11-tool --module /usr/local/lib/libykcs11.dylib --show-info | grep Yubico
+
+    - name: Build with YKCS11_DBG is set
+      run: |
+        set -x
+        export PKG_CONFIG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig:PKG_CONFIG_PATH
+
+        rm -rf build; mkdir build; cd build
+        cmake .. -DVERBOSE_CMAKE=ON -DYKCS11_DBG=3
+        make
+        make test
+
+        otool -L ykcs11/libykcs11.dylib | grep libcrypto
+
+        pkcs11-tool --module ykcs11/libykcs11.so --show-info | grep Yubico
+
+    - name: Build only library (no CLI and no ykcs11)
+      run: |
+        set -x
+        export PKG_CONFIG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig:PKG_CONFIG_PATH
+
+        rm -rf build; mkdir build; cd build
+        cmake .. -DVERBOSE_CMAKE=ON -DBUILD_ONLY_LIB=ON
+        make
+        make test
+
+    - name: Build only dynamic libaries
+      run: |
+        set -x
+        export PKG_CONFIG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig:PKG_CONFIG_PATH
+
+        rm -rf build; mkdir build; cd build
+        cmake .. -DVERBOSE_CMAKE=ON -DBUILD_STATIC_LIB=OFF
+        make
+        make test

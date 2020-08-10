@@ -28,7 +28,7 @@ jobs:
       - name: Build and install
         run: |
           set -x
-          mkdir cmake_build; cd cmake_build
+          mkdir build; cd build
           PKG_CONFIG_PATH=/home/runner/work/yubico-piv-tool/libressl-3.1.1/build/pkgconfig cmake .. -DVERBOSE_CMAKE=ON
           make
           make test
@@ -67,7 +67,7 @@ jobs:
       - name: Build and install
         run: |
           set -x
-          mkdir cmake_build; cd cmake_build
+          mkdir build; cd build
           PKG_CONFIG_PATH=/home/runner/work/yubico-piv-tool/openssl1.0/lib/pkgconfig cmake .. -DVERBOSE_CMAKE=ON
           make
           make test
