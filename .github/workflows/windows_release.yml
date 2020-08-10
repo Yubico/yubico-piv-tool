@@ -83,47 +83,11 @@ jobs:
           ./make_installer.ps1 $PIVTOOL_SRC_DIR/yubico-piv-tool-$env:RELEASE_VERSION-x86 $env:RELEASE_VERSION x86 $env:WIX\bin "$MERGEDPATH"
           cp $PIVTOOL_SRC_DIR/resources/win/yubico-piv-tool-$env:RELEASE_VERSION-x86.msi $env:GITHUB_WORKSPACE/artifact/
 
-
-
       - name: Install yubico-piv-tool
         run: |
           Set-PSDebug -Trace 1
-          cd D:\a\
-          mkdir installDir
-          ls 'D:\a\installDir'
-
           cd "$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\resources\win"
-          msiexec /i yubico-piv-tool-$env:RELEASE_VERSION-x86.msi INSTALLDIR="D:\a\installDir" TARGETDIR="D:\a\installDir" YubicoDir="D:\a\installDir" /quiet /log $env:GITHUB_WORKSPACE/artifact/log.txt
-          ls 'D:\a\installDir'
-          ls 'C:\Program Files (x86)'
-#          cd D:\a\
-#
-#          $env:PATH += ";D:\a\installDir\Yubico\Yubico PIV Tool\bin"
-#
-#          echo "yubico-piv-tool.exe --version"
-#          yubico-piv-tool.exe --version
-#
-#          echo "yubico-piv-tool.exe --help"
-#          yubico-piv-tool.exe --help
-
-#      - name: Upload ykcs11 with OpenSC
-#        run: |
-#          cd D:\a\
-#          Invoke-WebRequest -Uri https://github.com/OpenSC/OpenSC/releases/download/0.20.0/OpenSC-0.20.0_win32.msi -OutFile OpenSC-0.20.0_win32.msi -UseBasicParsing
-#
-#          echo "msiexec /i OpenSC-0.20.0_win32.msi TARGETDIR=D:\a\installDir /quiet"
-#          msiexec /i OpenSC-0.20.0_win32.msi TARGETDIR="D:\a\installDir" /quiet
-#
-#          echo "cd D:\a\installDir\OpenSC Project\OpenSC\tools"
-#          cd "D:\a\installDir\OpenSC Project\OpenSC\tools"
-#
-#          $env:PATH += ";D:\a\installDir\Yubico\Yubico PIV Tool\bin"
-#
-#          echo "pkcs11-tool' --module 'D:\a\installDir\Yubico\Yubico PIV Tool\bin\libykcs11.dll' --show-info"
-#          pkcs11-tool.exe --module 'D:\a\installDir\Yubico\Yubico PIV Tool\bin\libykcs11.dll' --show-info
-
-
-
+          msiexec /i yubico-piv-tool-$env:RELEASE_VERSION-x86.msi /quiet /log $env:GITHUB_WORKSPACE/artifact/log.txt
 
       - name: Upload artifact
         uses: actions/upload-artifact@v1
@@ -177,6 +141,12 @@ jobs:
 
           cd $PIVTOOL_SRC_DIR/resources/win
           ./make_installer.ps1 $PIVTOOL_SRC_DIR/yubico-piv-tool-$env:RELEASE_VERSION-x64 $env:RELEASE_VERSION x64 $env:WIX\bin "$MERGEDPATH"
+
+      - name: Install yubico-piv-tool
+        run: |
+          Set-PSDebug -Trace 1
+          cd "$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\resources\win"
+          msiexec /i yubico-piv-tool-$env:RELEASE_VERSION-x64.msi /quiet /log $env:GITHUB_WORKSPACE/artifact/log.txt
 
       - name: Upload artifact
         uses: actions/upload-artifact@v1

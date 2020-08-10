@@ -44,7 +44,7 @@ jobs:
           sudo rm bin/yubico-piv-tool
           sudo rm lib/libyk*
 
-      - name: Build debian package
+      - name: Build and install debian package
         run: |
           set -x
           mkdir build_dir;
@@ -82,6 +82,19 @@ jobs:
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
           pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico
+
+      - name: Build with YKCS11_DBG is set
+        run: |
+          set -x
+
+          rm -rf cmake_build; mkdir cmake_build; cd cmake_build
+          cmake .. -DVERBOSE_CMAKE=ON -DYKCS11_DBG=3
+          make
+          make test
+
+          ldd ykcs11/libykcs11.so | grep libcrypto.so | wc -l | grep 0
+
+          pkcs11-tool --module ykcs11/libykcs11.so --show-info | grep Yubico
 
       - name: Build only library (no CLI and no ykcs11)
         run: |
