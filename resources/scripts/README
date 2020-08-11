@@ -1,0 +1,3 @@
+These scripts are just example usage. They are mostly used by developers to test functionality and they require a YubiKey to be plugged in.
+
+WARNING: Data on the YubiKey will be overwritten.
