@@ -1608,7 +1608,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
 
   // Silently ignore valid but not-present handles for compatibility with applications
   CK_BYTE id = get_sub_id(hObject);
-  if(id == 0) {
+  if(id == 0 && hObject != PIV_SECRET_OBJ) {
     DBG("Object handle is invalid");
     rv = CKR_OBJECT_HANDLE_INVALID;
     goto destroy_out;
@@ -1616,26 +1616,28 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
 
   locking.pfnLockMutex(session->slot->mutex);
 
-  // SO must be logged in
-  if (session->slot->login_state != YKCS11_SO) {
-    DBG("Authentication as SO required to delete objects");
-    locking.pfnUnlockMutex(session->slot->mutex);
-    rv = CKR_USER_TYPE_INVALID;
-    goto destroy_out;
-  }
+  if(id) {
+    // SO must be logged in
+    if (session->slot->login_state != YKCS11_SO) {
+      DBG("Authentication as SO required to delete objects");
+      locking.pfnUnlockMutex(session->slot->mutex);
+      rv = CKR_USER_TYPE_INVALID;
+      goto destroy_out;
+    }
 
-  DBG("Deleting object %lu", hObject);
-
-  rv = token_delete_cert(session->slot->piv_state, piv_2_ykpiv(find_data_object(id)));
-  if (rv != CKR_OK) {
-    DBG("Unable to delete object %lx from token", piv_2_ykpiv(find_data_object(id)));
-    locking.pfnUnlockMutex(session->slot->mutex);
-    goto destroy_out;
+    DBG("Deleting object %lx from token", piv_2_ykpiv(find_data_object(id)));
+ 
+    rv = token_delete_cert(session->slot->piv_state, piv_2_ykpiv(find_data_object(id)));
+    if (rv != CKR_OK) {
+      DBG("Unable to delete object %lx from token", piv_2_ykpiv(find_data_object(id)));
+      locking.pfnUnlockMutex(session->slot->mutex);
+      goto destroy_out;
+    }
   }
 
   // Remove the related objects from the session
 
-  DBG("%lu session objects before destroying object %lu", session->slot->n_objects, hObject);
+  DBG("%lu slot objects before destroying object %lu", session->slot->n_objects, hObject);
 
   CK_ULONG j = 0;
   for (CK_ULONG i = 0; i < session->slot->n_objects; i++) {
@@ -1644,18 +1646,18 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
   }
   session->slot->n_objects = j;
 
-  DBG("%lu session objects after destroying object %lu", session->slot->n_objects, hObject);
+  DBG("%lu slot objects after destroying object %lu", session->slot->n_objects, hObject);
 
   rv = delete_data(session->slot, id);
   if (rv != CKR_OK) {
-    DBG("Unable to delete data from session");
+    DBG("Unable to delete data from slot");
     locking.pfnUnlockMutex(session->slot->mutex);
     goto destroy_out;
   }
 
   rv = delete_cert(session->slot, id);
   if (rv != CKR_OK) {
-    DBG("Unable to delete certificate from session");
+    DBG("Unable to delete certificate from slot");
     locking.pfnUnlockMutex(session->slot->mutex);
     goto destroy_out;
   }
