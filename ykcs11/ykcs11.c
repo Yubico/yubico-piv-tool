@@ -3578,44 +3578,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_UnwrapKey)(
   return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
-static CK_RV validate_derive_key_attribute(CK_ATTRIBUTE_TYPE type, void *value) {
-  switch (type) {
-    case CKA_TOKEN:
-      if (*((CK_BBOOL *) value) != CK_FALSE) {
-        DBG("Derived key can only be a session object");
-        return CKR_ATTRIBUTE_VALUE_INVALID;
-      }
-      break;
-
-    case CKA_CLASS:
-      if (*((CK_ULONG_PTR) value) != CKO_SECRET_KEY) {
-        DBG("Derived key class is unsupported");
-        return CKR_ATTRIBUTE_VALUE_INVALID;
-      }
-      break;
-
-    case CKA_KEY_TYPE:
-      if (*((CK_ULONG_PTR) value) != CKK_GENERIC_SECRET) {
-        DBG("Derived key type is unsupported");
-        return CKR_ATTRIBUTE_VALUE_INVALID;
-      }
-      break;
-
-    case CKA_EXTRACTABLE:
-      if (*((CK_BBOOL *) value) != CK_TRUE) {
-        DBG("The derived key must be extractable");
-        return CKR_ATTRIBUTE_VALUE_INVALID;
-      }
-      break;
-
-    default:
-      DBG("ECDH key derive template contains the ignored attribute: %lx", type);
-      break;
-  }
-
-  return CKR_OK;
-}
-
 CK_DEFINE_FUNCTION(CK_RV, C_DeriveKey)(
   CK_SESSION_HANDLE hSession,
   CK_MECHANISM_PTR pMechanism,
