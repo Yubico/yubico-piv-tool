@@ -709,7 +709,7 @@ void test_ec_ecdh_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
     asrt(funcs->C_GetAttributeValue(session, obj_pvtkey[i], pointTemplate, 1), CKR_OK, "GetAttributeValue");
     asrt(funcs->C_DeriveKey(session, &mech, obj_pvtkey[i], deriveKeyTemplate, 4, &sk), CKR_OK, "DeriveKey");
     asrt(funcs->C_GetAttributeValue(session, sk, valueTemplate, 1), CKR_OK, "GetAttributeValue");
-    asrt(funcs->C_DestroyObject(session, sk), CKR_OK, "GetAttributeValue");
+    asrt(funcs->C_DestroyObject(session, sk), CKR_OK, "DestroyObject");
     asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
     // Skip DER encoding
     pointTemplate->pValue += 2;
