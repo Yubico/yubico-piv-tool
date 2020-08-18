@@ -712,10 +712,10 @@ void test_ec_ecdh_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
     asrt(funcs->C_DestroyObject(session, sk), CKR_OK, "DestroyObject");
     asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
     // Skip DER encoding
-    pointTemplate->pValue += 2;
-    pointTemplate->ulValueLen -= 2;
+    ptr = pointTemplate->pValue;
+    ptr += 2;
     EC_KEY *pk = EC_KEY_new_by_curve_name(curve);
-    pk = o2i_ECPublicKey(&pk, &pointTemplate->pValue, pointTemplate->ulValueLen);
+    pk = o2i_ECPublicKey(&pk, &ptr, pointTemplate->ulValueLen - 2);
     asrt(ECDH_compute_key(secret, sizeof(secret), EC_KEY_get0_public_key(pk), tmpkey, NULL), bits / 8, "ECDH_compute_key");
     asrt(memcmp(secret, secret2, bits / 8), 0, "Compare secrets");
     EC_KEY_free(pk);
