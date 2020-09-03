@@ -27,6 +27,7 @@
 
 cmake_minimum_required (VERSION 3.5)
 cmake_policy(SET CMP0025 NEW)
+include(CheckFunctionExists)
 set (CMAKE_C_STANDARD 99)
 
 project (yubico-piv-tool)
@@ -127,6 +128,12 @@ include_directories(${LIBCRYPTO_INCLUDE_DIRS})
 
 enable_testing()
 find_package(codecov)
+
+# explicit_bzero
+check_function_exists(explicit_bzero HAVE_EXPLICIT_BZERO)
+if(HAVE_EXPLICIT_BZERO)
+	add_definitions(-DHAVE_EXPLICIT_BZERO)
+endif()
 
 add_subdirectory (lib)
 if(NOT BUILD_ONLY_LIB)
