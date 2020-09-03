@@ -37,7 +37,7 @@ macro (find_libcrypto)
             if(OpenSSL_FOUND)
                 set(LIBCRYPTO_LDFLAGS OpenSSL::Crypto)
                 if(NOT WIN32)
-                    set(LIBCRYPTO_LDFLAGS ${LIBCRYPTO_LDFLAGS} -ldl)
+                    set(LIBCRYPTO_LDFLAGS ${LIBCRYPTO_LDFLAGS})
                 endif(NOT WIN32)
 
                 set(LIBCRYPTO_INCLUDE_DIRS ${OPENSSL_INCLUDE_DIR})
