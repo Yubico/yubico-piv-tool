@@ -13,6 +13,17 @@
 #include <string.h>
 #include <limits.h>
 
+void X509_SIG_getm(X509_SIG *sig, X509_ALGOR **palg,
+                   ASN1_OCTET_STRING **pdigest)
+{
+    if (palg)
+        *palg = sig->algor;
+    if (pdigest)
+        *pdigest = sig->digest;
+}
+
+#if (LIBRESSL_VERSION_NUMBER < 0x2070000fL)
+
 int RSA_set0_key(RSA *r, BIGNUM *n, BIGNUM *e, BIGNUM *d)
 {
     /* If the fields n and e in r are NULL, the corresponding input
@@ -69,15 +80,6 @@ void RSA_get0_crt_params(const RSA *r,
         *iqmp = r->iqmp;
 }
 
-void X509_SIG_getm(X509_SIG *sig, X509_ALGOR **palg,
-                   ASN1_OCTET_STRING **pdigest)
-{
-    if (palg)
-        *palg = sig->algor;
-    if (pdigest)
-        *pdigest = sig->digest;
-}
-
 int ECDSA_SIG_set0(ECDSA_SIG *sig, BIGNUM *r, BIGNUM *s)
 {
     if (r == NULL || s == NULL)
@@ -96,8 +98,6 @@ void ECDSA_SIG_get0(const ECDSA_SIG *sig, const BIGNUM **pr, const BIGNUM **ps) 
         *ps = sig->s;
 }
 
-#if (LIBRESSL_VERSION_NUMBER < 0x2070500fL)
-
 RSA *EVP_PKEY_get0_RSA(const EVP_PKEY *pkey) {
   if (pkey->type != EVP_PKEY_RSA) {
     return NULL;
@@ -114,7 +114,7 @@ EC_KEY *EVP_PKEY_get0_EC_KEY(const EVP_PKEY *pkey) {
 
 #endif
 
-#if (LIBRESSL_VERSION_NUMBER > 0L) && (LIBRESSL_VERSION_NUMBER < 0x31000000L)
+#if (LIBRESSL_VERSION_NUMBER > 0L) && (LIBRESSL_VERSION_NUMBER < 0x3010000fL)
 
 static inline unsigned int constant_time_msb(unsigned int a)
 {
