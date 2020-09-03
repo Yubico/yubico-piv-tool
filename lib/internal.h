@@ -244,7 +244,7 @@ void yc_log_event(uint32_t id, yc_log_level_t level, const char *sz_format, ...)
 #ifdef _WIN32
 #include <windows.h>
 #define yc_memzero SecureZeroMemory
-#elif defined(BSD)
+#elif defined(HAVE_EXPLICIT_BZERO)
 #include <strings.h>
 #define yc_memzero explicit_bzero
 #elif defined(__linux__)
