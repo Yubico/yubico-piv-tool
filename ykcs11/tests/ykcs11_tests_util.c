@@ -968,7 +968,7 @@ static int is_data_too_large(int enc_ret) {
 
 void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
                       CK_BYTE n_keys, RSA* rsak, CK_MECHANISM_TYPE mech_type, CK_ULONG padding) {
-  CK_ULONG  i, j;
+  CK_BYTE   i, j;
   int       data_len, enc_len;
   CK_BYTE*  data;
   CK_BYTE   enc[512];
@@ -1088,7 +1088,7 @@ void test_rsa_decrypt_oaep(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session
 
 void test_rsa_encrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
                       CK_BYTE n_keys, RSA* rsak, CK_MECHANISM_TYPE mech_type, CK_ULONG padding) {
-  CK_ULONG  i,j;
+  CK_BYTE   i,j;
   CK_BYTE   data[32];
   CK_ULONG  data_len = sizeof(data);
   CK_BYTE   enc[128];
@@ -1373,7 +1373,7 @@ void test_privkey_attributes_ec(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE se
 void test_find_objects_by_class(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
                                 CK_ULONG class, CK_BYTE ckaid,
                                 CK_ULONG n_expected, CK_OBJECT_HANDLE obj_expected) {
-  CK_BYTE i;
+  CK_ULONG i;
   CK_OBJECT_HANDLE obj[10];
   CK_ULONG n = 0;
   CK_BBOOL found = CK_FALSE;
