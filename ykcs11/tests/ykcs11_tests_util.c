@@ -661,6 +661,68 @@ void test_ec_sign_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
   asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");  
 }
 
+void test_ec_ecdh_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
+                         CK_BYTE n_keys, int curve) {
+                    
+  CK_BYTE     i;
+  CK_BYTE     pubkey[128], pubkey2[128], secret[128], secret2[128];
+
+  CK_ULONG    cls = CKO_SECRET_KEY;
+  CK_ULONG    kt = CKK_GENERIC_SECRET;
+
+  CK_BBOOL    _false = CK_FALSE;
+  CK_BBOOL    _true = CK_TRUE;
+
+  EC_KEY *tmpkey = EC_KEY_new_by_curve_name(curve);
+
+  if (tmpkey == NULL)
+    exit(EXIT_FAILURE);
+
+  asrt(EC_KEY_generate_key(tmpkey), 1, "GENERATE ECK");
+
+  int bits = EC_GROUP_get_degree(EC_KEY_get0_group(tmpkey));
+  unsigned char *ptr = pubkey;
+  asrt(i2o_ECPublicKey(tmpkey, &ptr), bits / 4 + 1, "ENCODE ECK");
+
+  CK_ECDH1_DERIVE_PARAMS params = {CKD_NULL, 0, NULL, ptr-pubkey, pubkey};
+  CK_MECHANISM mech = {CKM_ECDH1_DERIVE, &params, sizeof(params)};
+  CK_OBJECT_HANDLE sk;
+
+  for (i = 0; i < n_keys; i++) {
+
+    CK_ATTRIBUTE deriveKeyTemplate[] = {
+      {CKA_TOKEN, &_false, sizeof(_false)},
+      {CKA_CLASS, &cls, sizeof(cls)},
+      {CKA_KEY_TYPE, &kt, sizeof(kt)},
+      {CKA_EXTRACTABLE, &_true, sizeof(_true)},
+    };
+
+    CK_ATTRIBUTE pointTemplate[] = {
+      {CKA_EC_POINT, pubkey2, sizeof(pubkey2)},
+    };
+
+    CK_ATTRIBUTE valueTemplate[] = {
+      {CKA_VALUE, secret2, sizeof(secret2)},
+    };
+
+    asrt(funcs->C_Login(session, CKU_USER, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Login USER");
+    asrt(funcs->C_GetAttributeValue(session, obj_pvtkey[i], pointTemplate, 1), CKR_OK, "GetAttributeValue");
+    asrt(funcs->C_DeriveKey(session, &mech, obj_pvtkey[i], deriveKeyTemplate, 4, &sk), CKR_OK, "DeriveKey");
+    asrt(funcs->C_GetAttributeValue(session, sk, valueTemplate, 1), CKR_OK, "GetAttributeValue");
+    asrt(funcs->C_DestroyObject(session, sk), CKR_OK, "DestroyObject");
+    asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
+    // Skip DER encoding
+    ptr = pointTemplate->pValue;
+    ptr += 2;
+    EC_KEY *pk = EC_KEY_new_by_curve_name(curve);
+    pk = o2i_ECPublicKey(&pk, &ptr, pointTemplate->ulValueLen - 2);
+    asrt(ECDH_compute_key(secret, sizeof(secret), EC_KEY_get0_public_key(pk), tmpkey, NULL), bits / 8, "ECDH_compute_key");
+    asrt(memcmp(secret, secret2, bits / 8), 0, "Compare secrets");
+    EC_KEY_free(pk);
+  }
+  EC_KEY_free(tmpkey);
+}
+
 void test_ec_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
                            CK_MECHANISM_TYPE mech_type, EC_KEY *eck, CK_ULONG key_len) {
                     

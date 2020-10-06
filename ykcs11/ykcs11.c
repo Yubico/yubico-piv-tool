@@ -1608,7 +1608,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
 
   // Silently ignore valid but not-present handles for compatibility with applications
   CK_BYTE id = get_sub_id(hObject);
-  if(id == 0) {
+  if(id == 0 && hObject != PIV_SECRET_OBJ) {
     DBG("Object handle is invalid");
     rv = CKR_OBJECT_HANDLE_INVALID;
     goto destroy_out;
@@ -1616,26 +1616,28 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
 
   locking.pfnLockMutex(session->slot->mutex);
 
-  // SO must be logged in
-  if (session->slot->login_state != YKCS11_SO) {
-    DBG("Authentication as SO required to delete objects");
-    locking.pfnUnlockMutex(session->slot->mutex);
-    rv = CKR_USER_TYPE_INVALID;
-    goto destroy_out;
-  }
+  if(id) {
+    // SO must be logged in
+    if (session->slot->login_state != YKCS11_SO) {
+      DBG("Authentication as SO required to delete objects");
+      locking.pfnUnlockMutex(session->slot->mutex);
+      rv = CKR_USER_TYPE_INVALID;
+      goto destroy_out;
+    }
 
-  DBG("Deleting object %lu", hObject);
-
-  rv = token_delete_cert(session->slot->piv_state, piv_2_ykpiv(find_data_object(id)));
-  if (rv != CKR_OK) {
-    DBG("Unable to delete object %lx from token", piv_2_ykpiv(find_data_object(id)));
-    locking.pfnUnlockMutex(session->slot->mutex);
-    goto destroy_out;
+    DBG("Deleting object %lx from token", piv_2_ykpiv(find_data_object(id)));
+ 
+    rv = token_delete_cert(session->slot->piv_state, piv_2_ykpiv(find_data_object(id)));
+    if (rv != CKR_OK) {
+      DBG("Unable to delete object %lx from token", piv_2_ykpiv(find_data_object(id)));
+      locking.pfnUnlockMutex(session->slot->mutex);
+      goto destroy_out;
+    }
   }
 
   // Remove the related objects from the session
 
-  DBG("%lu session objects before destroying object %lu", session->slot->n_objects, hObject);
+  DBG("%lu slot objects before destroying object %lu", session->slot->n_objects, hObject);
 
   CK_ULONG j = 0;
   for (CK_ULONG i = 0; i < session->slot->n_objects; i++) {
@@ -1644,18 +1646,18 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
   }
   session->slot->n_objects = j;
 
-  DBG("%lu session objects after destroying object %lu", session->slot->n_objects, hObject);
+  DBG("%lu slot objects after destroying object %lu", session->slot->n_objects, hObject);
 
   rv = delete_data(session->slot, id);
   if (rv != CKR_OK) {
-    DBG("Unable to delete data from session");
+    DBG("Unable to delete data from slot");
     locking.pfnUnlockMutex(session->slot->mutex);
     goto destroy_out;
   }
 
   rv = delete_cert(session->slot, id);
   if (rv != CKR_OK) {
-    DBG("Unable to delete certificate from session");
+    DBG("Unable to delete certificate from slot");
     locking.pfnUnlockMutex(session->slot->mutex);
     goto destroy_out;
   }
@@ -3586,9 +3588,85 @@ CK_DEFINE_FUNCTION(CK_RV, C_DeriveKey)(
 )
 {
   DIN;
-  DBG("TODO!!!");
+  ykcs11_session_t* session = get_session(hSession);
+
+  if (session == NULL || session->slot == NULL) {
+    DBG("Session is not open");
+    return CKR_SESSION_HANDLE_INVALID;
+  }
+
+  if (hBaseKey < PIV_PVTK_OBJ_PIV_AUTH || hBaseKey > PIV_PVTK_OBJ_ATTESTATION) {
+    DBG("Key handle %lu is not a private key", hBaseKey);
+    return CKR_KEY_HANDLE_INVALID;
+  }
+
+  CK_BYTE id = get_sub_id(hBaseKey);
+  CK_BYTE algo = do_get_key_algorithm(session->slot->pkeys[id]);
+  CK_ULONG size;
+
+  switch(algo) {
+    case YKPIV_ALGO_ECCP256:
+      size = 65;
+      break;
+    case YKPIV_ALGO_ECCP384:
+      size = 97;
+      break;
+    default:
+      DBG("Key handle %lu is not an ECDH private key", hBaseKey);
+      return CKR_KEY_TYPE_INCONSISTENT;
+  }
+
+  if (pMechanism->mechanism != CKM_ECDH1_DERIVE) {
+    DBG("Mechanism invalid");
+    return CKR_MECHANISM_INVALID;
+  }
+
+  if (pMechanism->pParameter == NULL || pMechanism->ulParameterLen != sizeof(CK_ECDH1_DERIVE_PARAMS)) {
+    DBG("Mechanism parameters invalid");
+    return CKR_MECHANISM_PARAM_INVALID;
+  }
+
+  CK_ECDH1_DERIVE_PARAMS *params = pMechanism->pParameter;
+
+  if (params->kdf != CKD_NULL || params->ulSharedDataLen != 0 || params->pPublicData == NULL || params->ulPublicDataLen != size) {
+    DBG("Key derivation parameters invalid");
+    return CKR_MECHANISM_PARAM_INVALID;
+  }
+
+  for(CK_ULONG i = 0; i < ulAttributeCount; i++) {
+    CK_RV rv = validate_derive_key_attribute(pTemplate[i].type, pTemplate[i].pValue);
+    if(rv != CKR_OK) {
+      DOUT;
+      return rv;
+    }
+  }
+
+  CK_ULONG slot = piv_2_ykpiv(hBaseKey);
+  unsigned char buf[128];
+  size_t len = sizeof(buf);
+
+  locking.pfnLockMutex(session->slot->mutex);
+
+  DBG("Deriving ECDH shared secret into object %u using slot %lx", PIV_SECRET_OBJ, slot);
+  ykpiv_rc rc = ykpiv_decipher_data(session->slot->piv_state, params->pPublicData, params->ulPublicDataLen, &buf, &len, algo, slot);
+
+  if(rc != YKPIV_OK) {
+    DBG("Failed to derive key in slot %lx: %s", slot, ykpiv_strerror(rc));
+    locking.pfnUnlockMutex(session->slot->mutex);
+    DOUT;
+    return CKR_FUNCTION_FAILED;
+  }
+
+  *phKey = PIV_SECRET_OBJ;
+
+  store_data(session->slot, 0, buf, len);
+  add_object(session->slot, *phKey);
+  sort_objects(session->slot);
+
+  locking.pfnUnlockMutex(session->slot->mutex);
+  
   DOUT;
-  return CKR_FUNCTION_NOT_SUPPORTED;
+  return CKR_OK;
 }
 
 /* Random number generation functions */

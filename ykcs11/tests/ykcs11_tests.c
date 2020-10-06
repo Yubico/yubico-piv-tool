@@ -194,6 +194,7 @@ static void test_mechanism_list_and_info() {
     CKM_ECDSA_SHA224,
     CKM_ECDSA_SHA256,
     CKM_ECDSA_SHA384,
+    CKM_ECDH1_DERIVE,
     CKM_SHA_1,
     CKM_SHA256,
     CKM_SHA384,
@@ -220,6 +221,7 @@ static void test_mechanism_list_and_info() {
     {256, 384, CKF_HW | CKF_SIGN | CKF_VERIFY},
     {256, 384, CKF_HW | CKF_SIGN | CKF_VERIFY},
     {256, 384, CKF_HW | CKF_SIGN | CKF_VERIFY},
+    {256, 384, CKF_HW | CKF_DERIVE},
     {0, 0, CKF_DIGEST},
     {0, 0, CKF_DIGEST},
     {0, 0, CKF_DIGEST},
@@ -412,7 +414,7 @@ static void test_login_order() {
   dprintf(0, "TEST END: test_login_order()\n");
 }
 
-static void test_generate_eccp(CK_BYTE* key_params, CK_ULONG key_params_len, CK_BYTE n_keys) {
+static void test_generate_eccp(CK_BYTE* key_params, CK_ULONG key_params_len, int curve, CK_BYTE n_keys) {
   CK_OBJECT_HANDLE obj_pvtkey[N_ALL_KEYS], obj_pubkey[N_ALL_KEYS];
   CK_SESSION_HANDLE session;
 
@@ -421,6 +423,7 @@ static void test_generate_eccp(CK_BYTE* key_params, CK_ULONG key_params_len, CK_
 
   generate_ec_keys(funcs, session, n_keys, key_params, key_params_len, obj_pubkey, obj_pvtkey);
   test_ec_sign_simple(funcs, session, obj_pvtkey, n_keys, NULL, 0);
+  test_ec_ecdh_simple(funcs, session, obj_pvtkey, n_keys, curve);
 
   destroy_test_objects(funcs, session, obj_pvtkey, n_keys);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
@@ -431,9 +434,9 @@ static void test_generate_eccp256() {
   dprintf(0, "TEST START: test_generate_eccp256()\n");
   CK_BYTE     params[] = {0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07};
   if(is_neo) {
-    test_generate_eccp(params, sizeof(params), N_SELECTED_KEYS);
+    test_generate_eccp(params, sizeof(params), NID_X9_62_prime256v1, N_SELECTED_KEYS);
   } else {
-    test_generate_eccp(params, sizeof(params), N_ALL_KEYS);
+    test_generate_eccp(params, sizeof(params), NID_X9_62_prime256v1, N_ALL_KEYS);
   }
   dprintf(0, "TEST END: test_generate_eccp256()\n");
 }
@@ -442,7 +445,7 @@ static void test_generate_eccp384() {
   dprintf(0, "TEST START: test_generate_eccp384()\n");
   CK_BYTE     params[] = {0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x22};
   if(!is_neo) {
-    test_generate_eccp(params, sizeof(params), N_ALL_KEYS);
+    test_generate_eccp(params, sizeof(params), NID_secp384r1, N_ALL_KEYS);
   }
   dprintf(0, "TEST END: test_generate_eccp384()\n");
 }
@@ -663,6 +666,7 @@ static void test_import_eccp(CK_BYTE* key_params, CK_ULONG key_params_len, CK_UL
     exit(EXIT_FAILURE);
 
   test_ec_sign_simple(funcs, session, obj_pvtkey, n_keys, eck, key_len);
+  test_ec_ecdh_simple(funcs, session, obj_pvtkey, n_keys, curve);
 
   destroy_test_objects(funcs, session, obj_cert, n_keys);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");

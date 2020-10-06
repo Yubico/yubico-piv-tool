@@ -46,6 +46,7 @@ static CK_RV get_coa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templa
 static CK_RV get_proa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template);
 static CK_RV get_puoa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template);
 static CK_RV get_atst(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template);
+static CK_RV get_skoa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template);
 
 //TODO: this is mostly a snippet from OpenSC how to give credit?     Less and less so now
 /* Must be in order, and one per enumerated PIV_OBJ */
@@ -190,7 +191,8 @@ static piv_obj_t piv_objects[] = {
   {PIV_PUBK_OBJ_RETIRED18, "Public key for Retired Key 18", get_puoa, 22},
   {PIV_PUBK_OBJ_RETIRED19, "Public key for Retired Key 19", get_puoa, 23},
   {PIV_PUBK_OBJ_RETIRED20, "Public key for Retired Key 20", get_puoa, 24},
-  {PIV_PUBK_OBJ_ATTESTATION, "Public key for PIV Attestation", get_puoa, 25}
+  {PIV_PUBK_OBJ_ATTESTATION, "Public key for PIV Attestation", get_puoa, 25},
+  {PIV_SECRET_OBJ, "Generic secret key", get_skoa, 0}
 };
 
 static piv_data_obj_t data_objects[] = {
@@ -922,6 +924,147 @@ static CK_RV get_puoa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
     len = sizeof(CK_BBOOL);
     b_tmp[0] = CK_FALSE;
     data = b_tmp;
+    break;
+
+  default:
+    DBG("UNKNOWN ATTRIBUTE %lx (%lu)", template[0].type, template[0].type);
+    template->ulValueLen = CK_UNAVAILABLE_INFORMATION;
+    return CKR_ATTRIBUTE_TYPE_INVALID;
+  }
+
+  /* Just get the length */
+  if (template->pValue == NULL) {
+    template->ulValueLen = len;
+    return CKR_OK;
+  }
+
+  /* Actually get the attribute */
+  if (template->ulValueLen < len)
+    return CKR_BUFFER_TOO_SMALL;
+
+  template->ulValueLen = len;
+  memcpy(template->pValue, data, len);
+
+  return CKR_OK;
+}
+
+/* Get secret key object attribute */
+static CK_RV get_skoa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template) {
+  CK_BYTE_PTR data;
+  CK_BYTE     tmp;
+  CK_ULONG    ul_tmp;
+  CK_ULONG    len = 0;
+  DBG("For secret key object %u, get ", obj);
+
+  switch (template->type) {
+  case CKA_CLASS:
+    DBG("CLASS");
+    len = sizeof(CK_ULONG);
+    ul_tmp = CKO_SECRET_KEY;
+    data = (CK_BYTE_PTR)&ul_tmp;
+    break;
+
+  case CKA_KEY_TYPE:
+    DBG("KEY_TYPE");
+    len = sizeof(CK_ULONG);
+    ul_tmp = CKK_GENERIC_SECRET;
+    data = (CK_BYTE_PTR)&ul_tmp;
+    break;
+
+  case CKA_TOKEN:
+    DBG("TOKEN");
+    len = sizeof(CK_BBOOL);
+    tmp = CK_FALSE;
+    data = &tmp;
+    break;
+
+  case CKA_PRIVATE:
+    DBG("PRIVATE");
+    len = sizeof(CK_BBOOL);
+    tmp = CK_TRUE;
+    data = &tmp;
+    break;
+
+  case CKA_LOCAL:
+    DBG("LOCAL");
+    len = sizeof(CK_BBOOL);
+    tmp = CK_FALSE;
+    data = &tmp;
+    break;
+
+  case CKA_SENSITIVE:
+    DBG("SENSITIVE");
+    len = sizeof(CK_BBOOL);
+    tmp = CK_FALSE;
+    data = &tmp;
+    break;
+
+  case CKA_ALWAYS_SENSITIVE:
+    DBG("ALWAYS_SENSITIVE");
+    len = sizeof(CK_BBOOL);
+    tmp = CK_FALSE;
+    data = &tmp;
+    break;
+
+  case CKA_EXTRACTABLE:
+    DBG("EXTRACTABLE");
+    len = sizeof(CK_BBOOL);
+    tmp = CK_TRUE;
+    data = &tmp;
+    break;
+
+  case CKA_NEVER_EXTRACTABLE:
+    DBG("NEVER_EXTRACTABLE");
+    len = sizeof(CK_BBOOL);
+    tmp = CK_FALSE;
+    data = &tmp;
+    break;
+
+  case CKA_ENCRYPT:
+    DBG("ENCRYPT");
+    len = sizeof(CK_BBOOL);
+    tmp = CK_FALSE;
+    data = &tmp;
+    break;
+
+  case CKA_DECRYPT:
+    DBG("DECRYPT");
+    len = sizeof(CK_BBOOL);
+    tmp = CK_FALSE;
+    data = &tmp;
+    break;
+
+  case CKA_DERIVE:
+    DBG("DERIVE");
+    len = sizeof(CK_BBOOL);
+    tmp = CK_FALSE;
+    data = &tmp;
+    break;
+
+  case CKA_MODIFIABLE:
+    DBG("MODIFIABLE");
+    len = sizeof(CK_BBOOL);
+    tmp = CK_FALSE;
+    data = &tmp;
+    break;
+
+  case CKA_LABEL:
+    DBG("LABEL");
+    len = strlen(piv_objects[obj].label);
+    data = (CK_BYTE_PTR) piv_objects[obj].label;
+    break;
+
+  case CKA_ID:
+    DBG("ID");
+    len = sizeof(CK_BYTE);
+    tmp = piv_objects[obj].sub_id;
+    data = &tmp;
+    break;
+
+  case CKA_VALUE:
+    DBG("VALUE");
+    len = s->data[piv_objects[obj].sub_id].len;
+    data = s->data[piv_objects[obj].sub_id].data;
     break;
 
   default:
