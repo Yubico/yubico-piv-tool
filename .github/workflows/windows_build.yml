@@ -52,17 +52,29 @@ jobs:
           vcpkg install getopt:x86-windows
           vcpkg install check:x86-windows
 
+          ls C:/vcpkg/packages/check_x86-windows/bin
+
       - name: build for x86 architecture
         run: |
           Set-PSDebug -Trace 1
           $env:Path ="C:/vcpkg/packages/openssl-windows_x86-windows;$env:Path"
           $env:include ="C:/vcpkg/packages/openssl-windows_x86-windows/include;$env:include"
 
-          cd yubico-piv-tool-src/yubico-piv-tool-
+          $INSTALL_DIR = yubico-piv-tool-src/yubico-piv-tool-/yubico-piv-tool-x86
+          cd $env:GITHUB_WORKSPACE/yubico-piv-tool-src/yubico-piv-tool-
           mkdir build; cd build
-          cmake -A Win32 -DVERBOSE_CMAKE=ON -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x86-windows ..
-          cmake --build . -v
-          $env:Path +=";C:/vcpkg/packages/check_x86-windows/bin;C:/vcpkg/packages/openssl-windows_x86-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
+          cmake -A Win32 -DVERBOSE_CMAKE=ON `
+                -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/lib `
+                -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include `
+                -DCHECK_PATH=C:/vcpkg/packages/check_x86-windows `
+                -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR" `
+                ..
+          cmake --build . -v --config Release
+          cmake --install .
+          cp C:/vcpkg/packages/check_x86-windows/bin/manual-link/checkDynamic.dll $INSTALL_DIR/bin/
+          cp C:/vcpkg/packages/openssl-windows_x86-windows/bin/libcrypto-1_1.dll $INSTALL_DIR/bin/
+
+          $env:Path +=";$INSTALL_DIR/bin"
           ctest.exe -C Debug
 
       - name: Build with YKCS11_DBG is set
@@ -139,7 +151,7 @@ jobs:
           mkdir build; cd build
           cmake -A x64 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x64-windows ..
           cmake --build . -v
-          $env:Path +=";C:/vcpkg/packages/check_x64-windows/bin;C:/vcpkg/packages/openssl-windows_x64-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
+          $env:Path +=";C:/vcpkg/packages/check_x64-windows/bin/manual-link;C:/vcpkg/packages/openssl-windows_x64-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
           ctest.exe -C Debug
 
       - name: Build with YKCS11_DBG is set
