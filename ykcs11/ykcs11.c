@@ -260,6 +260,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetInfo)(
   CK_RV rv;
   DIN;
 
+  if (!pid) {
+    DBG("libykpiv is not initialized or already finalized");
+    rv = CKR_CRYPTOKI_NOT_INITIALIZED;
+    goto info_out;
+  }
+
   if (pInfo == NULL) {
     DBG("Wrong/Missing parameter");
     rv = CKR_ARGUMENTS_BAD;
