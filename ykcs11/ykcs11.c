@@ -389,38 +389,43 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
         n_slots++;
       }
 
-      char buf[sizeof(readers) + 1];
-      snprintf(buf, sizeof(buf), "@%s", reader);
-
       // Try to connect if unconnected (both new and existing slots)
-      if (!(slot->slot_info.flags & CKF_TOKEN_PRESENT) && ykpiv_connect(slot->piv_state, buf) == YKPIV_OK) {
+      if (ykpiv_validate(slot->piv_state, reader) != YKPIV_OK) {
 
-        DBG("Connected slot %lu to '%s'", slot-slots, reader);
+        slot->slot_info.flags &= ~CKF_TOKEN_PRESENT;
 
-        slot->slot_info.flags |= CKF_TOKEN_PRESENT;
-        slot->token_info.flags = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
+        char buf[sizeof(readers) + 1];
+        snprintf(buf, sizeof(buf), "@%s", reader);
 
-        slot->token_info.ulMinPinLen = YKPIV_MIN_PIN_LEN;
-        slot->token_info.ulMaxPinLen = YKPIV_MGM_KEY_LEN;
+        if (ykpiv_connect(slot->piv_state, buf) == YKPIV_OK) {
 
-        slot->token_info.ulMaxRwSessionCount = YKCS11_MAX_SESSIONS;
-        slot->token_info.ulMaxSessionCount = YKCS11_MAX_SESSIONS;
+          DBG("Connected slot %lu to '%s'", slot-slots, reader);
 
-        slot->token_info.ulTotalPublicMemory = CK_UNAVAILABLE_INFORMATION;
-        slot->token_info.ulFreePublicMemory = CK_UNAVAILABLE_INFORMATION;
-        slot->token_info.ulTotalPrivateMemory = CK_UNAVAILABLE_INFORMATION;
-        slot->token_info.ulFreePrivateMemory = CK_UNAVAILABLE_INFORMATION;
+          slot->slot_info.flags |= CKF_TOKEN_PRESENT;
+          slot->token_info.flags = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
 
-        slot->token_info.hardwareVersion.major = 1;
-        slot->token_info.hardwareVersion.minor = 0;
+          slot->token_info.ulMinPinLen = YKPIV_MIN_PIN_LEN;
+          slot->token_info.ulMaxPinLen = YKPIV_MGM_KEY_LEN;
 
-        memstrcpy(slot->token_info.manufacturerID, sizeof(slot->token_info.manufacturerID), YKCS11_MANUFACTURER);
-        memset(slot->token_info.utcTime, ' ', sizeof(slot->token_info.utcTime));
+          slot->token_info.ulMaxRwSessionCount = YKCS11_MAX_SESSIONS;
+          slot->token_info.ulMaxSessionCount = YKCS11_MAX_SESSIONS;
 
-        get_token_model(slot->piv_state, slot->token_info.model, sizeof(slot->token_info.model));
-        get_token_serial(slot->piv_state, slot->token_info.serialNumber, sizeof(slot->token_info.serialNumber));
-        get_token_version(slot->piv_state, &slot->token_info.firmwareVersion);
-        get_token_label(slot->piv_state, slot->token_info.label, sizeof(slot->token_info.label));
+          slot->token_info.ulTotalPublicMemory = CK_UNAVAILABLE_INFORMATION;
+          slot->token_info.ulFreePublicMemory = CK_UNAVAILABLE_INFORMATION;
+          slot->token_info.ulTotalPrivateMemory = CK_UNAVAILABLE_INFORMATION;
+          slot->token_info.ulFreePrivateMemory = CK_UNAVAILABLE_INFORMATION;
+
+          slot->token_info.hardwareVersion.major = 1;
+          slot->token_info.hardwareVersion.minor = 0;
+
+          memstrcpy(slot->token_info.manufacturerID, sizeof(slot->token_info.manufacturerID), YKCS11_MANUFACTURER);
+          memset(slot->token_info.utcTime, ' ', sizeof(slot->token_info.utcTime));
+
+          get_token_model(slot->piv_state, slot->token_info.model, sizeof(slot->token_info.model));
+          get_token_serial(slot->piv_state, slot->token_info.serialNumber, sizeof(slot->token_info.serialNumber));
+          get_token_version(slot->piv_state, &slot->token_info.firmwareVersion);
+          get_token_label(slot->piv_state, slot->token_info.label, sizeof(slot->token_info.label));
+        }
       }
     }
   }

@@ -89,6 +89,7 @@ extern "C"
   ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose);
   ykpiv_rc ykpiv_init_with_allocator(ykpiv_state **state, int verbose, const ykpiv_allocator *allocator);
   ykpiv_rc ykpiv_done(ykpiv_state *state);
+  ykpiv_rc ykpiv_validate(ykpiv_state *state, const char *wanted);
   ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted);
   ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len);
   ykpiv_rc ykpiv_disconnect(ykpiv_state *state);
