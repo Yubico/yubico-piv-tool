@@ -95,6 +95,7 @@ static void test_lib_info() {
   const CK_ULONG CRYPTOKI_VERSION_MIN = 40;
 
   CK_INFO info;
+  asrt(funcs->C_Initialize(NULL), CKR_OK, "INITIALIZE");
   asrt(funcs->C_GetInfo(&info), CKR_OK, "GET_INFO");
   asrt(strncmp(info.manufacturerID, MANUFACTURER_ID, strlen(MANUFACTURER_ID)), 0, "MANUFACTURER");
   asrt(info.cryptokiVersion.major, CRYPTOKI_VERSION_MAJ, "CK_MAJ");
