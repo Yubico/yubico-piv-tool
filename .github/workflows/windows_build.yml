@@ -63,18 +63,9 @@ jobs:
           $INSTALL_DIR = yubico-piv-tool-src/yubico-piv-tool-/yubico-piv-tool-x86
           cd $env:GITHUB_WORKSPACE/yubico-piv-tool-src/yubico-piv-tool-
           mkdir build; cd build
-          cmake -A Win32 -DVERBOSE_CMAKE=ON `
-                -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/lib `
-                -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include `
-                -DCHECK_PATH=C:/vcpkg/packages/check_x86-windows `
-                -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR" `
-                ..
-          cmake --build . -v --config Release
-          cmake --install .
-          cp C:/vcpkg/packages/check_x86-windows/bin/manual-link/checkDynamic.dll $INSTALL_DIR/bin/
-          cp C:/vcpkg/packages/openssl-windows_x86-windows/bin/libcrypto-1_1.dll $INSTALL_DIR/bin/
-
-          $env:Path +=";$INSTALL_DIR/bin"
+          cmake -A Win32 -DVERBOSE_CMAKE=ON -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x86-windows ..
+          cmake --build . -v
+          $env:Path +=";C:/vcpkg/packages/check_x86-windows/bin/manual-link;C:/vcpkg/packages/openssl-windows_x86-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
           ctest.exe -C Debug
 
       - name: Build with YKCS11_DBG is set
@@ -87,7 +78,7 @@ jobs:
           rm -r build; mkdir build; cd build
           cmake -A Win32 -DVERBOSE_CMAKE=ON -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x86-windows -DYKCS11_DBG=3 ..
           cmake --build . -v
-          $env:Path +=";C:/vcpkg/packages/check_x86-windows/bin;C:/vcpkg/packages/openssl-windows_x86-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
+          $env:Path +=";C:/vcpkg/packages/check_x86-windows/bin/manual-link;C:/vcpkg/packages/openssl-windows_x86-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
           ctest.exe -C Debug
 
       - name: Build only library (no CLI and no ykcs11)
@@ -100,7 +91,7 @@ jobs:
           rm -r build; mkdir build; cd build
           cmake -A Win32 -DVERBOSE_CMAKE=ON -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x86-windows -DBUILD_ONLY_LIB=ON ..
           cmake --build . -v
-          $env:Path +=";C:/vcpkg/packages/check_x86-windows/bin;C:/vcpkg/packages/openssl-windows_x86-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
+          $env:Path +=";C:/vcpkg/packages/check_x86-windows/bin/manual-link;C:/vcpkg/packages/openssl-windows_x86-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
           ctest.exe -C Debug
 
       - name: Build only dynamic libaries
@@ -113,7 +104,7 @@ jobs:
           rm -r build; mkdir build; cd build
           cmake -A Win32 -DVERBOSE_CMAKE=ON -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x86-windows -DBUILD_STATIC_LIB=OFF ..
           cmake --build . -v
-          $env:Path +=";C:/vcpkg/packages/check_x86-windows/bin;C:/vcpkg/packages/openssl-windows_x86-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
+          $env:Path +=";C:/vcpkg/packages/check_x86-windows/bin/manual-link;C:/vcpkg/packages/openssl-windows_x86-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
           ctest.exe -C Debug
 
 
@@ -164,7 +155,7 @@ jobs:
           rm -r build; mkdir build; cd build
           cmake -A x64 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x64-windows -DYKCS11_DBG=3 ..
           cmake --build . -v
-          $env:Path +=";C:/vcpkg/packages/check_x64-windows/bin;C:/vcpkg/packages/openssl-windows_x64-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
+          $env:Path +=";C:/vcpkg/packages/check_x64-windows/bin/manual-link;C:/vcpkg/packages/openssl-windows_x64-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
           ctest.exe -C Debug
 
       - name: Build only library (no CLI and no ykcs11)
@@ -177,7 +168,7 @@ jobs:
           rm -r build; mkdir build; cd build
           cmake -A x64 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x64-windows -DBUILD_ONLY_LIB=ON ..
           cmake --build . -v
-          $env:Path +=";C:/vcpkg/packages/check_x64-windows/bin;C:/vcpkg/packages/openssl-windows_x64-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
+          $env:Path +=";C:/vcpkg/packages/check_x64-windows/bin/manual-link;C:/vcpkg/packages/openssl-windows_x64-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
           ctest.exe -C Debug
 
       - name: Build only dynamic libaries
@@ -190,5 +181,5 @@ jobs:
           rm -r build; mkdir build; cd build
           cmake -A x64 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x64-windows -DBUILD_STATIC_LIB=OFF ..
           cmake --build . -v
-          $env:Path +=";C:/vcpkg/packages/check_x64-windows/bin;C:/vcpkg/packages/openssl-windows_x64-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
+          $env:Path +=";C:/vcpkg/packages/check_x64-windows/bin/manual-link;C:/vcpkg/packages/openssl-windows_x64-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
           ctest.exe -C Debug
