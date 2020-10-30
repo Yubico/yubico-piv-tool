@@ -470,6 +470,8 @@ ykpiv_rc ykpiv_validate(ykpiv_state *state, const char *wanted) {
       state->ver.major = 0;
       state->ver.minor = 0;
       state->ver.patch = 0;
+      _cache_pin(state, NULL, 0);
+      _cache_mgm_key(state, NULL);
       return YKPIV_PCSC_ERROR;
     }
     if (strcmp(wanted, reader)) {
@@ -487,6 +489,8 @@ ykpiv_rc ykpiv_validate(ykpiv_state *state, const char *wanted) {
       state->ver.major = 0;
       state->ver.minor = 0;
       state->ver.patch = 0;
+      _cache_pin(state, NULL, 0);
+      _cache_mgm_key(state, NULL);
       return YKPIV_GENERIC_ERROR;
     }
     return YKPIV_OK;
