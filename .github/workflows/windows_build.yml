@@ -52,16 +52,13 @@ jobs:
           vcpkg install getopt:x86-windows
           vcpkg install check:x86-windows
 
-          ls C:/vcpkg/packages/check_x86-windows/bin
-
       - name: build for x86 architecture
         run: |
           Set-PSDebug -Trace 1
           $env:Path ="C:/vcpkg/packages/openssl-windows_x86-windows;$env:Path"
           $env:include ="C:/vcpkg/packages/openssl-windows_x86-windows/include;$env:include"
 
-          $INSTALL_DIR = yubico-piv-tool-src/yubico-piv-tool-/yubico-piv-tool-x86
-          cd $env:GITHUB_WORKSPACE/yubico-piv-tool-src/yubico-piv-tool-
+          cd yubico-piv-tool-src/yubico-piv-tool-
           mkdir build; cd build
           cmake -A Win32 -DVERBOSE_CMAKE=ON -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x86-windows ..
           cmake --build . -v
