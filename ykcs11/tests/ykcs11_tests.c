@@ -103,6 +103,7 @@ static void test_lib_info() {
   asrt(info.libraryVersion.major, YKCS11_VERSION_MAJOR, "LIB_MAJ");
   asrt(info.libraryVersion.minor, ((YKCS11_VERSION_MINOR * 10) + YKCS11_VERSION_PATCH), "LIB_MIN");
   asrt(strncmp(info.libraryDescription, YKCS11_DESCRIPTION, strlen(YKCS11_DESCRIPTION)), 0, "LIB_DESC");
+  asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
   dprintf(0, "TEST END: test_lib_info()\n");
 }
 
