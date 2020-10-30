@@ -398,6 +398,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
       // Try to connect if unconnected (both new and existing slots)
       if (ykpiv_validate(slot->piv_state, reader) != YKPIV_OK) {
 
+        slot->login_state = YKCS11_PUBLIC;
         slot->slot_info.flags &= ~CKF_TOKEN_PRESENT;
 
         char buf[sizeof(readers) + 1];

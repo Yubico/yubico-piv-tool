@@ -471,7 +471,6 @@ ykpiv_rc ykpiv_validate(ykpiv_state *state, const char *wanted) {
       state->ver.major = 0;
       state->ver.minor = 0;
       state->ver.patch = 0;
-      state->tries = -2;
       return YKPIV_PCSC_ERROR;
     }
     if (strcmp(wanted, reader)) {
@@ -489,7 +488,6 @@ ykpiv_rc ykpiv_validate(ykpiv_state *state, const char *wanted) {
       state->ver.major = 0;
       state->ver.minor = 0;
       state->ver.patch = 0;
-      state->tries = -2;
       return YKPIV_GENERIC_ERROR;
     }
     return YKPIV_OK;
@@ -679,7 +677,7 @@ ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state) {
     }
     return YKPIV_PCSC_ERROR;
   }
-  if(retries > 0 || state->tries == -2) {
+  if(retries) {
     ykpiv_rc res;
     if ((res = _ykpiv_select_application(state)) != YKPIV_OK)
       return res;
