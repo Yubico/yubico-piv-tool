@@ -445,6 +445,59 @@ ykpiv_rc ykpiv_connect_with_external_card(ykpiv_state *state, uintptr_t context,
   return _ykpiv_connect(state, context, card);
 }
 
+ykpiv_rc ykpiv_validate(ykpiv_state *state, const char *wanted) {
+  if(state->card) {
+    if(state->verbose) {
+      fprintf(stderr, "Validate reader '%s'.\n", wanted);
+    }
+    char reader[CB_BUF_MAX];
+    pcsc_word reader_len = sizeof(reader);
+    uint8_t atr[CB_ATR_MAX];
+    pcsc_word atr_len = sizeof(atr);
+    LONG rc = SCardStatus(state->card, reader, &reader_len, NULL, NULL, atr, &atr_len);
+    if(rc != SCARD_S_SUCCESS) {
+      if(state->verbose) {
+        fprintf (stderr, "SCardStatus failed on reader '%s', rc=%lx\n", wanted, (long)rc);
+      }
+      rc = SCardDisconnect(state->card, SCARD_RESET_CARD);
+      if(rc != SCARD_S_SUCCESS) {
+        if(state->verbose) {
+          fprintf (stderr, "SCardDisconnect failed on reader '%s', rc=%lx\n", wanted, (long)rc);
+        }
+      }
+      state->card = 0;
+      state->serial = 0;
+      state->ver.major = 0;
+      state->ver.minor = 0;
+      state->ver.patch = 0;
+      _cache_pin(state, NULL, 0);
+      _cache_mgm_key(state, NULL);
+      return YKPIV_PCSC_ERROR;
+    }
+    if (strcmp(wanted, reader)) {
+      if(state->verbose) {
+        fprintf (stderr, "Disconnecting incorrect reader '%s' (wanted '%s'), rc=%lx\n", reader, wanted, (long)rc);
+      }
+      rc = SCardDisconnect(state->card, SCARD_RESET_CARD);
+      if(rc != SCARD_S_SUCCESS) {
+        if(state->verbose) {
+          fprintf (stderr, "SCardDisconnect failed on reader '%s' (wanted '%s'), rc=%lx\n", reader, wanted, (long)rc);
+        }
+      }
+      state->card = 0;
+      state->serial = 0;
+      state->ver.major = 0;
+      state->ver.minor = 0;
+      state->ver.patch = 0;
+      _cache_pin(state, NULL, 0);
+      _cache_mgm_key(state, NULL);
+      return YKPIV_GENERIC_ERROR;
+    }
+    return YKPIV_OK;
+  }
+  return YKPIV_GENERIC_ERROR;
+}
+
 ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
   pcsc_word active_protocol;
   char reader_buf[2048];
