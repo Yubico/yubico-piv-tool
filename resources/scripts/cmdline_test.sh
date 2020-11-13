@@ -9,7 +9,7 @@ set +e
 mkdir yubico-piv-tool_test_dir; cd yubico-piv-tool_test_dir
 echo test signing data > data.txt
 
-BIN="yubico-piv-tool"
+BIN=$1 #"yubico-piv-tool"
 
 $BIN --help
 
