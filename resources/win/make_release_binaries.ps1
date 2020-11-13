@@ -27,6 +27,9 @@ cd $VCPKG_PATH
 .\vcpkg.exe install openssl:$ARCH-windows
 .\vcpkg.exe install getopt:$ARCH-windows
 
+ls C:/vcpkg/packages/openssl_x86-windows
+ls C:/vcpkg/packages/openssl_$ARCH-windows
+
 $env:OPENSSL_ROOT_DIR ="$VCPKG_PATH/packages/openssl-windows_$ARCH-windows"
 echo "OPENSSL_ROOT_DIR = $env:OPENSSL_ROOT_DIR"
 ls $env:OPENSSL_ROOT_DIR
