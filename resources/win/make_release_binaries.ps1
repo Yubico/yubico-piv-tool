@@ -21,18 +21,12 @@ $RELEASE_DIR="$SOURCE_DIR/yubico-piv-tool-$RELEASE_VERSION-$ARCH"
 $RELEASE_ARCHIVE="$SOURCE_DIR/yubico-piv-tool-$RELEASE_VERSION-$ARCH.zip"
 $LICENSES_DIR="$RELEASE_DIR/licenses"
 
-
 # Install prerequisites
 cd $VCPKG_PATH
 .\vcpkg.exe install openssl:$ARCH-windows
 .\vcpkg.exe install getopt:$ARCH-windows
 
-ls C:/vcpkg/packages/openssl_x86-windows
-ls C:/vcpkg/packages/openssl_$ARCH-windows
-
 $env:OPENSSL_ROOT_DIR ="$VCPKG_PATH/packages/openssl_$ARCH-windows"
-echo "OPENSSL_ROOT_DIR = $env:OPENSSL_ROOT_DIR"
-ls $env:OPENSSL_ROOT_DIR
 
 # Build for x86 architecture
 cd $SOURCE_DIR
@@ -59,7 +53,6 @@ mkdir -p $LICENSES_DIR
 $license=(Get-ChildItem -Path $SOURCE_DIR -Filter COPYING -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
 cp $license $LICENSES_DIR\yubico-piv-tool.txt
 
-ls $VCPKG_PATH\buildtrees
 $license=(Get-ChildItem -Path $VCPKG_PATH\buildtrees\openssl\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
 cp $license $LICENSES_DIR\openssl.txt
 
