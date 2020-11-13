@@ -30,7 +30,7 @@ cd $VCPKG_PATH
 ls C:/vcpkg/packages/openssl_x86-windows
 ls C:/vcpkg/packages/openssl_$ARCH-windows
 
-$env:OPENSSL_ROOT_DIR ="$VCPKG_PATH/packages/openssl-windows_$ARCH-windows"
+$env:OPENSSL_ROOT_DIR ="$VCPKG_PATH/packages/openssl_$ARCH-windows"
 echo "OPENSSL_ROOT_DIR = $env:OPENSSL_ROOT_DIR"
 ls $env:OPENSSL_ROOT_DIR
 
@@ -43,12 +43,12 @@ cmake --install .
 cd $RELEASE_DIR/bin
 if($ARCH -eq "x86")
 {
-    cp $VCPKG_PATH/packages/openssl-windows_x86-windows/bin/libcrypto-1_1.dll .
+    cp $VCPKG_PATH/packages/openssl_x86-windows/bin/libcrypto-1_1.dll .
     cp $VCPKG_PATH/packages/getopt-win32_x86-windows/bin/getopt.dll .
 }
 else
 {
-    cp $VCPKG_PATH/packages/openssl-windows_x64-windows/bin/libcrypto-1_1-x64.dll .
+    cp $VCPKG_PATH/packages/openssl_x64-windows/bin/libcrypto-1_1-x64.dll .
     cp $VCPKG_PATH/packages/getopt-win32_x64-windows/bin/getopt.dll .
 }
 
@@ -66,7 +66,7 @@ $license=(Get-ChildItem -Path $VCPKG_PATH\buildtrees\getopt-win32\src\ -Filter L
 cp $license $LICENSES_DIR\getopt.txt
 
 # Copy OpenSSL header files
-cp -r $VCPKG_PATH\packages\openssl-windows_$ARCH-windows\include\openssl $RELEASE_DIR/include/
+cp -r $VCPKG_PATH\packages\openssl_$ARCH-windows\include\openssl $RELEASE_DIR/include/
 
 if($ZIP)
 {
