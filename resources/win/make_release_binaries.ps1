@@ -29,6 +29,7 @@ cd $VCPKG_PATH
 
 $env:OPENSSL_ROOT_DIR ="$VCPKG_PATH/packages/openssl-windows_$ARCH-windows"
 echo "OPENSSL_ROOT_DIR = $env:OPENSSL_ROOT_DIR"
+ls $env:OPENSSL_ROOT_DIR
 
 # Build for x86 architecture
 cd $SOURCE_DIR
