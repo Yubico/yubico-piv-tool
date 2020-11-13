@@ -35,13 +35,14 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
 
 #include "ykpiv.h"
 
 #ifdef _WIN32
 #include <windows.h>
 #include <openssl/applink.c>
+#else
+#include <unistd.h>
 #endif
 
 #include "../common/openssl-compat.h"
