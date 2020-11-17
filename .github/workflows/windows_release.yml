@@ -67,7 +67,6 @@ jobs:
           ./make_release_binaries.ps1 $env:RELEASE_VERSION Win32 C:/vcpkg
 
           cd $PIVTOOL_SRC_DIR/yubico-piv-tool-$env:RELEASE_VERSION-x86/bin
-          ls
           ./yubico-piv-tool.exe --version
           ./yubico-piv-tool.exe --help
 

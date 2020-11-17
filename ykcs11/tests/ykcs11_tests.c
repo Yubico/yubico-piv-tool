@@ -833,12 +833,11 @@ static void test_digest() {
 #endif
 
 int destruction_confirmed(void) {
-  char *confirmed = getenv("YKPIV_ENV_HWTESTS_CONFIRMED");
-  if (confirmed && confirmed[0] == '1')
-    return 1;
-  // Use dprintf() to write directly to stdout, since automake eats the standard stdout/stderr pointers.
-  dprintf(0, "\n***\n*** Hardware tests skipped.  Run \"make hwcheck\".\n***\n\n");
-  return 0;
+#ifdef _WIN32
+  return 1;
+#else
+  return system("../../../tools/confirm.sh") == 0;
+#endif
 }
 
 int main(void) {
@@ -850,8 +849,10 @@ int main(void) {
 #if HW_TESTS
   // Require user confirmation to continue, since this test suite will clear
   // any data stored on connected keys.
-  if (!destruction_confirmed())
+  if (!destruction_confirmed()) {
+    dprintf(0, "\n***\n*** Hardware tests skipped.\n***\n\n");
     exit(77); // exit code 77 == skipped tests
+  }
 
   test_initalize();
   // Require YK4, YK5 or NEO to continue.  Skip if different model found.

@@ -31,6 +31,7 @@
 #include "ykpiv.h"
 #include "internal.h"
 #include "../../common/openssl-compat.h"
+#include "test-config.h"
 
 #include <stddef.h>
 #include <stdio.h>
@@ -920,10 +921,15 @@ END_TEST
 
 int destruction_confirmed(void) {
   char *confirmed = getenv("YKPIV_ENV_HWTESTS_CONFIRMED");
-  if (confirmed && confirmed[0] == '1')
+  if (confirmed && confirmed[0] == '1') {
+#ifdef _WIN32
     return 1;
-  // Use dprintf() to write directly to stdout, since automake eats the standard stdout/stderr pointers.
-  dprintf(0, "\n***\n*** Hardware tests skipped.  Run \"make hwcheck\".\n***\n\n");
+#else
+    return system("../../../tools/confirm.sh") == 0;
+#endif
+  }
+  // Use dprintf() to write directly to stdout, since cmake eats the standard stdout/stderr pointers.
+  dprintf(0, "\n***\n*** Hardware tests skipped.\n***\n\n");
   return 0;
 }
 

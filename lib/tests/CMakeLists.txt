@@ -49,6 +49,12 @@ if(NOT DEFINED SKIP_TESTS)
     target_link_libraries(test_api ykpiv_shared ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
     target_link_libraries(test_parse_key ykpiv_shared ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
 
+    if(${ENABLE_HARDWARE_TESTS})
+        set(HW_TESTS 1)
+    endif(${ENABLE_HARDWARE_TESTS})
+
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/test-config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/test-config.h @ONLY)
+
     add_test(
         NAME basic
         COMMAND test_basic
@@ -60,6 +66,7 @@ if(NOT DEFINED SKIP_TESTS)
         COMMAND test_api
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/lib/tests/
     )
+    set_property(TEST api APPEND PROPERTY ENVIRONMENT "YKPIV_ENV_HWTESTS_CONFIRMED=${HW_TESTS}")
 
     add_test(
         NAME parse_key
