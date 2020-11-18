@@ -42,8 +42,8 @@
 
 #include "ykcs11_tests_util.h"
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wpointer-sign"
+//#pragma clang diagnostic push
+//#pragma clang diagnostic ignored "-Wpointer-sign"
 
 #ifdef _WIN32
 #define dprintf(fd, ...) fprintf(stdout, __VA_ARGS__)
@@ -885,4 +885,4 @@ int main(void) {
   return EXIT_SUCCESS;
 }
 
-#pragma clang diagnostic pop
+//#pragma clang diagnostic pop

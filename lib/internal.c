@@ -338,11 +338,8 @@ des_rc des_encrypt(des_key* key, const unsigned char* in, const size_t inlen, un
 
 #else
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-qual"
   /* openssl returns void */
   DES_ecb3_encrypt((const_DES_cblock *)in, (DES_cblock*)out, &(key->ks1), &(key->ks2), &(key->ks3), 1);
-#pragma GCC diagnostic pop
 
 #endif
 
@@ -373,11 +370,8 @@ des_rc des_decrypt(des_key* key, const unsigned char* in, const size_t inlen, un
 
 #else
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-qual"
   /* openssl returns void */
   DES_ecb3_encrypt((const_DES_cblock*)in, (DES_cblock*)out, &(key->ks1), &(key->ks2), &(key->ks3), 0);
-#pragma GCC diagnostic pop
 
 #endif
 
@@ -445,10 +439,7 @@ bool yk_des_is_weak_key(const unsigned char *key, const size_t cb_key) {
 #else
   (void)cb_key; /* unused */
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-qual"
   return DES_is_weak_key((const_DES_cblock *)key);
-#pragma GCC diagnostic pop
 #endif
 }
 
@@ -509,11 +500,8 @@ pkcs5_rc pkcs5_pbkdf2_sha1(const uint8_t* password, const size_t cb_password, co
 
 #else
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-qual"
   if(PKCS5_PBKDF2_HMAC_SHA1((const char*)password, cb_password, salt, cb_salt, iterations, cb_key, (unsigned char*)key) <= 0)
     rc = PKCS5_GENERAL_ERROR;
-#pragma GCC diagnostic pop
 
 #endif
 
