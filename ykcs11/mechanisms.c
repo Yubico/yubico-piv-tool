@@ -190,7 +190,7 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_MECH
         DBG("Mechanism %lu requires PSS parameters", session->op_info.mechanism);
         return CKR_MECHANISM_PARAM_INVALID;
       }
-      CK_RSA_PKCS_PSS_PARAMS_PTR pss = mech->pParameter;
+      CK_RSA_PKCS_PSS_PARAMS *pss = mech->pParameter;
       session->op_info.op.sign.padding = RSA_PKCS1_PSS_PADDING;
       session->op_info.op.sign.pss_md = EVP_MD_by_mechanism(pss->hashAlg);
       session->op_info.op.sign.mgf1_md = EVP_MD_by_mechanism(pss->mgf);
@@ -395,7 +395,7 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_ME
   }
 
   ykcs11_rsa_t *rsa = EVP_PKEY_get0_RSA(key);
-  CK_RSA_PKCS_PSS_PARAMS_PTR pss = NULL;
+  CK_RSA_PKCS_PSS_PARAMS *pss = NULL;
 
   switch (session->op_info.mechanism) {
     case CKM_RSA_X_509:
@@ -864,7 +864,7 @@ CK_RV decrypt_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_M
     if(mech->pParameter == NULL || mech->ulParameterLen != sizeof(CK_RSA_PKCS_OAEP_PARAMS)) {
         return CKR_MECHANISM_PARAM_INVALID;
     }
-    CK_RSA_PKCS_OAEP_PARAMS_PTR oaep = mech->pParameter;
+    CK_RSA_PKCS_OAEP_PARAMS *oaep = mech->pParameter;
     DBG("OAEP params : hashAlg 0x%lx mgf 0x%lx source 0x%lx pSourceData %p ulSourceDataLen %lu", oaep->hashAlg, oaep->mgf, oaep->source, oaep->pSourceData, oaep->ulSourceDataLen);
     session->op_info.op.encrypt.oaep_md = EVP_MD_by_mechanism(oaep->hashAlg);
     session->op_info.op.encrypt.mgf1_md = EVP_MD_by_mechanism(oaep->mgf);
