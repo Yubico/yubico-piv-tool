@@ -1235,8 +1235,6 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
   }
   res = op(state, pin, pin_len, new_pin, new_len, &tries);
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wswitch-enum"
   switch (res) {
     case YKPIV_OK:
       return true;
@@ -1258,7 +1256,6 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
       fprintf(stderr, "Failed changing/unblocking code, error: %s\n", ykpiv_strerror(res));
       return false;
   }
-#pragma GCC diagnostic pop
 }
 
 static bool delete_certificate(ykpiv_state *state, enum enum_slot slot) {
