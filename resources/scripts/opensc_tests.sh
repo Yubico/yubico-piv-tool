@@ -26,6 +26,29 @@ pkcs11-tool --module $MODULE --sign --id 4 -i data.txt -o data.sig
 rm data.txt
 rm data.sig
 
+echo "******************* Decryption Tests ********************* "
+echo "this is test data" > data.txt
+
+pkcs11-tool --module $MODULE --read-object --type cert --id 3 -o 9d_cert.crt
+openssl x509 -inform DER -outform PEM -in 9d_cert.crt -out 9d_cert.pem
+openssl x509 -in 9d_cert.pem -pubkey -noout > 9d_pubkey.pem
+
+pkcs11-tool --module $MODULE --read-object --type cert --id 4 -o 9e_cert.crt
+openssl x509 -inform DER -outform PEM -in 9e_cert.crt -out 9e_cert.pem
+openssl x509 -in 9e_cert.pem -pubkey -noout > 9e_pubkey.pem
+
+openssl rsautl -encrypt -oaep -inkey 9d_pubkey.pem -pubin -in data.txt -out data.oaep
+pkcs11-tool --module $MODULE --decrypt --id 3 -m RSA-PKCS-OAEP -i data.oaep
+rm data.oaep
+
+openssl rsautl -encrypt -oaep -inkey 9e_pubkey.pem -pubin -in data.txt -out data.oaep
+pkcs11-tool --module $MODULE --decrypt --id 4 -m RSA-PKCS-OAEP -i data.oaep
+rm data.oaep
+
+rm 9d_cert.crt 9d_cert.pem 9d_pubkey.pem
+rm 9e_cert.crt 9e_cert.pem 9e_pubkey.pem
+
+rm data.txt
 echo "******************* Testing RSA Tests ********************* "
 pkcs11-tool --module $MODULE --login  --test
 
