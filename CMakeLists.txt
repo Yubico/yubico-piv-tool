@@ -52,7 +52,6 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 if(WIN32)
     add_definitions(-DWIN32_LEAN_AND_MEAN)
     set(_WIN32 ${WIN32})
-    set(_WINDOWS ${WIN32})
 endif()
 
 if(MSVC)

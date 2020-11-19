@@ -28,21 +28,15 @@
  *
  */
 
+#include "internal.h"
 #ifdef _WIN32
 #include <windows.h>
-#ifdef _MSC_VER
-#define strcasecmp _stricmp
-#endif
+#include <wincrypt.h>
+#include <bcrypt.h>
+#include <strsafe.h>
 #else
 #include <ctype.h>
 #include <syslog.h>
-#endif
-
-/* the _WINDOWS define really means Windows native crypto-api/CNG */
-#ifdef _WINDOWS
-#include <wincrypt.h>
-#include <bcrypt.h>
-#else
 #include <openssl/des.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
@@ -53,20 +47,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef _WIN32
-#include <strsafe.h> /* must be included after openssl headers */
-#endif
-
-#include "internal.h"
-
 /*
 ** Definitions
 */
 
 /* crypt defines */
 
-#ifdef _WINDOWS
-
+#ifdef _WIN32
+#define strcasecmp _stricmp
 #define STATUS_SUCCESS                   ((NTSTATUS)0x00000000L)
 
 struct des_key {
@@ -162,7 +150,7 @@ des_rc des_import_key(const int type, const unsigned char* keyraw, const size_t 
   des_rc rc = DES_OK;
   size_t cb_expectedkey = DES_LEN_3DES;
 
-#ifdef _WINDOWS
+#ifdef _WIN32
 
   HCRYPTKEY hNullKey = 0;
   ALG_ID alg = 0;
@@ -272,7 +260,7 @@ des_rc des_import_key(const int type, const unsigned char* keyraw, const size_t 
 #endif
 
 EXIT:
-#ifdef _WINDOWS
+#ifdef _WIN32
   if (pbSessionBlob) {
     yc_memzero(pbSessionBlob, cbSessionBlob);
     free(pbSessionBlob);
@@ -298,7 +286,7 @@ ERROR_EXIT:
 
 des_rc des_destroy_key(des_key* key) {
   if (key) {
-#ifdef _WINDOWS
+#ifdef _WIN32
     if (key->hKey) {
       CryptDestroyKey(key->hKey);
       key->hKey = 0;
@@ -318,14 +306,14 @@ des_rc des_destroy_key(des_key* key) {
 des_rc des_encrypt(des_key* key, const unsigned char* in, const size_t inlen, unsigned char* out, size_t* outlen) {
   des_rc rc = DES_OK;
 
-#ifdef _WINDOWS
+#ifdef _WIN32
   unsigned char buf[8] = { 0 };
   size_t buflen = sizeof(buf);
 #endif
 
   if (!key || !outlen || (*outlen < inlen) || !in || !out) { rc = DES_INVALID_PARAMETER; goto EXIT; }
 
-#ifdef _WINDOWS
+#ifdef _WIN32
 
   if (!key->hKey) { rc = DES_INVALID_PARAMETER; goto EXIT; }
 
@@ -350,14 +338,14 @@ EXIT:
 des_rc des_decrypt(des_key* key, const unsigned char* in, const size_t inlen, unsigned char* out, size_t* outlen) {
   des_rc rc = DES_OK;
 
-#ifdef _WINDOWS
+#ifdef _WIN32
   unsigned char buf[8] = { 0 };
   size_t buflen = sizeof(buf);
 #endif
 
   if (!key || !outlen || (*outlen < inlen) || !in || !out) { rc = DES_INVALID_PARAMETER; goto EXIT; }
 
-#ifdef _WINDOWS
+#ifdef _WIN32
 
   if (!key->hKey) { rc = DES_INVALID_PARAMETER; goto EXIT; }
 
@@ -380,7 +368,7 @@ EXIT:
 }
 
 bool yk_des_is_weak_key(const unsigned char *key, const size_t cb_key) {
-#ifdef _WINDOWS
+#ifdef _WIN32
   bool rv = false;
   /* defined weak keys, borrowed from openssl to be consistent across platforms */
   static const unsigned char weak_keys[][DES_LEN_DES] = {
@@ -446,7 +434,7 @@ bool yk_des_is_weak_key(const unsigned char *key, const size_t cb_key) {
 prng_rc _ykpiv_prng_generate(unsigned char *buffer, const size_t cb_req) {
   prng_rc rc = PRNG_OK;
 
-#ifdef _WINDOWS
+#ifdef _WIN32
   HCRYPTPROV hProv = 0;
 
   if (CryptAcquireContext(&hProv, NULL, MS_ENHANCED_PROV, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
@@ -473,7 +461,7 @@ prng_rc _ykpiv_prng_generate(unsigned char *buffer, const size_t cb_req) {
 pkcs5_rc pkcs5_pbkdf2_sha1(const uint8_t* password, const size_t cb_password, const uint8_t* salt, const size_t cb_salt, uint64_t iterations, const uint8_t* key, const size_t cb_key) {
   pkcs5_rc rc = PKCS5_OK;
 
-#ifdef _WINDOWS
+#ifdef _WIN32
   BCRYPT_ALG_HANDLE hAlg = 0;
 
   /* mingw64 defines the BCryptDeriveKeyPBKDF2 function, but its dll link library doesn't include the export.
@@ -588,23 +576,8 @@ setting_bool_t _get_bool_env(const char *sz_setting) {
   setting_bool_t setting = { false, SETTING_SOURCE_DEFAULT };
   char *psz_value = NULL;
   char sz_name[256] = { 0 };
-
   snprintf(sz_name, sizeof(sz_name) - 1, "%s%s", _ENV_PREFIX, sz_setting);
-
-  /* MINGW does not implement getenv_s, only _wgetenv_s */
-#ifdef _MSC_VER
-  size_t cb_value = 0;
-  char sz_value[100] = { 0 };
-
-  if ((getenv_s(&cb_value, sz_value, sizeof(sz_value) - 1, sz_name) == 0) && (cb_value > 0)) {
-    psz_value = sz_value;
-  }
-
-#else
   psz_value = getenv(sz_name);
-
-#endif
-
   if (psz_value) {
     setting.source = SETTING_SOURCE_USER;
     setting.value = (!strcmp(psz_value, "1") || !strcasecmp(psz_value, "true"));
