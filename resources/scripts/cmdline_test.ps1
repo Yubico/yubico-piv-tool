@@ -10,11 +10,17 @@
 $ARCH=$args[0]
 if($ARCH -eq "x86")
 {
-    $env:Path += ";C:/Program Files (x86)/Yubico/Yubico PIV Tool/bin"
+    if ((Get-Command "yubico-piv-tool.exe" -ErrorAction SilentlyContinue) -eq $null)
+    {
+        $env:Path += ";C:/Program Files (x86)/Yubico/Yubico PIV Tool/bin"
+    }
 }
 elseif ($ARCH -eq "x64")
 {
-    $env:Path +=";C:/Program Files/Yubico/Yubico PIV Tool/bin"
+    if ((Get-Command "yubico-piv-tool.exe" -ErrorAction SilentlyContinue) -eq $null)
+    {
+        $env:Path += ";C:/Program Files/Yubico/Yubico PIV Tool/bin"
+    }
 }
 else {
     echo "Usage: ./cmdline_test.ps1 <x86|x64>"
@@ -56,7 +62,7 @@ echo "********************** Generate ECCP256 in 9a ********************* "
 
 # Generate key on-board, issue certificate, and verify it
 yubico-piv-tool.exe -agenerate -s9a -AECCP256 -o key_9a.pub
-yubico-piv-tool.exe -averify -P123456 -s9a -S'/CN=YubicoTestECCP256/OU=YubicoGenerated/O=yubico.com/' -aselfsign -i key_9a.pub -o cert_9a.pem
+yubico-piv-tool.exe -averify -P123456 -s9a -S'/CN=YubicoTestECCP256Win/OU=YubicoGenerated/O=yubico.com/' -aselfsign -i key_9a.pub -o cert_9a.pem
 yubico-piv-tool.exe -averify -P123456 -s9a -atest-signature -i cert_9a.pem
 yubico-piv-tool.exe -aimport-certificate -P123456 -s9a -i cert_9a.pem
 
@@ -68,7 +74,7 @@ echo "********************** Generate ECCP384 in 9c ********************* "
 
 # Generate key on-board, issue certificate, and verify it
 yubico-piv-tool.exe -agenerate -s9c -AECCP384 -o key_9c.pub
-yubico-piv-tool.exe -averify -P123456 -s9c -S'/CN=YubicoTestECCP384/OU=YubicoGenerated/O=yubico.com/' -aselfsign -i key_9c.pub -o cert_9c.pem
+yubico-piv-tool.exe -averify -P123456 -s9c -S'/CN=YubicoTestECCP384Win/OU=YubicoGenerated/O=yubico.com/' -aselfsign -i key_9c.pub -o cert_9c.pem
 yubico-piv-tool.exe -averify -P123456 -s9c -atest-signature -i cert_9c.pem
 yubico-piv-tool.exe -aimport-certificate -P123456 -s9c -i cert_9c.pem
 
@@ -80,7 +86,7 @@ echo "********************** Generate RSA1024 in 9d ********************* "
 
 # Generate key on-board, issue certificate, and verify it
 yubico-piv-tool.exe -agenerate -s9d -ARSA1024 -o key_9d.pub
-yubico-piv-tool.exe -averify -P123456 -s9d -S'/CN=YubicoTestRSA1024/OU=YubicoGenerated/O=yubico.com/' -aselfsign -i key_9d.pub -o cert_9d.pem
+yubico-piv-tool.exe -averify -P123456 -s9d -S'/CN=YubicoTestRSA1024Win/OU=YubicoGenerated/O=yubico.com/' -aselfsign -i key_9d.pub -o cert_9d.pem
 yubico-piv-tool.exe -averify -P123456 -s9d -atest-signature -i cert_9d.pem
 yubico-piv-tool.exe -aimport-certificate -P123456 -s9d -i cert_9d.pem
 
@@ -92,7 +98,7 @@ echo "********************** Generate RSA2048 in 9e ********************* "
 
 # Generate key on-board, issue certificate, and verify it
 yubico-piv-tool.exe -agenerate -s9e -ARSA2048 -o key_9e.pub
-yubico-piv-tool.exe -averify -P123456 -s9e -S'/CN=YubicoTestRSA2048/OU=YubicoGenerated/O=yubico.com/' -aselfsign -i key_9e.pub -o cert_9e.pem
+yubico-piv-tool.exe -averify -P123456 -s9e -S'/CN=YubicoTestRSA2048Win/OU=YubicoGenerated/O=yubico.com/' -aselfsign -i key_9e.pub -o cert_9e.pem
 yubico-piv-tool.exe -averify -P123456 -s9e -atest-signature -i cert_9e.pem
 yubico-piv-tool.exe -aimport-certificate -P123456 -s9e -i cert_9e.pem
 
