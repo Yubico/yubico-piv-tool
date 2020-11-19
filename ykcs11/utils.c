@@ -34,7 +34,6 @@
 #include <windows.h>
 #include <winsock.h>
 #else
-//#include <arpa/inet.h>
 #include <unistd.h>
 #include <pthread.h>
 #endif

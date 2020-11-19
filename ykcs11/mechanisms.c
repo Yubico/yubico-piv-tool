@@ -485,9 +485,18 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_ME
         DBG("Mechanism %lu requires PSS parameters to specify hashAlg %s", session->op_info.mechanism, EVP_MD_name(md));
         return CKR_ARGUMENTS_BAD;
       }
-      EVP_PKEY_CTX_set_signature_md(session->op_info.op.verify.pkey_ctx, EVP_MD_by_mechanism(pss->hashAlg));
-      EVP_PKEY_CTX_set_rsa_mgf1_md(session->op_info.op.verify.pkey_ctx, EVP_MD_by_mechanism(pss->mgf));
-      EVP_PKEY_CTX_set_rsa_pss_saltlen(session->op_info.op.verify.pkey_ctx, pss->sLen);
+      if(EVP_PKEY_CTX_set_signature_md(session->op_info.op.verify.pkey_ctx, EVP_MD_by_mechanism(pss->hashAlg)) <= 0) {
+        DBG("Failed to set signature");
+        return CKR_FUNCTION_FAILED;
+      }
+      if(EVP_PKEY_CTX_set_rsa_mgf1_md(session->op_info.op.verify.pkey_ctx, EVP_MD_by_mechanism(pss->mgf)) <= 0) {
+        DBG("Failed to set PSS MGF type parameter");
+        return CKR_FUNCTION_FAILED;
+      }
+      if(EVP_PKEY_CTX_set_rsa_pss_saltlen(session->op_info.op.verify.pkey_ctx, pss->sLen) <= 0) {
+        DBG("Failed to set PSS salt length");
+        return CKR_FUNCTION_FAILED;
+      }
     }
   }
 
