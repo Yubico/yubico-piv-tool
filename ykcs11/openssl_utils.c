@@ -266,33 +266,54 @@ CK_RV do_sign_empty_cert(const char *cn, ykcs11_pkey_t *pubkey, ykcs11_pkey_t *p
 CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm,
                           const char *cn, CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
 
-  EVP_PKEY  *pubkey;
-  EVP_PKEY  *pvtkey;
-  X509      *cert;
+  EVP_PKEY  *pubkey = NULL;
+  EVP_PKEY  *pvtkey = NULL;
+  X509      *cert = NULL;
   CK_RV     rv;
 
-  if((rv = do_create_public_key(in, in_len, algorithm, &pubkey)) != CKR_OK)
-    return rv;
+  if((rv = do_create_public_key(in, in_len, algorithm, &pubkey)) != CKR_OK) {
+    goto cleanup;
+  }
 
-  if((rv = do_generate_ec_key(NID_X9_62_prime256v1, &pvtkey)) != CKR_OK)
-    return rv;
+  if((rv = do_generate_ec_key(NID_X9_62_prime256v1, &pvtkey)) != CKR_OK) {
+    goto cleanup;
+  }
   
-  if((rv = do_sign_empty_cert(cn, pubkey, pvtkey, &cert)) != CKR_OK)
-    return rv;
+  if((rv = do_sign_empty_cert(cn, pubkey, pvtkey, &cert)) != CKR_OK) {
+    goto cleanup;
+  }
 
   int len = i2d_X509(cert, NULL);
-  if (len <= 0)
-    return CKR_GENERAL_ERROR;
+  if (len <= 0) {
+    rv = CKR_GENERAL_ERROR;
+    goto cleanup;
+  }
 
-  if (len > *out_len)
-    return CKR_BUFFER_TOO_SMALL;
+  if (len > *out_len) {
+    rv = CKR_BUFFER_TOO_SMALL;
+    goto cleanup;
+  }
 
   len = i2d_X509(cert, &out);
-  if (len <= 0)
-    return CKR_GENERAL_ERROR;
+  if (len <= 0) {
+    rv = CKR_GENERAL_ERROR;
+    goto cleanup;
+  }
 
   *out_len = len;
-  return CKR_OK;
+  rv = CKR_OK;
+
+cleanup:
+  if (pubkey) {
+    EVP_PKEY_free(pubkey);
+  }
+  if (pvtkey) {
+    EVP_PKEY_free(pvtkey);
+  }
+  if (cert) {
+    X509_free(cert);
+  }
+  return rv;
 }
 
 CK_RV do_check_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG_PTR cert_len) {
