@@ -40,6 +40,8 @@
 #ifdef _WIN32
 #include <openssl/applink.c>
 #define pipe(fds) _pipe(fds,4096, 0)
+#else
+#include <unistd.h>
 #endif
 
 enum enum_format formats[] = {
