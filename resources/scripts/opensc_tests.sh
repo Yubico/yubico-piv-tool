@@ -53,4 +53,4 @@ echo "******************* Testing RSA Tests ********************* "
 pkcs11-tool --module $MODULE --login --pin 123456  --test
 
 echo "******************* Testing EC Tests ********************* "
-pkcs11-tool --module $MODULE --login --login-type so --so-pin 010203040506070801020304050607080102030405060708 --test-ec --id 2 --key-type EC:secp256r1
+pkcs11-tool --module $MODULE --login --pin 123456 --login-type so --so-pin 010203040506070801020304050607080102030405060708 --test-ec --id 2 --key-type EC:secp256r1
