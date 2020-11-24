@@ -554,7 +554,6 @@ CK_RV do_get_modulus(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
   return CKR_OK;
 get_mod_cleanup:
-  RSA_free(rsa);
   if(n != NULL) {
     BN_free(n);
   }
@@ -580,7 +579,6 @@ CK_RV do_get_public_exponent(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR 
   *len = (CK_ULONG)BN_bn2bin(bn_e, data);
   return CKR_OK;
 get_pubexp_cleanup:
-  RSA_free(rsa);
   if(bn_e != NULL) {
     BN_free(bn_e);
   }
@@ -593,7 +591,6 @@ get_pubexp_cleanup:
 /* //SSL_load_error_strings(); */
 /*   fprintf(stderr, "ERROR %s\n", ERR_error_string(ERR_get_error(), NULL)); */
 CK_RV do_get_public_key(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
-  CK_RV rv;
   RSA *rsa = NULL;
   unsigned char *p;
 
@@ -614,8 +611,7 @@ CK_RV do_get_public_key(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) 
     p = data;
 
     if ((*len = (CK_ULONG) i2d_RSAPublicKey(rsa, &p)) == 0) {
-      rv = CKR_FUNCTION_FAILED;
-      goto get_pubkey_cleanup;
+      return CKR_FUNCTION_FAILED;
     }
 
     // TODO: this is the correct thing to do so that we strip out the exponent
@@ -637,8 +633,7 @@ CK_RV do_get_public_key(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) 
     data[0] = 0x04;
 
     if ((*len = EC_POINT_point2oct(ecg, ecp, pcf, data + 2, *len - 2, NULL)) == 0) {
-      rv = CKR_FUNCTION_FAILED;
-      goto get_pubkey_cleanup;
+      return CKR_FUNCTION_FAILED;
     }
 
     data[1] = *len;
@@ -651,24 +646,9 @@ CK_RV do_get_public_key(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) 
   }
 
   return CKR_OK;
-get_pubkey_cleanup:
-  if(rsa != NULL) {
-    RSA_free(rsa);
-  }
-  if(eck != NULL) {
-    EC_KEY_free(eck);
-  }
-  if(ecg != NULL) {
-    EC_GROUP_clear_free(ecg);
-  }
-  if(ecp != NULL) {
-    EC_POINT_clear_free(ecp);
-  }
-  return rv;
 }
 
 CK_RV do_get_curve_parameters(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
-  CK_RV rv;
   EC_KEY *eck = NULL;
   const EC_GROUP *ecg;
   unsigned char *p;
@@ -682,19 +662,10 @@ CK_RV do_get_curve_parameters(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR
   p = data;
 
   if ((*len = (CK_ULONG) i2d_ECPKParameters(ecg, &p)) == 0) {
-    rv = CKR_FUNCTION_FAILED;
-    goto get_curve_cleanup;
+    return CKR_FUNCTION_FAILED;
   }
 
   return CKR_OK;
-get_curve_cleanup:
-  if(eck != NULL) {
-    EC_KEY_free(eck);
-  }
-  if(ecg != NULL) {
-    EC_GROUP_clear_free(ecg);
-  }
-  return rv;
 }
 
 CK_RV do_delete_pubk(EVP_PKEY **key) {
