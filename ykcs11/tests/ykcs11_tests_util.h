@@ -76,21 +76,21 @@ void test_rsa_encrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
 void test_pubkey_attributes_ec(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
                                 CK_OBJECT_HANDLE pubkey, CK_ULONG key_size, 
                                 const unsigned char* label, CK_ULONG ec_point_len,
-                                CK_BYTE_PTR ec_params, CK_ULONG ec_params_len, CK_BBOOL is_neo);
+                                CK_BYTE_PTR ec_params, CK_ULONG ec_params_len);
 void test_privkey_attributes_ec(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
                                 CK_OBJECT_HANDLE pubkey, CK_ULONG key_size, 
                                 const unsigned char* label, CK_ULONG ec_point_len,
                                 CK_BYTE_PTR ec_params, CK_ULONG ec_params_len,
-                                CK_BBOOL always_authenticate, CK_BBOOL is_neo);
+                                CK_BBOOL always_authenticate);
 void test_pubkey_attributes_rsa(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
                                 CK_OBJECT_HANDLE pubkey, CK_ULONG key_size, 
                                 const unsigned char* label, CK_ULONG modulus_len,
-                                CK_BYTE* pubexp, CK_ULONG pubexp_len, CK_BBOOL is_neo);
+                                CK_BYTE* pubexp, CK_ULONG pubexp_len);
 void test_privkey_attributes_rsa(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
                                 CK_OBJECT_HANDLE pubkey, CK_ULONG key_size, 
                                 const unsigned char* label, CK_ULONG modulus_len,
                                 CK_BYTE_PTR pubexp, CK_ULONG pubexp_len, 
-                                CK_BBOOL always_authenticate, CK_BBOOL is_neo); 
+                                CK_BBOOL always_authenticate);
 
 void test_find_objects_by_class(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
                                 CK_ULONG class, CK_BYTE ckaid,

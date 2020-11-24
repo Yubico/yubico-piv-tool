@@ -1215,7 +1215,7 @@ void test_rsa_encrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
 
 static void test_pubkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
                                          CK_OBJECT_HANDLE pubkey, CK_ULONG key_type, CK_ULONG key_size,
-                                         const unsigned char* label, CK_BBOOL is_neo) {
+                                         const unsigned char* label) {
   CK_ULONG obj_class;
   CK_BBOOL obj_token;
   CK_BBOOL obj_private;
@@ -1256,11 +1256,7 @@ static void test_pubkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_
   asrt(obj_private, CK_FALSE, "PRIVATE");
   asrt(obj_key_type, key_type, "KEY_TYPE");
   asrt(obj_trusted, CK_FALSE, "TRUSTED");
-  if(is_neo) {
-    asrt(obj_local, CK_FALSE, "LOCAL");
-  } else {
-    asrt(obj_local, CK_TRUE, "LOCAL");
-  }
+  asrt(obj_local, CK_TRUE, "LOCAL");
   asrt(obj_encrypt, CK_TRUE, "ENCRYPT");
   asrt(obj_verify, CK_TRUE, "VERIFY");
   asrt(obj_wrap, CK_FALSE, "WRAP");
@@ -1278,7 +1274,7 @@ static void test_pubkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_
 void test_pubkey_attributes_rsa(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
                                 CK_OBJECT_HANDLE pubkey, CK_ULONG key_size, 
                                 const unsigned char* label, CK_ULONG modulus_len,
-                                CK_BYTE_PTR pubexp, CK_ULONG pubexp_len, CK_BBOOL is_neo) {
+                                CK_BYTE_PTR pubexp, CK_ULONG pubexp_len) {
 
   CK_BYTE obj_pubexp[1024];
   CK_BYTE obj_modulus[1024];
@@ -1288,7 +1284,7 @@ void test_pubkey_attributes_rsa(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE se
     {CKA_PUBLIC_EXPONENT, &obj_pubexp, sizeof(obj_pubexp)},
   };
 
-  test_pubkey_basic_attributes(funcs, session, pubkey, CKK_RSA, key_size, label, is_neo);
+  test_pubkey_basic_attributes(funcs, session, pubkey, CKK_RSA, key_size, label);
 
   asrt(funcs->C_GetAttributeValue(session, pubkey, template, 2), CKR_OK, "GET RSA ATTRIBUTES");
   asrt(template[0].ulValueLen, modulus_len, "MODULUS LEN");
@@ -1299,7 +1295,7 @@ void test_pubkey_attributes_rsa(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE se
 void test_pubkey_attributes_ec(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
                                 CK_OBJECT_HANDLE pubkey, CK_ULONG key_size, 
                                 const unsigned char* label, CK_ULONG ec_point_len,
-                                CK_BYTE_PTR ec_params, CK_ULONG ec_params_len, CK_BBOOL is_neo) {
+                                CK_BYTE_PTR ec_params, CK_ULONG ec_params_len) {
   CK_BYTE obj_ec_point[1024];
   CK_BYTE obj_ec_param[1024];
 
@@ -1308,7 +1304,7 @@ void test_pubkey_attributes_ec(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE ses
     {CKA_EC_PARAMS, obj_ec_param, sizeof(obj_ec_param)}
   };
 
-  test_pubkey_basic_attributes(funcs, session, pubkey, CKK_EC, key_size, label, is_neo);
+  test_pubkey_basic_attributes(funcs, session, pubkey, CKK_EC, key_size, label);
 
   asrt(funcs->C_GetAttributeValue(session, pubkey, template, 2), CKR_OK, "GET EC ATTRIBUTES");
   asrt(template[0].ulValueLen, ec_point_len, "EC POINT LEN");
@@ -1318,7 +1314,7 @@ void test_pubkey_attributes_ec(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE ses
 
 static void test_privkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
                                           CK_OBJECT_HANDLE privkey, CK_ULONG key_type, CK_ULONG key_size,
-                                         const unsigned char* label, CK_BBOOL always_authenticate, CK_BBOOL is_neo) {
+                                         const unsigned char* label, CK_BBOOL always_authenticate) {
   CK_ULONG obj_class;
   CK_BBOOL obj_token;
   CK_BBOOL obj_private;
@@ -1370,11 +1366,7 @@ static void test_privkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION
   asrt(obj_always_sensitive, CK_TRUE, "ALWAYS_SENSITIVE");
   asrt(obj_extractable, CK_FALSE, "EXTRACTABLE");
   asrt(obj_never_extractable, CK_TRUE, "NEVER_EXTRACTABLE");
-  if(is_neo) {
-    asrt(obj_local, CK_FALSE, "LOCAL");
-  } else {
-    asrt(obj_local, CK_TRUE, "LOCAL");
-  }
+  asrt(obj_local, CK_TRUE, "LOCAL");
   asrt(obj_decrypt, CK_TRUE, "DECRYPT");
   asrt(obj_unwrap, CK_FALSE, "UNWRAP");
   asrt(obj_sign, CK_TRUE, "SIGN");
@@ -1393,7 +1385,7 @@ void test_privkey_attributes_rsa(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE s
                                 CK_OBJECT_HANDLE pubkey, CK_ULONG key_size, 
                                 const unsigned char* label, CK_ULONG modulus_len,
                                 CK_BYTE_PTR pubexp, CK_ULONG pubexp_len, 
-                                CK_BBOOL always_authenticate, CK_BBOOL is_neo) {
+                                CK_BBOOL always_authenticate) {
 
   CK_BYTE obj_pubexp[1024];
   CK_BYTE obj_modulus[1024];
@@ -1403,7 +1395,7 @@ void test_privkey_attributes_rsa(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE s
     {CKA_PUBLIC_EXPONENT, &obj_pubexp, sizeof(obj_pubexp)},
   };
 
-  test_privkey_basic_attributes(funcs, session, pubkey, CKK_RSA, key_size, label, always_authenticate, is_neo);
+  test_privkey_basic_attributes(funcs, session, pubkey, CKK_RSA, key_size, label, always_authenticate);
 
   asrt(funcs->C_GetAttributeValue(session, pubkey, template, 2), CKR_OK, "GET RSA ATTRIBUTES");
   asrt(template[0].ulValueLen, modulus_len, "MODULUS LEN");
@@ -1415,7 +1407,7 @@ void test_privkey_attributes_ec(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE se
                                 CK_OBJECT_HANDLE pubkey, CK_ULONG key_size, 
                                 const unsigned char* label, CK_ULONG ec_point_len,
                                 CK_BYTE_PTR ec_params, CK_ULONG ec_params_len, 
-                                CK_BBOOL always_authenticate, CK_BBOOL is_neo) {
+                                CK_BBOOL always_authenticate) {
   CK_BYTE obj_ec_point[1024];
   CK_BYTE obj_ec_param[1024];
 
@@ -1424,7 +1416,7 @@ void test_privkey_attributes_ec(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE se
     {CKA_EC_PARAMS, obj_ec_param, sizeof(obj_ec_param)}
   };
 
-  test_privkey_basic_attributes(funcs, session, pubkey, CKK_EC, key_size, label, always_authenticate, is_neo);
+  test_privkey_basic_attributes(funcs, session, pubkey, CKK_EC, key_size, label, always_authenticate);
 
   asrt(funcs->C_GetAttributeValue(session, pubkey, template, 2), CKR_OK, "GET EC ATTRIBUTES");
   asrt(template[0].ulValueLen, ec_point_len, "EC POINT LEN");
