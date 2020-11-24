@@ -96,7 +96,7 @@ static size_t _obj_size_max(ykpiv_state *state) {
 
 ykpiv_rc ykpiv_util_get_cardid(ykpiv_state *state, ykpiv_cardid *cardid) {
   ykpiv_rc res = YKPIV_OK;
-  uint8_t buf[CB_OBJ_MAX];
+  uint8_t buf[CB_OBJ_MAX] = {0};
   unsigned long len = sizeof(buf);
   uint8_t *p_temp = NULL;
   size_t offs, cb_temp = 0;
@@ -148,8 +148,8 @@ Cleanup:
 
 ykpiv_rc ykpiv_util_set_cardid(ykpiv_state *state, const ykpiv_cardid *cardid) {
   ykpiv_rc res = YKPIV_OK;
-  uint8_t id[YKPIV_CARDID_SIZE];
-  uint8_t buf[sizeof(CHUID_TMPL)];
+  uint8_t id[YKPIV_CARDID_SIZE] = {0};
+  uint8_t buf[sizeof(CHUID_TMPL)] = {0};
   size_t len = 0;
 
   if (!state) return YKPIV_GENERIC_ERROR;
@@ -180,7 +180,7 @@ Cleanup:
 
 ykpiv_rc ykpiv_util_get_cccid(ykpiv_state *state, ykpiv_cccid *ccc) {
   ykpiv_rc res = YKPIV_OK;
-  uint8_t buf[CB_OBJ_MAX];
+  uint8_t buf[CB_OBJ_MAX] = {0};
   unsigned long len = sizeof(buf);
 
   if (!ccc) return YKPIV_GENERIC_ERROR;
@@ -206,8 +206,8 @@ Cleanup:
 
 ykpiv_rc ykpiv_util_set_cccid(ykpiv_state *state, const ykpiv_cccid *ccc) {
   ykpiv_rc res = YKPIV_OK;
-  uint8_t id[YKPIV_CCCID_SIZE];
-  uint8_t buf[sizeof(CCC_TMPL)];
+  uint8_t id[YKPIV_CCCID_SIZE] = {0};
+  uint8_t buf[sizeof(CCC_TMPL)] = {0};
   size_t len = 0;
 
   if (!state) return YKPIV_GENERIC_ERROR;
@@ -248,7 +248,7 @@ ykpiv_rc ykpiv_util_list_keys(ykpiv_state *state, uint8_t *key_count, ykpiv_key 
   uint8_t *pTemp = NULL;
   size_t cbData = 0;
   size_t offset = 0;
-  uint8_t buf[CB_BUF_MAX];
+  uint8_t buf[CB_BUF_MAX] = {0};
   size_t cbBuf = 0;
   size_t i = 0;
   size_t cbRealloc = 0;
@@ -364,7 +364,7 @@ ykpiv_rc ykpiv_util_free(ykpiv_state *state, void *data) {
 
 ykpiv_rc ykpiv_util_read_cert(ykpiv_state *state, uint8_t slot, uint8_t **data, size_t *data_len) {
   ykpiv_rc res = YKPIV_OK;
-  uint8_t buf[CB_BUF_MAX];
+  uint8_t buf[CB_BUF_MAX] = {0};
   size_t cbBuf = sizeof(buf);
 
   if ((NULL == data )|| (NULL == data_len)) return YKPIV_GENERIC_ERROR;
@@ -422,7 +422,7 @@ ykpiv_rc ykpiv_util_block_puk(ykpiv_state *state) {
   ykpiv_rc res = YKPIV_OK;
   uint8_t puk[] = { 0x30, 0x42, 0x41, 0x44, 0x46, 0x30, 0x30, 0x44 };
   int tries = -1;
-  uint8_t data[CB_BUF_MAX];
+  uint8_t data[CB_BUF_MAX] = {0};
   size_t  cb_data = sizeof(data);
   uint8_t *p_item = NULL;
   size_t  cb_item = 0;
@@ -480,7 +480,7 @@ Cleanup:
 
 ykpiv_rc ykpiv_util_read_mscmap(ykpiv_state *state, ykpiv_container **containers, size_t *n_containers) {
   ykpiv_rc res = YKPIV_OK;
-  uint8_t buf[CB_BUF_MAX];
+  uint8_t buf[CB_BUF_MAX] = {0};
   unsigned long cbBuf = sizeof(buf);
   size_t offs, len = 0;
   uint8_t *ptr = NULL;
@@ -529,7 +529,7 @@ Cleanup:
 
 ykpiv_rc ykpiv_util_write_mscmap(ykpiv_state *state, ykpiv_container *containers, size_t n_containers) {
   ykpiv_rc res = YKPIV_OK;
-  uint8_t buf[CB_OBJ_MAX];
+  uint8_t buf[CB_OBJ_MAX] = {0};
   size_t offset = 0;
   size_t req_len = 0;
   size_t data_len = n_containers * sizeof(ykpiv_container);
@@ -579,7 +579,7 @@ Cleanup:
 
 ykpiv_rc ykpiv_util_read_msroots(ykpiv_state *state, uint8_t **data, size_t *data_len) {
   ykpiv_rc res = YKPIV_OK;
-  uint8_t buf[CB_BUF_MAX];
+  uint8_t buf[CB_BUF_MAX] = {0};
   unsigned long cbBuf = sizeof(buf);
   size_t offs, len = 0;
   uint8_t *ptr = NULL;
@@ -672,7 +672,7 @@ Cleanup:
 
 ykpiv_rc ykpiv_util_write_msroots(ykpiv_state *state, uint8_t *data, size_t data_len) {
   ykpiv_rc res = YKPIV_OK;
-  uint8_t buf[CB_OBJ_MAX];
+  uint8_t buf[CB_OBJ_MAX] = {0};
   size_t offset = 0;
   size_t data_offset = 0;
   size_t data_chunk = 0;
@@ -738,9 +738,9 @@ Cleanup:
 
 ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algorithm, uint8_t pin_policy, uint8_t touch_policy, uint8_t **modulus, size_t *modulus_len, uint8_t **exp, size_t *exp_len, uint8_t **point, size_t *point_len) {
   ykpiv_rc res = YKPIV_OK;
-  unsigned char in_data[11];
+  unsigned char in_data[11] = {0};
   unsigned char *in_ptr = in_data;
-  unsigned char data[1024];
+  unsigned char data[1024] = {0};
   unsigned char templ[] = { 0, YKPIV_INS_GENERATE_ASYMMETRIC, 0, 0 };
   unsigned long recv_len = sizeof(data);
   int sw;
@@ -1343,7 +1343,7 @@ Cleanup:
 
 ykpiv_rc ykpiv_util_reset(ykpiv_state *state) {
   unsigned char templ[] = {0, YKPIV_INS_RESET, 0, 0};
-  unsigned char data[0xff];
+  unsigned char data[0xff] = {0};
   unsigned long recv_len = sizeof(data);
   ykpiv_rc res;
   int sw;
@@ -1430,7 +1430,7 @@ static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf
 }
 
 static ykpiv_rc _write_certificate(ykpiv_state *state, uint8_t slot, uint8_t *data, size_t data_len, uint8_t certinfo) {
-  uint8_t buf[CB_OBJ_MAX];
+  uint8_t buf[CB_OBJ_MAX] = {0};
   int object_id = (int)ykpiv_util_slot_object(slot);
   size_t offset = 0;
   size_t req_len = 0;

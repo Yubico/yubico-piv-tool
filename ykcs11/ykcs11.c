@@ -316,7 +316,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 )
 {
   DIN;
-  char readers[2048];
+  char readers[2048] = {0};
   size_t len = sizeof(readers);
   CK_RV rv;
 
@@ -401,7 +401,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
         slot->login_state = YKCS11_PUBLIC;
         slot->slot_info.flags &= ~CKF_TOKEN_PRESENT;
 
-        char buf[sizeof(readers) + 1];
+        char buf[sizeof(readers) + 1] = {0};
         snprintf(buf, sizeof(buf), "@%s", reader);
 
         if (ykpiv_connect(slot->piv_state, buf) == YKPIV_OK) {
@@ -746,7 +746,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
 
   locking.pfnUnlockMutex(global_mutex);
 
-  CK_BYTE mgm_key[24];
+  CK_BYTE mgm_key[24] = {0};
   size_t len = sizeof(mgm_key);
   ykpiv_rc rc;
 
@@ -950,7 +950,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
       piv_obj_id_t pubk_id = find_pubk_object(sub_id);
       piv_obj_id_t pvtk_id = find_pvtk_object(sub_id);
       piv_obj_id_t atst_id = find_atst_object(sub_id);
-      CK_BYTE data[YKPIV_OBJ_MAX_SIZE];  // Max cert value for ykpiv
+      CK_BYTE data[YKPIV_OBJ_MAX_SIZE] = {0};  // Max cert value for ykpiv
       size_t len;
       if(pvtk_id != PIV_INVALID_OBJ) {
         CK_ULONG slot = piv_2_ykpiv(pvtk_id);
@@ -3408,7 +3408,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   piv_obj_id_t   pvtk_id;
   piv_obj_id_t   pubk_id;
   piv_obj_id_t   atst_id;
-  CK_BYTE        cert_data[YKPIV_OBJ_MAX_SIZE];
+  CK_BYTE        cert_data[YKPIV_OBJ_MAX_SIZE] = {0};
   CK_ULONG       cert_len;
   
   if (!pid) {
@@ -3529,7 +3529,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   // Create an attestation, if appropriate and able
 
   if(atst_id != PIV_INVALID_OBJ) {
-    unsigned char data[YKPIV_OBJ_MAX_SIZE];
+    unsigned char data[YKPIV_OBJ_MAX_SIZE] = {0};
     size_t len = sizeof(data);
     ykpiv_rc rc = ykpiv_attest(session->slot->piv_state, slot, data, &len);
     if(rc == YKPIV_OK) {

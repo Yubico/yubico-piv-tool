@@ -140,7 +140,7 @@ CK_RV get_token_model(ykpiv_state *state, CK_UTF8CHAR_PTR str, CK_ULONG len) {
 
 CK_RV get_token_version(ykpiv_state *state, CK_VERSION_PTR version) {
 
-  char buf[16];
+  char buf[16] = {0};
 
   if (version == NULL)
     return CKR_ARGUMENTS_BAD;
@@ -160,7 +160,7 @@ CK_RV get_token_version(ykpiv_state *state, CK_VERSION_PTR version) {
 CK_RV get_token_serial(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
 
   uint32_t serial;
-  char buf[64];
+  char buf[64] = {0};
   int actual;
 
   ykpiv_rc rc = ykpiv_get_serial(state, &serial);
@@ -181,7 +181,7 @@ CK_RV get_token_serial(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
 CK_RV get_token_label(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
 
   uint32_t serial;
-  char buf[64];
+  char buf[64] = {0};
   int actual;
 
   ykpiv_rc rc = ykpiv_get_serial(state, &serial);
@@ -241,7 +241,7 @@ CK_RV token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF8CHAR_P
 
   switch(user_type){
     case CKU_SO:{
-      unsigned char new_key[24];
+      unsigned char new_key[24] = {0};
       size_t new_key_len = sizeof(new_key);
       if(ykpiv_hex_decode((const char*)pNewPin, ulNewLen, new_key, &new_key_len) != YKPIV_OK) {
         DBG("Failed to decode new pin")
@@ -294,7 +294,7 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
   ykpiv_rc res;
 
   if (pin_len >= YKPIV_MIN_PIN_LEN && pin_len <= YKPIV_MAX_PIN_LEN) {
-    char term_pin[YKPIV_MAX_PIN_LEN + 1];
+    char term_pin[YKPIV_MAX_PIN_LEN + 1] = {0};
 
     memcpy(term_pin, pin, pin_len);
     term_pin[pin_len] = 0;
@@ -321,7 +321,7 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
   }
 
   if (user == CKU_SO) {
-    unsigned char key[24];
+    unsigned char key[24] = {0};
 
     if (pin_len == YKPIV_MGM_KEY_LEN) {
       size_t key_len = sizeof(key);
@@ -365,14 +365,14 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
 
 CK_RV token_generate_key(ykpiv_state *state, CK_BYTE algorithm, CK_BYTE key, CK_BYTE_PTR cert_data, CK_ULONG_PTR cert_len) {
   // TODO: make a function in ykpiv for this
-  unsigned char in_data[11];
+  unsigned char in_data[11] = {0};
   unsigned char *in_ptr = in_data;
-  unsigned char data[1024];
+  unsigned char data[1024] = {0};
   unsigned char templ[] = {0, YKPIV_INS_GENERATE_ASYMMETRIC, 0, 0};
   unsigned char *certptr;
   unsigned long len, len_bytes, offs, recv_len = sizeof(data);
-  char version[7];
-  char label[32];
+  char version[7] = {0};
+  char label[32] = {0};
   int sw;
 
   switch(algorithm) {
@@ -457,7 +457,7 @@ CK_RV token_generate_key(ykpiv_state *state, CK_BYTE algorithm, CK_BYTE key, CK_
 
 CK_RV token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_BYTE_PTR in, CK_ULONG in_len) {
 
-  unsigned char certdata[YKPIV_OBJ_MAX_SIZE + 16];
+  unsigned char certdata[YKPIV_OBJ_MAX_SIZE + 16] = {0};
   unsigned char *certptr;
   CK_ULONG cert_len;
 

@@ -101,8 +101,8 @@ void teardown(void) {
 START_TEST(test_devicemodel) {
   ykpiv_rc res;
   ykpiv_devmodel model;
-  char version[256];
-  char reader_buf[2048];
+  char version[256] = {0};
+  char reader_buf[2048] = {0};
   size_t num_readers = sizeof(reader_buf);
 
   res = ykpiv_get_version(g_state, version, sizeof(version));
@@ -150,7 +150,7 @@ END_TEST
 
 START_TEST(test_list_readers) {
   ykpiv_rc res;
-  char reader_buf[2048];
+  char reader_buf[2048] = {0};
   size_t num_readers = sizeof(reader_buf);
   char *reader_ptr;
   res = ykpiv_list_readers(g_state, reader_buf, &num_readers);
@@ -273,12 +273,12 @@ static void import_key(unsigned char slot, unsigned char pin_policy) {
     EVP_PKEY *private_key = NULL;
     BIO *bio = NULL;
     RSA *rsa_private_key = NULL;
-    unsigned char e[4];
-    unsigned char p[128];
-    unsigned char q[128];
-    unsigned char dmp1[128];
-    unsigned char dmq1[128];
-    unsigned char iqmp[128];
+    unsigned char e[4] = {0};
+    unsigned char p[128] = {0};
+    unsigned char q[128] = {0};
+    unsigned char dmp1[128] = {0};
+    unsigned char dmq1[128] = {0};
+    unsigned char iqmp[128] = {0};
     int element_len = 128;
     const BIGNUM *bn_e, *bn_p, *bn_q, *bn_dmp1, *bn_dmq1, *bn_iqmp;
 
@@ -332,9 +332,9 @@ static void import_key(unsigned char slot, unsigned char pin_policy) {
     BIO *bio = NULL;
     X509 *cert = NULL;
     EVP_PKEY *pub_key = NULL;
-    unsigned char secret[32];
-    unsigned char secret2[32];
-    unsigned char data[256];
+    unsigned char secret[32] = {0};
+    unsigned char secret2[32] = {0};
+    unsigned char data[256] = {0};
     int len;
     size_t len2 = sizeof(data);
     RSA *rsa = NULL;
@@ -377,11 +377,11 @@ START_TEST(test_import_key) {
     const EVP_MD *md = EVP_sha256();
     EVP_MD_CTX *mdctx;
 
-    unsigned char signature[1024];
-    unsigned char encoded[1024];
-    unsigned char data[1024];
-    unsigned char signinput[1024];
-    unsigned char rand[128];
+    unsigned char signature[1024] = {0};
+    unsigned char encoded[1024] = {0};
+    unsigned char data[1024] = {0};
+    unsigned char signinput[1024] = {0};
+    unsigned char rand[128] = {0};
 
     size_t sig_len = sizeof(signature);
     size_t padlen = 256;
@@ -418,7 +418,7 @@ START_TEST(test_import_key) {
 
   // Verify that imported key can not be attested
   {
-    unsigned char attest[2048];
+    unsigned char attest[2048] = {0};
     size_t attest_len = sizeof(attest);
     ykpiv_devmodel model;
     model = ykpiv_util_devicemodel(g_state);
@@ -457,11 +457,11 @@ START_TEST(test_pin_policy_always) {
     const EVP_MD *md = EVP_sha256();
     EVP_MD_CTX *mdctx;
 
-    unsigned char signature[1024];
-    unsigned char encoded[1024];
-    unsigned char data[1024];
-    unsigned char signinput[1024];
-    unsigned char rand[128];
+    unsigned char signature[1024] = {0};
+    unsigned char encoded[1024] = {0};
+    unsigned char data[1024] = {0};
+    unsigned char signinput[1024] = {0};
+    unsigned char rand[128] = {0};
 
     size_t sig_len = sizeof(signature);
     size_t padlen = 256;
@@ -542,7 +542,7 @@ START_TEST(test_generate_key) {
   // Verify that imported key can be attested
   {
     ykpiv_devmodel model;
-    unsigned char attest[2048];
+    unsigned char attest[2048] = {0};
     size_t attest_len = sizeof(attest);
     model = ykpiv_util_devicemodel(g_state);
     res = ykpiv_attest(g_state, YKPIV_KEY_AUTHENTICATION, attest, &attest_len);
@@ -563,7 +563,7 @@ static void test_authenticate_helper() {
   const char *default_mgm_key = "010203040506070801020304050607080102030405060708";
   const char *mgm_key = "112233445566778811223344556677881122334455667788";
   const char *weak_mgm_key = "FEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFE";
-  unsigned char key[24];
+  unsigned char key[24] = {0};
   size_t key_len = sizeof(key);
 
   // Try new key, fail.
@@ -863,7 +863,7 @@ END_TEST
 START_TEST(test_pin_cache) {
   ykpiv_rc res;
   ykpiv_state *local_state;
-  unsigned char data[256];
+  unsigned char data[256] = {0};
   unsigned char data_in[256] = {0};
   int len = sizeof(data);
   size_t len2 = sizeof(data);

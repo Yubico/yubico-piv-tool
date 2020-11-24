@@ -308,8 +308,8 @@ ykpiv_rc ykpiv_disconnect(ykpiv_state *state) {
 }
 
 ykpiv_rc _ykpiv_select_application(ykpiv_state *state) {
-  APDU apdu;
-  unsigned char data[0xff];
+  APDU apdu = {0};
+  unsigned char data[0xff] = {0};
   uint32_t recv_len = sizeof(data);
   int sw;
   ykpiv_rc res = YKPIV_OK;
@@ -400,9 +400,9 @@ static ykpiv_rc _ykpiv_connect(ykpiv_state *state, uintptr_t context, uintptr_t 
 
   // if card handle has changed, determine if handle is valid (less efficient, but complete)
   if ((card != state->card)) {
-    char reader[CB_BUF_MAX];
+    char reader[CB_BUF_MAX] = {0};
     pcsc_word reader_len = sizeof(reader);
-    uint8_t atr[CB_ATR_MAX];
+    uint8_t atr[CB_ATR_MAX] = {0};
     pcsc_word atr_len = sizeof(atr);
 
     // Cannot set the reader len to NULL.  Confirmed in OSX 10.10, so we have to retrieve it even though we don't need it.
@@ -450,9 +450,9 @@ ykpiv_rc ykpiv_validate(ykpiv_state *state, const char *wanted) {
     if(state->verbose) {
       fprintf(stderr, "Validate reader '%s'.\n", wanted);
     }
-    char reader[CB_BUF_MAX];
+    char reader[CB_BUF_MAX] = {0};
     pcsc_word reader_len = sizeof(reader);
-    uint8_t atr[CB_ATR_MAX];
+    uint8_t atr[CB_ATR_MAX] = {0};
     pcsc_word atr_len = sizeof(atr);
     LONG rc = SCardStatus(state->card, reader, &reader_len, NULL, NULL, atr, &atr_len);
     if(rc != SCARD_S_SUCCESS) {
@@ -500,7 +500,7 @@ ykpiv_rc ykpiv_validate(ykpiv_state *state, const char *wanted) {
 
 ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
   pcsc_word active_protocol;
-  char reader_buf[2048];
+  char reader_buf[2048] = {0};
   size_t num_readers = sizeof(reader_buf);
   LONG rc;
   char *reader_ptr;
@@ -692,7 +692,7 @@ ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state) {
       if((res = _ykpiv_verify(state, state->pin, strlen(state->pin))) != YKPIV_OK)
         return res;
       // De-authenticate always-authenticate keys by running an arbitrary command
-      unsigned char data[80];
+      unsigned char data[80] = {0};
       unsigned long recv_len = sizeof(data);
       if((res = _ykpiv_fetch_object(state, YKPIV_OBJ_DISCOVERY, data, &recv_len)) != YKPIV_OK)
         return res;
@@ -726,11 +726,11 @@ ykpiv_rc _ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
 
   do {
     size_t this_size = 0xff;
-    unsigned char data[261];
+    unsigned char data[261] = {0};
     uint32_t recv_len = sizeof(data);
-    APDU apdu;
+    APDU apdu = {0};
 
-    memset(apdu.raw, 0, sizeof(apdu.raw));
+    memset(apdu.raw, 0, sizeof(apdu));
     memcpy(apdu.raw, templ, 4);
     if(in_ptr + 0xff < in_data + in_len) {
       apdu.st.cla = 0x10;
@@ -764,15 +764,15 @@ ykpiv_rc _ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
     in_ptr += this_size;
   } while(in_ptr < in_data + in_len);
   while(*sw >> 8 == 0x61) {
-    APDU apdu;
-    unsigned char data[261];
+    APDU apdu = {0};
+    unsigned char data[261] = {0};
     uint32_t recv_len = sizeof(data);
 
     if(state->verbose > 2) {
       fprintf(stderr, "The card indicates there is %d bytes more data for us.\n", *sw & 0xff);
     }
 
-    memset(apdu.raw, 0, sizeof(apdu.raw));
+    memset(apdu.raw, 0, sizeof(apdu));
     apdu.st.ins = YKPIV_INS_GET_RESPONSE_APDU;
     res = _send_data(state, &apdu, data, &recv_len, sw);
     if(res != YKPIV_OK) {
@@ -858,9 +858,9 @@ Cleanup:
 }
 
 static ykpiv_rc _ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
-  APDU apdu;
-  unsigned char data[261];
-  unsigned char challenge[8];
+  APDU apdu = {0};
+  unsigned char data[261] = {0};
+  unsigned char challenge[8] = {0};
   uint32_t recv_len = sizeof(data);
   int sw;
   ykpiv_rc res;
@@ -904,7 +904,7 @@ static ykpiv_rc _ykpiv_authenticate(ykpiv_state *state, unsigned const char *key
   /* send a response to the cards challenge and a challenge of our own. */
   {
     unsigned char *dataptr = apdu.st.data;
-    unsigned char response[8];
+    unsigned char response[8] = {0};
     out_len = sizeof(response);
     drc = des_decrypt(mgm_key, challenge, sizeof(challenge), response, &out_len);
 
@@ -947,7 +947,7 @@ static ykpiv_rc _ykpiv_authenticate(ykpiv_state *state, unsigned const char *key
 
   /* compare the response from the card with our challenge */
   {
-    unsigned char response[8];
+    unsigned char response[8] = {0};
     out_len = sizeof(response);
     drc = des_encrypt(mgm_key, challenge, sizeof(challenge), response, &out_len);
 
@@ -979,8 +979,8 @@ ykpiv_rc ykpiv_set_mgmkey(ykpiv_state *state, const unsigned char *new_key) {
 }
 
 ykpiv_rc ykpiv_set_mgmkey2(ykpiv_state *state, const unsigned char *new_key, const unsigned char touch) {
-  APDU apdu;
-  unsigned char data[261];
+  APDU apdu = {0};
+  unsigned char data[261] = {0};
   uint32_t recv_len = sizeof(data);
   int sw;
   ykpiv_rc res = YKPIV_OK;
@@ -1068,9 +1068,9 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
     const unsigned char *sign_in, size_t in_len,
     unsigned char *out, size_t *out_len,
     unsigned char algorithm, unsigned char key, bool decipher) {
-  unsigned char indata[1024];
+  unsigned char indata[1024] = {0};
   unsigned char *dataptr = indata;
-  unsigned char data[1024];
+  unsigned char data[1024] = {0};
   unsigned char templ[] = {0, YKPIV_INS_AUTHENTICATE, algorithm, key};
   unsigned long recv_len = sizeof(data);
   size_t key_len = 0;
@@ -1204,8 +1204,8 @@ ykpiv_rc ykpiv_decipher_data(ykpiv_state *state, const unsigned char *in,
 }
 
 static ykpiv_rc _ykpiv_get_version(ykpiv_state *state) {
-  APDU apdu;
-  unsigned char data[261];
+  APDU apdu = {0};
+  unsigned char data[261] = {0};
   uint32_t recv_len = sizeof(data);
   int sw;
   ykpiv_rc res;
@@ -1264,8 +1264,8 @@ Cleanup:
 /* caller must make sure that this is wrapped in a transaction for synchronized operation */
 static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state) {
   ykpiv_rc res = YKPIV_OK;
-  APDU apdu;
-  uint8_t data[0xff];
+  APDU apdu = {0};
+  uint8_t data[0xff] = {0};
   uint32_t recv_len = sizeof(data);
   int sw;
 
@@ -1280,7 +1280,7 @@ static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state) {
 
   if (state->ver.major < 5) {
     /* get serial from neo/yk4 devices using the otp applet */
-    uint8_t temp[0xff];
+    uint8_t temp[0xff] = {0};
 
     recv_len = sizeof(temp);
     memset(apdu.raw, 0, sizeof(apdu));
@@ -1454,8 +1454,8 @@ static ykpiv_rc _cache_mgm_key(ykpiv_state *state, unsigned const char *key) {
 }
 
 static ykpiv_rc _ykpiv_verify(ykpiv_state *state, const char *pin, const size_t pin_len) {
-  APDU apdu;
-  unsigned char data[261];
+  APDU apdu = {0};
+  unsigned char data[261] = {0};
   uint32_t recv_len = sizeof(data);
   int sw;
   ykpiv_rc res;
@@ -1465,7 +1465,7 @@ static ykpiv_rc _ykpiv_verify(ykpiv_state *state, const char *pin, const size_t 
     return YKPIV_SIZE_ERROR;
   }
 
-  memset(apdu.raw, 0, sizeof(apdu.raw));
+  memset(apdu.raw, 0, sizeof(apdu));
   apdu.st.ins = YKPIV_INS_VERIFY;
   apdu.st.p1 = 0x00;
   apdu.st.p2 = 0x80;
@@ -1563,7 +1563,7 @@ Cleanup:
 ykpiv_rc ykpiv_set_pin_retries(ykpiv_state *state, int pin_tries, int puk_tries) {
   ykpiv_rc res = YKPIV_OK;
   unsigned char templ[] = {0, YKPIV_INS_SET_PIN_RETRIES, 0, 0};
-  unsigned char data[0xff];
+  unsigned char data[0xff] = {0};
   unsigned long recv_len = sizeof(data);
   int sw = 0;
 
@@ -1603,8 +1603,8 @@ Cleanup:
 static ykpiv_rc _ykpiv_change_pin(ykpiv_state *state, int action, const char * current_pin, size_t current_pin_len, const char * new_pin, size_t new_pin_len, int *tries) {
   int sw;
   unsigned char templ[] = {0, YKPIV_INS_CHANGE_REFERENCE, 0, 0x80};
-  unsigned char indata[0x10];
-  unsigned char data[0xff];
+  unsigned char indata[0x10] = {0};
+  unsigned char data[0xff] = {0};
   unsigned long recv_len = sizeof(data);
   ykpiv_rc res;
   if (current_pin_len > CB_PIN_MAX) {
@@ -1710,7 +1710,7 @@ Cleanup:
 ykpiv_rc _ykpiv_fetch_object(ykpiv_state *state, int object_id,
     unsigned char *data, unsigned long *len) {
   int sw;
-  unsigned char indata[5];
+  unsigned char indata[5] = {0};
   unsigned char *inptr = indata;
   unsigned char templ[] = {0, YKPIV_INS_GET_DATA, 0x3f, 0xff};
   ykpiv_rc res;
@@ -1773,7 +1773,7 @@ ykpiv_rc _ykpiv_save_object(
     int object_id,
     unsigned char *indata,
     size_t len) {
-  unsigned char data[CB_BUF_MAX];
+  unsigned char data[CB_BUF_MAX] = {0};
   unsigned char *dataptr = data;
   unsigned char templ[] = {0, YKPIV_INS_PUT_DATA, 0x3f, 0xff};
   int sw;
@@ -1818,15 +1818,15 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
                                   const unsigned char *ec_data, unsigned char ec_data_len,
                                   const unsigned char pin_policy, const unsigned char touch_policy) {
 
-  unsigned char key_data[1024];
+  unsigned char key_data[1024] = {0};
   unsigned char *in_ptr = key_data;
   unsigned char templ[] = {0, YKPIV_INS_IMPORT_KEY, algorithm, key};
-  unsigned char data[256];
+  unsigned char data[256] = {0};
   unsigned long recv_len = sizeof(data);
   unsigned elem_len;
   int sw;
-  const unsigned char *params[5];
-  size_t lens[5];
+  const unsigned char *params[5] = {0};
+  size_t lens[5] = {0};
   size_t padding;
   unsigned char n_params;
   int i;
@@ -2136,8 +2136,8 @@ ykpiv_rc ykpiv_auth_deauthenticate(ykpiv_state *state) {
 /* deauthenticates the user pin and mgm key */
 static ykpiv_rc _ykpiv_auth_deauthenticate(ykpiv_state *state) {
   ykpiv_rc res = YKPIV_OK;
-  APDU apdu;
-  unsigned char data[0xff];
+  APDU apdu = {0};
+  unsigned char data[0xff] = {0};
   uint32_t recv_len = sizeof(data);
   int sw;
 

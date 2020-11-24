@@ -536,7 +536,7 @@ setting_bool_t _get_bool_config(const char *sz_setting) {
 
 #else
   /* read from config file*/
-  char sz_line[256];
+  char sz_line[256] = { 0 };
   char *psz_name = 0;
   char *psz_value = 0;
   char sz_name[256] = { 0 };
@@ -605,7 +605,7 @@ setting_bool_t setting_get_bool(const char *sz_setting, bool def) {
 /* logging */
 
 void yc_log_event(uint32_t id, yc_log_level_t level, const char * sz_format, ...) {
-  char rgsz_message[4096];
+  char rgsz_message[4096] = {0};
   va_list vl;
 
 #ifdef _WIN32

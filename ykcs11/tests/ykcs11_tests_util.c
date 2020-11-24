@@ -85,7 +85,7 @@ void dump_hex(const unsigned char *buf, unsigned int len, FILE *output, int spac
 
 static CK_OBJECT_HANDLE get_public_key_handle(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
                         CK_OBJECT_HANDLE privkey) {
-  CK_OBJECT_HANDLE found_obj[10];
+  CK_OBJECT_HANDLE found_obj[10] = {0};
   CK_ULONG n_found_obj = 0;
   CK_ULONG class_pub = CKO_PUBLIC_KEY;
   CK_BYTE ckaid = 0;
@@ -122,7 +122,7 @@ static CK_RV get_hash(CK_MECHANISM_TYPE mech,
     return CKR_FUNCTION_FAILED;
   }
 
-  CK_BYTE hashed_data[512];
+  CK_BYTE hashed_data[512] = {0};
   switch(mech) {
     case CKM_SHA_1:
     case CKM_RSA_PKCS_PSS:
@@ -162,7 +162,7 @@ static CK_RV get_digest(CK_MECHANISM_TYPE mech,
     return CKR_FUNCTION_FAILED;
   }
 
-  CK_BYTE hashed_data[512];
+  CK_BYTE hashed_data[512] = {0};
   switch(mech) {
     case CKM_ECDSA:
     case CKM_RSA_PKCS:
@@ -274,13 +274,13 @@ static CK_MECHANISM_TYPE get_md_of(CK_MECHANISM_TYPE mech) {
 
 void test_digest_func(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_MECHANISM_TYPE mech_type) {
   CK_BYTE     i;
-  CK_BYTE     data[32];
+  CK_BYTE     data[32] = {0};
   CK_ULONG    data_len = sizeof(data);
-  CK_BYTE     digest[128];
+  CK_BYTE     digest[128] = {0};
   CK_ULONG    digest_len;
-  CK_BYTE     digest_update[128];
+  CK_BYTE     digest_update[128] = {0};
   CK_ULONG    digest_update_len;
-  CK_BYTE     hdata[128];
+  CK_BYTE     hdata[128] = {0};
   CK_ULONG    hdata_len;
 
   CK_MECHANISM mech = {mech_type, NULL, 0};
@@ -321,7 +321,7 @@ EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   CK_ULONG    class_c = CKO_CERTIFICATE;
   CK_ULONG    kt = CKK_ECDSA;
   CK_BYTE     id = 0;
-  CK_BYTE     value_c[3100];
+  CK_BYTE     value_c[3100] = {0};
   CK_ULONG    cert_len;
 
   unsigned char  *p;
@@ -415,7 +415,7 @@ void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int k
   CK_ULONG    class_c = CKO_CERTIFICATE;
   CK_ULONG    kt = CKK_RSA;
   CK_BYTE     id = 0;
-  CK_BYTE     value_c[3100];
+  CK_BYTE     value_c[3100] = {0};
   CK_ULONG    cert_len;
   const BIGNUM *bp, *bq, *biqmp, *bdmp1, *bdmq1;
 
@@ -627,12 +627,12 @@ void test_ec_sign_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
                          CK_BYTE n_keys, EC_KEY *eck, CK_ULONG key_len) {
                     
   CK_BYTE     i;
-  CK_BYTE     data[32];
+  CK_BYTE     data[32] = {0};
   CK_ULONG    data_len;
-  CK_BYTE     sig[256];
+  CK_BYTE     sig[256] = {0};
   CK_ULONG    sig_len;
 
-  CK_BYTE     der_encoded[116];
+  CK_BYTE     der_encoded[116] = {0};
 
   CK_MECHANISM mech = {CKM_ECDSA, NULL, 0};
 
@@ -665,7 +665,7 @@ void test_ec_ecdh_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
                          CK_BYTE n_keys, int curve) {
                     
   CK_BYTE     i;
-  CK_BYTE     pubkey[128], pubkey2[128], secret[128], secret2[128];
+  CK_BYTE     pubkey[128]={0}, pubkey2[128]={0}, secret[128]={0}, secret2[128]={0};
 
   CK_ULONG    cls = CKO_SECRET_KEY;
   CK_ULONG    kt = CKK_GENERIC_SECRET;
@@ -727,14 +727,14 @@ void test_ec_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session
                            CK_MECHANISM_TYPE mech_type, EC_KEY *eck, CK_ULONG key_len) {
                     
   CK_BYTE       i, j;
-  CK_BYTE       data[32];
+  CK_BYTE       data[32] = {0};
   CK_ULONG      data_len;
-  CK_BYTE       hdata[64];
+  CK_BYTE       hdata[64] = {0};
   unsigned int  hdata_len;  
   CK_BYTE*      sig;
   CK_ULONG      sig_len;
 
-  CK_BYTE     der_encoded[116];
+  CK_BYTE     der_encoded[116] = {0};
   const EVP_MD *md;
   EVP_MD_CTX *mdctx;
 
@@ -791,8 +791,8 @@ void test_ec_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session
 void test_rsa_sign_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
                           CK_BYTE n_keys, EVP_PKEY* evp) {
   CK_BYTE     i;
-  CK_BYTE     data[32];
-  CK_BYTE     sig[256];
+  CK_BYTE     data[32] = {0};
+  CK_BYTE     sig[256] = {0};
   CK_ULONG    sig_len;
   EVP_PKEY_CTX *ctx = NULL;
 
@@ -833,14 +833,14 @@ void test_rsa_sign_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session,
 void test_rsa_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
                             CK_BYTE n_keys, EVP_PKEY* evp, CK_MECHANISM_TYPE mech_type) {
   CK_BYTE     i, j;
-  CK_BYTE     data[32];
+  CK_BYTE     data[32] = {0};
   CK_BYTE*    sig;
   CK_BYTE*    sig_update;
   CK_ULONG    sig_len;
   CK_ULONG    sig_update_len;
   EVP_PKEY_CTX *ctx = NULL;
 
-  CK_BYTE     hdata[512];
+  CK_BYTE     hdata[512] = {0};
   CK_ULONG    hdata_len;
 
   CK_OBJECT_HANDLE obj_pubkey;
@@ -915,7 +915,7 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
   CK_ULONG    sig_update_len;
 
   CK_BYTE*     pss_buf;
-  CK_BYTE      digest_data[256];
+  CK_BYTE      digest_data[256] = {0};
   unsigned int digest_data_len = sizeof(digest_data);
   EVP_MD_CTX   *md_ctx;
 
@@ -1019,7 +1019,7 @@ static int is_data_too_large(int enc_ret) {
   unsigned long err;
   ERR_load_crypto_strings();
   err = ERR_get_error();
-  //char err_str[128];  
+  //char err_str[128] = {0};
   //ERR_error_string_n(err, err_str, 128);
   //printf("%ld    %s\n", err, err_str);
   if(err == 67534980) { // Error code for "data too large for modulus"
@@ -1033,7 +1033,7 @@ void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   CK_BYTE   i, j;
   int       data_len, enc_len;
   CK_BYTE*  data;
-  CK_BYTE   enc[512];
+  CK_BYTE   enc[512] = {0};
   CK_BYTE*  dec;
   CK_ULONG  dec_len;
 
@@ -1093,11 +1093,11 @@ void test_rsa_decrypt_oaep(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session
                            CK_BYTE n_keys, CK_MECHANISM_TYPE mdhash,  RSA* rsak) {
   CK_ULONG  i, j;
   int       data_len;
-  CK_BYTE   data[32];
-  CK_BYTE   padded_data[512];
+  CK_BYTE   data[32] = {0};
+  CK_BYTE   padded_data[512] = {0};
   CK_BYTE   padded_data_len;
-  CK_BYTE   enc[512];
-  CK_BYTE   dec[512];
+  CK_BYTE   enc[512] = {0};
+  CK_BYTE   dec[512] = {0};
   CK_ULONG  dec_len;
   size_t    enc_len;
   const EVP_MD *md;
@@ -1151,11 +1151,11 @@ void test_rsa_decrypt_oaep(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session
 void test_rsa_encrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
                       CK_BYTE n_keys, RSA* rsak, CK_MECHANISM_TYPE mech_type, CK_ULONG padding) {
   CK_BYTE   i,j;
-  CK_BYTE   data[32];
+  CK_BYTE   data[32] = {0};
   CK_ULONG  data_len = sizeof(data);
-  CK_BYTE   enc[128];
+  CK_BYTE   enc[128] = {0};
   CK_ULONG  enc_len;
-  CK_BYTE   dec[512];
+  CK_BYTE   dec[512] = {0};
   CK_ULONG  dec_len;
 
   CK_RSA_PKCS_OAEP_PARAMS params = {0};
@@ -1228,7 +1228,7 @@ static void test_pubkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_
   CK_BBOOL obj_derive;
   CK_ULONG obj_modulus_bits;
   CK_BBOOL obj_modifiable;
-  char obj_label[1024];
+  char obj_label[1024] = {0};
   CK_ULONG obj_label_len;
 
   CK_ATTRIBUTE template[] = {
@@ -1276,8 +1276,8 @@ void test_pubkey_attributes_rsa(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE se
                                 const unsigned char* label, CK_ULONG modulus_len,
                                 CK_BYTE_PTR pubexp, CK_ULONG pubexp_len) {
 
-  CK_BYTE obj_pubexp[1024];
-  CK_BYTE obj_modulus[1024];
+  CK_BYTE obj_pubexp[1024] = {0};
+  CK_BYTE obj_modulus[1024] = {0};
 
   CK_ATTRIBUTE template[] = {
     {CKA_MODULUS, obj_modulus, sizeof(obj_modulus)},
@@ -1296,8 +1296,8 @@ void test_pubkey_attributes_ec(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE ses
                                 CK_OBJECT_HANDLE pubkey, CK_ULONG key_size, 
                                 const unsigned char* label, CK_ULONG ec_point_len,
                                 CK_BYTE_PTR ec_params, CK_ULONG ec_params_len) {
-  CK_BYTE obj_ec_point[1024];
-  CK_BYTE obj_ec_param[1024];
+  CK_BYTE obj_ec_point[1024] = {0};
+  CK_BYTE obj_ec_param[1024] = {0};
 
   CK_ATTRIBUTE template[] = {
     {CKA_EC_POINT, obj_ec_point, sizeof(obj_ec_point)},
@@ -1331,7 +1331,7 @@ static void test_privkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION
   CK_ULONG obj_modulus_bits;
   CK_BBOOL obj_always_authenticate;
   CK_BBOOL obj_modifiable;
-  char obj_label[1024];
+  char obj_label[1024] = {0};
   CK_ULONG obj_label_len;
 
   CK_ATTRIBUTE template[] = {
@@ -1387,8 +1387,8 @@ void test_privkey_attributes_rsa(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE s
                                 CK_BYTE_PTR pubexp, CK_ULONG pubexp_len, 
                                 CK_BBOOL always_authenticate) {
 
-  CK_BYTE obj_pubexp[1024];
-  CK_BYTE obj_modulus[1024];
+  CK_BYTE obj_pubexp[1024] = {0};
+  CK_BYTE obj_modulus[1024] = {0};
 
   CK_ATTRIBUTE template[] = {
     {CKA_MODULUS, obj_modulus, sizeof(obj_modulus)},
@@ -1408,8 +1408,8 @@ void test_privkey_attributes_ec(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE se
                                 const unsigned char* label, CK_ULONG ec_point_len,
                                 CK_BYTE_PTR ec_params, CK_ULONG ec_params_len, 
                                 CK_BBOOL always_authenticate) {
-  CK_BYTE obj_ec_point[1024];
-  CK_BYTE obj_ec_param[1024];
+  CK_BYTE obj_ec_point[1024] = {0};
+  CK_BYTE obj_ec_param[1024] = {0};
 
   CK_ATTRIBUTE template[] = {
     {CKA_EC_POINT, obj_ec_point, sizeof(obj_ec_point)},
@@ -1428,7 +1428,7 @@ void test_find_objects_by_class(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE se
                                 CK_ULONG class, CK_BYTE ckaid,
                                 CK_ULONG n_expected, CK_OBJECT_HANDLE obj_expected) {
   CK_ULONG i;
-  CK_OBJECT_HANDLE obj[10];
+  CK_OBJECT_HANDLE obj[10] = {0};
   CK_ULONG n = 0;
   CK_BBOOL found = CK_FALSE;
 

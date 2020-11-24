@@ -52,8 +52,8 @@ enum enum_format formats[] = {
 
 static bool inout(enum enum_format format) {
   const unsigned char buf[] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
-  unsigned char buf2[sizeof(buf)];
-  int pipefd[2];
+  unsigned char buf2[sizeof(buf)] = {0};
+  int pipefd[2] = {0};
   FILE *tmp1, *tmp2;
 
   if (pipe(pipefd) != 0)

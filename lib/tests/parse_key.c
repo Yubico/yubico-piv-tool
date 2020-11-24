@@ -56,7 +56,7 @@ struct key {
 };
 
 static int parse_key(const char *text, const unsigned char *expected, int valid) {
-	unsigned char key[24];
+	unsigned char key[24] = {0};
 	size_t len = sizeof(key);
 	ykpiv_rc res = ykpiv_hex_decode(text, strlen(text), key, &len);
   if (valid) {

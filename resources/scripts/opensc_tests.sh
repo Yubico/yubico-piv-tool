@@ -1,5 +1,5 @@
 #!/bin/bash -e
-
+set -x
 # This is a test script that uses pkcs11-tool command with the specified PKCS#11 module to generate keys on 4 different
 # slots using 4 different key algorithms on the YubiKey and then performs a signature with each of these keys.
 

@@ -55,7 +55,7 @@ struct name {
 };
 
 static bool test_name(const char *name, const char *expected) {
-  char buf[1024];
+  char buf[1024] = {0};
   BIO *bio;
   const char none[] = {0};
   X509_NAME *parsed = parse_name(name);

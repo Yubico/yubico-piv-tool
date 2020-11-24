@@ -113,7 +113,7 @@ unsigned char get_algorithm(EVP_PKEY *key) {
 }
 
 X509_NAME *parse_name(const char *orig_name) {
-  char name[1025];
+  char name[1025] = {0};
   X509_NAME *parsed = NULL;
   char *ptr = name;
   char *part;
@@ -166,7 +166,7 @@ parse_err:
 }
 
 size_t read_data(unsigned char *buf, size_t len, FILE* input, enum enum_format format) {
-  char raw_buf[YKPIV_OBJ_MAX_SIZE * 2 + 1];
+  char raw_buf[YKPIV_OBJ_MAX_SIZE * 2 + 1] = {0};
   size_t raw_len = fread(raw_buf, 1, sizeof(raw_buf), input);
   switch(format) {
     case format_arg_hex:
@@ -208,7 +208,7 @@ void dump_data(const unsigned char *buf, unsigned int len, FILE *output, bool sp
   switch(format) {
     case format_arg_hex:
       {
-        char tmp[YKPIV_OBJ_MAX_SIZE * 3 + 1];
+        char tmp[YKPIV_OBJ_MAX_SIZE * 3 + 1] = {0};
         unsigned int i;
         unsigned int step = 2;
         if(space) step += 1;
@@ -355,7 +355,7 @@ bool prepare_rsa_signature(const unsigned char *in, unsigned int in_len, unsigne
   X509_SIG *digestInfo;
   X509_ALGOR *algor;
   ASN1_OCTET_STRING *digest;
-  unsigned char data[1024];
+  unsigned char data[1024] = {0};
 
   if(in_len > sizeof(data))
     return false;
@@ -558,7 +558,7 @@ int SSH_write_X509(FILE *fp, X509 *x) {
   switch (EVP_PKEY_base_id(pkey)) {
   case EVP_PKEY_RSA: {
     RSA *rsa;
-    unsigned char n[256];
+    unsigned char n[256] = {0};
     const BIGNUM *bn_n;
 
     char rsa_id[] = "\x00\x00\x00\x07ssh-rsa";
@@ -575,7 +575,7 @@ int SSH_write_X509(FILE *fp, X509 *x) {
     }
 
     uint32_t bytes = BN_num_bytes(bn_n);
-    char len_buf[5];
+    char len_buf[5] = {0};
     int len = 4;
 
     len_buf[0] = (bytes >> 24) & 0x000000ff;
