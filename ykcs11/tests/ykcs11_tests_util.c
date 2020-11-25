@@ -398,7 +398,7 @@ EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   return eck;
 }
 
-void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int keylen, EVP_PKEY* evp, RSA* rsak,
+void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int keylen, EVP_PKEY** evp, RSA** rsak,
                     CK_BYTE n_keys, CK_OBJECT_HANDLE_PTR obj_cert, CK_OBJECT_HANDLE_PTR obj_pvtkey) {
   X509        *cert;
   CK_BYTE     i;
@@ -448,10 +448,10 @@ void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int k
     exit(EXIT_FAILURE);
 
   do {
-    asrt(RSA_generate_key_ex(rsak, keylen, e_bn, NULL), 1, "GENERATE RSAK");
+    asrt(RSA_generate_key_ex(*rsak, keylen, e_bn, NULL), 1, "GENERATE RSAK");
 
-    RSA_get0_factors(rsak, &bp, &bq);
-    RSA_get0_crt_params(rsak, &bdmp1, &bdmq1, &biqmp);
+    RSA_get0_factors(*rsak, &bp, &bq);
+    RSA_get0_crt_params(*rsak, &bdmp1, &bdmq1, &biqmp);
     p_len = BN_bn2bin(bp, p);
     q_len = BN_bn2bin(bq, q);
     dp_len = BN_bn2bin(bdmp1, dp);
@@ -461,7 +461,7 @@ void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int k
   } while(!len_correct);
 
 
-  if (EVP_PKEY_set1_RSA(evp, rsak) == 0)
+  if (EVP_PKEY_set1_RSA(*evp, *rsak) == 0)
     exit(EXIT_FAILURE);
 
   cert = X509_new();
@@ -476,10 +476,10 @@ void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int k
   X509_gmtime_adj(X509_get_notBefore(cert), 0);
   X509_gmtime_adj(X509_get_notAfter(cert), 0);
 
-  if (X509_set_pubkey(cert, evp) == 0)
+  if (X509_set_pubkey(cert, *evp) == 0)
     exit(EXIT_FAILURE);
 
-  if (X509_sign(cert, evp, EVP_sha1()) == 0)
+  if (X509_sign(cert, *evp, EVP_sha1()) == 0)
     exit(EXIT_FAILURE);
 
   px = value_c;
@@ -500,7 +500,9 @@ void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int k
 
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
 
-  evp = X509_get_pubkey(cert);
+  //*evp = X509_get_pubkey(cert);
+  X509_free(cert);
+  BN_free(e_bn);
   free(p);
   free(q);
   free(dp);
@@ -820,6 +822,7 @@ void test_rsa_sign_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session,
       asrt(EVP_PKEY_verify_init(ctx) > 0, 1, "EVP_KEY_verify_init");
       asrt(EVP_PKEY_CTX_set_signature_md(ctx, NULL) > 0, 1, "EVP_PKEY_CTX_set_signature_md");
       asrt(EVP_PKEY_verify(ctx, sig, sig_len, data, 32), 1, "EVP_PKEY_verify");
+      EVP_PKEY_CTX_free(ctx);
     } else {
       // Internal verification: Verify
       asrt(funcs->C_VerifyInit(session, &mech, obj_pubkey), CKR_OK, "VERIFY INIT");
