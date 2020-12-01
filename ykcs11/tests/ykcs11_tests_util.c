@@ -395,6 +395,8 @@ EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
 
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
   free(pvt);
+  X509_free(cert);
+  EVP_PKEY_free(evp);
   return eck;
 }
 
@@ -873,6 +875,7 @@ void test_rsa_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE sessio
         asrt(EVP_PKEY_verify_init(ctx) > 0, 1, "EVP_KEY_verify_init");
         asrt(EVP_PKEY_CTX_set_signature_md(ctx, NULL) > 0, 1, "EVP_PKEY_CTX_set_signature_md");
         asrt(EVP_PKEY_verify(ctx, sig, sig_len, hdata, hdata_len), 1, "EVP_PKEY_verify");
+        EVP_PKEY_CTX_free(ctx);
       }
       
       // Internal verification: Verify

@@ -770,8 +770,7 @@ CK_RV do_strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG len, CK_ULONG 
 
   ECDSA_SIG_free(sig);
   return CKR_OK;
-
- strip_der_cleanup:
+strip_der_cleanup:
   ECDSA_SIG_free(sig);
   return rv;
 }

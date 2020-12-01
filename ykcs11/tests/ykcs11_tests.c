@@ -471,6 +471,7 @@ static void test_sign_eccp(CK_BYTE* key_params, CK_ULONG key_params_len, CK_ULON
     test_ec_sign_thorough(funcs, session, obj_pvtkey, CKM_ECDSA_SHA384, eck, key_len);
   }
 
+  EC_KEY_free(eck);
   destroy_test_objects(funcs, session, obj_pvtkey, N_SELECTED_KEYS);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
@@ -670,6 +671,7 @@ static void test_import_eccp(CK_BYTE* key_params, CK_ULONG key_params_len, CK_UL
   test_ec_sign_simple(funcs, session, obj_pvtkey, n_keys, eck, key_len);
   test_ec_ecdh_simple(funcs, session, obj_pvtkey, n_keys, curve);
 
+  EC_KEY_free(eck);
   destroy_test_objects(funcs, session, obj_cert, n_keys);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
