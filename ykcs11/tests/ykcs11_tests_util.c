@@ -500,7 +500,6 @@ void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int k
 
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
 
-  //*evp = X509_get_pubkey(cert);
   X509_free(cert);
   BN_free(e_bn);
   free(p);
