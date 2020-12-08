@@ -239,6 +239,11 @@ static bool generate_key(ykpiv_state *state, enum enum_slot slot,
     return false;
   }
 
+  if(algorithm == algorithm_arg_RSA1024) {
+    fprintf(stderr, "\nWARNING. The use of RSA1024 is discouraged by the National Institute of Standards "
+                         "and Technology (NIST). See https://www.yubico.com/blog/comparing-asymmetric-encryption-algorithms\n\n");
+  }
+
   res = ykpiv_util_generate_key(state,
                                 (uint8_t)(key & 0xFF),
                                 get_piv_algorithm(algorithm),
