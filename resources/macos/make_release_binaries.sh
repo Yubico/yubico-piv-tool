@@ -1,19 +1,33 @@
 #!/bin/bash
 # Script to produce an OS X binaries
 # This script has to be run from the source directory
-set -x
+if [ "$#" -ne 3 ]; then
+    echo "This script build the binaries to be installed on a MacOS. This script should be run from the main project directory"
+    echo ""
+    echo "      Usage: ./resources/macos/make_release_binaries.sh <Release version> <SO version> <Value of CMAKE_INSTALL_PREFIX>"
+    echo "";
+    echo "Release version               : Full yubico-piv-tool version, tex 2.1.0"
+    echo "SO version                    : The version of the ykpiv library, tex 2"
+    echo "Value of CMAKE_INSTALL_PREFIX : The value of the CMAKE_INSTALL_PREFIX, tex /usr/local. Can be displayed by running 'cmake -L | grep CMAKE_INSTALL_PREFIX'"
+    exit 0
+fi
 
 VERSION=$1 # Full yubico-piv-tool version, tex 2.1.0
 SO_VERSION=$2
 CMAKE_INSTALL_PREFIX=$3 # The value of the CMAKE_INSTALL_PREFIX, tex /usr/local. Can be displayed by running "cmake -L | grep CMAKE_INSTALL_PREFIX"
 
-echo VERSION: $VERSION
-echo SO_VERSION: $SO_VERSION
-echo CMAKE_INSTALL_PREFIX: $CMAKE_INSTALL_PREFIX
+echo "Release version : $VERSION"
+echo "SO version: $SO_VERSION"
+echo "CMAKE_INSTALL_PREFIX: $CMAKE_INSTALL_PREFIX"
+echo "Working directory: $PWD"
+
+set -x
 
 PACKAGE=yubico-piv-tool
 OPENSSLVERSION=1.1.1f
 CFLAGS="-mmacosx-version-min=10.6"
+
+echo "OpenSSL version: $OPENSSLVERSION"
 
 SOURCE_DIR=$PWD
 MAC_DIR=$SOURCE_DIR/resources/macos

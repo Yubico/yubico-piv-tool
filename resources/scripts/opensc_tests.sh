@@ -1,13 +1,17 @@
 #!/bin/bash -e
-set -x
 # This is a test script that uses pkcs11-tool command with the specified PKCS#11 module to generate keys on 4 different
 # slots using 4 different key algorithms on the YubiKey and then performs a signature with each of these keys.
 
-if [ -z "$1" ]
-  then
-    echo "Usage: ./opensc_tests.sh <path to PKCS11 module>"
-    exit
+if [ "$#" -ne 1 ]; then
+  echo "This is a test script that uses pkcs11-tool command with the specified PKCS#11 module to generate keys on 4 different
+  slots using 4 different key algorithms on the YubiKey and then performs a signature with each of these keys."
+  echo ""
+  echo "      Usage: ./opensc_tests.sh <path to PKCS11 module>"
+  exit
 fi
+
+set -e
+set -x
 
 MODULE=$1
 
@@ -54,3 +58,6 @@ pkcs11-tool --module $MODULE --login --pin 123456  --test
 
 echo "******************* Testing EC Tests ********************* "
 pkcs11-tool --module $MODULE --login --pin 123456 --login-type so --so-pin 010203040506070801020304050607080102030405060708 --test-ec --id 2 --key-type EC:secp256r1
+
+set +x
+set +e

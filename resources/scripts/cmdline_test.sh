@@ -4,12 +4,22 @@
 # generates keys on 4 different slots using 4 different key algorithms and then performs a signature with each
 # of these keys.
 
-set +e
+if [ "$#" -ne 1 ]; then
+  BIN="yubico-piv-tool"
+else
+  BIN=$1 # path to the yubico-piv-tool command line tool
+fi
+
+set -e
+set -x
+
+if [ -e yubico-piv-tool_test_dir ];
+then
+    rm -rf yubico-piv-tool_test_dir
+fi
 
 mkdir yubico-piv-tool_test_dir; cd yubico-piv-tool_test_dir
 echo test signing data > data.txt
-
-BIN=$1 #"yubico-piv-tool"
 
 $BIN --help
 
@@ -155,4 +165,5 @@ fi
 cd ..
 rm -r yubico-piv-tool_test_dir
 
-set -e
+set +x
+set +e
