@@ -29,7 +29,7 @@ $ pkcs11-tool --module /path/to/libykcs11.so --login --login-type so --keypairge
 
 [source, bash]
 ----
-$ pkcs11-tool --module /path/to/libykcs11.so --login --login-type so --keypairgen --id 2 --key-type rsa:1024
+$ pkcs11-tool --module /path/to/libykcs11.so --login --login-type so --keypairgen --id 2 --key-type rsa:2048
 ----
 
 ==== Signing

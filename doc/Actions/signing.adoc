@@ -22,7 +22,7 @@ The signing operation requires verifying the PIN code, which is done using the "
 
 === Examples
 
-    $ yubico-piv-tool -a verify-pin --sign -s 9c -H SHA512 -A RSA1024 -i data.txt -o data.sig
+    $ yubico-piv-tool -a verify-pin --sign -s 9c -H SHA512 -A RSA2048 -i data.txt -o data.sig
     Enter PIN:
     Successfully verified PIN.
     Signature successful!

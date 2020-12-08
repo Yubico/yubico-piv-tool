@@ -94,7 +94,7 @@ It is also possible to combine all these commands above into one single command 
 
 ==== Signed certificate on slot 9c
 
-    $ yubico-piv-tool -a generate -s 9c -A RSA1024 -o pub.key
+    $ yubico-piv-tool -a generate -s 9c -A RSA2048 -o pub.key
     Successfully generated a new private key.
 
     $ yubico-piv-tool -a verify-pin -a request-certificate -s 9c -S '/CN=digi_sign/OU=test/O=example.com/' -i pub.key -o csr.pem

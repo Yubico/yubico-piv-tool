@@ -17,7 +17,7 @@ The default 3DES management key (9B) is
 
 The following key slots exists:
 
-* 9A, 9C, 9D, 9E: RSA 1024, RSA 2048, or ECC secp256r1 keys
+* 9A, 9C, 9D, 9E: RSA 1024, RSA 2048, ECC secp256r1 or ECC secp384r1 keys
   (algorithms 6, 7, 11 respectively).
 
 * 9B: Triple-DES key (algorithm 3) for PIV management.
