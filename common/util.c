@@ -117,6 +117,7 @@ X509_NAME *parse_name(const char *orig_name) {
   X509_NAME *parsed = NULL;
   char *ptr = name;
   char *part;
+  char tmp_part[1024] = {0};
 
   if(strlen(orig_name) > 1024) {
     fprintf(stderr, "Name is too long!\n");
@@ -134,6 +135,16 @@ X509_NAME *parse_name(const char *orig_name) {
     return NULL;
   }
   while((part = strtok(ptr, "/"))) {
+
+    while(part[strlen(part)-1] == '\\') {
+      part[strlen(part)-1] = '/';
+      char* tok = strtok(NULL, "/");
+      memcpy(tmp_part, part, strlen(part)* sizeof(char));
+      memcpy(tmp_part+(strlen(part)* sizeof(char)), tok, strlen(tok)* sizeof(char));
+      tmp_part[strlen(part)+strlen(tok)] = '\0';
+      part = tmp_part;
+    }
+
     char *key;
     char *value;
     char *equals = strchr(part, '=');
