@@ -58,6 +58,7 @@ struct name {
   {"/CN=test/OU=bar/O=EXAMPLE", "", false},
   {"/CN=test/OU=foo\\bar/O=EXAMPLE/", "CN = test, OU = foo\\\\bar, O = EXAMPLE", true},
   {"/CN=test/OU=foo\\\\/O=EXAMPLE/", "CN = test, OU = foo\\\\, O = EXAMPLE", true},
+  {"/CN=test/OU=foo\\\\\\\\/bar/O=EXAMPLE/", "", false},
 };
 
 static bool test_name(const char *name, const char *expected) {
