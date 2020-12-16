@@ -12,7 +12,7 @@ jobs:
     name: Build dist with Linux
     runs-on: ubuntu-latest
     env:
-      RELEASE_VERSION: 2.1.1
+      RELEASE_VERSION: 2.2.0
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -40,7 +40,7 @@ jobs:
     needs: job_1
     runs-on: windows-latest
     env:
-      RELEASE_VERSION: 2.1.1
+      RELEASE_VERSION: 2.2.0
     steps:
       - name: Download source from job_1
         uses: actions/download-artifact@v1
@@ -100,7 +100,7 @@ jobs:
     needs: job_1
     runs-on: windows-latest
     env:
-      RELEASE_VERSION: 2.1.1
+      RELEASE_VERSION: 2.2.0
     steps:
       - name: Download source from job_1
         uses: actions/download-artifact@v1
