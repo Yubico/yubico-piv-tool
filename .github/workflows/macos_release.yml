@@ -37,6 +37,7 @@ jobs:
     runs-on: macos-latest
     env:
       RELEASE_VERSION: 2.2.0
+      SO_VERSION: 2
     steps:
       - name: Download source from job_1
         uses: actions/download-artifact@v1
@@ -60,7 +61,7 @@ jobs:
           export INSTALL_PREFIX=/usr/local
 
           cd yubico-piv-tool-src/yubico-piv-tool-$RELEASE_VERSION
-          ./resources/macos/make_release_binaries.sh $RELEASE_VERSION 1 $INSTALL_PREFIX
+          ./resources/macos/make_release_binaries.sh $RELEASE_VERSION $SO_VERSION $INSTALL_PREFIX
           mkdir $GITHUB_WORKSPACE/artifact
           mv resources/macos/yubico-piv-tool-$RELEASE_VERSION-mac.zip $GITHUB_WORKSPACE/artifact/
 
