@@ -50,19 +50,19 @@ set(PCSCLITE_PKG_PATH "" CACHE STRING "Path to be prepended to 'PKG_CONFIG_PATH'
 
 # Set various install paths
 if (NOT DEFINED YKPIV_INSTALL_LIB_DIR)
-    set(YKPIV_INSTALL_LIB_DIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}" CACHE PATH "Installation directory for libraries")
+    set(YKPIV_INSTALL_LIB_DIR "${CMAKE_INSTALL_FULL_LIBDIR}" CACHE PATH "Installation directory for libraries")
 endif ()
 
 if (NOT DEFINED YKPIV_INSTALL_INC_DIR)
-    set(YKPIV_INSTALL_INC_DIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}" CACHE PATH "Installation directory for headers")
+    set(YKPIV_INSTALL_INC_DIR "${CMAKE_INSTALL_FULL_INCLUDEDIR}" CACHE PATH "Installation directory for headers")
 endif ()
 
 if (NOT DEFINED YKPIV_INSTALL_BIN_DIR)
-    set(YKPIV_INSTALL_BIN_DIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}" CACHE PATH "Installation directory for executables")
+    set(YKPIV_INSTALL_BIN_DIR "${CMAKE_INSTALL_FULL_BINDIR}" CACHE PATH "Installation directory for executables")
 endif ()
 
 if (NOT DEFINED YKPIV_INSTALL_MAN_DIR)
-    set(YKPIV_INSTALL_MAN_DIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_MANDIR}" CACHE PATH "Installation directory for manual pages")
+    set(YKPIV_INSTALL_MAN_DIR "${CMAKE_INSTALL_FULL_MANDIR}" CACHE PATH "Installation directory for manual pages")
 endif ()
 
 if (NOT DEFINED YKPIV_INSTALL_PKGCONFIG_DIR)
