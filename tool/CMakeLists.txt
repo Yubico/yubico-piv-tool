@@ -57,7 +57,10 @@ add_executable (yubico-piv-tool ${SOURCE})
 target_link_libraries(yubico-piv-tool ${LIBCRYPTO_LDFLAGS} ${LINK_LIBS_WIN} ykpiv_shared)
 add_coverage(yubico-piv-tool)
 
-set_target_properties(yubico-piv-tool PROPERTIES INSTALL_RPATH "${YKPIV_INSTALL_LIB_DIR}")
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    set_target_properties(yubico-piv-tool PROPERTIES INSTALL_RPATH "${YKPIV_INSTALL_LIB_DIR}")
+endif()
+
 install(
         TARGETS yubico-piv-tool
         ARCHIVE DESTINATION "${YKPIV_INSTALL_LIB_DIR}"
