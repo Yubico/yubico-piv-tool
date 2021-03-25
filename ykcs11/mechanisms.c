@@ -709,6 +709,7 @@ CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
     case CKA_DECRYPT:
     case CKA_UNWRAP:
     case CKA_SIGN:
+    case CKA_SIGN_RECOVER:
     case CKA_PRIVATE:
     case CKA_TOKEN:
     case CKA_DERIVE:
