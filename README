@@ -92,7 +92,11 @@ backend to use.
 
 === Building on Windows
 
-Building on Windows require MSBuild or Visual Studio and the MSVC compiler.
+Building on Windows requires MSBuild or Visual Studio and the MSVC compiler. It also requires
+building the binaries from the https://developers.yubico.com/yubico-piv-tool/Releases/[source release] package
+and not from the source checked out from the repository on GitHub. This is because some files that are part of
+the command line shell are generated but they cannot, currently, be generated on Windows. Those files are, however,
+included in the source release package.
 
 On Windows, `getopt` is needed to read command line arguments. The path to `getopt`
 library and include file need to be specified as a command line argument to `cmake`.
