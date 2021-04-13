@@ -129,3 +129,4 @@ ykcs11/tests/ykcs11_tests.exe
 yubico-piv-tool.1.txt
 .DS_Store
 .vscode/c_cpp_properties.json
+build/
