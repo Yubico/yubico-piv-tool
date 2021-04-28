@@ -1332,6 +1332,7 @@ static void test_privkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION
   CK_BBOOL obj_decrypt;
   CK_BBOOL obj_unwrap;
   CK_BBOOL obj_sign;
+  CK_BBOOL obj_sign_recover;
   CK_BBOOL obj_derive;
   CK_ULONG obj_modulus_bits;
   CK_BBOOL obj_always_authenticate;
@@ -1352,6 +1353,7 @@ static void test_privkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION
     {CKA_DECRYPT, &obj_decrypt, sizeof(CK_BBOOL)},
     {CKA_UNWRAP, &obj_unwrap, sizeof(CK_BBOOL)},
     {CKA_SIGN, &obj_sign, sizeof(CK_BBOOL)},
+    {CKA_SIGN_RECOVER, &obj_sign_recover, sizeof(CK_BBOOL)},
     {CKA_DERIVE, &obj_derive, sizeof(CK_BBOOL)},
     {CKA_MODULUS_BITS, &obj_modulus_bits, sizeof(CK_ULONG)},
     {CKA_ALWAYS_AUTHENTICATE, &obj_always_authenticate, sizeof(CK_BBOOL)},
@@ -1362,7 +1364,7 @@ static void test_privkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION
     {CKA_LABEL, obj_label, sizeof(obj_label)}
   };
 
-  asrt(funcs->C_GetAttributeValue(session, privkey, template, 16), CKR_OK, "GET BASIC ATTRIBUTES");
+  asrt(funcs->C_GetAttributeValue(session, privkey, template, 17), CKR_OK, "GET BASIC ATTRIBUTES");
   asrt(obj_class, CKO_PRIVATE_KEY, "CLASS");
   asrt(obj_token, CK_TRUE, "TOKEN");
   asrt(obj_private, CK_TRUE, "PRIVATE");
@@ -1375,6 +1377,7 @@ static void test_privkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION
   asrt(obj_decrypt, CK_TRUE, "DECRYPT");
   asrt(obj_unwrap, CK_FALSE, "UNWRAP");
   asrt(obj_sign, CK_TRUE, "SIGN");
+  asrt(obj_sign_recover, CK_FALSE, "SIGN_RECOVER");
   asrt(obj_derive, CK_FALSE, "DERIVE");
   asrt(obj_modulus_bits, key_size, "MODULUS BITS");
   asrt(obj_always_authenticate, always_authenticate, "ALWAYS AUTHENTICATE");

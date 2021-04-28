@@ -722,6 +722,13 @@ static CK_RV get_proa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
     data = b_tmp;
     break;
 
+  case CKA_SIGN_RECOVER:
+    DBG("SIGN_RECOVER");
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = CK_FALSE;
+    data = b_tmp;
+    break;
+
   default:
     DBG("UNKNOWN ATTRIBUTE %lx (%lu)", template[0].type, template[0].type);
     template->ulValueLen = CK_UNAVAILABLE_INFORMATION;
