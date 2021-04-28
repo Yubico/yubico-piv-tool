@@ -647,6 +647,10 @@ extern "C"
 
 #define YKPIV_OBJ_ATTESTATION 0x5fff01
 
+#define TAG_CERT              0x70
+#define TAG_CERT_COMPRESS     0x71
+#define TAG_CERT_LRC          0xFE
+
 #define YKPIV_OBJ_MAX_SIZE 3072
 
 #define YKPIV_INS_VERIFY 0x20

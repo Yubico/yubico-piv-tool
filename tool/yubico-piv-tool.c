@@ -1459,7 +1459,7 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
 
   fprintf(output, "Slot %x:\t", slot_name);
 
-  if(*ptr++ == 0x70) {
+  if(*ptr++ == TAG_CERT) {
     unsigned int md_len = sizeof(data);
     const ASN1_TIME *not_before, *not_after;
 
