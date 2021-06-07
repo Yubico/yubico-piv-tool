@@ -560,8 +560,8 @@ static CK_RV get_proa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
   case CKA_ID:
     DBG("ID");
     len = sizeof(CK_BYTE);
-    ul_tmp = piv_objects[obj].sub_id;
-    data = (CK_BYTE_PTR) &ul_tmp;
+    b_tmp[0] = piv_objects[obj].sub_id;
+    data = b_tmp;
     break;
 
   case CKA_SENSITIVE:
