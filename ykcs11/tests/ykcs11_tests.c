@@ -81,9 +81,9 @@ static void get_functions() {
 
 static void init_connection() {
   asrt(funcs->C_Initialize(NULL), CKR_OK, "INITIALIZE");
-  CK_SLOT_ID pSlotList;
+  CK_SLOT_ID pSlotList[16];
   CK_ULONG pulCount = 16;
-  asrt(funcs->C_GetSlotList(true, &pSlotList, &pulCount), CKR_OK, "GETSLOTLIST");
+  asrt(funcs->C_GetSlotList(true, pSlotList, &pulCount), CKR_OK, "GETSLOTLIST");
 }
 
 static void test_lib_info() {
