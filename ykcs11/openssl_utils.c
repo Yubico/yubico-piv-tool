@@ -482,6 +482,9 @@ CK_RV do_store_pubk(ykcs11_x509_t *cert, ykcs11_pkey_t **key) {
 
 CK_KEY_TYPE do_get_key_type(ykcs11_pkey_t *key) {
 
+  if(!key) // EVP_PKEY_base_id doesn't handle NULL
+    return CKK_VENDOR_DEFINED; // Actually an error
+
   switch (EVP_PKEY_base_id(key)) {
   case EVP_PKEY_RSA:
     return CKK_RSA;
