@@ -60,8 +60,8 @@ static void *global_mutex;
 static uint64_t pid;
 int verbose;
 
-static CK_FUNCTION_LIST function_list;
-static CK_FUNCTION_LIST_3_0 function_list_3;
+static const CK_FUNCTION_LIST function_list;
+static const CK_FUNCTION_LIST_3_0 function_list_3;
 
 static CK_SESSION_HANDLE get_session_handle(ykcs11_session_t *session) {
   return (CK_SESSION_HANDLE)(session - sessions + 1);
@@ -4134,7 +4134,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_MessageVerifyFinal)
   return CKR_FUNCTION_NOT_SUPPORTED;
 }
 
-static CK_FUNCTION_LIST function_list = {
+static const CK_FUNCTION_LIST function_list = {
   {CRYPTOKI_LEGACY_VERSION_MAJOR, CRYPTOKI_LEGACY_VERSION_MINOR},
   C_Initialize,
   C_Finalize,
@@ -4206,7 +4206,7 @@ static CK_FUNCTION_LIST function_list = {
   C_WaitForSlotEvent,
 };
 
-static CK_FUNCTION_LIST_3_0 function_list_3 = {
+static const CK_FUNCTION_LIST_3_0 function_list_3 = {
   {CRYPTOKI_VERSION_MAJOR, CRYPTOKI_VERSION_MINOR},
   C_Initialize,
   C_Finalize,
