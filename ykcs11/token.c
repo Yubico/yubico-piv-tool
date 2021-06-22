@@ -490,54 +490,6 @@ CK_RV token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_BYTE_PTR in, CK
   return CKR_OK;
 }
 
-CK_RV token_import_private_key(ykpiv_state *state, CK_BYTE key_id,
-                                      CK_BYTE_PTR p, CK_ULONG p_len,
-                                      CK_BYTE_PTR q, CK_ULONG q_len,
-                                      CK_BYTE_PTR dp, CK_ULONG dp_len,
-                                      CK_BYTE_PTR dq, CK_ULONG dq_len,
-                                      CK_BYTE_PTR qinv, CK_ULONG qinv_len,
-                                      CK_BYTE_PTR ec_data, CK_ULONG ec_data_len) {
-
-  CK_BYTE  pin_policy;
-  CK_BYTE  touch_policy;
-  CK_BYTE  algo;
-  ykpiv_rc rc;
-
-  if (p == NULL) {
-    if (ec_data_len == 32 || ec_data_len == 31)
-      algo = YKPIV_ALGO_ECCP256;
-    else
-      algo = YKPIV_ALGO_ECCP384;
-  }
-  else if (ec_data == NULL) {
-    if (p_len == 64)
-      algo = YKPIV_ALGO_RSA1024;
-    else
-      algo = YKPIV_ALGO_RSA2048;
-  }
-  else
-    return CKR_FUNCTION_FAILED;
-
-  pin_policy = YKPIV_PINPOLICY_DEFAULT;
-  touch_policy = YKPIV_TOUCHPOLICY_DEFAULT;
-
-  rc = ykpiv_import_private_key(state, key_id, algo,
-                                p, p_len,
-                                q, q_len,
-                                dp, dp_len,
-                                dq, dq_len,
-                                qinv, qinv_len,
-                                ec_data, ec_data_len,
-                                pin_policy, touch_policy);
-
-  if (rc != YKPIV_OK) {
-    DBG("ykpiv_import_private_key failed: %s", ykpiv_strerror(rc));
-    return CKR_DEVICE_ERROR;
-  }
-
-  return CKR_OK;
-}
-
 CK_RV token_delete_cert(ykpiv_state *state, CK_ULONG cert_id) {
 
   if (ykpiv_save_object(state, cert_id, NULL, 0) != YKPIV_OK)
