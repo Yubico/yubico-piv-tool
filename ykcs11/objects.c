@@ -1590,6 +1590,13 @@ CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
       }
       break;
 
+    case CKA_EXTRACTABLE:
+      if (*((CK_BBOOL *)templ[i].pValue) != CK_FALSE) {
+        DBG("CKA_EXTRACTABLE must be FALSE or omitted");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+      break;
+
     case CKA_TOKEN:
     case CKA_LABEL:
     case CKA_SUBJECT:
@@ -1705,6 +1712,13 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
     case CKA_SENSITIVE:
       if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
         DBG("CKA_SENSITIVE must be TRUE or omitted");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+      break;
+
+    case CKA_EXTRACTABLE:
+      if (*((CK_BBOOL *)templ[i].pValue) != CK_FALSE) {
+        DBG("CKA_EXTRACTABLE must be FALSE or omitted");
         return CKR_ATTRIBUTE_VALUE_INVALID;
       }
       break;
