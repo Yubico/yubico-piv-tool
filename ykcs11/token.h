@@ -49,13 +49,6 @@ CK_RV token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF8CHAR_P
 CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK_ULONG pin_len);
 CK_RV token_generate_key(ykpiv_state *state, CK_BYTE algorithm, CK_BYTE key, CK_BYTE_PTR cert_data, CK_ULONG_PTR cert_len);
 CK_RV token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_BYTE_PTR in, CK_ULONG in_len);
-CK_RV token_import_private_key(ykpiv_state *state, CK_BYTE key_id,
-                               CK_BYTE_PTR p, CK_ULONG p_len,
-                               CK_BYTE_PTR q, CK_ULONG q_len,
-                               CK_BYTE_PTR dp, CK_ULONG dp_len,
-                               CK_BYTE_PTR dq, CK_ULONG dq_len,
-                               CK_BYTE_PTR qinv, CK_ULONG qinv_len,
-                               CK_BYTE_PTR ec_data, CK_ULONG ec_data_len);
 CK_RV token_delete_cert(ykpiv_state *state, CK_ULONG cert_id);
 
 #endif //YUBICO_PIV_TOOL_TOKEN_H

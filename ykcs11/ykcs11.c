@@ -1381,19 +1381,19 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
   CK_BYTE          id;
   CK_BYTE_PTR      value;
   CK_ULONG         value_len;
-  CK_BYTE_PTR      p;
-  CK_BYTE_PTR      q;
-  CK_BYTE_PTR      dp;
-  CK_BYTE_PTR      dq;
-  CK_BYTE_PTR      qinv;
-  CK_ULONG         p_len;
-  CK_ULONG         q_len;
-  CK_ULONG         dp_len;
-  CK_ULONG         dq_len;
-  CK_ULONG         qinv_len;
-  CK_BYTE_PTR      ec_data;
-  CK_ULONG         ec_data_len;
-  CK_BBOOL         is_rsa;
+  CK_BYTE_PTR      p = NULL;
+  CK_BYTE_PTR      q = NULL;
+  CK_BYTE_PTR      dp = NULL;
+  CK_BYTE_PTR      dq = NULL;
+  CK_BYTE_PTR      qinv = NULL;
+  CK_ULONG         p_len = 0;
+  CK_ULONG         q_len = 0;
+  CK_ULONG         dp_len = 0;
+  CK_ULONG         dq_len = 0;
+  CK_ULONG         qinv_len = 0;
+  CK_BYTE_PTR      ec_data = NULL;
+  CK_ULONG         ec_data_len = 0;
+  unsigned char    algorithm;
   piv_obj_id_t     dobj_id;
   piv_obj_id_t     cert_id;
   piv_obj_id_t     pubk_id;
@@ -1496,18 +1496,22 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     DBG("Importing private key");
 
     // Try to parse the key as EC
-    is_rsa = CK_FALSE;
     rv = check_create_ec_key(pTemplate, ulCount, &id, &ec_data, &ec_data_len);
-    if (rv != CKR_OK) {
+    if (rv == CKR_OK) {
+      DBG("Key is ECDSA");
+      algorithm = ec_data_len <= 32 ? YKPIV_ALGO_ECCP256 : YKPIV_ALGO_ECCP384;
+    } else {
       // Try to parse the key as RSA
-      is_rsa = CK_TRUE;
       rv = check_create_rsa_key(pTemplate, ulCount, &id,
                                 &p, &p_len,
                                 &q, &q_len,
                                 &dp, &dp_len,
                                 &dq, &dq_len,
                                 &qinv, &qinv_len);
-      if (rv != CKR_OK) {
+      if (rv == CKR_OK) {
+        DBG("Key is RSA");
+        algorithm = p_len <= 64 ? YKPIV_ALGO_RSA1024 : YKPIV_ALGO_RSA2048;
+      } else {
         DBG("Private key template not valid");
         goto create_out;
       }
@@ -1526,35 +1530,20 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       goto create_out;
     }
 
-    if (is_rsa == CK_TRUE) {
-      DBG("Key is RSA");
-      rv = token_import_private_key(session->slot->piv_state, piv_2_ykpiv(pvtk_id),
+    rv = ykpiv_import_private_key(session->slot->piv_state, piv_2_ykpiv(pvtk_id),
+                                          algorithm,
                                           p, p_len,
                                           q, q_len,
                                           dp, dp_len,
                                           dq, dq_len,
                                           qinv, qinv_len,
-                                          NULL, 0);
-      if (rv != CKR_OK) {
-        DBG("Unable to import RSA private key");
-        locking.pfnUnlockMutex(session->slot->mutex);
-        goto create_out;
-      }
-    }
-    else {
-      DBG("Key is ECDSA");
-      rv = token_import_private_key(session->slot->piv_state, piv_2_ykpiv(pvtk_id),
-                                          NULL, 0,
-                                          NULL, 0,
-                                          NULL, 0,
-                                          NULL, 0,
-                                          NULL, 0,
-                                          ec_data, ec_data_len);
-      if (rv != CKR_OK) {
-        DBG("Unable to import ECDSA private key");
-        locking.pfnUnlockMutex(session->slot->mutex);
-        goto create_out;
-      }
+                                          ec_data, ec_data_len,
+                                          YKPIV_PINPOLICY_DEFAULT,
+                                          YKPIV_TOUCHPOLICY_DEFAULT);
+    if (rv != CKR_OK) {
+      DBG("Unable to import private key");
+      locking.pfnUnlockMutex(session->slot->mutex);
+      goto create_out;
     }
 
     session->slot->local[id] = CK_FALSE;
