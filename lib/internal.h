@@ -165,6 +165,7 @@ struct ykpiv_state {
   uint32_t model;
   ykpiv_version_t ver;
   uint32_t serial;
+  pcsc_word card_protocol;
 };
 
 union u_APDU {
@@ -176,7 +177,7 @@ union u_APDU {
     unsigned char lc;
     unsigned char data[0xff];
   } st;
-  unsigned char raw[0xff + 5];
+  unsigned char raw[0xff + 5 + 1]; // 1 byte for Le
 };
 
 typedef union u_APDU APDU;

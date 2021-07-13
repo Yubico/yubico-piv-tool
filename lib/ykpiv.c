@@ -522,7 +522,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
       }
     }
     rc = SCardConnect(state->context, wanted, SCARD_SHARE_SHARED,
-          SCARD_PROTOCOL_T1, &card, &active_protocol);
+          SCARD_PROTOCOL_T1|SCARD_PROTOCOL_T0, &card, &active_protocol);
     if(rc != SCARD_S_SUCCESS)
     {
       if(state->verbose) {
@@ -532,6 +532,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
       state->context = (SCARDCONTEXT)-1;
       return YKPIV_PCSC_ERROR;
     }
+    state->card_protocol = active_protocol;
   } else
   {
     ret = ykpiv_list_readers(state, reader_buf, &num_readers);
@@ -564,9 +565,10 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
         fprintf(stderr, "Connect reader '%s' matching '%s'.\n", reader_ptr, wanted);
       }
       rc = SCardConnect(state->context, reader_ptr, SCARD_SHARE_SHARED,
-            SCARD_PROTOCOL_T1, &card, &active_protocol);
+            SCARD_PROTOCOL_T1|SCARD_PROTOCOL_T0, &card, &active_protocol);
       if(rc == SCARD_S_SUCCESS)
       {
+    	state->card_protocol = active_protocol;
         break;
       }
       if(state->verbose) {
@@ -666,13 +668,14 @@ ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state) {
     }
     pcsc_word active_protocol = 0;
     rc = SCardReconnect(state->card, SCARD_SHARE_SHARED,
-            SCARD_PROTOCOL_T1, SCARD_LEAVE_CARD, &active_protocol);
+            SCARD_PROTOCOL_T1|SCARD_PROTOCOL_T0, SCARD_LEAVE_CARD, &active_protocol);
     if(rc != SCARD_S_SUCCESS) {
       if(state->verbose) {
         fprintf(stderr, "SCardReconnect on card #%u failed, rc=%lx\n", state->serial, (long)rc);
       }
       return YKPIV_PCSC_ERROR;
-    }    
+    }
+    state->card_protocol = active_protocol;
   }
   if(rc != SCARD_S_SUCCESS) {
     if(state->verbose) {
@@ -815,30 +818,64 @@ ykpiv_rc _send_data(ykpiv_state *state, APDU *apdu,
     unsigned char *data, uint32_t *recv_len, int *sw) {
   unsigned int send_len = (unsigned int)apdu->st.lc + 5;
   pcsc_word tmp_len = *recv_len;
+  pcsc_word offset = 0;
 
+  repeat:
   if(state->verbose > 1) {
     fprintf(stderr, "> ");
     dump_hex(apdu->raw, send_len);
     fprintf(stderr, "\n");
   }
-  LONG rc = SCardTransmit(state->card, SCARD_PCI_T1, apdu->raw, send_len, NULL, data, &tmp_len);
+
+  LONG rc = SCardTransmit(state->card, state->card_protocol == SCARD_PROTOCOL_T0 ? SCARD_PCI_T0 : SCARD_PCI_T1,
+		  apdu->raw, send_len, NULL, data+offset, &tmp_len);
   if(rc != SCARD_S_SUCCESS) {
     if(state->verbose) {
       fprintf (stderr, "SCardTransmit on card #%u failed, rc=%lx\n", state->serial, (long)rc);
     }
     return YKPIV_PCSC_ERROR;
   }
-  *recv_len = (uint32_t)tmp_len;
 
   if(state->verbose > 1) {
     fprintf(stderr, "< ");
-    dump_hex(data, *recv_len);
+    dump_hex(data+offset, tmp_len);
     fprintf(stderr, "\n");
   }
-  if(*recv_len >= 2) {
-    *sw = (data[*recv_len - 2] << 8) | data[*recv_len - 1];
+  if(tmp_len >= 2) {
+    *sw = (data[offset+tmp_len - 2] << 8) | data[offset+tmp_len - 1];
+    // handle T0, trigger GET RESPONSE
+    if (state->card_protocol == SCARD_PROTOCOL_T0) {
+      // in case of T0 and multiple data return adjust offset into returned data
+      offset += tmp_len - 2;
+      tmp_len = *recv_len - offset;
+      if ((*sw & 0xFF00) == 0x6100) {
+        memset(apdu->raw, 0, sizeof(APDU));
+        apdu->st.ins = 0xC0;
+        // set Le
+        apdu->raw[4] = *sw & 0x00FF;
+        send_len = 5;
+        goto repeat;
+      }
+      else if ((*sw & 0xFF00) == 0x6c00) {
+          // set Le
+    	  if (apdu->st.lc == 0) {
+            apdu->raw[4] = *sw & 0x00FF;
+    	  }
+    	  else {
+    		  apdu->raw[5+apdu->st.lc] = *sw & 0x00FF;
+    	  }
+          send_len = 5;
+          goto repeat;
+      }
+    }
   } else {
     *sw = 0;
+  }
+  if (state->card_protocol == SCARD_PROTOCOL_T0) {
+    *recv_len = offset + 2;
+  }
+  else {
+    *recv_len = tmp_len;
   }
   return YKPIV_OK;
 }
