@@ -541,7 +541,6 @@ CK_BYTE do_get_key_algorithm(ykcs11_pkey_t *key) {
 CK_RV do_get_modulus(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
   RSA *rsa = NULL;
   const BIGNUM *n = NULL;
-  CK_RV rv;
 
   rsa = EVP_PKEY_get0_RSA(key);
   if (rsa == NULL)
@@ -549,25 +548,18 @@ CK_RV do_get_modulus(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
   RSA_get0_key(rsa, &n, NULL, NULL);
   if ((CK_ULONG)BN_num_bytes(n) > *len) {
-    rv = CKR_BUFFER_TOO_SMALL;
-    goto get_mod_cleanup;
+    return CKR_BUFFER_TOO_SMALL;
   }
 
   *len = (CK_ULONG)BN_bn2bin(n, data);
 
   return CKR_OK;
-get_mod_cleanup:
-  if(n != NULL) {
-    BN_free(n);
-  }
-  return rv;
 }
 
 CK_RV do_get_public_exponent(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
   RSA *rsa = NULL;
   const BIGNUM *bn_e;
-  CK_RV rv;
 
   rsa = EVP_PKEY_get0_RSA(key);
   if (rsa == NULL)
@@ -575,17 +567,11 @@ CK_RV do_get_public_exponent(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR 
 
   RSA_get0_key(rsa, NULL, &bn_e, NULL);
   if ((CK_ULONG)BN_num_bytes(bn_e) > *len) {
-    rv = CKR_BUFFER_TOO_SMALL;
-    goto get_pubexp_cleanup;
+    return CKR_BUFFER_TOO_SMALL;
   }
 
   *len = (CK_ULONG)BN_bn2bin(bn_e, data);
   return CKR_OK;
-get_pubexp_cleanup:
-  if(bn_e != NULL) {
-    BN_free(bn_e);
-  }
-  return rv;
 }
 
 /* #include <stdio.h> */
@@ -771,8 +757,7 @@ CK_RV do_strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG len, CK_ULONG 
     goto strip_der_cleanup;
   }
 
-  ECDSA_SIG_free(sig);
-  return CKR_OK;
+  rv = CKR_OK;
 strip_der_cleanup:
   ECDSA_SIG_free(sig);
   return rv;
