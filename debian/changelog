@@ -1,3 +1,9 @@
+yubico-piv-tool (2.2.1) stable; urgency=medium
+
+  * 2.2.1 release
+
+ -- Aveen Ismail <aveen.ismail@yubico.com>  Thu, 2 Sep 2021 13:14:40 +0100
+
 yubico-piv-tool (2.2.0) stable; urgency=medium
 
   * 2.2.0 release

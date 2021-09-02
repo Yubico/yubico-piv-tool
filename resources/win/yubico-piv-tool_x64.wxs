@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
-  <?define ProductVersion="2.1.0" ?>
+  <?define ProductVersion="2.2.1" ?>
   <?define ProductName="Yubico PIV Tool (x64)" ?>
 
    <Product Id="*" UpgradeCode="e4f980c4-5dd5-4d39-95b7-c6362ae65be8" Name="$(var.ProductName)" Version="$(var.ProductVersion)" Manufacturer="Yubico AB" Language="1033">

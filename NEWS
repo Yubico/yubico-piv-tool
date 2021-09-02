@@ -1,5 +1,14 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
+* Version 2.2.1 (released 2021-09-07)
+
+** ykpiv: Minor bug fixes
+** ykcs11: Improved handling of object attributes
+** ykcs11: Update flags for EC related mechanisms
+** ykcs11: Minor bug fixes
+** test: Improved testing
+** doc: Improved documentation
+
 * Version 2.2.0 (released 2021-01-20)
 
 ** ykpiv: Increased SO version
