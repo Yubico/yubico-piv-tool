@@ -666,7 +666,7 @@ ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state) {
     }
     pcsc_word active_protocol = 0;
     rc = SCardReconnect(state->card, SCARD_SHARE_SHARED,
-            SCARD_PROTOCOL_T1, SCARD_LEAVE_CARD, &active_protocol);
+            SCARD_PROTOCOL_T1, SCARD_RESET_CARD, &active_protocol);
     if(rc != SCARD_S_SUCCESS) {
       if(state->verbose) {
         fprintf(stderr, "SCardReconnect on card #%u failed, rc=%lx\n", state->serial, (long)rc);
