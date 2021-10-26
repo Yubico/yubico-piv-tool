@@ -655,24 +655,36 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
   return YKPIV_OK;
 }
 
+// Add errors that we should reconnect on here
+bool ShouldReconnect(LONG rc) {
+  switch(rc) {
+    case SCARD_W_UNPOWERED_CARD:
+    case SCARD_W_RESET_CARD:
+    case SCARD_W_REMOVED_CARD:
+      return true;
+    default:
+      return false;
+  }
+}
+
 ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state) {
 #if ENABLE_IMPLICIT_TRANSACTIONS
   LONG rc;
   int retries = 0;
-  while((rc = SCardBeginTransaction(state->card)) == SCARD_W_RESET_CARD && retries < 5) {
+  while (rc = SCardBeginTransaction(state->card), ShouldReconnect(rc) && retries < 5) {
     retries++;
     if(state->verbose) {
-      fprintf(stderr, "Reconnect card #%u attempt %d\n", state->serial, retries);
+      fprintf(stderr, "Reconnect card #%u attempt %d, previous rc=%lx\n", state->serial, retries, (long)rc);
     }
     pcsc_word active_protocol = 0;
     rc = SCardReconnect(state->card, SCARD_SHARE_SHARED,
-            SCARD_PROTOCOL_T1, SCARD_LEAVE_CARD, &active_protocol);
+            SCARD_PROTOCOL_T1, SCARD_RESET_CARD, &active_protocol);
     if(rc != SCARD_S_SUCCESS) {
       if(state->verbose) {
         fprintf(stderr, "SCardReconnect on card #%u failed, rc=%lx\n", state->serial, (long)rc);
       }
       return YKPIV_PCSC_ERROR;
-    }    
+    }
   }
   if(rc != SCARD_S_SUCCESS) {
     if(state->verbose) {
