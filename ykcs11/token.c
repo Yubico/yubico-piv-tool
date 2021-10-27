@@ -431,13 +431,13 @@ CK_RV token_generate_key(ykpiv_state *state, CK_BYTE algorithm, CK_BYTE key, CK_
   certptr = data;
   memmove(data + len_bytes + 1, data, recv_len);
 
-  *certptr++ = 0x70;
+  *certptr++ = TAG_CERT;
   certptr += set_length(certptr, recv_len);
   certptr += recv_len;
-  *certptr++ = 0x71;
+  *certptr++ = TAG_CERT_COMPRESS;
   *certptr++ = 1;
   *certptr++ = 0; /* certinfo (gzip etc) */
-  *certptr++ = 0xfe; /* LRC */
+  *certptr++ = TAG_CERT_LRC;
   *certptr++ = 0;
 
   if(*cert_len < certptr - data) {
@@ -472,15 +472,15 @@ CK_RV token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_BYTE_PTR in, CK
 
   certptr = certdata;
 
-  *certptr++ = 0x70;
+  *certptr++ = TAG_CERT;
   certptr += set_length(certptr, cert_len);
   memcpy(certptr, in, cert_len);
   certptr += cert_len;
 
-  *certptr++ = 0x71;
+  *certptr++ = TAG_CERT_COMPRESS;
   *certptr++ = 1;
   *certptr++ = 0; /* certinfo (gzip etc) */
-  *certptr++ = 0xfe; /* LRC */
+  *certptr++ = TAG_CERT_LRC;
   *certptr++ = 0;
 
   // Store the certificate into the token

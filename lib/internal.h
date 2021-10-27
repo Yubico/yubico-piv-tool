@@ -84,9 +84,6 @@ extern "C"
 #define CHREF_ACT_UNBLOCK_PIN 1
 #define CHREF_ACT_CHANGE_PUK 2
 
-#define TAG_CERT              0x70
-#define TAG_CERT_COMPRESS     0x71
-#define TAG_CERT_LRC          0xFE
 #define TAG_ADMIN             0x80
 #define TAG_ADMIN_FLAGS_1     0x81
 #define TAG_ADMIN_SALT        0x82

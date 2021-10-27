@@ -110,7 +110,7 @@ CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, ykcs11_x509_t **cert) {
   const unsigned char *p = data; // Mandatory temp variable required by OpenSSL
   unsigned long       offs, cert_len;
 
-  if (*p == 0x70) {
+  if (*p == TAG_CERT) {
     // The certificate is in "PIV" format 0x70 len 0x30 len ...
     p++;
     offs = get_length(p, data + len, &cert_len);
