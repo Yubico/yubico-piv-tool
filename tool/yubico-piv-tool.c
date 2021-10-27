@@ -680,10 +680,13 @@ static bool set_cardid(ykpiv_state *state, int verbose, int type) {
 }
 
 static int add_ext(STACK_OF(X509_EXTENSION) *exts, const char *oid, const char *name, const char *descr, const unsigned char *data, int len) {
-  int nid = OBJ_create(oid, name, descr);
+  int nid = OBJ_txt2nid(oid);
   if(nid <= 0) {
-    fprintf(stderr, "Failed creating %s extension object.\n", name);
-    return 0;
+    nid = OBJ_create(oid, name, descr);
+    if (nid <= 0) {
+      fprintf(stderr, "Failed creating %s extension object.\n", name);
+      return 0;
+    }
   }
   ASN1_OCTET_STRING *octets = ASN1_OCTET_STRING_new();
   if(!octets) {
