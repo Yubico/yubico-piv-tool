@@ -1521,6 +1521,8 @@ CK_RV check_create_cert(CK_ATTRIBUTE_PTR templ, CK_ULONG n,
     case CKA_CERTIFICATE_TYPE:
     case CKA_PRIVATE:
     case CKA_SERIAL_NUMBER:
+    case CKA_NAME_HASH_ALGORITHM:
+    case CKA_HASH_OF_SUBJECT_PUBLIC_KEY:
       // Ignore other attributes
       break;
 
