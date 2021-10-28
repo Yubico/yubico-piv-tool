@@ -45,10 +45,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-CK_BBOOL is_yubico_reader(const char* reader_name) {
-  return !strncmp(reader_name, "Yubico", 6);
-}
-
 size_t memstrcpy(unsigned char *dst, size_t size, const char *src) {
   size_t len = strnlen(src, size);
   memcpy(dst, src, len);

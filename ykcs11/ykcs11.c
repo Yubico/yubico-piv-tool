@@ -361,81 +361,78 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 
   for(char *reader = readers; *reader; reader += strlen(reader) + 1) {
 
-    if(is_yubico_reader(reader)) {
+    ykcs11_slot_t *slot = slots + n_slots;
 
-      ykcs11_slot_t *slot = slots + n_slots;
+    // Values must NOT be null terminated and ' ' padded
 
-      // Values must NOT be null terminated and ' ' padded
+    memstrcpy(slot->slot_info.slotDescription, sizeof(slot->slot_info.slotDescription), reader);
+    memstrcpy(slot->slot_info.manufacturerID, sizeof(slot->slot_info.manufacturerID), YKCS11_MANUFACTURER);
 
-      memstrcpy(slot->slot_info.slotDescription, sizeof(slot->slot_info.slotDescription), reader);
-      memstrcpy(slot->slot_info.manufacturerID, sizeof(slot->slot_info.manufacturerID), YKCS11_MANUFACTURER);
+    slot->slot_info.hardwareVersion.major = 1;
+    slot->slot_info.hardwareVersion.minor = 0;
+    slot->slot_info.firmwareVersion.major = 1;
+    slot->slot_info.firmwareVersion.minor = 0;
+    slot->slot_info.flags = CKF_HW_SLOT | CKF_REMOVABLE_DEVICE;
 
-      slot->slot_info.hardwareVersion.major = 1;
-      slot->slot_info.hardwareVersion.minor = 0;
-      slot->slot_info.firmwareVersion.major = 1;
-      slot->slot_info.firmwareVersion.minor = 0;
-      slot->slot_info.flags = CKF_HW_SLOT | CKF_REMOVABLE_DEVICE;
-
-      // Find existing slot, if any
-      for(CK_ULONG i = 0; i < n_slots; i++) {
-        if(!memcmp(slot->slot_info.slotDescription, slots[i].slot_info.slotDescription, sizeof(slot->slot_info.slotDescription))) {
-          slot = slots + i;
-          mark[i] = false; // Un-mark for disconnect
-          break;
-        }
+    // Find existing slot, if any
+    for(CK_ULONG i = 0; i < n_slots; i++) {
+      if(!memcmp(slot->slot_info.slotDescription, slots[i].slot_info.slotDescription, sizeof(slot->slot_info.slotDescription))) {
+        slot = slots + i;
+        mark[i] = false; // Un-mark for disconnect
+        break;
       }
+    }
 
-      // Initialize piv_state and increase slot count if this is a new slot
-      if(slot == slots + n_slots) {
-        DBG("Initializing slot %td for '%s'", slot-slots, reader);
-        ykpiv_rc rc;
-        if((rc = ykpiv_init(&slot->piv_state, verbose)) != YKPIV_OK) {
-          DBG("Unable to initialize libykpiv: %s", ykpiv_strerror(rc));
-          locking.pfnUnlockMutex(global_mutex);
-          rv = CKR_FUNCTION_FAILED;
-          goto slotlist_out;
-        }
-        n_slots++;
+    // Initialize piv_state and increase slot count if this is a new slot
+    if(slot == slots + n_slots) {
+      DBG("Initializing slot %td for '%s'", slot-slots, reader);
+      ykpiv_rc rc;
+      if((rc = ykpiv_init(&slot->piv_state, verbose)) != YKPIV_OK) {
+        DBG("Unable to initialize libykpiv: %s", ykpiv_strerror(rc));
+        locking.pfnUnlockMutex(global_mutex);
+        rv = CKR_FUNCTION_FAILED;
+        goto slotlist_out;
       }
+      n_slots++;
+    }
 
-      // Try to connect if unconnected (both new and existing slots)
-      if (ykpiv_validate(slot->piv_state, reader) != YKPIV_OK) {
+    // Try to connect if unconnected (both new and existing slots)
+    if (ykpiv_validate(slot->piv_state, reader) != YKPIV_OK) {
 
-        slot->login_state = YKCS11_PUBLIC;
-        slot->slot_info.flags &= ~CKF_TOKEN_PRESENT;
+      slot->login_state = YKCS11_PUBLIC;
+      slot->slot_info.flags &= ~CKF_TOKEN_PRESENT;
 
-        char buf[sizeof(readers) + 1] = {0};
-        snprintf(buf, sizeof(buf), "@%s", reader);
+      char buf[sizeof(readers) + 1] = {0};
+      snprintf(buf, sizeof(buf), "@%s", reader);
 
-        if (ykpiv_connect(slot->piv_state, buf) == YKPIV_OK) {
+      if (ykpiv_connect(slot->piv_state, buf) == YKPIV_OK) {
 
-          DBG("Connected slot %td to '%s'", slot-slots, reader);
+        DBG("Connected slot %td to '%s'", slot-slots, reader);
 
-          slot->slot_info.flags |= CKF_TOKEN_PRESENT;
-          slot->token_info.flags = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
+        slot->slot_info.flags |= CKF_TOKEN_PRESENT;
+        slot->token_info.flags = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
 
-          slot->token_info.ulMinPinLen = YKPIV_MIN_PIN_LEN;
-          slot->token_info.ulMaxPinLen = YKPIV_MAX_MGM_KEY_LEN;
+        slot->token_info.ulMinPinLen = YKPIV_MIN_PIN_LEN;
+        slot->token_info.ulMaxPinLen = YKPIV_MAX_MGM_KEY_LEN;
 
-          slot->token_info.ulMaxRwSessionCount = YKCS11_MAX_SESSIONS;
-          slot->token_info.ulMaxSessionCount = YKCS11_MAX_SESSIONS;
+        slot->token_info.ulMaxRwSessionCount = YKCS11_MAX_SESSIONS;
+        slot->token_info.ulMaxSessionCount = YKCS11_MAX_SESSIONS;
 
-          slot->token_info.ulTotalPublicMemory = CK_UNAVAILABLE_INFORMATION;
-          slot->token_info.ulFreePublicMemory = CK_UNAVAILABLE_INFORMATION;
-          slot->token_info.ulTotalPrivateMemory = CK_UNAVAILABLE_INFORMATION;
-          slot->token_info.ulFreePrivateMemory = CK_UNAVAILABLE_INFORMATION;
+        slot->token_info.ulTotalPublicMemory = CK_UNAVAILABLE_INFORMATION;
+        slot->token_info.ulFreePublicMemory = CK_UNAVAILABLE_INFORMATION;
+        slot->token_info.ulTotalPrivateMemory = CK_UNAVAILABLE_INFORMATION;
+        slot->token_info.ulFreePrivateMemory = CK_UNAVAILABLE_INFORMATION;
 
-          slot->token_info.hardwareVersion.major = 1;
-          slot->token_info.hardwareVersion.minor = 0;
+        slot->token_info.hardwareVersion.major = 1;
+        slot->token_info.hardwareVersion.minor = 0;
 
-          memstrcpy(slot->token_info.manufacturerID, sizeof(slot->token_info.manufacturerID), YKCS11_MANUFACTURER);
-          memset(slot->token_info.utcTime, ' ', sizeof(slot->token_info.utcTime));
+        memstrcpy(slot->token_info.manufacturerID, sizeof(slot->token_info.manufacturerID), YKCS11_MANUFACTURER);
+        memset(slot->token_info.utcTime, ' ', sizeof(slot->token_info.utcTime));
 
-          get_token_model(slot->piv_state, slot->token_info.model, sizeof(slot->token_info.model));
-          get_token_serial(slot->piv_state, slot->token_info.serialNumber, sizeof(slot->token_info.serialNumber));
-          get_token_version(slot->piv_state, &slot->token_info.firmwareVersion);
-          get_token_label(slot->piv_state, slot->token_info.label, sizeof(slot->token_info.label));
-        }
+        get_token_model(slot->piv_state, slot->token_info.model, sizeof(slot->token_info.model));
+        get_token_serial(slot->piv_state, slot->token_info.serialNumber, sizeof(slot->token_info.serialNumber));
+        get_token_version(slot->piv_state, &slot->token_info.firmwareVersion);
+        get_token_label(slot->piv_state, slot->token_info.label, sizeof(slot->token_info.label));
       }
     }
   }
