@@ -696,7 +696,7 @@ static bool set_cardid(ykpiv_state *state, int verbose, int type) {
   return res == YKPIV_OK;
 }
 
-static int add_ext(STACK_OF(X509_EXTENSION) *exts, const char *oid, const char *name, const char *descr, const unsigned char *data, int len) {
+static X509_EXTENSION *create_ext(const char *oid, const char *name, const char *descr, const unsigned char *data, int len) {
   int nid = OBJ_txt2nid(oid);
   if(nid <= 0) {
     nid = OBJ_create(oid, name, descr);
@@ -717,9 +717,17 @@ static int add_ext(STACK_OF(X509_EXTENSION) *exts, const char *oid, const char *
   X509_EXTENSION *ext = X509_EXTENSION_create_by_NID(NULL, nid, 0, octets);
   if(!ext) {
     fprintf(stderr, "Failed creating %s extension.\n", name);
+  }
+  return ext;
+}
+
+static int add_ext(STACK_OF(X509_EXTENSION) * exts, const char *oid, const char *name, const char *descr, const unsigned char *data, int len)
+{
+  X509_EXTENSION *ext = create_ext(oid, name, descr, data, len);
+  if (!ext) {
     return 0;
   }
-  if(!sk_X509_EXTENSION_push(exts, ext)) {
+  if (!sk_X509_EXTENSION_push(exts, ext)) {
     fprintf(stderr, "Failed pushing %s extension.\n", name);
     return 0;
   }
@@ -728,7 +736,7 @@ static int add_ext(STACK_OF(X509_EXTENSION) *exts, const char *oid, const char *
 
 static bool request_certificate(ykpiv_state *state, enum enum_key_format key_format,
     const char *input_file_name, enum enum_slot slot, char *subject, enum enum_hash hash,
-    const char *output_file_name, int attestation) {
+    const char *output_file_name, int attest) {
   X509_REQ *req = NULL;
   X509_NAME *name = NULL;
   FILE *input_file = NULL;
@@ -764,7 +772,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     goto request_out;
   }
 
-  if(attestation) {
+  if(attest) {
     unsigned char buf[YKPIV_OBJ_MAX_SIZE] = {0};
     size_t buflen = sizeof(buf);
     ykpiv_rc rc;
@@ -924,20 +932,16 @@ request_out:
   if(output_file && output_file != stdout) {
     fclose(output_file);
   }
-  if(public_key) {
-    EVP_PKEY_free(public_key);
-  }
-  if(req) {
+  EVP_PKEY_free(public_key);
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
+  if(req) {
     if(req->sig_alg->parameter) {
       req->sig_alg->parameter = NULL;
     }
+  }
 #endif
-    X509_REQ_free(req);
-  }
-  if(name) {
-    X509_NAME_free(name);
-  }
+  X509_REQ_free(req);
+  X509_NAME_free(name);
   return ret;
 }
 
@@ -953,58 +957,91 @@ static const struct {
 
 static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_format,
     const char *input_file_name, enum enum_slot slot, char *subject, enum enum_hash hash,
-    const int *serial, int validDays, const char *output_file_name) {
-  FILE *input_file = NULL;
-  FILE *output_file = NULL;
+    const int *serial, int validDays, const char *output_file_name, int attest) {
   bool ret = false;
-  EVP_PKEY *public_key = NULL;
+  X509_EXTENSION *attestation = NULL;
+  X509_EXTENSION *attest_cert = NULL;
   X509 *x509 = NULL;
+  EVP_PKEY *public_key = NULL;
   X509_NAME *name = NULL;
-  const EVP_MD *md;
-  unsigned char algorithm;
-  int key = 0;
-  size_t oid_len;
-  const unsigned char *oid;
-  int nid;
   ASN1_INTEGER *sno = ASN1_INTEGER_new();
   BIGNUM *ser = NULL;
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
-  unsigned char digest[EVP_MAX_MD_SIZE + MAX_OID_LEN] = {0};
-  unsigned int digest_len;
-  unsigned int md_len;
-  unsigned char *signinput;
-  size_t len = 0;
-  ASN1_TYPE null_parameter;
-#endif
 
-  key = get_slot_hex(slot);
+  int key = get_slot_hex(slot);
 
-  input_file = open_file(input_file_name, key_file_mode(key_format, false));
-  output_file = open_file(output_file_name, key_file_mode(key_format, true));
+  FILE *input_file = open_file(input_file_name, key_file_mode(key_format, false));
+  FILE *output_file = open_file(output_file_name, key_file_mode(key_format, true));
   if(!input_file || !output_file) {
     goto selfsign_out;
   }
 
-  if(isatty(fileno(input_file))) {
-    fprintf(stderr, "Please paste the public key...\n");
+  if (attest) {
+    unsigned char buf[YKPIV_OBJ_MAX_SIZE] = {0};
+    size_t buflen = sizeof(buf);
+    ykpiv_rc rc = 0;
+
+    if ((rc = ykpiv_attest(state, key, buf, &buflen)) == YKPIV_OK) {
+      // Extract the public key for the request from the attestation
+      const unsigned char *ptr = buf;
+      X509 *cert = d2i_X509(NULL, &ptr, buflen);
+      if (cert) {
+        public_key = X509_get_pubkey(cert);
+        if (!public_key) {
+          fprintf(stderr, "Failed extracting public key from attestation.\n");
+        }
+        X509_free(cert);
+      } else {
+        fprintf(stderr, "Failed extracting attestation.\n");
+      }
+
+      attestation = create_ext(YKPIV_ATTESTATION_OID ".11", "ykpiv attestation", "Yubico PIV X.509 Attestation", buf, buflen);
+      if (!attestation) {
+        fprintf(stderr, "Failed creating attestation extension.\n");
+      }
+
+      unsigned char *pb = 0;
+      size_t pblen = 0;
+      if ((rc = ykpiv_util_read_cert(state, YKPIV_KEY_ATTESTATION, &pb, &pblen)) == YKPIV_OK && pblen > 0) {
+        attest_cert = create_ext(YKPIV_ATTESTATION_OID ".2", "ykpiv attest cert", "Yubico PIV Attestation Certificate", pb, pblen);
+        if (!attest_cert) {
+          fprintf(stderr, "Failed creating attestation certificate extension.\n");
+        }
+        ykpiv_util_free(state, pb);
+      }
+      else {
+        fprintf(stderr, "Failed reading attestation certificate: %s.\n", ykpiv_strerror(rc));
+      }
+    }
+    else {
+      fprintf(stderr, "Failed creating attestation: %s.\n", ykpiv_strerror(rc));
+    }
   }
 
-  if(key_format == key_format_arg_PEM) {
-    public_key = PEM_read_PUBKEY(input_file, NULL, NULL, NULL);
-    if(!public_key) {
-      fprintf(stderr, "Failed loading public key for certificate.\n");
+  if(!public_key) {
+    if(isatty(fileno(input_file))) {
+      fprintf(stderr, "Please paste the public key...\n");
+    }
+
+    if(key_format == key_format_arg_PEM) {
+      public_key = PEM_read_PUBKEY(input_file, NULL, NULL, NULL);
+      if(!public_key) {
+        fprintf(stderr, "Failed loading public key for certificate.\n");
+        goto selfsign_out;
+      }
+    } else {
+      fprintf(stderr, "Only PEM supported for public key input.\n");
       goto selfsign_out;
     }
-  } else {
-    fprintf(stderr, "Only PEM supported for public key input.\n");
-    goto selfsign_out;
   }
-  algorithm = get_algorithm(public_key);
+
+  unsigned char algorithm = get_algorithm(public_key);
   if(algorithm == 0) {
     goto selfsign_out;
   }
 
-  md = get_hash(hash, &oid, &oid_len);
+  size_t oid_len = 0;
+  const unsigned char *oid = 0;
+  const EVP_MD *md = get_hash(hash, &oid, &oid_len);
   if(md == NULL) {
     goto selfsign_out;
   }
@@ -1066,7 +1103,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     fprintf(stderr, "Failed setting certificate issuer.\n");
     goto selfsign_out;
   }
-  nid = get_hashnid(hash, algorithm);
+  int nid = get_hashnid(hash, algorithm);
   if(nid == 0) {
     goto selfsign_out;
   }
@@ -1110,14 +1147,29 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
         goto selfsign_out;
       }
     }
+
+    if(attestation && !X509_add_ext(x509, attestation, -1)) {
+      fprintf(stderr, "Failed adding attestation extension.\n");
+      goto selfsign_out;
+    }
+
+    if(attest_cert && !X509_add_ext(x509, attest_cert, -1)) {
+      fprintf(stderr, "Failed adding attestation certificate extension.\n");
+      goto selfsign_out;
+    }
   }
 
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
+  unsigned char digest[EVP_MAX_MD_SIZE + MAX_OID_LEN] = {0};
+  unsigned char *signinput;
+  size_t len = 0;
+
+  ASN1_TYPE null_parameter;
   null_parameter.type = V_ASN1_NULL;
   null_parameter.value.ptr = NULL;
 
-  md_len = (unsigned int)EVP_MD_size(md);
-  digest_len = sizeof(digest) - md_len;
+  unsigned int md_len = (unsigned int)EVP_MD_size(md);
+  unsigned int digest_len = sizeof(digest) - md_len;
 
   if(YKPIV_IS_RSA(algorithm)) {
     signinput = digest;
@@ -1175,7 +1227,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     }
 
   } else {
-    fprintf(stderr, "Only PEM support available for certificate requests.\n");
+    fprintf(stderr, "Only PEM support available for certificates.\n");
   }
 
 selfsign_out:
@@ -1185,27 +1237,19 @@ selfsign_out:
   if(output_file && output_file != stdout) {
     fclose(output_file);
   }
+ #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
   if(x509) {
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
-    if(x509->sig_alg->parameter) {
+   if(x509->sig_alg->parameter) {
       x509->sig_alg->parameter = NULL;
       x509->cert_info->signature->parameter = NULL;
     }
+  }
 #endif
-    X509_free(x509);
-  }
-  if(public_key) {
-    EVP_PKEY_free(public_key);
-  }
-  if(name) {
-    X509_NAME_free(name);
-  }
-  if(ser) {
-    BN_free(ser);
-  }
-  if(sno) {
-    ASN1_INTEGER_free(sno);
-  }
+  X509_free(x509);
+  EVP_PKEY_free(public_key);
+  X509_NAME_free(name);
+  BN_free(ser);
+  ASN1_INTEGER_free(sno);
   return ret;
 }
 
@@ -2451,7 +2495,7 @@ int main(int argc, char *argv[]) {
         if(selfsign_certificate(state, args_info.key_format_arg, args_info.input_arg,
               args_info.slot_arg, args_info.subject_arg, args_info.hash_arg,
               args_info.serial_given ? &args_info.serial_arg : NULL, args_info.valid_days_arg,
-              args_info.output_arg) == false) {
+              args_info.output_arg, args_info.attestation_flag) == false) {
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully generated a new self signed certificate.\n");
