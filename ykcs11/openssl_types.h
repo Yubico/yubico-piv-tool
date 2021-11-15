@@ -28,8 +28,8 @@
  *
  */
 
-#ifndef OPENSSL_TYPES_H
-#define OPENSSL_TYPES_H
+#ifndef YKCS11_OPENSSL_TYPES_H
+#define YKCS11_OPENSSL_TYPES_H
 
 #include <openssl/bn.h>
 #include <openssl/x509.h>
