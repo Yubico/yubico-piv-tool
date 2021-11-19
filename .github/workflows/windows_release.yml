@@ -131,6 +131,7 @@ jobs:
 
           cd $PIVTOOL_SRC_DIR/resources/win
           ./make_installer.ps1 $PIVTOOL_SRC_DIR/yubico-piv-tool-$env:RELEASE_VERSION-x64 $env:RELEASE_VERSION x64 $env:WIX\bin "$MERGEDPATH"
+          cp $PIVTOOL_SRC_DIR/resources/win/yubico-piv-tool-$env:RELEASE_VERSION-x64.msi $env:GITHUB_WORKSPACE/artifact/
 
       - name: Install yubico-piv-tool
         run: |
