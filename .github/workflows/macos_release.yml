@@ -80,6 +80,8 @@ jobs:
           sudo installer -verbose -store -pkg "$PWD/yubico-piv-tool-$RELEASE_VERSION.pkg" -target /
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
+          cp $PWD/yubico-piv-tool-$RELEASE_VERSION.pkg $GITHUB_WORKSPACE/artifact/
+
       - name: Upload artifact
         uses: actions/upload-artifact@v1
         with:
