@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <locale.h>
 #include <limits.h>
 #include <string.h>
 #include <sys/types.h>
@@ -2069,6 +2070,10 @@ int main(int argc, char *argv[]) {
   bool authed = false;
   char pwbuf[128] = {0};
   char *password;
+
+  if (setlocale(LC_ALL, "") == NULL) {
+    fprintf(stderr, "Warning, unable to reset locale\n");
+  }
 
   if(cmdline_parser(argc, argv, &args_info) != 0) {
     return EXIT_FAILURE;
