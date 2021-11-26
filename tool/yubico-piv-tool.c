@@ -2074,7 +2074,7 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  verbosity = args_info.verbose_arg + (int)args_info.verbose_given;
+  verbosity = args_info.verbose_arg ? args_info.verbose_arg : (int)args_info.verbose_given;
   password = args_info.password_arg;
 
   for(i = 0; i < args_info.action_given; i++) {
