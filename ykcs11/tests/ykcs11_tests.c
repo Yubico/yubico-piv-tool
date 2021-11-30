@@ -140,7 +140,7 @@ static int test_token_info() {
   asrt(info.ulSessionCount, 0, "SESSION_COUNT");
   asrt(info.ulMaxRwSessionCount, 16, "MAX_RW_SESSION_COUNT");
   asrt(info.ulRwSessionCount, 0, "RW_SESSION_COUNT");
-  asrt(info.ulMaxPinLen, 48, "MAX_PIN_LEN");
+  asrt(info.ulMaxPinLen, 64, "MAX_PIN_LEN");
   asrt(info.ulMinPinLen, 6, "MIN_PIN_LEN");
   asrt(info.ulTotalPublicMemory, -1, "TOTAL_PUB_MEM");
   asrt(info.ulFreePublicMemory, -1, "FREE_PUB_MEM");

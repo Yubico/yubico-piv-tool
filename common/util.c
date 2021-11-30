@@ -553,7 +553,7 @@ unsigned char get_pin_policy(enum enum_pin_policy policy) {
       return YKPIV_PINPOLICY_ALWAYS;
     case pin_policy__NULL:
     default:
-      return 0;
+      return YKPIV_PINPOLICY_DEFAULT;
   }
 }
 
@@ -567,7 +567,7 @@ unsigned char get_touch_policy(enum enum_touch_policy policy) {
       return YKPIV_TOUCHPOLICY_CACHED;
     case touch_policy__NULL:
     default:
-      return 0;
+      return YKPIV_TOUCHPOLICY_DEFAULT;
   }
 }
 

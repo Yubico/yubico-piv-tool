@@ -69,3 +69,4 @@ option "format" f "Format of data for write/read object" values="hex","base64","
 option "sign" - "Sign data" flag off hidden
 option "stdin-input" - "Read sensitive values from stdin" flag off hidden
 option "attestation" - "Add attestation cross-signature" flag off
+option "mgmkey-algo" m "Management key algorithm to use" values="TDES","AES128","AES192","AES256" enum optional default="TDES"

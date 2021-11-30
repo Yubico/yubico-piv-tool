@@ -412,7 +412,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
           slot->token_info.flags = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
 
           slot->token_info.ulMinPinLen = YKPIV_MIN_PIN_LEN;
-          slot->token_info.ulMaxPinLen = YKPIV_MGM_KEY_LEN;
+          slot->token_info.ulMaxPinLen = YKPIV_MAX_MGM_KEY_LEN;
 
           slot->token_info.ulMaxRwSessionCount = YKCS11_MAX_SESSIONS;
           slot->token_info.ulMaxSessionCount = YKCS11_MAX_SESSIONS;
@@ -746,7 +746,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
 
   locking.pfnUnlockMutex(global_mutex);
 
-  CK_BYTE mgm_key[24] = {0};
+  CK_BYTE mgm_key[32] = {0};
   size_t len = sizeof(mgm_key);
   ykpiv_rc rc;
 
@@ -756,20 +756,20 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
     goto inittoken_out;
   }
 
-  if((rc = ykpiv_hex_decode((const char*)pPin, ulPinLen, mgm_key, &len)) != YKPIV_OK || len != 24) {
+  if((rc = ykpiv_hex_decode((const char*)pPin, ulPinLen, mgm_key, &len)) != YKPIV_OK) {
     DBG("ykpiv_hex_decode failed %s", ykpiv_strerror(rc));
     rv = CKR_PIN_INVALID;
     goto inittoken_out;
   }
 
-  int tries;
+  int tries = 0;
   ykcs11_slot_t *slot = slots + slotID;
 
   locking.pfnLockMutex(slot->mutex);
 
   // Verify existing mgm key (SO_PIN)
-  if((rc = ykpiv_authenticate(slot->piv_state, mgm_key)) != YKPIV_OK) {
-    DBG("ykpiv_authenticate failed %s", ykpiv_strerror(rc));
+  if((rc = ykpiv_authenticate2(slot->piv_state, mgm_key, len)) != YKPIV_OK) {
+    DBG("ykpiv_authenticate2 failed %s", ykpiv_strerror(rc));
     locking.pfnUnlockMutex(slot->mutex);
     rv = rc == YKPIV_AUTHENTICATION_ERROR ? CKR_PIN_INCORRECT : CKR_DEVICE_ERROR;
     goto inittoken_out;
@@ -794,16 +794,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
   }
 
   // Authenticate with default mgm key (SO PIN)
-  if((rc = ykpiv_authenticate(slot->piv_state, NULL)) != YKPIV_OK) {
-    DBG("ykpiv_authenticate failed %s", ykpiv_strerror(rc));
+  if((rc = ykpiv_authenticate2(slot->piv_state, NULL, 0)) != YKPIV_OK) {
+    DBG("ykpiv_authenticate2 failed %s", ykpiv_strerror(rc));
     locking.pfnUnlockMutex(slot->mutex);
     rv = rc == YKPIV_AUTHENTICATION_ERROR ? CKR_PIN_INCORRECT : CKR_DEVICE_ERROR;
     goto inittoken_out;
   }
 
-  // Set new mgm key (SO PIN)
-  if((rc = ykpiv_set_mgmkey(slot->piv_state, mgm_key)) != YKPIV_OK) {
-    DBG("ykpiv_set_mgmkey failed %s", ykpiv_strerror(rc));
+  // Set new mgm key (SO PIN) with the same algorithm and touch policy the old one had
+  if((rc = ykpiv_set_mgmkey3(slot->piv_state, mgm_key, len, YKPIV_ALGO_AUTO, YKPIV_TOUCHPOLICY_AUTO)) != YKPIV_OK) {
+    DBG("ykpiv_set_mgmkey3 failed %s", ykpiv_strerror(rc));
     locking.pfnUnlockMutex(slot->mutex);
     rv = CKR_DEVICE_ERROR;
     goto inittoken_out;
@@ -982,7 +982,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
           if((rc = ykpiv_get_metadata(session->slot->piv_state, slot, data, &len)) == YKPIV_OK) {
             DBG("Fetched %zu bytes metadata for object %u slot %lx", len, pvtk_id, slot);
             ykpiv_metadata md = {0};
-            if((rc = ykpiv_util_parse_metadata(data, len, &md)) == YKPIV_OK) {
+            if((rc = ykpiv_util_parse_metadata(data, len, &md)) == YKPIV_OK && md.pubkey_len) {
               session->slot->origin[sub_id] = md.origin;
               session->slot->pin_policy[sub_id] = md.pin_policy;
               session->slot->touch_policy[sub_id] = md.touch_policy;
