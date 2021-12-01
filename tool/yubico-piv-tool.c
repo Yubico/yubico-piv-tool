@@ -70,6 +70,8 @@
 
 #define YKPIV_ATTESTATION_OID "1.3.6.1.4.1.41482.3"
 
+static bool verify_pin(ykpiv_state *state);
+
 static enum file_mode key_file_mode(enum enum_key_format fmt, bool output) {
   if (fmt == key_format_arg_PEM) {
     if (output) {
@@ -127,12 +129,16 @@ static bool sign_data(ykpiv_state *state, const unsigned char *in, size_t len, u
     in = signinput;
     len = padlen;
   }
-  ykpiv_rc rc;
-  if((rc = ykpiv_sign_data(state, in, len, out, out_len, algorithm, key)) == YKPIV_OK) {
-    return true;
+  if(!verify_pin(state)) {
+    return false;
   }
-  fprintf(stderr, "Failed signing data: %s.\n", ykpiv_strerror(rc));
-  return false;
+  ykpiv_rc res = ykpiv_sign_data(state, in, len, out, out_len, algorithm, key);
+  if(res != YKPIV_OK)
+  {
+    fprintf(stderr, "Signing data failed: '%s'\n", ykpiv_strerror(res));
+    return false;
+  }
+  return true;
 }
 
 #if !((OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER))
@@ -896,7 +902,6 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     unsigned char signature[1024] = {0};
     size_t sig_len = sizeof(signature);
     if(!sign_data(state, signinput, len, signature, &sig_len, algorithm, key)) {
-      fprintf(stderr, "Failed signing request.\n");
       goto request_out;
     }
     ASN1_STRING_set(req->signature, signature, sig_len);
@@ -1197,7 +1202,6 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     unsigned char signature[1024] = {0};
     size_t sig_len = sizeof(signature);
     if(!sign_data(state, signinput, len, signature, &sig_len, algorithm, key)) {
-      fprintf(stderr, "Failed signing certificate.\n");
       goto selfsign_out;
     }
     ASN1_STRING_set(x509->signature, signature, sig_len);
@@ -1253,31 +1257,6 @@ selfsign_out:
   BN_free(ser);
   ASN1_INTEGER_free(sno);
   return ret;
-}
-
-static bool verify_pin(ykpiv_state *state, const char *pin) {
-  int tries = -1;
-  ykpiv_rc res;
-  int len;
-  len = strlen(pin);
-
-  if(len > 8) {
-    fprintf(stderr, "Maximum 8 digits of PIN supported.\n");
-  }
-
-  res = ykpiv_verify(state, pin, &tries);
-  if(res == YKPIV_OK) {
-    return true;
-  } else if(res == YKPIV_WRONG_PIN || res == YKPIV_PIN_LOCKED) {
-    if(tries > 0) {
-      fprintf(stderr, "Pin verification failed, %d tries left before pin is blocked.\n", tries);
-    } else {
-      fprintf(stderr, "Pin code blocked, use unblock-pin action to unblock.\n");
-    }
-  } else {
-    fprintf(stderr, "Pin code verification failed: '%s'\n", ykpiv_strerror(res));
-  }
-  return false;
 }
 
 /* this function is called for all three of change-pin, change-puk and unblock pin
@@ -1485,7 +1464,6 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
     unsigned char buf[1024] = {0};
     size_t len = sizeof(buf);
     if(!sign_data(state, hashed, hash_len, buf, &len, algo, key)) {
-      fprintf(stderr, "Failed signing file\n");
       goto out;
     }
 
@@ -1789,7 +1767,6 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
       enc_len = data_len;
     }
     if(!sign_data(state, ptr, enc_len, signature, &sig_len, algorithm, key)) {
-      fprintf(stderr, "Failed signing test data.\n");
       goto test_out;
     }
 
@@ -2129,8 +2106,44 @@ read_out:
   return ret;
 }
 
+static struct gengetopt_args_info args_info;
+
+static bool verify_pin(ykpiv_state *state)
+{
+  if (!args_info.pin_arg) {
+    args_info.pin_arg = calloc(1, 8 + 2);
+    if (!read_pw("PIN", args_info.pin_arg, 8 + 2, false, args_info.stdin_input_flag)) {
+      free(args_info.pin_arg);
+      args_info.pin_arg = NULL;
+      return false;
+    }
+  }
+
+  if (strlen(args_info.pin_arg) > 8) {
+    fprintf(stderr, "Maximum 8 digits of PIN supported.\n");
+  }
+
+  int tries = -1;
+  ykpiv_rc res = ykpiv_verify(state, args_info.pin_arg, &tries);
+  if (res == YKPIV_OK) {
+    fprintf(stderr, "Successfully verified PIN.\n");
+    return true;
+  }
+  else if (res == YKPIV_WRONG_PIN || res == YKPIV_PIN_LOCKED) {
+    if (tries > 0) {
+      fprintf(stderr, "Pin verification failed, %d tries left before pin is blocked.\n", tries);
+    }
+    else {
+      fprintf(stderr, "Pin code blocked, use unblock-pin action to unblock.\n");
+    }
+  }
+  else {
+    fprintf(stderr, "Pin code verification failed: '%s'\n", ykpiv_strerror(res));
+  }
+  return false;
+}
+
 int main(int argc, char *argv[]) {
-  struct gengetopt_args_info args_info;
   const uint8_t mgm_algo[] = {YKPIV_ALGO_3DES, YKPIV_ALGO_AES128, YKPIV_ALGO_AES192, YKPIV_ALGO_AES256};
   ykpiv_state *state;
   ykpiv_rc rc;
@@ -2440,21 +2453,7 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_verifyMINUS_pin: {
-        char pinbuf[8+2] = {0};
-        char *pin = args_info.pin_arg;
-
-        if(!pin) {
-          if (!read_pw("PIN", pinbuf, sizeof(pinbuf), false, args_info.stdin_input_flag)) {
-            fprintf(stderr, "Failed to get PIN.\n");
-            ykpiv_done(state);
-            cmdline_parser_free(&args_info);
-            return EXIT_FAILURE;
-          }
-          pin = pinbuf;
-        }
-        if(verify_pin(state, pin)) {
-          fprintf(stderr, "Successfully verified PIN.\n");
-        } else {
+        if(!verify_pin(state)) {
           ret = EXIT_FAILURE;
         }
         break;
