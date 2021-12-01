@@ -149,7 +149,8 @@ X509_NAME *parse_name(const char *orig_name) {
     fprintf(stderr, "Name is too long!\n");
     return NULL;
   }
-  strcpy(name, orig_name);
+  strncpy(name, orig_name, sizeof(name));
+  name[sizeof(name) - 1] = 0;
 
   if(*name != '/' || name[strlen(name)-1] != '/') {
     fprintf(stderr, "Name does not start or does not end with '/'!\n");
