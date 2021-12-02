@@ -1800,7 +1800,6 @@ ykpiv_rc _ykpiv_save_object(
   }
   *dataptr++ = 0x53;
   dataptr += _ykpiv_set_length(dataptr, len);
-  fprintf(stderr, "_ykpiv_save_object(%zu) overhead is %zu\n", len, dataptr-data);
   if(dataptr + len > data + sizeof(data)) {
     return YKPIV_SIZE_ERROR;
   }
