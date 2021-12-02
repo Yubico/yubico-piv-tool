@@ -2136,6 +2136,14 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  /* openssl setup.. */
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
+  OpenSSL_add_all_algorithms();
+#else
+  OPENSSL_config(0);
+  OPENSSL_init_crypto(0, 0);
+#endif
+
   if(ykpiv_init(&state, verbosity) != YKPIV_OK) {
     fprintf(stderr, "Failed initializing library.\n");
     cmdline_parser_free(&args_info);
@@ -2148,14 +2156,6 @@ int main(int argc, char *argv[]) {
     cmdline_parser_free(&args_info);
     return EXIT_FAILURE;
   }
-
-  /* openssl setup.. */
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-  OpenSSL_add_all_algorithms();
-#else
-  OPENSSL_config(0);
-  OPENSSL_init_crypto(0, 0);
-#endif
 
   for(i = 0; i < args_info.action_given; i++) {
     action = *(args_info.action_arg + i);
