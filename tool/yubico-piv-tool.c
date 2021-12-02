@@ -2282,7 +2282,7 @@ int main(int argc, char *argv[]) {
           if(ykpiv_hex_decode(new_mgm_key, strlen(new_mgm_key), new_key.data, &new_key.len) != YKPIV_OK) {
             fprintf(stderr, "Failed decoding new key!\n");
             ret = EXIT_FAILURE;
-          } else if(ykpiv_set_mgmkey3(state, new_key.data, new_key.len, mgm_algo[args_info.mgmkey_algo_arg],
+          } else if(ykpiv_set_mgmkey3(state, new_key.data, new_key.len, mgm_algo[args_info.new_key_algo_arg],
                         get_touch_policy(args_info.touch_policy_arg)) != YKPIV_OK) {
             fprintf(stderr, "Failed setting the new key!");
             if(args_info.touch_policy_arg != touch_policy__NULL) {
