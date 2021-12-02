@@ -238,6 +238,8 @@ static unsigned char *set_object(int object_id, unsigned char *buffer) {
     *buffer++ = (object_id >> 16) & 0xff;
     *buffer++ = (object_id >> 8) & 0xff;
     *buffer++ = object_id & 0xff;
+  } else {
+    return NULL;
   }
   return buffer;
 }
@@ -1792,15 +1794,16 @@ ykpiv_rc _ykpiv_save_object(
   ykpiv_rc res;
   unsigned long outlen = 0;
 
-  if(len > sizeof(data) - 9) {
-    return YKPIV_SIZE_ERROR;
-  }
   dataptr = set_object(object_id, dataptr);
   if(dataptr == NULL) {
     return YKPIV_INVALID_OBJECT;
   }
   *dataptr++ = 0x53;
   dataptr += _ykpiv_set_length(dataptr, len);
+  fprintf(stderr, "_ykpiv_save_object(%zu) overhead is %zu\n", len, dataptr-data);
+  if(dataptr + len > data + sizeof(data)) {
+    return YKPIV_SIZE_ERROR;
+  }
   if(indata)
     memcpy(dataptr, indata, len);
   dataptr += len;
