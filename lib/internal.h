@@ -163,7 +163,6 @@ struct ykpiv_state {
   uint32_t model;
   ykpiv_version_t ver;
   uint32_t serial;
-  pcsc_word card_protocol;
 };
 
 union u_APDU {

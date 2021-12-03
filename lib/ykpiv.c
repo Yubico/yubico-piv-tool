@@ -684,7 +684,7 @@ ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state) {
         fprintf(stderr, "SCardReconnect on card #%u failed, rc=%lx\n", state->serial, (long)rc);
       }
       return YKPIV_PCSC_ERROR;
-    }    
+    }
   }
   if(rc != SCARD_S_SUCCESS) {
     if(state->verbose) {
@@ -877,15 +877,15 @@ ykpiv_rc _send_data(ykpiv_state *state, APDU *apdu,
         goto repeat;
       }
       else if ((*sw & 0xFF00) == 0x6c00) {
-          // set Le
-    	  if (apdu->st.lc == 0) {
-            apdu->raw[4] = *sw & 0x00FF;
-    	  }
-    	  else {
-    		  apdu->raw[5+apdu->st.lc] = *sw & 0x00FF;
-    	  }
-          send_len = 5;
-          goto repeat;
+        // set Le
+        if (apdu->st.lc == 0) {
+          apdu->raw[4] = *sw & 0x00FF;
+        }
+        else {
+          apdu->raw[5+apdu->st.lc] = *sw & 0x00FF;
+        }
+        send_len = 5;
+        goto repeat;
       }
     }
   } else {
