@@ -501,7 +501,6 @@ ykpiv_rc ykpiv_validate(ykpiv_state *state, const char *wanted) {
 }
 
 ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
-  pcsc_word active_protocol;
   char reader_buf[2048] = {0};
   size_t num_readers = sizeof(reader_buf);
   LONG rc;
@@ -524,7 +523,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
       }
     }
     rc = SCardConnect(state->context, wanted, SCARD_SHARE_SHARED,
-          SCARD_PROTOCOL_T1, &card, &active_protocol);
+          SCARD_PROTOCOL_T0|SCARD_PROTOCOL_T1, &card, &state->protocol);
     if(rc != SCARD_S_SUCCESS)
     {
       if(state->verbose) {
@@ -566,7 +565,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
         fprintf(stderr, "Connect reader '%s' matching '%s'.\n", reader_ptr, wanted);
       }
       rc = SCardConnect(state->context, reader_ptr, SCARD_SHARE_SHARED,
-            SCARD_PROTOCOL_T1, &card, &active_protocol);
+            SCARD_PROTOCOL_T0|SCARD_PROTOCOL_T1, &card, &state->protocol);
       if(rc == SCARD_S_SUCCESS)
       {
         break;
@@ -678,9 +677,8 @@ ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state) {
     if(state->verbose) {
       fprintf(stderr, "Reconnect card #%u attempt %d, previous rc=%lx\n", state->serial, retries, (long)rc);
     }
-    pcsc_word active_protocol = 0;
     rc = SCardReconnect(state->card, SCARD_SHARE_SHARED,
-            SCARD_PROTOCOL_T1, SCARD_RESET_CARD, &active_protocol);
+            SCARD_PROTOCOL_T0|SCARD_PROTOCOL_T1, SCARD_RESET_CARD, &state->protocol);
     if(rc != SCARD_S_SUCCESS) {
       if(state->verbose) {
         fprintf(stderr, "SCardReconnect on card #%u failed, rc=%lx\n", state->serial, (long)rc);
@@ -825,6 +823,17 @@ ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
   return res;
 }
 
+static LPSCARD_IO_REQUEST _pci(DWORD protocol) {
+  switch (protocol) {
+  case SCARD_PROTOCOL_T0:
+    return SCARD_PCI_T0;
+  case SCARD_PROTOCOL_T1:
+    return SCARD_PCI_T1;
+  default:
+    return NULL;
+  }
+}
+
 ykpiv_rc _send_data(ykpiv_state *state, APDU *apdu,
     unsigned char *data, uint32_t *recv_len, int *sw) {
   unsigned int send_len = (unsigned int)apdu->st.lc + 5;
@@ -835,7 +844,7 @@ ykpiv_rc _send_data(ykpiv_state *state, APDU *apdu,
     dump_hex(apdu->raw, send_len);
     fprintf(stderr, "\n");
   }
-  LONG rc = SCardTransmit(state->card, SCARD_PCI_T1, apdu->raw, send_len, NULL, data, &tmp_len);
+  LONG rc = SCardTransmit(state->card, _pci(state->protocol), apdu->raw, send_len, NULL, data, &tmp_len);
   if(rc != SCARD_S_SUCCESS) {
     if(state->verbose) {
       fprintf (stderr, "SCardTransmit on card #%u failed, rc=%lx\n", state->serial, (long)rc);
