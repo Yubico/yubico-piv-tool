@@ -2140,8 +2140,7 @@ int main(int argc, char *argv[]) {
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L)
   OpenSSL_add_all_algorithms();
 #else
-  OPENSSL_config(0);
-  OPENSSL_init_crypto(0, 0);
+  OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, 0);
 #endif
 
   if(ykpiv_init(&state, verbosity) != YKPIV_OK) {

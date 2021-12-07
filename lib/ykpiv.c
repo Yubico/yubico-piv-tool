@@ -1098,10 +1098,10 @@ ykpiv_rc ykpiv_set_mgmkey3(ykpiv_state *state, const unsigned char *new_key, siz
 
   if(algo == YKPIV_ALGO_AUTO || touch == YKPIV_TOUCHPOLICY_AUTO) {
     ykpiv_metadata metadata = {YKPIV_ALGO_3DES};
-    size_t data_len = sizeof(data);
+    unsigned long data_len = sizeof(data);
     res = _ykpiv_get_metadata(state, YKPIV_KEY_CARDMGM, data, &data_len);
     if (res == YKPIV_OK) {
-      res = ykpiv_util_parse_metadata(data, recv_len, &metadata);
+      res = ykpiv_util_parse_metadata(data, data_len, &metadata);
       if (res != YKPIV_OK) {
         goto Cleanup;
       }
@@ -2162,9 +2162,10 @@ ykpiv_rc ykpiv_auth_getchallenge(ykpiv_state *state, uint8_t *challenge, size_t 
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   ykpiv_metadata metadata = {YKPIV_ALGO_3DES};
-  res = _ykpiv_get_metadata(state, YKPIV_KEY_CARDMGM, data, &recv_len);
+  unsigned long data_len = sizeof(data);
+  res = _ykpiv_get_metadata(state, YKPIV_KEY_CARDMGM, data, &data_len);
   if (res == YKPIV_OK) {
-    res = ykpiv_util_parse_metadata(data, recv_len, &metadata);
+    res = ykpiv_util_parse_metadata(data, data_len, &metadata);
     if (res != YKPIV_OK) {
       goto Cleanup;
     }
@@ -2218,9 +2219,10 @@ ykpiv_rc ykpiv_auth_verifyresponse(ykpiv_state *state, uint8_t *response, size_t
   /* note: do not select the applet here, as it resets the challenge state */
 
   ykpiv_metadata metadata = {YKPIV_ALGO_3DES};
-  res = _ykpiv_get_metadata(state, YKPIV_KEY_CARDMGM, data, &recv_len);
+  unsigned long data_len = sizeof(data);
+  res = _ykpiv_get_metadata(state, YKPIV_KEY_CARDMGM, data, &data_len);
   if (res == YKPIV_OK) {
-    res = ykpiv_util_parse_metadata(data, recv_len, &metadata);
+    res = ykpiv_util_parse_metadata(data, data_len, &metadata);
     if (res != YKPIV_OK) {
       goto Cleanup;
     }
