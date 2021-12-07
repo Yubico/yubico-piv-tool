@@ -672,6 +672,7 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
 CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTRIBUTE_PTR templ, CK_ULONG n) {
 
   CK_BBOOL rsa = is_RSA_mechanism(mechanism->mechanism);
+  CK_ULONG val = 0;
 
   for (CK_ULONG i = 0; i < n; i++) {
     switch (templ[i].type) {
@@ -718,6 +719,25 @@ CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
         return CKR_ATTRIBUTE_VALUE_INVALID;
       }
       break;
+
+    case CKA_VENDOR_DEFINED:
+        val = (*((CK_ULONG_PTR)templ[i].pValue));
+        if (val & CKA_TOUCH_ALWAYS) {
+          gen->touch_policy = YKPIV_TOUCHPOLICY_ALWAYS;
+        } else if (val & CKA_TOUCH_CACHED) {
+          gen->touch_policy = YKPIV_TOUCHPOLICY_CACHED;
+        } else if (val & CKA_TOUCH_NEVER) {
+          gen->touch_policy = YKPIV_TOUCHPOLICY_NEVER;
+        }
+
+        if (val & CKA_PIN_ALWAYS) {
+          gen->pin_policy = YKPIV_PINPOLICY_ALWAYS;
+        } else if (val & CKA_PIN_ONCE) {
+          gen->pin_policy = YKPIV_PINPOLICY_ONCE;
+        } else if (val & CKA_PIN_NEVER) {
+          gen->pin_policy = YKPIV_PINPOLICY_NEVER;
+        }
+        break;
 
     case CKA_DECRYPT:
     case CKA_UNWRAP:

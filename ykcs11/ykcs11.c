@@ -3497,7 +3497,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   }
 
   cert_len = sizeof(cert_data);
-  if ((rv = token_generate_key(session->slot->piv_state, gen.algorithm, slot, cert_data, &cert_len)) != CKR_OK) {
+  if ((rv = token_generate_key(session->slot->piv_state, &gen, slot, cert_data, &cert_len)) != CKR_OK) {
     DBG("Unable to generate key pair");
     locking.pfnUnlockMutex(session->slot->mutex);
     goto genkp_out;

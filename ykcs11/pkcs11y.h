@@ -34,11 +34,12 @@
 #include "pkcs11.h"
 
 // YUBICO specific attributes
-#define CKA_TOUCH_PIN_DEFAULT 0x00000000U
-#define CKA_TOUCH_ALWAYS      0x00000001U
-#define CKA_PIN_ONCE          0x00000002U
-#define CKA_PIN_ALWAYS        0x00000004U
-#define CKA_PIN_NEVER         0x00000008U
-#define CKA_TOUCH_NEVER       0x00000016U
+#define CKA_TOUCH_PIN_DEFAULT (0UL)
+#define CKA_TOUCH_ALWAYS      (1UL << 0)
+#define CKA_PIN_ONCE          (1UL << 1)
+#define CKA_PIN_ALWAYS        (1UL << 2)
+#define CKA_PIN_NEVER         (1UL << 3)
+#define CKA_TOUCH_NEVER       (1UL << 4)
+#define CKA_TOUCH_CACHED      (1UL << 5)
 
 #endif

@@ -74,6 +74,8 @@ typedef enum {
 typedef struct {
   CK_BYTE  algorithm;      // PIV Key algorithm
   CK_BYTE  key_id;         // Key id
+  CK_BYTE  touch_policy;   // Touch policy
+  CK_BYTE  pin_policy;     // PIN policy
 } gen_info_t;
 
 typedef struct {
