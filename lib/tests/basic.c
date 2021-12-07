@@ -70,7 +70,7 @@ START_TEST(test_strerror) {
 }
 END_TEST
 
-Suite *basic_suite(void) {
+static Suite *basic_suite(void) {
   Suite *s;
   TCase *tc;
 

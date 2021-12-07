@@ -3660,7 +3660,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DeriveKey)(
   locking.pfnLockMutex(session->slot->mutex);
 
   DBG("Deriving ECDH shared secret into object %u using slot %lx", PIV_SECRET_OBJ, slot);
-  ykpiv_rc rc = ykpiv_decipher_data(session->slot->piv_state, params->pPublicData, params->ulPublicDataLen, &buf, &len, algo, slot);
+  ykpiv_rc rc = ykpiv_decipher_data(session->slot->piv_state, params->pPublicData, params->ulPublicDataLen, buf, &len, algo, slot);
 
   if(rc != YKPIV_OK) {
     DBG("Failed to derive key in slot %lx: %s", slot, ykpiv_strerror(rc));

@@ -112,7 +112,7 @@ unsigned char get_algorithm(EVP_PKEY *key) {
   }
 }
 
-char *string_parser(char *str_orig, char delimiter, char *str_found) {
+static char *string_parser(char *str_orig, char delimiter, char *str_found) {
   char escape_char = '\\';
   int f = 0;
   char *p = str_orig;

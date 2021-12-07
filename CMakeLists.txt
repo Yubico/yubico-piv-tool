@@ -26,9 +26,15 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 cmake_minimum_required (VERSION 3.5)
+# policy CMP0025 is to get AppleClang identifier rather than Clang for both
+# this matters since the apple compiler accepts different flags.
 cmake_policy(SET CMP0025 NEW)
+cmake_policy(SET CMP0042 NEW)
+cmake_policy(SET CMP0054 NEW)
+
 include(CheckFunctionExists)
-set (CMAKE_C_STANDARD 99)
+
+set (CMAKE_C_STANDARD 11)
 
 project (yubico-piv-tool)
 
@@ -96,16 +102,14 @@ if(MSVC)
 else()
     find_package (PkgConfig REQUIRED)
 
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -w") # -g -O2
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Werror")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-missing-braces")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wformat -Wformat-security")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wshadow")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wwrite-strings")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wmissing-prototypes")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wbad-function-cast")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pedantic")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector-all")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99")
-
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g2")
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer")
 endif()
@@ -113,7 +117,7 @@ endif()
 # Use -Wshorten-64-to-32 if available.
 check_c_compiler_flag("-Wshorten-64-to-32" HAVE_SHORTEN_64_TO_32)
 if(HAVE_SHORTEN_64_TO_32)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wshorten-64-to-32")
+#    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wshorten-64-to-32")
 endif()
 
 # Avoid https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66425
@@ -151,6 +155,7 @@ message("        Install prefix:   ${CMAKE_PREFIX_PATH}")
 message("        Compiler:         ${CMAKE_C_COMPILER}")
 message("        Compiler ID:      ${CMAKE_C_COMPILER_ID}")
 message("        CFLAGS:           ${CMAKE_C_FLAGS}")
+message("        CFLAGS_DEBUG:     ${CMAKE_C_FLAGS_DEBUG}")
 message("        CPPFLAGS:         ${CMAKE_CXX_FLAGS}")
 message("        Warnings:         ${WARN_FLAGS}")
 message("        Build type:       ${CMAKE_BUILD_TYPE}")

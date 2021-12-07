@@ -79,6 +79,28 @@ static void get_functions() {
 
 }
 
+static void test_lib_info() {
+  dprintf(0, "TEST START: test_lib_info()\n");
+
+  const CK_CHAR_PTR MANUFACTURER_ID = (const CK_CHAR_PTR)"Yubico (www.yubico.com)";
+  const CK_CHAR_PTR YKCS11_DESCRIPTION = (const CK_CHAR_PTR)"PKCS#11 PIV Library (SP-800-73)";
+  const CK_ULONG CRYPTOKI_VERSION_MAJ = 2;
+  const CK_ULONG CRYPTOKI_VERSION_MIN = 40;
+
+  CK_INFO info;
+  asrt(funcs->C_Initialize(NULL), CKR_OK, "INITIALIZE");
+  asrt(funcs->C_GetInfo(&info), CKR_OK, "GET_INFO");
+  asrt(strncmp((const char*)info.manufacturerID, (const char*)MANUFACTURER_ID, strlen((const char*)MANUFACTURER_ID)), 0, "MANUFACTURER");
+  asrt(info.cryptokiVersion.major, CRYPTOKI_VERSION_MAJ, "CK_MAJ");
+  asrt(info.cryptokiVersion.minor, CRYPTOKI_VERSION_MIN, "CK_MIN");
+  asrt(info.libraryVersion.major, YKCS11_VERSION_MAJOR, "LIB_MAJ");
+  asrt(info.libraryVersion.minor, ((YKCS11_VERSION_MINOR * 10) + YKCS11_VERSION_PATCH), "LIB_MIN");
+  asrt(strncmp((const char*)info.libraryDescription, (const char*)YKCS11_DESCRIPTION, strlen((const char*)YKCS11_DESCRIPTION)), 0, "LIB_DESC");
+  asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
+  dprintf(0, "TEST END: test_lib_info()\n");
+}
+
+#if HW_TESTS
 static void init_connection() {
   asrt(funcs->C_Initialize(NULL), CKR_OK, "INITIALIZE");
   CK_SLOT_ID pSlotList[16];
@@ -86,28 +108,6 @@ static void init_connection() {
   asrt(funcs->C_GetSlotList(true, pSlotList, &pulCount), CKR_OK, "GETSLOTLIST");
 }
 
-static void test_lib_info() {
-  dprintf(0, "TEST START: test_lib_info()\n");
-
-  const CK_CHAR_PTR MANUFACTURER_ID = "Yubico (www.yubico.com)";
-  const CK_CHAR_PTR YKCS11_DESCRIPTION = "PKCS#11 PIV Library (SP-800-73)";
-  const CK_ULONG CRYPTOKI_VERSION_MAJ = 2;
-  const CK_ULONG CRYPTOKI_VERSION_MIN = 40;
-
-  CK_INFO info;
-  asrt(funcs->C_Initialize(NULL), CKR_OK, "INITIALIZE");
-  asrt(funcs->C_GetInfo(&info), CKR_OK, "GET_INFO");
-  asrt(strncmp(info.manufacturerID, MANUFACTURER_ID, strlen(MANUFACTURER_ID)), 0, "MANUFACTURER");
-  asrt(info.cryptokiVersion.major, CRYPTOKI_VERSION_MAJ, "CK_MAJ");
-  asrt(info.cryptokiVersion.minor, CRYPTOKI_VERSION_MIN, "CK_MIN");
-  asrt(info.libraryVersion.major, YKCS11_VERSION_MAJOR, "LIB_MAJ");
-  asrt(info.libraryVersion.minor, ((YKCS11_VERSION_MINOR * 10) + YKCS11_VERSION_PATCH), "LIB_MIN");
-  asrt(strncmp(info.libraryDescription, YKCS11_DESCRIPTION, strlen(YKCS11_DESCRIPTION)), 0, "LIB_DESC");
-  asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
-  dprintf(0, "TEST END: test_lib_info()\n");
-}
-
-#if HW_TESTS
 static void test_initalize() {
   dprintf(0, "TEST START: test_initalize()\n");
   asrt(funcs->C_Initialize(NULL), CKR_OK, "INITIALIZE");
@@ -842,6 +842,7 @@ static void test_digest() {
 
 #endif
 
+#if HW_TESTS
 int destruction_confirmed(void) {
 #ifdef _WIN32
   return 1;
@@ -849,6 +850,7 @@ int destruction_confirmed(void) {
   return system("../../../tools/confirm.sh") == 0;
 #endif
 }
+#endif
 
 int main(void) {
 

@@ -143,7 +143,7 @@ struct internal_key {
   size_t oid_len;
 };
 
-int yk_rsa_meth_sign(int dtype, const unsigned char *m, unsigned int m_length,
+static int yk_rsa_meth_sign(int dtype, const unsigned char *m, unsigned int m_length,
     unsigned char *sigret, unsigned int *siglen, const RSA *rsa) {
   size_t yk_siglen = RSA_size(rsa);
   const RSA_METHOD *meth = RSA_get_method(rsa);
@@ -164,7 +164,7 @@ int yk_rsa_meth_sign(int dtype, const unsigned char *m, unsigned int m_length,
   return 0;
 }
 
-int yk_ec_meth_sign(int type, const unsigned char *dgst, int dlen,
+static int yk_ec_meth_sign(int type, const unsigned char *dgst, int dlen,
     unsigned char *sig, unsigned int *siglen, const BIGNUM *kinv,
     const BIGNUM *r, EC_KEY *ec) {
   size_t yk_siglen = ECDSA_size(ec);

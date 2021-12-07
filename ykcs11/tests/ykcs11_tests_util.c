@@ -715,10 +715,10 @@ void test_ec_ecdh_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
     asrt(funcs->C_DestroyObject(session, sk), CKR_OK, "DestroyObject");
     asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
     // Skip DER encoding
-    ptr = pointTemplate->pValue;
-    ptr += 2;
+    const unsigned char *ptr2 = pointTemplate->pValue;
+    ptr2 += 2;
     EC_KEY *pk = EC_KEY_new_by_curve_name(curve);
-    pk = o2i_ECPublicKey(&pk, &ptr, pointTemplate->ulValueLen - 2);
+    pk = o2i_ECPublicKey(&pk, &ptr2, pointTemplate->ulValueLen - 2);
     asrt(ECDH_compute_key(secret, sizeof(secret), EC_KEY_get0_public_key(pk), tmpkey, NULL), bits / 8, "ECDH_compute_key");
     asrt(memcmp(secret, secret2, bits / 8), 0, "Compare secrets");
     EC_KEY_free(pk);
@@ -1014,23 +1014,6 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
   }
   free(data);
   asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
-}
-
-static int is_data_too_large(int enc_ret) {
-  if(enc_ret != -1) {
-    return 0;
-  }
-
-  unsigned long err;
-  ERR_load_crypto_strings();
-  err = ERR_get_error();
-  //char err_str[128] = {0};
-  //ERR_error_string_n(err, err_str, 128);
-  //printf("%ld    %s\n", err, err_str);
-  if(err == 67534980) { // Error code for "data too large for modulus"
-    return 1;
-  }
-  return 0;
 }
 
 void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 

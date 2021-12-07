@@ -89,7 +89,7 @@ START_TEST(test_parse_name) {
 }
 END_TEST
 
-Suite *test_suite(void) {
+static Suite *test_suite(void) {
   Suite *s;
   TCase *tc;
 
