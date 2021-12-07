@@ -74,7 +74,7 @@ START_TEST(test_parse_key) {
 }
 END_TEST
 
-Suite *parsekey_suite(void) {
+static Suite *parsekey_suite(void) {
   Suite *s;
   TCase *tc;
 

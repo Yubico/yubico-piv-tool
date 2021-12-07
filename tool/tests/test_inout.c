@@ -74,7 +74,7 @@ START_TEST(test_inout) {
 }
 END_TEST
 
-Suite *test_suite(void) {
+static Suite *test_suite(void) {
   Suite *s;
   TCase *tc;
 

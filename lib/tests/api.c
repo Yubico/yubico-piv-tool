@@ -44,8 +44,6 @@
 #define dprintf(fd, ...) fprintf(stdout, __VA_ARGS__)
 #endif
 
-int destruction_confirmed(void);
-
 // only defined in libcheck 0.11+ (linux distros still shipping 0.10)
 #ifndef ck_assert_ptr_nonnull
 #define ck_assert_ptr_nonnull(a) ck_assert((a) != NULL)
@@ -67,7 +65,23 @@ const uint8_t g_cert[] = {
   "0123456789ABCDEFGHIK0123456789ABCDEFGHIK0123456789ABCDEFGHIK0123456789ABCDEFGHIK"
 };
 
-void setup(void) {
+#if HW_TESTS
+
+int destruction_confirmed(void) {
+  char *confirmed = getenv("YKPIV_ENV_HWTESTS_CONFIRMED");
+  if (confirmed && confirmed[0] == '1') {
+#ifdef _WIN32
+    return 1;
+#else
+    return system("../../../tools/confirm.sh") == 0;
+#endif
+  }
+  // Use dprintf() to write directly to stdout, since cmake eats the standard stdout/stderr pointers.
+  dprintf(0, "\n***\n*** Hardware tests skipped.\n***\n\n");
+  return 0;
+}
+
+static void setup(void) {
   ykpiv_rc res;
 
   // Require user confirmation to continue, since this test suite will clear
@@ -83,7 +97,7 @@ void setup(void) {
   ck_assert_int_eq(res, YKPIV_OK);
 }
 
-void teardown(void) {
+static void teardown(void) {
   ykpiv_rc res;
 
   // This is the expected case, if the allocator test ran, since it de-inits.
@@ -97,7 +111,6 @@ void teardown(void) {
   ck_assert_int_eq(res, YKPIV_OK);
 }
 
-#if HW_TESTS
 START_TEST(test_devicemodel) {
   ykpiv_rc res;
   ykpiv_devmodel model;
@@ -919,21 +932,7 @@ START_TEST(test_pin_cache) {
 END_TEST
 #endif
 
-int destruction_confirmed(void) {
-  char *confirmed = getenv("YKPIV_ENV_HWTESTS_CONFIRMED");
-  if (confirmed && confirmed[0] == '1') {
-#ifdef _WIN32
-    return 1;
-#else
-    return system("../../../tools/confirm.sh") == 0;
-#endif
-  }
-  // Use dprintf() to write directly to stdout, since cmake eats the standard stdout/stderr pointers.
-  dprintf(0, "\n***\n*** Hardware tests skipped.\n***\n\n");
-  return 0;
-}
-
-Suite *test_suite(void) {
+static Suite *test_suite(void) {
   Suite *s;
   TCase *tc;
 

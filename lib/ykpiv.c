@@ -658,7 +658,7 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
 }
 
 // Add errors that we should reconnect on here
-bool ShouldReconnect(LONG rc) {
+static bool ShouldReconnect(LONG rc) {
   switch(rc) {
     case SCARD_W_UNPOWERED_CARD:
     case SCARD_W_RESET_CARD:
