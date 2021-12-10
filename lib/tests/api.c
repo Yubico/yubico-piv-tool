@@ -30,6 +30,7 @@
 
 #include "ykpiv.h"
 #include "internal.h"
+#include "util.h"
 #include "../../common/openssl-compat.h"
 #include "test-config.h"
 
@@ -67,7 +68,7 @@ const uint8_t g_cert[] = {
 
 #if HW_TESTS
 
-int destruction_confirmed(void) {
+static int destruction_confirmed(void) {
   char *confirmed = getenv("YKPIV_ENV_HWTESTS_CONFIRMED");
   if (confirmed && confirmed[0] == '1') {
 #ifdef _WIN32
@@ -818,7 +819,7 @@ ykpiv_allocator test_allocator_cbs = {
   .alloc_data = &g_alloc_data
 };
 
-uint8_t *alloc_auth_cert() {
+static uint8_t *alloc_auth_cert() {
   ykpiv_rc res;
   uint8_t *read_cert = NULL;
   size_t read_cert_len = 0;
@@ -836,7 +837,6 @@ uint8_t *alloc_auth_cert() {
 
 START_TEST(test_allocator) {
   ykpiv_rc res;
-  const ykpiv_allocator allocator;
   uint8_t *cert1, *cert2;
 
   res = ykpiv_done(g_state);

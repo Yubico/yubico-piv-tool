@@ -634,28 +634,6 @@ static void test_find_objects() {
   dprintf(0, "TEST END: test_find_objects()\n");
 }
 
-static CK_OBJECT_HANDLE get_public_key_handle(CK_SESSION_HANDLE session, CK_OBJECT_HANDLE privkey) {
-  CK_OBJECT_HANDLE found_obj[10] = {0};
-  CK_ULONG n_found_obj = 0;
-  CK_ULONG class_pub = CKO_PUBLIC_KEY;
-  CK_BYTE ckaid = 0;
-
-  CK_ATTRIBUTE idTemplate[] = {
-    {CKA_ID, &ckaid, sizeof(ckaid)}
-  };
-  CK_ATTRIBUTE idClassTemplate[] = {
-    {CKA_ID, &ckaid, sizeof(ckaid)},
-    {CKA_CLASS, &class_pub, sizeof(class_pub)}
-  };
-
-  asrt(funcs->C_GetAttributeValue(session, privkey, idTemplate, 1), CKR_OK, "GET CKA_ID");
-  asrt(funcs->C_FindObjectsInit(session, idClassTemplate, 2), CKR_OK, "FIND INIT");
-  asrt(funcs->C_FindObjects(session, found_obj, 10, &n_found_obj), CKR_OK, "FIND");
-  asrt(n_found_obj, 1, "N FOUND OBJS");
-  asrt(funcs->C_FindObjectsFinal(session), CKR_OK, "FIND FINAL");
-  return found_obj[0];
-}
-
 static void test_import_eccp(CK_BYTE* key_params, CK_ULONG key_params_len, CK_ULONG key_len, int curve, CK_BYTE n_keys) {
   EC_KEY            *eck;
   CK_OBJECT_HANDLE  obj_cert[N_ALL_KEYS]={0}, obj_pvtkey[N_ALL_KEYS]={0};
@@ -843,7 +821,7 @@ static void test_digest() {
 #endif
 
 #if HW_TESTS
-int destruction_confirmed(void) {
+static int destruction_confirmed(void) {
 #ifdef _WIN32
   return 1;
 #else
