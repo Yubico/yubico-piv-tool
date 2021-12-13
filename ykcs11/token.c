@@ -452,7 +452,7 @@ CK_RV token_generate_key(ykpiv_state *state, gen_info_t *gen, CK_BYTE key, CK_BY
       *in_ptr++ = gen->pin_policy;
   }
 
-  if(ykpiv_transfer_data(state, templ, in_data, in_ptr - in_data, data, &recv_len, &sw) != YKPIV_OK || sw != 0x9000) {
+  if(ykpiv_transfer_data(state, templ, in_data, in_ptr - in_data, data, &recv_len, &sw) != YKPIV_OK || sw != SW_SUCCESS) {
     DBG("Failed to generate key, sw = %04x.", sw);
     return CKR_DEVICE_ERROR;
   }

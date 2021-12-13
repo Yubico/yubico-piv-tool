@@ -149,6 +149,7 @@ typedef struct _ykpiv_version_t {
 struct ykpiv_state {
   SCARDCONTEXT context;
   SCARDHANDLE card;
+  pcsc_word protocol;
   char reader[2048];
   int  verbose;
   int tries;
@@ -198,12 +199,12 @@ void* _ykpiv_realloc(ykpiv_state *state, void *address, size_t size);
 void _ykpiv_free(ykpiv_state *state, void *data);
 ykpiv_rc _ykpiv_save_object(ykpiv_state *state, int object_id, unsigned char *indata, size_t len);
 ykpiv_rc _ykpiv_fetch_object(ykpiv_state *state, int object_id, unsigned char *data, unsigned long *len);
-ykpiv_rc _send_data(ykpiv_state *state, APDU *apdu, unsigned char *data, uint32_t *recv_len, int *sw);
+ykpiv_rc _ykpiv_send_apdu(ykpiv_state *state, APDU *apdu, unsigned char *data, unsigned long *recv_len, int *sw);
 ykpiv_rc _ykpiv_transfer_data(
     ykpiv_state *state,
     const unsigned char *templ,
     const unsigned char *in_data,
-    long in_len,
+    unsigned long in_len,
     unsigned char *out_data,
     unsigned long *out_len,
     int *sw);
