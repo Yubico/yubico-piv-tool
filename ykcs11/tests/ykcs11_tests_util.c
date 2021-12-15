@@ -545,6 +545,77 @@ void generate_ec_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
 }
 
+void generate_ec_keys_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_BYTE n_keys, 
+                                  CK_BYTE* ec_params, CK_ULONG ec_params_len, CK_ULONG policy) {
+  CK_BYTE     i;
+  CK_ULONG    class_k = CKO_PRIVATE_KEY;
+  CK_ULONG    class_c = CKO_PUBLIC_KEY;
+  CK_ULONG    kt = CKK_ECDSA;
+  CK_BYTE     id = 0;
+
+  CK_ATTRIBUTE privateKeyTemplate[] = {
+    {CKA_CLASS, &class_k, sizeof(class_k)},
+    {CKA_KEY_TYPE, &kt, sizeof(kt)},
+    {CKA_ID, &id, sizeof(id)},
+    {CKA_VENDOR_DEFINED, &policy, sizeof(policy)}
+  };
+
+  CK_ATTRIBUTE publicKeyTemplate[] = {
+    {CKA_CLASS, &class_c, sizeof(class_c)},
+    {CKA_ID, &id, sizeof(id)},
+    {CKA_EC_PARAMS, ec_params, ec_params_len}
+  };
+
+  CK_MECHANISM mech = {CKM_EC_KEY_PAIR_GEN, NULL, 0};
+
+  asrt(funcs->C_Login(session, CKU_SO, (CK_CHAR_PTR)"010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
+  for (i = 0; i < n_keys; i++) {
+    id = i+1;    
+    CK_OBJECT_HANDLE obj_pvtkey=CK_INVALID_HANDLE, obj_pubkey=CK_INVALID_HANDLE;
+    asrt(funcs->C_GenerateKeyPair(session, &mech, publicKeyTemplate, 3, privateKeyTemplate, 4, &obj_pubkey, &obj_pvtkey), CKR_OK, "GEN EC KEYPAIR");
+    asrt(obj_pubkey, 111+i, "PUBLIC KEY HANDLE");
+    asrt(obj_pvtkey, 86+i, "PRIVATE KEY HANDLE");
+
+    CK_ULONG actual = 0;
+    CK_ATTRIBUTE template[] = {
+      {CKA_VENDOR_DEFINED, &actual, sizeof(actual)},
+    };
+    asrt(funcs->C_GetAttributeValue(session, obj_pvtkey, template, 1), CKR_OK, "GET POLICY ATTRIBUTE");
+    asrt(template[0].ulValueLen, sizeof(actual), "ATTRIBUTE LEN");
+    asrt(actual, policy, "POLICY");
+    asrt(funcs->C_DestroyObject(session, obj_pvtkey), CKR_OK, "DestroyObject");
+  }
+  asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
+}
+
+void generate_rsa_key_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_ULONG key_size,
+                                  CK_OBJECT_HANDLE_PTR obj_pubkey, CK_OBJECT_HANDLE_PTR obj_pvtkey, CK_ULONG attr) {
+  CK_BYTE     e[] = {0x01, 0x00, 0x01};
+  CK_ULONG    class_k = CKO_PRIVATE_KEY;
+  CK_ULONG    class_c = CKO_PUBLIC_KEY;
+  CK_ULONG    kt = CKK_RSA;
+  CK_BYTE     id = 1;
+
+  CK_ATTRIBUTE privateKeyTemplate[] = {
+    {CKA_CLASS, &class_k, sizeof(class_k)},
+    {CKA_KEY_TYPE, &kt, sizeof(kt)},
+    {CKA_ID, &id, sizeof(id)},
+    {CKA_VENDOR_DEFINED, &attr, sizeof(attr)}
+  };
+
+  CK_ATTRIBUTE publicKeyTemplate[] = {
+    {CKA_CLASS, &class_c, sizeof(class_c)},
+    {CKA_ID, &id, sizeof(id)},
+    {CKA_MODULUS_BITS, &key_size, sizeof(key_size)},
+    {CKA_PUBLIC_EXPONENT, e, sizeof(e)}
+  };
+
+  CK_MECHANISM mech = {CKM_RSA_PKCS_KEY_PAIR_GEN, NULL, 0};
+  asrt(funcs->C_GenerateKeyPair(session, &mech, publicKeyTemplate, 4, privateKeyTemplate, 4, obj_pubkey, obj_pvtkey), CKR_OK, "GEN RSA KEYPAIR");
+  asrt(obj_pubkey[0], 111, "PUBLIC KEY HANDLE");
+  asrt(obj_pvtkey[0], 86, "PRIVATE KEY HANDLE");
+}
+
 void generate_rsa_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_ULONG key_size, CK_BYTE n_keys,
                       CK_OBJECT_HANDLE_PTR obj_pubkey, CK_OBJECT_HANDLE_PTR obj_pvtkey) {
   CK_BYTE     i;
@@ -568,6 +639,10 @@ void generate_rsa_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
   };
 
   CK_MECHANISM mech = {CKM_RSA_PKCS_KEY_PAIR_GEN, NULL, 0};
+  CK_ULONG policy;
+  CK_ATTRIBUTE template[] = {
+    {CKA_VENDOR_DEFINED, &policy, sizeof(policy)},
+  };
 
   asrt(funcs->C_Login(session, CKU_SO, (CK_CHAR_PTR)"010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
   for (i = 0; i < n_keys; i++) {
@@ -575,6 +650,14 @@ void generate_rsa_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
     asrt(funcs->C_GenerateKeyPair(session, &mech, publicKeyTemplate, 4, privateKeyTemplate, 3, obj_pubkey+i, obj_pvtkey+i), CKR_OK, "GEN RSA KEYPAIR");
     asrt(obj_pubkey[i], 111+i, "PUBLIC KEY HANDLE");
     asrt(obj_pvtkey[i], 86+i, "PRIVATE KEY HANDLE");
+
+    policy = 0;
+    asrt(funcs->C_GetAttributeValue(session, obj_pvtkey[i], template, 1), CKR_OK, "GET POLICY ATTRIBUTE");
+    asrt(template[0].ulValueLen, sizeof(policy), "ATTRIBUTE LEN");
+    CK_ULONG pin_mask = CKA_PIN_ALWAYS | CKA_PIN_ONCE | CKA_PIN_NEVER;
+    CK_ULONG touch_mask = CKA_TOUCH_ALWAYS | CKA_TOUCH_CACHED | CKA_TOUCH_NEVER;
+    asrt((policy & pin_mask) ? 1 : 0, 1, "NO DEFAULT PIN POLICY");
+    asrt((policy & touch_mask) ? 1 : 0, 1, "NO DEFAULT TOUCH POLICY");
   }
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
 }
@@ -1392,6 +1475,19 @@ void test_privkey_attributes_rsa(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE s
   asrt(template[0].ulValueLen, modulus_len, "MODULUS LEN");
   asrt(template[1].ulValueLen, pubexp_len, "PUBLIC EXPONEN LEN");
   asrt(memcmp(obj_pubexp, pubexp, pubexp_len), 0, "PUBLIC EXPONENT");
+}
+
+void test_privkey_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session,
+                         CK_OBJECT_HANDLE privkey, CK_ULONG policy) {
+
+  CK_ULONG actual = 0;
+  CK_ATTRIBUTE template[] = {
+    {CKA_VENDOR_DEFINED, &actual, sizeof(actual)},
+  };
+
+  asrt(funcs->C_GetAttributeValue(session, privkey, template, 1), CKR_OK, "GET POLICY ATTRIBUTE");
+  asrt(template[0].ulValueLen, sizeof(actual), "ATTRIBUTE LEN");
+  asrt(actual, policy, "POLICY");
 }
 
 void test_privkey_attributes_ec(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
