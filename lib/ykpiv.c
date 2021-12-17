@@ -450,7 +450,7 @@ ykpiv_rc ykpiv_validate(ykpiv_state *state, const char *wanted) {
     pcsc_word reader_len = sizeof(reader);
     uint8_t atr[CB_ATR_MAX] = {0};
     pcsc_word atr_len = sizeof(atr);
-    LONG rc = SCardStatus(state->card, reader, &reader_len, NULL, NULL, atr, &atr_len);
+    pcsc_long rc = SCardStatus(state->card, reader, &reader_len, NULL, NULL, atr, &atr_len);
     if(rc != SCARD_S_SUCCESS) {
       if(state->verbose) {
         fprintf (stderr, "SCardStatus failed on reader '%s', rc=%lx\n", wanted, (long)rc);
@@ -497,7 +497,7 @@ ykpiv_rc ykpiv_validate(ykpiv_state *state, const char *wanted) {
 ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
   char reader_buf[2048] = {0};
   size_t num_readers = sizeof(reader_buf);
-  LONG rc;
+  pcsc_long rc;
   char *reader_ptr;
   ykpiv_rc ret;
   SCARDHANDLE card = (SCARDHANDLE)-1;
@@ -611,7 +611,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
 
 ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
   pcsc_word num_readers = 0;
-  LONG rc;
+  pcsc_long rc;
 
   if(SCardIsValidContext(state->context) != SCARD_S_SUCCESS) {
     rc = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &state->context);
@@ -663,14 +663,14 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
 ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state) {
 #if ENABLE_IMPLICIT_TRANSACTIONS
   int retries = 0;
-  LONG rc = SCardBeginTransaction(state->card);
+  pcsc_long rc = SCardBeginTransaction(state->card);
   if (rc != SCARD_S_SUCCESS) {
     retries++;
     if(state->verbose) {
       fprintf(stderr, "SCardBeginTransaction on card #%u failed, rc=%lx\n", state->serial, (long)rc);
     }
     if (SCardIsValidContext(state->context) != SCARD_S_SUCCESS || (rc != SCARD_W_RESET_CARD && rc != SCARD_W_REMOVED_CARD)) {
-      LONG rc2 = SCardDisconnect(state->card, SCARD_RESET_CARD);
+      pcsc_long rc2 = SCardDisconnect(state->card, SCARD_RESET_CARD);
       if(state->verbose) {
         fprintf(stderr, "SCardDisconnect on card #%u rc=%lx\n", state->serial, (long)rc2);
       }
@@ -753,7 +753,7 @@ ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state) {
 
 ykpiv_rc _ykpiv_end_transaction(ykpiv_state *state) {
 #if ENABLE_IMPLICIT_TRANSACTIONS
-  LONG rc = SCardEndTransaction(state->card, SCARD_LEAVE_CARD);
+  pcsc_long rc = SCardEndTransaction(state->card, SCARD_LEAVE_CARD);
   if(rc != SCARD_S_SUCCESS && state->verbose) {
     fprintf(stderr, "SCardEndTransaction on card #%u failed, rc=%lx\n", state->serial, (long)rc);
     // Ending the transaction can only fail because it's already ended - it's ended now either way so we don't fail here
@@ -782,7 +782,7 @@ static ykpiv_rc _send_tpdu(ykpiv_state *state, const unsigned char *send_data, p
     dump_hex(send_data, send_len);
     fprintf(stderr, " (%zu)\n", (size_t)send_len);
   }
-  LONG rc = SCardTransmit(state->card, _pci(state->protocol), send_data, send_len, NULL, recv_data, recv_len);
+  pcsc_long rc = SCardTransmit(state->card, _pci(state->protocol), send_data, send_len, NULL, recv_data, recv_len);
   if(rc != SCARD_S_SUCCESS) {
     if(state->verbose) {
       fprintf (stderr, "SCardTransmit on card #%u failed, rc=%lx\n", state->serial, (long)rc);

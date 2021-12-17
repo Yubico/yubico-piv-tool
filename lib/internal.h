@@ -50,6 +50,7 @@
 // differs: Windows defines a DWORD as 32-bits, but pcsclite defines it as
 // 'unsigned long' on x86_64 Linux, which is often 64-bits.
 typedef DWORD pcsc_word;
+typedef LONG pcsc_long;
 
 #ifdef __cplusplus
 extern "C"
