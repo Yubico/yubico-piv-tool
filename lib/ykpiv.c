@@ -817,7 +817,6 @@ ykpiv_rc _ykpiv_transfer_data(ykpiv_state *state,
   do {
     APDU apdu = {templ[0], templ[1], templ[2], templ[3], 0xff};
     unsigned char data[261] = {0};
-    pcsc_word recv_len = sizeof(data);
 
     if(in_ptr + apdu.st.lc < in_data + in_len) {
       apdu.st.cla |= 0x10;
@@ -829,10 +828,11 @@ ykpiv_rc _ykpiv_transfer_data(ykpiv_state *state,
       in_ptr += apdu.st.lc;
     }
     unsigned char send_len = apdu.st.lc;
-Retry:
+  Retry:
     if(state->verbose > 2) {
       fprintf(stderr, "Going to send %u bytes in this go.\n", send_len);
     }
+    pcsc_word recv_len = sizeof(data);
     res = _send_tpdu(state, apdu.raw, send_len + 5, data, &recv_len, sw);
     if(res != YKPIV_OK) {
       goto Cleanup;
@@ -861,12 +861,12 @@ Retry:
   while(*sw >> 8 == 0x61) {
     unsigned char tpdu[] = {0, YKPIV_INS_GET_RESPONSE_APDU, 0, 0, *sw & 0xff};
     unsigned char data[261] = {0};
-    pcsc_word recv_len = sizeof(data);
 
     if(state->verbose > 2) {
       fprintf(stderr, "The card indicates there is %u bytes more data for us.\n", tpdu[4] ? tpdu[4] : 0x100);
     }
 
+    pcsc_word recv_len = sizeof(data);
     res = _send_tpdu(state, tpdu, sizeof(tpdu), data, &recv_len, sw);
     if(res != YKPIV_OK) {
       goto Cleanup;
