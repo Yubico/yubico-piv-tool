@@ -87,7 +87,7 @@ static void cleanup_session(ykcs11_session_t *session) {
 }
 
 static void cleanup_slot(ykcs11_slot_t *slot) {
-  DBG("Cleaning up slot %lu", slot - slots);
+  DBG("Cleaning up slot %td", slot - slots);
   for(size_t i = 0; i < sizeof(slot->data) / sizeof(slot->data[0]); i++) {
     free(slot->data[i].data);
     slot->data[i].data = NULL;
@@ -384,7 +384,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 
       // Initialize piv_state and increase slot count if this is a new slot
       if(slot == slots + n_slots) {
-        DBG("Initializing slot %lu for '%s'", slot-slots, reader);
+        DBG("Initializing slot %td for '%s'", slot-slots, reader);
         ykpiv_rc rc;
         if((rc = ykpiv_init(&slot->piv_state, verbose)) != YKPIV_OK) {
           DBG("Unable to initialize libykpiv: %s", ykpiv_strerror(rc));
@@ -406,7 +406,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 
         if (ykpiv_connect(slot->piv_state, buf) == YKPIV_OK) {
 
-          DBG("Connected slot %lu to '%s'", slot-slots, reader);
+          DBG("Connected slot %td to '%s'", slot-slots, reader);
 
           slot->slot_info.flags |= CKF_TOKEN_PRESENT;
           slot->token_info.flags = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
@@ -974,7 +974,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
           DBG("Failed to create attestation for object %u slot %lx: %s", pvtk_id, slot, ykpiv_strerror(rc));
           len = sizeof(data);
           if((rc = ykpiv_get_metadata(session->slot->piv_state, slot, data, &len)) == YKPIV_OK) {
-            DBG("Fetched %lu bytes metadata for object %u slot %lx", len, pvtk_id, slot);
+            DBG("Fetched %zu bytes metadata for object %u slot %lx", len, pvtk_id, slot);
             ykpiv_metadata md = {0};
             if((rc = ykpiv_util_parse_metadata(data, len, &md)) == YKPIV_OK) {
               if((rv = do_create_public_key(md.pubkey, md.pubkey_len, md.algorithm, &session->slot->pkeys[sub_id])) == CKR_OK) {
@@ -2137,7 +2137,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptUpdate)(
   }
 
   if(session->op_info.buf_len + ulPartLen > sizeof(session->op_info.buf)) {
-    DBG("Too much data added to operation buffer, max is %lu bytes", sizeof(session->op_info.buf));
+    DBG("Too much data added to operation buffer, max is %zu bytes", sizeof(session->op_info.buf));
     rv = CKR_DATA_LEN_RANGE;
     goto encupdate_out;
   }
@@ -2351,7 +2351,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
   DBG("Using slot %x to decrypt %lu bytes", session->op_info.op.encrypt.piv_key, ulEncryptedDataLen);
 
   if(ulEncryptedDataLen > sizeof(session->op_info.buf)) {
-    DBG("Too much data added to operation buffer, max is %lu bytes", sizeof(session->op_info.buf));
+    DBG("Too much data added to operation buffer, max is %zu bytes", sizeof(session->op_info.buf));
     rv = CKR_DATA_LEN_RANGE;
     goto decrypt_out;
   }
@@ -2421,7 +2421,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptUpdate)(
   DBG("Adding %lu bytes to be decrypted", ulEncryptedPartLen);
 
   if(session->op_info.buf_len + ulEncryptedPartLen > sizeof(session->op_info.buf)) {
-    DBG("Too much data added to operation buffer, max is %lu bytes", sizeof(session->op_info.buf));
+    DBG("Too much data added to operation buffer, max is %zu bytes", sizeof(session->op_info.buf));
     rv = CKR_DATA_LEN_RANGE;
     goto decrypt_out;
   }
