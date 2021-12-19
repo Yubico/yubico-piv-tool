@@ -294,7 +294,7 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
   size_t siglen = sizeof(sigbuf);
   ykpiv_rc rcc = ykpiv_sign_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, sigbuf, &siglen, session->op_info.op.sign.algorithm, session->op_info.op.sign.piv_key);
   if(rcc == YKPIV_OK) {
-    DBG("ykpiv_sign_data %lu bytes with key %x returned %lu bytes data", session->op_info.buf_len, session->op_info.op.sign.piv_key, siglen);
+    DBG("ykpiv_sign_data %lu bytes with key %x returned %zu bytes data", session->op_info.buf_len, session->op_info.op.sign.piv_key, siglen);
   } else {
     DBG("ykpiv_sign_data with key %x failed: %s", session->op_info.op.sign.piv_key, ykpiv_strerror(rcc));
     return rcc == YKPIV_AUTHENTICATION_ERROR ? CKR_USER_NOT_LOGGED_IN : CKR_DEVICE_ERROR;
@@ -306,7 +306,7 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
   switch(session->op_info.op.sign.algorithm) {
     case YKPIV_ALGO_ECCP256:
     case YKPIV_ALGO_ECCP384:
-      DBG("Stripping DER encoding from %lu bytes, returning %lu", siglen, session->op_info.out_len);
+      DBG("Stripping DER encoding from %zu bytes, returning %lu", siglen, session->op_info.out_len);
       rv = do_strip_DER_encoding_from_ECSIG(sigbuf, siglen, session->op_info.out_len);
       siglen = session->op_info.out_len;
       break;
@@ -835,7 +835,7 @@ CK_RV digest_mechanism_update(ykcs11_session_t *session, CK_BYTE_PTR in, CK_ULON
     }
   } else {
     if(session->op_info.buf_len + in_len > sizeof(session->op_info.buf)) {
-      DBG("Too much data added to operation buffer, max is %lu bytes", sizeof(session->op_info.buf));
+      DBG("Too much data added to operation buffer, max is %zu bytes", sizeof(session->op_info.buf));
       return CKR_DATA_LEN_RANGE;
     }
     memcpy(session->op_info.buf + session->op_info.buf_len, in, in_len);
