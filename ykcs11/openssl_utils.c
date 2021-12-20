@@ -574,7 +574,7 @@ CK_BYTE do_get_key_algorithm(ykcs11_pkey_t *key) {
 }
 
 CK_RV do_get_modulus(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
-  RSA *rsa = NULL;
+  const RSA *rsa = NULL;
   const BIGNUM *n = NULL;
 
   rsa = EVP_PKEY_get0_RSA(key);
@@ -593,7 +593,7 @@ CK_RV do_get_modulus(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
 CK_RV do_get_public_exponent(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
-  RSA *rsa = NULL;
+  const RSA *rsa = NULL;
   const BIGNUM *bn_e;
 
   rsa = EVP_PKEY_get0_RSA(key);
@@ -615,10 +615,10 @@ CK_RV do_get_public_exponent(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR 
 /* //SSL_load_error_strings(); */
 /*   fprintf(stderr, "ERROR %s\n", ERR_error_string(ERR_get_error(), NULL)); */
 CK_RV do_get_public_key(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
-  RSA *rsa = NULL;
+  const RSA *rsa = NULL;
   unsigned char *p;
 
-  EC_KEY *eck = NULL;
+  const EC_KEY *eck = NULL;
   const EC_GROUP *ecg; // Alternative solution is to get i2d_PUBKEY and manually offset
   const EC_POINT *ecp;
   point_conversion_form_t pcf = POINT_CONVERSION_UNCOMPRESSED;
@@ -673,7 +673,7 @@ CK_RV do_get_public_key(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) 
 }
 
 CK_RV do_get_curve_parameters(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
-  EC_KEY *eck = NULL;
+  const EC_KEY *eck = NULL;
   const EC_GROUP *ecg;
   unsigned char *p;
 

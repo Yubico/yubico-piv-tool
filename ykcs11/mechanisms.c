@@ -151,7 +151,7 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_MECH
   }
 
   session->op_info.out_len = do_get_signature_size(key);
-  session->op_info.op.sign.rsa = EVP_PKEY_get0_RSA(key);
+  session->op_info.op.sign.rsa = (RSA*)EVP_PKEY_get0_RSA(key);
   session->op_info.op.sign.algorithm = do_get_key_algorithm(key);
 
   switch (session->op_info.mechanism) {
@@ -394,7 +394,7 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_ME
       return CKR_MECHANISM_INVALID;
   }
 
-  ykcs11_rsa_t *rsa = EVP_PKEY_get0_RSA(key);
+  const ykcs11_rsa_t *rsa = EVP_PKEY_get0_RSA(key);
   CK_RSA_PKCS_PSS_PARAMS *pss = NULL;
 
   switch (session->op_info.mechanism) {
