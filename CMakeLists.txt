@@ -55,6 +55,8 @@ include(CheckCCompilerFlag)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+add_definitions(-DOPENSSL_API_COMPAT=0x10000000L)
+
 if(WIN32)
     add_definitions(-DWIN32_LEAN_AND_MEAN)
     set(_WIN32 ${WIN32})
