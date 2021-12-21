@@ -300,7 +300,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetFunctionList)(
     rv = CKR_ARGUMENTS_BAD;
     goto funclist_out;
   }
-  *ppFunctionList = &function_list;
+  *ppFunctionList = (CK_FUNCTION_LIST_PTR)&function_list;
   rv = CKR_OK;
 
 
@@ -3874,9 +3874,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_CancelFunction)(
 }
 
 static const CK_INTERFACE interfaces_list[] = {{(CK_CHAR_PTR) "PKCS 11",
-                                                &function_list_3, 0},
+                                                (CK_VOID_PTR)&function_list_3, 0},
                                                {(CK_CHAR_PTR) "PKCS 11",
-                                                &function_list, 0}};
+                                                (CK_VOID_PTR)&function_list, 0}};
 
 /* C_GetInterfaceList returns all the interfaces supported by the module*/
 CK_DEFINE_FUNCTION(CK_RV, C_GetInterfaceList)
