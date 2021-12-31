@@ -1512,7 +1512,6 @@ static ykpiv_rc _ykpiv_verify(ykpiv_state *state, const char *pin, const size_t 
   ykpiv_rc res;
 
   if (pin_len > CB_PIN_MAX) {
-    state->tries = -1;
     return YKPIV_SIZE_ERROR;
   }
 
@@ -1603,8 +1602,6 @@ ykpiv_rc ykpiv_get_pin_retries(ykpiv_state *state, int *tries) {
   if (res != YKPIV_OK) goto Cleanup;
   res = _ykpiv_select_application(state);
   if (res != YKPIV_OK) goto Cleanup;
-  res = _ykpiv_verify(state, NULL, 0);
-  // WRONG_PIN or PIN_LOCKED is expected on successful query.
   *tries = state->tries;
 Cleanup:
   _ykpiv_end_transaction(state);
