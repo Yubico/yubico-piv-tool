@@ -583,6 +583,16 @@ void generate_ec_keys_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE 
     asrt(funcs->C_GetAttributeValue(session, obj_pvtkey, template, 1), CKR_OK, "GET POLICY ATTRIBUTE");
     asrt(template[0].ulValueLen, sizeof(actual), "ATTRIBUTE LEN");
     asrt(actual, policy, "POLICY");
+
+    // Check that CKA_ALWAYS_AUTHENTICATE is consistent.
+    CK_BBOOL b_tmp;
+    template->type = CKA_ALWAYS_AUTHENTICATE;
+    template->pValue = &b_tmp;
+    template->ulValueLen = sizeof(b_tmp);
+    asrt(funcs->C_GetAttributeValue(session, obj_pvtkey, template, 1), CKR_OK, "GET ALWAYS AUTHENTICATED");
+    asrt(template[0].ulValueLen, sizeof(b_tmp), "ATTRIBUTE LEN");    
+    asrt(b_tmp, (policy & CKA_PIN_ALWAYS) ? CK_TRUE : CK_FALSE, "ALWAYS AUTHENTICATED");
+    
     asrt(funcs->C_DestroyObject(session, obj_pvtkey), CKR_OK, "DestroyObject");
   }
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");

@@ -777,8 +777,10 @@ static CK_RV get_proa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
 
   case CKA_ALWAYS_AUTHENTICATE:
     DBG("ALWAYS AUTHENTICATE");
+    if ((rv = get_pr_metadata_attrs(s, piv_objects[obj].sub_id, &ul_tmp)) != CKR_OK)
+      return rv;
     len = sizeof(CK_BBOOL);
-    b_tmp[0] = pvtkey_objects[piv_objects[obj].sub_id].always_auth;
+    b_tmp[0] = (ul_tmp & CKA_PIN_ALWAYS) ? CK_TRUE : CK_FALSE;
     data = b_tmp;
     break;
 

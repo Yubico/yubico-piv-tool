@@ -720,15 +720,30 @@ CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
       }
       break;
 
+    case CKA_ALWAYS_AUTHENTICATE:
+      if (gen->pin_policy != YKPIV_PINPOLICY_DEFAULT) {
+        DBG("PIN policy already specified");
+        return CKR_TEMPLATE_INCONSISTENT;
+      }
+      
+      if (*((CK_BBOOL *)templ[i].pValue) == CK_TRUE) {
+        gen->pin_policy = YKPIV_PINPOLICY_ALWAYS;
+      } else if (*((CK_BBOOL *)templ[i].pValue) == CK_FALSE) {
+        gen->pin_policy = YKPIV_PINPOLICY_ONCE;
+      } else {
+        DBG("CKA_ALWAYS_AUTHENTICATE must be TRUE, FALSE, or omitted");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+
     case CKA_VENDOR_DEFINED:
-        val = (*((CK_ULONG_PTR)templ[i].pValue));
-        if (val & CKA_TOUCH_ALWAYS) {
-          gen->touch_policy = YKPIV_TOUCHPOLICY_ALWAYS;
-        } else if (val & CKA_TOUCH_CACHED) {
-          gen->touch_policy = YKPIV_TOUCHPOLICY_CACHED;
-        } else if (val & CKA_TOUCH_NEVER) {
-          gen->touch_policy = YKPIV_TOUCHPOLICY_NEVER;
-        }
+      val = (*((CK_ULONG_PTR)templ[i].pValue));
+      if (val & CKA_TOUCH_ALWAYS) {
+        gen->touch_policy = YKPIV_TOUCHPOLICY_ALWAYS;
+      } else if (val & CKA_TOUCH_CACHED) {
+        gen->touch_policy = YKPIV_TOUCHPOLICY_CACHED;
+      } else if (val & CKA_TOUCH_NEVER) {
+        gen->touch_policy = YKPIV_TOUCHPOLICY_NEVER;
+      }
 
         if (val & CKA_PIN_ALWAYS) {
           gen->pin_policy = YKPIV_PINPOLICY_ALWAYS;
