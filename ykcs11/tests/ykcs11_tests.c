@@ -513,10 +513,9 @@ static void test_generate_rsa_with_policy() {
   CK_ULONG key_size = 2048;
   CK_OBJECT_HANDLE obj_pvtkey = CK_INVALID_HANDLE, obj_pubkey = CK_INVALID_HANDLE;
   CK_SESSION_HANDLE session;
-  CK_ULONG policy = 0;
   CK_BYTE i, j;
-  CK_ULONG touch_policies[3] = {CKA_TOUCH_ALWAYS, CKA_TOUCH_CACHED, CKA_TOUCH_NEVER};
-  CK_ULONG pin_policies[3] = {CKA_PIN_ALWAYS, CKA_PIN_ONCE, CKA_PIN_NEVER};
+  CK_ATTRIBUTE_TYPE touch_policies[3] = {CKA_YUBICO_TOUCH_ALWAYS, CKA_YUBICO_TOUCH_CACHED, CKA_YUBICO_TOUCH_NEVER};
+  CK_ATTRIBUTE_TYPE pin_policies[3] = {CKA_YUBICO_PIN_ALWAYS, CKA_YUBICO_PIN_ONCE, CKA_YUBICO_PIN_NEVER};
 
   init_connection();
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
@@ -525,9 +524,8 @@ static void test_generate_rsa_with_policy() {
   asrt(funcs->C_Login(session, CKU_SO, (CK_CHAR_PTR)"010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
   for (i = 0; i < sizeof(touch_policies)/sizeof(touch_policies[0]); i++) {
     for (j = 0; j < sizeof(pin_policies)/sizeof(pin_policies[0]); j++) {
-      policy = touch_policies[i] | pin_policies[j];
-      generate_rsa_key_with_policy(funcs, session, key_size, &obj_pubkey, &obj_pvtkey, policy);
-      test_privkey_policy(funcs, session, obj_pvtkey, policy);
+      generate_rsa_key_with_policy(funcs, session, key_size, &obj_pubkey, &obj_pvtkey, touch_policies[i], pin_policies[j]);
+      test_privkey_policy(funcs, session, obj_pvtkey, &touch_policies[i], &pin_policies[j]);
       asrt(funcs->C_DestroyObject(session, obj_pvtkey), CKR_OK, "Destroy Object");
     }
   }
@@ -541,22 +539,17 @@ static void test_generate_rsa_with_policy() {
 static void test_generate_eccp256_with_policy() {
   dprintf(0, "TEST START: test_generate_eccp256_with_policy()\n");
   CK_SESSION_HANDLE session;
-  CK_ULONG policy = 0;
   CK_BYTE i, j;
-  CK_ULONG touch_policies[3] = {CKA_TOUCH_ALWAYS, CKA_TOUCH_CACHED, CKA_TOUCH_NEVER};
-  CK_ULONG pin_policies[3] = {CKA_PIN_ALWAYS, CKA_PIN_ONCE, CKA_PIN_NEVER};  
+  CK_ATTRIBUTE_TYPE touch_policies[3] = {CKA_YUBICO_TOUCH_ALWAYS, CKA_YUBICO_TOUCH_CACHED, CKA_YUBICO_TOUCH_NEVER};
+  CK_ATTRIBUTE_TYPE pin_policies[3] = {CKA_YUBICO_PIN_ALWAYS, CKA_YUBICO_PIN_ONCE, CKA_YUBICO_PIN_NEVER};  
   CK_BYTE  params_eccp256[] = {0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07};
 
   init_connection();
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
   for (i = 0; i < sizeof(touch_policies)/sizeof(touch_policies[0]); i++) {
     for (j = 0; j < sizeof(pin_policies)/sizeof(pin_policies[0]); j++) {
-      policy = touch_policies[i] | pin_policies[j];
-      if (is_neo) {
-        generate_ec_keys_with_policy(funcs, session, N_SELECTED_KEYS, params_eccp256, sizeof(params_eccp256), policy);
-      } else {
-        generate_ec_keys_with_policy(funcs, session, N_ALL_KEYS, params_eccp256, sizeof(params_eccp256), policy);
-      }
+        generate_ec_keys_with_policy(funcs, session, is_neo ? N_SELECTED_KEYS : N_ALL_KEYS, 
+                                    params_eccp256, sizeof(params_eccp256), touch_policies[i], pin_policies[j]);
     }
   }
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");

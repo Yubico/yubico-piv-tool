@@ -511,8 +511,8 @@ static CK_RV get_atst(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
   return _get_coa(s->atst, obj, template, CK_FALSE);
 }
 
-static CK_RV get_pr_metadata_attrs(ykcs11_slot_t *s, CK_BYTE sub_id, CK_ULONG *attrs) {
-  CK_ULONG attrs_tmp = 0;
+static CK_RV get_pr_metadata_attrs(ykcs11_slot_t *s, CK_BYTE sub_id, CK_ATTRIBUTE_TYPE *touch_attr,
+                                   CK_ATTRIBUTE_TYPE *pin_attr) {
   CK_ULONG slot;
   CK_BYTE data[YKPIV_OBJ_MAX_SIZE] = {0};  
   size_t len = sizeof(data);
@@ -540,41 +540,44 @@ static CK_RV get_pr_metadata_attrs(ykcs11_slot_t *s, CK_BYTE sub_id, CK_ULONG *a
     return CKR_FUNCTION_FAILED;
   }
 
-  switch(md.touch_policy) {
-    case YKPIV_TOUCHPOLICY_ALWAYS:
-      attrs_tmp |= CKA_TOUCH_ALWAYS;
-      break;
-    case YKPIV_TOUCHPOLICY_CACHED:
-      attrs_tmp |= CKA_TOUCH_CACHED;
-      break;
-    case YKPIV_TOUCHPOLICY_NEVER:
-      attrs_tmp |= CKA_TOUCH_NEVER;
-      break;
-    case YKPIV_TOUCHPOLICY_DEFAULT:
-      break; // do nothing
-    default: 
-      DBG("Unrecognized touch policy %u for slot %lx", md.touch_policy, slot);
-      return CKR_FUNCTION_FAILED;
+  if (touch_attr) {
+    switch(md.touch_policy) {
+      case YKPIV_TOUCHPOLICY_ALWAYS:
+        *touch_attr = CKA_YUBICO_TOUCH_ALWAYS;
+        break;
+      case YKPIV_TOUCHPOLICY_CACHED:
+        *touch_attr = CKA_YUBICO_TOUCH_CACHED;
+        break;
+      case YKPIV_TOUCHPOLICY_NEVER:
+        *touch_attr = CKA_YUBICO_TOUCH_NEVER;
+        break;
+      case YKPIV_TOUCHPOLICY_DEFAULT:
+        break; // do nothing
+      default: 
+        DBG("Unrecognized touch policy %u for slot %lx", md.touch_policy, slot);
+        return CKR_FUNCTION_FAILED;
+    }
   }
 
-  switch(md.pin_policy) {
-    case YKPIV_PINPOLICY_ALWAYS:
-      attrs_tmp |= CKA_PIN_ALWAYS;
-      break;
-    case YKPIV_PINPOLICY_ONCE:
-      attrs_tmp |= CKA_PIN_ONCE;
-      break;
-    case YKPIV_PINPOLICY_NEVER:
-      attrs_tmp |= CKA_PIN_NEVER;
-      break;
-    case YKPIV_PINPOLICY_DEFAULT:
-      break; // do nothing
-    default: 
-      DBG("Unrecognized PIN policy %u for slot %lx", md.pin_policy, slot);
-      return CKR_FUNCTION_FAILED;
+  if (pin_attr) {
+    switch(md.pin_policy) {
+      case YKPIV_PINPOLICY_ALWAYS:
+        *pin_attr = CKA_YUBICO_PIN_ALWAYS;
+        break;
+      case YKPIV_PINPOLICY_ONCE:
+        *pin_attr = CKA_YUBICO_PIN_ONCE;
+        break;
+      case YKPIV_PINPOLICY_NEVER:
+        *pin_attr = CKA_YUBICO_PIN_NEVER;
+        break;
+      case YKPIV_PINPOLICY_DEFAULT:
+        break; // do nothing
+      default: 
+        DBG("Unrecognized PIN policy %u for slot %lx", md.pin_policy, slot);
+        return CKR_FUNCTION_FAILED;
+    }
   }
 
-  *attrs = attrs_tmp;
   return CKR_OK;
 }
 
@@ -582,7 +585,7 @@ static CK_RV get_pr_metadata_attrs(ykcs11_slot_t *s, CK_BYTE sub_id, CK_ULONG *a
 static CK_RV get_proa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
   CK_BYTE     b_tmp[1024] = {0};
-  CK_ULONG    ul_tmp;
+  CK_ULONG    ul_tmp = 0;
   CK_ULONG    len = 0;
   CK_RV       rv;
   DBG("For private key object %u, get ", obj);
@@ -777,10 +780,10 @@ static CK_RV get_proa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
 
   case CKA_ALWAYS_AUTHENTICATE:
     DBG("ALWAYS AUTHENTICATE");
-    if ((rv = get_pr_metadata_attrs(s, piv_objects[obj].sub_id, &ul_tmp)) != CKR_OK)
+    if ((rv = get_pr_metadata_attrs(s, piv_objects[obj].sub_id, NULL, &ul_tmp)) != CKR_OK)
       return rv;
     len = sizeof(CK_BBOOL);
-    b_tmp[0] = (ul_tmp & CKA_PIN_ALWAYS) ? CK_TRUE : CK_FALSE;
+    b_tmp[0] = (ul_tmp == CKA_YUBICO_PIN_ALWAYS) ? CK_TRUE : CK_FALSE;
     data = b_tmp;
     break;
 
@@ -798,14 +801,27 @@ static CK_RV get_proa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
     data = b_tmp;
     break;
 
-  case CKA_VENDOR_DEFINED:
-    DBG("VENDOR_DEFINED");
-    if ((rv = get_pr_metadata_attrs(s, piv_objects[obj].sub_id, &ul_tmp)) != CKR_OK)
+  case CKA_YUBICO_TOUCH_ALWAYS:
+  case CKA_YUBICO_TOUCH_CACHED:
+  case CKA_YUBICO_TOUCH_NEVER:
+    DBG("TOUCH POLICY");
+    if ((rv = get_pr_metadata_attrs(s, piv_objects[obj].sub_id, &ul_tmp, NULL)) != CKR_OK)
       return rv;
-    len = sizeof(CK_ULONG);
-    data = (CK_BYTE_PTR) &ul_tmp;
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = (ul_tmp == template->type) ? CK_TRUE : CK_FALSE;
+    data = b_tmp;
     break;
-  
+
+  case CKA_YUBICO_PIN_ALWAYS:
+  case CKA_YUBICO_PIN_ONCE:
+  case CKA_YUBICO_PIN_NEVER:
+    DBG("PIN POLICY");
+    if ((rv = get_pr_metadata_attrs(s, piv_objects[obj].sub_id, NULL, &ul_tmp)) != CKR_OK)
+      return rv;
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = (ul_tmp == template->type) ? CK_TRUE : CK_FALSE;
+    data = b_tmp;
+    break;
 
   default:
     DBG("UNKNOWN ATTRIBUTE %lx (%lu)", template[0].type, template[0].type);

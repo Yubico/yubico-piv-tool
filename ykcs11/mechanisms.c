@@ -102,6 +102,31 @@ static const ykcs11_md_t* EVP_MD_by_mechanism(CK_MECHANISM_TYPE m) {
   }
 }
 
+static CK_RV ykpiv_attr_by_ykcs11_attr(CK_ATTRIBUTE_TYPE ykcs11, CK_ULONG *ykpiv) {
+  switch (ykcs11) {
+  case CKA_YUBICO_TOUCH_ALWAYS:
+    *ykpiv = YKPIV_TOUCHPOLICY_ALWAYS;
+    return CKR_OK;
+  case CKA_YUBICO_TOUCH_CACHED:
+    *ykpiv = YKPIV_TOUCHPOLICY_CACHED;
+    return CKR_OK;
+  case CKA_YUBICO_TOUCH_NEVER :
+    *ykpiv = YKPIV_TOUCHPOLICY_NEVER;
+    return CKR_OK;
+  case CKA_YUBICO_PIN_ALWAYS:
+    *ykpiv = YKPIV_PINPOLICY_ALWAYS;
+    return CKR_OK;
+  case CKA_YUBICO_PIN_ONCE:
+    *ykpiv = YKPIV_PINPOLICY_ONCE;
+    return CKR_OK;
+  case CKA_YUBICO_PIN_NEVER:
+    *ykpiv = YKPIV_PINPOLICY_NEVER;
+    return CKR_OK;
+  default:
+    return CKR_ATTRIBUTE_TYPE_INVALID;
+  }
+}
+
 CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_MECHANISM_PTR mech) {
 
   const ykcs11_md_t *md = NULL;
@@ -672,7 +697,7 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
 CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTRIBUTE_PTR templ, CK_ULONG n) {
 
   CK_BBOOL rsa = is_RSA_mechanism(mechanism->mechanism);
-  CK_ULONG val = 0;
+  CK_ULONG ul_tmp = 0;
 
   for (CK_ULONG i = 0; i < n; i++) {
     switch (templ[i].type) {
@@ -725,7 +750,7 @@ CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
         DBG("PIN policy already specified");
         return CKR_TEMPLATE_INCONSISTENT;
       }
-      
+
       if (*((CK_BBOOL *)templ[i].pValue) == CK_TRUE) {
         gen->pin_policy = YKPIV_PINPOLICY_ALWAYS;
       } else if (*((CK_BBOOL *)templ[i].pValue) == CK_FALSE) {
@@ -734,25 +759,47 @@ CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
         DBG("CKA_ALWAYS_AUTHENTICATE must be TRUE, FALSE, or omitted");
         return CKR_ATTRIBUTE_VALUE_INVALID;
       }
+      break;
 
-    case CKA_VENDOR_DEFINED:
-      val = (*((CK_ULONG_PTR)templ[i].pValue));
-      if (val & CKA_TOUCH_ALWAYS) {
-        gen->touch_policy = YKPIV_TOUCHPOLICY_ALWAYS;
-      } else if (val & CKA_TOUCH_CACHED) {
-        gen->touch_policy = YKPIV_TOUCHPOLICY_CACHED;
-      } else if (val & CKA_TOUCH_NEVER) {
-        gen->touch_policy = YKPIV_TOUCHPOLICY_NEVER;
+    case CKA_YUBICO_TOUCH_ALWAYS:
+    case CKA_YUBICO_TOUCH_CACHED:
+    case CKA_YUBICO_TOUCH_NEVER:
+      if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
+        DBG("CKA_YUBICO_TOUCH attributes must be TRUE or omitted");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
       }
 
-        if (val & CKA_PIN_ALWAYS) {
-          gen->pin_policy = YKPIV_PINPOLICY_ALWAYS;
-        } else if (val & CKA_PIN_ONCE) {
-          gen->pin_policy = YKPIV_PINPOLICY_ONCE;
-        } else if (val & CKA_PIN_NEVER) {
-          gen->pin_policy = YKPIV_PINPOLICY_NEVER;
-        }
-        break;
+      if (ykpiv_attr_by_ykcs11_attr(templ[i].type, &ul_tmp) != CKR_OK) {
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+
+      if (gen->touch_policy != YKPIV_TOUCHPOLICY_DEFAULT &&
+          gen->touch_policy != (CK_BYTE)ul_tmp) {
+        DBG("Inconsistent touch policy");
+        return CKR_TEMPLATE_INCONSISTENT;
+      }
+      gen->touch_policy = (CK_BYTE)ul_tmp;
+      break;
+      
+    case CKA_YUBICO_PIN_ALWAYS:
+    case CKA_YUBICO_PIN_ONCE:
+    case CKA_YUBICO_PIN_NEVER:
+      if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
+        DBG("CKA_YUBICO_PIN attributes must be TRUE or omitted");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+
+      if (ykpiv_attr_by_ykcs11_attr(templ[i].type, &ul_tmp) != CKR_OK) {
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+
+      if (gen->pin_policy != YKPIV_PINPOLICY_DEFAULT &&
+          gen->pin_policy != (CK_BYTE)ul_tmp) {
+        DBG("Inconsistent PIN policy");
+        return CKR_TEMPLATE_INCONSISTENT;
+      }
+      gen->pin_policy = (CK_BYTE)ul_tmp;
+      break;
 
     case CKA_DECRYPT:
     case CKA_UNWRAP:

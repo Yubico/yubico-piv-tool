@@ -33,13 +33,16 @@
 
 #include "pkcs11.h"
 
-// YUBICO specific attributes
-#define CKA_TOUCH_PIN_DEFAULT (0UL)
-#define CKA_TOUCH_ALWAYS      (1UL << 0)
-#define CKA_PIN_ONCE          (1UL << 1)
-#define CKA_PIN_ALWAYS        (1UL << 2)
-#define CKA_PIN_NEVER         (1UL << 3)
-#define CKA_TOUCH_NEVER       (1UL << 4)
-#define CKA_TOUCH_CACHED      (1UL << 5)
+/* This is an offset for the vendor definitions to avoid clashes */
+#define YUBICO_BASE_VENDOR 0x59554200
+#define CKA_YUBICO (CKA_VENDOR_DEFINED + YUBICO_BASE_VENDOR)
+
+#define CKA_YUBICO_TOUCH_ALWAYS (CKA_YUBICO + 1)
+#define CKA_YUBICO_TOUCH_CACHED (CKA_YUBICO + 2)
+#define CKA_YUBICO_TOUCH_NEVER  (CKA_YUBICO + 3)
+
+#define CKA_YUBICO_PIN_ALWAYS (CKA_YUBICO + 4)
+#define CKA_YUBICO_PIN_ONCE   (CKA_YUBICO + 5)
+#define CKA_YUBICO_PIN_NEVER  (CKA_YUBICO + 6)
 
 #endif

@@ -546,18 +546,21 @@ void generate_ec_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
 }
 
 void generate_ec_keys_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_BYTE n_keys, 
-                                  CK_BYTE* ec_params, CK_ULONG ec_params_len, CK_ULONG policy) {
+                                  CK_BYTE* ec_params, CK_ULONG ec_params_len, CK_ATTRIBUTE_TYPE touch_attr,
+                                  CK_ATTRIBUTE_TYPE pin_attr) {
   CK_BYTE     i;
   CK_ULONG    class_k = CKO_PRIVATE_KEY;
   CK_ULONG    class_c = CKO_PUBLIC_KEY;
   CK_ULONG    kt = CKK_ECDSA;
   CK_BYTE     id = 0;
+  CK_BBOOL    is_true = CK_TRUE;
 
   CK_ATTRIBUTE privateKeyTemplate[] = {
     {CKA_CLASS, &class_k, sizeof(class_k)},
     {CKA_KEY_TYPE, &kt, sizeof(kt)},
     {CKA_ID, &id, sizeof(id)},
-    {CKA_VENDOR_DEFINED, &policy, sizeof(policy)}
+    {touch_attr, &is_true, sizeof(is_true)},
+    {pin_attr, &is_true, sizeof(is_true)}
   };
 
   CK_ATTRIBUTE publicKeyTemplate[] = {
@@ -572,45 +575,31 @@ void generate_ec_keys_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE 
   for (i = 0; i < n_keys; i++) {
     id = i+1;    
     CK_OBJECT_HANDLE obj_pvtkey=CK_INVALID_HANDLE, obj_pubkey=CK_INVALID_HANDLE;
-    asrt(funcs->C_GenerateKeyPair(session, &mech, publicKeyTemplate, 3, privateKeyTemplate, 4, &obj_pubkey, &obj_pvtkey), CKR_OK, "GEN EC KEYPAIR");
+    asrt(funcs->C_GenerateKeyPair(session, &mech, publicKeyTemplate, 3, privateKeyTemplate, 5, &obj_pubkey, &obj_pvtkey), CKR_OK, "GEN EC KEYPAIR");
     asrt(obj_pubkey, 111+i, "PUBLIC KEY HANDLE");
     asrt(obj_pvtkey, 86+i, "PRIVATE KEY HANDLE");
-
-    CK_ULONG actual = 0;
-    CK_ATTRIBUTE template[] = {
-      {CKA_VENDOR_DEFINED, &actual, sizeof(actual)},
-    };
-    asrt(funcs->C_GetAttributeValue(session, obj_pvtkey, template, 1), CKR_OK, "GET POLICY ATTRIBUTE");
-    asrt(template[0].ulValueLen, sizeof(actual), "ATTRIBUTE LEN");
-    asrt(actual, policy, "POLICY");
-
-    // Check that CKA_ALWAYS_AUTHENTICATE is consistent.
-    CK_BBOOL b_tmp;
-    template->type = CKA_ALWAYS_AUTHENTICATE;
-    template->pValue = &b_tmp;
-    template->ulValueLen = sizeof(b_tmp);
-    asrt(funcs->C_GetAttributeValue(session, obj_pvtkey, template, 1), CKR_OK, "GET ALWAYS AUTHENTICATED");
-    asrt(template[0].ulValueLen, sizeof(b_tmp), "ATTRIBUTE LEN");    
-    asrt(b_tmp, (policy & CKA_PIN_ALWAYS) ? CK_TRUE : CK_FALSE, "ALWAYS AUTHENTICATED");
-    
+    test_privkey_policy(funcs, session, obj_pvtkey, &touch_attr, &pin_attr);
     asrt(funcs->C_DestroyObject(session, obj_pvtkey), CKR_OK, "DestroyObject");
   }
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
 }
 
 void generate_rsa_key_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_ULONG key_size,
-                                  CK_OBJECT_HANDLE_PTR obj_pubkey, CK_OBJECT_HANDLE_PTR obj_pvtkey, CK_ULONG attr) {
+                                  CK_OBJECT_HANDLE_PTR obj_pubkey, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
+                                  CK_ATTRIBUTE_TYPE touch_attr, CK_ATTRIBUTE_TYPE pin_attr) {
   CK_BYTE     e[] = {0x01, 0x00, 0x01};
   CK_ULONG    class_k = CKO_PRIVATE_KEY;
   CK_ULONG    class_c = CKO_PUBLIC_KEY;
   CK_ULONG    kt = CKK_RSA;
   CK_BYTE     id = 1;
+  CK_BBOOL    is_true = CK_TRUE;
 
   CK_ATTRIBUTE privateKeyTemplate[] = {
     {CKA_CLASS, &class_k, sizeof(class_k)},
     {CKA_KEY_TYPE, &kt, sizeof(kt)},
     {CKA_ID, &id, sizeof(id)},
-    {CKA_VENDOR_DEFINED, &attr, sizeof(attr)}
+    {touch_attr, &is_true, sizeof(is_true)},
+    {pin_attr, &is_true, sizeof(is_true)}
   };
 
   CK_ATTRIBUTE publicKeyTemplate[] = {
@@ -621,7 +610,7 @@ void generate_rsa_key_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE 
   };
 
   CK_MECHANISM mech = {CKM_RSA_PKCS_KEY_PAIR_GEN, NULL, 0};
-  asrt(funcs->C_GenerateKeyPair(session, &mech, publicKeyTemplate, 4, privateKeyTemplate, 4, obj_pubkey, obj_pvtkey), CKR_OK, "GEN RSA KEYPAIR");
+  asrt(funcs->C_GenerateKeyPair(session, &mech, publicKeyTemplate, 4, privateKeyTemplate, 5, obj_pubkey, obj_pvtkey), CKR_OK, "GEN RSA KEYPAIR");
   asrt(obj_pubkey[0], 111, "PUBLIC KEY HANDLE");
   asrt(obj_pvtkey[0], 86, "PRIVATE KEY HANDLE");
 }
@@ -649,10 +638,6 @@ void generate_rsa_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
   };
 
   CK_MECHANISM mech = {CKM_RSA_PKCS_KEY_PAIR_GEN, NULL, 0};
-  CK_ULONG policy;
-  CK_ATTRIBUTE template[] = {
-    {CKA_VENDOR_DEFINED, &policy, sizeof(policy)},
-  };
 
   asrt(funcs->C_Login(session, CKU_SO, (CK_CHAR_PTR)"010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
   for (i = 0; i < n_keys; i++) {
@@ -661,13 +646,7 @@ void generate_rsa_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
     asrt(obj_pubkey[i], 111+i, "PUBLIC KEY HANDLE");
     asrt(obj_pvtkey[i], 86+i, "PRIVATE KEY HANDLE");
 
-    policy = 0;
-    asrt(funcs->C_GetAttributeValue(session, obj_pvtkey[i], template, 1), CKR_OK, "GET POLICY ATTRIBUTE");
-    asrt(template[0].ulValueLen, sizeof(policy), "ATTRIBUTE LEN");
-    CK_ULONG pin_mask = CKA_PIN_ALWAYS | CKA_PIN_ONCE | CKA_PIN_NEVER;
-    CK_ULONG touch_mask = CKA_TOUCH_ALWAYS | CKA_TOUCH_CACHED | CKA_TOUCH_NEVER;
-    asrt((policy & pin_mask) ? 1 : 0, 1, "NO DEFAULT PIN POLICY");
-    asrt((policy & touch_mask) ? 1 : 0, 1, "NO DEFAULT TOUCH POLICY");
+    test_privkey_policy(funcs, session, obj_pvtkey[i], NULL, NULL);
   }
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
 }
@@ -1488,16 +1467,49 @@ void test_privkey_attributes_rsa(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE s
 }
 
 void test_privkey_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session,
-                         CK_OBJECT_HANDLE privkey, CK_ULONG policy) {
+                         CK_OBJECT_HANDLE privkey, const CK_ATTRIBUTE_TYPE *touch_attr, 
+                         const CK_ATTRIBUTE_TYPE *pin_attr) {
 
-  CK_ULONG actual = 0;
+  CK_BBOOL vals[6] = { CK_FALSE };
+  CK_BBOOL b_always_auth = CK_FALSE;
   CK_ATTRIBUTE template[] = {
-    {CKA_VENDOR_DEFINED, &actual, sizeof(actual)},
+    {CKA_YUBICO_TOUCH_ALWAYS, &vals[0], sizeof(vals[0])},
+    {CKA_YUBICO_TOUCH_CACHED, &vals[1], sizeof(vals[1])},
+    {CKA_YUBICO_TOUCH_NEVER, &vals[2], sizeof(vals[2])},
+    {CKA_YUBICO_PIN_ALWAYS, &vals[3], sizeof(vals[3])},
+    {CKA_YUBICO_PIN_ONCE, &vals[4], sizeof(vals[4])},
+    {CKA_YUBICO_PIN_NEVER, &vals[5], sizeof(vals[5])},
+    {CKA_ALWAYS_AUTHENTICATE, &b_always_auth, sizeof(b_always_auth)}
   };
+  
+  asrt(funcs->C_GetAttributeValue(session, privkey, template, 7), CKR_OK, "GET POLICY ATTRIBUTES");
+  for (int i = 0; i < 7; i++) {
+    asrt(template[i].ulValueLen, sizeof(CK_BBOOL), "ATTRIBUTE LEN");
+  }
 
-  asrt(funcs->C_GetAttributeValue(session, privkey, template, 1), CKR_OK, "GET POLICY ATTRIBUTE");
-  asrt(template[0].ulValueLen, sizeof(actual), "ATTRIBUTE LEN");
-  asrt(actual, policy, "POLICY");
+  // If caller provided a PIN attribute, check that it's consistent with CKA_ALWAYS_AUTHENTICATE.
+  if (pin_attr) {
+    asrt(*pin_attr == CKA_YUBICO_PIN_ALWAYS, b_always_auth == CK_TRUE, "ALWAYS AUTH");
+  }
+
+  // Check for the specified attribute(s) or a default value.
+  CK_ULONG cnt = 0;
+  for (int i = 0; i < 3; i++) {
+    if (touch_attr) {
+      asrt(*touch_attr == template[i].type ? CK_TRUE : CK_FALSE, vals[i], "SPECIFIED TOUCH POLICY");
+    }
+    cnt += vals[i];
+  }
+  asrt(cnt, 1, "TOUCH POLICY COUNT");
+  cnt = 0;
+
+  for (int i = 3; i <= 5; i++) {
+    if (pin_attr) {
+      asrt(*pin_attr == template[i].type ? CK_TRUE : CK_FALSE, vals[i], "SPECIFIED PIN POLICY");
+    }
+    cnt += vals[i];
+  }
+  asrt(cnt, 1, "PIN POLICY COUNT");
 }
 
 void test_privkey_attributes_ec(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
