@@ -530,6 +530,9 @@ static CK_RV get_pr_metadata_attrs(ykcs11_slot_t *s, CK_BYTE sub_id, CK_BYTE *to
 
   if((rc = ykpiv_get_metadata(s->piv_state, slot, data, &len)) != YKPIV_OK) {
       DBG("Failed to fetch metadata for object %u slot %lx: %s", pvtk_id, slot, ykpiv_strerror(rc));
+      if (rc == YKPIV_NOT_SUPPORTED) {
+        return CKR_FUNCTION_NOT_SUPPORTED;
+      }
       return CKR_FUNCTION_FAILED;
   }
 
@@ -750,10 +753,15 @@ static CK_RV get_proa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
 
   case CKA_ALWAYS_AUTHENTICATE:
     DBG("ALWAYS AUTHENTICATE");
-    if ((rv = get_pr_metadata_attrs(s, piv_objects[obj].sub_id, NULL, &b_tmp[0])) != CKR_OK)
+    rv = get_pr_metadata_attrs(s, piv_objects[obj].sub_id, NULL, &b_tmp[0]);
+    if (rv == CKR_OK) {
+      b_tmp[0] = (b_tmp[0] == YKPIV_PINPOLICY_ALWAYS) ? CK_TRUE : CK_FALSE;
+    } else if (rv == CKR_FUNCTION_NOT_SUPPORTED) {
+      b_tmp[0] = pvtkey_objects[piv_objects[obj].sub_id].always_auth;
+    } else {
       return rv;
+    }
     len = sizeof(CK_BBOOL);
-    b_tmp[0] = b_tmp[0] == YKPIV_PINPOLICY_ALWAYS ? CK_TRUE : CK_FALSE;
     data = b_tmp;
     break;
 
