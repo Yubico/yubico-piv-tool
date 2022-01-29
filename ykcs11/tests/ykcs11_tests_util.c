@@ -547,12 +547,13 @@ void generate_ec_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
 
 void generate_ec_keys_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_BYTE n_keys, 
                                   CK_BYTE* ec_params, CK_ULONG ec_params_len, CK_BYTE touch_attr_val,
-                                  CK_BYTE pin_attr_val) {
+                                  CK_BYTE pin_attr_val, CK_ATTRIBUTE_TYPE maybe_always_auth) {
   CK_BYTE     i;
   CK_ULONG    class_k = CKO_PRIVATE_KEY;
   CK_ULONG    class_c = CKO_PUBLIC_KEY;
   CK_ULONG    kt = CKK_ECDSA;
   CK_BYTE     id = 0;
+  CK_BBOOL    isTrue = CK_TRUE;
 
   CK_ATTRIBUTE privateKeyTemplate[] = {
     {CKA_CLASS, &class_k, sizeof(class_k)},
@@ -561,6 +562,13 @@ void generate_ec_keys_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE 
     {CKA_YUBICO_TOUCH_POLICY, &touch_attr_val, sizeof(touch_attr_val)},
     {CKA_YUBICO_PIN_POLICY, &pin_attr_val, sizeof(pin_attr_val)}
   };
+
+  if (maybe_always_auth == CKA_ALWAYS_AUTHENTICATE) {
+    privateKeyTemplate[4].type = CKA_ALWAYS_AUTHENTICATE;
+    privateKeyTemplate[4].pValue = &isTrue;
+    privateKeyTemplate[4].ulValueLen = sizeof(isTrue);
+    pin_attr_val = YKPIV_PINPOLICY_ALWAYS;
+  }
 
   CK_ATTRIBUTE publicKeyTemplate[] = {
     {CKA_CLASS, &class_c, sizeof(class_c)},
@@ -585,12 +593,13 @@ void generate_ec_keys_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE 
 
 void generate_rsa_key_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_ULONG key_size,
                                   CK_OBJECT_HANDLE_PTR obj_pubkey, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
-                                  CK_BYTE touch_attr_val, CK_BYTE pin_attr_val) {
+                                  CK_BYTE touch_attr_val, CK_BYTE pin_attr_val, CK_ATTRIBUTE_TYPE maybe_always_auth) {
   CK_BYTE     e[] = {0x01, 0x00, 0x01};
   CK_ULONG    class_k = CKO_PRIVATE_KEY;
   CK_ULONG    class_c = CKO_PUBLIC_KEY;
   CK_ULONG    kt = CKK_RSA;
   CK_BYTE     id = 1;
+  CK_BBOOL    isTrue = CK_TRUE;
 
   CK_ATTRIBUTE privateKeyTemplate[] = {
     {CKA_CLASS, &class_k, sizeof(class_k)},
@@ -599,6 +608,13 @@ void generate_rsa_key_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE 
     {CKA_YUBICO_TOUCH_POLICY, &touch_attr_val, sizeof(touch_attr_val)},
     {CKA_YUBICO_PIN_POLICY, &pin_attr_val, sizeof(pin_attr_val)}
   };
+
+  if (maybe_always_auth == CKA_ALWAYS_AUTHENTICATE) {
+    privateKeyTemplate[4].type = CKA_ALWAYS_AUTHENTICATE;
+    privateKeyTemplate[4].pValue = &isTrue;
+    privateKeyTemplate[4].ulValueLen = sizeof(isTrue);
+    pin_attr_val = YKPIV_PINPOLICY_ALWAYS;
+  }
 
   CK_ATTRIBUTE publicKeyTemplate[] = {
     {CKA_CLASS, &class_c, sizeof(class_c)},
@@ -611,6 +627,7 @@ void generate_rsa_key_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE 
   asrt(funcs->C_GenerateKeyPair(session, &mech, publicKeyTemplate, 4, privateKeyTemplate, 5, obj_pubkey, obj_pvtkey), CKR_OK, "GEN RSA KEYPAIR");
   asrt(obj_pubkey[0], 111, "PUBLIC KEY HANDLE");
   asrt(obj_pvtkey[0], 86, "PRIVATE KEY HANDLE");
+  test_privkey_policy(funcs, session, *obj_pvtkey, &touch_attr_val, &pin_attr_val);
 }
 
 void generate_rsa_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_ULONG key_size, CK_BYTE n_keys,

@@ -524,11 +524,14 @@ static void test_generate_rsa_with_policy() {
   asrt(funcs->C_Login(session, CKU_SO, (CK_CHAR_PTR)"010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
   for (i = 0; i < sizeof(touch_policies)/sizeof(touch_policies[0]); i++) {
     for (j = 0; j < sizeof(pin_policies)/sizeof(pin_policies[0]); j++) {
-      generate_rsa_key_with_policy(funcs, session, key_size, &obj_pubkey, &obj_pvtkey, touch_policies[i], pin_policies[j]);
-      test_privkey_policy(funcs, session, obj_pvtkey, &touch_policies[i], &pin_policies[j]);
+      generate_rsa_key_with_policy(funcs, session, key_size, &obj_pubkey, &obj_pvtkey, touch_policies[i], pin_policies[j], 0);
       asrt(funcs->C_DestroyObject(session, obj_pvtkey), CKR_OK, "Destroy Object");
     }
   }
+
+  generate_rsa_key_with_policy(funcs, session, key_size, &obj_pubkey, &obj_pvtkey, 
+                               YKPIV_TOUCHPOLICY_DEFAULT, YKPIV_PINPOLICY_DEFAULT, CKA_ALWAYS_AUTHENTICATE);
+  asrt(funcs->C_DestroyObject(session, obj_pvtkey), CKR_OK, "Destroy Object");
 
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
@@ -541,17 +544,20 @@ static void test_generate_eccp256_with_policy() {
   CK_SESSION_HANDLE session;
   CK_BYTE i, j;
   CK_BYTE touch_policies[4] = {YKPIV_TOUCHPOLICY_ALWAYS, YKPIV_TOUCHPOLICY_CACHED, YKPIV_TOUCHPOLICY_NEVER, YKPIV_TOUCHPOLICY_DEFAULT};
-  CK_BYTE pin_policies[4] = {YKPIV_PINPOLICY_ALWAYS, YKPIV_PINPOLICY_ONCE, YKPIV_PINPOLICY_NEVER, YKPIV_PINPOLICY_DEFAULT};  
+  CK_BYTE pin_policies[5] = {YKPIV_PINPOLICY_ALWAYS, YKPIV_PINPOLICY_ONCE, YKPIV_PINPOLICY_NEVER, YKPIV_PINPOLICY_DEFAULT};  
   CK_BYTE  params_eccp256[] = {0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07};
 
   init_connection();
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
   for (i = 0; i < sizeof(touch_policies)/sizeof(touch_policies[0]); i++) {
     for (j = 0; j < sizeof(pin_policies)/sizeof(pin_policies[0]); j++) {
-        generate_ec_keys_with_policy(funcs, session, is_neo ? N_SELECTED_KEYS : N_ALL_KEYS, 
-                                    params_eccp256, sizeof(params_eccp256), touch_policies[i], pin_policies[j]);
+        generate_ec_keys_with_policy(funcs, session, is_neo ? N_SELECTED_KEYS : N_ALL_KEYS, params_eccp256, 
+                                     sizeof(params_eccp256), touch_policies[i], pin_policies[j], 0);
     }
   }
+
+  generate_ec_keys_with_policy(funcs, session, is_neo ? N_SELECTED_KEYS : N_ALL_KEYS, params_eccp256, sizeof(params_eccp256), 
+                              YKPIV_TOUCHPOLICY_DEFAULT, YKPIV_PINPOLICY_DEFAULT, CKA_ALWAYS_AUTHENTICATE);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
   dprintf(0, "TEST END: test_generate_eccp256_with_policy()\n");
