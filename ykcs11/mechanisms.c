@@ -721,15 +721,18 @@ CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
       break;
 
     case CKA_ALWAYS_AUTHENTICATE:
-      if (gen->pin_policy != YKPIV_PINPOLICY_DEFAULT) {
-        DBG("PIN policy already specified");
-        return CKR_TEMPLATE_INCONSISTENT;
-      }
-
       if (*((CK_BBOOL *)templ[i].pValue) == CK_TRUE) {
+        if (gen->pin_policy != YKPIV_PINPOLICY_DEFAULT &&
+            gen->pin_policy != YKPIV_PINPOLICY_ALWAYS) {
+          DBG("Inconsistent PIN policy");
+          return CKR_TEMPLATE_INCONSISTENT;
+        }
         gen->pin_policy = YKPIV_PINPOLICY_ALWAYS;
       } else if (*((CK_BBOOL *)templ[i].pValue) == CK_FALSE) {
-        gen->pin_policy = YKPIV_PINPOLICY_ONCE;
+        if (gen->pin_policy != YKPIV_PINPOLICY_DEFAULT) {
+          DBG("Inconsistent PIN policy");
+          return CKR_TEMPLATE_INCONSISTENT;
+        }
       } else {
         DBG("CKA_ALWAYS_AUTHENTICATE must be TRUE, FALSE, or omitted");
         return CKR_ATTRIBUTE_VALUE_INVALID;
@@ -737,7 +740,7 @@ CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
       break;
 
     case CKA_YUBICO_TOUCH_POLICY:
-      ul_tmp = *((CK_ULONG *)templ[i].pValue);
+      ul_tmp = *((CK_BYTE *)templ[i].pValue);
       if (ul_tmp != YKPIV_TOUCHPOLICY_ALWAYS &&
           ul_tmp != YKPIV_TOUCHPOLICY_CACHED &&
           ul_tmp != YKPIV_TOUCHPOLICY_NEVER &&
@@ -754,7 +757,7 @@ CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
       break;
 
     case CKA_YUBICO_PIN_POLICY:
-      ul_tmp = *((CK_ULONG *)templ[i].pValue);
+      ul_tmp = *((CK_BYTE *)templ[i].pValue);
       if (ul_tmp != YKPIV_PINPOLICY_ALWAYS &&
           ul_tmp != YKPIV_PINPOLICY_ONCE &&
           ul_tmp != YKPIV_PINPOLICY_NEVER &&
