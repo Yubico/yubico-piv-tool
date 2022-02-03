@@ -363,7 +363,7 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
   return CKR_OK;
 }
 
-CK_RV token_generate_key(ykpiv_state *state, CK_BYTE algorithm, CK_BYTE key, CK_BYTE_PTR cert_data, CK_ULONG_PTR cert_len) {
+CK_RV token_generate_key(ykpiv_state *state, gen_info_t *gen, CK_BYTE key, CK_BYTE_PTR cert_data, CK_ULONG_PTR cert_len) {
   // TODO: make a function in ykpiv for this
   unsigned char in_data[11] = {0};
   unsigned char *in_ptr = in_data;
@@ -375,7 +375,7 @@ CK_RV token_generate_key(ykpiv_state *state, CK_BYTE algorithm, CK_BYTE key, CK_
   char label[32] = {0};
   int sw;
 
-  switch(algorithm) {
+  switch(gen->algorithm) {
     case YKPIV_ALGO_RSA1024:
     case YKPIV_ALGO_RSA2048:
       if(ykpiv_get_version(state, version, sizeof(version)) == YKPIV_OK) {
@@ -400,13 +400,47 @@ CK_RV token_generate_key(ykpiv_state *state, CK_BYTE algorithm, CK_BYTE key, CK_
       return CKR_FUNCTION_FAILED;
   }
 
+  switch (gen->touch_policy) {
+    case YKPIV_TOUCHPOLICY_DEFAULT:
+    case YKPIV_TOUCHPOLICY_ALWAYS:
+    case YKPIV_TOUCHPOLICY_CACHED:
+    case YKPIV_TOUCHPOLICY_NEVER:
+        break;
+    default: 
+        return CKR_FUNCTION_FAILED;
+  }
+
+  switch (gen->pin_policy) {
+    case YKPIV_PINPOLICY_DEFAULT:
+    case YKPIV_PINPOLICY_ALWAYS:
+    case YKPIV_PINPOLICY_ONCE:
+    case YKPIV_PINPOLICY_NEVER:
+        break;
+    default: 
+        return CKR_FUNCTION_FAILED;
+  }
+
   templ[3] = key;
 
   *in_ptr++ = 0xac;
   *in_ptr++ = 3;
   *in_ptr++ = YKPIV_ALGO_TAG;
   *in_ptr++ = 1;
-  *in_ptr++ = algorithm;
+  *in_ptr++ = gen->algorithm;
+
+  if (gen->touch_policy != YKPIV_TOUCHPOLICY_DEFAULT) {
+      in_data[1] += 3;
+      *in_ptr++ = YKPIV_TOUCHPOLICY_TAG;
+      *in_ptr++ = 0x01;
+      *in_ptr++ = gen->touch_policy;
+  }
+
+  if (gen->pin_policy != YKPIV_PINPOLICY_DEFAULT) {
+      in_data[1] += 3;
+      *in_ptr++ = YKPIV_PINPOLICY_TAG;
+      *in_ptr++ = 0x01;
+      *in_ptr++ = gen->pin_policy;
+  }
 
   if(ykpiv_transfer_data(state, templ, in_data, in_ptr - in_data, data, &recv_len, &sw) != YKPIV_OK || sw != 0x9000) {
     DBG("Failed to generate key, sw = %04x.", sw);
@@ -422,7 +456,7 @@ CK_RV token_generate_key(ykpiv_state *state, CK_BYTE algorithm, CK_BYTE key, CK_
 
   len = recv_len;
   recv_len = sizeof(data);
-  CK_RV rv = do_create_empty_cert(data + offs, len - offs, algorithm, label, data, &recv_len);
+  CK_RV rv = do_create_empty_cert(data + offs, len - offs, gen->algorithm, label, data, &recv_len);
   if(rv != CKR_OK)
     return rv;
 

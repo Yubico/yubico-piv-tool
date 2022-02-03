@@ -672,6 +672,7 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
 CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTRIBUTE_PTR templ, CK_ULONG n) {
 
   CK_BBOOL rsa = is_RSA_mechanism(mechanism->mechanism);
+  CK_BYTE b_tmp = 0;
 
   for (CK_ULONG i = 0; i < n; i++) {
     switch (templ[i].type) {
@@ -717,6 +718,59 @@ CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
         DBG("CKA_EXTRACTABLE must be FALSE or omitted");
         return CKR_ATTRIBUTE_VALUE_INVALID;
       }
+      break;
+
+    case CKA_ALWAYS_AUTHENTICATE:
+      if (*((CK_BBOOL *)templ[i].pValue) == CK_TRUE) {
+        if (gen->pin_policy != YKPIV_PINPOLICY_DEFAULT &&
+            gen->pin_policy != YKPIV_PINPOLICY_ALWAYS) {
+          DBG("Inconsistent PIN policy");
+          return CKR_TEMPLATE_INCONSISTENT;
+        }
+        gen->pin_policy = YKPIV_PINPOLICY_ALWAYS;
+      } else if (*((CK_BBOOL *)templ[i].pValue) == CK_FALSE) {
+        if (gen->pin_policy != YKPIV_PINPOLICY_DEFAULT) {
+          DBG("Inconsistent PIN policy");
+          return CKR_TEMPLATE_INCONSISTENT;
+        }
+      } else {
+        DBG("CKA_ALWAYS_AUTHENTICATE must be TRUE, FALSE, or omitted");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+      break;
+
+    case CKA_YUBICO_TOUCH_POLICY:
+      b_tmp = *((CK_BYTE *)templ[i].pValue);
+      if (b_tmp != YKPIV_TOUCHPOLICY_ALWAYS &&
+          b_tmp != YKPIV_TOUCHPOLICY_CACHED &&
+          b_tmp != YKPIV_TOUCHPOLICY_NEVER &&
+          b_tmp != YKPIV_TOUCHPOLICY_DEFAULT) {
+        DBG("Invalid value for CKA_YUBICO_TOUCH_POLICY");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+      if (gen->touch_policy != YKPIV_TOUCHPOLICY_DEFAULT &&
+          gen->touch_policy != b_tmp) {
+        DBG("Inconsistent touch policy");
+        return CKR_TEMPLATE_INCONSISTENT;
+      }
+      gen->touch_policy = b_tmp;
+      break;
+
+    case CKA_YUBICO_PIN_POLICY:
+      b_tmp = *((CK_BYTE *)templ[i].pValue);
+      if (b_tmp != YKPIV_PINPOLICY_ALWAYS &&
+          b_tmp != YKPIV_PINPOLICY_ONCE &&
+          b_tmp != YKPIV_PINPOLICY_NEVER &&
+          b_tmp != YKPIV_PINPOLICY_DEFAULT) {
+        DBG("Invalid value for CKA_YUBICO_PIN_POLICY");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+      if (gen->pin_policy != YKPIV_PINPOLICY_DEFAULT &&
+          gen->pin_policy != b_tmp) {
+        DBG("Inconsistent PIN policy");
+        return CKR_TEMPLATE_INCONSISTENT;
+      }
+      gen->pin_policy = b_tmp;
       break;
 
     case CKA_DECRYPT:

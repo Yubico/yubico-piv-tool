@@ -42,13 +42,18 @@ EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
                       CK_OBJECT_HANDLE_PTR obj_cert, CK_OBJECT_HANDLE_PTR obj_pvtkey);
 void generate_ec_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_BYTE n_keys, 
                       CK_BYTE* ec_params, CK_ULONG ec_params_len, 
-                      CK_OBJECT_HANDLE_PTR obj_pubkey, CK_OBJECT_HANDLE_PTR obj_pvtkey);                      
+                      CK_OBJECT_HANDLE_PTR obj_pubkey, CK_OBJECT_HANDLE_PTR obj_pvtkey);
+void generate_ec_keys_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_BYTE n_keys,
+                                  CK_BYTE* ec_params, CK_ULONG ec_params_len,CK_BYTE touch_attr_val,
+                                  CK_BYTE pin_attr_val, CK_ATTRIBUTE_TYPE maybe_always_auth);
 
 void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int keylen, EVP_PKEY** evp, RSA** rsak,
                     CK_BYTE n_keys, CK_OBJECT_HANDLE_PTR obj_cert, CK_OBJECT_HANDLE_PTR obj_pvtkey);
-
-void generate_rsa_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_ULONG key_size, CK_BYTE n_keys, 
-                      CK_OBJECT_HANDLE_PTR obj_pubkey, CK_OBJECT_HANDLE_PTR obj_pvtkey);
+void generate_rsa_key_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_ULONG key_size,
+                                  CK_OBJECT_HANDLE_PTR obj_pubkey, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
+                                  CK_BYTE touch_attr_val, CK_BYTE pin_attr_val, CK_ATTRIBUTE_TYPE maybe_always_auth);
+void generate_rsa_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_ULONG key_size, CK_BYTE n_keys,
+                       CK_OBJECT_HANDLE_PTR obj_pubkey, CK_OBJECT_HANDLE_PTR obj_pvtkey);
 void test_ec_sign_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
                          CK_BYTE n_keys, EC_KEY *eck, CK_ULONG key_len);
 
@@ -91,6 +96,10 @@ void test_privkey_attributes_rsa(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE s
                                 const unsigned char* label, CK_ULONG modulus_len,
                                 CK_BYTE_PTR pubexp, CK_ULONG pubexp_len, 
                                 CK_BBOOL always_authenticate);
+
+void test_privkey_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session,
+                         CK_OBJECT_HANDLE privkey, const CK_BYTE *touch_attr_val, 
+                         const CK_BYTE *pin_attr_val);
 
 void test_find_objects_by_class(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
                                 CK_ULONG class, CK_BYTE ckaid,
