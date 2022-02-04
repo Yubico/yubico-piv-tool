@@ -294,6 +294,10 @@ static piv_pubk_obj_t pubkey_objects[] = {
   {1, 1, 0, 0}
 };
 
+static CK_BBOOL is_local_key(ykcs11_slot_t *s, piv_obj_id_t id) {
+  return s->origin[piv_objects[id].sub_id] == YKPIV_METADATA_ORIGIN_GENERATED;
+}
+
 /* Get data object attribute */
 static CK_RV get_doa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
@@ -511,49 +515,6 @@ static CK_RV get_atst(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
   return _get_coa(s->atst, obj, template, CK_FALSE);
 }
 
-static CK_RV get_pr_metadata_attrs(ykcs11_slot_t *s, CK_BYTE sub_id, CK_BYTE *touch_attr_val,
-                                   CK_BYTE *pin_attr_val) {
-  CK_ULONG slot;
-  CK_BYTE data[YKPIV_OBJ_MAX_SIZE] = {0};  
-  size_t len = sizeof(data);
-  piv_obj_id_t pvtk_id;
-  ykpiv_rc rc;
-  ykpiv_metadata md = {0};
-
-  if ((pvtk_id = find_pvtk_object(sub_id)) < 0) {
-    return CKR_FUNCTION_FAILED;
-  }
-
-  if ((slot = piv_2_ykpiv(pvtk_id)) == 0) {
-    return CKR_FUNCTION_FAILED;
-  }
-
-  if((rc = ykpiv_get_metadata(s->piv_state, slot, data, &len)) != YKPIV_OK) {
-      DBG("Failed to fetch metadata for object %u slot %lx: %s", pvtk_id, slot, ykpiv_strerror(rc));
-      if (rc == YKPIV_NOT_SUPPORTED) {
-        return CKR_FUNCTION_NOT_SUPPORTED;
-      }
-      return CKR_FUNCTION_FAILED;
-  }
-
-  DBG("Fetched %lu bytes metadata for object %u slot %lx", len, pvtk_id, slot);
-
-  if((rc = ykpiv_util_parse_metadata(data, len, &md)) != YKPIV_OK) {
-    DBG("Failed to parse metadata for object %u slot %lx: %s", pvtk_id, slot, ykpiv_strerror(rc));
-    return CKR_FUNCTION_FAILED;
-  }
-
-  if (touch_attr_val) {
-    *touch_attr_val = md.touch_policy;
-  }
-
-  if (pin_attr_val) {
-    *pin_attr_val = md.pin_policy;
-  }
-
-  return CKR_OK;
-}
-
 /* Get private key object attribute */
 static CK_RV get_proa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
@@ -753,14 +714,7 @@ static CK_RV get_proa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
 
   case CKA_ALWAYS_AUTHENTICATE:
     DBG("ALWAYS AUTHENTICATE");
-    rv = get_pr_metadata_attrs(s, piv_objects[obj].sub_id, NULL, &b_tmp[0]);
-    if (rv == CKR_OK) {
-      b_tmp[0] = (b_tmp[0] == YKPIV_PINPOLICY_ALWAYS) ? CK_TRUE : CK_FALSE;
-    } else if (rv == CKR_FUNCTION_NOT_SUPPORTED) {
-      b_tmp[0] = pvtkey_objects[piv_objects[obj].sub_id].always_auth;
-    } else {
-      return rv;
-    }
+    b_tmp[0] = s->pin_policy[piv_objects[obj].sub_id] == YKPIV_PINPOLICY_ALWAYS ? CK_TRUE : CK_FALSE;
     len = sizeof(CK_BBOOL);
     data = b_tmp;
     break;
@@ -781,16 +735,14 @@ static CK_RV get_proa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
 
   case CKA_YUBICO_TOUCH_POLICY:
     DBG("TOUCH POLICY");
-    if ((rv = get_pr_metadata_attrs(s, piv_objects[obj].sub_id, &b_tmp[0], NULL)) != CKR_OK)
-      return rv;
+    b_tmp[0] = s->touch_policy[piv_objects[obj].sub_id];
     len = sizeof(CK_BYTE);
     data = b_tmp;
     break;
 
   case CKA_YUBICO_PIN_POLICY:
     DBG("PIN POLICY");
-    if ((rv = get_pr_metadata_attrs(s, piv_objects[obj].sub_id, NULL, &b_tmp[0])) != CKR_OK)
-      return rv;
+    b_tmp[0] = s->pin_policy[piv_objects[obj].sub_id];
     len = sizeof(CK_BYTE);
     data = b_tmp;
     break;
@@ -1407,10 +1359,6 @@ CK_BBOOL add_object(ykcs11_slot_t *s, piv_obj_id_t id) {
   }
   DBG("Couldn't add object %u because %lu objects are already present", id, s->n_objects);
   return false;
-}
-
-CK_BBOOL is_local_key(ykcs11_slot_t *s, piv_obj_id_t id) {
-  return s->local[piv_objects[id].sub_id];
 }
 
 CK_RV get_attribute(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template) {

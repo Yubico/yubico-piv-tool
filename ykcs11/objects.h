@@ -38,7 +38,6 @@ CK_BYTE get_sub_id(piv_obj_id_t obj);
 
 CK_BBOOL is_present(ykcs11_slot_t *s, piv_obj_id_t id);
 CK_BBOOL add_object(ykcs11_slot_t *s, piv_obj_id_t id);
-CK_BBOOL is_local_key(ykcs11_slot_t *s, piv_obj_id_t id);
 
 piv_obj_id_t find_data_object(CK_BYTE sub_id);
 piv_obj_id_t find_cert_object(CK_BYTE sub_id);

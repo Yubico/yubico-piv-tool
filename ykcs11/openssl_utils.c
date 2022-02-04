@@ -480,6 +480,12 @@ CK_RV do_store_pubk(ykcs11_x509_t *cert, ykcs11_pkey_t **key) {
 
 }
 
+CK_RV do_parse_attestation(ykcs11_x509_t *cert, CK_BYTE_PTR pin_policy, CK_BYTE_PTR touch_policy) {
+  *pin_policy = YKPIV_PINPOLICY_ONCE;
+  *touch_policy = YKPIV_TOUCHPOLICY_NEVER;
+  return CKR_OK;
+}
+
 CK_KEY_TYPE do_get_key_type(ykcs11_pkey_t *key) {
 
   if(!key) // EVP_PKEY_base_id doesn't handle NULL

@@ -961,7 +961,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
             if(atst_id != PIV_INVALID_OBJ)
               add_object(session->slot, atst_id);
             if((rv = do_store_pubk(session->slot->atst[sub_id], &session->slot->pkeys[sub_id])) == CKR_OK) {
-              session->slot->local[sub_id] = CK_TRUE;
+              session->slot->origin[sub_id] = YKPIV_METADATA_ORIGIN_GENERATED;
+              do_parse_attestation(session->slot->atst[sub_id], &session->slot->pin_policy[sub_id], &session->slot->touch_policy[sub_id]);
               add_object(session->slot, pvtk_id);
               add_object(session->slot, pubk_id);
             } else {
@@ -978,7 +979,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
             ykpiv_metadata md = {0};
             if((rc = ykpiv_util_parse_metadata(data, len, &md)) == YKPIV_OK) {
               if((rv = do_create_public_key(md.pubkey, md.pubkey_len, md.algorithm, &session->slot->pkeys[sub_id])) == CKR_OK) {
-                session->slot->local[sub_id] = md.origin == YKPIV_METADATA_ORIGIN_GENERATED ? CK_TRUE : CK_FALSE;
+                session->slot->origin[sub_id] = md.origin;
+                session->slot->pin_policy[sub_id] = md.pin_policy;
+                session->slot->touch_policy[sub_id] = md.touch_policy;
                 add_object(session->slot, pvtk_id);
                 add_object(session->slot, pubk_id);
               } else {
@@ -1474,7 +1477,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       goto create_out;
     }
 
-    session->slot->local[id] = CK_FALSE;
+    session->slot->origin[id] = YKPIV_METADATA_ORIGIN_IMPORTED;
+    session->slot->pin_policy[id] = YKPIV_PINPOLICY_DEFAULT;
+    session->slot->touch_policy[id] = YKPIV_TOUCHPOLICY_DEFAULT;
 
     // Add objects that were not already present
 
@@ -1557,7 +1562,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       }
     }
 
-    session->slot->local[id] = CK_FALSE;
+    session->slot->origin[id] = YKPIV_METADATA_ORIGIN_IMPORTED;
+    session->slot->pin_policy[id] = YKPIV_PINPOLICY_DEFAULT;
+    session->slot->touch_policy[id] = YKPIV_TOUCHPOLICY_DEFAULT;
 
     add_object(session->slot, pvtk_id);
 
@@ -3517,7 +3524,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     goto genkp_out;
   }
 
-  session->slot->local[gen.key_id] = CK_TRUE;
+  session->slot->origin[gen.key_id] = YKPIV_METADATA_ORIGIN_GENERATED;
+  session->slot->pin_policy[gen.key_id] = gen.pin_policy;
+  session->slot->touch_policy[gen.key_id] = gen.touch_policy;
 
   // Add objects that were not already present
 
