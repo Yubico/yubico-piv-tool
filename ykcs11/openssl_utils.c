@@ -490,7 +490,7 @@ static int OBJ_get_nid(const char *oid, const char *name, const char *descr) {
 
 CK_RV do_parse_attestation(ykcs11_x509_t *cert, CK_BYTE_PTR pin_policy, CK_BYTE_PTR touch_policy) {
 
-  int nid = OBJ_get_nid("1.3.6.1.4.1.41482.3.8", "yubico_policy", "Yubico PIN and touch policy");
+  int nid = OBJ_get_nid(YKPIV_OID_USAGE_POLICY, "KeyUsagePolicy", "Yubico PIV key usage policy");
   if(nid < 0)
     return CKR_FUNCTION_FAILED;
 
