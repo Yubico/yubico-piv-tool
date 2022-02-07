@@ -959,15 +959,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
         CK_ULONG slot = piv_2_ykpiv(pvtk_id);
         len = sizeof(data);
         if((rc = ykpiv_attest(session->slot->piv_state, slot, data, &len)) == YKPIV_OK) {
+          session->slot->origin[sub_id] = YKPIV_METADATA_ORIGIN_GENERATED;
           DBG("Created attestation for object %u slot %lx", pvtk_id, slot);
           if((rv = do_store_cert(data, len, &session->slot->atst[sub_id])) == CKR_OK) {
-            if(atst_id != PIV_INVALID_OBJ)
+            if ((rv = do_parse_attestation(session->slot->atst[sub_id], &session->slot->pin_policy[sub_id], &session->slot->touch_policy[sub_id])) != CKR_OK) {
+              DBG("Failed to parse pin and touch policy from attestation for object %u slot %lx: %lu", pvtk_id, slot, rv);
+            }
+            if (atst_id != PIV_INVALID_OBJ)
               add_object(session->slot, atst_id);
             if((rv = do_store_pubk(session->slot->atst[sub_id], &session->slot->pkeys[sub_id])) == CKR_OK) {
-              session->slot->origin[sub_id] = YKPIV_METADATA_ORIGIN_GENERATED;
-              if((rv = do_parse_attestation(session->slot->atst[sub_id], &session->slot->pin_policy[sub_id], &session->slot->touch_policy[sub_id])) != CKR_OK) {
-                DBG("Failed to parse pin and touch policy from attestation for object %u slot %lx: %lu", pvtk_id, slot, rv);
-              }
               add_object(session->slot, pvtk_id);
               add_object(session->slot, pubk_id);
             } else {
@@ -983,10 +983,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
             DBG("Fetched %zu bytes metadata for object %u slot %lx", len, pvtk_id, slot);
             ykpiv_metadata md = {0};
             if((rc = ykpiv_util_parse_metadata(data, len, &md)) == YKPIV_OK) {
+              session->slot->origin[sub_id] = md.origin;
+              session->slot->pin_policy[sub_id] = md.pin_policy;
+              session->slot->touch_policy[sub_id] = md.touch_policy;
               if((rv = do_create_public_key(md.pubkey, md.pubkey_len, md.algorithm, &session->slot->pkeys[sub_id])) == CKR_OK) {
-                session->slot->origin[sub_id] = md.origin;
-                session->slot->pin_policy[sub_id] = md.pin_policy;
-                session->slot->touch_policy[sub_id] = md.touch_policy;
                 add_object(session->slot, pvtk_id);
                 add_object(session->slot, pubk_id);
               } else {

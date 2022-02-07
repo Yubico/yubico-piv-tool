@@ -714,7 +714,18 @@ static CK_RV get_proa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
 
   case CKA_ALWAYS_AUTHENTICATE:
     DBG("ALWAYS AUTHENTICATE");
-    b_tmp[0] = s->pin_policy[piv_objects[obj].sub_id] == YKPIV_PINPOLICY_ALWAYS ? CK_TRUE : CK_FALSE;
+    switch(s->pin_policy[piv_objects[obj].sub_id]) {
+      case YKPIV_PINPOLICY_ALWAYS:
+        b_tmp[0] = CK_TRUE;
+        break;
+      case YKPIV_PINPOLICY_ONCE:
+      case YKPIV_PINPOLICY_NEVER:
+        b_tmp[0] = CK_FALSE;
+        break;
+      default:
+        b_tmp[0] = pvtkey_objects[piv_objects[obj].sub_id].always_auth;
+        break;
+      }
     len = sizeof(CK_BBOOL);
     data = b_tmp;
     break;
