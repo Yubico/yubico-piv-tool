@@ -950,9 +950,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
       piv_obj_id_t pubk_id = find_pubk_object(sub_id);
       piv_obj_id_t pvtk_id = find_pvtk_object(sub_id);
       piv_obj_id_t atst_id = find_atst_object(sub_id);
-      CK_BYTE data[YKPIV_OBJ_MAX_SIZE] = {0};  // Max cert value for ykpiv
+      CK_BYTE data[YKPIV_OBJ_MAX_SIZE] = {0}; // Max cert value for ykpiv
       size_t len;
       if(pvtk_id != PIV_INVALID_OBJ) {
+        session->slot->origin[sub_id] = 0;
+        session->slot->pin_policy[sub_id] = 0;
+        session->slot->touch_policy[sub_id] = 0;
         CK_ULONG slot = piv_2_ykpiv(pvtk_id);
         len = sizeof(data);
         if((rc = ykpiv_attest(session->slot->piv_state, slot, data, &len)) == YKPIV_OK) {
