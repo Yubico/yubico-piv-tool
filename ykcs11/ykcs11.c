@@ -962,7 +962,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
               add_object(session->slot, atst_id);
             if((rv = do_store_pubk(session->slot->atst[sub_id], &session->slot->pkeys[sub_id])) == CKR_OK) {
               session->slot->origin[sub_id] = YKPIV_METADATA_ORIGIN_GENERATED;
-              do_parse_attestation(session->slot->atst[sub_id], &session->slot->pin_policy[sub_id], &session->slot->touch_policy[sub_id]);
+              if((rv = do_parse_attestation(session->slot->atst[sub_id], &session->slot->pin_policy[sub_id], &session->slot->touch_policy[sub_id])) != CKR_OK) {
+                DBG("Failed to parse pin and touch policy from attestation for object %u slot %lx: %lu", pvtk_id, slot, rv);
+              }
               add_object(session->slot, pvtk_id);
               add_object(session->slot, pubk_id);
             } else {

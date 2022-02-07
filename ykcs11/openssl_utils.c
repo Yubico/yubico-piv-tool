@@ -480,9 +480,36 @@ CK_RV do_store_pubk(ykcs11_x509_t *cert, ykcs11_pkey_t **key) {
 
 }
 
+static int OBJ_get_nid(const char *oid, const char *name, const char *descr) {
+  int nid = OBJ_txt2nid(oid);
+  if (nid <= 0) {
+    nid = OBJ_create(oid, name, descr);
+  }
+  return nid;
+}
+
 CK_RV do_parse_attestation(ykcs11_x509_t *cert, CK_BYTE_PTR pin_policy, CK_BYTE_PTR touch_policy) {
-  *pin_policy = YKPIV_PINPOLICY_ONCE;
-  *touch_policy = YKPIV_TOUCHPOLICY_NEVER;
+
+  int nid = OBJ_get_nid("1.3.6.1.4.1.41482.3.8", "yubico_policy", "Yubico PIN and touch policy");
+  if(nid < 0)
+    return CKR_FUNCTION_FAILED;
+
+  int pos = X509_get_ext_by_NID(cert, nid, -1);
+  if (pos < 0)
+    return CKR_FUNCTION_FAILED;
+
+  X509_EXTENSION *ext = X509_get_ext(cert, pos);
+  if (ext == NULL)
+    return CKR_FUNCTION_FAILED;
+
+  ASN1_OCTET_STRING *oct = X509_EXTENSION_get_data(ext);
+  if (oct == NULL)
+    return CKR_FUNCTION_FAILED;
+
+  const unsigned char *p = ASN1_STRING_get0_data(oct);
+  *pin_policy = p[0];
+  *touch_policy = p[1];
+
   return CKR_OK;
 }
 
