@@ -524,13 +524,13 @@ static void test_generate_rsa_with_policy() {
   asrt(funcs->C_Login(session, CKU_SO, (CK_CHAR_PTR)"010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
   for (i = 0; i < sizeof(touch_policies)/sizeof(touch_policies[0]); i++) {
     for (j = 0; j < sizeof(pin_policies)/sizeof(pin_policies[0]); j++) {
-      generate_rsa_key_with_policy(funcs, session, key_size, &obj_pubkey, &obj_pvtkey, touch_policies[i], pin_policies[j], 0);
+      generate_rsa_key_with_policy(funcs, session, key_size, &obj_pubkey, &obj_pvtkey, touch_policies[i], pin_policies[j], CK_FALSE);
       asrt(funcs->C_DestroyObject(session, obj_pvtkey), CKR_OK, "Destroy Object");
     }
   }
 
-  generate_rsa_key_with_policy(funcs, session, key_size, &obj_pubkey, &obj_pvtkey, 
-                               YKPIV_TOUCHPOLICY_DEFAULT, YKPIV_PINPOLICY_DEFAULT, CKA_ALWAYS_AUTHENTICATE);
+  generate_rsa_key_with_policy(funcs, session, key_size, &obj_pubkey, &obj_pvtkey,
+                               YKPIV_TOUCHPOLICY_DEFAULT, YKPIV_PINPOLICY_DEFAULT, CK_TRUE);
   asrt(funcs->C_DestroyObject(session, obj_pvtkey), CKR_OK, "Destroy Object");
 
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
@@ -551,13 +551,13 @@ static void test_generate_eccp256_with_policy() {
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
   for (i = 0; i < sizeof(touch_policies)/sizeof(touch_policies[0]); i++) {
     for (j = 0; j < sizeof(pin_policies)/sizeof(pin_policies[0]); j++) {
-        generate_ec_keys_with_policy(funcs, session, is_neo ? N_SELECTED_KEYS : N_ALL_KEYS, params_eccp256, 
-                                     sizeof(params_eccp256), touch_policies[i], pin_policies[j], 0);
+      generate_ec_keys_with_policy(funcs, session, is_neo ? N_SELECTED_KEYS : N_ALL_KEYS, params_eccp256,
+                                   sizeof(params_eccp256), touch_policies[i], pin_policies[j], CK_FALSE);
     }
   }
 
-  generate_ec_keys_with_policy(funcs, session, is_neo ? N_SELECTED_KEYS : N_ALL_KEYS, params_eccp256, sizeof(params_eccp256), 
-                              YKPIV_TOUCHPOLICY_DEFAULT, YKPIV_PINPOLICY_DEFAULT, CKA_ALWAYS_AUTHENTICATE);
+  generate_ec_keys_with_policy(funcs, session, is_neo ? N_SELECTED_KEYS : N_ALL_KEYS, params_eccp256, sizeof(params_eccp256),
+                               YKPIV_TOUCHPOLICY_DEFAULT, YKPIV_PINPOLICY_DEFAULT, CK_TRUE);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
   dprintf(0, "TEST END: test_generate_eccp256_with_policy()\n");

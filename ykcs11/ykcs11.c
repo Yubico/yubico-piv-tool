@@ -950,18 +950,24 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
       piv_obj_id_t pubk_id = find_pubk_object(sub_id);
       piv_obj_id_t pvtk_id = find_pvtk_object(sub_id);
       piv_obj_id_t atst_id = find_atst_object(sub_id);
-      CK_BYTE data[YKPIV_OBJ_MAX_SIZE] = {0};  // Max cert value for ykpiv
+      CK_BYTE data[YKPIV_OBJ_MAX_SIZE] = {0}; // Max cert value for ykpiv
       size_t len;
       if(pvtk_id != PIV_INVALID_OBJ) {
+        session->slot->origin[sub_id] = 0;
+        session->slot->pin_policy[sub_id] = 0;
+        session->slot->touch_policy[sub_id] = 0;
         CK_ULONG slot = piv_2_ykpiv(pvtk_id);
         len = sizeof(data);
         if((rc = ykpiv_attest(session->slot->piv_state, slot, data, &len)) == YKPIV_OK) {
+          session->slot->origin[sub_id] = YKPIV_METADATA_ORIGIN_GENERATED;
           DBG("Created attestation for object %u slot %lx", pvtk_id, slot);
           if((rv = do_store_cert(data, len, &session->slot->atst[sub_id])) == CKR_OK) {
-            if(atst_id != PIV_INVALID_OBJ)
+            if ((rv = do_parse_attestation(session->slot->atst[sub_id], &session->slot->pin_policy[sub_id], &session->slot->touch_policy[sub_id])) != CKR_OK) {
+              DBG("Failed to parse pin and touch policy from attestation for object %u slot %lx: %lu", pvtk_id, slot, rv);
+            }
+            if (atst_id != PIV_INVALID_OBJ)
               add_object(session->slot, atst_id);
             if((rv = do_store_pubk(session->slot->atst[sub_id], &session->slot->pkeys[sub_id])) == CKR_OK) {
-              session->slot->local[sub_id] = CK_TRUE;
               add_object(session->slot, pvtk_id);
               add_object(session->slot, pubk_id);
             } else {
@@ -977,8 +983,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
             DBG("Fetched %zu bytes metadata for object %u slot %lx", len, pvtk_id, slot);
             ykpiv_metadata md = {0};
             if((rc = ykpiv_util_parse_metadata(data, len, &md)) == YKPIV_OK) {
+              session->slot->origin[sub_id] = md.origin;
+              session->slot->pin_policy[sub_id] = md.pin_policy;
+              session->slot->touch_policy[sub_id] = md.touch_policy;
               if((rv = do_create_public_key(md.pubkey, md.pubkey_len, md.algorithm, &session->slot->pkeys[sub_id])) == CKR_OK) {
-                session->slot->local[sub_id] = md.origin == YKPIV_METADATA_ORIGIN_GENERATED ? CK_TRUE : CK_FALSE;
                 add_object(session->slot, pvtk_id);
                 add_object(session->slot, pubk_id);
               } else {
@@ -1474,7 +1482,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       goto create_out;
     }
 
-    session->slot->local[id] = CK_FALSE;
+    session->slot->origin[id] = YKPIV_METADATA_ORIGIN_IMPORTED;
+    session->slot->pin_policy[id] = YKPIV_PINPOLICY_DEFAULT;
+    session->slot->touch_policy[id] = YKPIV_TOUCHPOLICY_DEFAULT;
 
     // Add objects that were not already present
 
@@ -1557,7 +1567,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       }
     }
 
-    session->slot->local[id] = CK_FALSE;
+    session->slot->origin[id] = YKPIV_METADATA_ORIGIN_IMPORTED;
+    session->slot->pin_policy[id] = YKPIV_PINPOLICY_DEFAULT;
+    session->slot->touch_policy[id] = YKPIV_TOUCHPOLICY_DEFAULT;
 
     add_object(session->slot, pvtk_id);
 
@@ -3517,7 +3529,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     goto genkp_out;
   }
 
-  session->slot->local[gen.key_id] = CK_TRUE;
+  session->slot->origin[gen.key_id] = YKPIV_METADATA_ORIGIN_GENERATED;
+  session->slot->pin_policy[gen.key_id] = gen.pin_policy;
+  session->slot->touch_policy[gen.key_id] = gen.touch_policy;
 
   // Add objects that were not already present
 

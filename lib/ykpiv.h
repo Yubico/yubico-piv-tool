@@ -720,6 +720,11 @@ extern "C"
 #define YKPIV_CERTINFO_UNCOMPRESSED 0
 #define YKPIV_CERTINFO_GZIP 1
 
+#define YKPIV_OID_FIRMWARE_VERSION "1.3.6.1.4.1.41482.3.3"
+#define YKPIV_OID_SERIAL_NUMBER "1.3.6.1.4.1.41482.3.7"
+#define YKPIV_OID_USAGE_POLICY "1.3.6.1.4.1.41482.3.8"
+#define YKPIV_OID_FORM_FACTOR "1.3.6.1.4.1.41482.3.9"
+
 #define YKPIV_ATR_NEO_R3 "\x3b\xfc\x13\x00\x00\x81\x31\xfe\x15\x59\x75\x62\x69\x6b\x65\x79\x4e\x45\x4f\x72\x33\xe1"
 #define YKPIV_ATR_NEO_R3_NFC "\x3b\x8c\x80\x01\x59\x75\x62\x69\x6b\x65\x79\x4e\x45\x4f\x72\x33\x58"
 #define YKPIV_ATR_YK4    "\x3b\xf8\x13\x00\x00\x81\x31\xfe\x15\x59\x75\x62\x69\x6b\x65\x79\x34\xd4"

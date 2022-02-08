@@ -547,7 +547,7 @@ void generate_ec_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
 
 void generate_ec_keys_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_BYTE n_keys, 
                                   CK_BYTE* ec_params, CK_ULONG ec_params_len, CK_BYTE touch_attr_val,
-                                  CK_BYTE pin_attr_val, CK_ATTRIBUTE_TYPE maybe_always_auth) {
+                                  CK_BYTE pin_attr_val, CK_BBOOL always_auth_val) {
   CK_BYTE     i;
   CK_ULONG    class_k = CKO_PRIVATE_KEY;
   CK_ULONG    class_c = CKO_PUBLIC_KEY;
@@ -563,11 +563,10 @@ void generate_ec_keys_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE 
     {CKA_YUBICO_PIN_POLICY, &pin_attr_val, sizeof(pin_attr_val)}
   };
 
-  if (maybe_always_auth == CKA_ALWAYS_AUTHENTICATE) {
+  if (always_auth_val) {
     privateKeyTemplate[4].type = CKA_ALWAYS_AUTHENTICATE;
     privateKeyTemplate[4].pValue = &isTrue;
     privateKeyTemplate[4].ulValueLen = sizeof(isTrue);
-    pin_attr_val = YKPIV_PINPOLICY_ALWAYS;
   }
 
   CK_ATTRIBUTE publicKeyTemplate[] = {
@@ -585,7 +584,7 @@ void generate_ec_keys_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE 
     asrt(funcs->C_GenerateKeyPair(session, &mech, publicKeyTemplate, 3, privateKeyTemplate, 5, &obj_pubkey, &obj_pvtkey), CKR_OK, "GEN EC KEYPAIR");
     asrt(obj_pubkey, 111+i, "PUBLIC KEY HANDLE");
     asrt(obj_pvtkey, 86+i, "PRIVATE KEY HANDLE");
-    test_privkey_policy(funcs, session, obj_pvtkey, &touch_attr_val, &pin_attr_val);
+    test_privkey_policy(funcs, session, obj_pvtkey, touch_attr_val, pin_attr_val, always_auth_val);
     asrt(funcs->C_DestroyObject(session, obj_pvtkey), CKR_OK, "DestroyObject");
   }
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
@@ -593,7 +592,7 @@ void generate_ec_keys_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE 
 
 void generate_rsa_key_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_ULONG key_size,
                                   CK_OBJECT_HANDLE_PTR obj_pubkey, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
-                                  CK_BYTE touch_attr_val, CK_BYTE pin_attr_val, CK_ATTRIBUTE_TYPE maybe_always_auth) {
+                                  CK_BYTE touch_attr_val, CK_BYTE pin_attr_val, CK_BBOOL always_auth_val) {
   CK_BYTE     e[] = {0x01, 0x00, 0x01};
   CK_ULONG    class_k = CKO_PRIVATE_KEY;
   CK_ULONG    class_c = CKO_PUBLIC_KEY;
@@ -609,11 +608,10 @@ void generate_rsa_key_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE 
     {CKA_YUBICO_PIN_POLICY, &pin_attr_val, sizeof(pin_attr_val)}
   };
 
-  if (maybe_always_auth == CKA_ALWAYS_AUTHENTICATE) {
+  if (always_auth_val) {
     privateKeyTemplate[4].type = CKA_ALWAYS_AUTHENTICATE;
     privateKeyTemplate[4].pValue = &isTrue;
     privateKeyTemplate[4].ulValueLen = sizeof(isTrue);
-    pin_attr_val = YKPIV_PINPOLICY_ALWAYS;
   }
 
   CK_ATTRIBUTE publicKeyTemplate[] = {
@@ -627,7 +625,7 @@ void generate_rsa_key_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE 
   asrt(funcs->C_GenerateKeyPair(session, &mech, publicKeyTemplate, 4, privateKeyTemplate, 5, obj_pubkey, obj_pvtkey), CKR_OK, "GEN RSA KEYPAIR");
   asrt(obj_pubkey[0], 111, "PUBLIC KEY HANDLE");
   asrt(obj_pvtkey[0], 86, "PRIVATE KEY HANDLE");
-  test_privkey_policy(funcs, session, *obj_pvtkey, &touch_attr_val, &pin_attr_val);
+  test_privkey_policy(funcs, session, *obj_pvtkey, touch_attr_val, pin_attr_val, always_auth_val);
 }
 
 void generate_rsa_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_ULONG key_size, CK_BYTE n_keys,
@@ -661,7 +659,7 @@ void generate_rsa_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
     asrt(obj_pubkey[i], 111+i, "PUBLIC KEY HANDLE");
     asrt(obj_pvtkey[i], 86+i, "PRIVATE KEY HANDLE");
 
-    test_privkey_policy(funcs, session, obj_pvtkey[i], NULL, NULL);
+    test_privkey_policy(funcs, session, obj_pvtkey[i], YKPIV_PINPOLICY_DEFAULT, YKPIV_TOUCHPOLICY_DEFAULT, CK_FALSE);
   }
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
 }
@@ -1482,37 +1480,35 @@ void test_privkey_attributes_rsa(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE s
 }
 
 void test_privkey_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session,
-                         CK_OBJECT_HANDLE privkey, const CK_BYTE *touch_attr_val, 
-                         const CK_BYTE *pin_attr_val) {
+                         CK_OBJECT_HANDLE privkey, CK_BYTE touch_attr_val, 
+                         CK_BYTE pin_attr_val, CK_BBOOL always_auth_val) {
 
   CK_BBOOL always_auth = CK_FALSE;
   CK_BYTE touch_pol = YKPIV_TOUCHPOLICY_DEFAULT;
   CK_BYTE pin_pol = YKPIV_PINPOLICY_DEFAULT;
+  CK_BYTE id = 0;
   CK_ATTRIBUTE template[] = {
     {CKA_YUBICO_TOUCH_POLICY, &touch_pol, sizeof(touch_pol)},
     {CKA_YUBICO_PIN_POLICY, &pin_pol, sizeof(pin_pol)},
-    {CKA_ALWAYS_AUTHENTICATE, &always_auth, sizeof(always_auth)}
+    {CKA_ALWAYS_AUTHENTICATE, &always_auth, sizeof(always_auth)},
+    {CKA_ID, &id, sizeof(id)},
   };
 
-  asrt(funcs->C_GetAttributeValue(session, privkey, template, 3), CKR_OK, "GET POLICY ATTRIBUTES");
+  asrt(funcs->C_GetAttributeValue(session, privkey, template, 4), CKR_OK, "GET POLICY ATTRIBUTES");
   asrt(template[0].ulValueLen, sizeof(CK_BYTE), "ATTRIBUTE LEN");
   asrt(template[1].ulValueLen, sizeof(CK_BYTE), "ATTRIBUTE LEN");
   asrt(template[2].ulValueLen, sizeof(CK_BBOOL), "ATTRIBUTE LEN");
+  asrt(template[3].ulValueLen, sizeof(CK_BYTE), "ATTRIBUTE LEN");
 
-  if (touch_attr_val && *touch_attr_val != YKPIV_TOUCHPOLICY_DEFAULT) {
-    asrt(*touch_attr_val, touch_pol, "TOUCH POLICY");
-  } else {
-    // Else the slot default should be reported, never YKPIV_*POLICY_DEFAULT.
-    asrt(touch_pol ? 1 : 0, 1, "DEFAULT TOUCH POLICY");
-  }
+  // Adjust expected values for attributes that interact
+  if ((pin_attr_val == YKPIV_PINPOLICY_ALWAYS || (pin_attr_val == YKPIV_PINPOLICY_DEFAULT && id == 2)) && always_auth_val == CK_FALSE)
+    always_auth_val = CK_TRUE;
+  else if (pin_attr_val == YKPIV_PINPOLICY_DEFAULT && always_auth_val)
+    pin_attr_val = YKPIV_PINPOLICY_ALWAYS;
 
-  if (pin_attr_val && *pin_attr_val != YKPIV_PINPOLICY_DEFAULT) {
-    asrt(*pin_attr_val, pin_pol, "PIN POLICY");    
-  } else {
-    asrt(pin_pol ? 1 : 0, 1, "DEFAULT PIN POLICY");
-  }
-
-  asrt(pin_pol == YKPIV_PINPOLICY_ALWAYS, always_auth == CK_TRUE, "ALWAYS AUTH");
+  asrt(touch_pol, touch_attr_val, "TOUCH POLICY");
+  asrt(pin_pol, pin_attr_val, "PIN POLICY");
+  asrt(always_auth, always_auth_val, "ALWAYS AUTH");
 }
 
 void test_privkey_attributes_ec(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 

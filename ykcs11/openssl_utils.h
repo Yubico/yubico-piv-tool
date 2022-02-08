@@ -54,6 +54,7 @@ CK_RV do_get_raw_integer(ykcs11_asn1_integer_t *serial, CK_BYTE_PTR out, CK_ULON
 CK_RV do_delete_cert(ykcs11_x509_t **cert);
 
 CK_RV       do_store_pubk(ykcs11_x509_t *cert, ykcs11_pkey_t **key);
+CK_RV       do_parse_attestation(ykcs11_x509_t *cert, CK_BYTE_PTR pin_policy, CK_BYTE_PTR touch_policy);
 CK_KEY_TYPE do_get_key_type(ykcs11_pkey_t *key);
 CK_ULONG    do_get_key_size(ykcs11_pkey_t *key);
 CK_ULONG    do_get_signature_size(ykcs11_pkey_t *key);
