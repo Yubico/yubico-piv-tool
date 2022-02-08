@@ -572,19 +572,19 @@ START_TEST(test_generate_key) {
 }
 END_TEST
 
-static void test_authenticate_helper() {
+static void test_authenticate_helper(bool full) {
   ykpiv_rc res;
+  cipher_rc crc;
+  cipher_key cipher = 0;
   const char *default_mgm_key = "010203040506070801020304050607080102030405060708";
   const char *mgm_key = "112233445566778811223344556677881122334455667788";
-  const char *weak_mgm_key = "FEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFE";
-  unsigned char key[24] = {0};
+  const char *mgm_key_16 = "11223344556677881122334455667788";
+  const char *mgm_key_32 = "1122334455667788112233445566778811223344556677881122334455667788";
+  const char *weak_des_key = "FEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFEFE";
+  unsigned char key[32] = {0};
   size_t key_len = sizeof(key);
-
-  // Try new key, fail.
-  res = ykpiv_hex_decode(mgm_key, strlen(mgm_key), key, &key_len);
-  ck_assert_int_eq(res, YKPIV_OK);
-  res = ykpiv_authenticate(g_state, key);
-  ck_assert_int_eq(res, YKPIV_AUTHENTICATION_ERROR);
+  unsigned char data[256];
+  size_t data_len = sizeof(data);
 
   // Try default key, succeed
   res = ykpiv_hex_decode(default_mgm_key, strlen(default_mgm_key), key, &key_len);
@@ -592,51 +592,145 @@ static void test_authenticate_helper() {
   res = ykpiv_authenticate(g_state, key);
   ck_assert_int_eq(res, YKPIV_OK);
 
+  if(!full) {
+    return;
+  }
+
+  // Try new key, fail.
+  key_len = sizeof(key);
+  res = ykpiv_hex_decode(mgm_key, strlen(mgm_key), key, &key_len);
+  ck_assert_int_eq(res, YKPIV_OK);
+  res = ykpiv_authenticate(g_state, key);
+  ck_assert_int_eq(res, YKPIV_AUTHENTICATION_ERROR);
+
   // Verify same key works twice
+  key_len = sizeof(key);
   res = ykpiv_hex_decode(default_mgm_key, strlen(default_mgm_key), key, &key_len);
   ck_assert_int_eq(res, YKPIV_OK);
   res = ykpiv_authenticate(g_state, key);
   ck_assert_int_eq(res, YKPIV_OK);
 
   // Change to new key
+  key_len = sizeof(key);
   res = ykpiv_hex_decode(mgm_key, strlen(mgm_key), key, &key_len);
   ck_assert_int_eq(res, YKPIV_OK);
   res = ykpiv_set_mgmkey(g_state, key);
   ck_assert_int_eq(res, YKPIV_OK);
 
   // Try new key, succeed.
+  key_len = sizeof(key);
   res = ykpiv_hex_decode(mgm_key, strlen(mgm_key), key, &key_len);
   ck_assert_int_eq(res, YKPIV_OK);
   res = ykpiv_authenticate(g_state, key);
   ck_assert_int_eq(res, YKPIV_OK);
 
   // Change back to default key
+  key_len = sizeof(key);
   res = ykpiv_hex_decode(default_mgm_key, strlen(default_mgm_key), key, &key_len);
   ck_assert_int_eq(res, YKPIV_OK);
   res = ykpiv_set_mgmkey(g_state, key);
   ck_assert_int_eq(res, YKPIV_OK);
 
   // Try default key, succeed
+  key_len = sizeof(key);
   res = ykpiv_hex_decode(default_mgm_key, strlen(default_mgm_key), key, &key_len);
   ck_assert_int_eq(res, YKPIV_OK);
   res = ykpiv_authenticate(g_state, key);
   ck_assert_int_eq(res, YKPIV_OK);
 
   // Try to set a weak key, fail
-  res = ykpiv_hex_decode(weak_mgm_key, strlen(weak_mgm_key), key, &key_len);
+  key_len = sizeof(key);
+  res = ykpiv_hex_decode(weak_des_key, strlen(weak_des_key), key, &key_len);
   ck_assert_int_eq(res, YKPIV_OK);
   res = ykpiv_set_mgmkey(g_state, key);
   ck_assert_int_eq(res, YKPIV_KEY_ERROR);
 
   // Try default key, succeed
+  key_len = sizeof(key);
   res = ykpiv_hex_decode(default_mgm_key, strlen(default_mgm_key), key, &key_len);
   ck_assert_int_eq(res, YKPIV_OK);
   res = ykpiv_authenticate(g_state, key);
   ck_assert_int_eq(res, YKPIV_OK);
+
+  // Test external auth
+  data_len = sizeof(data);
+  res = ykpiv_auth_getchallenge(g_state, data, &data_len);
+  ck_assert_int_eq(res, YKPIV_OK);
+
+  crc = cipher_import_key(YKPIV_ALGO_3DES, key, key_len, &cipher);
+  ck_assert_int_eq(crc, CIPHER_OK);
+  uint32_t cipher_len = (uint32_t)data_len;
+  crc = cipher_encrypt(cipher, data, cipher_len, data, &cipher_len);
+  ck_assert_int_eq(crc, CIPHER_OK);
+  crc = cipher_destroy_key(cipher);
+  ck_assert_int_eq(crc, CIPHER_OK);
+
+  res = ykpiv_auth_verifyresponse(g_state, data, data_len);
+  ck_assert_int_eq(res, YKPIV_OK);
+
+  // Metadata support implies AES support for YKPIV_KEY_CARDMGM
+  res = ykpiv_get_metadata(g_state, YKPIV_KEY_CARDMGM, data, &data_len);
+  if(YKPIV_OK == res) {
+    // AES 128 key
+    key_len = sizeof(key);
+    res = ykpiv_hex_decode(mgm_key_16, strlen(mgm_key_16), key, &key_len);
+    ck_assert_int_eq(res, YKPIV_OK);
+    res = ykpiv_set_mgmkey3(g_state, key, key_len, YKPIV_ALGO_AES128, YKPIV_TOUCHPOLICY_DEFAULT);
+    ck_assert_int_eq(res, YKPIV_OK);
+    res = ykpiv_authenticate2(g_state, key, key_len);
+    ck_assert_int_eq(res, YKPIV_OK);
+
+    // AES 192 key
+    key_len = sizeof(key);
+    res = ykpiv_hex_decode(mgm_key, strlen(mgm_key), key, &key_len);
+    ck_assert_int_eq(res, YKPIV_OK);
+    res = ykpiv_set_mgmkey3(g_state, key, key_len, YKPIV_ALGO_AES192, YKPIV_TOUCHPOLICY_DEFAULT);
+    ck_assert_int_eq(res, YKPIV_OK);
+    res = ykpiv_authenticate2(g_state, key, key_len);
+    ck_assert_int_eq(res, YKPIV_OK);
+
+    // AES 256 key
+    key_len = sizeof(key);
+    res = ykpiv_hex_decode(mgm_key_32, strlen(mgm_key_32), key, &key_len);
+    ck_assert_int_eq(res, YKPIV_OK);
+    res = ykpiv_set_mgmkey3(g_state, key, key_len, YKPIV_ALGO_AES256, YKPIV_TOUCHPOLICY_DEFAULT);
+    ck_assert_int_eq(res, YKPIV_OK);
+    res = ykpiv_authenticate2(g_state, key, key_len);
+    ck_assert_int_eq(res, YKPIV_OK);
+
+    // A weak DES key should work fine as an AES 192 key
+    key_len = sizeof(key);
+    res = ykpiv_hex_decode(weak_des_key, strlen(weak_des_key), key, &key_len);
+    ck_assert_int_eq(res, YKPIV_OK);
+    res = ykpiv_set_mgmkey3(g_state, key, key_len, YKPIV_ALGO_AES192, YKPIV_TOUCHPOLICY_DEFAULT);
+    ck_assert_int_eq(res, YKPIV_OK);
+    res = ykpiv_authenticate2(g_state, key, key_len);
+    ck_assert_int_eq(res, YKPIV_OK);
+
+    // Default mgm key should work fine as an AES 192 key
+    key_len = sizeof(key);
+    res = ykpiv_hex_decode(default_mgm_key, strlen(default_mgm_key), key, &key_len);
+    ck_assert_int_eq(res, YKPIV_OK);
+    res = ykpiv_set_mgmkey3(g_state, key, key_len, YKPIV_ALGO_AES192, YKPIV_TOUCHPOLICY_DEFAULT);
+    ck_assert_int_eq(res, YKPIV_OK);
+    res = ykpiv_authenticate2(g_state, key, key_len);
+    ck_assert_int_eq(res, YKPIV_OK);
+
+    // Restore default 3DES mgmt key
+    key_len = sizeof(key);
+    res = ykpiv_hex_decode(default_mgm_key, strlen(default_mgm_key), key, &key_len);
+    ck_assert_int_eq(res, YKPIV_OK);
+    res = ykpiv_set_mgmkey3(g_state, key, key_len, YKPIV_ALGO_3DES, YKPIV_TOUCHPOLICY_DEFAULT);
+    ck_assert_int_eq(res, YKPIV_OK);
+    res = ykpiv_authenticate2(g_state, key, key_len);
+    ck_assert_int_eq(res, YKPIV_OK);
+  } else {
+    fprintf(stderr, "Device does not support metadata. AES MGMT key tests skipped.\n");
+  }
 }
 
 START_TEST(test_authenticate) {
-  test_authenticate_helper();
+  test_authenticate_helper(true);
 }
 END_TEST
 
@@ -736,7 +830,7 @@ START_TEST(test_reset) {
   ck_assert_int_eq(tries_until_blocked, 3);
 
   // Authenticate and increase PIN retries
-  test_authenticate_helper();
+  test_authenticate_helper(false);
   res = ykpiv_verify(g_state, "123456", &tries);
   ck_assert_int_eq(res, YKPIV_OK);
   ck_assert_int_eq(tries, -1);
@@ -850,7 +944,7 @@ START_TEST(test_allocator) {
   // Verify we can communicate with device and make some allocations
   res = ykpiv_connect(g_state, NULL);
   ck_assert_int_eq(res, YKPIV_OK);
-  test_authenticate_helper();
+  test_authenticate_helper(false);
   cert1 = alloc_auth_cert();
   cert2 = alloc_auth_cert();
 

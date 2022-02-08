@@ -65,7 +65,7 @@
 
 #define MAX_OID_LEN 19
 
-#define KEY_LEN 24
+#define KEY_LEN 32
 
 #define YKPIV_ATTESTATION_OID "1.3.6.1.4.1.41482.3"
 
@@ -424,19 +424,11 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
 
   {
     unsigned char algorithm = get_algorithm(private_key);
-    unsigned char pp = YKPIV_PINPOLICY_DEFAULT;
-    unsigned char tp = YKPIV_TOUCHPOLICY_DEFAULT;
+    unsigned char pp = get_pin_policy(pin_policy);
+    unsigned char tp = get_touch_policy(touch_policy);
 
     if(algorithm == 0) {
       goto import_out;
-    }
-
-    if(pin_policy != pin_policy__NULL) {
-        pp = get_pin_policy(pin_policy);
-    }
-
-    if(touch_policy != touch_policy__NULL) {
-      tp = get_touch_policy(touch_policy);
     }
 
     if(YKPIV_IS_RSA(algorithm)) {
@@ -2062,6 +2054,7 @@ read_out:
 
 int main(int argc, char *argv[]) {
   struct gengetopt_args_info args_info;
+  const uint8_t mgm_algo[] = {YKPIV_ALGO_3DES, YKPIV_ALGO_AES128, YKPIV_ALGO_AES192, YKPIV_ALGO_AES256};
   ykpiv_state *state;
   int verbosity;
   enum enum_action action;
@@ -2143,6 +2136,13 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  /* openssl setup.. */
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
+  OpenSSL_add_all_algorithms();
+#else
+  OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, 0);
+#endif
+
   if(ykpiv_init(&state, verbosity) != YKPIV_OK) {
     fprintf(stderr, "Failed initializing library.\n");
     cmdline_parser_free(&args_info);
@@ -2158,12 +2158,16 @@ int main(int argc, char *argv[]) {
 
   for(i = 0; i < args_info.action_given; i++) {
     action = *(args_info.action_arg + i);
+    if(verbosity) {
+      fprintf(stderr, "Now processing for action '%s'.\n",
+          cmdline_parser_action_values[action]);
+    }
     switch(action) {
       case action_arg_importMINUS_key:
       case action_arg_importMINUS_certificate:
         if(args_info.key_format_arg == key_format_arg_PKCS12 && !password) {
           if(verbosity) {
-            fprintf(stderr, "Asking for password since '%s' needs it.\n", cmdline_parser_action_values[action]);
+            fprintf(stderr, "Asking for password since action '%s' needs it.\n", cmdline_parser_action_values[action]);
           }
           if(!read_pw("Password", pwbuf, sizeof(pwbuf), false, args_info.stdin_input_flag)) {
             fprintf(stderr, "Failed to get password.\n");
@@ -2182,30 +2186,37 @@ int main(int argc, char *argv[]) {
       case action_arg_deleteMINUS_certificate:
       case action_arg_writeMINUS_object:
         if(!authed) {
-          unsigned char key[KEY_LEN] = {0};
-          size_t key_len = sizeof(key);
-          char keybuf[KEY_LEN*2+2] = {0}; /* one extra byte for potential \n */
-          char *key_ptr = args_info.key_arg;
           if(verbosity) {
             fprintf(stderr, "Authenticating since action '%s' needs that.\n", cmdline_parser_action_values[action]);
           }
-          if(args_info.key_given && args_info.key_orig == NULL) {
-            if(!read_pw("management key", keybuf, sizeof(keybuf), false, args_info.stdin_input_flag)) {
-              fprintf(stderr, "Failed to read management key from stdin,\n");
-              ykpiv_done(state);
-              cmdline_parser_free(&args_info);
-              return EXIT_FAILURE;
-            }
-            key_ptr = keybuf;
-          }
-          if(ykpiv_hex_decode(key_ptr, strlen(key_ptr), key, &key_len) != YKPIV_OK) {
-            fprintf(stderr, "Failed decoding key!\n");
+          ykpiv_config cfg = {0};
+          if(ykpiv_util_get_config(state, &cfg) != YKPIV_OK) {
+            fprintf(stderr, "Failed to get config metadata.\n");
             ykpiv_done(state);
             cmdline_parser_free(&args_info);
             return EXIT_FAILURE;
           }
-
-          if(ykpiv_authenticate(state, key) != YKPIV_OK) {
+          if(cfg.mgm_type != YKPIV_CONFIG_MGM_PROTECTED) {
+            char keybuf[KEY_LEN * 2 + 2] = {0}; /* one extra byte for potential \n */
+            char *key_ptr = args_info.key_arg;
+            if(args_info.key_given && args_info.key_orig == NULL) {
+              if(!read_pw("management key", keybuf, sizeof(keybuf), false, args_info.stdin_input_flag)) {
+                fprintf(stderr, "Failed to read management key from stdin,\n");
+                ykpiv_done(state);
+                cmdline_parser_free(&args_info);
+                return EXIT_FAILURE;
+              }
+              key_ptr = keybuf;
+            }
+            cfg.mgm_len = sizeof(cfg.mgm_key);
+            if(ykpiv_hex_decode(key_ptr, strlen(key_ptr), cfg.mgm_key, &cfg.mgm_len) != YKPIV_OK) {
+              fprintf(stderr, "Failed decoding key!\n");
+              ykpiv_done(state);
+              cmdline_parser_free(&args_info);
+              return EXIT_FAILURE;
+            }
+          }
+          if(ykpiv_authenticate2(state, cfg.mgm_key, cfg.mgm_len) != YKPIV_OK) {
             fprintf(stderr, "Failed authentication with the application.\n");
             ykpiv_done(state);
             cmdline_parser_free(&args_info);
@@ -2217,7 +2228,7 @@ int main(int argc, char *argv[]) {
           authed = true;
         } else {
           if(verbosity) {
-            fprintf(stderr, "Skipping authentication for '%s' since it's already done.\n", cmdline_parser_action_values[action]);
+            fprintf(stderr, "Skipping authentication for action '%s' since it's already done.\n", cmdline_parser_action_values[action]);
           }
         }
         break;
@@ -2242,23 +2253,6 @@ int main(int argc, char *argv[]) {
           fprintf(stderr, "Action '%s' does not need authentication.\n", cmdline_parser_action_values[action]);
         }
     }
-  }
-
-
-  /* openssl setup.. */
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-  OpenSSL_add_all_algorithms();
-#endif
-
-
-  for(i = 0; i < args_info.action_given; i++) {
-    char new_keybuf[KEY_LEN*2+2] = {0}; /* one extra byte for potential \n */
-    char *new_mgm_key = args_info.new_key_arg;
-    action = *(args_info.action_arg + i);
-    if(verbosity) {
-      fprintf(stderr, "Now processing for action '%s'.\n",
-          cmdline_parser_action_values[action]);
-    }
     switch(action) {
       case action_arg_version:
         print_version(state, args_info.output_arg);
@@ -2272,33 +2266,44 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_setMINUS_mgmMINUS_key:
-        if(!new_mgm_key) {
-          if(!read_pw("new management key", new_keybuf, sizeof(new_keybuf), true, args_info.stdin_input_flag)) {
-            fprintf(stderr, "Failed to read management key from stdin,\n");
-            ret = EXIT_FAILURE;
-            break;
+        {
+          char new_keybuf[KEY_LEN * 2 + 2] = {0}; /* one extra byte for potential \n */
+          char *new_mgm_key = args_info.new_key_arg;
+          if(!new_mgm_key) {
+            if(!read_pw("new management key", new_keybuf, sizeof(new_keybuf), true, args_info.stdin_input_flag)) {
+              fprintf(stderr, "Failed to read management key from stdin,\n");
+              ret = EXIT_FAILURE;
+              break;
+            }
+            new_mgm_key = new_keybuf;
           }
-          new_mgm_key = new_keybuf;
-        }
-        if(strlen(new_mgm_key) == (KEY_LEN * 2)){
-          unsigned char new_key[KEY_LEN] = {0};
-          size_t new_key_len = sizeof(new_key);
-          if(ykpiv_hex_decode(new_mgm_key, strlen(new_mgm_key), new_key, &new_key_len) != YKPIV_OK) {
+          ykpiv_mgm new_key = {KEY_LEN};
+          if(ykpiv_hex_decode(new_mgm_key, strlen(new_mgm_key), new_key.data, &new_key.len) != YKPIV_OK) {
             fprintf(stderr, "Failed decoding new key!\n");
             ret = EXIT_FAILURE;
-          } else if(ykpiv_set_mgmkey2(state, new_key, args_info.touch_policy_arg == touch_policy_arg_always ? 1 : 0) != YKPIV_OK) {
+          } else if(ykpiv_set_mgmkey3(state, new_key.data, new_key.len, mgm_algo[args_info.new_key_algo_arg],
+                        get_touch_policy(args_info.touch_policy_arg)) != YKPIV_OK) {
             fprintf(stderr, "Failed setting the new key!");
             if(args_info.touch_policy_arg != touch_policy__NULL) {
-              fprintf(stderr, " Maybe touch policy is not supported on this key?");
+              fprintf(stderr, " Maybe this touch policy or algorithm is not supported on this key?");
             }
             fprintf(stderr, "\n");
             ret = EXIT_FAILURE;
           } else {
             fprintf(stderr, "Successfully set new management key.\n");
+            ykpiv_config config = {0};
+            if(ykpiv_util_get_config(state, &config) != YKPIV_OK) {
+              fprintf(stderr, "Failed reading configuration metadata!");
+            } else {
+              if (config.mgm_type == YKPIV_CONFIG_MGM_PROTECTED) {
+                if(ykpiv_util_update_protected_mgm(state, &new_key) != YKPIV_OK) {
+                  fprintf(stderr, "Failed updating pin-protected management key metadata!");
+                } else {
+                  fprintf(stderr, "Successfully updated pin-protected management key metadata.\n");
+                }
+              }
+            }
           }
-        } else {
-          fprintf(stderr, "The new management key has to be exactly %d hexadecimal characters.\n", KEY_LEN * 2);
-          ret = EXIT_FAILURE;
         }
         break;
       case action_arg_reset:

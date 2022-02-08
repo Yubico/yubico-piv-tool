@@ -1071,11 +1071,12 @@ ykpiv_rc ykpiv_util_get_config(ykpiv_state *state, ykpiv_config *config) {
     }
 
     if (YKPIV_OK == _get_metadata_item(data, cb_data, TAG_PROTECTED_MGM, &p_item, &cb_item)) {
-      if(sizeof(config->mgm_key) == cb_item) {
+      if(sizeof(config->mgm_key) >= cb_item) {
         memcpy(config->mgm_key, p_item, cb_item);
+        config->mgm_len = cb_item;
         if (config->mgm_type != YKPIV_CONFIG_MGM_PROTECTED) {
           if (state->verbose) fprintf(stderr, "conflicting types of mgm key administration configured - protected mgm exists\n");
-          config->mgm_type = YKPIV_CONFIG_MGM_PROTECTED;
+          config->mgm_type = YKPIV_CONFIG_MGM_INVALID;
         }
       } else {
         if (state->verbose) fprintf(stderr, "protected data contains mgm, but is the wrong size = %lu\n", (unsigned long)cb_item);
@@ -1153,8 +1154,8 @@ ykpiv_rc ykpiv_util_get_derived_mgm(ykpiv_state *state, const uint8_t *pin, cons
         res = YKPIV_GENERIC_ERROR;
         goto Cleanup;
       }
-
-      if (PKCS5_OK != (p5rc = pkcs5_pbkdf2_sha1(pin, pin_len, p_item, cb_item, ITER_MGM_PBKDF2, mgm->data, member_size(ykpiv_mgm, data)))) {
+      mgm->len = 24;
+      if (PKCS5_OK != (p5rc = pkcs5_pbkdf2_sha1(pin, pin_len, p_item, cb_item, ITER_MGM_PBKDF2, mgm->data, mgm->len))) {
         if (state->verbose) fprintf(stderr, "pbkdf2 failure, err = %d\n", p5rc);
         res = YKPIV_GENERIC_ERROR;
         goto Cleanup;
@@ -1191,12 +1192,13 @@ ykpiv_rc ykpiv_util_get_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
     goto Cleanup;
   }
 
-  if (cb_item != member_size(ykpiv_mgm, data)) {
+  if (cb_item > sizeof(mgm->data)) {
     if (state->verbose) fprintf(stderr, "protected data contains mgm, but is the wrong size = %lu\n", (unsigned long)cb_item);
     res = YKPIV_AUTHENTICATION_ERROR;
     goto Cleanup;
   }
 
+  mgm->len = cb_item;
   memcpy(mgm->data, p_item, cb_item);
 
 Cleanup:
@@ -1208,13 +1210,42 @@ Cleanup:
 
 }
 
+ykpiv_rc ykpiv_util_update_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
+  ykpiv_rc res = YKPIV_OK;
+  uint8_t data[CB_BUF_MAX] = {0};
+  size_t cb_data = sizeof(data);
+
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+
+  if (YKPIV_OK != (res = _read_metadata(state, TAG_PROTECTED, data, &cb_data))) {
+    cb_data = 0; /* set current metadata blob size to zero, we'll add to the blank blob */
+  }
+
+  if (YKPIV_OK != (res = _set_metadata_item(data, &cb_data, CB_OBJ_MAX, TAG_PROTECTED_MGM, mgm->data, mgm->len))) {
+    if (state->verbose) fprintf(stderr, "could not set protected mgm item, err = %d\n", res);
+  }
+  else {
+    if (YKPIV_OK != (res = _write_metadata(state, TAG_PROTECTED, data, cb_data))) {
+      if (state->verbose) fprintf(stderr, "could not write protected data, err = %d\n", res);
+      goto Cleanup;
+    }
+  }
+
+Cleanup:
+
+  _ykpiv_end_transaction(state);
+  return res;
+}
+
 /* to set a generated mgm, pass NULL for mgm, or set mgm.data to all zeroes */
 ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
   ykpiv_rc res = YKPIV_OK;
   ykpiv_rc ykrc = YKPIV_OK;
   prng_rc  prngrc = PRNG_OK;
   bool     fGenerate = false;
-  uint8_t  mgm_key[member_size(ykpiv_mgm, data)] = { 0 };
+  size_t   mgm_len = 24;
+  uint8_t  mgm_key[sizeof(mgm->data)] = { 0 };
   size_t   i = 0;
   uint8_t  data[CB_BUF_MAX] = { 0 };
   size_t   cb_data = sizeof(data);
@@ -1224,14 +1255,12 @@ ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
 
   if (NULL == state) return YKPIV_GENERIC_ERROR;
 
-  if (!mgm) {
-    fGenerate = true;
-  }
-  else {
-    fGenerate = true;
-    memcpy(mgm_key, mgm->data, sizeof(mgm_key));
+  fGenerate = true;
+  if (mgm) {
+    mgm_len = mgm->len;
+    memcpy(mgm_key, mgm->data, mgm->len);
 
-    for (i = 0; i < sizeof(mgm_key); i++) {
+    for (i = 0; i < mgm_len; i++) {
       if (mgm_key[i] != 0) {
         fGenerate = false;
         break;
@@ -1246,14 +1275,14 @@ ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
   do {
     if (fGenerate) {
       /* generate a new mgm key */
-      if (PRNG_OK != (prngrc = _ykpiv_prng_generate(mgm_key, sizeof(mgm_key)))) {
+      if (PRNG_OK != (prngrc = _ykpiv_prng_generate(mgm_key, mgm_len))) {
         if (state->verbose) fprintf(stderr, "could not generate new mgm, err = %d\n", prngrc);
         res = YKPIV_RANDOMNESS_ERROR;
         goto Cleanup;
       }
     }
 
-    if (YKPIV_OK != (ykrc = ykpiv_set_mgmkey(state, mgm_key))) {
+    if (YKPIV_OK != (ykrc = ykpiv_set_mgmkey3(state, mgm_key, mgm_len, YKPIV_ALGO_AUTO, YKPIV_TOUCHPOLICY_AUTO))) {
       /*
       ** if _set_mgmkey fails with YKPIV_KEY_ERROR, it means the generated key is weak
       ** otherwise, log a warning, since the device mgm key is corrupt or we're in
@@ -1273,7 +1302,7 @@ ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
 
   /* set output mgm */
   if (mgm) {
-    memcpy(mgm->data, mgm_key, sizeof(mgm_key));
+    memcpy(mgm->data, mgm_key, mgm_len);
   }
 
   /* after this point, we've set the mgm key, so the function should succeed, regardless of being able to set the metadata */
@@ -1283,7 +1312,7 @@ ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
     cb_data = 0; /* set current metadata blob size to zero, we'll add to the blank blob */
   }
 
-  if (YKPIV_OK != (ykrc = _set_metadata_item(data, &cb_data, CB_OBJ_MAX, TAG_PROTECTED_MGM, mgm_key, sizeof(mgm_key)))) {
+  if (YKPIV_OK != (ykrc = _set_metadata_item(data, &cb_data, CB_OBJ_MAX, TAG_PROTECTED_MGM, mgm_key, mgm_len))) {
     if (state->verbose) fprintf(stderr, "could not set protected mgm item, err = %d\n", ykrc);
   }
   else {
@@ -1531,41 +1560,37 @@ static ykpiv_rc _get_metadata_item(uint8_t *data, size_t cb_data, uint8_t tag, u
 }
 
 ykpiv_rc ykpiv_util_parse_metadata(uint8_t *data, size_t data_len, ykpiv_metadata *metadata) {
-  uint8_t *p;
-  size_t cb;
+  uint8_t *p = 0;
+  size_t cb = 0;
+  uint32_t cnt = 0;
 
   ykpiv_rc rc = _get_metadata_item(data, data_len, YKPIV_METADATA_ALGORITHM_TAG, &p, &cb);
-  if(rc != YKPIV_OK)
-    return rc;
-  if(cb != 1)
-    return YKPIV_PARSE_ERROR;
-  metadata->algorithm = p[0];
+  if(rc == YKPIV_OK && cb == 1) {
+    metadata->algorithm = p[0];
+    cnt++;
+  }
 
   rc = _get_metadata_item(data, data_len, YKPIV_METADATA_POLICY_TAG, &p, &cb);
-  if(rc != YKPIV_OK)
-    return rc;
-  if(cb != 2)
-    return YKPIV_PARSE_ERROR;
-  metadata->pin_policy = p[0];
-  metadata->touch_policy = p[1];
+  if(rc == YKPIV_OK && cb == 2) {
+    metadata->pin_policy = p[0];
+    metadata->touch_policy = p[1];
+    cnt++;
+  }
 
   rc = _get_metadata_item(data, data_len, YKPIV_METADATA_ORIGIN_TAG, &p, &cb);
-  if(rc != YKPIV_OK)
-    return rc;
-  if(cb != 1)
-    return YKPIV_PARSE_ERROR;
-  metadata->origin = p[0];
+  if(rc == YKPIV_OK && cb == 1) {
+    metadata->origin = p[0];
+    cnt++;
+  }
 
   rc = _get_metadata_item(data, data_len, YKPIV_METADATA_PUBKEY_TAG, &p, &cb);
-  if(rc != YKPIV_OK)
-    return rc;
-  if(cb > sizeof(metadata->pubkey))
-    return YKPIV_PARSE_ERROR;
+  if(rc == YKPIV_OK && cb > 0 && cb <= sizeof(metadata->pubkey)) {
+    metadata->pubkey_len = cb;
+    memcpy(metadata->pubkey, p, cb);
+    cnt++;
+  }
 
-  metadata->pubkey_len = cb;
-  memcpy(metadata->pubkey, p, cb);
-
-  return YKPIV_OK;
+  return cnt ? YKPIV_OK : YKPIV_PARSE_ERROR;
 }
 
 /*

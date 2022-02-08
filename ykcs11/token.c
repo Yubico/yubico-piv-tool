@@ -241,15 +241,27 @@ CK_RV token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF8CHAR_P
 
   switch(user_type){
     case CKU_SO:{
-      unsigned char new_key[24] = {0};
-      size_t new_key_len = sizeof(new_key);
-      if(ykpiv_hex_decode((const char*)pNewPin, ulNewLen, new_key, &new_key_len) != YKPIV_OK) {
+      ykpiv_mgm new_key = {0};
+      if(ykpiv_hex_decode((const char*)pNewPin, ulNewLen, new_key.data, &new_key.len) != YKPIV_OK) {
         DBG("Failed to decode new pin")
         return CKR_PIN_INVALID;
       }
       DBG("Changing SO PIN")
-      res = ykpiv_set_mgmkey(state, new_key);
-      OPENSSL_cleanse(new_key, sizeof(new_key));
+      // Set new mgm key (SO PIN) with the same algorithm and touch policy the old one had
+      res = ykpiv_set_mgmkey3(state, new_key.data, new_key.len, YKPIV_ALGO_AUTO, YKPIV_TOUCHPOLICY_AUTO);
+      if(res == YKPIV_OK) {
+        ykpiv_config config = {0};
+        res = ykpiv_util_get_config(state, &config);
+        if(res == YKPIV_OK && config.mgm_type == YKPIV_CONFIG_MGM_PROTECTED) {
+          res = ykpiv_util_update_protected_mgm(state, &new_key);
+          if(res != YKPIV_OK) {
+            DBG("Failed to update pin protected management key metadata");
+          }
+        }
+      } else {
+        DBG("Failed to set new management key")
+      }
+      OPENSSL_cleanse(new_key.data, sizeof(new_key.data));
       break;
     }
     case CKU_USER:
@@ -299,7 +311,7 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
     memcpy(term_pin, pin, pin_len);
     term_pin[pin_len] = 0;
 
-    int tries;
+    int tries = 0;
     res = ykpiv_verify(state, term_pin, &tries);
 
     OPENSSL_cleanse(term_pin, pin_len);
@@ -315,41 +327,39 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
 
       return CKR_DEVICE_ERROR;
     }
-  } else if(pin_len != YKPIV_MGM_KEY_LEN || user != CKU_SO) {
+  } else if(pin_len < YKPIV_MIN_MGM_KEY_LEN || pin_len > YKPIV_MAX_MGM_KEY_LEN || user != CKU_SO) {
     DBG("PIN is wrong length");
     return CKR_ARGUMENTS_BAD;
   }
 
   if (user == CKU_SO) {
-    unsigned char key[24] = {0};
+    ykpiv_config cfg = {0};
 
-    if (pin_len == YKPIV_MGM_KEY_LEN) {
-      size_t key_len = sizeof(key);
-      if(ykpiv_hex_decode((char *)pin, pin_len, key, &key_len) != YKPIV_OK) {
+    if (pin_len >= YKPIV_MIN_MGM_KEY_LEN && pin_len <= YKPIV_MAX_MGM_KEY_LEN) {
+      cfg.mgm_len = sizeof(cfg.mgm_key);
+      if(ykpiv_hex_decode((char *)pin, pin_len, cfg.mgm_key, &cfg.mgm_len) != YKPIV_OK) {
         DBG("Failed decoding key");
-        OPENSSL_cleanse(key, key_len);
+        OPENSSL_cleanse(cfg.mgm_key, sizeof(cfg.mgm_key));
         return CKR_ARGUMENTS_BAD;
       }
     } else {
-      ykpiv_config cfg;
       res = ykpiv_util_get_config(state, &cfg);
       if(res != YKPIV_OK) {
         DBG("Failed to get device configuration: %s", ykpiv_strerror(res));
+        OPENSSL_cleanse(cfg.mgm_key, sizeof(cfg.mgm_key));
         return CKR_DEVICE_ERROR;
       }
 
       if(cfg.mgm_type != YKPIV_CONFIG_MGM_PROTECTED) {
         DBG("Device configuration invalid, no PIN-protected MGM key available");
+        OPENSSL_cleanse(cfg.mgm_key, sizeof(cfg.mgm_key));
         return CKR_USER_PIN_NOT_INITIALIZED;
       }
-
-      memcpy(key, cfg.mgm_key, sizeof(key));
-      OPENSSL_cleanse(cfg.mgm_key, sizeof(cfg.mgm_key));
     }
 
-    if((res = ykpiv_authenticate(state, key)) != YKPIV_OK) {
+    if((res = ykpiv_authenticate2(state, cfg.mgm_key, cfg.mgm_len)) != YKPIV_OK) {
       DBG("Failed to authenticate: %s", ykpiv_strerror(res));
-      OPENSSL_cleanse(key, sizeof(key));
+      OPENSSL_cleanse(cfg.mgm_key, sizeof(cfg.mgm_key));
 
       if(res == YKPIV_AUTHENTICATION_ERROR)
         return CKR_PIN_INCORRECT;
@@ -357,7 +367,7 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
       return CKR_DEVICE_ERROR;
     }
 
-    OPENSSL_cleanse(key, sizeof(key));
+    OPENSSL_cleanse(cfg.mgm_key, sizeof(cfg.mgm_key));
   }
 
   return CKR_OK;

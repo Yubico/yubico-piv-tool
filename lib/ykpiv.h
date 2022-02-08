@@ -119,8 +119,11 @@ extern "C"
                              int *tries);
   ykpiv_rc ykpiv_fetch_object(ykpiv_state *state, int object_id,
                               unsigned char *data, unsigned long *len);
+  ykpiv_rc ykpiv_authenticate2(ykpiv_state *state, unsigned const char *key, size_t len);
   ykpiv_rc ykpiv_set_mgmkey2(ykpiv_state *state, const unsigned char *new_key,
                              const unsigned char touch);
+  ykpiv_rc ykpiv_set_mgmkey3(ykpiv_state *state, const unsigned char *new_key, size_t len, unsigned char algorithm,
+                             unsigned char touch);
   ykpiv_rc ykpiv_save_object(ykpiv_state *state, int object_id,
                              unsigned char *indata, size_t len);
   ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, unsigned char algorithm,
@@ -278,11 +281,13 @@ extern "C"
     uint8_t               puk_noblock_on_upgrade;
     uint32_t              pin_last_changed;
     ykpiv_config_mgm_type mgm_type;
-    uint8_t               mgm_key[24];
+    size_t                mgm_len;
+    uint8_t               mgm_key[32];
   } ykpiv_config;
 
   typedef struct _ykpiv_mgm {
-    uint8_t data[24];
+    size_t len;
+    uint8_t data[32];
   } ykpiv_mgm;
 #pragma pack(pop)
 
@@ -436,6 +441,18 @@ extern "C"
   ykpiv_rc ykpiv_util_get_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm);
 
   /**
+   * Update Protected MGM key. Should only be used when mgm_type is YKPIV_CONFIG_MGM_PROTECTED.
+   *
+   * The user pin must be verified to call this function
+   *
+   * @param state State handle
+   * @param mgm   [in] Protected MGM key
+   *
+   * @return ykpiv_rc error code
+   */
+  ykpiv_rc ykpiv_util_update_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm);
+
+  /**
    * Set Protected MGM key
    *
    * The applet must be authenticated and the user pin verified to call this function
@@ -575,10 +592,15 @@ extern "C"
 
 #define YKPIV_ALGO_TAG 0x80
 #define YKPIV_ALGO_3DES 0x03
+#define YKPIV_ALGO_AES128 0x08
+#define YKPIV_ALGO_AES192 0x0a
+#define YKPIV_ALGO_AES256 0x0c
 #define YKPIV_ALGO_RSA1024 0x06
 #define YKPIV_ALGO_RSA2048 0x07
 #define YKPIV_ALGO_ECCP256 0x11
 #define YKPIV_ALGO_ECCP384 0x14
+
+#define YKPIV_ALGO_AUTO 0xff
 
 #define YKPIV_KEY_AUTHENTICATION 0x9a
 #define YKPIV_KEY_CARDMGM 0x9b
@@ -697,6 +719,8 @@ extern "C"
 #define YKPIV_TOUCHPOLICY_ALWAYS 2
 #define YKPIV_TOUCHPOLICY_CACHED 3
 
+#define YKPIV_TOUCHPOLICY_AUTO 255
+
 #define YKPIV_METADATA_ALGORITHM_TAG 0x01 // See values for YKPIV_ALGO_TAG
 
 #define YKPIV_METADATA_POLICY_TAG 0x02 // Two bytes, see values for YKPIV_PINPOLICY_TAG and YKPIV_TOUCHPOLICY_TAG
@@ -712,7 +736,8 @@ extern "C"
 
 #define YKPIV_MIN_PIN_LEN 6
 #define YKPIV_MAX_PIN_LEN 8
-#define YKPIV_MGM_KEY_LEN 48
+#define YKPIV_MIN_MGM_KEY_LEN 32
+#define YKPIV_MAX_MGM_KEY_LEN 64
 
 #define YKPIV_RETRIES_DEFAULT 3
 #define YKPIV_RETRIES_MAX 0xff
