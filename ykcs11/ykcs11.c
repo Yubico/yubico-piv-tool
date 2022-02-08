@@ -1788,6 +1788,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
     // TODO: this function has some complex cases for return value. Make sure to check them.
     if (rv != CKR_OK) {
       DBG("Unable to get attribute 0x%lx of object %lu", (pTemplate + i)->type, hObject);
+      (pTemplate + i)->ulValueLen = CK_UNAVAILABLE_INFORMATION;
       rv_final = rv;
     }
   }
