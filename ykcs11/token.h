@@ -55,7 +55,8 @@ CK_RV token_import_private_key(ykpiv_state *state, CK_BYTE key_id,
                                CK_BYTE_PTR dp, CK_ULONG dp_len,
                                CK_BYTE_PTR dq, CK_ULONG dq_len,
                                CK_BYTE_PTR qinv, CK_ULONG qinv_len,
-                               CK_BYTE_PTR ec_data, CK_ULONG ec_data_len);
+                               CK_BYTE_PTR ec_data, CK_ULONG ec_data_len,
+                               CK_BYTE touch_policy, CK_BYTE pin_policy);
 CK_RV token_delete_cert(ykpiv_state *state, CK_ULONG cert_id);
 
 #endif //YUBICO_PIV_TOOL_TOKEN_H

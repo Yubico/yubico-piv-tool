@@ -540,10 +540,8 @@ CK_RV token_import_private_key(ykpiv_state *state, CK_BYTE key_id,
                                       CK_BYTE_PTR dp, CK_ULONG dp_len,
                                       CK_BYTE_PTR dq, CK_ULONG dq_len,
                                       CK_BYTE_PTR qinv, CK_ULONG qinv_len,
-                                      CK_BYTE_PTR ec_data, CK_ULONG ec_data_len) {
-
-  CK_BYTE  pin_policy;
-  CK_BYTE  touch_policy;
+                                      CK_BYTE_PTR ec_data, CK_ULONG ec_data_len,
+                                      CK_BYTE touch_policy, CK_BYTE pin_policy) {
   CK_BYTE  algo;
   ykpiv_rc rc;
 
@@ -561,9 +559,6 @@ CK_RV token_import_private_key(ykpiv_state *state, CK_BYTE key_id,
   }
   else
     return CKR_FUNCTION_FAILED;
-
-  pin_policy = YKPIV_PINPOLICY_DEFAULT;
-  touch_policy = YKPIV_TOUCHPOLICY_DEFAULT;
 
   rc = ykpiv_import_private_key(state, key_id, algo,
                                 p, p_len,

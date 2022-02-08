@@ -400,6 +400,91 @@ EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   return eck;
 }
 
+void import_rsa_key_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int keylen, CK_BYTE n_keys,
+                                CK_BYTE touch_attr_val, CK_BYTE pin_attr_val, CK_BBOOL always_auth_val) {
+  CK_BYTE     i;
+  CK_BYTE     e[] = {0x01, 0x00, 0x01};
+  CK_BYTE     *p, *q, *dp, *dq, *qinv;
+  p = malloc(keylen / 16);
+  q = malloc(keylen / 16);
+  dp = malloc(keylen / 16);
+  dq = malloc(keylen / 16);
+  qinv = malloc(keylen / 16);
+
+  BIGNUM      *e_bn;
+  CK_ULONG    class_k = CKO_PRIVATE_KEY;
+  CK_ULONG    kt = CKK_RSA;
+  CK_BYTE     id = 0;
+  const BIGNUM *bp, *bq, *biqmp, *bdmp1, *bdmq1;
+
+  int p_len, q_len, dp_len, dq_len, qinv_len;
+  int len = keylen/16;
+
+  CK_ATTRIBUTE privateKeyTemplate[] = {
+    {CKA_CLASS, &class_k, sizeof(class_k)},
+    {CKA_KEY_TYPE, &kt, sizeof(kt)},
+    {CKA_ID, &id, sizeof(id)},
+    {CKA_PUBLIC_EXPONENT, e, sizeof(e)},
+    {CKA_PRIME_1, p, (keylen / 16)},
+    {CKA_PRIME_2, q, (keylen / 16)},
+    {CKA_EXPONENT_1, dp, (keylen / 16)},
+    {CKA_EXPONENT_2, dq, (keylen / 16)},
+    {CKA_COEFFICIENT, qinv, (keylen / 16)},
+    {CKA_YUBICO_TOUCH_POLICY, &touch_attr_val, sizeof(touch_attr_val)},
+    {CKA_YUBICO_PIN_POLICY, &pin_attr_val, sizeof(pin_attr_val)}
+  };
+
+  if (always_auth_val == CK_TRUE) {
+    privateKeyTemplate[10].type = CKA_ALWAYS_AUTHENTICATE;
+    privateKeyTemplate[10].pValue = &always_auth_val;
+    privateKeyTemplate[10].ulValueLen = sizeof(always_auth_val);
+  }
+
+  e_bn = BN_bin2bn(e, 3, NULL);
+  if (e_bn == NULL)
+    exit(EXIT_FAILURE);
+
+  EVP_PKEY *evp = EVP_PKEY_new();
+  RSA *rsak = RSA_new();
+  if (evp == NULL || rsak == NULL)
+    exit(EXIT_FAILURE);
+
+  int len_correct = 0;
+  do {
+    asrt(RSA_generate_key_ex(rsak, keylen, e_bn, NULL), 1, "GENERATE RSAK");
+
+    RSA_get0_factors(rsak, &bp, &bq);
+    RSA_get0_crt_params(rsak, &bdmp1, &bdmq1, &biqmp);
+    p_len = BN_bn2bin(bp, p);
+    q_len = BN_bn2bin(bq, q);
+    dp_len = BN_bn2bin(bdmp1, dp);
+    dq_len = BN_bn2bin(bdmq1, dq);
+    qinv_len = BN_bn2bin(biqmp, qinv);
+    len_correct = p_len == len && q_len == len && dp_len == len && dq_len == len && qinv_len == len; 
+  } while(!len_correct);
+
+  if (EVP_PKEY_set1_RSA(evp, rsak) == 0)
+    exit(EXIT_FAILURE);
+
+  for (i = 0; i < n_keys; i++) {
+    id = i+1;
+    CK_OBJECT_HANDLE obj_pvtkey = CK_INVALID_HANDLE;
+    asrt(funcs->C_CreateObject(session, privateKeyTemplate, 11, &obj_pvtkey), CKR_OK, "IMPORT KEY");
+    asrt(obj_pvtkey, 86+i, "PRIVATE KEY HANDLE");
+    test_privkey_policy(funcs, session, obj_pvtkey, touch_attr_val, pin_attr_val, always_auth_val);
+    asrt(funcs->C_DestroyObject(session, obj_pvtkey), CKR_OK, "DestroyObject");
+  }
+
+  RSA_free(rsak);
+  EVP_PKEY_free(evp);
+  BN_free(e_bn);
+  free(p);
+  free(q);
+  free(dp);
+  free(dq);
+  free(qinv);
+}
+
 void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int keylen, EVP_PKEY** evp, RSA** rsak,
                     CK_BYTE n_keys, CK_OBJECT_HANDLE_PTR obj_cert, CK_OBJECT_HANDLE_PTR obj_pvtkey) {
   X509        *cert;

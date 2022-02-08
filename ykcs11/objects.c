@@ -1544,7 +1544,8 @@ CK_RV check_create_cert(CK_ATTRIBUTE_PTR templ, CK_ULONG n,
 }
 
 CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
-                          CK_BYTE_PTR *value, CK_ULONG_PTR value_len) {
+                          CK_BYTE_PTR *value, CK_ULONG_PTR value_len,
+                          CK_BYTE_PTR touch_policy, CK_BYTE_PTR pin_policy) {
 
   CK_ULONG i;
   CK_BBOOL has_id = CK_FALSE;
@@ -1553,6 +1554,7 @@ CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
 
   CK_BYTE_PTR ec_params = NULL;
   CK_ULONG    ec_params_len = 0;
+  CK_BYTE b_tmp;
 
   for (i = 0; i < n; i++) {
     switch (templ[i].type) {
@@ -1603,6 +1605,59 @@ CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
       }
       break;
 
+    case CKA_ALWAYS_AUTHENTICATE:
+      if (*((CK_BBOOL *)templ[i].pValue) == CK_TRUE) {
+        if (*pin_policy != YKPIV_PINPOLICY_DEFAULT &&
+            *pin_policy != YKPIV_PINPOLICY_ALWAYS) {
+          DBG("Inconsistent PIN policy");
+          return CKR_TEMPLATE_INCONSISTENT;
+        }
+        *pin_policy = YKPIV_PINPOLICY_ALWAYS;
+      } else if (*((CK_BBOOL *)templ[i].pValue) == CK_FALSE) {
+        if (*pin_policy != YKPIV_PINPOLICY_DEFAULT) {
+          DBG("Inconsistent PIN policy");
+          return CKR_TEMPLATE_INCONSISTENT;
+        }
+      } else {
+        DBG("CKA_ALWAYS_AUTHENTICATE must be TRUE, FALSE, or omitted");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+      break;
+
+    case CKA_YUBICO_TOUCH_POLICY:
+      b_tmp = *((CK_BYTE *)templ[i].pValue);
+      if (b_tmp != YKPIV_TOUCHPOLICY_ALWAYS &&
+          b_tmp != YKPIV_TOUCHPOLICY_CACHED &&
+          b_tmp != YKPIV_TOUCHPOLICY_NEVER &&
+          b_tmp != YKPIV_TOUCHPOLICY_DEFAULT) {
+        DBG("Invalid value for CKA_YUBICO_TOUCH_POLICY");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+      if (*touch_policy != YKPIV_TOUCHPOLICY_DEFAULT &&
+          *touch_policy != b_tmp) {
+        DBG("Inconsistent touch policy");
+        return CKR_TEMPLATE_INCONSISTENT;
+      }
+      *touch_policy = b_tmp;
+      break;
+
+    case CKA_YUBICO_PIN_POLICY:
+      b_tmp = *((CK_BYTE *)templ[i].pValue);
+      if (b_tmp != YKPIV_PINPOLICY_ALWAYS &&
+          b_tmp != YKPIV_PINPOLICY_ONCE &&
+          b_tmp != YKPIV_PINPOLICY_NEVER &&
+          b_tmp != YKPIV_PINPOLICY_DEFAULT) {
+        DBG("Invalid value for CKA_YUBICO_PIN_POLICY");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+      if (*pin_policy != YKPIV_PINPOLICY_DEFAULT &&
+          *pin_policy != b_tmp) {
+        DBG("Inconsistent PIN policy");
+        return CKR_TEMPLATE_INCONSISTENT;
+      }
+      *pin_policy = b_tmp;
+      break;
+
     case CKA_TOKEN:
     case CKA_LABEL:
     case CKA_SUBJECT:
@@ -1641,7 +1696,8 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
                            CK_BYTE_PTR *q, CK_ULONG_PTR q_len,
                            CK_BYTE_PTR *dp, CK_ULONG_PTR dp_len,
                            CK_BYTE_PTR *dq, CK_ULONG_PTR dq_len,
-                           CK_BYTE_PTR *qinv, CK_ULONG_PTR qinv_len) {
+                           CK_BYTE_PTR *qinv, CK_ULONG_PTR qinv_len,
+                           CK_BYTE_PTR touch_policy, CK_BYTE_PTR pin_policy) {
 
   CK_ULONG i;
   CK_BBOOL has_id = CK_FALSE;
@@ -1651,6 +1707,7 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
   CK_BBOOL has_dp = CK_FALSE;
   CK_BBOOL has_dq = CK_FALSE;
   CK_BBOOL has_qinv = CK_FALSE;
+  CK_BYTE b_tmp;
 
   for (i = 0; i < n; i++) {
     switch (templ[i].type) {
@@ -1727,6 +1784,59 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
         DBG("CKA_EXTRACTABLE must be FALSE or omitted");
         return CKR_ATTRIBUTE_VALUE_INVALID;
       }
+      break;
+
+    case CKA_ALWAYS_AUTHENTICATE:
+      if (*((CK_BBOOL *)templ[i].pValue) == CK_TRUE) {
+        if (*pin_policy != YKPIV_PINPOLICY_DEFAULT &&
+            *pin_policy != YKPIV_PINPOLICY_ALWAYS) {
+          DBG("Inconsistent PIN policy");
+          return CKR_TEMPLATE_INCONSISTENT;
+        }
+        *pin_policy = YKPIV_PINPOLICY_ALWAYS;
+      } else if (*((CK_BBOOL *)templ[i].pValue) == CK_FALSE) {
+        if (*pin_policy != YKPIV_PINPOLICY_DEFAULT) {
+          DBG("Inconsistent PIN policy");
+          return CKR_TEMPLATE_INCONSISTENT;
+        }
+      } else {
+        DBG("CKA_ALWAYS_AUTHENTICATE must be TRUE, FALSE, or omitted");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+      break;
+
+    case CKA_YUBICO_TOUCH_POLICY:
+      b_tmp = *((CK_BYTE *)templ[i].pValue);
+      if (b_tmp != YKPIV_TOUCHPOLICY_ALWAYS &&
+          b_tmp != YKPIV_TOUCHPOLICY_CACHED &&
+          b_tmp != YKPIV_TOUCHPOLICY_NEVER &&
+          b_tmp != YKPIV_TOUCHPOLICY_DEFAULT) {
+        DBG("Invalid value for CKA_YUBICO_TOUCH_POLICY");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+      if (*touch_policy != YKPIV_TOUCHPOLICY_DEFAULT &&
+          *touch_policy != b_tmp) {
+        DBG("Inconsistent touch policy");
+        return CKR_TEMPLATE_INCONSISTENT;
+      }
+      *touch_policy = b_tmp;
+      break;
+
+    case CKA_YUBICO_PIN_POLICY:
+      b_tmp = *((CK_BYTE *)templ[i].pValue);
+      if (b_tmp != YKPIV_PINPOLICY_ALWAYS &&
+          b_tmp != YKPIV_PINPOLICY_ONCE &&
+          b_tmp != YKPIV_PINPOLICY_NEVER &&
+          b_tmp != YKPIV_PINPOLICY_DEFAULT) {
+        DBG("Invalid value for CKA_YUBICO_PIN_POLICY");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+      if (*pin_policy != YKPIV_PINPOLICY_DEFAULT &&
+          *pin_policy != b_tmp) {
+        DBG("Inconsistent PIN policy");
+        return CKR_TEMPLATE_INCONSISTENT;
+      }
+      *pin_policy = b_tmp;
       break;
 
     case CKA_TOKEN:

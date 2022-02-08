@@ -508,35 +508,31 @@ static void test_generate_rsa(CK_ULONG key_size, CK_BYTE n_keys) {
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
 }
 
-static void test_generate_rsa_with_policy() {
-  dprintf(0, "TEST START: test_generate_rsa_with_policy()\n");
+static void test_import_rsa_with_policy() {
+  dprintf(0, "TEST START: test_import_rsa_with_policy()\n");
   CK_ULONG key_size = 2048;
-  CK_OBJECT_HANDLE obj_pvtkey = CK_INVALID_HANDLE, obj_pubkey = CK_INVALID_HANDLE;
   CK_SESSION_HANDLE session;
   CK_BYTE i, j;
-  CK_BYTE touch_policies[4] = {YKPIV_TOUCHPOLICY_ALWAYS,  YKPIV_TOUCHPOLICY_CACHED, YKPIV_TOUCHPOLICY_NEVER, YKPIV_TOUCHPOLICY_DEFAULT};
+  CK_BYTE touch_policies[4] = {YKPIV_TOUCHPOLICY_ALWAYS, YKPIV_TOUCHPOLICY_CACHED, YKPIV_TOUCHPOLICY_NEVER, YKPIV_TOUCHPOLICY_DEFAULT};
   CK_BYTE pin_policies[4] = {YKPIV_PINPOLICY_ALWAYS, YKPIV_PINPOLICY_ONCE, YKPIV_PINPOLICY_NEVER, YKPIV_PINPOLICY_DEFAULT};
 
   init_connection();
   asrt(funcs->C_OpenSession(0, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &session), CKR_OK, "OpenSession1");
-
-  // Only generate one key per policy due to execution time. EC will test all slots.
   asrt(funcs->C_Login(session, CKU_SO, (CK_CHAR_PTR)"010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
   for (i = 0; i < sizeof(touch_policies)/sizeof(touch_policies[0]); i++) {
-    for (j = 0; j < sizeof(pin_policies)/sizeof(pin_policies[0]); j++) {
-      generate_rsa_key_with_policy(funcs, session, key_size, &obj_pubkey, &obj_pvtkey, touch_policies[i], pin_policies[j], CK_FALSE);
-      asrt(funcs->C_DestroyObject(session, obj_pvtkey), CKR_OK, "Destroy Object");
+    for (j = 0; j < sizeof(pin_policies)/sizeof(pin_policies[0]); j++) { 
+      import_rsa_key_with_policy(funcs, session, key_size, is_neo ? N_SELECTED_KEYS : N_ALL_KEYS, 
+                                 touch_policies[i], pin_policies[j], CK_FALSE);
     }
   }
 
-  generate_rsa_key_with_policy(funcs, session, key_size, &obj_pubkey, &obj_pvtkey,
-                               YKPIV_TOUCHPOLICY_DEFAULT, YKPIV_PINPOLICY_DEFAULT, CK_TRUE);
-  asrt(funcs->C_DestroyObject(session, obj_pvtkey), CKR_OK, "Destroy Object");
+  import_rsa_key_with_policy(funcs, session, key_size, is_neo ? N_SELECTED_KEYS : N_ALL_KEYS,
+                             YKPIV_TOUCHPOLICY_DEFAULT, YKPIV_PINPOLICY_DEFAULT, CK_TRUE);
 
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");
-  dprintf(0, "TEST END: test_generate_rsa_with_policy()\n");
+  dprintf(0, "TEST END: test_import_rsa_with_policy()\n");
 }
 
 static void test_generate_eccp256_with_policy() {
@@ -914,11 +910,11 @@ int main(void) {
   test_generate_eccp256();
   test_generate_eccp384();
   test_generate_rsakeys();
+  test_generate_eccp256_with_policy();
   test_import_eccp256();
   test_import_eccp384();
   test_import_rsakeys();
-  test_generate_rsa_with_policy();
-  test_generate_eccp256_with_policy();
+  test_import_rsa_with_policy();
   test_sign_eccp256();
   test_sign_eccp384();
   test_sign_rsakeys();
