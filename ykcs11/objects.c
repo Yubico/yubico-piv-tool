@@ -295,7 +295,7 @@ static piv_pubk_obj_t pubkey_objects[] = {
 };
 
 static CK_BBOOL is_local_key(ykcs11_slot_t *s, piv_obj_id_t id) {
-  return s->origin[piv_objects[id].sub_id] == YKPIV_METADATA_ORIGIN_GENERATED;
+  return s->origin[piv_objects[id].sub_id] == YKPIV_METADATA_ORIGIN_GENERATED ? CK_TRUE : CK_FALSE;
 }
 
 /* Get data object attribute */

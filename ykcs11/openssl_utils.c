@@ -200,6 +200,7 @@ CK_RV do_create_ec_key(CK_BYTE_PTR point, CK_ULONG point_len, int curve_name, yk
     rv = CKR_GENERAL_ERROR;
     goto create_ec_cleanup;
   }
+  EVP_PKEY_free(*pkey);
   *pkey = EVP_PKEY_new();
   if(*pkey == NULL) {
     rv = CKR_HOST_MEMORY;
@@ -241,6 +242,7 @@ CK_RV do_create_rsa_key(CK_BYTE_PTR mod, CK_ULONG mod_len, CK_BYTE_PTR exp, CK_U
     rv = CKR_GENERAL_ERROR;
     goto create_rsa_cleanup;
   }
+  EVP_PKEY_free(*pkey);
   *pkey = EVP_PKEY_new();
   if(*pkey == NULL) {
     rv = CKR_HOST_MEMORY;
