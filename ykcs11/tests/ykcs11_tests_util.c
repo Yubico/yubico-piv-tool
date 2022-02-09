@@ -1501,10 +1501,11 @@ void test_privkey_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session,
   asrt(template[3].ulValueLen, sizeof(CK_BYTE), "ATTRIBUTE LEN");
 
   // Adjust expected values for attributes that interact
-  if ((pin_attr_val == YKPIV_PINPOLICY_ALWAYS || (pin_attr_val == YKPIV_PINPOLICY_DEFAULT && id == 2)) && always_auth_val == CK_FALSE)
-    always_auth_val = CK_TRUE;
-  else if (pin_attr_val == YKPIV_PINPOLICY_DEFAULT && always_auth_val)
-    pin_attr_val = YKPIV_PINPOLICY_ALWAYS;
+  if (pin_attr_val == YKPIV_PINPOLICY_DEFAULT)
+    pin_attr_val = (always_auth_val || id == 2) ? YKPIV_PINPOLICY_ALWAYS : (id == 4 ? YKPIV_PINPOLICY_NEVER : YKPIV_PINPOLICY_ONCE);
+  if (touch_attr_val == YKPIV_TOUCHPOLICY_DEFAULT)
+    touch_attr_val = YKPIV_TOUCHPOLICY_NEVER;
+  always_auth_val = pin_attr_val == YKPIV_PINPOLICY_ALWAYS ? CK_TRUE : CK_FALSE;
 
   asrt(touch_pol, touch_attr_val, "TOUCH POLICY");
   asrt(pin_pol, pin_attr_val, "PIN POLICY");
