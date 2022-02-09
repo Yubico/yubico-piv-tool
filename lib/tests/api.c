@@ -661,6 +661,7 @@ static void test_authenticate_helper(bool full) {
   ck_assert_int_eq(crc, CIPHER_OK);
   uint32_t cipher_len = (uint32_t)data_len;
   crc = cipher_encrypt(cipher, data, cipher_len, data, &cipher_len);
+  data_len = cipher_len;
   ck_assert_int_eq(crc, CIPHER_OK);
   crc = cipher_destroy_key(cipher);
   ck_assert_int_eq(crc, CIPHER_OK);
@@ -669,6 +670,7 @@ static void test_authenticate_helper(bool full) {
   ck_assert_int_eq(res, YKPIV_OK);
 
   // Metadata support implies AES support for YKPIV_KEY_CARDMGM
+  data_len = sizeof(data);
   res = ykpiv_get_metadata(g_state, YKPIV_KEY_CARDMGM, data, &data_len);
   if(YKPIV_OK == res) {
     // AES 128 key
