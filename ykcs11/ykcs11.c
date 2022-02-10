@@ -1411,6 +1411,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
   piv_obj_id_t     cert_id;
   piv_obj_id_t     pubk_id;
   piv_obj_id_t     pvtk_id;
+  CK_BYTE          touch_policy = YKPIV_TOUCHPOLICY_DEFAULT;
+  CK_BYTE          pin_policy = YKPIV_PINPOLICY_DEFAULT;
 
   if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
@@ -1512,7 +1514,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
 
     // Try to parse the key as EC
     is_rsa = CK_FALSE;
-    rv = check_create_ec_key(pTemplate, ulCount, &id, &ec_data, &ec_data_len);
+    rv = check_create_ec_key(pTemplate, ulCount, &id,
+                             &ec_data, &ec_data_len,
+                             &touch_policy, &pin_policy);
     if (rv != CKR_OK) {
       // Try to parse the key as RSA
       is_rsa = CK_TRUE;
@@ -1521,7 +1525,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
                                 &q, &q_len,
                                 &dp, &dp_len,
                                 &dq, &dq_len,
-                                &qinv, &qinv_len);
+                                &qinv, &qinv_len,
+                                &touch_policy, &pin_policy);
       if (rv != CKR_OK) {
         DBG("Private key template not valid");
         goto create_out;
@@ -1551,7 +1556,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
                                           dp, dp_len,
                                           dq, dq_len,
                                           qinv, qinv_len,
-                                          NULL, 0);
+                                          NULL, 0,
+                                          touch_policy, pin_policy);
       if (rv != CKR_OK) {
         DBG("Unable to import RSA private key");
         locking.pfnUnlockMutex(session->slot->mutex);
@@ -1566,7 +1572,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
                                           NULL, 0,
                                           NULL, 0,
                                           NULL, 0,
-                                          ec_data, ec_data_len);
+                                          ec_data, ec_data_len,
+                                          touch_policy, pin_policy);
       if (rv != CKR_OK) {
         DBG("Unable to import ECDSA private key");
         locking.pfnUnlockMutex(session->slot->mutex);
@@ -1575,8 +1582,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     }
 
     session->slot->origin[id] = YKPIV_METADATA_ORIGIN_IMPORTED;
-    session->slot->pin_policy[id] = YKPIV_PINPOLICY_DEFAULT;
-    session->slot->touch_policy[id] = YKPIV_TOUCHPOLICY_DEFAULT;
+    session->slot->pin_policy[id] = pin_policy;
+    session->slot->touch_policy[id] = touch_policy;
 
     unsigned char data[YKPIV_OBJ_MAX_SIZE];
     size_t len = sizeof(data);
