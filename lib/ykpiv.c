@@ -796,6 +796,7 @@ static ykpiv_rc _send_tpdu(ykpiv_state *state, const unsigned char *send_data, p
   }
   if(*recv_len >= 2) {
     *sw = (recv_data[*recv_len - 2] << 8) | recv_data[*recv_len - 1];
+    *recv_len -= 2;
   } else {
     *sw = 0;
   }
@@ -845,17 +846,17 @@ ykpiv_rc _ykpiv_transfer_data(ykpiv_state *state,
     if(*sw != SW_SUCCESS && *sw >> 8 != 0x61) {
       goto Cleanup;
     }
-    if(*out_len + recv_len - 2 > max_out) {
+    if(*out_len + recv_len > max_out) {
       if(state->verbose) {
-        fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.\n", *out_len + recv_len - 2, max_out);
+        fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.\n", *out_len + recv_len, max_out);
       }
       res = YKPIV_SIZE_ERROR;
       goto Cleanup;
     }
     if(out_data) {
-      memcpy(out_data, data, recv_len - 2);
-      out_data += recv_len - 2;
-      *out_len += recv_len - 2;
+      memcpy(out_data, data, recv_len);
+      out_data += recv_len;
+      *out_len += recv_len;
     }
   } while(in_ptr < in_data + in_len);
   while(*sw >> 8 == 0x61) {
@@ -873,17 +874,17 @@ ykpiv_rc _ykpiv_transfer_data(ykpiv_state *state,
     } else if(*sw != SW_SUCCESS && *sw >> 8 != 0x61) {
       goto Cleanup;
     }
-    if(*out_len + recv_len - 2 > max_out) {
+    if(*out_len + recv_len > max_out) {
       if(state->verbose) {
-        fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.", *out_len + recv_len - 2, max_out);
+        fprintf(stderr, "Output buffer to small, wanted to write %lu, max was %lu.", *out_len + recv_len, max_out);
       }
       res = YKPIV_SIZE_ERROR;
       goto Cleanup;
     }
     if(out_data) {
-      memcpy(out_data, data, recv_len - 2);
-      out_data += recv_len - 2;
-      *out_len += recv_len - 2;
+      memcpy(out_data, data, recv_len);
+      out_data += recv_len;
+      *out_len += recv_len;
     }
   }
 Cleanup:
@@ -1099,10 +1100,7 @@ ykpiv_rc ykpiv_set_mgmkey2(ykpiv_state *state, const unsigned char *new_key, con
 }
 
 ykpiv_rc ykpiv_set_mgmkey3(ykpiv_state *state, const unsigned char *new_key, size_t len, unsigned char algo, unsigned char touch) {
-  APDU apdu = {0};
   unsigned char data[261] = {0};
-  unsigned long recv_len = sizeof(data);
-  int sw;
   ykpiv_rc res = YKPIV_OK;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
@@ -1136,6 +1134,7 @@ ykpiv_rc ykpiv_set_mgmkey3(ykpiv_state *state, const unsigned char *new_key, siz
     goto Cleanup;
   }
 
+  APDU apdu = {0};
   apdu.st.ins = YKPIV_INS_SET_MGMKEY;
   apdu.st.p1 = 0xff;
   if (touch <= YKPIV_TOUCHPOLICY_NEVER) {
@@ -1158,6 +1157,8 @@ ykpiv_rc ykpiv_set_mgmkey3(ykpiv_state *state, const unsigned char *new_key, siz
   apdu.st.data[2] = len;
   memcpy(apdu.st.data + 3, new_key, len);
 
+  int sw = 0;
+  unsigned long recv_len = sizeof(data);
   if ((res = _ykpiv_send_apdu(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
     goto Cleanup;
   }
@@ -1580,16 +1581,12 @@ static ykpiv_rc _cache_mgm_key(ykpiv_state *state, unsigned const char *key, siz
 }
 
 static ykpiv_rc _ykpiv_verify(ykpiv_state *state, const char *pin, const size_t pin_len) {
-  APDU apdu = {0};
-  unsigned char data[261] = {0};
-  unsigned long recv_len = sizeof(data);
-  int sw;
-  ykpiv_rc res;
 
   if (pin_len > CB_PIN_MAX) {
     return YKPIV_SIZE_ERROR;
   }
 
+  APDU apdu = {0};
   apdu.st.ins = YKPIV_INS_VERIFY;
   apdu.st.p1 = 0x00;
   apdu.st.p2 = 0x80;
@@ -1601,7 +1598,10 @@ static ykpiv_rc _ykpiv_verify(ykpiv_state *state, const char *pin, const size_t 
     }
   }
 
-  res = _ykpiv_send_apdu(state, &apdu, data, &recv_len, &sw);
+  int sw = 0;
+  unsigned char data[261] = {0};
+  unsigned long recv_len = sizeof(data);
+  ykpiv_rc res = _ykpiv_send_apdu(state, &apdu, data, &recv_len, &sw);
   yc_memzero(&apdu, sizeof(apdu));
 
   if (res != YKPIV_OK) {
@@ -2142,12 +2142,8 @@ Cleanup:
 }
 
 ykpiv_rc ykpiv_auth_getchallenge(ykpiv_state *state, uint8_t *challenge, size_t *challenge_len) {
-  ykpiv_rc res = YKPIV_OK;
-  APDU apdu = { 0 };
-  unsigned char data[261] = { 0 };
-  unsigned long recv_len = sizeof(data);
-  int sw = 0;
-
+  ykpiv_rc res;
+  
   if (NULL == state) return YKPIV_GENERIC_ERROR;
   if (NULL == challenge) return YKPIV_GENERIC_ERROR;
   if (NULL == challenge_len) return YKPIV_GENERIC_ERROR;
@@ -2156,16 +2152,18 @@ ykpiv_rc ykpiv_auth_getchallenge(ykpiv_state *state, uint8_t *challenge, size_t 
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   ykpiv_metadata metadata = {YKPIV_ALGO_3DES};
-  unsigned long data_len = sizeof(data);
-  res = _ykpiv_get_metadata(state, YKPIV_KEY_CARDMGM, data, &data_len);
+  unsigned char data[261] = {0};
+  unsigned long recv_len = sizeof(data);
+  res = _ykpiv_get_metadata(state, YKPIV_KEY_CARDMGM, data, &recv_len);
   if (res == YKPIV_OK) {
-    res = ykpiv_util_parse_metadata(data, data_len, &metadata);
+    res = ykpiv_util_parse_metadata(data, recv_len, &metadata);
     if (res != YKPIV_OK) {
       goto Cleanup;
     }
   }
 
   /* get a challenge from the card */
+  APDU apdu = {0};
   apdu.st.ins = YKPIV_INS_AUTHENTICATE;
   apdu.st.p1 = metadata.algorithm;
   apdu.st.p2 = YKPIV_KEY_CARDMGM; /* management key */
@@ -2173,7 +2171,11 @@ ykpiv_rc ykpiv_auth_getchallenge(ykpiv_state *state, uint8_t *challenge, size_t 
   apdu.st.data[0] = 0x7c;
   apdu.st.data[1] = 0x02;
   apdu.st.data[2] = 0x81; //0x80;
-  if ((res = _ykpiv_send_apdu(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
+  apdu.st.data[3] = 0x00;
+  int sw = 0;
+  recv_len = sizeof(data);
+  if ((res = _ykpiv_send_apdu(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK)
+  {
     goto Cleanup;
   }
   else if (sw != SW_SUCCESS) {
@@ -2181,11 +2183,11 @@ ykpiv_rc ykpiv_auth_getchallenge(ykpiv_state *state, uint8_t *challenge, size_t 
     goto Cleanup;
   }
 
-  if(*challenge_len >= recv_len - 6) {
-    *challenge_len = recv_len - 6;
+  if(*challenge_len >= recv_len - 4) {
+    *challenge_len = recv_len - 4;
     memcpy(challenge, data + 4, *challenge_len);
   } else {
-    *challenge_len = recv_len - 6;
+    *challenge_len = recv_len - 4;
     res = YKPIV_SIZE_ERROR;
   }
 
@@ -2196,12 +2198,7 @@ Cleanup:
 }
 
 ykpiv_rc ykpiv_auth_verifyresponse(ykpiv_state *state, uint8_t *response, size_t response_len) {
-  ykpiv_rc res = YKPIV_OK;
-  APDU apdu = { 0 };
-  unsigned char data[261] = { 0 };
-  unsigned long recv_len = sizeof(data);
-  int sw = 0;
-  unsigned char *dataptr = apdu.st.data;
+  ykpiv_rc res;
 
   if (NULL == state) return YKPIV_GENERIC_ERROR;
   if (NULL == response) return YKPIV_GENERIC_ERROR;
@@ -2210,19 +2207,22 @@ ykpiv_rc ykpiv_auth_verifyresponse(ykpiv_state *state, uint8_t *response, size_t
   /* note: do not select the applet here, as it resets the challenge state */
 
   ykpiv_metadata metadata = {YKPIV_ALGO_3DES};
-  unsigned long data_len = sizeof(data);
-  res = _ykpiv_get_metadata(state, YKPIV_KEY_CARDMGM, data, &data_len);
+  unsigned char data[261] = {0};
+  unsigned long recv_len = sizeof(data);
+  res = _ykpiv_get_metadata(state, YKPIV_KEY_CARDMGM, data, &recv_len);
   if (res == YKPIV_OK) {
-    res = ykpiv_util_parse_metadata(data, data_len, &metadata);
+    res = ykpiv_util_parse_metadata(data, recv_len, &metadata);
     if (res != YKPIV_OK) {
       goto Cleanup;
     }
   }
 
   /* send the response to the card and a challenge of our own. */
+  APDU apdu = {0};
   apdu.st.ins = YKPIV_INS_AUTHENTICATE;
   apdu.st.p1 = metadata.algorithm;
   apdu.st.p2 = YKPIV_KEY_CARDMGM; /* management key */
+  unsigned char *dataptr = apdu.st.data;
   *dataptr++ = 0x7c;
   *dataptr++ = 2 + response_len;
   *dataptr++ = 0x82;
@@ -2230,7 +2230,10 @@ ykpiv_rc ykpiv_auth_verifyresponse(ykpiv_state *state, uint8_t *response, size_t
   memcpy(dataptr, response, response_len);
   dataptr += response_len;
   apdu.st.lc = (unsigned char)(dataptr - apdu.st.data);
-  if ((res = _ykpiv_send_apdu(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
+  int sw = 0;
+  recv_len = sizeof(data);
+  if ((res = _ykpiv_send_apdu(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK)
+  {
     goto Cleanup;
   }
   else if (sw != SW_SUCCESS) {
