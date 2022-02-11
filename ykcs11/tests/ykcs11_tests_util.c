@@ -991,7 +991,7 @@ void test_rsa_sign_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session,
       ctx = EVP_PKEY_CTX_new(evp, NULL);
       asrt(ctx != NULL, 1, "EVP_KEY_CTX_new");
       asrt(EVP_PKEY_verify_init(ctx) > 0, 1, "EVP_KEY_verify_init");
-      asrt(EVP_PKEY_CTX_set_signature_md(ctx, NULL) > 0, 1, "EVP_PKEY_CTX_set_signature_md");
+      EVP_PKEY_CTX_set_signature_md(ctx, NULL);
       asrt(EVP_PKEY_verify(ctx, sig, sig_len, data, 32), 1, "EVP_PKEY_verify");
       EVP_PKEY_CTX_free(ctx);
     } else {
@@ -1043,7 +1043,7 @@ void test_rsa_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE sessio
         ctx = EVP_PKEY_CTX_new(evp, NULL);
         asrt(ctx != NULL, 1, "EVP_KEY_CTX_new");
         asrt(EVP_PKEY_verify_init(ctx) > 0, 1, "EVP_KEY_verify_init");
-        asrt(EVP_PKEY_CTX_set_signature_md(ctx, NULL) > 0, 1, "EVP_PKEY_CTX_set_signature_md");
+        EVP_PKEY_CTX_set_signature_md(ctx, NULL);
         asrt(EVP_PKEY_verify(ctx, sig, sig_len, hdata, hdata_len), 1, "EVP_PKEY_verify");
         EVP_PKEY_CTX_free(ctx);
       }
