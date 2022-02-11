@@ -346,6 +346,7 @@ ykpiv_rc _ykpiv_select_application(ykpiv_state *state) {
     if (state->verbose) {
       fprintf(stderr, "Failed to retrieve version: '%s'\n", ykpiv_strerror(res));
     }
+    return res;
   }
 
   res = _ykpiv_get_serial(state);
@@ -1389,7 +1390,7 @@ ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len) {
 
   if ((res = _ykpiv_get_version(state)) >= YKPIV_OK) {
     int result = snprintf(version, len, "%d.%d.%d", state->ver.major, state->ver.minor, state->ver.patch);
-    if(result < 0 || result >= (int)len) {
+    if(result <= 0 || result >= (int)len) {
       res = YKPIV_SIZE_ERROR;
     }
   }
