@@ -78,6 +78,9 @@ jobs:
 
           sudo make install
 
+          ls /usr/local/lib
+          ldd /usr/local/bin/yubico-piv-tool
+
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
           objdump -T /usr/local/lib/libykcs11.so | grep C_Sign
