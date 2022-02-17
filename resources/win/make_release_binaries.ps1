@@ -54,7 +54,7 @@ mkdir -p $LICENSES_DIR
 $license=(Get-ChildItem -Path $SOURCE_DIR -Filter COPYING -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
 cp $license $LICENSES_DIR\yubico-piv-tool.txt
 
-$license=(Get-ChildItem -Path $VCPKG_PATH\buildtrees\openssl-windows\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
+$license=(Get-ChildItem -Path $VCPKG_PATH\buildtrees\openssl\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
 cp $license $LICENSES_DIR\openssl.txt
 
 $license=(Get-ChildItem -Path $VCPKG_PATH\buildtrees\getopt-win32\src\ -Filter LICENSE -Recurse -ErrorAction SilentlyContinue -Force | %{$_.FullName})
