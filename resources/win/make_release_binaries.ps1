@@ -61,7 +61,7 @@ $license=(Get-ChildItem -Path $VCPKG_PATH\buildtrees\getopt-win32\src\ -Filter L
 cp $license $LICENSES_DIR\getopt.txt
 
 # Copy OpenSSL header files
-cp -r $VCPKG_PATH\packages\openssl-windows_$ARCH-windows\include\openssl $RELEASE_DIR/include/
+cp -r $VCPKG_PATH\packages\openssl_$ARCH-windows\include\openssl $RELEASE_DIR/include/
 
 if($ZIP)
 {
