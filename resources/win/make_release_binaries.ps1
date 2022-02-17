@@ -38,12 +38,12 @@ cmake --install .
 cd $RELEASE_DIR/bin
 if($ARCH -eq "x86")
 {
-    cp $VCPKG_PATH/packages/openssl-windows_x86-windows/bin/libcrypto-1_1.dll .
+    cp $VCPKG_PATH/packages/openssl_x86-windows/bin/libcrypto-1_1.dll .
     cp $VCPKG_PATH/packages/getopt-win32_x86-windows/bin/getopt.dll .
 }
 else
 {
-    cp $VCPKG_PATH/packages/openssl-windows_x64-windows/bin/libcrypto-1_1-x64.dll .
+    cp $VCPKG_PATH/packages/openssl_x64-windows/bin/libcrypto-1_1-x64.dll .
     cp $VCPKG_PATH/packages/getopt-win32_x64-windows/bin/getopt.dll .
 }
 

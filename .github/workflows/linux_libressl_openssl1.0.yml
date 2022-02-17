@@ -67,6 +67,8 @@ jobs:
       - name: Build and install
         run: |
           set -x
+          echo GITHUB_WORKSPACE=$GITHUB_WORKSPACE
+          ls /home/runner/work/yubico-piv-tool/openssl1.0/lib
           mkdir build; cd build
           PKG_CONFIG_PATH=/home/runner/work/yubico-piv-tool/openssl1.0/lib/pkgconfig cmake .. -DVERBOSE_CMAKE=ON
           make
