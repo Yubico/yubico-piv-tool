@@ -72,6 +72,11 @@ jobs:
         run: |
           Set-PSDebug -Trace 1
           $PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION"
+
+
+          Get-Childitem –Path 'C:\Program Files (x86)\Microsoft Visual Studio' -Include Microsoft_VC142_CRT_x86.msm -Recurse -ErrorAction SilentlyContinue
+
+
           $MERGEDPATH = Get-ChildItem "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Redist\MSVC\14.*\MergeModules\Microsoft_VC142_CRT_x86.msm"
 
           cd $PIVTOOL_SRC_DIR/resources/win
