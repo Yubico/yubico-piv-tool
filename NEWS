@@ -1,5 +1,18 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
+* Version 2.3.0 (released 2022-03-01)
+
+** ykpiv: Add support for AES management keys
+** ykpiv: Better handling of connection reset
+** ykpiv: Add support for T=0 protocol
+** ykcs11: Support YubiKeys in NFC readers
+** ykcs11: Support touch and PIN policies for imported private keys
+** ykcs11: Support touch and PIN policy when generating keys
+** ykcs11: Set length to -1 on function fail
+** ykcs11: Ignore CKA_NAME_HASH_ALGORITHM and CKA_HASH_OF_SUBJECT_PUBLIC_KEY for certificates
+** cmd: Support attestation in selfsign certificates
+** build: Compile cleanly with openssl 1.1 and 3
+
 * Version 2.2.1 (released 2021-09-07)
 
 ** ykpiv: Minor bug fixes

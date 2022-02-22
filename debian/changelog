@@ -1,3 +1,18 @@
+yubico-piv-tool (2.3.0) stable; urgency=medium
+
+  * ykpiv: Add support for AES management keys
+  * ykpiv: Better handling of connection reset
+  * ykpiv: Add support for T=0 protocol
+  * ykcs11: Support YubiKeys in NFC readers
+  * ykcs11: Support touch and PIN policies for imported private keys
+  * ykcs11: Support touch and PIN policy when generating keys
+  * ykcs11: Set length to -1 on function fail
+  * ykcs11: Ignore CKA_NAME_HASH_ALGORITHM and CKA_HASH_OF_SUBJECT_PUBLIC_KEY for certificates
+  * cmd: Support attestation in selfsign certificates
+  * build: Compile cleanly with openssl 1.1 and 3
+
+ -- Aveen Ismail <aveen.ismail@yubico.com>  Tue, 1 Mar 2022 14:14:50 +0100
+
 yubico-piv-tool (2.2.1) stable; urgency=medium
 
   * 2.2.1 release

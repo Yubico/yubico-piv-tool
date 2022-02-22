@@ -10,7 +10,7 @@ jobs:
     name: Build dist with Linux
     runs-on: ubuntu-latest
     env:
-      RELEASE_VERSION: 2.2.1
+      RELEASE_VERSION: 2.3.0
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -36,7 +36,7 @@ jobs:
     needs: job_1
     runs-on: macos-latest
     env:
-      RELEASE_VERSION: 2.2.1
+      RELEASE_VERSION: 2.3.0
       SO_VERSION: 2
     steps:
       - name: Download source from job_1
