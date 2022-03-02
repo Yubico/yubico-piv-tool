@@ -281,7 +281,7 @@ void test_digest_func(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   CK_BYTE     digest_update[128] = {0};
   CK_ULONG    digest_update_len;
   CK_BYTE     hdata[128] = {0};
-  CK_ULONG    hdata_len;
+  CK_ULONG    hdata_len = 0;
 
   CK_MECHANISM mech = {mech_type, NULL, 0};
 
@@ -1015,7 +1015,7 @@ void test_rsa_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE sessio
   EVP_PKEY_CTX *ctx = NULL;
 
   CK_BYTE     hdata[512] = {0};
-  CK_ULONG    hdata_len;
+  CK_ULONG    hdata_len = 0;
 
   CK_OBJECT_HANDLE obj_pubkey;
   CK_MECHANISM mech = {mech_type, NULL, 0};
