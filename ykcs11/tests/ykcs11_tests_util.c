@@ -281,7 +281,7 @@ void test_digest_func(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   CK_BYTE     digest_update[128] = {0};
   CK_ULONG    digest_update_len;
   CK_BYTE     hdata[128] = {0};
-  CK_ULONG    hdata_len;
+  CK_ULONG    hdata_len = 0;
 
   CK_MECHANISM mech = {mech_type, NULL, 0};
 
@@ -1015,7 +1015,7 @@ void test_rsa_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE sessio
   EVP_PKEY_CTX *ctx = NULL;
 
   CK_BYTE     hdata[512] = {0};
-  CK_ULONG    hdata_len;
+  CK_ULONG    hdata_len = 0;
 
   CK_OBJECT_HANDLE obj_pubkey;
   CK_MECHANISM mech = {mech_type, NULL, 0};
@@ -1193,7 +1193,7 @@ void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   CK_BYTE*  data;
   CK_BYTE   enc[512] = {0};
   CK_BYTE*  dec;
-  CK_ULONG  dec_len;
+  CK_ULONG  dec_len, dec_len_backup;
 
   if(padding == RSA_NO_PADDING) {
     data_len = RSA_size(rsak);
@@ -1228,12 +1228,14 @@ void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
       // Decrypt Update
       asrt(funcs->C_DecryptInit(session, &mech, obj_pvtkey[i]), CKR_OK, "DECRYPT INIT");
       asrt(funcs->C_Login(session, CKU_CONTEXT_SPECIFIC, (CK_CHAR_PTR)"123456", 6), CKR_OK, "Re-Login USER");
-      dec_len = sizeof(dec);
+      dec = malloc(dec_len);
+      dec_len_backup = dec_len;
       asrt(funcs->C_DecryptUpdate(session, enc, 100, dec, &dec_len), CKR_OK, "DECRYPT UPDATE");
-      dec_len = sizeof(dec);
+      dec_len = dec_len_backup;
       asrt(funcs->C_DecryptUpdate(session, enc+100, 8, dec, &dec_len), CKR_OK, "DECRYPT UPDATE");
-      dec_len = sizeof(dec);
+      dec_len = dec_len_backup;
       asrt(funcs->C_DecryptUpdate(session, enc+108, 20, dec, &dec_len), CKR_OK, "DECRYPT UPDATE");
+      free(dec);
       dec_len = 0;
       asrt(funcs->C_DecryptFinal(session, NULL, &dec_len), CKR_OK, "DECRYPT FINAL");
       dec = malloc(dec_len);
