@@ -100,7 +100,8 @@ void test_privkey_attributes_rsa(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE s
 
 void test_privkey_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session,
                          CK_OBJECT_HANDLE privkey, CK_BYTE touch_attr_val,
-                         CK_BYTE pin_attr_val, CK_BBOOL always_auth_val);
+                         CK_BYTE pin_attr_val, CK_BBOOL always_auth_val,
+                         CK_BYTE major, CK_BYTE minor);
 
 void test_find_objects_by_class(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
                                 CK_ULONG class, CK_BYTE ckaid,
