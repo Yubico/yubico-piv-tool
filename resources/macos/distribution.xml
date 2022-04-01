@@ -2,7 +2,7 @@
 <installer-gui-script minSpecVersion="1">
     <title>yubico-piv-tool</title>
     <pkg-ref id="com.yubico.yubico-piv-tool"/>
-    <options customize="never" require-scripts="false"/>
+    <options hostArchitectures="x86_64,arm64" customize="never" require-scripts="false"/>
     <choices-outline>
         <line choice="default">
             <line choice="com.yubico.yubico-piv-tool"/>
