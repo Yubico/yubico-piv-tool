@@ -69,7 +69,7 @@ jobs:
           set -x
 
           rm -rf build; mkdir build; cd build
-          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_STATIC_LINK=ON
+          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_STATIC_LINK=ON -B .
           make
           make test
 
@@ -93,7 +93,7 @@ jobs:
           set -x
 
           rm -rf build; mkdir build; cd build
-          cmake .. -DVERBOSE_CMAKE=ON -DYKCS11_DBG=3
+          cmake .. -DVERBOSE_CMAKE=ON -DYKCS11_DBG=3 -B .
           make
           make test
 
@@ -105,7 +105,7 @@ jobs:
         run: |
           set -x
           rm -rf build; mkdir build; cd build
-          cmake .. -DVERBOSE_CMAKE=ON -DBUILD_ONLY_LIB=ON
+          cmake .. -DVERBOSE_CMAKE=ON -DBUILD_ONLY_LIB=ON -B .
           make
           make test
 
@@ -113,7 +113,7 @@ jobs:
         run: |
           set -x
           rm -rf build; mkdir build; cd build
-          cmake .. -DVERBOSE_CMAKE=ON -DBUILD_STATIC_LIB=OFF
+          cmake .. -DVERBOSE_CMAKE=ON -DBUILD_STATIC_LIB=OFF -B .
           make
           make test
 
@@ -163,7 +163,7 @@ jobs:
         run: |
           set -x
           mkdir build_dir;
-          cd build_dir; cmake -DCMAKE_INSTALL_PREFIX=../debian/tmp/usr ..
+          cd build_dir; cmake -DCMAKE_INSTALL_PREFIX=../debian/tmp/usr .. -B .
           cd ..
           make -C build_dir
           cd build_dir; cmake -P cmake_install.cmake
@@ -181,7 +181,7 @@ jobs:
           set -x
 
           rm -rf build; mkdir build; cd build
-          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_STATIC_LINK=ON
+          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_STATIC_LINK=ON -B .
           make
           make test
 
@@ -205,7 +205,7 @@ jobs:
           set -x
 
           rm -rf build; mkdir build; cd build
-          cmake .. -DVERBOSE_CMAKE=ON -DYKCS11_DBG=3
+          cmake .. -DVERBOSE_CMAKE=ON -DYKCS11_DBG=3 -B .
           make
           make test
 
@@ -217,7 +217,7 @@ jobs:
         run: |
           set -x
           rm -rf build; mkdir build; cd build
-          cmake .. -DVERBOSE_CMAKE=ON -DBUILD_ONLY_LIB=ON
+          cmake .. -DVERBOSE_CMAKE=ON -DBUILD_ONLY_LIB=ON -B .
           make
           make test
 
@@ -225,6 +225,6 @@ jobs:
         run: |
           set -x
           rm -rf build; mkdir build; cd build
-          cmake .. -DVERBOSE_CMAKE=ON -DBUILD_STATIC_LIB=OFF
+          cmake .. -DVERBOSE_CMAKE=ON -DBUILD_STATIC_LIB=OFF -B .
           make
           make test
