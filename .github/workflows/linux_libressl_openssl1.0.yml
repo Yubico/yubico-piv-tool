@@ -42,9 +42,10 @@ jobs:
           sudo make install
 
           cd ..
-          export LD_LIBRARY_PATH=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_LIB_DIR:PATH=\s*\(\S*\).*$/\1/p")
+          LIBDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_LIB_DIR:PATH=\s*\(\S*\).*$/\1/p")
+          export LD_LIBRARY_PATH=$LIBDIR
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
-          objdump -T /usr/local/lib/libykcs11.so | grep C_Sign
+          objdump -T $LIBDIR/libykcs11.so | grep C_Sign
 
   job_2:
     name: Build with OpenSSL 1.0
@@ -82,8 +83,9 @@ jobs:
           ldd ykcs11/libykcs11.so | grep libcrypto.so
 
           sudo make install
-          
+
           cd ..
-          export LD_LIBRARY_PATH=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_LIB_DIR:PATH=\s*\(\S*\).*$/\1/p")
+          LIBDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_LIB_DIR:PATH=\s*\(\S*\).*$/\1/p")
+          export LD_LIBRARY_PATH=$LIBDIR
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
-          objdump -T /usr/local/lib/libykcs11.so | grep C_Sign
+          objdump -T $LIBDIR/libykcs11.so | grep C_Sign
