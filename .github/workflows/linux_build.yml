@@ -35,20 +35,26 @@ jobs:
           sudo make install
           sudo ldconfig
 
+          cd ..
+          LIBDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_LIB_DIR:PATH=\s*\(\S*\).*$/\1/p")
+          BINDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_BIN_DIR:PATH=\s*\(\S*\).*$/\1/p")
+
+          echo "libdir: $LIBDIR"
+          echo "bindir: $BINDIR"
+
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
-          objdump -T /usr/local/lib/libykcs11.so | grep C_Sign
-          pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico
+          objdump -T $LIBDIR/libykcs11.so | grep C_Sign
+          pkcs11-tool --module $LIBDIR/libykcs11.so --show-info | grep Yubico
 
-          cd /usr/local
-          sudo rm bin/yubico-piv-tool
-          sudo rm lib/libyk*
+          sudo rm $BINDIR/yubico-piv-tool
+          sudo rm $LIBDIR/libyk*
 
       - name: Build and install debian package
         run: |
           set -x
           mkdir build_dir;
-          cd build_dir; cmake -DCMAKE_INSTALL_PREFIX=../debian/tmp/usr ..
+          cd build_dir; cmake -DCMAKE_INSTALL_PREFIX=../debian/tmp/usr .. -B .
           cd ..
           make -C build_dir
           cd build_dir; cmake -P cmake_install.cmake
@@ -66,7 +72,7 @@ jobs:
           set -x
 
           rm -rf build; mkdir build; cd build
-          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_STATIC_LINK=ON
+          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_STATIC_LINK=ON -B .
           make
           make test
 
@@ -81,14 +87,16 @@ jobs:
 
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
-          pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico
+          cd ..
+          LIBDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_LIB_DIR:PATH=\s*\(\S*\).*$/\1/p")
+          pkcs11-tool --module $LIBDIR/libykcs11.so --show-info | grep Yubico
 
       - name: Build with YKCS11_DBG is set
         run: |
           set -x
 
           rm -rf build; mkdir build; cd build
-          cmake .. -DVERBOSE_CMAKE=ON -DYKCS11_DBG=3
+          cmake .. -DVERBOSE_CMAKE=ON -DYKCS11_DBG=3 -B .
           make
           make test
 
@@ -100,7 +108,7 @@ jobs:
         run: |
           set -x
           rm -rf build; mkdir build; cd build
-          cmake .. -DVERBOSE_CMAKE=ON -DBUILD_ONLY_LIB=ON
+          cmake .. -DVERBOSE_CMAKE=ON -DBUILD_ONLY_LIB=ON -B .
           make
           make test
 
@@ -108,7 +116,7 @@ jobs:
         run: |
           set -x
           rm -rf build; mkdir build; cd build
-          cmake .. -DVERBOSE_CMAKE=ON -DBUILD_STATIC_LIB=OFF
+          cmake .. -DVERBOSE_CMAKE=ON -DBUILD_STATIC_LIB=OFF -B .
           make
           make test
 
@@ -142,20 +150,23 @@ jobs:
           sudo make install
           sudo ldconfig
 
+          cd ..
+          LIBDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_LIB_DIR:PATH=\s*\(\S*\).*$/\1/p")
+          BINDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_BIN_DIR:PATH=\s*\(\S*\).*$/\1/p")
+
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
-          objdump -T /usr/local/lib/libykcs11.so | grep C_Sign
-          pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico
+          objdump -T $LIBDIR/libykcs11.so | grep C_Sign
+          pkcs11-tool --module $LIBDIR/libykcs11.so --show-info | grep Yubico
 
-          cd /usr/local
-          sudo rm bin/yubico-piv-tool
-          sudo rm lib/libyk*
+          sudo rm $BINDIR/yubico-piv-tool
+          sudo rm $LIBDIR/libyk*
 
       - name: Build and install debian package
         run: |
           set -x
           mkdir build_dir;
-          cd build_dir; cmake -DCMAKE_INSTALL_PREFIX=../debian/tmp/usr ..
+          cd build_dir; cmake -DCMAKE_INSTALL_PREFIX=../debian/tmp/usr .. -B .
           cd ..
           make -C build_dir
           cd build_dir; cmake -P cmake_install.cmake
@@ -173,7 +184,7 @@ jobs:
           set -x
 
           rm -rf build; mkdir build; cd build
-          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_STATIC_LINK=ON
+          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_STATIC_LINK=ON -B .
           make
           make test
 
@@ -188,14 +199,16 @@ jobs:
 
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
-          pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico
+          cd ..
+          LIBDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_LIB_DIR:PATH=\s*\(\S*\).*$/\1/p")
+          pkcs11-tool --module $LIBDIR/libykcs11.so --show-info | grep Yubico
 
       - name: Build with YKCS11_DBG is set
         run: |
           set -x
 
           rm -rf build; mkdir build; cd build
-          cmake .. -DVERBOSE_CMAKE=ON -DYKCS11_DBG=3
+          cmake .. -DVERBOSE_CMAKE=ON -DYKCS11_DBG=3 -B .
           make
           make test
 
@@ -207,7 +220,7 @@ jobs:
         run: |
           set -x
           rm -rf build; mkdir build; cd build
-          cmake .. -DVERBOSE_CMAKE=ON -DBUILD_ONLY_LIB=ON
+          cmake .. -DVERBOSE_CMAKE=ON -DBUILD_ONLY_LIB=ON -B .
           make
           make test
 
@@ -215,6 +228,6 @@ jobs:
         run: |
           set -x
           rm -rf build; mkdir build; cd build
-          cmake .. -DVERBOSE_CMAKE=ON -DBUILD_STATIC_LIB=OFF
+          cmake .. -DVERBOSE_CMAKE=ON -DBUILD_STATIC_LIB=OFF -B .
           make
           make test

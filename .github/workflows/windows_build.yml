@@ -5,7 +5,7 @@ on: [push]
 
 jobs:
 
-  job_1:
+  souce_build:
     name: Build dist with Linux
     runs-on: ubuntu-latest
     steps:
@@ -29,84 +29,9 @@ jobs:
           name: yubico-piv-tool-src
           path: ../artifact
 
-  job_2:
-    name: Windows Server 2016 - x86
-    needs: job_1
-    runs-on: windows-2016
-    steps:
-      - name: Download source from job_1
-        uses: actions/download-artifact@v1
-        with:
-          name: yubico-piv-tool-src
-
-      - name: Extract source
-        run: |
-          Set-PSDebug -Trace 1
-          cd yubico-piv-tool-src
-          tar xf yubico-piv-tool-.tar.gz
-
-      - name: install prerequisites for x86 architecture
-        run: |
-          Set-PSDebug -Trace 1
-          vcpkg install openssl:x86-windows
-          vcpkg install getopt:x86-windows
-          vcpkg install check:x86-windows
-
-      - name: build for x86 architecture
-        run: |
-          Set-PSDebug -Trace 1
-          $env:Path ="C:/vcpkg/packages/openssl_x86-windows;$env:Path"
-          $env:include ="C:/vcpkg/packages/openssl_x86-windows/include;$env:include"
-
-          cd yubico-piv-tool-src/yubico-piv-tool-
-          mkdir build; cd build
-          cmake -A Win32 -DVERBOSE_CMAKE=ON -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x86-windows ..
-          cmake --build . -v
-          $env:Path +=";C:/vcpkg/packages/check_x86-windows/bin/manual-link;C:/vcpkg/packages/openssl_x86-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
-          ctest.exe -C Debug
-
-      - name: Build with YKCS11_DBG is set
-        run: |
-          Set-PSDebug -Trace 1
-          $env:Path ="C:/vcpkg/packages/openssl_x86-windows;$env:Path"
-          $env:include ="C:/vcpkg/packages/openssl_x86-windows/include;$env:include"
-
-          cd yubico-piv-tool-src/yubico-piv-tool-
-          rm -r build; mkdir build; cd build
-          cmake -A Win32 -DVERBOSE_CMAKE=ON -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x86-windows -DYKCS11_DBG=3 ..
-          cmake --build . -v
-          $env:Path +=";C:/vcpkg/packages/check_x86-windows/bin/manual-link;C:/vcpkg/packages/openssl_x86-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
-          ctest.exe -C Debug
-
-      - name: Build only library (no CLI and no ykcs11)
-        run: |
-          Set-PSDebug -Trace 1
-          $env:Path ="C:/vcpkg/packages/openssl_x86-windows;$env:Path"
-          $env:include ="C:/vcpkg/packages/openssl_x86-windows/include;$env:include"
-
-          cd yubico-piv-tool-src/yubico-piv-tool-
-          rm -r build; mkdir build; cd build
-          cmake -A Win32 -DVERBOSE_CMAKE=ON -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x86-windows -DBUILD_ONLY_LIB=ON ..
-          cmake --build . -v
-          $env:Path +=";C:/vcpkg/packages/check_x86-windows/bin/manual-link;C:/vcpkg/packages/openssl_x86-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
-          ctest.exe -C Debug
-
-      - name: Build only dynamic libaries
-        run: |
-          Set-PSDebug -Trace 1
-          $env:Path ="C:/vcpkg/packages/openssl-windows_x86-windows;$env:Path"
-          $env:include ="C:/vcpkg/packages/openssl_x86-windows/include;$env:include"
-
-          cd yubico-piv-tool-src/yubico-piv-tool-
-          rm -r build; mkdir build; cd build
-          cmake -A Win32 -DVERBOSE_CMAKE=ON -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x86-windows -DBUILD_STATIC_LIB=OFF ..
-          cmake --build . -v
-          $env:Path +=";C:/vcpkg/packages/check_x86-windows/bin/manual-link;C:/vcpkg/packages/openssl_x86-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
-          ctest.exe -C Debug
-
-  job_3:
+  win2019_x86:
     name: Windows Server 2019 - x86
-    needs: job_1
+    needs: souce_build
     runs-on: windows-2019
     steps:
       - name: Download source from job_1
@@ -179,85 +104,9 @@ jobs:
           $env:Path +=";C:/vcpkg/packages/check_x86-windows/bin/manual-link;C:/vcpkg/packages/openssl_x86-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
           ctest.exe -C Debug
 
-  job_4:
-    name: Windows Server 2016 - x64
-    needs: job_1
-    runs-on: windows-2016
-
-    steps:
-      - name: Download source from job_1
-        uses: actions/download-artifact@v1
-        with:
-          name: yubico-piv-tool-src
-
-      - name: Extract source
-        run: |
-          Set-PSDebug -Trace 1
-          cd yubico-piv-tool-src
-          tar xf yubico-piv-tool-.tar.gz
-
-      - name: install prerequisites for x64 architecture
-        run: |
-          Set-PSDebug -Trace 1
-          vcpkg install openssl:x64-windows
-          vcpkg install getopt:x64-windows
-          vcpkg install check:x64-windows
-
-      - name: build for x64 architecture
-        run: |
-          Set-PSDebug -Trace 1
-          $env:Path ="C:\vcpkg\packages\openssl_x64-windows;$env:Path"
-          $env:include ="C:\vcpkg\packages\openssl_x64-windows/include;$env:include"
-
-          cd yubico-piv-tool-src/yubico-piv-tool-
-          mkdir build; cd build
-          cmake -A x64 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x64-windows ..
-          cmake --build . -v
-          $env:Path +=";C:/vcpkg/packages/check_x64-windows/bin/manual-link;C:/vcpkg/packages/openssl_x64-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
-          ctest.exe -C Debug
-
-      - name: Build with YKCS11_DBG is set
-        run: |
-          Set-PSDebug -Trace 1
-          $env:Path ="C:\vcpkg\packages\openssl_x64-windows;$env:Path"
-          $env:include ="C:\vcpkg\packages\openssl_x64-windows/include;$env:include"
-
-          cd yubico-piv-tool-src/yubico-piv-tool-
-          rm -r build; mkdir build; cd build
-          cmake -A x64 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x64-windows -DYKCS11_DBG=3 ..
-          cmake --build . -v
-          $env:Path +=";C:/vcpkg/packages/check_x64-windows/bin/manual-link;C:/vcpkg/packages/openssl_x64-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
-          ctest.exe -C Debug
-
-      - name: Build only library (no CLI and no ykcs11)
-        run: |
-          Set-PSDebug -Trace 1
-          $env:Path ="C:\vcpkg\packages\openssl_x64-windows;$env:Path"
-          $env:include ="C:\vcpkg\packages\openssl_x64-windows/include;$env:include"
-
-          cd yubico-piv-tool-src/yubico-piv-tool-
-          rm -r build; mkdir build; cd build
-          cmake -A x64 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x64-windows -DBUILD_ONLY_LIB=ON ..
-          cmake --build . -v
-          $env:Path +=";C:/vcpkg/packages/check_x64-windows/bin/manual-link;C:/vcpkg/packages/openssl_x64-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
-          ctest.exe -C Debug
-
-      - name: Build only dynamic libaries
-        run: |
-          Set-PSDebug -Trace 1
-          $env:Path ="C:\vcpkg\packages\openssl_x64-windows;$env:Path"
-          $env:include ="C:\vcpkg\packages\openssl_x64-windows/include;$env:include"
-
-          cd yubico-piv-tool-src/yubico-piv-tool-
-          rm -r build; mkdir build; cd build
-          cmake -A x64 -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x64-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x64-windows -DBUILD_STATIC_LIB=OFF ..
-          cmake --build . -v
-          $env:Path +=";C:/vcpkg/packages/check_x64-windows/bin/manual-link;C:/vcpkg/packages/openssl_x64-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
-          ctest.exe -C Debug
-
-  job_5:
+  win2019_x64:
     name: Windows Server 2019 - x64
-    needs: job_1
+    needs: souce_build
     runs-on: windows-2019
 
     steps:
