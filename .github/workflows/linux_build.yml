@@ -35,14 +35,17 @@ jobs:
           sudo make install
           sudo ldconfig
 
+          cd ..
+          LIBDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_LIB_DIR:PATH=\s*\(\S*\).*$/\1/p")
+          BINDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_BIN_DIR:PATH=\s*\(\S*\).*$/\1/p")
+
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
-          objdump -T /usr/local/lib/libykcs11.so | grep C_Sign
-          pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico
+          objdump -T $LIBDIR/libykcs11.so | grep C_Sign
+          pkcs11-tool --module $LIBDIR/libykcs11.so --show-info | grep Yubico
 
-          cd /usr/local
-          sudo rm bin/yubico-piv-tool
-          sudo rm lib/libyk*
+          sudo rm $BINDIR/yubico-piv-tool
+          sudo rm $LIBDIR/libyk*
 
       - name: Build and install debian package
         run: |
@@ -81,7 +84,9 @@ jobs:
 
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
-          pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico
+          cd ..
+          LIBDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_LIB_DIR:PATH=\s*\(\S*\).*$/\1/p")
+          pkcs11-tool --module $LIBDIR/libykcs11.so --show-info | grep Yubico
 
       - name: Build with YKCS11_DBG is set
         run: |
@@ -142,14 +147,17 @@ jobs:
           sudo make install
           sudo ldconfig
 
+          cd ..
+          LIBDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_LIB_DIR:PATH=\s*\(\S*\).*$/\1/p")
+          BINDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_BIN_DIR:PATH=\s*\(\S*\).*$/\1/p")
+
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
-          objdump -T /usr/local/lib/libykcs11.so | grep C_Sign
-          pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico
+          objdump -T $LIBDIR/libykcs11.so | grep C_Sign
+          pkcs11-tool --module $LIBDIR/libykcs11.so --show-info | grep Yubico
 
-          cd /usr/local
-          sudo rm bin/yubico-piv-tool
-          sudo rm lib/libyk*
+          sudo rm $BINDIR/yubico-piv-tool
+          sudo rm $LIBDIR/libyk*
 
       - name: Build and install debian package
         run: |
@@ -188,7 +196,9 @@ jobs:
 
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
-          pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico
+          cd ..
+          LIBDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_LIB_DIR:PATH=\s*\(\S*\).*$/\1/p")
+          pkcs11-tool --module $LIBDIR/libykcs11.so --show-info | grep Yubico
 
       - name: Build with YKCS11_DBG is set
         run: |
