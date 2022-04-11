@@ -31,7 +31,7 @@
 #ifndef TEST_UTIL_H
 #define TEST_UTIL_H
 
-void dump_hex(const unsigned char *buf, unsigned int len, FILE *output, int space);
+void dump_hex(const unsigned char *buf, size_t len, FILE *output, int space);
 
 void test_digest_func(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_MECHANISM_TYPE mech_type);
 
