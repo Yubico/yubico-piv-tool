@@ -179,9 +179,8 @@ void _ykpiv_free(ykpiv_state *state, void *data) {
   state->allocator.pfn_free(state->allocator.alloc_data, data);
 }
 
-static void dump_hex(const unsigned char *buf, unsigned int len) {
-  unsigned int i;
-  for (i = 0; i < len; i++) {
+static void dump_hex(const unsigned char *buf, size_t len) {
+  for (size_t i = 0; i < len; i++) {
     fprintf(stderr, "%02x ", buf[i]);
   }
 }
@@ -982,7 +981,7 @@ static ykpiv_rc _ykpiv_authenticate2(ykpiv_state *state, unsigned const char *ke
 
   /* set up our key */
   cipher_key mgm_key = NULL;
-  cipher_rc drc = cipher_import_key(metadata.algorithm, key, len, &mgm_key);
+  cipher_rc drc = cipher_import_key(metadata.algorithm, key, (uint32_t)len, &mgm_key);
   if (drc != CIPHER_OK) {
     if(state->verbose) {
       fprintf(stderr, "%s: cipher_import_key: %d\n", ykpiv_strerror(YKPIV_ALGORITHM_ERROR), drc);
@@ -1152,10 +1151,10 @@ ykpiv_rc ykpiv_set_mgmkey3(ykpiv_state *state, const unsigned char *new_key, siz
     goto Cleanup;
   }
 
-  apdu.st.lc = len + 3;
+  apdu.st.lc = (unsigned char)(len + 3);
   apdu.st.data[0] = algo;
   apdu.st.data[1] = YKPIV_KEY_CARDMGM;
-  apdu.st.data[2] = len;
+  apdu.st.data[2] = (unsigned char)len;
   memcpy(apdu.st.data + 3, new_key, len);
 
   int sw = 0;
@@ -1261,7 +1260,7 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   memcpy(dataptr, sign_in, in_len);
   dataptr += in_len;
 
-  if((res = _ykpiv_transfer_data(state, templ, indata, dataptr - indata, data, &recv_len, &sw)) != YKPIV_OK) {
+  if((res = _ykpiv_transfer_data(state, templ, indata, (unsigned long)(dataptr - indata), data, &recv_len, &sw)) != YKPIV_OK) {
     if(state->verbose) {
       fprintf(stderr, "Sign command failed to communicate with status %x.\n", res);
     }
@@ -1575,7 +1574,7 @@ static ykpiv_rc _cache_mgm_key(ykpiv_state *state, unsigned const char *key, siz
       return YKPIV_MEMORY_ERROR;
     }
     memcpy(state->mgm_key, key, len);
-    state->mgm_len = len;
+    state->mgm_len = (uint32_t)len;
   }
   return YKPIV_OK;
 #endif
@@ -1843,7 +1842,7 @@ ykpiv_rc _ykpiv_fetch_object(ykpiv_state *state, int object_id,
     return YKPIV_INVALID_OBJECT;
   }
 
-  if((res = _ykpiv_transfer_data(state, templ, indata, inptr - indata, data, len, &sw))
+  if((res = _ykpiv_transfer_data(state, templ, indata, (unsigned long)(inptr - indata), data, len, &sw))
       != YKPIV_OK) {
     return res;
   }
@@ -1916,7 +1915,7 @@ ykpiv_rc _ykpiv_save_object(
     memcpy(dataptr, indata, len);
   dataptr += len;
 
-  if((res = _ykpiv_transfer_data(state, templ, data, dataptr - data, NULL, &outlen,
+  if((res = _ykpiv_transfer_data(state, templ, data, (unsigned long)(dataptr - data), NULL, &outlen,
     &sw)) != YKPIV_OK) {
     return res;
   }
@@ -2061,7 +2060,7 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
-  if ((res = _ykpiv_transfer_data(state, templ, key_data, in_ptr - key_data, data, &recv_len, &sw)) != YKPIV_OK) {
+  if ((res = _ykpiv_transfer_data(state, templ, key_data, (unsigned long)(in_ptr - key_data), data, &recv_len, &sw)) != YKPIV_OK) {
     goto Cleanup;
   }
   if (SW_SUCCESS != sw) {
@@ -2225,9 +2224,9 @@ ykpiv_rc ykpiv_auth_verifyresponse(ykpiv_state *state, uint8_t *response, size_t
   apdu.st.p2 = YKPIV_KEY_CARDMGM; /* management key */
   unsigned char *dataptr = apdu.st.data;
   *dataptr++ = 0x7c;
-  *dataptr++ = 2 + response_len;
+  *dataptr++ = (unsigned char)(2 + response_len);
   *dataptr++ = 0x82;
-  *dataptr++ = response_len;
+  *dataptr++ = (unsigned char)response_len;
   memcpy(dataptr, response, response_len);
   dataptr += response_len;
   apdu.st.lc = (unsigned char)(dataptr - apdu.st.data);
