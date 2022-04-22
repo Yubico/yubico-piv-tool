@@ -65,14 +65,14 @@ jobs:
           wget https://www.openssl.org/source/openssl-1.0.2u.tar.gz
           tar -xzf openssl-1.0.2u.tar.gz
           cd openssl-1.0.2u
-          ./Configure linux-x86_64 shared --prefix=$GITHUB_WORKSPACE/openssl
+          ./Configure linux-x86_64 shared --prefix=/home/runner/work/yubico-piv-tool/openssl
           sudo make all install VERSION="1.0.2u"
 
       - name: Build and install
         run: |
           set -x
           mkdir build; cd build
-          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_PKG_PATH=$GITHUB_WORKSPACE/openssl/lib/pkgconfig
+          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_PKG_PATH=/home/runner/work/yubico-piv-tool/openssl/lib/pkgconfig
           make
           make test
           ./tool/yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
@@ -109,14 +109,14 @@ jobs:
           wget https://www.openssl.org/source/openssl-1.1.1n.tar.gz
           tar -xzf openssl-1.1.1n.tar.gz
           cd openssl-1.1.1n
-          ./Configure linux-x86_64 shared --prefix=$GITHUB_WORKSPACE/openssl
+          ./Configure linux-x86_64 shared --prefix=/home/runner/work/yubico-piv-tool/openssl
           sudo make all install VERSION="1.1.1n"
 
       - name: Build and install
         run: |
           set -x
           mkdir build; cd build
-          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_PKG_PATH=$GITHUB_WORKSPACE/openssl/lib/pkgconfig
+          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_PKG_PATH=/home/runner/work/yubico-piv-tool/openssl/lib/pkgconfig
           make
           make test
           ./tool/yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
@@ -153,14 +153,14 @@ jobs:
           wget https://www.openssl.org/source/openssl-3.0.2.tar.gz
           tar -xzf openssl-3.0.2.tar.gz
           cd openssl-3.0.2
-          ./Configure linux-x86_64 shared --prefix=$GITHUB_WORKSPACE/openssl
+          ./Configure linux-x86_64 shared --prefix=/home/runner/work/yubico-piv-tool/openssl
           sudo make all install VERSION="3.0.2"
 
       - name: Build and install
         run: |
           set -x
           mkdir build; cd build
-          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_PKG_PATH=$GITHUB_WORKSPACE/openssl/lib/pkgconfig
+          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_PKG_PATH=/home/runner/work/yubico-piv-tool/openssl/lib/pkgconfig
           make
           make test
           ./tool/yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
