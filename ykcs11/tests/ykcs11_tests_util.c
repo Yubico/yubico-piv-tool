@@ -75,7 +75,7 @@ static void _asrt(const char *file, int line, CK_ULONG check, CK_ULONG expected,
 
 }
 
-void dump_hex(const unsigned char *buf, unsigned int len, FILE *output, int space) {
+void dump_hex(const unsigned char *buf, size_t len, FILE *output, int space) {
   unsigned int i;
   for (i = 0; i < len; i++) {
     fprintf(output, "%02x%s", buf[i], space == 1 ? " " : "");

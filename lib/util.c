@@ -855,7 +855,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     *in_ptr++ = touch_policy;
   }
 
-  if (YKPIV_OK != (res = _ykpiv_transfer_data(state, templ, in_data, in_ptr - in_data, data, &recv_len, &sw))) {
+  if (YKPIV_OK != (res = _ykpiv_transfer_data(state, templ, in_data, (unsigned long)(in_ptr - in_data), data, &recv_len, &sw))) {
     if (state->verbose) { fprintf(stderr, "Failed to communicate.\n"); }
     goto Cleanup;
   }
