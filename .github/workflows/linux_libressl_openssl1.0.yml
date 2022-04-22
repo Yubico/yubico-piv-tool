@@ -86,7 +86,7 @@ jobs:
 
           cd ..
           LIBDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_LIB_DIR:PATH=\s*\(\S*\).*$/\1/p")
-          sudo cp /usr/local/lib/libcrypto.* $LIBDIR/
+          sudo cp /home/runner/work/yubico-piv-tool/openssl/lib/libcrypto.* $LIBDIR/
           export LD_LIBRARY_PATH=$LIBDIR
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
           objdump -T $LIBDIR/libykcs11.so | grep C_Sign
@@ -130,7 +130,7 @@ jobs:
 
           cd ..
           LIBDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_LIB_DIR:PATH=\s*\(\S*\).*$/\1/p")
-          sudo cp /usr/local/lib/libcrypto.* $LIBDIR/
+          sudo cp /home/runner/work/yubico-piv-tool/openssl/lib/libcrypto.* $LIBDIR/
           export LD_LIBRARY_PATH=$LIBDIR
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
           objdump -T $LIBDIR/libykcs11.so | grep C_Sign
@@ -174,7 +174,7 @@ jobs:
 
           cd ..
           LIBDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_LIB_DIR:PATH=\s*\(\S*\).*$/\1/p")
-          sudo cp /usr/local/lib/libcrypto.* $LIBDIR/
+          sudo cp /home/runner/work/yubico-piv-tool/openssl/lib/libcrypto.* $LIBDIR/
           export LD_LIBRARY_PATH=$LIBDIR
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
           objdump -T $LIBDIR/libykcs11.so | grep C_Sign
