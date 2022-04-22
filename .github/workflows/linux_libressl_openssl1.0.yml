@@ -134,3 +134,47 @@ jobs:
           export LD_LIBRARY_PATH=$LIBDIR
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
           objdump -T $LIBDIR/libykcs11.so | grep C_Sign
+
+  job_4:
+    name: Build with OpenSSL 3.0
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+      - name: Install prerequisites
+        run: |
+          set -x
+          sudo apt install libpcsclite-dev check gengetopt help2man
+
+      - name: Install OpenSSL 3.0 from source
+        run: |
+          set -x
+          cd ..
+          wget https://www.openssl.org/source/openssl-3.0.2.tar.gz
+          tar -xzvf openssl-3.0.2.tar.gz
+          cd openssl-3.0.2
+          ./Configure linux-x86_64 shared --prefix=/usr/local
+          sudo make all install VERSION="3.0.2"
+
+      - name: Build and install
+        run: |
+          set -x
+          mkdir build; cd build
+          PKG_CONFIG_PATH=/usr/local/lib/pkgconfig cmake .. -DVERBOSE_CMAKE=ON
+          make
+          make test
+          ./tool/yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
+          objdump -T ykcs11/libykcs11.so | grep C_Sign
+
+          ldd tool/yubico-piv-tool | grep libcrypto.so
+          ldd lib/libykpiv.so | grep libcrypto.so
+          ldd ykcs11/libykcs11.so | grep libcrypto.so
+
+          sudo make install
+
+          cd ..
+          LIBDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_LIB_DIR:PATH=\s*\(\S*\).*$/\1/p")
+          sudo cp /usr/local/lib/libcrypto.* $LIBDIR/
+          export LD_LIBRARY_PATH=$LIBDIR
+          yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
+          objdump -T $LIBDIR/libykcs11.so | grep C_Sign
