@@ -160,7 +160,7 @@ jobs:
         run: |
           set -x
           mkdir build; cd build
-          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_PKG_PATH=/home/runner/work/yubico-piv-tool/openssl/lib/pkgconfig
+          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_PKG_PATH=/home/runner/work/yubico-piv-tool/openssl/lib64/pkgconfig
           make
           make test
           ./tool/yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
@@ -174,7 +174,7 @@ jobs:
 
           cd ..
           LIBDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_LIB_DIR:PATH=\s*\(\S*\).*$/\1/p")
-          sudo cp /home/runner/work/yubico-piv-tool/openssl/lib/libcrypto.* $LIBDIR/
+          sudo cp /home/runner/work/yubico-piv-tool/openssl/lib64/libcrypto.* $LIBDIR/
           export LD_LIBRARY_PATH=$LIBDIR
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
           objdump -T $LIBDIR/libykcs11.so | grep C_Sign
