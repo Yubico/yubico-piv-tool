@@ -23,6 +23,7 @@ $LICENSES_DIR="$RELEASE_DIR/licenses"
 
 # Install prerequisites
 cd $VCPKG_PATH
+.\vcpkg.exe search openssl
 .\vcpkg.exe install openssl:$ARCH-windows
 .\vcpkg.exe install getopt:$ARCH-windows
 
