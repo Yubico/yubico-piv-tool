@@ -2141,7 +2141,7 @@ Cleanup:
   return res;
 }
 
-ykpiv_rc ykpiv_auth_getchallenge(ykpiv_state *state, uint8_t *challenge, size_t *challenge_len) {
+ykpiv_rc ykpiv_auth_getchallenge(ykpiv_state *state, uint8_t *challenge, unsigned long *challenge_len) {
   ykpiv_rc res;
   
   if (NULL == state) return YKPIV_GENERIC_ERROR;
@@ -2197,7 +2197,7 @@ Cleanup:
   return res;
 }
 
-ykpiv_rc ykpiv_auth_verifyresponse(ykpiv_state *state, uint8_t *response, size_t response_len) {
+ykpiv_rc ykpiv_auth_verifyresponse(ykpiv_state *state, uint8_t *response, unsigned long response_len) {
   ykpiv_rc res;
 
   if (NULL == state) return YKPIV_GENERIC_ERROR;

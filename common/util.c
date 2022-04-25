@@ -256,7 +256,7 @@ void dump_data(const unsigned char *buf, unsigned int len, FILE *output, bool sp
         if(BIO_write(b64, buf, (int)len) <= 0) {
           fprintf(stderr, "Failed to write data in base64 format\n");
         }
-        BIO_flush(b64);
+        (void)BIO_flush(b64);
         BIO_free_all(b64);
       }
       return;
@@ -645,7 +645,7 @@ int SSH_write_X509(FILE *fp, X509 *x) {
       BIO_free_all(b64);
       break;
     }
-    BIO_flush(b64);
+    (void)BIO_flush(b64);
     BIO_free_all(b64);
 
     ret = 1;
