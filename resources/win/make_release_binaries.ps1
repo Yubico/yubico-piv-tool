@@ -24,10 +24,14 @@ $LICENSES_DIR="$RELEASE_DIR/licenses"
 # Install prerequisites
 cd $VCPKG_PATH
 .\vcpkg.exe search openssl
-.\vcpkg.exe install openssl:$ARCH-windows
+.\vcpkg.exe install openssl-windows:$ARCH-windows
 .\vcpkg.exe install getopt:$ARCH-windows
 
-$env:OPENSSL_ROOT_DIR ="$VCPKG_PATH/packages/openssl_$ARCH-windows"
+ls $VCPKG_PATH/packages/
+ls $VCPKG_PATH/packages/openssl_$ARCH-windows
+ls $VCPKG_PATH/packages/openssl-windows_$ARCH-windows
+
+$env:OPENSSL_ROOT_DIR ="$VCPKG_PATH/packages/openssl-windows_$ARCH-windows"
 
 # Build for x86 architecture
 cd $SOURCE_DIR
@@ -38,12 +42,12 @@ cmake --install .
 cd $RELEASE_DIR/bin
 if($ARCH -eq "x86")
 {
-    cp $VCPKG_PATH/packages/openssl_x86-windows/bin/libcrypto-3.dll .
+    cp $VCPKG_PATH/packages/openssl_x86-windows/bin/libcrypto-1_1.dll .
     cp $VCPKG_PATH/packages/getopt-win32_x86-windows/bin/getopt.dll .
 }
 else
 {
-    cp $VCPKG_PATH/packages/openssl_x64-windows/bin/libcrypto-3-x64.dll .
+    cp $VCPKG_PATH/packages/openssl_x64-windows/bin/libcrypto-1_1-x64.dll .
     cp $VCPKG_PATH/packages/getopt-win32_x64-windows/bin/getopt.dll .
 }
 
