@@ -108,6 +108,14 @@ jobs:
           cd yubico-piv-tool-src
           tar xf yubico-piv-tool-$env:RELEASE_VERSION.tar.gz
 
+      - name: Install OpenSSL 1.1
+        run: |
+          Set-PSDebug -Trace 1
+          cd C:/vcpkg
+          echo '{ "name": "dbkg", "version-string": "1.0.0", "dependencies": [ "openssl", "fmt", "rapidjson", "keystone", "unicorn" ], "builtin-baseline": "2ac61f87f69f0484b8044f95ab274038fbaf7bdd", "overrides": [ { "name": "openssl", "version-string": "1.1.1n" } ] }' > vcpkg.json
+          ./vcpkg.exe install
+          ./vcpkg.exe integrate install
+
       - name: Make release binaries
         run: |
           Set-PSDebug -Trace 1
