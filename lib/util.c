@@ -743,7 +743,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
   unsigned char data[1024] = {0};
   unsigned char templ[] = { 0, YKPIV_INS_GENERATE_ASYMMETRIC, 0, 0 };
   unsigned long recv_len = sizeof(data);
-  int sw;
+  int sw = 0;
   uint8_t *ptr_modulus = NULL;
   size_t  cb_modulus = 0;
   uint8_t *ptr_exp = NULL;
@@ -1154,7 +1154,7 @@ ykpiv_rc ykpiv_util_get_derived_mgm(ykpiv_state *state, const uint8_t *pin, cons
         res = YKPIV_GENERIC_ERROR;
         goto Cleanup;
       }
-      mgm->len = 24;
+      mgm->len = DES_LEN_3DES;
       if (PKCS5_OK != (p5rc = pkcs5_pbkdf2_sha1(pin, pin_len, p_item, cb_item, ITER_MGM_PBKDF2, mgm->data, mgm->len))) {
         if (state->verbose) fprintf(stderr, "pbkdf2 failure, err = %d\n", p5rc);
         res = YKPIV_GENERIC_ERROR;
@@ -1244,7 +1244,7 @@ ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
   ykpiv_rc ykrc = YKPIV_OK;
   prng_rc  prngrc = PRNG_OK;
   bool     fGenerate = false;
-  size_t   mgm_len = 24;
+  size_t   mgm_len = DES_LEN_3DES;
   uint8_t  mgm_key[sizeof(mgm->data)] = { 0 };
   size_t   i = 0;
   uint8_t  data[CB_BUF_MAX] = { 0 };

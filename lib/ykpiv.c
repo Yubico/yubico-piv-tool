@@ -312,7 +312,7 @@ ykpiv_rc _ykpiv_select_application(ykpiv_state *state) {
   unsigned char templ[] = {0x00, YKPIV_INS_SELECT_APPLICATION, 0x04, 0x00};
   unsigned char data[261] = {0};
   unsigned long recv_len = sizeof(data);
-  int sw;
+  int sw = 0;
   ykpiv_rc res = YKPIV_OK;
 
   if((res = _ykpiv_transfer_data(state, templ, piv_aid, sizeof(piv_aid), data, &recv_len, &sw)) != YKPIV_OK) {
@@ -913,7 +913,7 @@ ykpiv_rc _ykpiv_send_apdu(ykpiv_state *state, APDU *apdu,
 static ykpiv_rc _ykpiv_get_metadata(ykpiv_state *state, const unsigned char key, unsigned char *data, unsigned long *data_len) {
   ykpiv_rc res;
   unsigned char templ[] = {0, YKPIV_INS_GET_METADATA, 0, key};
-  int sw;
+  int sw = 0;
 
   if (state == NULL || data == NULL || data_len == NULL) {
     return YKPIV_ARGUMENT_ERROR;
@@ -1348,7 +1348,7 @@ static ykpiv_rc _ykpiv_get_version(ykpiv_state *state) {
   unsigned char templ[] = {0x00, YKPIV_INS_GET_VERSION, 0x00, 0x00};
   unsigned char data[261] = {0};
   unsigned long recv_len = sizeof(data);
-  int sw;
+  int sw = 0;
   ykpiv_rc res;
   
   if (!state) {
@@ -1406,7 +1406,7 @@ static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state) {
   uint8_t select_templ[] = {0x00, YKPIV_INS_SELECT_APPLICATION, 0x04, 0x00};
   uint8_t data[261] = {0};
   unsigned long recv_len = sizeof(data);
-  int sw;
+  int sw = 0;
 
   if (!state) {
     return YKPIV_ARGUMENT_ERROR;
@@ -1723,7 +1723,7 @@ Cleanup:
 }
 
 static ykpiv_rc _ykpiv_change_pin(ykpiv_state *state, int action, const char * current_pin, size_t current_pin_len, const char * new_pin, size_t new_pin_len, int *tries) {
-  int sw;
+  int sw = 0;
   unsigned char templ[] = {0, YKPIV_INS_CHANGE_REFERENCE, 0, 0x80};
   unsigned char indata[0x10] = {0};
   unsigned char data[261] = {0};
@@ -1831,7 +1831,7 @@ Cleanup:
 
 ykpiv_rc _ykpiv_fetch_object(ykpiv_state *state, int object_id,
     unsigned char *data, unsigned long *len) {
-  int sw;
+  int sw = 0;
   unsigned char indata[5] = {0};
   unsigned char *inptr = indata;
   unsigned char templ[] = {0, YKPIV_INS_GET_DATA, 0x3f, 0xff};
@@ -1898,7 +1898,7 @@ ykpiv_rc _ykpiv_save_object(
   unsigned char data[CB_BUF_MAX] = {0};
   unsigned char *dataptr = data;
   unsigned char templ[] = {0, YKPIV_INS_PUT_DATA, 0x3f, 0xff};
-  int sw;
+  int sw = 0;
   ykpiv_rc res;
   unsigned long outlen = 0;
 
@@ -1946,7 +1946,7 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
   unsigned char data[261] = {0};
   unsigned long recv_len = sizeof(data);
   unsigned elem_len;
-  int sw;
+  int sw = 0;
   const unsigned char *params[5] = {0};
   size_t lens[5] = {0};
   size_t padding;
@@ -2080,7 +2080,7 @@ Cleanup:
 ykpiv_rc ykpiv_attest(ykpiv_state *state, const unsigned char key, unsigned char *data, size_t *data_len) {
   ykpiv_rc res;
   unsigned char templ[] = {0, YKPIV_INS_ATTEST, key, 0};
-  int sw;
+  int sw = 0;
   unsigned long ul_data_len;
 
   if (state == NULL || data == NULL || data_len == NULL) {
@@ -2270,7 +2270,7 @@ static ykpiv_rc _ykpiv_auth_deauthenticate(ykpiv_state *state) {
   unsigned long recv_len = sizeof(data);
   const unsigned char *aid;
   unsigned long aid_len;
-  int sw;
+  int sw = 0;
 
   if (!state) {
     return YKPIV_ARGUMENT_ERROR;
