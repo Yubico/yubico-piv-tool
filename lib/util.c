@@ -743,7 +743,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
   unsigned char data[1024] = {0};
   unsigned char templ[] = { 0, YKPIV_INS_GENERATE_ASYMMETRIC, 0, 0 };
   unsigned long recv_len = sizeof(data);
-  int sw;
+  int sw = 0;
   uint8_t *ptr_modulus = NULL;
   size_t  cb_modulus = 0;
   uint8_t *ptr_exp = NULL;
