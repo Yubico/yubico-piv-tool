@@ -53,6 +53,14 @@ jobs:
           cd yubico-piv-tool-src
           tar xf yubico-piv-tool-$env:RELEASE_VERSION.tar.gz
 
+      - name: Install OpenSSL 1.1
+        run: |
+          Set-PSDebug -Trace 1
+          cd C:/vcpkg
+          echo '{ "name": "dbkg", "version-string": "1.0.0", "dependencies": [ "openssl", "getopt" ], "builtin-baseline": "f6af75acc923c833a5620943e3fc7d5e4930f0df", "overrides": [ { "name": "openssl", "version-string": "1.1.1n" } ] }' > vcpkg.json
+          ./vcpkg.exe install
+          ./vcpkg.exe integrate install
+
       - name: Make release binaries
         run: |
           Set-PSDebug -Trace 1
@@ -112,7 +120,7 @@ jobs:
         run: |
           Set-PSDebug -Trace 1
           cd C:/vcpkg
-          echo '{ "name": "dbkg", "version-string": "1.0.0", "dependencies": [ "openssl", "fmt", "rapidjson", "keystone", "unicorn" ], "builtin-baseline": "f6af75acc923c833a5620943e3fc7d5e4930f0df", "overrides": [ { "name": "openssl", "version-string": "1.1.1n" } ] }' > vcpkg.json
+          echo '{ "name": "dbkg", "version-string": "1.0.0", "dependencies": [ "openssl:x64-windows", "getopt:x64-windows" ], "builtin-baseline": "f6af75acc923c833a5620943e3fc7d5e4930f0df", "overrides": [ { "name": "openssl", "version-string": "1.1.1n" } ] }' > vcpkg.json
           ./vcpkg.exe install
           ./vcpkg.exe integrate install
 
