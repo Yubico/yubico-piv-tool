@@ -29,9 +29,11 @@ cd $VCPKG_PATH
 
 ls $VCPKG_PATH/packages/
 ls $VCPKG_PATH/packages/openssl_$ARCH-windows
-Get-Childitem –Path $VCPKG_PATH/packages -Include *crypto*.dll -Recurse -ErrorAction SilentlyContinue
 
-$env:OPENSSL_ROOT_DIR ="$VCPKG_PATH/packages/openssl-windows_$ARCH-windows"
+$env:OPENSSL_ROOT_DIR ="$VCPKG_PATH/packages/openssl_$ARCH-windows"
+$env:OPENSSL_ROOT_DIR ="$VCPKG_PATH/packages/getopt_$ARCH-windows"
+$env:OPENSSL_ROOT_DIR ="$VCPKG_PATH/packages/getopt-win32_$ARCH-windows"
+
 
 # Build for x86 architecture
 cd $SOURCE_DIR
