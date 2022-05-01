@@ -29,10 +29,10 @@ cd $VCPKG_PATH
 
 ls $VCPKG_PATH/packages/
 ls $VCPKG_PATH/packages/openssl_$ARCH-windows
+ls $VCPKG_PATH/packages/getopt_$ARCH-windows
+ls $VCPKG_PATH/packages/getopt-win32_$ARCH-windows
 
 $env:OPENSSL_ROOT_DIR ="$VCPKG_PATH/packages/openssl_$ARCH-windows"
-$env:OPENSSL_ROOT_DIR ="$VCPKG_PATH/packages/getopt_$ARCH-windows"
-$env:OPENSSL_ROOT_DIR ="$VCPKG_PATH/packages/getopt-win32_$ARCH-windows"
 
 
 # Build for x86 architecture
