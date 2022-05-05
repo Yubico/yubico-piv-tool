@@ -7,32 +7,31 @@ A high level description of the thinking and how this can be used can be found
 at https://developers.yubico.com/PIV/Introduction/PIV_attestation.html
 
 === Usage
-Attestation works through a special key slot called “f9” this comes
-pre-loaded from factory with a key and cert signed by Yubico, but can be
-overwritten.
-After a key has been generated in a normal slot it can be attested by this
-special key, this can be realised by using the yubico-piv-tool action attest:
+The only purposes of PIV attestation is to show that a certain asymmetric key has been generated on device and not imported.
+
+Attestation works through a special key slot called “F9” that comes
+pre-loaded from the factory with a key and certificate signed by Yubico's root PIV CA. While not recommended for most use cases, this certificate can be overwritten. Note that, if overwritten, the original signing key and certificate in slot F9 cannot be restored. The attestation key and certificate will not be cleared out by a reset of the device.
+After a key has been generated in another slot, the fact that key material was generated on the YubiKey can be attested using the yubico-piv-tool action attest:
 
   $ yubico-piv-tool --action=generate --slot=9a
   ...
   $ yubico-piv-tool --action=attest --slot=9a
 
-The output of this is a PEM encoded certificate, signed by the key in slot f9.
+The output of this command is a PEM encoded certificate, signed by the key in slot F9.
 
 === Verifying
-To verify an attestation step 1 is to build the certificate chain. Put the
-attestation root certificate in a file (or if you trust several put all
-of them in said file). The Yubico root certificate can be found at
+To verify an attestation statement, step 1 is to build the certificate chain. An example verification using OpenSSL is shown below. 
+Put the attestation root certificate in a file (TrustedCAcerts.pem in this example). The Yubico root PIV certificate can be found at
 https://developers.yubico.com/PIV/Introduction/piv-attestation-ca.pem
 
-Then add the keys attestation certificate to that file:
+Then extract the intermediate signing certificate from slot F9 on the YubiKey:
 
-  $ yubico-piv-tool --action=read-certificate --slot=f9 >> certs.pem
-
+  $ yubico-piv-tool --action=read-certificate --slot=f9 > SlotF9Intermediate.pem
+  
 Now we're ready to verify the attestation:
 
-  $ yubico-piv-tool --action=attest --slot=9a > attestation.pem
-  $ openssl verify -CAfile certs.pem attestation.pem
+  $ yubico-piv-tool --action=attest --slot=9a > Slot9Aattestation.pem
+  $ openssl verify -CAfile TrsutedCAcerts.pem -untrusted SlotF9Intermediate.pem Slot9Aattestation.pem
   attestation.pem: OK
 
 [NOTE]
