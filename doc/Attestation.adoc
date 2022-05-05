@@ -31,7 +31,7 @@ Then extract the intermediate signing certificate from slot F9 on the YubiKey:
 Now we're ready to verify the attestation:
 
   $ yubico-piv-tool --action=attest --slot=9a > Slot9Aattestation.pem
-  $ openssl verify -CAfile TrsutedCAcerts.pem -untrusted SlotF9Intermediate.pem Slot9Aattestation.pem
+  $ openssl verify -CAfile TrustedCAcerts.pem -untrusted SlotF9Intermediate.pem Slot9Aattestation.pem
   attestation.pem: OK
 
 [NOTE]
