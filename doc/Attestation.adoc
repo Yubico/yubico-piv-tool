@@ -7,11 +7,11 @@ A high level description of the thinking and how this can be used can be found
 at https://developers.yubico.com/PIV/Introduction/PIV_attestation.html
 
 === Usage
-The only purposes of PIV attestation is to show that a certain asymmetric key has been generated on device and not imported.
 
 Attestation works through a special key slot called “F9” that comes
-pre-loaded from the factory with a key and certificate signed by Yubico's root PIV CA. While not recommended for most use cases, this certificate can be overwritten. Note that, if overwritten, the original signing key and certificate in slot F9 cannot be restored. The attestation key and certificate will not be cleared out by a reset of the device.
-After a key has been generated in another slot, the fact that key material was generated on the YubiKey can be attested using the yubico-piv-tool action attest:
+pre-loaded from the factory with a key and certificate signed by Yubico's root PIV CA. 
+
+After a key has been generated in another slot (for example, slot 9a), generate an attestation using the following commands:
 
   $ yubico-piv-tool --action=generate --slot=9a
   ...
@@ -33,6 +33,11 @@ Now we're ready to verify the attestation:
   $ yubico-piv-tool --action=attest --slot=9a > Slot9Aattestation.pem
   $ openssl verify -CAfile TrustedCAcerts.pem -untrusted SlotF9Intermediate.pem Slot9Aattestation.pem
   attestation.pem: OK
+
+[NOTE]
+====
+While OpenSSL, as demonstrated above, can be used as a method to test the concept of attestation verification, verification in production should be evaluated to ensure proper verifictaion. 
+====
 
 [NOTE]
 ====
