@@ -1,0 +1,4 @@
+usr/lib/*/libykpiv.so
+usr/lib/*/libykpiv.a
+usr/lib/*/pkgconfig
+usr/include/ykpiv

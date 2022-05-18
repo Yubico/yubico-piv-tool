@@ -53,17 +53,24 @@ jobs:
       - name: Build and install debian package
         run: |
           set -x
-          mkdir build_dir;
-          cd build_dir; cmake -DCMAKE_INSTALL_PREFIX=../debian/tmp/usr .. -B .
-          cd ..
-          make -C build_dir
-          cd build_dir; cmake -P cmake_install.cmake
-          cd ..
-          mkdir debian/tmp/DEBIAN
-          dpkg-gencontrol -pyubico-piv-tool
-          dpkg --build debian/tmp build_dir/
-          cd build_dir
-          sudo apt install ./yubico-piv-tool_*_amd64.deb
+          sudo apt-get install -y chrpath dh-exec git-buildpackage
+
+          export DEB_CFLAGS_MAINT_APPEND=-std=gnu99
+
+      	  dh $@ --parallel --with autoreconf --builddirectory=build
+
+          chrpath -d debian/tmp/usr/bin/*
+          chrpath -d debian/tmp/usr/lib/*/libykpiv.so.*
+          chrpath -d debian/tmp/usr/lib/*/libykcs11.so.*
+          find debian/tmp -name \*.la -delete
+          find debian/tmp -name libykcs11.a -delete
+          find debian/tmp -name ykcs11-version.h -delete
+          dh_install --fail-missing
+
+          dh_auto_configure -- --disable-silent-rules
+          ls
+          ls ..
+          sudo apt install ../yubico-piv-tool_*_amd64.deb
 
           (set +e; yubico-piv-tool -a status; true) 2>&1 >/dev/null | grep "Failed to connect to yubikey."
 

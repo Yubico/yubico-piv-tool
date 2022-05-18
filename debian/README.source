@@ -1,0 +1,23 @@
+We describe here one way to work with the package sources.
+
+Initialize cowbuilder:
+
+	$ git-pbuilder create
+
+Optionally update cowbuilder:
+
+	$ git-pbuilder update
+
+Clone the repository:
+
+	$ git clone <REMOTE_GIT_REPOSITORY>
+
+Build the package:
+
+	$ gbp buildpackage --git-pbuilder --git-pbuilder-options=--twice
+
+If all goes well, you should have newly built packages in ../.
+
+Update the package to a new upstream release (don't forget debian/changelog):
+
+	$ gbp import-orig /path/to/new-release.tar.gz
