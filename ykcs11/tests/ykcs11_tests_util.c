@@ -895,9 +895,6 @@ void test_ec_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session
         if(mech_type == CKM_ECDSA) {
           memcpy(hdata, data, data_len);
           hdata_len = data_len;
-        } else if(mech_type == CKM_ECDSA_SHA384) {
-          SHA384(data, data_len, hdata);
-          hdata_len = 48;
         } else {
           const EVP_MD *md = get_md_type(mech_type);
           EVP_MD_CTX *mdctx = EVP_MD_CTX_create();
