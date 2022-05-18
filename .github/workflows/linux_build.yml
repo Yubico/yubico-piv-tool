@@ -57,7 +57,7 @@ jobs:
 
           export DEB_CFLAGS_MAINT_APPEND=-std=gnu99
 
-      	  dh $@ --parallel --with autoreconf --builddirectory=build
+          dh $@ --parallel --with autoreconf --builddirectory=build
 
           chrpath -d debian/tmp/usr/bin/*
           chrpath -d debian/tmp/usr/lib/*/libykpiv.so.*
