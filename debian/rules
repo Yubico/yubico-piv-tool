@@ -3,7 +3,7 @@
 export DEB_CFLAGS_MAINT_APPEND=-std=gnu99
 
 %:
-	dh $@ --parallel --with autoreconf --builddirectory=build
+	dh $@ --parallel
 
 override_dh_install:
 	chrpath -d $(CURDIR)/debian/tmp/usr/bin/*
