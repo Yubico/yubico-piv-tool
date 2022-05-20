@@ -177,31 +177,31 @@ static void test_mechanism_list_and_info() {
   CK_ULONG              i;
 
   static const CK_MECHANISM_TYPE token_mechanisms[] = {
-    CKM_RSA_PKCS_KEY_PAIR_GEN,
-    CKM_RSA_PKCS,
-    CKM_RSA_PKCS_PSS,
-    CKM_RSA_PKCS_OAEP,
-    CKM_RSA_X_509,
-    CKM_SHA1_RSA_PKCS,
-    CKM_SHA256_RSA_PKCS,
-    CKM_SHA384_RSA_PKCS,
-    CKM_SHA512_RSA_PKCS,
-    CKM_SHA1_RSA_PKCS_PSS,
-    CKM_SHA256_RSA_PKCS_PSS,
-    CKM_SHA384_RSA_PKCS_PSS,
-    CKM_SHA512_RSA_PKCS_PSS,
-    CKM_EC_KEY_PAIR_GEN,
-    CKM_ECDSA,
-    CKM_ECDSA_SHA1,
-    CKM_ECDSA_SHA224,
-    CKM_ECDSA_SHA256,
-    CKM_ECDSA_SHA384,
-    CKM_ECDH1_DERIVE,
-    CKM_SHA_1,
-    CKM_SHA256,
-    CKM_SHA384,
-    CKM_SHA512
-  };
+      CKM_RSA_PKCS_KEY_PAIR_GEN,
+      CKM_RSA_PKCS,
+      CKM_RSA_PKCS_PSS,
+      CKM_RSA_PKCS_OAEP,
+      CKM_RSA_X_509,
+      CKM_SHA1_RSA_PKCS,
+      CKM_SHA256_RSA_PKCS,
+      CKM_SHA384_RSA_PKCS,
+      CKM_SHA512_RSA_PKCS,
+      CKM_SHA1_RSA_PKCS_PSS,
+      CKM_SHA256_RSA_PKCS_PSS,
+      CKM_SHA384_RSA_PKCS_PSS,
+      CKM_SHA512_RSA_PKCS_PSS,
+      CKM_EC_KEY_PAIR_GEN,
+      CKM_ECDSA,
+      CKM_ECDSA_SHA1,
+      CKM_ECDSA_SHA224,
+      CKM_ECDSA_SHA256,
+      CKM_ECDSA_SHA384,
+      CKM_ECDSA_SHA512,
+      CKM_ECDH1_DERIVE,
+      CKM_SHA_1,
+      CKM_SHA256,
+      CKM_SHA384,
+      CKM_SHA512};
 
   static const CK_MECHANISM_INFO token_mechanism_infos[] = { // KEEP ALIGNED WITH token_mechanisms
     {1024, 2048, CKF_HW | CKF_GENERATE_KEY_PAIR},
@@ -218,6 +218,7 @@ static void test_mechanism_list_and_info() {
     {1024, 2048, CKF_HW | CKF_SIGN | CKF_VERIFY},
     {1024, 2048, CKF_HW | CKF_SIGN | CKF_VERIFY},
     {256, 384, CKF_HW | CKF_GENERATE_KEY_PAIR | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS},
+    {256, 384, CKF_HW | CKF_SIGN | CKF_VERIFY | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS},
     {256, 384, CKF_HW | CKF_SIGN | CKF_VERIFY | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS},
     {256, 384, CKF_HW | CKF_SIGN | CKF_VERIFY | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS},
     {256, 384, CKF_HW | CKF_SIGN | CKF_VERIFY | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS},
@@ -467,9 +468,8 @@ static void test_sign_eccp(CK_BYTE* key_params, CK_ULONG key_params_len, CK_ULON
   test_ec_sign_thorough(funcs, session, obj_pvtkey, CKM_ECDSA, eck, key_len);
   test_ec_sign_thorough(funcs, session, obj_pvtkey, CKM_ECDSA_SHA1, eck, key_len);
   test_ec_sign_thorough(funcs, session, obj_pvtkey, CKM_ECDSA_SHA256, eck, key_len);
-  if(key_len > 32) {
-    test_ec_sign_thorough(funcs, session, obj_pvtkey, CKM_ECDSA_SHA384, eck, key_len);
-  }
+  test_ec_sign_thorough(funcs, session, obj_pvtkey, CKM_ECDSA_SHA384, eck, key_len);
+  test_ec_sign_thorough(funcs, session, obj_pvtkey, CKM_ECDSA_SHA512, eck, key_len);
 
   EC_KEY_free(eck);
   destroy_test_objects(funcs, session, obj_pvtkey, N_SELECTED_KEYS);

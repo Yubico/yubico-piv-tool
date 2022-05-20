@@ -871,7 +871,7 @@ void test_ec_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session
   for (CK_BYTE i = 0; i < 4; i++) {
     CK_OBJECT_HANDLE obj_pubkey = get_public_key_handle(funcs, session, obj_pvtkey[i]);
     for (CK_BYTE j = 0; j < 4; j++) {
-      CK_BYTE data[32] = {0};
+      CK_BYTE data[1024] = {0};
       CK_ULONG data_len = sizeof(data);
       if (RAND_bytes(data, data_len) <= 0)
         exit(EXIT_FAILURE);
@@ -887,7 +887,7 @@ void test_ec_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session
       asrt(funcs->C_VerifyInit(session, &mech, obj_pubkey), CKR_OK, "VerifyInit");
       asrt(funcs->C_Verify(session, data, sizeof(data), sig, sig_len), CKR_OK, "Verify");
 
-      CK_BYTE hdata[64] = {0};
+      CK_BYTE hdata[sizeof(data)] = {0};
       unsigned int hdata_len = 0;
 
       // External verification
@@ -895,9 +895,6 @@ void test_ec_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session
         if(mech_type == CKM_ECDSA) {
           memcpy(hdata, data, data_len);
           hdata_len = data_len;
-        } else if(mech_type == CKM_ECDSA_SHA384) {
-          SHA384(data, data_len, hdata);
-          hdata_len = 48;
         } else {
           const EVP_MD *md = get_md_type(mech_type);
           EVP_MD_CTX *mdctx = EVP_MD_CTX_create();
