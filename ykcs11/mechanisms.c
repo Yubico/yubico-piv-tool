@@ -293,13 +293,13 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
   switch(session->op_info.op.sign.algorithm) {
     case YKPIV_ALGO_ECCP256:
       if (session->op_info.buf_len > 32) {
-        DBG("Truncated %lu bytes ECDSA signature data to 32 bytes for mechanism %lu", session->op_info.buf_len, session->op_info.mechanism);
+        DBG("Truncated %lu bytes ECDSA signature data to 32 bytes for mechanism 0x%lx", session->op_info.buf_len, session->op_info.mechanism);
         session->op_info.buf_len = 32;
       }
       break;
     case YKPIV_ALGO_ECCP384:
       if (session->op_info.buf_len > 48) {
-        DBG("Truncated %lu bytes ECDSA signature data to 48 bytes for mechanism %lu", session->op_info.buf_len, session->op_info.mechanism);
+        DBG("Truncated %lu bytes ECDSA signature data to 48 bytes for mechanism 0x%lx", session->op_info.buf_len, session->op_info.mechanism);
         session->op_info.buf_len = 48;
       }
       break;
