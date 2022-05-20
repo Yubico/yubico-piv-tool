@@ -15,4 +15,4 @@ override_dh_install:
 	dh_install --fail-missing
 
 override_dh_auto_configure:
-	dh_auto_configure -- --disable-silent-rules
+	dh_auto_configure -- -DSKIP_TESTS=1
