@@ -532,7 +532,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
       rc = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &state->context);
       if (rc != SCARD_S_SUCCESS) {
         DBG("SCardEstablishContext failed, rc=%lx", (long)rc);
-        return YKPIV_PCSC_ERROR;
+        return rc == SCARD_E_NO_SERVICE ? YKPIV_PCSC_SERVICE_ERROR : YKPIV_PCSC_ERROR;
       }
     }
     rc = SCardConnect(state->context, wanted, SCARD_SHARE_SHARED,
@@ -622,7 +622,7 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
     rc = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &state->context);
     if (rc != SCARD_S_SUCCESS) {
       DBG("SCardEstablishContext failed, rc=%lx", (long)rc);
-      return YKPIV_PCSC_ERROR;
+      return rc == SCARD_E_NO_SERVICE ? YKPIV_PCSC_SERVICE_ERROR : YKPIV_PCSC_ERROR;
     }
   }
 

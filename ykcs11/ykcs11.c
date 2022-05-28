@@ -403,9 +403,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
       char buf[sizeof(readers) + 1] = {0};
       snprintf(buf, sizeof(buf), "@%s", reader);
 
-      if (ykpiv_connect(slot->piv_state, buf) == YKPIV_OK) {
+      DBG("Trying to connect slot %td to '%s'", slot-slots, reader);
 
-        DBG("Connected slot %td to '%s'", slot-slots, reader);
+      ykpiv_rc rc;
+      if ((rc = ykpiv_connect(slot->piv_state, buf)) != YKPIV_OK) {
+        DBG("Failed to connect slot: %s", ykpiv_strerror(rc));
+      }
+      else {
+        DBG("Connection established");
 
         slot->slot_info.flags |= CKF_TOKEN_PRESENT;
         slot->token_info.flags = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;

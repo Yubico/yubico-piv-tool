@@ -70,7 +70,8 @@ extern "C"
 
     YKPIV_ARGUMENT_ERROR = -14, //i.e. invalid input argument
     YKPIV_RANGE_ERROR = -15, //i.e. value range error
-    YKPIV_NOT_SUPPORTED = -16
+    YKPIV_NOT_SUPPORTED = -16,
+    YKPIV_PCSC_SERVICE_ERROR = -17
   } ykpiv_rc;
 
   typedef void* (*ykpiv_pfn_alloc)(void* alloc_data, size_t size);
