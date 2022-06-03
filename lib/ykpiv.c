@@ -31,6 +31,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <ctype.h>
@@ -243,6 +244,31 @@ static unsigned char *set_object(int object_id, unsigned char *buffer) {
   return buffer;
 }
 
+static void ykpiv_stderr_debug(const char *buf) {
+  fprintf(stderr, "%s\n", buf);
+}
+
+static void (*ykpiv_debug)(const char *) = ykpiv_stderr_debug;
+static int ykpiv_verbose = 0;
+
+void _ykpiv_set_debug(void (*dbg)(const char *)) {
+  ykpiv_debug = dbg ? dbg : ykpiv_stderr_debug;
+}
+
+void _ykpiv_debug(const char *file, int line, const char *func, int lvl, const char *format, ...) {
+  if(lvl <= ykpiv_verbose) {
+    char buf[8192];
+    const char *name = strrchr(file, '/');
+    snprintf(buf, sizeof(buf), "debug: %s:%d (%s): ", name ? name + 1 : file, line, func);
+    int len = strlen(buf);
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buf + len, sizeof(buf) - len, format, args);
+    va_end(args);
+    ykpiv_debug(buf);
+  }
+}
+
 ykpiv_rc ykpiv_init_with_allocator(ykpiv_state **state, int verbose, const ykpiv_allocator *allocator) {
   ykpiv_state *s;
   if (NULL == state) {
@@ -256,6 +282,8 @@ ykpiv_rc ykpiv_init_with_allocator(ykpiv_state **state, int verbose, const ykpiv
   if (NULL == s) {
     return YKPIV_MEMORY_ERROR;
   }
+
+  ykpiv_verbose = verbose;
 
   memset(s, 0, sizeof(ykpiv_state));
   s->allocator = *allocator;

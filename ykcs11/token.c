@@ -244,10 +244,10 @@ CK_RV token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF8CHAR_P
     case CKU_SO:{
       ykpiv_mgm new_key = {0};
       if(ykpiv_hex_decode((const char*)pNewPin, ulNewLen, new_key.data, &new_key.len) != YKPIV_OK) {
-        DBG("Failed to decode new pin")
+        DBG("Failed to decode new pin");
         return CKR_PIN_INVALID;
       }
-      DBG("Changing SO PIN")
+      DBG("Changing SO PIN");
       // Set new mgm key (SO PIN) with the same algorithm and touch policy the old one had
       res = ykpiv_set_mgmkey3(state, new_key.data, new_key.len, YKPIV_ALGO_AUTO, YKPIV_TOUCHPOLICY_AUTO);
       if(res == YKPIV_OK) {
@@ -260,7 +260,7 @@ CK_RV token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF8CHAR_P
           }
         }
       } else {
-        DBG("Failed to set new management key")
+        DBG("Failed to set new management key");
       }
       OPENSSL_cleanse(new_key.data, sizeof(new_key.data));
       break;
@@ -268,10 +268,10 @@ CK_RV token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF8CHAR_P
     case CKU_USER:
       if(ulOldLen >= 4 && strncmp((const char*)pOldPin, "puk:", 4) == 0){
         if(ulNewLen >= 4 && strncmp((const char*)pNewPin, "pin:", 4) == 0) {
-          DBG("Unblocking PIN with PUK")
+          DBG("Unblocking PIN with PUK");
           res = ykpiv_unblock_pin(state, (const char*)pOldPin + 4, ulOldLen - 4, (const char*)pNewPin + 4, ulNewLen - 4, &tries);
         } else {
-          DBG("Changing PUK")
+          DBG("Changing PUK");
           if(ulNewLen >= 4 && strncmp((const char*)pNewPin, "puk:", 4) == 0) {
             res = ykpiv_change_puk(state, (const char*)pOldPin + 4, ulOldLen - 4, (const char*)pNewPin + 4, ulNewLen - 4, &tries);
           } else {
@@ -279,7 +279,7 @@ CK_RV token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF8CHAR_P
           }
         }
       }else{
-        DBG("Changing PIN")
+        DBG("Changing PIN");
         res = ykpiv_change_pin(state, (const char*)pOldPin, ulOldLen, (const char*)pNewPin, ulNewLen, &tries);
       }
       break;

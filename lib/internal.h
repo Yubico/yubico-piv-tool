@@ -238,6 +238,13 @@ typedef enum _yc_log_level_t {
 
 void yc_log_event(uint32_t id, yc_log_level_t level, const char *sz_format, ...);
 
+void _ykpiv_set_debug(void (*dbg)(const char *));
+void _ykpiv_debug(const char *file, int line, const char *func, int lvl, const char *fmt, ...);
+
+#define DBG(fmt, ...) _ykpiv_debug(__FILE__, __LINE__, __FUNCTION__, 1, fmt, ##__VA_ARGS__)
+#define DBG2(fmt, ...) _ykpiv_debug(__FILE__, __LINE__, __FUNCTION__, 2, fmt, ##__VA_ARGS__)
+#define DBG3(fmt, ...) _ykpiv_debug(__FILE__, __LINE__, __FUNCTION__, 3, fmt, ##__VA_ARGS__)
+
 #ifdef _WIN32
 #include <windows.h>
 #define yc_memzero SecureZeroMemory

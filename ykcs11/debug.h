@@ -31,15 +31,11 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
-#include <stdio.h>
+void _ykpiv_debug(const char *file, int line, const char *func, int lvl, const char *fmt, ...);
 
-extern int verbose;
-
-#define DBG(x, ...) if(verbose) {                                                \
-    fprintf (stderr, "debug: %s:%d (%s): ", __FILE__, __LINE__, __FUNCTION__); \
-    fprintf (stderr, x, ##__VA_ARGS__);                                                       \
-    fprintf (stderr, "\n");                                                    \
-  }
+#define DBG(fmt, ...) _ykpiv_debug(__FILE__, __LINE__, __FUNCTION__, 1, fmt, ##__VA_ARGS__)
+#define DBG2(fmt, ...) _ykpiv_debug(__FILE__, __LINE__, __FUNCTION__, 2, fmt, ##__VA_ARGS__)
+#define DBG3(fmt, ...) _ykpiv_debug(__FILE__, __LINE__, __FUNCTION__, 3, fmt, ##__VA_ARGS__)
 
 #define DIN DBG(("In"));
 #define DOUT DBG(("Out"));
