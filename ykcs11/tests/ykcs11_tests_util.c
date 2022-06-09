@@ -75,14 +75,6 @@ static void _asrt(const char *file, int line, CK_ULONG check, CK_ULONG expected,
 
 }
 
-void dump_hex(const unsigned char *buf, size_t len, FILE *output, int space) {
-  unsigned int i;
-  for (i = 0; i < len; i++) {
-    fprintf(output, "%02x%s", buf[i], space == 1 ? " " : "");
-  }
-  fprintf(output, "\n");
-}
-
 static CK_OBJECT_HANDLE get_public_key_handle(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
                         CK_OBJECT_HANDLE privkey) {
   CK_OBJECT_HANDLE found_obj[10] = {0};

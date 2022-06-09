@@ -152,7 +152,6 @@ struct ykpiv_state {
   SCARDHANDLE card;
   pcsc_word protocol;
   char reader[2048];
-  int  verbose;
   int tries;
   char *pin;
   uint8_t *mgm_key;
