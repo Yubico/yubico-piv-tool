@@ -252,7 +252,11 @@ void _ykpiv_set_debug(void (*dbg)(const char *)) {
 void _ykpiv_debug(const char *file, int line, const char *func, int lvl, const char *format, ...) {
   if(lvl <= ykpiv_verbose) {
     char buf[8192];
+#ifdef _WIN32
+    const char *name = strrchr(file, '\\');
+#else
     const char *name = strrchr(file, '/');
+#endif
     if(snprintf(buf, sizeof(buf), "DBG %s:%d (%s): ", name ? name + 1 : file, line, func) < 0) {
       buf[0] = 0;
     }
