@@ -253,20 +253,28 @@ void _ykpiv_debug(const char *file, int line, const char *func, int lvl, const c
   if(lvl <= ykpiv_verbose) {
     char buf[8192];
     const char *name = strrchr(file, '/');
-    snprintf(buf, sizeof(buf), "DBG %s:%d (%s): ", name ? name + 1 : file, line, func);
+    if(snprintf(buf, sizeof(buf), "DBG %s:%d (%s): ", name ? name + 1 : file, line, func) < 0) {
+      buf[0] = 0;
+    }
     size_t len = strlen(buf);
     va_list args;
     va_start(args, format);
-    vsnprintf(buf + len, sizeof(buf) - len, format, args);
+    if(vsnprintf(buf + len, sizeof(buf) - len, format, args) < 0) {
+      buf[len] = 0;
+    }
     if(format[0] && format[strlen(format) - 1] == '@') { // Format ends with marker, expect two extra args
       len = strlen(buf) - 1; // Overwrite the marker
       uint8_t *p = va_arg(args, uint8_t *);
       size_t n = va_arg(args, size_t);
       for(size_t i = 0; i < n; i++) {
-        snprintf(buf + len, sizeof(buf) - len, "%02x", p[i]);
+        if(snprintf(buf + len, sizeof(buf) - len, "%02x", p[i]) < 0) {
+          buf[len] = 0;
+        }
         len = strlen(buf);
       }
-      snprintf(buf + len, sizeof(buf) - len, " (%zu)", n);
+      if(snprintf(buf + len, sizeof(buf) - len, " (%zu)", n) < 0) {
+        buf[len] = 0;
+      }
     }
     va_end(args);
     ykpiv_debug(buf);
