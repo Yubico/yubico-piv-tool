@@ -44,6 +44,7 @@
 
 #include "openssl-compat.h"
 #include "ykpiv.h"
+#include "internal.h"
 
 #include "util.h"
 
@@ -67,13 +68,13 @@ FILE *open_file(const char *file_name, enum file_mode mode) {
       mod = "wb";
       break;
     default:
-      fprintf(stderr, "Invalid file mode.\n");
+      DBG("Invalid file mode.");
       return NULL;
       break;
     }
     file = fopen(file_name, mod);
     if(!file) {
-      fprintf(stderr, "Failed opening '%s'!\n", file_name);
+      DBG("Failed opening '%s'!", file_name);
       return NULL;
     }
   }
@@ -91,7 +92,7 @@ unsigned char get_algorithm(EVP_PKEY *key) {
         } else if(size == 1024) {
           return YKPIV_ALGO_RSA1024;
         } else {
-          fprintf(stderr, "Unusable RSA key of %d bits, only 1024 and 2048 are supported.\n", size);
+          DBG("Unusable RSA key of %d bits, only 1024 and 2048 are supported.", size);
           return 0;
         }
       }
@@ -102,12 +103,12 @@ unsigned char get_algorithm(EVP_PKEY *key) {
         } else if(size == 384) {
           return YKPIV_ALGO_ECCP384;
         } else {
-          fprintf(stderr, "Unusable EC key of %d bits, only 256 and 384 are supported.\n", size);
+          DBG("Unusable EC key of %d bits, only 256 and 384 are supported.", size);
           return 0;
         }
       }
     default:
-      fprintf(stderr, "Unknown algorithm %d.\n", type);
+      DBG("Unknown algorithm %d.", type);
       return 0;
   }
 }
@@ -146,19 +147,19 @@ X509_NAME *parse_name(const char *orig_name) {
   char *ptr = name;
 
   if(strlen(orig_name) > 1024) {
-    fprintf(stderr, "Name is too long!\n");
+    DBG("Name is too long!");
     return NULL;
   }
   strncpy(name, orig_name, sizeof(name));
   name[sizeof(name) - 1] = 0;
 
   if(*name != '/' || name[strlen(name)-1] != '/') {
-    fprintf(stderr, "Name does not start or does not end with '/'!\n");
+    DBG("Name does not start or does not end with '/'!");
     return NULL;
   }
   parsed = X509_NAME_new();
   if(!parsed) {
-    fprintf(stderr, "Failed to allocate memory\n");
+    DBG("Failed to allocate memory");
     return NULL;
   }
   while((ptr = string_parser(ptr, '/', part))) {
@@ -166,7 +167,7 @@ X509_NAME *parse_name(const char *orig_name) {
     char *value;
     char *equals = strchr(part, '=');
     if(!equals) {
-      fprintf(stderr, "The part '%s' doesn't seem to contain a =.\n", part);
+      DBG("The part '%s' doesn't seem to contain a =.", part);
       goto parse_err;
     }
     *equals++ = '\0';
@@ -174,15 +175,15 @@ X509_NAME *parse_name(const char *orig_name) {
     key = part;
 
     if(!key) {
-      fprintf(stderr, "Malformed name (%s)\n", part);
+      DBG("Malformed name (%s)", part);
       goto parse_err;
     }
     if(!value) {
-      fprintf(stderr, "Malformed name (%s)\n", part);
+      DBG("Malformed name (%s)", part);
       goto parse_err;
     }
     if(!X509_NAME_add_entry_by_txt(parsed, key, MBSTRING_UTF8, (unsigned char*)value, -1, -1, 0)) {
-      fprintf(stderr, "Failed adding %s=%s to name.\n", key, value);
+      DBG("Failed adding %s=%s to name.", key, value);
       goto parse_err;
     }
   }
@@ -254,7 +255,7 @@ void dump_data(const unsigned char *buf, unsigned int len, FILE *output, bool sp
         BIO *bio = BIO_new_fp(output, BIO_NOCLOSE);
         BIO_push(b64, bio);
         if(BIO_write(b64, buf, (int)len) <= 0) {
-          fprintf(stderr, "Failed to write data in base64 format\n");
+          DBG("Failed to write data in base64 format");
         }
         (void)BIO_flush(b64);
         BIO_free_all(b64);
@@ -393,7 +394,7 @@ bool prepare_rsa_signature(const unsigned char *in, unsigned int in_len, unsigne
   X509_SIG_getm(digestInfo, &algor, &digest);
   algor->algorithm = OBJ_nid2obj(nid);
   if(X509_ALGOR_set0(algor, OBJ_nid2obj(nid), V_ASN1_NULL, NULL) == 0) {
-    fprintf(stderr, "Failed to set X509 Algorithm\n");
+    DBG("Failed to set X509 Algorithm");
     X509_SIG_free(digestInfo);
     return false;
   }
@@ -409,7 +410,7 @@ bool read_pw(const char *name, char *pwbuf, size_t pwbuflen, int verify, int std
   int ret;
 
   if (pwbuflen < 1) {
-    fprintf(stderr, "Failed to read %s: buffer too small.", name);
+    DBG("Failed to read %s: buffer too small.", name);
     return false;
   }
 
@@ -427,12 +428,12 @@ bool read_pw(const char *name, char *pwbuf, size_t pwbuflen, int verify, int std
 
   ret = snprintf(prompt, sizeof(prompt), READ_PW_PROMPT_BASE, name);
   if (ret < 0 || ret >= sizeof(prompt)) {
-    fprintf(stderr, "Failed to read %s: snprintf failed.\n", name);
+    DBG("Failed to read %s: snprintf failed.", name);
     return false;
   }
 
   if (0 != EVP_read_pw_string(pwbuf, pwbuflen-1, prompt, verify)) {
-    fprintf(stderr, "Retrieving %s failed.\n", name);
+    DBG("Retrieving %s failed.", name);
     return false;
   }
   return true;
@@ -626,22 +627,22 @@ int SSH_write_X509(FILE *fp, X509 *x) {
     BIO_push(b64, bio);
 
     if(BIO_write(b64, rsa_id, sizeof(rsa_id) - 1) <= 0 ) {
-      fprintf(stderr, "Failed to write RSA ID\n");
+      DBG("Failed to write RSA ID");
       BIO_free_all(b64);
       break;
     }
     if(BIO_write(b64, rsa_f4, sizeof(rsa_f4) - 1) <= 0) {
-      fprintf(stderr, "Failed to write RSA f4\n");
+      DBG("Failed to write RSA f4");
       BIO_free_all(b64);
       break;
     }
     if(BIO_write(b64, len_buf, len) <= 0) {
-      fprintf(stderr, "Failed to write RSA length\n");
+      DBG("Failed to write RSA length");
       BIO_free_all(b64);
       break;
     }
     if(BIO_write(b64, n, RSA_size(rsa)) <= 0) {
-      fprintf(stderr, "Failed to write RSA n component\n");
+      DBG("Failed to write RSA n component");
       BIO_free_all(b64);
       break;
     }
