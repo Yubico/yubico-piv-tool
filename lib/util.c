@@ -456,7 +456,7 @@ ykpiv_rc ykpiv_util_block_puk(ykpiv_state *state) {
         memcpy(&flags, p_item, cb_item);
       }
       else {
-        if (state->verbose) { fprintf(stderr, "admin flags exist, but are incorrect size = %lu", (unsigned long)cb_item); }
+        DBG("admin flags exist, but are incorrect size = %lu", (unsigned long)cb_item);
       }
     }
   }
@@ -464,11 +464,11 @@ ykpiv_rc ykpiv_util_block_puk(ykpiv_state *state) {
   flags |= ADMIN_FLAGS_1_PUK_BLOCKED;
 
   if (YKPIV_OK != _set_metadata_item(data, &cb_data, CB_OBJ_MAX, TAG_ADMIN_FLAGS_1, (uint8_t*)&flags, sizeof(flags))) {
-    if (state->verbose) { fprintf(stderr, "could not set admin flags"); }
+    DBG("could not set admin flags");
   }
   else {
     if (YKPIV_OK != _write_metadata(state, TAG_ADMIN, data, cb_data)) {
-      if (state->verbose) { fprintf(stderr, "could not write admin metadata"); }
+      DBG("could not write admin metadata");
     }
   }
 
@@ -787,7 +787,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
           break;
       }
 
-      fprintf(stderr, sz_roca_format, state->serial, psz_msg);
+      DBG(sz_roca_format, state->serial, psz_msg);
       yc_log_event(1, setting_roca.value ? YC_LOG_LEVEL_WARN : YC_LOG_LEVEL_ERROR, sz_roca_format, state->serial, psz_msg);
 
       if (!setting_roca.value) {
@@ -800,7 +800,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
   case YKPIV_ALGO_RSA1024:
   case YKPIV_ALGO_RSA2048:
     if (!modulus || !modulus_len || !exp || !exp_len) {
-      if (state->verbose) { fprintf(stderr, "Invalid output parameter for RSA algorithm"); }
+      DBG("Invalid output parameter for RSA algorithm");
       return YKPIV_GENERIC_ERROR;
     }
     *modulus = NULL;
@@ -812,7 +812,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
   case  YKPIV_ALGO_ECCP256:
   case  YKPIV_ALGO_ECCP384:
     if (!point || !point_len) {
-      if (state->verbose) { fprintf(stderr, "Invalid output parameter for ECC algorithm"); }
+      DBG("Invalid output parameter for ECC algorithm");
       return YKPIV_GENERIC_ERROR;
     }
     *point = NULL;
@@ -820,7 +820,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     break;
 
   default:
-    if (state->verbose) { fprintf(stderr, "Invalid algorithm specified"); }
+    DBG("Invalid algorithm specified");
     return YKPIV_GENERIC_ERROR;
   }
 
@@ -837,7 +837,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
 
   if (in_data[4] == 0) {
     res = YKPIV_ALGORITHM_ERROR;
-    if (state->verbose) { fprintf(stderr, "Unexpected algorithm.\n"); }
+    DBG("Unexpected algorithm");
     goto Cleanup;
   }
 
@@ -856,38 +856,36 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
   }
 
   if (YKPIV_OK != (res = _ykpiv_transfer_data(state, templ, in_data, (unsigned long)(in_ptr - in_data), data, &recv_len, &sw))) {
-    if (state->verbose) { fprintf(stderr, "Failed to communicate.\n"); }
+    DBG("Failed to communicate.");
     goto Cleanup;
   }
   else if (sw != SW_SUCCESS) {
-    if (state->verbose) { fprintf(stderr, "Failed to generate new key ("); }
+    DBG("Failed to generate new key");
 
     if (sw == SW_ERR_INCORRECT_SLOT) {
       res = YKPIV_KEY_ERROR;
-      if (state->verbose) { fprintf(stderr, "incorrect slot)\n"); }
+      DBG("incorrect slot");
     }
     else if (sw == SW_ERR_INCORRECT_PARAM) {
       res = YKPIV_ALGORITHM_ERROR;
 
-      if (state->verbose) {
-        if (pin_policy != YKPIV_PINPOLICY_DEFAULT) {
-          fprintf(stderr, "pin policy not supported?)\n");
-        }
-        else if (touch_policy != YKPIV_TOUCHPOLICY_DEFAULT) {
-          fprintf(stderr, "touch policy not supported?)\n");
-        }
-        else {
-          fprintf(stderr, "algorithm not supported?)\n");
-        }
+      if (pin_policy != YKPIV_PINPOLICY_DEFAULT) {
+        DBG("pin policy not supported?");
+      }
+      else if (touch_policy != YKPIV_TOUCHPOLICY_DEFAULT) {
+        DBG("touch policy not supported?");
+      }
+      else {
+        DBG("algorithm not supported?");
       }
     }
     else if (sw == SW_ERR_SECURITY_STATUS) {
       res = YKPIV_AUTHENTICATION_ERROR;
-      if (state->verbose) { fprintf(stderr, "not authenticated)\n"); }
+      DBG("not authenticated");
     }
     else {
       res = YKPIV_GENERIC_ERROR;
-      if (state->verbose) { fprintf(stderr, "error %x)\n", sw); }
+      DBG("error %x", sw);
     }
 
     goto Cleanup;
@@ -898,7 +896,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     unsigned char *data_ptr = data + 2 + _ykpiv_get_length(data + 2, data + recv_len, &len);
 
     if (*data_ptr != TAG_RSA_MODULUS) {
-      if (state->verbose) { fprintf(stderr, "Failed to parse public key structure (modulus).\n"); }
+      DBG("Failed to parse public key structure (modulus).");
       res = YKPIV_PARSE_ERROR;
       goto Cleanup;
     }
@@ -906,7 +904,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     data_ptr++;
     offs = _ykpiv_get_length(data_ptr, data + recv_len, &len);
     if(!offs) {
-      if (state->verbose) { fprintf(stderr, "Failed to parse public key structure (modulus length).\n"); }
+      DBG("Failed to parse public key structure (modulus length).");
       res = YKPIV_PARSE_ERROR;
       goto Cleanup;
     }
@@ -914,7 +912,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
 
     cb_modulus = len;
     if (NULL == (ptr_modulus = _ykpiv_alloc(state, cb_modulus))) {
-      if (state->verbose) { fprintf(stderr, "Failed to allocate memory for modulus.\n"); }
+      DBG("Failed to allocate memory for modulus.");
       res = YKPIV_MEMORY_ERROR;
       goto Cleanup;
     }
@@ -924,7 +922,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     data_ptr += len;
 
     if (*data_ptr != TAG_RSA_EXP) {
-      if (state->verbose) { fprintf(stderr, "Failed to parse public key structure (public exponent).\n"); }
+      DBG("Failed to parse public key structure (public exponent).");
       res = YKPIV_PARSE_ERROR;
       goto Cleanup;
     }
@@ -932,7 +930,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     data_ptr++;
     offs = _ykpiv_get_length(data_ptr, data + recv_len, &len);
     if(!offs) {
-      if (state->verbose) { fprintf(stderr, "Failed to parse public key structure (public exponent length).\n"); }
+      DBG("Failed to parse public key structure (public exponent length).");
       res = YKPIV_PARSE_ERROR;
       goto Cleanup;
     }
@@ -940,7 +938,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
 
     cb_exp = len;
     if (NULL == (ptr_exp = _ykpiv_alloc(state, cb_exp))) {
-      if (state->verbose) { fprintf(stderr, "Failed to allocate memory for public exponent.\n"); }
+      DBG("Failed to allocate memory for public exponent.");
       res = YKPIV_MEMORY_ERROR;
       goto Cleanup;
     }
@@ -968,20 +966,20 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     }
 
     if (*data_ptr++ != TAG_ECC_POINT) {
-      if (state->verbose) { fprintf(stderr, "Failed to parse public key structure.\n"); }
+      DBG("Failed to parse public key structure.");
       res = YKPIV_PARSE_ERROR;
       goto Cleanup;
     }
 
     if (*data_ptr++ != len) { /* the curve point should always be determined by the curve */
-      if (state->verbose) { fprintf(stderr, "Unexpected length.\n"); }
+      DBG("Unexpected length.");
       res = YKPIV_ALGORITHM_ERROR;
       goto Cleanup;
     }
 
     cb_point = len;
     if (NULL == (ptr_point = _ykpiv_alloc(state, cb_point))) {
-      if (state->verbose) { fprintf(stderr, "Failed to allocate memory for public point.\n"); }
+      DBG("Failed to allocate memory for public point.");
       res = YKPIV_MEMORY_ERROR;
       goto Cleanup;
     }
@@ -995,7 +993,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     *point_len = cb_point;
   }
   else {
-    if (state->verbose) { fprintf(stderr, "Wrong algorithm.\n"); }
+    DBG("Wrong algorithm.");
     res = YKPIV_ALGORITHM_ERROR;
     goto Cleanup;
   }
@@ -1039,10 +1037,8 @@ ykpiv_rc ykpiv_util_get_config(ykpiv_state *state, ykpiv_config *config) {
 
     if (YKPIV_OK == _get_metadata_item(data, cb_data, TAG_ADMIN_SALT, &p_item, &cb_item)) {
       if (config->mgm_type != YKPIV_CONFIG_MGM_MANUAL) {
-        if (state->verbose) {
-          fprintf(stderr, "conflicting types of mgm key administration configured\n");
-          config->mgm_type = YKPIV_CONFIG_MGM_INVALID;
-        }
+        DBG("conflicting types of mgm key administration configured");
+        config->mgm_type = YKPIV_CONFIG_MGM_INVALID;
       }
       else {
         config->mgm_type = YKPIV_CONFIG_MGM_DERIVED;
@@ -1051,9 +1047,7 @@ ykpiv_rc ykpiv_util_get_config(ykpiv_state *state, ykpiv_config *config) {
 
     if (YKPIV_OK == _get_metadata_item(data, cb_data, TAG_ADMIN_TIMESTAMP, &p_item, &cb_item)) {
       if (CB_ADMIN_TIMESTAMP != cb_item)  {
-        if (state->verbose) {
-          fprintf(stderr, "pin timestamp in admin metadata is an invalid size");
-        }
+        DBG("pin timestamp in admin metadata is an invalid size");
       }
       else {
         memcpy(&(config->pin_last_changed), p_item, cb_item);
@@ -1075,18 +1069,18 @@ ykpiv_rc ykpiv_util_get_config(ykpiv_state *state, ykpiv_config *config) {
         memcpy(config->mgm_key, p_item, cb_item);
         config->mgm_len = cb_item;
         if (config->mgm_type != YKPIV_CONFIG_MGM_PROTECTED) {
-          if (state->verbose) fprintf(stderr, "conflicting types of mgm key administration configured - protected mgm exists\n");
+          DBG("conflicting types of mgm key administration configured - protected mgm exists");
           config->mgm_type = YKPIV_CONFIG_MGM_INVALID;
         }
       } else {
-        if (state->verbose) fprintf(stderr, "protected data contains mgm, but is the wrong size = %lu\n", (unsigned long)cb_item);
+        DBG("protected data contains mgm, but is the wrong size = %lu", (unsigned long)cb_item);
         config->mgm_type = YKPIV_CONFIG_MGM_INVALID;
       }
     }
   }
   else {
     if (config->mgm_type == YKPIV_CONFIG_MGM_PROTECTED) {
-      if (state->verbose) fprintf(stderr, "admin data indicates protected mgm present, but the object cannot be read\n");
+      DBG("admin data indicates protected mgm present, but the object cannot be read");
       config->mgm_type = YKPIV_CONFIG_MGM_INVALID;
     }
   }
@@ -1117,12 +1111,12 @@ ykpiv_rc ykpiv_util_set_pin_last_changed(ykpiv_state *state) {
   tnow = time(NULL);
 
   if (YKPIV_OK != (res = _set_metadata_item(data, &cb_data, CB_OBJ_MAX, TAG_ADMIN_TIMESTAMP, (uint8_t*)&tnow, CB_ADMIN_TIMESTAMP))) {
-    if (state->verbose) fprintf(stderr, "could not set pin timestamp, err = %d\n", res);
+    DBG("could not set pin timestamp, err = %d", res);
   }
   else {
     if (YKPIV_OK != (res = _write_metadata(state, TAG_ADMIN, data, cb_data))) {
       /* Note: this can fail if authenticate() wasn't called previously - expected behavior */
-      if (state->verbose) fprintf(stderr, "could not write admin data, err = %d\n", res);
+      DBG("could not write admin data, err = %d", res);
     }
   }
 
@@ -1150,13 +1144,13 @@ ykpiv_rc ykpiv_util_get_derived_mgm(ykpiv_state *state, const uint8_t *pin, cons
   if (YKPIV_OK == (res = _read_metadata(state, TAG_ADMIN, data, &cb_data))) {
     if (YKPIV_OK == (res = _get_metadata_item(data, cb_data, TAG_ADMIN_SALT, &p_item, &cb_item))) {
       if (cb_item != CB_ADMIN_SALT) {
-        if (state->verbose) fprintf(stderr, "derived mgm salt exists, but is incorrect size = %lu\n", (unsigned long)cb_item);
+        DBG("derived mgm salt exists, but is incorrect size = %lu", (unsigned long)cb_item);
         res = YKPIV_GENERIC_ERROR;
         goto Cleanup;
       }
       mgm->len = DES_LEN_3DES;
       if (PKCS5_OK != (p5rc = pkcs5_pbkdf2_sha1(pin, pin_len, p_item, cb_item, ITER_MGM_PBKDF2, mgm->data, mgm->len))) {
-        if (state->verbose) fprintf(stderr, "pbkdf2 failure, err = %d\n", p5rc);
+        DBG("pbkdf2 failure, err = %d", p5rc);
         res = YKPIV_GENERIC_ERROR;
         goto Cleanup;
       }
@@ -1183,17 +1177,17 @@ ykpiv_rc ykpiv_util_get_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   if (YKPIV_OK != (res = _read_metadata(state, TAG_PROTECTED, data, &cb_data))) {
-    if (state->verbose) fprintf(stderr, "could not read protected data, err = %d\n", res);
+    DBG("could not read protected data, err = %d", res);
     goto Cleanup;
   }
 
   if (YKPIV_OK != (res = _get_metadata_item(data, cb_data, TAG_PROTECTED_MGM, &p_item, &cb_item))) {
-    if (state->verbose) fprintf(stderr, "could not read protected mgm from metadata, err = %d\n", res);
+    DBG("could not read protected mgm from metadata, err = %d", res);
     goto Cleanup;
   }
 
   if (cb_item > sizeof(mgm->data)) {
-    if (state->verbose) fprintf(stderr, "protected data contains mgm, but is the wrong size = %lu\n", (unsigned long)cb_item);
+    DBG("protected data contains mgm, but is the wrong size = %lu", (unsigned long)cb_item);
     res = YKPIV_AUTHENTICATION_ERROR;
     goto Cleanup;
   }
@@ -1223,11 +1217,11 @@ ykpiv_rc ykpiv_util_update_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
   }
 
   if (YKPIV_OK != (res = _set_metadata_item(data, &cb_data, CB_OBJ_MAX, TAG_PROTECTED_MGM, mgm->data, mgm->len))) {
-    if (state->verbose) fprintf(stderr, "could not set protected mgm item, err = %d\n", res);
+    DBG("could not set protected mgm item, err = %d", res);
   }
   else {
     if (YKPIV_OK != (res = _write_metadata(state, TAG_PROTECTED, data, cb_data))) {
-      if (state->verbose) fprintf(stderr, "could not write protected data, err = %d\n", res);
+      DBG("could not write protected data, err = %d", res);
       goto Cleanup;
     }
   }
@@ -1276,7 +1270,7 @@ ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
     if (fGenerate) {
       /* generate a new mgm key */
       if (PRNG_OK != (prngrc = _ykpiv_prng_generate(mgm_key, mgm_len))) {
-        if (state->verbose) fprintf(stderr, "could not generate new mgm, err = %d\n", prngrc);
+        DBG("could not generate new mgm, err = %d", prngrc);
         res = YKPIV_RANDOMNESS_ERROR;
         goto Cleanup;
       }
@@ -1289,7 +1283,7 @@ ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
       ** a state where we can't set the mgm key
       */
       if (YKPIV_KEY_ERROR != ykrc) {
-        if (state->verbose) fprintf(stderr, "could not set new derived mgm key, err = %d\n", ykrc);
+        DBG("could not set new derived mgm key, err = %d", ykrc);
         res = ykrc;
         goto Cleanup;
       }
@@ -1313,11 +1307,11 @@ ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
   }
 
   if (YKPIV_OK != (ykrc = _set_metadata_item(data, &cb_data, CB_OBJ_MAX, TAG_PROTECTED_MGM, mgm_key, mgm_len))) {
-    if (state->verbose) fprintf(stderr, "could not set protected mgm item, err = %d\n", ykrc);
+    DBG("could not set protected mgm item, err = %d", ykrc);
   }
   else {
     if (YKPIV_OK != (ykrc = _write_metadata(state, TAG_PROTECTED, data, cb_data))) {
-      if (state->verbose) fprintf(stderr, "could not write protected data, err = %d\n", ykrc);
+      DBG("could not write protected data, err = %d", ykrc);
       goto Cleanup;
     }
   }
@@ -1332,30 +1326,30 @@ ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
 
     if (YKPIV_OK != (ykrc = _get_metadata_item(data, cb_data, TAG_ADMIN_FLAGS_1, &p_item, &cb_item))) {
       /* flags are not set */
-      if (state->verbose) fprintf(stderr, "admin data exists, but flags are not present\n");
+      DBG("admin data exists, but flags are not present");
     }
 
     if (cb_item == sizeof(flags_1)) {
       memcpy(&flags_1, p_item, cb_item);
     }
     else {
-      if (state->verbose) fprintf(stderr, "admin data flags are an incorrect size = %lu\n", (unsigned long)cb_item);
+      DBG("admin data flags are an incorrect size = %lu", (unsigned long)cb_item);
     }
 
     /* remove any existing salt */
     if (YKPIV_OK != (ykrc = _set_metadata_item(data, &cb_data, CB_OBJ_MAX, TAG_ADMIN_SALT, NULL, 0))) {
-      if (state->verbose) fprintf(stderr, "could not unset derived mgm salt, err = %d\n", ykrc);
+      DBG("could not unset derived mgm salt, err = %d", ykrc);
     }
   }
 
   flags_1 |= ADMIN_FLAGS_1_PROTECTED_MGM;
 
   if (YKPIV_OK != (ykrc = _set_metadata_item(data, &cb_data, CB_OBJ_MAX, TAG_ADMIN_FLAGS_1, &flags_1, sizeof(flags_1)))) {
-    if (state->verbose) fprintf(stderr, "could not set admin flags item, err = %d\n", ykrc);
+    DBG("could not set admin flags item, err = %d", ykrc);
   }
   else {
     if (YKPIV_OK != (ykrc = _write_metadata(state, TAG_ADMIN, data, cb_data))) {
-      if (state->verbose) fprintf(stderr, "could not write admin data, err = %d\n", ykrc);
+      DBG("could not write admin data, err = %d", ykrc);
       goto Cleanup;
     }
   }

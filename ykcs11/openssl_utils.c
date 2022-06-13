@@ -643,9 +643,6 @@ CK_RV do_get_public_key(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) 
     /*BN_bn2bin(rsa->n, data);
      *len = 256;*/
 
-    /* fprintf(stderr, "Public key is: \n"); */
-    /* dump_hex(data, *len, stderr, CK_TRUE); */
-
     break;
 
   case EVP_PKEY_EC:
