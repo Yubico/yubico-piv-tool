@@ -1143,6 +1143,7 @@ void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
       asrt(dec_len, data_len, "DECRYPTED DATA LEN");
       asrt(memcmp(data, dec, dec_len), 0, "DECRYPTED DATA");
       free(dec);
+      dec = NULL;
 
       // Decrypt Update
       asrt(funcs->C_DecryptInit(session, &mech, obj_pvtkey[i]), CKR_OK, "DECRYPT INIT");
