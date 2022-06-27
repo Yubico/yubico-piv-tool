@@ -67,7 +67,7 @@ jobs:
           ls C:/vcpkg/packages/openssl_x86-windows/bin
           ls $env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug
           ls $env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug
-          $env:Path +=";C:/vcpkg/packages/check_x86-windows/bin/manual-link;C:/vcpkg/packages/openssl_x86-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
+          $env:Path +=";C:/vcpkg/packages/check_x86-windows/bin;C:/vcpkg/packages/openssl_x86-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
           ctest.exe -C Debug
 
       - name: Build with YKCS11_DBG is set
