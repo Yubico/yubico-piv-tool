@@ -62,6 +62,10 @@ jobs:
           mkdir build; cd build
           cmake -A Win32 -DVERBOSE_CMAKE=ON -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_x86-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_x86-windows ..
           cmake --build . -v
+          ls C:/vcpkg/packages/check_x86-windows/bin/manual-link
+          ls C:/vcpkg/packages/openssl_x86-windows/bin
+          ls $env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug
+          ls $env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug
           $env:Path +=";C:/vcpkg/packages/check_x86-windows/bin/manual-link;C:/vcpkg/packages/openssl_x86-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
           ctest.exe -C Debug
 
