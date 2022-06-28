@@ -84,10 +84,6 @@ char *_strip_ws(char *sz);
 setting_bool_t _get_bool_config(const char *sz_setting);
 setting_bool_t _get_bool_env(const char *sz_setting);
 
-/* log */
-
-const char szLOG_SOURCE[] = "YubiKey PIV Library";
-
 /*
 ** Methods
 */
@@ -133,7 +129,7 @@ cipher_rc cipher_encrypt(cipher_key key, const unsigned char* in, uint32_t inlen
 	if (key == NULL) {
     return CIPHER_MEMORY_ERROR;
   }
-	if(!BCRYPT_SUCCESS(BCryptEncrypt(key->hKey, (PUCHAR)in, inlen, NULL, NULL, 0, out, *outlen, outlen, 0))) {
+	if(!BCRYPT_SUCCESS(BCryptEncrypt(key->hKey, (PUCHAR)in, inlen, NULL, NULL, 0, out, *outlen, (PULONG)outlen, 0))) {
     return CIPHER_INVALID_PARAMETER;
   }
   return CIPHER_OK;
@@ -143,7 +139,7 @@ cipher_rc cipher_decrypt(cipher_key key, const unsigned char* in, uint32_t inlen
 	if (key == NULL) {
     return CIPHER_MEMORY_ERROR;
   }
-	if(!BCRYPT_SUCCESS(BCryptDecrypt(key->hKey, (PUCHAR)in, inlen, NULL, NULL, 0, out, *outlen, outlen, 0))) {
+	if(!BCRYPT_SUCCESS(BCryptDecrypt(key->hKey, (PUCHAR)in, inlen, NULL, NULL, 0, out, *outlen, (PULONG)outlen, 0))) {
     return CIPHER_INVALID_PARAMETER;
   }
   return CIPHER_OK;
@@ -466,7 +462,7 @@ setting_bool_t setting_get_bool(const char *sz_setting, bool def) {
 
 /* logging */
 
-void yc_log_event(uint32_t id, yc_log_level_t level, const char * sz_format, ...) {
+void yc_log_event(const char *sz_source, uint32_t id, yc_log_level_t level, const char * sz_format, ...) {
   char rgsz_message[4096] = {0};
   va_list vl;
 
@@ -501,7 +497,7 @@ void yc_log_event(uint32_t id, yc_log_level_t level, const char * sz_format, ...
       break;
   }
 
-  if (!(hLog = RegisterEventSourceA(NULL, szLOG_SOURCE))) {
+  if (!(hLog = RegisterEventSourceA(NULL, sz_source))) {
     goto Cleanup;
   }
 
@@ -553,7 +549,7 @@ void yc_log_event(uint32_t id, yc_log_level_t level, const char * sz_format, ...
      goto Cleanup;
    }
 
-   openlog(szLOG_SOURCE, LOG_PID | LOG_NDELAY, LOG_USER);
+   openlog(sz_source, LOG_PID | LOG_NDELAY, LOG_USER);
    syslog(priority, "%s", rgsz_message);
    closelog();
 
