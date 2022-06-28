@@ -359,7 +359,7 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm,
     goto create_empty_cert_cleanup;
   }
 
-  if (len > *out_len) {
+  if ((CK_ULONG)len > *out_len) {
     rv = CKR_BUFFER_TOO_SMALL;
     goto create_empty_cert_cleanup;
   }
@@ -724,7 +724,7 @@ CK_RV do_apply_DER_encoding_to_ECSIG(CK_BYTE_PTR signature, CK_ULONG_PTR signatu
     goto adete_out;
   }
 
-  if (len > buf_size) {
+  if ((CK_ULONG)len > buf_size) {
     rv = CKR_BUFFER_TOO_SMALL;
     goto adete_out;
   }
@@ -755,7 +755,7 @@ static int BN_bn2bin_fixed(const BIGNUM *bn, CK_BYTE_PTR out, CK_ULONG len) {
   int actual = BN_bn2bin(bn, buf);
   if(actual <= 0)
     return actual;
-  if(actual < len) {
+  if((CK_ULONG)actual < len) {
     memset(out,  0, len - actual);
     memcpy(out + len - actual, buf, actual);
   } else {

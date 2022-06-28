@@ -171,7 +171,7 @@ CK_RV get_token_serial(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
   if(actual < 0)
     return CKR_FUNCTION_FAILED;
 
-  if(actual >= len)
+  if((CK_ULONG)actual >= len)
     return CKR_BUFFER_TOO_SMALL;
 
   memstrcpy(str, len, buf);
@@ -192,7 +192,7 @@ CK_RV get_token_label(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
   if(actual < 0)
     return CKR_FUNCTION_FAILED;
 
-  if(actual >= len)
+  if((CK_ULONG)actual >= len)
     return CKR_BUFFER_TOO_SMALL;
 
   memstrcpy(str, len, buf);
@@ -485,7 +485,7 @@ CK_RV token_generate_key(ykpiv_state *state, gen_info_t *gen, CK_BYTE key, CK_BY
   *certptr++ = TAG_CERT_LRC;
   *certptr++ = 0;
 
-  if(*cert_len < certptr - data) {
+  if(*cert_len < (CK_ULONG)(certptr - data)) {
     DBG("Certificate buffer too small.");
     return CKR_BUFFER_TOO_SMALL;
   }

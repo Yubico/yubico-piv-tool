@@ -1864,7 +1864,7 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
   unsigned char templ[] = {0, YKPIV_INS_IMPORT_KEY, algorithm, key};
   unsigned char data[261] = {0};
   unsigned long recv_len = sizeof(data);
-  unsigned elem_len;
+  unsigned elem_len = 0;
   int sw = 0;
   const unsigned char *params[5] = {0};
   size_t lens[5] = {0};
