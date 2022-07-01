@@ -70,26 +70,15 @@ if(MSVC)
     endif()
     if(SUPRESS_MSVC_WARNINGS)
         set(MSVC_DISABLED_WARNINGS_LIST
-            "C4200" # nonstandard extension used: zero-sized array in struct/union;
-            "C4204" # nonstandard extension used: non-constant aggregate initializer;
             "C4706" # assignment within conditional expression;
             "C4996" # The POSIX name for this item is deprecated. Instead, use the ISO C and C++ conformant name
-
-            "C4473" # Not enough arguments passed for format string placeholders
             "C4244" # Conversion from 'int' to 'unsigned char', possible loss of data
             "C4152" # Nonstandard extension, function/data pointer conversion in expression (openssl/applink.c)
             "C4068" # Unknown pragma
-            "C4701" # Potentially uninitialized local variable
-            "C4703" # Potentially uninitialized local pointer
             "C4100" # 'param': unreferenced formal parameter (unsupported pkcs11 functions)
-            "C4221" # Nonstandard extension used: 'pValue': cannot be initialized using address of automatic variable (ykcs11_tests_util)
-            "C4057" # 'const char *' differs in indirection to slightly different base types from 'const CK_CHAR_PTR' (ykcs11 tests)
-            "C4245" # Conversion from 'int' to 'CK_ULONG' (ykcs11 tests)
-            "C4013" # '_getpid' undefined; assuming extern returning int (ykcs11/utils.c)
-            "C4702" # Unreachable code (mechanisms.c:is_RSA_mechanism)
-            "C4133" # Incompatible types: from 'ykpiv_rc' (enum) to 'int'
             "C4267" # Conversion from 'size_t' to 'CK_ULONG'
             "C4312" # Conversion from 'unsigned int' to 'void *' of greater size (ykcs11/utils.c:noop_create_mutex)
+            "C5105" # Macro expansion producing 'defined' has undefined behavior
             )
         # The construction in the following 3 lines was taken from LibreSSL's
         # CMakeLists.txt.

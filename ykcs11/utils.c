@@ -33,6 +33,7 @@
 #ifdef _WIN32
 #include <windows.h>
 #include <winsock.h>
+#include <process.h>
 #else
 #include <unistd.h>
 #include <pthread.h>

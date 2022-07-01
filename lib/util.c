@@ -788,7 +788,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
       }
 
       DBG(sz_roca_format, state->serial, psz_msg);
-      yc_log_event(1, setting_roca.value ? YC_LOG_LEVEL_WARN : YC_LOG_LEVEL_ERROR, sz_roca_format, state->serial, psz_msg);
+      yc_log_event("YubiKey PIV Library", 1, setting_roca.value ? YC_LOG_LEVEL_WARN : YC_LOG_LEVEL_ERROR, sz_roca_format, state->serial, psz_msg);
 
       if (!setting_roca.value) {
         return YKPIV_NOT_SUPPORTED;

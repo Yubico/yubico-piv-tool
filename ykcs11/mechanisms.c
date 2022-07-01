@@ -76,9 +76,6 @@ static CK_BBOOL is_RSA_mechanism(CK_MECHANISM_TYPE m) {
   default:
     return CK_FALSE;
   }
-
-  // Not reached
-  return CK_FALSE;
 }
 
 static const ykcs11_md_t* EVP_MD_by_mechanism(CK_MECHANISM_TYPE m) {
@@ -1020,7 +1017,7 @@ CK_RV decrypt_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR data, CK_UL
     return CKR_FUNCTION_FAILED;
   }
 
-  if(cb_len > *data_len) {
+  if((CK_ULONG)cb_len > *data_len) {
     DBG("Unpadded data too large (%d) for provided buffer (%lu)", cb_len, *data_len);
     *data_len = 0;
     return CKR_BUFFER_TOO_SMALL;

@@ -235,7 +235,7 @@ typedef enum _yc_log_level_t {
   YC_LOG_LEVEL_DEBUG
 } yc_log_level_t;
 
-void yc_log_event(uint32_t id, yc_log_level_t level, const char *sz_format, ...);
+void yc_log_event(const char *sz_source, uint32_t id, yc_log_level_t level, const char *sz_format, ...);
 
 void _ykpiv_set_debug(void (*dbg)(const char *));
 void _ykpiv_debug(const char *file, int line, const char *func, int lvl, const char *fmt, ...);

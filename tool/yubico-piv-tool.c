@@ -1283,7 +1283,7 @@ static bool verify_pin(ykpiv_state *state, const char *pin) {
 static bool change_pin(ykpiv_state *state, enum enum_action action, const char *pin,
     const char *new_pin) {
   const char *name = action == action_arg_changeMINUS_pin ? "pin" : "puk";
-  int (*op)(ykpiv_state *state, const char * puk, size_t puk_len,
+  ykpiv_rc (*op)(ykpiv_state *state, const char * puk, size_t puk_len,
             const char * new_pin, size_t new_pin_len, int *tries) = ykpiv_change_pin;
   size_t pin_len;
   size_t new_len;
