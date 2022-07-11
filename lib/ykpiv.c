@@ -130,7 +130,7 @@ static ykpiv_rc _ykpiv_authenticate2(ykpiv_state *state, unsigned const char *ke
 static ykpiv_rc _ykpiv_auth_deauthenticate(ykpiv_state *state);
 
 static unsigned const char piv_aid[] = {
-	0xa0, 0x00, 0x00, 0x03, 0x08
+  0xa0, 0x00, 0x00, 0x03, 0x08
 };
 
 static unsigned const char yk_aid[] = {
@@ -758,7 +758,7 @@ static const SCARD_IO_REQUEST* _pci(pcsc_word protocol) {
   }
 }
 
-static ykpiv_rc _send_tpdu(ykpiv_state *state, const unsigned char *send_data, pcsc_word send_len,
+static ykpiv_rc _ykpiv_transmit(ykpiv_state *state, const unsigned char *send_data, pcsc_word send_len,
     unsigned char *recv_data, pcsc_word *recv_len, int *sw) {
   DBG2("> @", send_data, (size_t)send_len);
   pcsc_long rc = SCardTransmit(state->card, _pci(state->protocol), send_data, send_len, NULL, recv_data, recv_len);
@@ -783,68 +783,74 @@ ykpiv_rc _ykpiv_transfer_data(ykpiv_state *state,
     unsigned char *out_data,
     unsigned long *out_len,
     int *sw) {
-  const unsigned char *in_ptr = in_data;
   unsigned long max_out = *out_len;
-  ykpiv_rc res = YKPIV_OK;
   *out_len = 0;
 
   do {
     APDU apdu = {templ[0], templ[1], templ[2], templ[3], 0xff};
     unsigned char data[261] = {0};
 
-    if(in_ptr + apdu.st.lc < in_data + in_len) {
+    if(in_len > 0xff) {
       apdu.st.cla |= 0x10;
     } else {
-      apdu.st.lc = (uint8_t)((in_data + in_len) - in_ptr);
+      apdu.st.lc = (unsigned char)in_len;
     }
+
+    pcsc_word apdu_len = apdu.st.lc + 5;
+
     if(apdu.st.lc) {
-      memcpy(apdu.st.data, in_ptr, apdu.st.lc);
-      in_ptr += apdu.st.lc;
+      memcpy(apdu.st.data, in_data, apdu.st.lc);
+      in_data += apdu.st.lc;
+      in_len -= apdu.st.lc;
+
+      // Add Le for T=1
+      if (state->protocol == SCARD_PROTOCOL_T1) {
+        apdu.st.data[apdu.st.lc] = 0;
+        apdu_len++;
+      }
     }
-    unsigned char send_len = apdu.st.lc;
   Retry:
-    DBG3("Going to send %u bytes in this go.", send_len);
+    DBG3("Going to send %u bytes in this go.", apdu_len);
     pcsc_word recv_len = sizeof(data);
-    res = _send_tpdu(state, apdu.raw, send_len + 5, data, &recv_len, sw);
+    ykpiv_rc res = _ykpiv_transmit(state, apdu.raw, apdu_len, data, &recv_len, sw);
     if(res != YKPIV_OK) {
-      goto Cleanup;
+      return res;
     }
     // Case 2S.3 — Process aborted; Ne not accepted, Na indicated
-    if(*sw >> 8 == 0x6c) {
+    if((*sw & 0xff00) == 0x6c00) {
       apdu.st.lc = *sw & 0xff;
+      DBG3("The card indicates we must retry with Le = %u.", apdu.st.lc);
       goto Retry;
     }
-    if(*sw != SW_SUCCESS && *sw >> 8 != 0x61) {
-      goto Cleanup;
+    if(*sw != SW_SUCCESS && (*sw & 0xff00) != 0x6100) {
+      return YKPIV_OK;
     }
     if(*out_len + recv_len > max_out) {
       DBG("Output buffer to small, wanted to write %lu, max was %lu.", *out_len + recv_len, max_out);
-      res = YKPIV_SIZE_ERROR;
-      goto Cleanup;
+      return YKPIV_SIZE_ERROR;
     }
     if(out_data) {
       memcpy(out_data, data, recv_len);
       out_data += recv_len;
       *out_len += recv_len;
     }
-  } while(in_ptr < in_data + in_len);
-  while(*sw >> 8 == 0x61) {
-    unsigned char tpdu[] = {0, YKPIV_INS_GET_RESPONSE_APDU, 0, 0, *sw & 0xff};
+  } while(in_len);
+  while((*sw & 0xff00) == 0x6100) {
+    unsigned char apdu[] = {0, YKPIV_INS_GET_RESPONSE_APDU, 0, 0, *sw & 0xff};
     unsigned char data[261] = {0};
 
-    DBG3("The card indicates there is %u bytes more data for us.", tpdu[4] ? tpdu[4] : 0x100);
+    DBG3("The card indicates there is %u bytes more data for us.", apdu[4] ? apdu[4] : 0x100);
 
     pcsc_word recv_len = sizeof(data);
-    res = _send_tpdu(state, tpdu, sizeof(tpdu), data, &recv_len, sw);
+    ykpiv_rc res = _ykpiv_transmit(state, apdu, sizeof(apdu), data, &recv_len, sw);
     if(res != YKPIV_OK) {
-      goto Cleanup;
-    } else if(*sw != SW_SUCCESS && *sw >> 8 != 0x61) {
-      goto Cleanup;
+      return res;
+    } else if(*sw != SW_SUCCESS && (*sw & 0xff00) != 0x6100) {
+      return YKPIV_OK;
     }
     if(*out_len + recv_len > max_out) {
       DBG("Output buffer to small, wanted to write %lu, max was %lu.", *out_len + recv_len, max_out);
-      res = YKPIV_SIZE_ERROR;
-      goto Cleanup;
+      return YKPIV_SIZE_ERROR;
     }
     if(out_data) {
       memcpy(out_data, data, recv_len);
@@ -852,8 +858,7 @@ ykpiv_rc _ykpiv_transfer_data(ykpiv_state *state,
       *out_len += recv_len;
     }
   }
-Cleanup:
-  return res;
+  return YKPIV_OK;
 }
 
 ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
