@@ -1366,7 +1366,7 @@ Cleanup:
 
 ykpiv_rc ykpiv_util_reset(ykpiv_state *state) {
   unsigned char templ[] = {0, YKPIV_INS_RESET, 0, 0};
-  unsigned char data[261] = {0};
+  unsigned char data[256] = {0};
   unsigned long recv_len = sizeof(data);
   ykpiv_rc res;
   int sw;

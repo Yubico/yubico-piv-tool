@@ -169,9 +169,9 @@ union u_APDU {
     unsigned char p1;
     unsigned char p2;
     unsigned char lc;
-    unsigned char data[0xff];
+    unsigned char data[0x100]; // Max 255 bytes + Le
   } st;
-  unsigned char raw[0xff + 5];
+  unsigned char raw[0x100 + 5];
 };
 
 typedef union u_APDU APDU;
