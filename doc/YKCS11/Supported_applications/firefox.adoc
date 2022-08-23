@@ -24,7 +24,7 @@ image::images/ff_sec-device.png[FF Security Devices]
 +
 image::images/ff_device_manager_load.png[FF Security Devices Load]
 
-3. Choose a name for the YKCS11 module, navigate to libykcs11.so and choose it then klick OK. The YKCS11 module should now appear in the Security devices column to the left.
+3. Choose a name for the YKCS11 module, navigate to libykcs11.so and choose it then click OK. The YKCS11 module should now appear in the Security devices column to the left.
 +
 image::images/ff_device_manager_load_driver.png[FF Security Devices Load Driver]
 +
