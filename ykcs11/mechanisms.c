@@ -101,6 +101,11 @@ static const ykcs11_md_t* EVP_MD_by_mechanism(CK_MECHANISM_TYPE m) {
 
 CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_MECHANISM_PTR mech) {
 
+  if(!key) {
+    DBG("No public key avilable, can't determine key type");
+    return CKR_KEY_TYPE_INCONSISTENT;
+  }
+
   const ykcs11_md_t *md = NULL;
 
   session->op_info.md_ctx = NULL;
@@ -146,7 +151,7 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_MECH
       DBG("Mechanism %lu not supported", session->op_info.mechanism);
       return CKR_MECHANISM_INVALID;
   }
-
+  
   session->op_info.out_len = do_get_signature_size(key);
   session->op_info.op.sign.rsa = (RSA*)EVP_PKEY_get0_RSA(key);
   session->op_info.op.sign.algorithm = do_get_key_algorithm(key);
@@ -359,6 +364,11 @@ CK_RV verify_mechanism_cleanup(ykcs11_session_t *session) {
 }
 
 CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_MECHANISM_PTR mech) {
+
+  if(!key) {
+    DBG("No public key avilable, can't determine key type");
+    return CKR_KEY_TYPE_INCONSISTENT;
+  }
 
   const ykcs11_md_t *md = NULL;
 

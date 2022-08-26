@@ -631,16 +631,9 @@ static CK_RV get_proa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
 
   case CKA_MODULUS:
     DBG("MODULUS");
-    len = sizeof(b_tmp);
+    len = do_get_key_size(s->pkeys[piv_objects[obj].sub_id]);
 
-    // Make sure that this is an RSA key
-    ul_tmp = do_get_key_type(s->pkeys[piv_objects[obj].sub_id]); // Getting the info from the pubk
-    if (ul_tmp == CKK_VENDOR_DEFINED)
-      return CKR_FUNCTION_FAILED;
-    if (ul_tmp != CKK_RSA)
-      return CKR_ATTRIBUTE_TYPE_INVALID;
-
-    if ((rv = do_get_modulus(s->pkeys[piv_objects[obj].sub_id], b_tmp, &len)) != CKR_OK)
+    if ((rv = do_get_modulus(s->pkeys[piv_objects[obj].sub_id], b_tmp, len)) != CKR_OK)
       return rv;
     data = b_tmp;
     break;
@@ -682,22 +675,15 @@ static CK_RV get_proa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
   case CKA_MODULUS_BITS:
     DBG("MODULUS BITS");
     len = sizeof(CK_ULONG);
-    ul_tmp = do_get_key_size(s->pkeys[piv_objects[obj].sub_id]);
+    ul_tmp = do_get_key_bits(s->pkeys[piv_objects[obj].sub_id]);
     data = (CK_BYTE_PTR) &ul_tmp;
     break;
 
   case CKA_PUBLIC_EXPONENT:
     DBG("PUBLIC EXPONENT");
-    len = sizeof(CK_ULONG);
+    len = sizeof(F4) - 1;
 
-    // Make sure that this is an RSA key
-    ul_tmp = do_get_key_type(s->pkeys[piv_objects[obj].sub_id]); // Getting the info from the pubk
-    if (ul_tmp == CKK_VENDOR_DEFINED)
-      return CKR_FUNCTION_FAILED;
-    if (ul_tmp != CKK_RSA)
-      return CKR_ATTRIBUTE_TYPE_INVALID;
-
-    if ((rv = do_get_public_exponent(s->pkeys[piv_objects[obj].sub_id], b_tmp, &len)) != CKR_OK)
+    if ((rv = do_get_public_exponent(s->pkeys[piv_objects[obj].sub_id], b_tmp, len)) != CKR_OK)
       return rv;
     data = b_tmp;
     break;
@@ -775,6 +761,7 @@ static CK_RV get_puoa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
   CK_BYTE     b_tmp[1024] = {0};
   CK_ULONG    ul_tmp;
   CK_ULONG    len = 0;
+  CK_RV       rv;
   DBG("For public key object %u, get ", obj);
 
   switch (template->type) {
@@ -899,40 +886,26 @@ static CK_RV get_puoa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
 
   case CKA_MODULUS:
     DBG("MODULUS");
-    len = sizeof(b_tmp);
+    len = do_get_key_size(s->pkeys[piv_objects[obj].sub_id]);
 
-    // Make sure that this is an RSA key
-    ul_tmp = do_get_key_type(s->pkeys[piv_objects[obj].sub_id]); // Getting the info from the pubk
-    if (ul_tmp == CKK_VENDOR_DEFINED)
-      return CKR_FUNCTION_FAILED;
-    if (ul_tmp != CKK_RSA)
-      return CKR_ATTRIBUTE_TYPE_INVALID;
-
-    if (do_get_modulus(s->pkeys[piv_objects[obj].sub_id], b_tmp, &len) != CKR_OK)
-      return CKR_FUNCTION_FAILED;
+    if ((rv = do_get_modulus(s->pkeys[piv_objects[obj].sub_id], b_tmp, len)) != CKR_OK)
+      return rv;
     data = b_tmp;
     break;
 
   case CKA_MODULUS_BITS:
     DBG("MODULUS BITS");
     len = sizeof(CK_ULONG);
-    ul_tmp = do_get_key_size(s->pkeys[piv_objects[obj].sub_id]);
+    ul_tmp = do_get_key_bits(s->pkeys[piv_objects[obj].sub_id]);
     data = (CK_BYTE_PTR) &ul_tmp;
     break;
 
   case CKA_PUBLIC_EXPONENT:
     DBG("PUBLIC EXPONENT");
-    len = sizeof(CK_ULONG);
+    len = sizeof(F4) - 1;
 
-    // Make sure that this is an RSA key
-    ul_tmp = do_get_key_type(s->pkeys[piv_objects[obj].sub_id]); // Getting the info from the pubk
-    if (ul_tmp == CKK_VENDOR_DEFINED)
-      return CKR_FUNCTION_FAILED;
-    if (ul_tmp != CKK_RSA)
-      return CKR_ATTRIBUTE_TYPE_INVALID;
-
-    if (do_get_public_exponent(s->pkeys[piv_objects[obj].sub_id], b_tmp, &len) != CKR_OK)
-      return CKR_FUNCTION_FAILED;
+    if ((rv = do_get_public_exponent(s->pkeys[piv_objects[obj].sub_id], b_tmp, len)) != CKR_OK)
+      return rv;
     data = b_tmp;
     break;
 

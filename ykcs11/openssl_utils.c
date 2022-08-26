@@ -49,7 +49,7 @@ CK_RV do_rsa_encrypt(ykcs11_pkey_t *key, int padding, const ykcs11_md_t* oaep_md
                      unsigned char *oaep_label, CK_ULONG oaep_label_len,
                      CK_BYTE_PTR data, CK_ULONG data_len, CK_BYTE_PTR enc, CK_ULONG_PTR enc_len) {
 
-  if (EVP_PKEY_base_id(key) != EVP_PKEY_RSA) {
+  if (!key || EVP_PKEY_base_id(key) != EVP_PKEY_RSA) { // EVP_PKEY_base_id doesn't handle NULL
     return CKR_KEY_TYPE_INCONSISTENT;
   }
 
@@ -517,103 +517,100 @@ CK_RV do_parse_attestation(ykcs11_x509_t *cert, CK_BYTE_PTR pin_policy, CK_BYTE_
 
 CK_KEY_TYPE do_get_key_type(ykcs11_pkey_t *key) {
 
-  if(!key) // EVP_PKEY_base_id doesn't handle NULL
-    return CKK_VENDOR_DEFINED; // Actually an error
+  if(key) { // EVP_PKEY_base_id doesn't handle NULL
+    switch (EVP_PKEY_base_id(key)) {
+    case EVP_PKEY_RSA:
+      return CKK_RSA;
 
-  switch (EVP_PKEY_base_id(key)) {
-  case EVP_PKEY_RSA:
-    return CKK_RSA;
-
-  case EVP_PKEY_EC:
-    return CKK_ECDSA;
-
-  default:
-    return CKK_VENDOR_DEFINED; // Actually an error
+    case EVP_PKEY_EC:
+      return CKK_ECDSA;
+    }
   }
+  return CKK_VENDOR_DEFINED; // Actually an error
+}
+
+CK_ULONG do_get_key_bits(ykcs11_pkey_t *key) {
+  return EVP_PKEY_bits(key);
 }
 
 CK_ULONG do_get_key_size(ykcs11_pkey_t *key) {
-  return EVP_PKEY_bits(key);
+  return EVP_PKEY_size(key);
 }
 
 CK_ULONG do_get_signature_size(ykcs11_pkey_t *key) {
 
-  switch (EVP_PKEY_base_id(key)) {
-  case EVP_PKEY_RSA:
-    return EVP_PKEY_size(key);
-  case EVP_PKEY_EC:
-    switch(EVP_PKEY_bits(key)) {
-    case 256:
-      return 64;
-    case 384:
-      return 96;
+  if(key) { // EVP_PKEY_base_id doesn't handle NULL
+    switch (EVP_PKEY_base_id(key)) {
+    case EVP_PKEY_RSA:
+      return EVP_PKEY_size(key);
+    case EVP_PKEY_EC:
+      switch(EVP_PKEY_bits(key)) {
+      case 256:
+        return 64;
+      case 384:
+        return 96;
+      }
     }
   }
-  return 0; // Actually an error
+  return 0;
 }
 
 CK_BYTE do_get_key_algorithm(ykcs11_pkey_t *key) {
 
-  switch (EVP_PKEY_base_id(key)) {
-  case EVP_PKEY_RSA:
-    switch(EVP_PKEY_bits(key)) {
-    case 1024:
-      return YKPIV_ALGO_RSA1024;
-    case 2048:
-      return YKPIV_ALGO_RSA2048;
-    }
-  case EVP_PKEY_EC:
-    switch(EVP_PKEY_bits(key)) {
-    case 256:
-      return YKPIV_ALGO_ECCP256;
-    case 384:
-      return YKPIV_ALGO_ECCP384;
+  if(key) { // EVP_PKEY_base_id doesn't handle NULL
+    switch (EVP_PKEY_base_id(key)) {
+    case EVP_PKEY_RSA:
+      switch(EVP_PKEY_bits(key)) {
+      case 1024:
+        return YKPIV_ALGO_RSA1024;
+      case 2048:
+        return YKPIV_ALGO_RSA2048;
+      }
+    case EVP_PKEY_EC:
+      switch(EVP_PKEY_bits(key)) {
+      case 256:
+        return YKPIV_ALGO_ECCP256;
+      case 384:
+        return YKPIV_ALGO_ECCP384;
+      }
     }
   }
-  return 0; // Actually an error
+  return 0;
 }
 
-CK_RV do_get_modulus(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
+CK_RV do_get_modulus(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG len) {
   const RSA *rsa = NULL;
   const BIGNUM *n = NULL;
 
-  rsa = EVP_PKEY_get0_RSA(key);
+  rsa = key ? EVP_PKEY_get0_RSA(key) : 0;
   if (rsa == NULL)
-    return CKR_FUNCTION_FAILED;
+    return CKR_ATTRIBUTE_TYPE_INVALID;
 
   RSA_get0_key(rsa, &n, NULL, NULL);
-  if ((CK_ULONG)BN_num_bytes(n) > *len) {
-    return CKR_BUFFER_TOO_SMALL;
-  }
 
-  *len = (CK_ULONG)BN_bn2bin(n, data);
+  if(BN_bn2binpad(n, data, len) < 0)
+    return CKR_DATA_LEN_RANGE;
 
   return CKR_OK;
 }
 
-CK_RV do_get_public_exponent(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
+CK_RV do_get_public_exponent(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG len) {
 
   const RSA *rsa = NULL;
   const BIGNUM *bn_e;
 
-  rsa = EVP_PKEY_get0_RSA(key);
+  rsa = key ? EVP_PKEY_get0_RSA(key) : 0;
   if (rsa == NULL)
-    return CKR_FUNCTION_FAILED;
+    return CKR_ATTRIBUTE_TYPE_INVALID;
 
   RSA_get0_key(rsa, NULL, &bn_e, NULL);
-  if ((CK_ULONG)BN_num_bytes(bn_e) > *len) {
-    return CKR_BUFFER_TOO_SMALL;
-  }
 
-  *len = (CK_ULONG)BN_bn2bin(bn_e, data);
+  if(BN_bn2binpad(bn_e, data, len) < 0)
+    return CKR_DATA_LEN_RANGE;
+
   return CKR_OK;
 }
 
-/* #include <stdio.h> */
-/* #include <openssl/err.h> */
-/*   ERR_load_crypto_strings(); */
-/* //SSL_load_error_strings(); */
-/*   fprintf(stderr, "ERROR %s\n", ERR_error_string(ERR_get_error(), NULL)); */
 CK_RV do_get_public_key(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
   const RSA *rsa = NULL;
   unsigned char *p;
@@ -637,11 +634,6 @@ CK_RV do_get_public_key(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) 
     if ((*len = (CK_ULONG) i2d_RSAPublicKey(rsa, &p)) == 0) {
       return CKR_FUNCTION_FAILED;
     }
-
-    // TODO: this is the correct thing to do so that we strip out the exponent
-    // OTOH we also need a function to get the exponent out with CKA_PUBLIC_EXPONENT
-    /*BN_bn2bin(rsa->n, data);
-     *len = 256;*/
 
     break;
 
@@ -749,25 +741,6 @@ adete_out:
   return rv;
 }
 
-static int BN_bn2bin_fixed(const BIGNUM *bn, CK_BYTE_PTR out, CK_ULONG len) {
-
-  CK_BYTE buf[1024] = {0};
-  int actual = BN_bn2bin(bn, buf);
-  if(actual <= 0)
-    return actual;
-  if((CK_ULONG)actual < len) {
-    memset(out,  0, len - actual);
-    memcpy(out + len - actual, buf, actual);
-  } else {
-    for(CK_ULONG i = 0; i < actual - len; i++) {
-      if(buf[i])
-        return -1; // Non-zero byte would have been lost
-    }
-    memcpy(out, buf + actual - len, len);
-  }
-  return len;
-}
-
 CK_RV do_strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG len, CK_ULONG sig_len) {
   CK_RV rv;
   const CK_BYTE *p = data;
@@ -779,12 +752,12 @@ CK_RV do_strip_DER_encoding_from_ECSIG(CK_BYTE_PTR data, CK_ULONG len, CK_ULONG 
   const BIGNUM *x, *y;
   ECDSA_SIG_get0(sig, &x, &y);
 
-  if(BN_bn2bin_fixed(x, data, sig_len / 2) <= 0) {
+  if(BN_bn2binpad(x, data, sig_len / 2) <= 0) {
     rv = CKR_DATA_INVALID;
     goto strip_der_cleanup;
   }
 
-  if(BN_bn2bin_fixed(y, data + sig_len / 2, sig_len / 2) <= 0) {
+  if(BN_bn2binpad(y, data + sig_len / 2, sig_len / 2) <= 0) {
     rv = CKR_DATA_INVALID;
     goto strip_der_cleanup;
   }

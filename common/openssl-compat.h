@@ -41,6 +41,8 @@ void ECDSA_SIG_get0(const ECDSA_SIG *sig, const BIGNUM **pr, const BIGNUM **ps);
 RSA *EVP_PKEY_get0_RSA(const EVP_PKEY *pkey);
 EC_KEY *EVP_PKEY_get0_EC_KEY(const EVP_PKEY *pkey);
 
+int BN_bn2binpad(const BIGNUM *a, unsigned char *to, int tolen);
+
 #endif
 
 #if (LIBRESSL_VERSION_NUMBER > 0L) && (LIBRESSL_VERSION_NUMBER < 0x31000000L)

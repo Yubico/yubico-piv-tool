@@ -335,7 +335,7 @@ EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
 
   const BIGNUM *bn = EC_KEY_get0_private_key(eck);
 
-  asrt(BN_bn2bin(bn, pvt), key_len, "EXTRACT PVT");
+  asrt(BN_bn2binpad(bn, pvt, key_len), key_len, "EXTRACT PVT");
 
   if (EVP_PKEY_set1_EC_KEY(evp, eck) == 0)
     exit(EXIT_FAILURE);
@@ -425,19 +425,15 @@ void import_rsa_key_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE se
   if (evp == NULL || rsak == NULL)
     exit(EXIT_FAILURE);
 
-  int len_correct = 0;
-  do {
-    asrt(RSA_generate_key_ex(rsak, keylen, e_bn, NULL), 1, "GENERATE RSAK");
-    const BIGNUM *bp, *bq, *biqmp, *bdmp1, *bdmq1;
-    RSA_get0_factors(rsak, &bp, &bq);
-    RSA_get0_crt_params(rsak, &bdmp1, &bdmq1, &biqmp);
-    int p_len = BN_bn2bin(bp, p);
-    int q_len = BN_bn2bin(bq, q);
-    int dp_len = BN_bn2bin(bdmp1, dp);
-    int dq_len = BN_bn2bin(bdmq1, dq);
-    int qinv_len = BN_bn2bin(biqmp, qinv);
-    len_correct = p_len == len && q_len == len && dp_len == len && dq_len == len && qinv_len == len;
-  } while(!len_correct);
+  asrt(RSA_generate_key_ex(rsak, keylen, e_bn, NULL), 1, "GENERATE RSAK");
+  const BIGNUM *bp, *bq, *biqmp, *bdmp1, *bdmq1;
+  RSA_get0_factors(rsak, &bp, &bq);
+  RSA_get0_crt_params(rsak, &bdmp1, &bdmq1, &biqmp);
+  asrt(BN_bn2binpad(bp, p, len), len, "EXTRACT P");
+  asrt(BN_bn2binpad(bq, q, len), len, "EXTRACT Q");
+  asrt(BN_bn2binpad(bdmp1, dp, len), len, "EXTRACT DMP1");
+  asrt(BN_bn2binpad(bdmq1, dq, len), len, "EXTRACT DMQ1");
+  asrt(BN_bn2binpad(biqmp, qinv, len), len, "EXTRACT IQMP");
 
   if (EVP_PKEY_set1_RSA(evp, rsak) == 0)
     exit(EXIT_FAILURE);
@@ -499,20 +495,15 @@ void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int k
   if (e_bn == NULL)
     exit(EXIT_FAILURE);
 
-  int len_correct = 0;
-  do {
-    asrt(RSA_generate_key_ex(*rsak, keylen, e_bn, NULL), 1, "GENERATE RSAK");
-    const BIGNUM *bp, *bq, *biqmp, *bdmp1, *bdmq1;
-    RSA_get0_factors(*rsak, &bp, &bq);
-    RSA_get0_crt_params(*rsak, &bdmp1, &bdmq1, &biqmp);
-    int p_len = BN_bn2bin(bp, p);
-    int q_len = BN_bn2bin(bq, q);
-    int dp_len = BN_bn2bin(bdmp1, dp);
-    int dq_len = BN_bn2bin(bdmq1, dq);
-    int qinv_len = BN_bn2bin(biqmp, qinv);
-    len_correct = p_len == len && q_len == len && dp_len == len && dq_len == len && qinv_len == len; 
-  } while(!len_correct);
-
+  asrt(RSA_generate_key_ex(*rsak, keylen, e_bn, NULL), 1, "GENERATE RSAK");
+  const BIGNUM *bp, *bq, *biqmp, *bdmp1, *bdmq1;
+  RSA_get0_factors(*rsak, &bp, &bq);
+  RSA_get0_crt_params(*rsak, &bdmp1, &bdmq1, &biqmp);
+  asrt(BN_bn2binpad(bp, p, len), len, "EXTRACT P");
+  asrt(BN_bn2binpad(bq, q, len), len, "EXTRACT Q");
+  asrt(BN_bn2binpad(bdmp1, dp, len), len, "EXTRACT DMP1");
+  asrt(BN_bn2binpad(bdmq1, dq, len), len, "EXTRACT DMQ1");
+  asrt(BN_bn2binpad(biqmp, qinv, len), len, "EXTRACT IQMP");
 
   if (EVP_PKEY_set1_RSA(*evp, *rsak) == 0)
     exit(EXIT_FAILURE);

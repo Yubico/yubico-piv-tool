@@ -93,9 +93,7 @@ static void cleanup_slot(ykcs11_slot_t *slot) {
     slot->data[i].data = NULL;
   }
   for(size_t i = 0; i < sizeof(slot->certs) / sizeof(slot->certs[0]); i++) {
-    do_delete_pubk(slot->pkeys + i);
-    do_delete_cert(slot->certs + i);
-    do_delete_cert(slot->atst + i);
+    delete_cert(slot, i);
   }
   memset(slot->origin, 0, sizeof(slot->origin));
   memset(slot->pin_policy, 0, sizeof(slot->pin_policy));
@@ -1568,6 +1566,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     session->slot->pin_policy[id] = pin_policy;
     session->slot->touch_policy[id] = touch_policy;
 
+    do_delete_cert(session->slot->atst + id);
+    do_store_pubk(session->slot->certs[id], session->slot->pkeys + id);
+
     unsigned char data[YKPIV_OBJ_MAX_SIZE];
     size_t len = sizeof(data);
     if((rc = ykpiv_get_metadata(session->slot->piv_state, slot, data, &len)) == YKPIV_OK) {
@@ -2364,7 +2365,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
     goto decrypt_out;
   }
 
-  CK_ULONG key_len = do_get_key_size(session->op_info.op.encrypt.key);
+  CK_ULONG key_len = do_get_key_bits(session->op_info.op.encrypt.key);
   CK_ULONG datalen = (key_len + 7) / 8; // When RSA_NO_PADDING is used
   if(session->op_info.op.encrypt.padding == RSA_PKCS1_PADDING) {
     datalen -= 11;
@@ -2505,7 +2506,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
     goto decrypt_out;
   }
 
-  CK_ULONG key_len = do_get_key_size(session->op_info.op.encrypt.key);
+  CK_ULONG key_len = do_get_key_bits(session->op_info.op.encrypt.key);
   CK_ULONG datalen = (key_len + 7) / 8; // When RSA_NO_PADDING is used
   if(session->op_info.op.encrypt.padding == RSA_PKCS1_PADDING) {
     datalen -= 11;
