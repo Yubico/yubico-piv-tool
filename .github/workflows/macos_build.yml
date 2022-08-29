@@ -5,8 +5,8 @@ on: [push]
 jobs:
 
   job1:
-    name: MacOS Catalina
-    runs-on: macos-10.15
+    name: MacOS
+    runs-on: macos-latest
     steps:
       # This action checks-out the repository under $GITHUB_WORKSPACE, so the workflow can access it.
       - name: checkout
