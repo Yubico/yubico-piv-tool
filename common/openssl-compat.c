@@ -115,6 +115,25 @@ EC_KEY *EVP_PKEY_get0_EC_KEY(const EVP_PKEY *pkey) {
   return pkey->pkey.ec;
 }
 
+int BN_bn2binpad(const BIGNUM *a, unsigned char *to, int tolen) {
+
+  unsigned char buf[1024] = {0};
+  int actual = BN_bn2bin(a, buf);
+  if(actual <= 0)
+    return actual;
+  if(actual < tolen) {
+    memset(to,  0, tolen - actual);
+    memcpy(to + tolen - actual, buf, actual);
+  } else {
+    for(int i = 0; i < actual - tolen; i++) {
+      if(buf[i])
+        return -1; // Non-zero byte would have been lost
+    }
+    memcpy(to, buf + actual - tolen, tolen);
+  }
+  return tolen;
+}
+
 #endif
 
 #if (LIBRESSL_VERSION_NUMBER > 0L) && (LIBRESSL_VERSION_NUMBER < 0x3010000fL)
