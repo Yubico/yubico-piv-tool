@@ -141,7 +141,7 @@ CK_RV do_generate_ec_key(int curve_name, ykcs11_pkey_t **pkey) {
   if(group == NULL) {
     return CKR_HOST_MEMORY;
   }
-  EC_GROUP_set_asn1_flag(group, curve_name);
+  EC_GROUP_set_asn1_flag(group, OPENSSL_EC_NAMED_CURVE);
   eckey = EC_KEY_new();
   if(eckey == NULL) {
     rv = CKR_HOST_MEMORY;
@@ -177,7 +177,7 @@ CK_RV do_create_ec_key(CK_BYTE_PTR point, CK_ULONG point_len, int curve_name, yk
   EC_GROUP *group = EC_GROUP_new_by_curve_name(curve_name);
   if(group == NULL)
     return CKR_HOST_MEMORY;
-  EC_GROUP_set_asn1_flag(group, curve_name);
+  EC_GROUP_set_asn1_flag(group, OPENSSL_EC_NAMED_CURVE);
   eckey = EC_KEY_new();
   if(eckey == NULL) {
     rv = CKR_HOST_MEMORY;
