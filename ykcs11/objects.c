@@ -861,8 +861,8 @@ static CK_RV get_puoa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
     if (ul_tmp != CKK_ECDSA)
       return CKR_ATTRIBUTE_TYPE_INVALID;
 
-    if (do_get_public_key(s->pkeys[piv_objects[obj].sub_id], b_tmp, &len) != CKR_OK)
-      return CKR_FUNCTION_FAILED;
+    if ((rv = do_get_public_key(s->pkeys[piv_objects[obj].sub_id], b_tmp, &len)) != CKR_OK)
+      return rv;
     data = b_tmp;
     break;
 
@@ -878,8 +878,8 @@ static CK_RV get_puoa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
     if (ul_tmp != CKK_ECDSA)
       return CKR_ATTRIBUTE_TYPE_INVALID;
 
-    if (do_get_curve_parameters(s->pkeys[piv_objects[obj].sub_id], b_tmp, &len) != CKR_OK)
-      return CKR_FUNCTION_FAILED;
+    if ((rv = do_get_curve_parameters(s->pkeys[piv_objects[obj].sub_id], b_tmp, &len)) != CKR_OK)
+      return rv;
 
     data = b_tmp;
     break;

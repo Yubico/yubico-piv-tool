@@ -320,7 +320,7 @@ static bool generate_key(ykpiv_state *state, enum enum_slot slot,
       }
       eckey = EC_KEY_new();
       group = EC_GROUP_new_by_curve_name(nid);
-      EC_GROUP_set_asn1_flag(group, nid);
+      EC_GROUP_set_asn1_flag(group, OPENSSL_EC_NAMED_CURVE);
       if(EC_KEY_set_group(eckey, group) != 1) {
         fprintf(stderr, "Failed to set EC group.\n");
         goto generate_out;
