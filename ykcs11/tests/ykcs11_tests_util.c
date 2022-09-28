@@ -302,7 +302,7 @@ EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
 
   CK_ULONG    class_k = CKO_PRIVATE_KEY;
   CK_ULONG    class_c = CKO_CERTIFICATE;
-  CK_ULONG    kt = CKK_ECDSA;
+  CK_ULONG    kt = CKK_EC;
   CK_BYTE     id = 0;
   CK_BYTE     value_c[3100] = {0};
   CK_CHAR     *pvt = malloc(key_len);
@@ -559,7 +559,7 @@ void generate_ec_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
                       CK_OBJECT_HANDLE_PTR obj_pubkey, CK_OBJECT_HANDLE_PTR obj_pvtkey) {
   CK_ULONG    class_k = CKO_PRIVATE_KEY;
   CK_ULONG    class_c = CKO_PUBLIC_KEY;
-  CK_ULONG    kt = CKK_ECDSA;
+  CK_ULONG    kt = CKK_EC;
   CK_BYTE     id = 0;
 
   CK_ATTRIBUTE privateKeyTemplate[] = {
@@ -592,7 +592,7 @@ void generate_ec_keys_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE 
                                   CK_BYTE pin_attr_val, CK_BBOOL always_auth_val) {
   CK_ULONG    class_k = CKO_PRIVATE_KEY;
   CK_ULONG    class_c = CKO_PUBLIC_KEY;
-  CK_ULONG    kt = CKK_ECDSA;
+  CK_ULONG    kt = CKK_EC;
   CK_BYTE     id = 0;
 
   CK_ATTRIBUTE privateKeyTemplate[] = {

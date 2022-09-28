@@ -523,7 +523,7 @@ CK_KEY_TYPE do_get_key_type(ykcs11_pkey_t *key) {
       return CKK_RSA;
 
     case EVP_PKEY_EC:
-      return CKK_ECDSA;
+      return CKK_EC;
     }
   }
   return CKK_VENDOR_DEFINED; // Actually an error

@@ -607,7 +607,7 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
 
     case CKA_KEY_TYPE:
       if ((rsa == CK_TRUE  && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_RSA) ||
-          (rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_ECDSA)) {
+          (rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_EC)) {
         DBG("Bad CKA_KEY_TYPE");
         return CKR_TEMPLATE_INCONSISTENT;
       }
@@ -670,14 +670,23 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
       gen->key_id = *((CK_BYTE_PTR)templ[i].pValue);
       break;
 
+    case CKA_COPYABLE:
+    case CKA_DESTROYABLE:
+    case CKA_EXTRACTABLE:
     case CKA_SENSITIVE:
     case CKA_TOKEN:
     case CKA_ENCRYPT:
+    case CKA_DECRYPT:
+    case CKA_SIGN:
+    case CKA_SIGN_RECOVER:
     case CKA_VERIFY:
+    case CKA_VERIFY_RECOVER:
     case CKA_WRAP:
+    case CKA_UNWRAP:
     case CKA_DERIVE:
     case CKA_PRIVATE:
     case CKA_LABEL:
+    case CKA_ISSUER:
     case CKA_SUBJECT:
       // Ignore these attributes for now
       break;
@@ -708,7 +717,7 @@ CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
 
     case CKA_KEY_TYPE:
       if ((rsa == CK_TRUE  && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_RSA) ||
-          (rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_ECDSA)) {
+          (rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_EC)) {
         DBG("Bad CKA_KEY_TYPE");
         return CKR_TEMPLATE_INCONSISTENT;
       }
@@ -727,6 +736,20 @@ CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
         return CKR_TEMPLATE_INCONSISTENT;
       }
       gen->key_id = *((CK_BYTE_PTR)templ[i].pValue);
+      break;
+
+    case CKA_TOKEN:
+      if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
+        DBG("CKA_TOKEN must be TRUE or omitted");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+      break;
+
+    case CKA_PRIVATE:
+      if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
+        DBG("CKA_PRIVATE must be TRUE or omitted");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
       break;
 
     case CKA_SENSITIVE:
@@ -796,20 +819,25 @@ CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
       gen->pin_policy = b_tmp;
       break;
 
+    case CKA_COPYABLE:
+    case CKA_DESTROYABLE:
+    case CKA_ENCRYPT:
     case CKA_DECRYPT:
+    case CKA_WRAP:
     case CKA_UNWRAP:
     case CKA_SIGN:
     case CKA_SIGN_RECOVER:
-    case CKA_PRIVATE:
-    case CKA_TOKEN:
+    case CKA_VERIFY:
+    case CKA_VERIFY_RECOVER:
     case CKA_DERIVE:
     case CKA_LABEL:
+    case CKA_ISSUER:
     case CKA_SUBJECT:
       // Ignore these attributes for now
       break;
 
     default:
-      DBG("Invalid attribute %lx in private key template", templ[i].type);
+      DBG("Invalid attribute 0x%lx in private key template", templ[i].type);
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
   }
