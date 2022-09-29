@@ -1,0 +1,14 @@
+[package]
+name = "authenticate"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "authenticate"
+crate-type = ["staticlib"]
+
+[dependencies]
+libafl = "0.8.1"
+libafl_cc = "0.8.1"
+libafl_targets = { version = "0.8.1", features = ["sancov_pcguard_hitcounts", "sancov_cmplog", "libfuzzer"] }
+clap = { version = "3.2.22", features = ["derive"] }

@@ -1,0 +1,29 @@
+[tasks.build]
+dependencies = ["build-target"]
+
+[tasks.build-libafl]
+command = "cargo"
+args = ["build", "--release"]
+
+[tasks.build-target]
+dependencies = ["build-libafl"]
+command = "../target/release/libafl_cc"
+args = [
+    "-fuse-ld=lld",
+    "-fsanitize=address,undefined",
+    "-I/usr/include/PCSC",
+    "-O1",
+    "-g",
+    "-I../../lib",
+    "-I../../common",
+    "-Wl,--gc-sections",
+    "../../bin/lib/libykpiv.a",
+    "-Wl,--whole-archive",
+    "../target/release/libauthenticate.a",
+    "-Wl,--no-whole-archive",
+    "c/harness.c",
+    "c/openssl_stubs.c",
+    "c/pcsc_stubs.c",
+    "c/memcpy_rollover.c",
+    "-o", "fuzzer"
+]
