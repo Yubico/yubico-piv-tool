@@ -1,0 +1,6 @@
+target
+input
+output
+*.lafl_lock
+stdout
+fuzzer
