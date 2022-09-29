@@ -509,8 +509,10 @@ CK_RV token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_BYTE_PTR in, CK
   CK_RV rv;
 
   // Check whether or not we have a valid cert
-  if ((rv = do_check_cert(in, in_len, &cert_len)) != CKR_OK)
+  if ((rv = do_check_cert(in, in_len, &cert_len)) != CKR_OK) {
+    DBG("Certificate not valid.");
     return rv;
+  }
 
   if (cert_len > YKPIV_OBJ_MAX_SIZE)
     return CKR_FUNCTION_FAILED;
