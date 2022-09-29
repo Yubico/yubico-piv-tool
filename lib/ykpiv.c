@@ -526,7 +526,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
   SCARDHANDLE card = (SCARDHANDLE)-1;
 
   if(wanted && *wanted == '@') {
-    wanted++; // Skip the '@' 
+    wanted++; // Skip the '@'
     DBG("Connect reader '%s'.", wanted);
     if(SCardIsValidContext(state->context) != SCARD_S_SUCCESS) {
       rc = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &state->context);
@@ -1208,7 +1208,7 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   }
 
   bytes = _ykpiv_get_length_size(in_len);
-  
+
   *dataptr++ = 0x7c;
   dataptr += _ykpiv_set_length(dataptr, in_len + bytes + 3);
   *dataptr++ = 0x82;
@@ -1298,7 +1298,7 @@ static ykpiv_rc _ykpiv_get_version(ykpiv_state *state) {
   unsigned long recv_len = sizeof(data);
   int sw = 0;
   ykpiv_rc res;
-  
+
   if (!state) {
     return YKPIV_ARGUMENT_ERROR;
   }
@@ -1779,7 +1779,7 @@ ykpiv_rc _ykpiv_fetch_object(ykpiv_state *state, int object_id,
 
   if(sw == SW_SUCCESS) {
     size_t outlen = 0;
-    size_t offs = _ykpiv_get_length(data + 1, data + *len, &outlen);    
+    size_t offs = _ykpiv_get_length(data + 1, data + *len, &outlen);
     if(!offs) {
       return YKPIV_PARSE_ERROR;
     }
@@ -2069,7 +2069,7 @@ Cleanup:
 
 ykpiv_rc ykpiv_auth_getchallenge(ykpiv_state *state, uint8_t *challenge, unsigned long *challenge_len) {
   ykpiv_rc res;
-  
+
   if (NULL == state) return YKPIV_GENERIC_ERROR;
   if (NULL == challenge) return YKPIV_GENERIC_ERROR;
   if (NULL == challenge_len) return YKPIV_GENERIC_ERROR;
