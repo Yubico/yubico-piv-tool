@@ -131,3 +131,5 @@ ykcs11/tests/ykcs11_tests_util.o
 ykcs11/tests/ykcs11_tests.trs
 ykcs11/tests/ykcs11_tests.exe
 yubico-piv-tool.1.txt
+bin
+.ccls-cache
