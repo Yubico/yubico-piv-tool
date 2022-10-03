@@ -477,6 +477,20 @@ static CK_RV _get_coa(ykcs11_x509_t **certs, piv_obj_id_t obj, CK_ATTRIBUTE_PTR 
     data = b_tmp;
     break;
 
+  case CKA_COPYABLE:
+    DBG("COPYABLE");
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = CK_FALSE;
+    data = b_tmp;
+    break;
+
+  case CKA_DESTROYABLE:
+    DBG("DESTROYABLE");
+    len = sizeof(CK_BBOOL);
+    b_tmp[0] = CK_TRUE;
+    data = b_tmp;
+    break;
+
   case CKA_TRUSTED:
     DBG("TRUSTED");
     len = sizeof(CK_BBOOL);
