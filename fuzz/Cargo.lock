@@ -66,6 +66,7 @@ dependencies = [
  "libafl",
  "libafl_cc",
  "libafl_targets",
+ "piv_fuzz_common",
 ]
 
 [[package]]
@@ -712,6 +713,16 @@ dependencies = [
  "redox_syscall",
  "smallvec",
  "windows-sys",
+]
+
+[[package]]
+name = "piv_fuzz_common"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "libafl",
+ "libafl_cc",
+ "libafl_targets",
 ]
 
 [[package]]

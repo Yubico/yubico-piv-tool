@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
+    "piv_fuzz_common",
     "authenticate",
     "transfer_data"
 ]
