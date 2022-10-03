@@ -3,7 +3,7 @@
 #include <internal.h>
 #include <ykpiv.h>
 
-#include "harness.h"
+#include <harness.h>
 #include "memcpy_rollover.h"
 
 const SCARD_IO_REQUEST g_rgSCardT0Pci = { SCARD_PROTOCOL_T0, sizeof(SCARD_IO_REQUEST) };

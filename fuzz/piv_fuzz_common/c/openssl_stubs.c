@@ -1,6 +1,6 @@
 #include <string.h>
 
-#include "harness.h"
+#include <harness.h>
 #include "memcpy_rollover.h"
 
 struct evp_cipher_ctx_st { } ;

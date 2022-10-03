@@ -22,8 +22,9 @@ args = [
     "../target/release/libauthenticate.a",
     "-Wl,--no-whole-archive",
     "c/harness.c",
-    "c/openssl_stubs.c",
-    "c/pcsc_stubs.c",
-    "c/memcpy_rollover.c",
+    "-Ic",
+    "../piv_fuzz_common/c/openssl_stubs.c",
+    "../piv_fuzz_common/c/pcsc_stubs.c",
+    "../piv_fuzz_common/c/memcpy_rollover.c",
     "-o", "fuzzer"
 ]
