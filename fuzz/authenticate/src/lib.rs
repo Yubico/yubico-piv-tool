@@ -62,6 +62,19 @@ pub fn main() -> i32 {
 
 #[no_mangle]
 pub fn libafl_main(cli_args: &CliArgs) {
+    let harness = |input: &BytesInput| {
+        unsafe {
+            CustomFuzzerTestOneInput(&TestCase::from(input) as *const TestCase);
+        }
+        ExitKind::Ok
+    };
+    piv_fuzz_common(cli_args, harness);
+}
+
+pub fn piv_fuzz_common<H>(cli_args: &CliArgs, harness: H)
+where
+    H: FnMut(&BytesInput) -> ExitKind + Clone,
+{
     let input_dirs = [PathBuf::from(&cli_args.input_dir)];
     let output_dir = PathBuf::from(&cli_args.output_dir);
     let timeout_ms = Duration::from_millis(cli_args.timeout);
@@ -140,12 +153,12 @@ pub fn libafl_main(cli_args: &CliArgs) {
         let mut fuzzer = StdFuzzer::new(scheduler, feedback, objective);
 
         // The wrapped harness function, calling out to the LLVM-style harness
-        let harness = Box::new(|input: &BytesInput| {
-            unsafe {
-                CustomFuzzerTestOneInput(&TestCase::from(input) as *const TestCase);
-            }
-            ExitKind::Ok
-        });
+        //let harness = |input: &BytesInput| {
+        //    unsafe {
+        //        CustomFuzzerTestOneInput(&TestCase::from(input) as *const TestCase);
+        //    }
+        //    ExitKind::Ok
+        //};
         let mut executor_harness = harness.clone();
         let mut tracing_harness = harness.clone();
 
