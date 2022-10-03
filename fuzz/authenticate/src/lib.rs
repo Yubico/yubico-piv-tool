@@ -54,10 +54,10 @@ pub struct CliArgs {
 #[no_mangle]
 pub fn main() -> i32 {
     let cli_args = CliArgs::parse();
-    if cli_args.triage_run == false {
+    if !cli_args.triage_run {
         libafl_main(&cli_args);
     }
-    return 0;
+    0
 }
 
 #[no_mangle]
@@ -140,17 +140,19 @@ pub fn libafl_main(cli_args: &CliArgs) {
         let mut fuzzer = StdFuzzer::new(scheduler, feedback, objective);
 
         // The wrapped harness function, calling out to the LLVM-style harness
-        let mut harness = |input: &BytesInput| {
+        let harness = Box::new(|input: &BytesInput| {
             unsafe {
                 CustomFuzzerTestOneInput(&TestCase::from(input) as *const TestCase);
             }
             ExitKind::Ok
-        };
+        });
+        let mut executor_harness = harness.clone();
+        let mut tracing_harness = harness.clone();
 
         // Create the executor for an in-process function with one observer for edge coverage and one for the execution time
         let mut executor = TimeoutExecutor::new(
             InProcessExecutor::new(
-                &mut harness,
+                &mut executor_harness,
                 tuple_list!(edges_observer, time_observer),
                 &mut fuzzer,
                 &mut state,
@@ -159,17 +161,9 @@ pub fn libafl_main(cli_args: &CliArgs) {
             timeout_ms,
         );
 
-        // Secondary harness due to mut ownership
-        let mut harness = |input: &BytesInput| {
-            unsafe {
-                CustomFuzzerTestOneInput(&TestCase::from(input) as *const TestCase);
-            }
-            ExitKind::Ok
-        };
-
         // Setup a tracing stage in which we log comparisons
         let tracing = TracingStage::new(InProcessExecutor::new(
-            &mut harness,
+            &mut tracing_harness,
             tuple_list!(cmplog_observer),
             &mut fuzzer,
             &mut state,
