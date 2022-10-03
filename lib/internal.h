@@ -181,6 +181,7 @@ cipher_rc cipher_import_key(unsigned char algo, const unsigned char *keyraw, uin
 cipher_rc cipher_destroy_key(cipher_key key);
 cipher_rc cipher_encrypt(cipher_key key, const unsigned char *in, uint32_t inlen, unsigned char *out, uint32_t *outlen);
 cipher_rc cipher_decrypt(cipher_key key, const unsigned char *in, uint32_t inlen, unsigned char *out, uint32_t *outlen);
+uint32_t cipher_blocksize(cipher_key key);
 
 pkcs5_rc pkcs5_pbkdf2_sha1(const uint8_t* password, const size_t cb_password, const uint8_t* salt, const size_t cb_salt, uint64_t iterations, const uint8_t* key, const size_t cb_key);
 bool   yk_des_is_weak_key(const unsigned char *key, const size_t cb_key);
