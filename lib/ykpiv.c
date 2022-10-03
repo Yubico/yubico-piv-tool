@@ -785,6 +785,7 @@ ykpiv_rc _ykpiv_transfer_data(ykpiv_state *state,
     int *sw) {
   unsigned long max_out = *out_len;
   *out_len = 0;
+  int k_retry = 0;
 
   do {
     APDU apdu = {templ[0], templ[1], templ[2], templ[3], 0xff};
@@ -818,8 +819,12 @@ ykpiv_rc _ykpiv_transfer_data(ykpiv_state *state,
     }
     // Case 2S.3 — Process aborted; Ne not accepted, Na indicated
     if((*sw & 0xff00) == 0x6c00) {
+      if (k_retry > 50) {
+        return YKPIV_PCSC_ERROR;
+      }
       apdu.st.lc = *sw & 0xff;
       DBG3("The card indicates we must retry with Le = %u.", apdu.st.lc);
+      k_retry++;
       goto Retry;
     }
     if(*sw != SW_SUCCESS && (*sw & 0xff00) != 0x6100) {
