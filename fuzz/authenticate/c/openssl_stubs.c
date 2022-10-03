@@ -43,6 +43,19 @@ int EVP_CIPHER_key_length(const EVP_CIPHER *cipher) {
     }
 }
 
+int EVP_CIPHER_block_size(const EVP_CIPHER *cipher) {
+    switch ((long long)cipher) {
+        case 0xdeadbee1:
+            return 8;
+        case 0xdeadbee2:
+        case 0xdeadbee3:
+        case 0xdeadbee4:
+            return 16;
+        default:
+            return -1;
+    }
+}
+
 int EVP_CipherInit_ex(EVP_CIPHER_CTX *ctx,
                       const EVP_CIPHER *cipher, ENGINE *impl,
                       const unsigned char *key,
