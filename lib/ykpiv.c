@@ -982,6 +982,11 @@ static ykpiv_rc _ykpiv_authenticate2(ykpiv_state *state, unsigned const char *ke
 
   uint8_t *challenge = data + 4;
   uint32_t challenge_len = recv_len - 4;
+  if(challenge_len != cipher_blocksize(mgm_key)) { // Only management key block size allowed
+    DBG("%s: management key block size is %zu but received %u bytes challenge", ykpiv_strerror(YKPIV_PARSE_ERROR), cipher_blocksize(mgm_key), challenge_len);
+    res = YKPIV_PARSE_ERROR;
+    goto Cleanup;
+  }
 
   /* send a response to the cards challenge and a challenge of our own. */
   {
@@ -1007,26 +1012,23 @@ static ykpiv_rc _ykpiv_authenticate2(ykpiv_state *state, unsigned const char *ke
     *dataptr++ = challenge_len;
     challenge = dataptr;
     if (PRNG_GENERAL_ERROR == _ykpiv_prng_generate(challenge, challenge_len)) {
-      DBG("Failed getting randomness for authentication.");
+      DBG("%s: Failed getting randomness for authentication.", ykpiv_strerror(YKPIV_RANDOMNESS_ERROR));
       res = YKPIV_RANDOMNESS_ERROR;
       goto Cleanup;
     }
     dataptr += challenge_len;
     apdu.st.lc = (unsigned char)(dataptr - apdu.st.data);
     recv_len = sizeof(data);
-    if ((res = _ykpiv_send_apdu(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK)
-    {
+    if ((res = _ykpiv_send_apdu(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
       goto Cleanup;
     }
     else if (sw != SW_SUCCESS) {
       res = YKPIV_AUTHENTICATION_ERROR;
       goto Cleanup;
     }
-  }
 
-  /* compare the response from the card with our challenge */
-  {
-    uint32_t out_len = challenge_len;
+    /* compare the response from the card with our challenge */
+    out_len = challenge_len;
     drc = cipher_encrypt(mgm_key, challenge, challenge_len, challenge, &out_len);
 
     if (drc != CIPHER_OK) {
@@ -2126,6 +2128,7 @@ ykpiv_rc ykpiv_auth_verifyresponse(ykpiv_state *state, uint8_t *response, unsign
 
   if (NULL == state) return YKPIV_GENERIC_ERROR;
   if (NULL == response) return YKPIV_GENERIC_ERROR;
+  if (16 < response_len) return YKPIV_GENERIC_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   /* note: do not select the applet here, as it resets the challenge state */
@@ -2141,7 +2144,7 @@ ykpiv_rc ykpiv_auth_verifyresponse(ykpiv_state *state, uint8_t *response, unsign
     }
   }
 
-  /* send the response to the card and a challenge of our own. */
+  /* send the response to the card. */
   APDU apdu = {0};
   apdu.st.ins = YKPIV_INS_AUTHENTICATE;
   apdu.st.p1 = metadata.algorithm;

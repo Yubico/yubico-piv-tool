@@ -145,6 +145,18 @@ cipher_rc cipher_decrypt(cipher_key key, const unsigned char* in, uint32_t inlen
   return CIPHER_OK;
 }
 
+uint32_t cipher_blocksize(cipher_key key) {
+	if (key == NULL) {
+    return 0;
+  }
+  DWORD size = 0;
+  ULONG len = 0;
+	if(!BCRYPT_SUCCESS(BCryptGetProperty(key->hKey, BCRYPT_BLOCK_LENGTH, &size, sizeof(size), &len, 0))) {
+    return 0;
+  }
+  return size;
+}
+
 #else
 
 static int encrypt_ex(const uint8_t *in, uint8_t *out, int len,
@@ -240,6 +252,13 @@ cipher_rc cipher_decrypt(cipher_key key, const unsigned char* in, uint32_t inlen
 
 EXIT:
   return rc;
+}
+
+uint32_t cipher_blocksize(cipher_key key) {
+  if(key) {
+    return EVP_CIPHER_block_size(key->cipher);
+  }
+  return 0;
 }
 
 #endif
