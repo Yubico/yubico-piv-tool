@@ -21,7 +21,9 @@ args = [
     "-Wl,--whole-archive",
     "../target/release/libtransfer_data.a",
     "-Wl,--no-whole-archive",
-    "src/harness.c",
+    "c/harness.c",
+    "-Ic",
+    "../piv_fuzz_common/c/pcsc_stubs.c",
+    "../piv_fuzz_common/c/memcpy_rollover.c",
     "-o", "fuzzer"
 ]
-

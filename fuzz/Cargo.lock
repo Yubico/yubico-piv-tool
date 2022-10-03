@@ -1043,6 +1043,7 @@ dependencies = [
  "libafl",
  "libafl_cc",
  "libafl_targets",
+ "piv_fuzz_common",
 ]
 
 [[package]]

@@ -8,6 +8,7 @@ name = "transfer_data"
 crate-type = ["staticlib"]
 
 [dependencies]
+piv_fuzz_common = { path = "../piv_fuzz_common" }
 libafl = "0.8.1"
 libafl_cc = "0.8.1"
 libafl_targets = { version = "0.8.1", features = ["sancov_pcguard_hitcounts", "sancov_cmplog", "libfuzzer"] }
