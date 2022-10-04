@@ -10,6 +10,27 @@ const SCARD_IO_REQUEST g_rgSCardT0Pci = { SCARD_PROTOCOL_T0, sizeof(SCARD_IO_REQ
 const SCARD_IO_REQUEST g_rgSCardT1Pci = { SCARD_PROTOCOL_T1, sizeof(SCARD_IO_REQUEST) };
 const SCARD_IO_REQUEST g_rgSCardRawPci = { SCARD_PROTOCOL_RAW, sizeof(SCARD_IO_REQUEST) };
 
+LONG SCardEstablishContext(
+    DWORD           dwScope,
+    LPCVOID         pvReserved1,
+    LPCVOID         pvReserved2,
+    LPSCARDCONTEXT  phContext) {
+    *phContext = (SCARDCONTEXT)1337;
+    return SCARD_S_SUCCESS;
+}
+
+LONG SCardReleaseContext(SCARDCONTEXT hContext) {
+    return SCARD_S_SUCCESS;
+}
+
+LONG SCardIsValidContext(SCARDCONTEXT hContext) {
+    if (hContext == (SCARDCONTEXT)-1) {
+        return SCARD_E_INVALID_HANDLE;
+    } else {
+        return SCARD_S_SUCCESS;
+    }
+}
+
 LONG SCardTransmit(
     SCARDHANDLE hCard,
     const SCARD_IO_REQUEST *pioSendPci,
@@ -32,4 +53,10 @@ LONG SCardTransmit(
     }
 
     return SCARD_S_SUCCESS;
+}
+
+LONG SCardDisconnect(
+    SCARDHANDLE hCard,
+    DWORD       dwDisposition) {
+    return SCARD_LEAVE_CARD;
 }
