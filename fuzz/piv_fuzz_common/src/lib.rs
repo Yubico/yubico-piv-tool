@@ -46,6 +46,10 @@ pub struct CliArgs {
     pub timeout: u64,
     #[clap(long = "triage-run", action = clap::ArgAction::Set, default_value = "false")]
     pub triage_run: bool,
+    #[clap(short = 'p', long = "broker-port")]
+    pub broker_port: u16,
+    #[clap(short = 'c', long = "cores")]
+    pub cores: String,
 }
 
 pub fn launch_fuzzer<H>(cli_args: &CliArgs, harness: H)
@@ -57,7 +61,7 @@ where
     let timeout_ms = Duration::from_millis(cli_args.timeout);
     let shmem_provider = StdShMemProvider::new().expect("Failed to initialize shared memory");
     let monitor = SimpleMonitor::new(|s| println!("{}", s));
-    let cores = Cores::from_cmdline("1").unwrap();
+    let cores = Cores::from_cmdline(&cli_args.cores).unwrap();
 
     let mut run_client = |state: Option<_>, mut mgr, _core_id| {
         // Create an observation channel using the coverage map
@@ -170,7 +174,7 @@ where
         .monitor(monitor)
         .run_client(&mut run_client)
         .cores(&cores)
-        .broker_port(1337)
+        .broker_port(cli_args.broker_port)
         .stdout_file(Some("stdout"))
         .build()
         .launch()
