@@ -13,20 +13,18 @@ int CustomFuzzerTestOneInput(test_case_t *test_case) {
         0xde, 0xad, 0xbe, 0xef,
         0xde, 0xad, 0xbe, 0xef
     };
-
-    ykpiv_state state;
-    uint8_t *out = calloc(1, test_case->out_len);
+    ykpiv_state *state;
     int sw = 0;
 
     memset(&harness_state, 0, sizeof(harness_state));
     harness_state.test_case = test_case;
 
-    memset(&state, 0, sizeof(state));
-    state.protocol = test_case->state_protocol;
+    ykpiv_init(&state, 0);
+    state->protocol = test_case->state_protocol;
 
-    ykpiv_authenticate2(&state, key, sizeof(key));
+    ykpiv_authenticate2(state, key, sizeof(key));
 
-    free(out);
+    ykpiv_done_with_external_card(state);
 
     return 0;
 }
