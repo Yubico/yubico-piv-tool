@@ -1,12 +1,15 @@
-[tasks.build]
-dependencies = ["build-target"]
+[tasks.build-common]
+script = '''
+cd ../piv_fuzz_common
+cargo build --release
+'''
 
 [tasks.build-libafl]
 command = "cargo"
 args = ["build", "--release"]
 
-[tasks.build-target]
-dependencies = ["build-libafl"]
+[tasks.build]
+dependencies = ["build-common", "build-libafl"]
 command = "../target/release/libafl_cc"
 args = [
     "-fuse-ld=lld",
