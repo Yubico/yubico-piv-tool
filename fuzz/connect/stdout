@@ -1,0 +1,83 @@
+Connected to port 1337
+Setting core affinity to CoreId { id: 2 }
+Spawning next client (id 0)
+Awaiting safe_to_unmap_blocking
+Awaiting safe_to_unmap_blocking
+Awaiting safe_to_unmap_blocking
+Awaiting safe_to_unmap_blocking
+First run. Let's set it all up
+Loading file "input/random2" ...
+Loading file "input/random" ...
+File "input/random" was not interesting, skipped.
+Connected to port 1337
+Setting core affinity to CoreId { id: 3 }
+Spawning next client (id 0)
+Awaiting safe_to_unmap_blocking
+Awaiting safe_to_unmap_blocking
+Awaiting safe_to_unmap_blocking
+Awaiting safe_to_unmap_blocking
+Awaiting safe_to_unmap_blocking
+Awaiting safe_to_unmap_blocking
+Awaiting safe_to_unmap_blocking
+Awaiting safe_to_unmap_blocking
+Awaiting safe_to_unmap_blocking
+Awaiting safe_to_unmap_blocking
+Awaiting safe_to_unmap_blocking
+First run. Let's set it all up
+Loading file "input/random2" ...
+Loading file "input/random" ...
+File "input/random" was not interesting, skipped.
+Received new Testcase from 2 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 1 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 1 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 1 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 2 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 2 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Connected to port 1337
+Setting core affinity to CoreId { id: 4 }
+Spawning next client (id 0)
+First run. Let's set it all up
+Loading file "input/random2" ...
+Loading file "input/random" ...
+File "input/random" was not interesting, skipped.
+Received new Testcase from 3 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 3 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 3 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 3 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 3 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 3 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 1 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 1 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 1 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 2 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 2 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 2 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Connected to port 1337
+Setting core affinity to CoreId { id: 5 }
+Spawning next client (id 0)
+Awaiting safe_to_unmap_blocking
+Awaiting safe_to_unmap_blocking
+Awaiting safe_to_unmap_blocking
+Awaiting safe_to_unmap_blocking
+First run. Let's set it all up
+Loading file "input/random2" ...
+Loading file "input/random" ...
+File "input/random" was not interesting, skipped.
+Received new Testcase from 4 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 4 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 4 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 4 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 4 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 4 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 4 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 4 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 4 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 1 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 1 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 1 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 2 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 2 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 2 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 3 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 3 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
+Received new Testcase from 3 (BuildID { id: e1056d43-c5cc-4aab-86b4-cf6095fc1259 })
