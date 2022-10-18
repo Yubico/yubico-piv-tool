@@ -9,8 +9,6 @@ harness_state_t harness_state;
 int CustomFuzzerTestOneInput(test_case_t *test_case) {
     ykpiv_state *state;
 
-    printf("kek what\n");
-
     memset(&harness_state, 0, sizeof(harness_state));
     harness_state.test_case = test_case;
 

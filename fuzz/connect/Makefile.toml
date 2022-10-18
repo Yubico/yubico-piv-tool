@@ -71,7 +71,7 @@ TIMESTAMP=`date +%s`
 PROFILE_PATH=${OUT}/connect
 mkdir -p ${PROFILE_PATH}
 export LLVM_PROFILE_FILE=${PROFILE_PATH}/${TIMESTAMP}.profraw
-./fuzzer-cov -t output
+./fuzzer-cov -t input
 llvm-profdata-14 merge ${PROFILE_PATH}/${TIMESTAMP}.profraw -o ${PROFILE_PATH}/${TIMESTAMP}.profdata
 llvm-cov-14 show                                            \
     -output-dir=${PROFILE_PATH}/${TIMESTAMP}-report         \

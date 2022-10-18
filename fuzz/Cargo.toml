@@ -3,6 +3,7 @@
 members = [
     "piv_fuzz_common",
     "authenticate",
+    "connect",
     "transfer_data"
 ]
 
