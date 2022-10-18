@@ -9,7 +9,7 @@ use libafl::{
         shmem::{ShMemProvider, StdShMemProvider},
         tuples::{tuple_list, Merge},
     },
-    corpus::{InMemoryCorpus, OnDiskCorpus},
+    corpus::{InMemoryCorpus, CachedOnDiskCorpus, OnDiskCorpus},
     events::EventConfig,
     executors::{inprocess::InProcessExecutor, ExitKind, TimeoutExecutor},
     feedback_or,
@@ -23,6 +23,7 @@ use libafl::{
         StdMOptMutator,
     },
     observers::{HitcountsMapObserver, StdMapObserver, TimeObserver},
+    prelude::Input,
     schedulers::{
         powersched::PowerSchedule, IndexesLenTimeMinimizerScheduler, PowerQueueScheduler,
     },
@@ -34,6 +35,7 @@ use libafl::{
     Error,
 };
 use libafl_targets::{libfuzzer_initialize, CmpLogObserver, CMPLOG_MAP, EDGES_MAP, MAX_EDGES_NUM};
+use std::fs;
 use std::{env, path::PathBuf};
 
 #[derive(Parser)]
@@ -52,10 +54,17 @@ pub struct CliArgs {
     pub cores: String,
 }
 
-pub fn launch_fuzzer<H>(cli_args: &CliArgs, harness: H)
+#[derive(Parser)]
+pub struct CoverageCliArgs {
+    #[clap(short = 't', long = "tests", parse(from_os_str))]
+    pub tests_dir: PathBuf,
+}
+
+pub fn launch_fuzzer<H>(harness: H)
 where
     H: FnMut(&BytesInput) -> ExitKind + Clone,
 {
+    let cli_args = CliArgs::parse();
     let input_dirs = [PathBuf::from(&cli_args.input_dir)];
     let output_dir = PathBuf::from(&cli_args.output_dir);
     let timeout_ms = Duration::from_millis(cli_args.timeout);
@@ -92,9 +101,9 @@ where
             StdState::new(
                 // RNG
                 StdRand::with_seed(current_nanos()),
-                // Corpus that will be evolved, we keep it in memory for performance
-                InMemoryCorpus::new(),
-                // Corpus in which we store solutions (crashes in this example),
+                // Corpus that will be evolved
+                CachedOnDiskCorpus::new(PathBuf::from(&cli_args.input_dir), 100).unwrap(),
+                // Corpus in which we store solutions (crashes and timeouts)
                 // on disk so the user can get them after stopping the fuzzer
                 OnDiskCorpus::new(output_dir.clone()).unwrap(),
                 // States of the feedbacks.
@@ -182,4 +191,16 @@ where
         Ok(_) | Err(Error::ShuttingDown) => (),
         Err(e) => panic!("{:?}", e),
     };
+}
+
+pub fn generate_coverage<H>(mut harness: H)
+where
+    H: FnMut(&BytesInput) -> ExitKind + Clone,
+{
+    let cli_args = CoverageCliArgs::parse();
+    let paths = fs::read_dir(&cli_args.tests_dir).unwrap();
+    for path in paths {
+        let input = BytesInput::from_file(&path.unwrap().path()).expect("unexpected error");
+        harness(&input);
+    }
 }

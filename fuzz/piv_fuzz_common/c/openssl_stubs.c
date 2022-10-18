@@ -5,6 +5,7 @@
 
 struct evp_cipher_ctx_st { } ;
 
+#include <openssl/des.h>
 #include <openssl/evp.h>
 
 EVP_CIPHER_CTX *EVP_CIPHER_CTX_new(void) {

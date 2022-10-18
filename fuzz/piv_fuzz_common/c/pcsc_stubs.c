@@ -31,6 +31,35 @@ LONG SCardIsValidContext(SCARDCONTEXT hContext) {
     }
 }
 
+LONG SCardDisconnect(
+    SCARDHANDLE hCard,
+    DWORD       dwDisposition) {
+    return SCARD_LEAVE_CARD;
+}
+
+LONG SCardStatus(
+    SCARDHANDLE hCard,
+    LPSTR       mszReaderNames,
+    LPDWORD     pcchReaderLen,
+    LPDWORD     pdwState,
+    LPDWORD     pdwProtocol,
+    LPBYTE      pbAtr,
+    LPDWORD     pcbAtrLen
+) {
+    return SCARD_S_SUCCESS;
+}
+
+LONG SCardConnect(
+    SCARDCONTEXT    hContext,
+    LPCSTR          szReader,
+    DWORD           dwShareMode,
+    DWORD           dwPreferredProtocols,
+    LPSCARDHANDLE   phCard,
+    LPDWORD         pdwActiveProtocol
+) {
+    return SCARD_S_SUCCESS;
+}
+
 LONG SCardTransmit(
     SCARDHANDLE hCard,
     const SCARD_IO_REQUEST *pioSendPci,
@@ -40,13 +69,13 @@ LONG SCardTransmit(
     LPBYTE pbRecvBuffer,
     LPDWORD pcbRecvLength) {
 
-    if (harness_state.test_case->out_data != NULL && harness_state.test_case->out_len > 0) {
+    if (harness_state.test_case->pcsc_data != NULL && harness_state.test_case->pcsc_data_len > 0) {
         memcpy_rollover(
             pbRecvBuffer,
-            harness_state.test_case->out_data,
+            harness_state.test_case->pcsc_data,
             *pcbRecvLength,
-            harness_state.test_case->out_len,
-            &harness_state.out_data_offset
+            harness_state.test_case->pcsc_data_len,
+            &harness_state.pcsc_data_offset
         );
     } else {
         memset(pbRecvBuffer, 0, *pcbRecvLength);
@@ -55,8 +84,25 @@ LONG SCardTransmit(
     return SCARD_S_SUCCESS;
 }
 
-LONG SCardDisconnect(
-    SCARDHANDLE hCard,
-    DWORD       dwDisposition) {
-    return SCARD_LEAVE_CARD;
+LONG SCardListReaders(
+    SCARDCONTEXT    hContext,
+    LPCSTR          mszGroups,
+    LPSTR           mszReaders,
+    LPDWORD         pcchReaders
+) {
+    if (mszReaders != NULL) {
+        if (harness_state.test_case->pcsc_data != NULL && harness_state.test_case->pcsc_data_len > 0) {
+            memcpy_rollover(
+                mszReaders,
+                harness_state.test_case->pcsc_data,
+                *pcchReaders,
+                harness_state.test_case->pcsc_data_len,
+                &harness_state.pcsc_data_offset
+            );
+        } else {
+            memset(mszReaders, 0, *pcchReaders);
+            *pcchReaders = 0;
+        }
+    }
+    return SCARD_S_SUCCESS;
 }
