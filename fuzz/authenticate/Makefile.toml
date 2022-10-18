@@ -12,7 +12,7 @@ args = ["build", "--release"]
 dependencies = ["build-common", "build-libafl"]
 command = "../target/release/libafl_cc"
 args = [
-    "-fuse-ld=lld",
+    "-fuse-ld=lld-14",
     "-fsanitize=address,undefined",
     "-I/usr/include/PCSC",
     "-O1",
@@ -20,7 +20,7 @@ args = [
     "-I../../lib",
     "-I../../common",
     "-Wl,--gc-sections",
-    "../../bin/lib/libykpiv.a",
+    "../../build/lib/libykpiv.a",
     "-Wl,--whole-archive",
     "../target/release/libauthenticate.a",
     "-Wl,--no-whole-archive",
@@ -31,3 +31,51 @@ args = [
     "../piv_fuzz_common/c/memcpy_rollover.c",
     "-o", "fuzzer"
 ]
+
+[tasks.build-libafl-cov]
+command = "cargo"
+args = ["build", "--release", "--features", "coverage", "--target-dir", "../target-cov"]
+
+[tasks.build-cov]
+dependencies = ["build-common", "build-libafl-cov"]
+command = "../target/release/libafl_cc"
+args = [
+    "-fuse-ld=lld-14",
+    "-fprofile-instr-generate",
+    "-fcoverage-mapping",
+    "-fsanitize=address,undefined",
+    "-I/usr/include/PCSC",
+    "-O1",
+    "-g",
+    "-I../../lib",
+    "-I../../common",
+    "-Wl,--gc-sections",
+    "-ffunction-sections",
+    "-fdata-sections",
+    "../../build-cov/lib/libykpiv.a",
+    "-Wl,--whole-archive",
+    "../target-cov/release/libauthenticate.a",
+    "-Wl,--no-whole-archive",
+    "c/harness.c",
+    "-Ic",
+    "../piv_fuzz_common/c/openssl_stubs.c",
+    "../piv_fuzz_common/c/pcsc_stubs.c",
+    "../piv_fuzz_common/c/memcpy_rollover.c",
+    "-o", "fuzzer-cov"
+]
+
+[tasks.gencov]
+dependencies = ["build-cov"]
+script = """
+TIMESTAMP=`date +%s`
+PROFILE_PATH=${OUT}/authenticate
+mkdir -p ${PROFILE_PATH}
+export LLVM_PROFILE_FILE=${PROFILE_PATH}/${TIMESTAMP}.profraw
+./fuzzer-cov -t output
+llvm-profdata-14 merge ${PROFILE_PATH}/${TIMESTAMP}.profraw -o ${PROFILE_PATH}/${TIMESTAMP}.profdata
+llvm-cov-14 show                                            \
+    -output-dir=${PROFILE_PATH}/${TIMESTAMP}-report         \
+    -format=html                                            \
+    -instr-profile=${PROFILE_PATH}/${TIMESTAMP}.profdata    \
+    -object=./fuzzer-cov
+"""
