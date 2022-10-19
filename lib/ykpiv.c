@@ -615,7 +615,7 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
 }
 
 ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
-  pcsc_word num_readers = 0;
+  pcsc_word num_readers = (pcsc_word)*len;
   pcsc_long rc;
 
   if(SCardIsValidContext(state->context) != SCARD_S_SUCCESS) {
@@ -626,29 +626,14 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
     }
   }
 
-  rc = SCardListReaders(state->context, NULL, NULL, &num_readers);
+  rc = SCardListReaders(state->context, NULL, readers, &num_readers);
   if (rc != SCARD_S_SUCCESS) {
     DBG("SCardListReaders failed, rc=%lx", (long)rc);
-    if(rc == SCARD_E_NO_READERS_AVAILABLE) {
+    if(rc == SCARD_E_NO_READERS_AVAILABLE || rc == SCARD_E_SERVICE_STOPPED) {
       *readers = 0;
       *len = 1;
       return YKPIV_OK;
     }
-    SCardReleaseContext(state->context);
-    state->context = (SCARDCONTEXT)-1;
-    return YKPIV_PCSC_ERROR;
-  }
-
-  if (num_readers > *len) {
-    num_readers = (pcsc_word)*len;
-  } else if (num_readers < *len) {
-    *len = (size_t)num_readers;
-  }
-
-  rc = SCardListReaders(state->context, NULL, readers, &num_readers);
-  if (rc != SCARD_S_SUCCESS)
-  {
-    DBG("SCardListReaders failed, rc=%lx", (long)rc);
     SCardReleaseContext(state->context);
     state->context = (SCARDCONTEXT)-1;
     return YKPIV_PCSC_ERROR;
