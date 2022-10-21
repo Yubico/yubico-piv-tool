@@ -2226,7 +2226,12 @@ int main(int argc, char *argv[]) {
   }
 
   if((rc = ykpiv_connect(state, args_info.reader_arg)) != YKPIV_OK) {
-    fprintf(stderr, "Failed to connect to yubikey: %s.\nTry removing and reconnecting the device.\n", ykpiv_strerror(rc));
+    fprintf(stderr, "Failed to connect to yubikey: %s.\n", ykpiv_strerror(rc));
+    if (rc == YKPIV_PCSC_SERVICE_ERROR) {
+      fprintf(stderr, "Try restarting the PCSC subsystem.\n");
+    } else if (rc == YKPIV_PCSC_ERROR) {
+      fprintf(stderr, "Try removing and reconnecting the device.\n");
+    }
     ykpiv_done(state);
     cmdline_parser_free(&args_info);
     return EXIT_FAILURE;

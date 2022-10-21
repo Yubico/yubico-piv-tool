@@ -527,7 +527,7 @@ ykpiv_rc ykpiv_validate(ykpiv_state *state, const char *wanted) {
     }
     return YKPIV_OK;
   }
-  return YKPIV_GENERIC_ERROR;
+  return YKPIV_ARGUMENT_ERROR;
 }
 
 ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {

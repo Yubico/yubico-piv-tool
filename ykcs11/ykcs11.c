@@ -319,6 +319,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
   DIN;
   char readers[2048] = {0};
   size_t len = sizeof(readers);
+  ykpiv_rc rc;
   CK_RV rv;
 
   if (!pid) {
@@ -334,14 +335,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
   }
 
   ykpiv_state *piv_state;
-  if (ykpiv_init(&piv_state, verbose) != YKPIV_OK) {
-    DBG("Unable to initialize libykpiv");
+  if ((rc = ykpiv_init(&piv_state, verbose)) != YKPIV_OK) {
+    DBG("Unable to initialize libykpiv: %s", ykpiv_strerror(rc));
     rv = CKR_FUNCTION_FAILED;
     goto slotlist_out;
   }
 
-  if (ykpiv_list_readers(piv_state, readers, &len) != YKPIV_OK) {
-    DBG("Unable to list readers");
+  if ((rc = ykpiv_list_readers(piv_state, readers, &len)) != YKPIV_OK) {
+    DBG("Unable to list readers: %s", ykpiv_strerror(rc));
     ykpiv_done(piv_state);
     rv = CKR_DEVICE_ERROR;
     goto slotlist_out;
@@ -384,7 +385,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
     // Initialize piv_state and increase slot count if this is a new slot
     if(slot == slots + n_slots) {
       DBG("Initializing slot %td for '%s'", slot-slots, reader);
-      ykpiv_rc rc;
       if((rc = ykpiv_init(&slot->piv_state, verbose)) != YKPIV_OK) {
         DBG("Unable to initialize libykpiv: %s", ykpiv_strerror(rc));
         locking.pfnUnlockMutex(global_mutex);
@@ -395,7 +395,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
     }
 
     // Try to connect if unconnected (both new and existing slots)
-    if (ykpiv_validate(slot->piv_state, reader) != YKPIV_OK) {
+    if ((rc = ykpiv_validate(slot->piv_state, reader)) != YKPIV_OK) {
+
+      DBG("Failed to validate %s: %s", reader, ykpiv_strerror(rc));
 
       slot->login_state = YKCS11_PUBLIC;
       slot->slot_info.flags &= ~CKF_TOKEN_PRESENT;
@@ -403,7 +405,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
       char buf[sizeof(readers) + 1] = {0};
       snprintf(buf, sizeof(buf), "@%s", reader);
 
-      if (ykpiv_connect(slot->piv_state, buf) == YKPIV_OK) {
+      if ((rc = ykpiv_connect(slot->piv_state, buf)) == YKPIV_OK) {
 
         DBG("Connected slot %td to '%s'", slot-slots, reader);
 
@@ -431,6 +433,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
         get_token_serial(slot->piv_state, slot->token_info.serialNumber, sizeof(slot->token_info.serialNumber));
         get_token_version(slot->piv_state, &slot->token_info.firmwareVersion);
         get_token_label(slot->piv_state, slot->token_info.label, sizeof(slot->token_info.label));
+      } else {
+        DBG("Unable to connect slot %td to '%s': %s", slot - slots, reader, ykpiv_strerror(rc));
       }
     }
   }
@@ -1556,7 +1560,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
                                ec_data, ec_data_len,
                                pin_policy, touch_policy);
     if (rc != YKPIV_OK) {
-      DBG("Unable to import private key");
+      DBG("Unable to import private key: %s", ykpiv_strerror(rc));
       locking.pfnUnlockMutex(session->slot->mutex);
       rv = CKR_DEVICE_ERROR;
       goto create_out;
