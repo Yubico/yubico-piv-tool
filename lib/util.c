@@ -102,7 +102,7 @@ ykpiv_rc ykpiv_util_get_cardid(ykpiv_state *state, ykpiv_cardid *cardid) {
   size_t offs, cb_temp = 0;
   uint8_t tag = 0;
 
-  if (!cardid) return YKPIV_GENERIC_ERROR;
+  if (!cardid) return YKPIV_ARGUMENT_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
@@ -152,7 +152,7 @@ ykpiv_rc ykpiv_util_set_cardid(ykpiv_state *state, const ykpiv_cardid *cardid) {
   uint8_t buf[sizeof(CHUID_TMPL)] = {0};
   size_t len = 0;
 
-  if (!state) return YKPIV_GENERIC_ERROR;
+  if (!state) return YKPIV_ARGUMENT_ERROR;
 
   if (!cardid) {
     if (PRNG_OK != _ykpiv_prng_generate(id, sizeof(id))) {
@@ -183,7 +183,7 @@ ykpiv_rc ykpiv_util_get_cccid(ykpiv_state *state, ykpiv_cccid *ccc) {
   uint8_t buf[CB_OBJ_MAX] = {0};
   unsigned long len = sizeof(buf);
 
-  if (!ccc) return YKPIV_GENERIC_ERROR;
+  if (!ccc) return YKPIV_ARGUMENT_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
@@ -210,7 +210,7 @@ ykpiv_rc ykpiv_util_set_cccid(ykpiv_state *state, const ykpiv_cccid *ccc) {
   uint8_t buf[sizeof(CCC_TMPL)] = {0};
   size_t len = 0;
 
-  if (!state) return YKPIV_GENERIC_ERROR;
+  if (!state) return YKPIV_ARGUMENT_ERROR;
 
   if (!ccc) {
     if (PRNG_OK != _ykpiv_prng_generate(id, sizeof(id))) {
@@ -282,7 +282,7 @@ ykpiv_rc ykpiv_util_list_keys(ykpiv_state *state, uint8_t *key_count, ykpiv_key 
     YKPIV_KEY_CARDAUTH
   };
 
-  if ((NULL == data) || (NULL == data_len) || (NULL == key_count)) { return YKPIV_GENERIC_ERROR; }
+  if ((NULL == data) || (NULL == data_len) || (NULL == key_count)) { return YKPIV_ARGUMENT_ERROR; }
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
@@ -355,7 +355,7 @@ Cleanup:
 
 ykpiv_rc ykpiv_util_free(ykpiv_state *state, void *data) {
   if (!data) return YKPIV_OK;
-  if (!state || (!(state->allocator.pfn_free))) return YKPIV_GENERIC_ERROR;
+  if (!state || (!(state->allocator.pfn_free))) return YKPIV_ARGUMENT_ERROR;
 
   _ykpiv_free(state, data);
 
@@ -367,7 +367,7 @@ ykpiv_rc ykpiv_util_read_cert(ykpiv_state *state, uint8_t slot, uint8_t **data, 
   uint8_t buf[CB_BUF_MAX] = {0};
   size_t cbBuf = sizeof(buf);
 
-  if ((NULL == data )|| (NULL == data_len)) return YKPIV_GENERIC_ERROR;
+  if ((NULL == data )|| (NULL == data_len)) return YKPIV_ARGUMENT_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
@@ -428,7 +428,7 @@ ykpiv_rc ykpiv_util_block_puk(ykpiv_state *state) {
   size_t  cb_item = 0;
   uint8_t flags = 0;
 
-  if (NULL == state) return YKPIV_GENERIC_ERROR;
+  if (NULL == state) return YKPIV_ARGUMENT_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
@@ -485,7 +485,7 @@ ykpiv_rc ykpiv_util_read_mscmap(ykpiv_state *state, ykpiv_container **containers
   size_t offs, len = 0;
   uint8_t *ptr = NULL;
 
-  if ((NULL == containers) || (NULL == n_containers)) { res = YKPIV_GENERIC_ERROR; goto Cleanup; }
+  if ((NULL == containers) || (NULL == n_containers)) { res = YKPIV_ARGUMENT_ERROR; goto Cleanup; }
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
@@ -544,7 +544,7 @@ ykpiv_rc ykpiv_util_write_mscmap(ykpiv_state *state, ykpiv_container *containers
     // if either containers or n_containers are non-zero, return an error,
     // that we only delete strictly when both are set properly
     if ((NULL != containers) || (0 != n_containers)) {
-      res = YKPIV_GENERIC_ERROR;
+      res = YKPIV_ARGUMENT_ERROR;
     }
     else {
       res = _ykpiv_save_object(state, YKPIV_OBJ_MSCMAP, NULL, 0);
@@ -591,7 +591,7 @@ ykpiv_rc ykpiv_util_read_msroots(ykpiv_state *state, uint8_t **data, size_t *dat
   size_t cbRealloc = 0;
   size_t offset = 0;
 
-  if (!data || !data_len) return YKPIV_GENERIC_ERROR;
+  if (!data || !data_len) return YKPIV_ARGUMENT_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
@@ -690,7 +690,7 @@ ykpiv_rc ykpiv_util_write_msroots(ykpiv_state *state, uint8_t *data, size_t data
     // if either data or data_len are non-zero, return an error,
     // that we only delete strictly when both are set properly
     if ((NULL != data) || (0 != data_len)) {
-      res = YKPIV_GENERIC_ERROR;
+      res = YKPIV_ARGUMENT_ERROR;
     }
     else {
       // it should be sufficient to just delete the first object, though
@@ -801,7 +801,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
   case YKPIV_ALGO_RSA2048:
     if (!modulus || !modulus_len || !exp || !exp_len) {
       DBG("Invalid output parameter for RSA algorithm");
-      return YKPIV_GENERIC_ERROR;
+      return YKPIV_ARGUMENT_ERROR;
     }
     *modulus = NULL;
     *modulus_len = 0;
@@ -813,7 +813,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
   case  YKPIV_ALGO_ECCP384:
     if (!point || !point_len) {
       DBG("Invalid output parameter for ECC algorithm");
-      return YKPIV_GENERIC_ERROR;
+      return YKPIV_ARGUMENT_ERROR;
     }
     *point = NULL;
     *point_len = 0;
@@ -1015,8 +1015,8 @@ ykpiv_rc ykpiv_util_get_config(ykpiv_state *state, ykpiv_config *config) {
   uint8_t *p_item = NULL;
   size_t cb_item = 0;
 
-  if (NULL == state) return YKPIV_GENERIC_ERROR;
-  if (NULL == config) return YKPIV_GENERIC_ERROR;
+  if (NULL == state) return YKPIV_ARGUMENT_ERROR;
+  if (NULL == config) return YKPIV_ARGUMENT_ERROR;
 
   // initialize default values
 
@@ -1098,7 +1098,7 @@ ykpiv_rc ykpiv_util_set_pin_last_changed(ykpiv_state *state) {
   size_t   cb_data = sizeof(data);
   time_t   tnow = 0;
 
-  if (NULL == state) return YKPIV_GENERIC_ERROR;
+  if (NULL == state) return YKPIV_ARGUMENT_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
@@ -1134,8 +1134,8 @@ ykpiv_rc ykpiv_util_get_derived_mgm(ykpiv_state *state, const uint8_t *pin, cons
   uint8_t  *p_item = NULL;
   size_t   cb_item = 0;
 
-  if (NULL == state) return YKPIV_GENERIC_ERROR;
-  if ((NULL == pin) || (0 == pin_len) || (NULL == mgm)) return YKPIV_GENERIC_ERROR;
+  if (NULL == state) return YKPIV_ARGUMENT_ERROR;
+  if ((NULL == pin) || (0 == pin_len) || (NULL == mgm)) return YKPIV_ARGUMENT_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
@@ -1170,8 +1170,8 @@ ykpiv_rc ykpiv_util_get_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
   uint8_t  *p_item = NULL;
   size_t   cb_item = 0;
 
-  if (NULL == state) return YKPIV_GENERIC_ERROR;
-  if (NULL == mgm) return YKPIV_GENERIC_ERROR;
+  if (NULL == state) return YKPIV_ARGUMENT_ERROR;
+  if (NULL == mgm) return YKPIV_ARGUMENT_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
@@ -1247,7 +1247,7 @@ ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
   size_t   cb_item = 0;
   uint8_t  flags_1 = 0;
 
-  if (NULL == state) return YKPIV_GENERIC_ERROR;
+  if (NULL == state) return YKPIV_ARGUMENT_ERROR;
 
   fGenerate = true;
   if (mgm) {
@@ -1466,7 +1466,7 @@ static ykpiv_rc _write_certificate(ykpiv_state *state, uint8_t slot, uint8_t *da
     // if either data or data_len are non-zero, return an error,
     // that we only delete strictly when both are set properly
     if ((NULL != data) || (0 != data_len)) {
-      return YKPIV_GENERIC_ERROR;
+      return YKPIV_ARGUMENT_ERROR;
     }
 
     return _ykpiv_save_object(state, object_id, NULL, 0);
@@ -1521,7 +1521,7 @@ static ykpiv_rc _get_metadata_item(uint8_t *data, size_t cb_data, uint8_t tag, u
   uint8_t tag_temp = 0;
   bool found = false;
 
-  if (!data || !pp_item || !pcb_item) return YKPIV_GENERIC_ERROR;
+  if (!data || !pp_item || !pcb_item) return YKPIV_ARGUMENT_ERROR;
 
   *pp_item = NULL;
   *pcb_item = 0;
@@ -1605,7 +1605,7 @@ static ykpiv_rc _set_metadata_item(uint8_t *data, size_t *pcb_data, size_t cb_da
   uint8_t *p_next = NULL;
   long    cb_moved = 0; /* must be signed to have negative offsets */
 
-  if (!data || !pcb_data) return YKPIV_GENERIC_ERROR;
+  if (!data || !pcb_data) return YKPIV_ARGUMENT_ERROR;
 
   while (p_temp < (data + *pcb_data)) {
     tag_temp = *p_temp++;
@@ -1693,7 +1693,7 @@ static ykpiv_rc _read_metadata(ykpiv_state *state, uint8_t tag, uint8_t* data, s
   size_t offs;
   int obj_id = 0;
 
-  if (!data || !pcb_data || (CB_BUF_MAX > *pcb_data)) return YKPIV_GENERIC_ERROR;
+  if (!data || !pcb_data || (CB_BUF_MAX > *pcb_data)) return YKPIV_ARGUMENT_ERROR;
 
   switch (tag) {
   case TAG_ADMIN: obj_id = YKPIV_OBJ_ADMIN_DATA; break;

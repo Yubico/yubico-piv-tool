@@ -2131,6 +2131,7 @@ int main(int argc, char *argv[]) {
   struct gengetopt_args_info args_info;
   const uint8_t mgm_algo[] = {YKPIV_ALGO_3DES, YKPIV_ALGO_AES128, YKPIV_ALGO_AES192, YKPIV_ALGO_AES256};
   ykpiv_state *state;
+  ykpiv_rc rc;
   int verbosity;
   enum enum_action action;
   unsigned int i;
@@ -2218,14 +2219,14 @@ int main(int argc, char *argv[]) {
   OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, 0);
 #endif
 
-  if(ykpiv_init(&state, verbosity) != YKPIV_OK) {
-    fprintf(stderr, "Failed initializing library.\n");
+  if((rc = ykpiv_init(&state, verbosity)) != YKPIV_OK) {
+    fprintf(stderr, "Failed initializing library: %s.\n", ykpiv_strerror(rc));
     cmdline_parser_free(&args_info);
     return EXIT_FAILURE;
   }
 
-  if(ykpiv_connect(state, args_info.reader_arg) != YKPIV_OK) {
-    fprintf(stderr, "Failed to connect to yubikey.\nTry removing and reconnecting the device.\n");
+  if((rc = ykpiv_connect(state, args_info.reader_arg)) != YKPIV_OK) {
+    fprintf(stderr, "Failed to connect to yubikey: %s.\nTry removing and reconnecting the device.\n", ykpiv_strerror(rc));
     ykpiv_done(state);
     cmdline_parser_free(&args_info);
     return EXIT_FAILURE;
@@ -2265,8 +2266,8 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "Authenticating since action '%s' needs that.\n", cmdline_parser_action_values[action]);
           }
           ykpiv_config cfg = {0};
-          if(ykpiv_util_get_config(state, &cfg) != YKPIV_OK) {
-            fprintf(stderr, "Failed to get config metadata.\n");
+          if((rc = ykpiv_util_get_config(state, &cfg)) != YKPIV_OK) {
+            fprintf(stderr, "Failed to get config metadata: %s.\n", ykpiv_strerror(rc));
             ykpiv_done(state);
             cmdline_parser_free(&args_info);
             return EXIT_FAILURE;
@@ -2284,15 +2285,15 @@ int main(int argc, char *argv[]) {
               key_ptr = keybuf;
             }
             cfg.mgm_len = sizeof(cfg.mgm_key);
-            if(ykpiv_hex_decode(key_ptr, strlen(key_ptr), cfg.mgm_key, &cfg.mgm_len) != YKPIV_OK) {
-              fprintf(stderr, "Failed decoding key!\n");
+            if((rc = ykpiv_hex_decode(key_ptr, strlen(key_ptr), cfg.mgm_key, &cfg.mgm_len)) != YKPIV_OK) {
+              fprintf(stderr, "Failed decoding key: %s.\n", ykpiv_strerror(rc));
               ykpiv_done(state);
               cmdline_parser_free(&args_info);
               return EXIT_FAILURE;
             }
           }
-          if(ykpiv_authenticate2(state, cfg.mgm_key, cfg.mgm_len) != YKPIV_OK) {
-            fprintf(stderr, "Failed authentication with the application.\n");
+          if((rc = ykpiv_authenticate2(state, cfg.mgm_key, cfg.mgm_len)) != YKPIV_OK) {
+            fprintf(stderr, "Failed authentication with the application: %s.\n", ykpiv_strerror(rc));
             ykpiv_done(state);
             cmdline_parser_free(&args_info);
             return EXIT_FAILURE;
@@ -2353,12 +2354,12 @@ int main(int argc, char *argv[]) {
             new_mgm_key = new_keybuf;
           }
           ykpiv_mgm new_key = {KEY_LEN};
-          if(ykpiv_hex_decode(new_mgm_key, strlen(new_mgm_key), new_key.data, &new_key.len) != YKPIV_OK) {
-            fprintf(stderr, "Failed decoding new key!\n");
+          if((rc = ykpiv_hex_decode(new_mgm_key, strlen(new_mgm_key), new_key.data, &new_key.len)) != YKPIV_OK) {
+            fprintf(stderr, "Failed decoding new key: %s.\n", ykpiv_strerror(rc));
             ret = EXIT_FAILURE;
-          } else if(ykpiv_set_mgmkey3(state, new_key.data, new_key.len, mgm_algo[args_info.new_key_algo_arg],
-                        get_touch_policy(args_info.touch_policy_arg)) != YKPIV_OK) {
-            fprintf(stderr, "Failed setting the new key!");
+          } else if((rc = ykpiv_set_mgmkey3(state, new_key.data, new_key.len, mgm_algo[args_info.new_key_algo_arg],
+                        get_touch_policy(args_info.touch_policy_arg))) != YKPIV_OK) {
+            fprintf(stderr, "Failed setting the new key: %s.\n", ykpiv_strerror(rc));
             if(args_info.touch_policy_arg != touch_policy__NULL) {
               fprintf(stderr, " Maybe this touch policy or algorithm is not supported on this key?");
             }
@@ -2367,12 +2368,12 @@ int main(int argc, char *argv[]) {
           } else {
             fprintf(stderr, "Successfully set new management key.\n");
             ykpiv_config config = {0};
-            if(ykpiv_util_get_config(state, &config) != YKPIV_OK) {
-              fprintf(stderr, "Failed reading configuration metadata!");
+            if((rc = ykpiv_util_get_config(state, &config)) != YKPIV_OK) {
+              fprintf(stderr, "Failed reading configuration metadata: %s.\n", ykpiv_strerror(rc));
             } else {
               if (config.mgm_type == YKPIV_CONFIG_MGM_PROTECTED) {
-                if(ykpiv_util_update_protected_mgm(state, &new_key) != YKPIV_OK) {
-                  fprintf(stderr, "Failed updating pin-protected management key metadata!");
+                if((rc = ykpiv_util_update_protected_mgm(state, &new_key)) != YKPIV_OK) {
+                  fprintf(stderr, "Failed updating pin-protected management key metadata: %s.\n", ykpiv_strerror(rc));
                 } else {
                   fprintf(stderr, "Successfully updated pin-protected management key metadata.\n");
                 }
