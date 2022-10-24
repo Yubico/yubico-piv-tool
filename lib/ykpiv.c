@@ -238,6 +238,16 @@ static unsigned char *set_object(int object_id, unsigned char *buffer) {
   return buffer;
 }
 
+static ykpiv_rc pcsc_to_yrc(pcsc_long rc) {
+  switch(rc) {
+    case SCARD_E_NO_SERVICE:
+    case SCARD_E_SERVICE_STOPPED:
+      return YKPIV_PCSC_SERVICE_ERROR;
+    default:
+      return YKPIV_PCSC_ERROR;
+  }
+}
+
 static void ykpiv_stderr_debug(const char *buf) {
   fprintf(stderr, "%s\n", buf);
 }
@@ -288,7 +298,7 @@ void _ykpiv_debug(const char *file, int line, const char *func, int lvl, const c
 ykpiv_rc ykpiv_init_with_allocator(ykpiv_state **state, int verbose, const ykpiv_allocator *allocator) {
   ykpiv_state *s;
   if (NULL == state) {
-    return YKPIV_GENERIC_ERROR;
+    return YKPIV_ARGUMENT_ERROR;
   }
   if (NULL == allocator || !allocator->pfn_alloc || !allocator->pfn_realloc || !allocator->pfn_free) {
     return YKPIV_MEMORY_ERROR;
@@ -332,7 +342,10 @@ ykpiv_rc ykpiv_done(ykpiv_state *state) {
 ykpiv_rc ykpiv_disconnect(ykpiv_state *state) {
   if(state->card) {
     DBG("Disconnect card #%u.", state->serial);
-    SCardDisconnect(state->card, SCARD_RESET_CARD);
+    pcsc_long rc = SCardDisconnect(state->card, SCARD_RESET_CARD);
+    if(rc != SCARD_S_SUCCESS) {
+      DBG("SCardDisconnect failed on card #%u rc=%lx", state->serial, (long)rc);
+    }
     state->card = 0;
   }
 
@@ -396,7 +409,7 @@ ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state) {
   ykpiv_rc res = YKPIV_OK;
 #if ENABLE_APPLICATION_RESELECTION
   if (NULL == state) {
-    return YKPIV_GENERIC_ERROR;
+    return YKPIV_ARGUMENT_ERROR;
   }
 
   res = _ykpiv_verify(state, NULL, 0);
@@ -416,10 +429,8 @@ ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state) {
 }
 
 static ykpiv_rc _ykpiv_connect(ykpiv_state *state, uintptr_t context, uintptr_t card) {
-  ykpiv_rc res = YKPIV_OK;
-
   if (NULL == state) {
-    return YKPIV_GENERIC_ERROR;
+    return YKPIV_ARGUMENT_ERROR;
   }
 
   // if the context has changed, and the new context is not valid, return an error
@@ -435,8 +446,10 @@ static ykpiv_rc _ykpiv_connect(ykpiv_state *state, uintptr_t context, uintptr_t 
     pcsc_word atr_len = sizeof(atr);
 
     // Cannot set the reader len to NULL.  Confirmed in OSX 10.10, so we have to retrieve it even though we don't need it.
-    if (SCARD_S_SUCCESS != SCardStatus(card, reader, &reader_len, NULL, NULL, atr, &atr_len)) {
-      return YKPIV_PCSC_ERROR;
+    pcsc_long rc = SCardStatus(card, reader, &reader_len, NULL, NULL, atr, &atr_len);
+    if (rc != SCARD_S_SUCCESS) {
+      DBG("SCardStatus failed: rc=%lx", (long)rc);
+      return pcsc_to_yrc(rc);
     }
 
     if(atr_len + 1 == sizeof(YKPIV_ATR_NEO_R3) && !memcmp(atr, YKPIV_ATR_NEO_R3, atr_len))
@@ -467,7 +480,7 @@ static ykpiv_rc _ykpiv_connect(ykpiv_state *state, uintptr_t context, uintptr_t 
   ** The applet _is_ selected by ykpiv_connect(), but is not selected when bypassing
   ** it with ykpiv_connect_with_external_card().
   */
-  return res;
+  return YKPIV_OK;
 }
 
 ykpiv_rc ykpiv_connect_with_external_card(ykpiv_state *state, uintptr_t context, uintptr_t card) {
@@ -495,7 +508,7 @@ ykpiv_rc ykpiv_validate(ykpiv_state *state, const char *wanted) {
       state->ver.patch = 0;
       _cache_pin(state, NULL, 0);
       _cache_mgm_key(state, NULL, 0);
-      return YKPIV_PCSC_ERROR;
+      return pcsc_to_yrc(rc);
     }
     if (strcmp(wanted, reader)) {
       DBG("Disconnecting incorrect reader '%s' (wanted '%s'), rc=%lx", reader, wanted, (long)rc);
@@ -514,7 +527,7 @@ ykpiv_rc ykpiv_validate(ykpiv_state *state, const char *wanted) {
     }
     return YKPIV_OK;
   }
-  return YKPIV_GENERIC_ERROR;
+  return YKPIV_ARGUMENT_ERROR;
 }
 
 ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
@@ -532,17 +545,16 @@ ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted) {
       rc = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &state->context);
       if (rc != SCARD_S_SUCCESS) {
         DBG("SCardEstablishContext failed, rc=%lx", (long)rc);
-        return YKPIV_PCSC_ERROR;
+        return pcsc_to_yrc(rc);
       }
     }
     rc = SCardConnect(state->context, wanted, SCARD_SHARE_SHARED,
           SCARD_PROTOCOL_T0|SCARD_PROTOCOL_T1, &card, &state->protocol);
-    if(rc != SCARD_S_SUCCESS)
-    {
+    if(rc != SCARD_S_SUCCESS) {
       DBG("SCardConnect failed for '%s', rc=%lx", wanted, (long)rc);
       SCardReleaseContext(state->context);
       state->context = (SCARDCONTEXT)-1;
-      return YKPIV_PCSC_ERROR;
+      return pcsc_to_yrc(rc);
     } else {
       DBG("SCardConnect succeeded for '%s', protocol=%lx", wanted, (unsigned long)state->protocol);
     }
@@ -622,7 +634,7 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
     rc = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &state->context);
     if (rc != SCARD_S_SUCCESS) {
       DBG("SCardEstablishContext failed, rc=%lx", (long)rc);
-      return YKPIV_PCSC_ERROR;
+      return pcsc_to_yrc(rc);
     }
   }
 
@@ -636,7 +648,7 @@ ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len) {
     }
     SCardReleaseContext(state->context);
     state->context = (SCARDCONTEXT)-1;
-    return YKPIV_PCSC_ERROR;
+    return pcsc_to_yrc(rc);
   }
 
   *len = num_readers;
@@ -663,7 +675,7 @@ ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state) {
       rc = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &state->context);
       DBG("SCardEstablishContext on card #%u rc=%lx", state->serial, (long)rc);
       if(rc != SCARD_S_SUCCESS) {
-        return YKPIV_PCSC_ERROR;
+        return pcsc_to_yrc(rc);
       }
     }
     if(state->card) {
@@ -671,20 +683,20 @@ ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state) {
               SCARD_PROTOCOL_T0|SCARD_PROTOCOL_T1, SCARD_RESET_CARD, &state->protocol);
       DBG("SCardReconnect on card #%u rc=%lx", state->serial, (long)rc);
       if(rc != SCARD_S_SUCCESS) {
-        return YKPIV_PCSC_ERROR;
+        return pcsc_to_yrc(rc);
       }
     } else {
       rc = SCardConnect(state->context, state->reader, SCARD_SHARE_SHARED,
               SCARD_PROTOCOL_T0|SCARD_PROTOCOL_T1, &state->card, &state->protocol);
       DBG("SCardConnect on reader %s card #%u rc=%lx", state->reader, state->serial, (long)rc);
       if(rc != SCARD_S_SUCCESS) {
-        return YKPIV_PCSC_ERROR;
+        return pcsc_to_yrc(rc);
       }
     }
     rc = SCardBeginTransaction(state->card);
     if (rc != SCARD_S_SUCCESS) {
       DBG("SCardBeginTransaction on card #%u failed, rc=%lx", state->serial, (long)rc);
-      return YKPIV_PCSC_ERROR;
+      return pcsc_to_yrc(rc);
     }
   }
 
@@ -749,7 +761,7 @@ static ykpiv_rc _ykpiv_transmit(ykpiv_state *state, const unsigned char *send_da
   pcsc_long rc = SCardTransmit(state->card, _pci(state->protocol), send_data, send_len, NULL, recv_data, recv_len);
   if(rc != SCARD_S_SUCCESS) {
     DBG("SCardTransmit on card #%u failed, rc=%lx", state->serial, (long)rc);
-    return YKPIV_PCSC_ERROR;
+    return pcsc_to_yrc(rc);
   }
   DBG2("< @", recv_data, (size_t)*recv_len);
   if(*recv_len >= 2) {
@@ -902,7 +914,7 @@ ykpiv_rc ykpiv_authenticate(ykpiv_state *state, unsigned const char *key) {
 ykpiv_rc ykpiv_authenticate2(ykpiv_state *state, unsigned const char *key, size_t len) {
   ykpiv_rc res;
 
-  if (NULL == state) return YKPIV_GENERIC_ERROR;
+  if (NULL == state) return YKPIV_ARGUMENT_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
@@ -916,7 +928,7 @@ Cleanup:
 
 static ykpiv_rc _ykpiv_authenticate2(ykpiv_state *state, unsigned const char *key, size_t len) {
   if (NULL == state)
-    return YKPIV_GENERIC_ERROR;
+    return YKPIV_ARGUMENT_ERROR;
 
   if (NULL == key) {
     key = (unsigned const char*)YKPIV_MGM_DEFAULT;
@@ -1244,7 +1256,7 @@ ykpiv_rc ykpiv_sign_data(ykpiv_state *state,
     unsigned char algorithm, unsigned char key) {
   ykpiv_rc res = YKPIV_OK;
 
-  if (NULL == state) return YKPIV_GENERIC_ERROR;
+  if (NULL == state) return YKPIV_ARGUMENT_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   /* don't attempt to reselect in crypt operations to avoid problems with PIN_ALWAYS */
@@ -1262,7 +1274,7 @@ ykpiv_rc ykpiv_decipher_data(ykpiv_state *state, const unsigned char *in,
     unsigned char algorithm, unsigned char key) {
   ykpiv_rc res = YKPIV_OK;
 
-  if (NULL == state) return YKPIV_GENERIC_ERROR;
+  if (NULL == state) return YKPIV_ARGUMENT_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   /* don't attempt to reselect in crypt operations to avoid problems with PIN_ALWAYS */
@@ -1867,7 +1879,7 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
   ykpiv_rc res;
 
   if (state == NULL)
-    return YKPIV_GENERIC_ERROR;
+    return YKPIV_ARGUMENT_ERROR;
 
   if (key == YKPIV_KEY_CARDMGM ||
       key < YKPIV_KEY_RETIRED1 ||
@@ -1901,7 +1913,7 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
 
     if (p == NULL || q == NULL || dp == NULL ||
         dq == NULL || qinv == NULL)
-      return YKPIV_GENERIC_ERROR;
+      return YKPIV_ARGUMENT_ERROR;
 
     params[0] = p;
     lens[0] = p_len;
@@ -1930,7 +1942,7 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
       elem_len = 48;
 
     if (ec_data == NULL)
-      return YKPIV_GENERIC_ERROR;
+      return YKPIV_ARGUMENT_ERROR;
 
     params[0] = ec_data;
     lens[0] = ec_data_len;
@@ -2055,9 +2067,9 @@ Cleanup:
 ykpiv_rc ykpiv_auth_getchallenge(ykpiv_state *state, uint8_t *challenge, unsigned long *challenge_len) {
   ykpiv_rc res;
   
-  if (NULL == state) return YKPIV_GENERIC_ERROR;
-  if (NULL == challenge) return YKPIV_GENERIC_ERROR;
-  if (NULL == challenge_len) return YKPIV_GENERIC_ERROR;
+  if (NULL == state) return YKPIV_ARGUMENT_ERROR;
+  if (NULL == challenge) return YKPIV_ARGUMENT_ERROR;
+  if (NULL == challenge_len) return YKPIV_ARGUMENT_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
@@ -2111,9 +2123,9 @@ Cleanup:
 ykpiv_rc ykpiv_auth_verifyresponse(ykpiv_state *state, uint8_t *response, unsigned long response_len) {
   ykpiv_rc res;
 
-  if (NULL == state) return YKPIV_GENERIC_ERROR;
-  if (NULL == response) return YKPIV_GENERIC_ERROR;
-  if (16 < response_len) return YKPIV_GENERIC_ERROR;
+  if (NULL == state) return YKPIV_ARGUMENT_ERROR;
+  if (NULL == response) return YKPIV_ARGUMENT_ERROR;
+  if (16 < response_len) return YKPIV_ARGUMENT_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   /* note: do not select the applet here, as it resets the challenge state */
@@ -2164,7 +2176,7 @@ Cleanup:
 ykpiv_rc ykpiv_auth_deauthenticate(ykpiv_state *state) {
   ykpiv_rc res = YKPIV_OK;
 
-  if (NULL == state) return YKPIV_GENERIC_ERROR;
+  if (NULL == state) return YKPIV_ARGUMENT_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
 

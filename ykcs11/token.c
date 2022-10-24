@@ -260,7 +260,7 @@ CK_RV token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF8CHAR_P
           }
         }
       } else {
-        DBG("Failed to set new management key");
+        DBG("Failed to set new management key: %s", ykpiv_strerror(res));
       }
       OPENSSL_cleanse(new_key.data, sizeof(new_key.data));
       break;
