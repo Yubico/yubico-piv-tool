@@ -151,7 +151,7 @@ uint32_t cipher_blocksize(cipher_key key) {
   }
   DWORD size = 0;
   ULONG len = 0;
-	if(!BCRYPT_SUCCESS(BCryptGetProperty(key->hKey, BCRYPT_BLOCK_LENGTH, &size, sizeof(size), &len, 0))) {
+	if(!BCRYPT_SUCCESS(BCryptGetProperty(key->hKey, BCRYPT_BLOCK_LENGTH, (PUCHAR)&size, sizeof(size), &len, 0))) {
     return 0;
   }
   return size;
