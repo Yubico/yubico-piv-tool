@@ -10,6 +10,7 @@ int CustomFuzzerTestOneInput(test_case_t *test_case) {
     uint8_t templ[] = {0xde, 0xad, 0xbe, 0xef};
     ykpiv_state *state;
     uint8_t *out = calloc(1, test_case->pcsc_data_len);
+    size_t out_len = test_case->pcsc_data_len;
     int sw = 0;
 
     memset(&harness_state, 0, sizeof(harness_state));
@@ -24,7 +25,7 @@ int CustomFuzzerTestOneInput(test_case_t *test_case) {
         test_case->in_data,
         test_case->in_len,
         out,
-        &test_case->pcsc_data_len,
+        &out_len,
         &sw
     );
 
