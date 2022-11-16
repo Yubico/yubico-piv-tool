@@ -8,10 +8,20 @@ These stubs expect at a minimum the following symbols with struct types containi
 
 typedef struct {
     uint32_t state_protocol;
-    uint32_t pcsc_data_len;     // required for pcsc stubs
-    uint32_t plaintext_len;     // required for openssl stubs
-    uint8_t *pcsc_data;         // required for pcsc stubs
-    uint8_t *plaintext;         // required for openssl stubs
+
+    // required for pcsc stubs
+    uint32_t pcsc_data_len;
+    uint32_t readers_len;
+
+    // required for openssl stubs
+    uint32_t plaintext_len;
+
+    // required for pcsc stubs
+    uint8_t *pcsc_data;
+    uint8_t *readers;
+
+    // required for openssl stubs
+    uint8_t *plaintext;
 } test_case_t;
 
 typedef struct {

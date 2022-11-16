@@ -5,9 +5,15 @@
 
 typedef struct {
     uint32_t state_protocol;
+
     uint32_t pcsc_data_len;
+    uint32_t readers_len;
+
     uint32_t plaintext_len;
+
     uint8_t *pcsc_data;
+    uint8_t *readers;
+
     uint8_t *plaintext;
 } test_case_t;
 

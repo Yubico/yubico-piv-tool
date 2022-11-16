@@ -9,7 +9,7 @@ use libafl::{
         shmem::{ShMemProvider, StdShMemProvider},
         tuples::{tuple_list, Merge},
     },
-    corpus::{InMemoryCorpus, CachedOnDiskCorpus, OnDiskCorpus},
+    corpus::{CachedOnDiskCorpus, OnDiskCorpus},
     events::EventConfig,
     executors::{inprocess::InProcessExecutor, ExitKind, TimeoutExecutor},
     feedback_or,

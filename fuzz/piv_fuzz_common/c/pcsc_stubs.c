@@ -90,19 +90,21 @@ LONG SCardListReaders(
     LPSTR           mszReaders,
     LPDWORD         pcchReaders
 ) {
-    if (mszReaders != NULL) {
-        if (harness_state.test_case->pcsc_data != NULL && harness_state.test_case->pcsc_data_len > 0) {
-            memcpy_rollover(
+    if (mszReaders == NULL) {
+        *pcchReaders = harness_state.test_case->readers_len;
+        return SCARD_S_SUCCESS;
+    } else {
+        int len = *pcchReaders <= harness_state.test_case->readers_len ?
+            *pcchReaders :
+            harness_state.test_case->readers_len;
+        if (len > 0) {
+            memcpy(
                 mszReaders,
-                harness_state.test_case->pcsc_data,
-                *pcchReaders,
-                harness_state.test_case->pcsc_data_len,
-                &harness_state.pcsc_data_offset
+                harness_state.test_case->readers,
+                len
             );
-        } else {
-            memset(mszReaders, 0, *pcchReaders);
-            *pcchReaders = 0;
         }
+        *pcchReaders = len;
+        return SCARD_S_SUCCESS;
     }
-    return SCARD_S_SUCCESS;
 }

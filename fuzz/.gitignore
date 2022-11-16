@@ -1,1 +1,8 @@
 target
+stdout
+input
+output
+*.profraw
+*.profdata
+fuzzer
+fuzzer-cov

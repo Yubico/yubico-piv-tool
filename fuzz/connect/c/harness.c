@@ -15,7 +15,7 @@ int CustomFuzzerTestOneInput(test_case_t *test_case) {
     ykpiv_init(&state, 0);
     state->protocol = test_case->state_protocol;
 
-    ykpiv_connect(state, "fuzz_reader");
+    ykpiv_connect(state, "reader 1");
 
     ykpiv_done_with_external_card(state);
 
