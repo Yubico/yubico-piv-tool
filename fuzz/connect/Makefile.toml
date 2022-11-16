@@ -27,6 +27,7 @@ args = [
     "c/harness.c",
     "-Ic",
     "../piv_fuzz_common/c/openssl_stubs.c",
+    "-DPCSC_SCARD_LIST_READERS_STUB",
     "../piv_fuzz_common/c/pcsc_stubs.c",
     "../piv_fuzz_common/c/memcpy_rollover.c",
     "-o", "fuzzer"
@@ -59,6 +60,7 @@ args = [
     "c/harness.c",
     "-Ic",
     "../piv_fuzz_common/c/openssl_stubs.c",
+    "-DPCSC_SCARD_LIST_READERS_STUB",
     "../piv_fuzz_common/c/pcsc_stubs.c",
     "../piv_fuzz_common/c/memcpy_rollover.c",
     "-o", "fuzzer-cov"

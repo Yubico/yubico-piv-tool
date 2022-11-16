@@ -1,5 +1,5 @@
 #include "memcpy_rollover.h"
-#include<stdio.h>
+#include <stdio.h>
 
 void memcpy_rollover(uint8_t *dst, uint8_t *src, size_t dst_len, size_t src_len, size_t *src_offset) {
     size_t amount = 0;

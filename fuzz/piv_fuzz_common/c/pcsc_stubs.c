@@ -70,6 +70,9 @@ LONG SCardTransmit(
     LPDWORD pcbRecvLength) {
 
     if (harness_state.test_case->pcsc_data != NULL && harness_state.test_case->pcsc_data_len > 0) {
+        uint8_t amount = harness_state.test_case->pcsc_data[harness_state.pcsc_data_offset];
+        harness_state.pcsc_data_offset = (harness_state.pcsc_data_offset + 1) % harness_state.test_case->pcsc_data_len;
+
         memcpy_rollover(
             pbRecvBuffer,
             harness_state.test_case->pcsc_data,
@@ -84,6 +87,7 @@ LONG SCardTransmit(
     return SCARD_S_SUCCESS;
 }
 
+#ifdef PCSC_SCARD_LIST_READERS_STUB
 LONG SCardListReaders(
     SCARDCONTEXT    hContext,
     LPCSTR          mszGroups,
@@ -108,3 +112,4 @@ LONG SCardListReaders(
         return SCARD_S_SUCCESS;
     }
 }
+#endif
