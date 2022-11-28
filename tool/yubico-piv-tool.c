@@ -127,9 +127,11 @@ static bool sign_data(ykpiv_state *state, const unsigned char *in, size_t len, u
     in = signinput;
     len = padlen;
   }
-  if(ykpiv_sign_data(state, in, len, out, out_len, algorithm, key) == YKPIV_OK) {
+  ykpiv_rc rc;
+  if((rc = ykpiv_sign_data(state, in, len, out, out_len, algorithm, key)) == YKPIV_OK) {
     return true;
   }
+  fprintf(stderr, "Failed signing data: %s.\n", ykpiv_strerror(rc));
   return false;
 }
 
@@ -1452,24 +1454,24 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
 
     mdctx = EVP_MD_CTX_create();
     if(EVP_DigestInit_ex(mdctx, md, NULL) != 1) {
-      fprintf(stderr, "failed to initialize digest operation\n");
+      fprintf(stderr, "Failed to initialize digest operation\n");
       goto out;
     }
     while(!feof(input_file)) {
       char buf[1024] = {0};
       size_t len = fread(buf, 1, 1024, input_file);
       if(EVP_DigestUpdate(mdctx, buf, len) != 1) {
-        fprintf(stderr, "failed to update digest data\n");
+        fprintf(stderr, "Failed to update digest data\n");
         goto out;
       }
     }
     if(EVP_DigestFinal_ex(mdctx, hashed, &hash_len) != 1) {
-      fprintf(stderr, "failed to finalize digest operation\n");
+      fprintf(stderr, "Failed to finalize digest operation\n");
       goto out;
     }
 
     if(verbosity) {
-      fprintf(stderr, "file hashed as: ");
+      fprintf(stderr, "File hashed as: ");
       dump_data(hashed, hash_len, stderr, true, format_arg_hex);
     }
     EVP_MD_CTX_destroy(mdctx);
@@ -1483,12 +1485,12 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
     unsigned char buf[1024] = {0};
     size_t len = sizeof(buf);
     if(!sign_data(state, hashed, hash_len, buf, &len, algo, key)) {
-      fprintf(stderr, "failed signing file\n");
+      fprintf(stderr, "Failed signing file\n");
       goto out;
     }
 
     if(verbosity) {
-      fprintf(stderr, "file signed as: ");
+      fprintf(stderr, "File signed as: ");
       dump_data(buf, len, stderr, true, format_arg_hex);
     }
     fwrite(buf, 1, len, output_file);
@@ -2578,7 +2580,6 @@ int main(int argc, char *argv[]) {
         verbosity)) {
       fprintf(stderr, "Signature successful!\n");
     } else {
-      fprintf(stderr, "Failed signing!\n");
       ret = EXIT_FAILURE;
     }
   }
