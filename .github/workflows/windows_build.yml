@@ -94,7 +94,7 @@ jobs:
       - name: Build only dynamic libaries
         run: |
           Set-PSDebug -Trace 1
-          $env:Path ="C:/vcpkg/packages/openssl-windows_x86-windows;$env:Path"
+          $env:Path ="C:/vcpkg/packages/openssl_x86-windows;$env:Path"
           $env:include ="C:/vcpkg/packages/openssl_x86-windows/include;$env:include"
 
           cd yubico-piv-tool-src/yubico-piv-tool-

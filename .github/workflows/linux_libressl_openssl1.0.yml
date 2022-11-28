@@ -17,11 +17,10 @@ jobs:
         run: |
           set -x
           cd ..
-          wget http://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-3.1.1.tar.gz
-          tar -xzf libressl-3.1.1.tar.gz
-          cd libressl-3.1.1
-          mkdir build
-          cd build
+          wget -nv http://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-3.6.1.tar.gz
+          tar -xzf libressl-3.6.1.tar.gz
+          cd libressl-3.6.1
+          mkdir build; cd build
           cmake ..
           make
 
@@ -29,7 +28,7 @@ jobs:
         run: |
           set -x
           mkdir build; cd build
-          PKG_CONFIG_PATH=/home/runner/work/yubico-piv-tool/libressl-3.1.1/build/pkgconfig cmake .. -DVERBOSE_CMAKE=ON
+          PKG_CONFIG_PATH=/home/runner/work/yubico-piv-tool/libressl-3.6.1/build/pkgconfig cmake .. -DVERBOSE_CMAKE=ON
           make
           make test
           ./tool/yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
@@ -62,7 +61,7 @@ jobs:
         run: |
           set -x
           cd ..
-          wget https://www.openssl.org/source/openssl-1.0.2u.tar.gz
+          wget -nv https://www.openssl.org/source/openssl-1.0.2u.tar.gz
           tar -xzf openssl-1.0.2u.tar.gz
           cd openssl-1.0.2u
           ./Configure linux-x86_64 shared --prefix=/home/runner/work/yubico-piv-tool/openssl
@@ -106,11 +105,11 @@ jobs:
         run: |
           set -x
           cd ..
-          wget https://www.openssl.org/source/openssl-1.1.1n.tar.gz
-          tar -xzf openssl-1.1.1n.tar.gz
-          cd openssl-1.1.1n
+          wget -nv https://www.openssl.org/source/openssl-1.1.1s.tar.gz
+          tar -xzf openssl-1.1.1s.tar.gz
+          cd openssl-1.1.1s
           ./Configure linux-x86_64 shared --prefix=/home/runner/work/yubico-piv-tool/openssl
-          sudo make all install VERSION="1.1.1n"
+          sudo make all install VERSION="1.1.1s"
 
       - name: Build and install
         run: |
@@ -150,11 +149,11 @@ jobs:
         run: |
           set -x
           cd ..
-          wget https://www.openssl.org/source/openssl-3.0.2.tar.gz
-          tar -xzf openssl-3.0.2.tar.gz
-          cd openssl-3.0.2
+          wget -nv https://www.openssl.org/source/openssl-3.0.7.tar.gz
+          tar -xzf openssl-3.0.7.tar.gz
+          cd openssl-3.0.7
           ./Configure linux-x86_64 shared --prefix=/home/runner/work/yubico-piv-tool/openssl
-          sudo make all install VERSION="3.0.2"
+          sudo make all install VERSION="3.0.7"
 
       - name: Build and install
         run: |

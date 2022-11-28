@@ -1024,7 +1024,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
           continue; // Bail out, can't create key objects without the public key from the cert
         }
         add_object(session->slot, cert_id);
-        if(rc != YKPIV_OK) { // Failed to get attestation or metadata, fall back to assuming we have keys for cert objects
+        if(rc != YKPIV_OK && rc != YKPIV_KEY_ERROR) { // Failed to get attestation or metadata, fall back to assuming we have keys for cert objects
           add_object(session->slot, pvtk_id);
           add_object(session->slot, pubk_id);
         }
