@@ -1195,7 +1195,8 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
 	      key_len = 48;
       }
       if(!decipher && in_len > key_len) {
-	      return YKPIV_SIZE_ERROR;
+        DBG("Data to sign truncated to EC key length (%zu bytes)", key_len);
+        in_len = key_len;
       } else if(decipher && in_len != (key_len * 2) + 1) {
 	      return YKPIV_SIZE_ERROR;
       }
@@ -1222,6 +1223,8 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
     DBG("Sign command failed with code %x.", sw);
     if (sw == SW_ERR_SECURITY_STATUS)
       return YKPIV_AUTHENTICATION_ERROR;
+    else if(sw == SW_ERR_INCORRECT_PARAM)
+      return YKPIV_ARGUMENT_ERROR;
     else if(sw != SW_SUCCESS)
       return YKPIV_GENERIC_ERROR;
   }
