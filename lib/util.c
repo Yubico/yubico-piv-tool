@@ -856,38 +856,11 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
   }
 
   if (YKPIV_OK != (res = _ykpiv_transfer_data(state, templ, in_data, (unsigned long)(in_ptr - in_data), data, &recv_len, &sw))) {
-    DBG("Failed to communicate.");
     goto Cleanup;
   }
-  else if (sw != SW_SUCCESS) {
+  res = _ykpiv_translate_sw(sw);
+  if (res != YKPIV_OK) {
     DBG("Failed to generate new key");
-
-    if (sw == SW_ERR_INCORRECT_SLOT) {
-      res = YKPIV_KEY_ERROR;
-      DBG("incorrect slot");
-    }
-    else if (sw == SW_ERR_INCORRECT_PARAM) {
-      res = YKPIV_ALGORITHM_ERROR;
-
-      if (pin_policy != YKPIV_PINPOLICY_DEFAULT) {
-        DBG("pin policy not supported?");
-      }
-      else if (touch_policy != YKPIV_TOUCHPOLICY_DEFAULT) {
-        DBG("touch policy not supported?");
-      }
-      else {
-        DBG("algorithm not supported?");
-      }
-    }
-    else if (sw == SW_ERR_SECURITY_STATUS) {
-      res = YKPIV_AUTHENTICATION_ERROR;
-      DBG("not authenticated");
-    }
-    else {
-      res = YKPIV_GENERIC_ERROR;
-      DBG("error %x", sw);
-    }
-
     goto Cleanup;
   }
 
@@ -1373,10 +1346,10 @@ ykpiv_rc ykpiv_util_reset(ykpiv_state *state) {
 
   /* note: the reset function is only available when both pins are blocked. */
   res = ykpiv_transfer_data(state, templ, NULL, 0, data, &recv_len, &sw);
-  if (YKPIV_OK == res && SW_SUCCESS == sw) {
-     return YKPIV_OK;
+  if(res != YKPIV_OK) {
+    return res;
   }
-  return YKPIV_GENERIC_ERROR;
+  return _ykpiv_translate_sw(sw);
 }
 
 uint32_t ykpiv_util_slot_object(uint8_t slot) {
