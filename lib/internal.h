@@ -209,6 +209,7 @@ ykpiv_rc _ykpiv_transfer_data(
     unsigned char *out_data,
     unsigned long *out_len,
     int *sw);
+ykpiv_rc _ykpiv_translate_sw(int sw);
 
 /* authentication functions not ready for public api */
 ykpiv_rc ykpiv_auth_getchallenge(ykpiv_state *state, uint8_t *challenge, unsigned long *challenge_len);

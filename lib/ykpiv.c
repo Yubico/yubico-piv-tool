@@ -370,12 +370,12 @@ ykpiv_rc _ykpiv_select_application(ykpiv_state *state) {
   ykpiv_rc res = YKPIV_OK;
 
   if((res = _ykpiv_transfer_data(state, templ, piv_aid, sizeof(piv_aid), data, &recv_len, &sw)) != YKPIV_OK) {
-    DBG("Failed communicating with card: '%s'", ykpiv_strerror(res));
     return res;
   }
-  else if(sw != SW_SUCCESS) {
-    DBG("Failed selecting application: %04x", sw);
-    return YKPIV_GENERIC_ERROR;
+  res = _ykpiv_translate_sw(sw);
+  if(res != YKPIV_OK) {
+    DBG("Failed selecting application");
+    return res;
   }
 
   /* now that the PIV application is selected, retrieve the version
@@ -742,6 +742,41 @@ ykpiv_rc _ykpiv_end_transaction(ykpiv_state *state) {
   return YKPIV_OK;
 }
 
+ykpiv_rc _ykpiv_translate_sw(int sw) {
+  switch(sw) {
+    case SW_SUCCESS:
+      DBG2("SW_SUCCESS");
+      return YKPIV_OK;
+    case SW_ERR_SECURITY_STATUS:
+      DBG("SW_ERR_SECURITY_STATUS");
+      return YKPIV_AUTHENTICATION_ERROR;
+    case SW_ERR_AUTH_BLOCKED:
+      DBG("SW_ERR_AUTH_BLOCKED");
+      return YKPIV_PIN_LOCKED;
+    case SW_ERR_INCORRECT_PARAM:
+      DBG("SW_ERR_INCORRECT_PARAM");
+      return YKPIV_ARGUMENT_ERROR;
+    case SW_ERR_FILE_NOT_FOUND:
+      DBG("SW_ERR_FILE_NOT_FOUND");
+      return YKPIV_INVALID_OBJECT;
+    case SW_ERR_REFERENCE_NOT_FOUND:
+      DBG("SW_ERR_REFERENCE_NOT_FOUND");
+      return YKPIV_KEY_ERROR;
+    case SW_ERR_INCORRECT_SLOT:
+      DBG("SW_ERR_INCORRECT_SLOT");
+      return YKPIV_KEY_ERROR;
+    case SW_ERR_NOT_SUPPORTED:
+      DBG("SW_ERR_NOT_SUPPORTED");
+      return YKPIV_NOT_SUPPORTED;
+    case SW_ERR_CONDITIONS_OF_USE:
+      DBG("SW_ERR_CONDITIONS_OF_USE");
+      return YKPIV_GENERIC_ERROR;
+    default:
+      DBG("SW_%04x", sw);
+      return YKPIV_GENERIC_ERROR;
+  }
+}
+
 static const SCARD_IO_REQUEST* _pci(pcsc_word protocol) {
   switch (protocol) {
   case SCARD_PROTOCOL_T0:
@@ -761,6 +796,7 @@ static ykpiv_rc _ykpiv_transmit(ykpiv_state *state, const unsigned char *send_da
   pcsc_long rc = SCardTransmit(state->card, _pci(state->protocol), send_data, send_len, NULL, recv_data, recv_len);
   if(rc != SCARD_S_SUCCESS) {
     DBG("SCardTransmit on card #%u failed, rc=%lx", state->serial, (long)rc);
+    *sw = 0;
     return pcsc_to_yrc(rc);
   }
   DBG2("< @", recv_data, (size_t)*recv_len);
@@ -890,18 +926,7 @@ static ykpiv_rc _ykpiv_get_metadata(ykpiv_state *state, const unsigned char key,
     goto Cleanup;
   }
 
-  if (SW_SUCCESS != sw) {
-    res = YKPIV_GENERIC_ERROR;
-    if (SW_ERR_NOT_SUPPORTED == sw) {
-      res = YKPIV_NOT_SUPPORTED;
-    }
-    if (SW_ERR_REFERENCE_NOT_FOUND == sw) {
-      res = YKPIV_KEY_ERROR;
-    }
-    if (SW_ERR_INCORRECT_PARAM == sw) {
-      res = YKPIV_ARGUMENT_ERROR;
-    }
-  }
+  res = _ykpiv_translate_sw(sw);
 
 Cleanup:
   return res;
@@ -971,8 +996,8 @@ static ykpiv_rc _ykpiv_authenticate2(ykpiv_state *state, unsigned const char *ke
     if ((res = _ykpiv_send_apdu(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
       goto Cleanup;
     }
-    else if (sw != SW_SUCCESS) {
-      res = YKPIV_ALGORITHM_ERROR;
+    res = _ykpiv_translate_sw(sw);
+    if (res != YKPIV_OK) {
       goto Cleanup;
     }
   }
@@ -1019,8 +1044,8 @@ static ykpiv_rc _ykpiv_authenticate2(ykpiv_state *state, unsigned const char *ke
     if ((res = _ykpiv_send_apdu(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
       goto Cleanup;
     }
-    else if (sw != SW_SUCCESS) {
-      res = YKPIV_AUTHENTICATION_ERROR;
+    res = _ykpiv_translate_sw(sw);
+    if (res != YKPIV_OK) {
       goto Cleanup;
     }
 
@@ -1117,11 +1142,11 @@ ykpiv_rc ykpiv_set_mgmkey3(ykpiv_state *state, const unsigned char *new_key, siz
   if ((res = _ykpiv_send_apdu(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
     goto Cleanup;
   }
-  else if (sw == SW_SUCCESS) {
+  res = _ykpiv_translate_sw(sw);
+  if (res == YKPIV_OK) {
     _cache_mgm_key(state, new_key, len);
     goto Cleanup;
   }
-  res = YKPIV_GENERIC_ERROR;
 
 Cleanup:
   yc_memzero(&apdu, sizeof(APDU));
@@ -1217,16 +1242,12 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   dataptr += in_len;
 
   if((res = _ykpiv_transfer_data(state, templ, indata, (unsigned long)(dataptr - indata), data, &recv_len, &sw)) != YKPIV_OK) {
-    DBG("Sign command failed to communicate with status %x.", res);
     return res;
-  } else if(sw != SW_SUCCESS) {
-    DBG("Sign command failed with code %x.", sw);
-    if (sw == SW_ERR_SECURITY_STATUS)
-      return YKPIV_AUTHENTICATION_ERROR;
-    else if(sw == SW_ERR_INCORRECT_PARAM)
-      return YKPIV_ARGUMENT_ERROR;
-    else if(sw != SW_SUCCESS)
-      return YKPIV_GENERIC_ERROR;
+  }
+  res = _ykpiv_translate_sw(sw);
+  if(res != YKPIV_OK) {
+    DBG("Sign command failed");
+    return res;
   }
   /* skip the first 7c tag */
   if(data[0] != 0x7c) {
@@ -1312,7 +1333,9 @@ static ykpiv_rc _ykpiv_get_version(ykpiv_state *state) {
 
   if((res = _ykpiv_transfer_data(state, templ, NULL, 0, data, &recv_len, &sw)) != YKPIV_OK) {
     return res;
-  } else if(sw == SW_SUCCESS) {
+  }
+  res = _ykpiv_translate_sw(sw);
+  if(res == YKPIV_OK) {
 
     /* check that we received enough data for the verson number */
     if (recv_len < 3) {
@@ -1322,8 +1345,6 @@ static ykpiv_rc _ykpiv_get_version(ykpiv_state *state) {
     state->ver.major = data[0];
     state->ver.minor = data[1];
     state->ver.patch = data[2];
-  } else {
-    res = YKPIV_GENERIC_ERROR;
   }
 
   return res;
@@ -1372,12 +1393,11 @@ static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state) {
     recv_len = sizeof(temp);
 
     if ((res = _ykpiv_transfer_data(state, select_templ, yk_aid, sizeof(yk_aid), temp, &recv_len, &sw)) < YKPIV_OK) {
-      DBG("Failed communicating with card: '%s'", ykpiv_strerror(res));
       goto Cleanup;
     }
-    else if (sw != SW_SUCCESS) {
-      DBG("Failed selecting yk application: %04x", sw);
-      res = YKPIV_GENERIC_ERROR;
+    res = _ykpiv_translate_sw(sw);
+    if (res != YKPIV_OK) {
+      DBG("Failed selecting yk application");
       goto Cleanup;
     }
 
@@ -1386,24 +1406,22 @@ static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state) {
     recv_len = sizeof(data);
 
     if ((res = _ykpiv_transfer_data(state, yk_get_serial_templ, NULL, 0, data, &recv_len, &sw)) < YKPIV_OK) {
-      DBG("Failed communicating with card: '%s'", ykpiv_strerror(res));
       goto Cleanup;
     }
-    else if (sw != SW_SUCCESS) {
-      DBG("Failed retrieving serial number: %04x", sw);
-      res = YKPIV_GENERIC_ERROR;
+    res = _ykpiv_translate_sw(sw);
+    if (res != YKPIV_OK) {
+      DBG("Failed retrieving serial number");
       goto Cleanup;
     }
 
     recv_len = sizeof(temp);
 
     if((res = _ykpiv_transfer_data(state, select_templ, piv_aid, sizeof(piv_aid), temp, &recv_len, &sw)) < YKPIV_OK) {
-      DBG("Failed communicating with card: '%s'", ykpiv_strerror(res));
       return res;
     }
-    else if(sw != SW_SUCCESS) {
-      DBG("Failed selecting application: %04x", sw);
-      return YKPIV_GENERIC_ERROR;
+    res = _ykpiv_translate_sw(sw);
+    if(res != YKPIV_OK) {
+      DBG("Failed selecting piv application");
     }
   }
   else {
@@ -1411,12 +1429,11 @@ static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state) {
     uint8_t yk5_get_serial_templ[] = {0x00, YKPIV_INS_GET_SERIAL, 0x00, 0x00};
 
     if ((res = _ykpiv_transfer_data(state, yk5_get_serial_templ, NULL, 0, data, &recv_len, &sw)) != YKPIV_OK) {
-      DBG("Failed communicating with card: '%s'", ykpiv_strerror(res));
       return res;
     }
-    else if(sw != SW_SUCCESS) {
-      DBG("Failed retrieving serial number: %04x", sw);
-      return YKPIV_GENERIC_ERROR;
+    res = _ykpiv_translate_sw(sw);
+    if(res != YKPIV_OK) {
+      DBG("Failed retrieving serial number");
     }
   }
 
@@ -1540,7 +1557,8 @@ static ykpiv_rc _ykpiv_verify(ykpiv_state *state, const char *pin, const size_t 
     state->tries = -1;
     return res;
   }
-  else if (sw == SW_SUCCESS) {
+  res = _ykpiv_translate_sw(sw);
+  if (res == YKPIV_OK) {
     if (pin) {
       // Intentionally ignore errors.  If the PIN fails to save, it will only
       // be a problem if a reconnect is attempted.  Failure deferred until then.
@@ -1563,7 +1581,7 @@ static ykpiv_rc _ykpiv_verify(ykpiv_state *state, const char *pin, const size_t 
   }
   else {
     state->tries = -1;
-    return YKPIV_GENERIC_ERROR;
+    return res;
   }
 }
 
@@ -1637,16 +1655,8 @@ ykpiv_rc ykpiv_set_pin_retries(ykpiv_state *state, int pin_tries, int puk_tries)
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   res = _ykpiv_transfer_data(state, templ, NULL, 0, data, &recv_len, &sw);
-  if (YKPIV_OK == res) {
-    if (SW_SUCCESS == sw) {
-      // success, fall through
-    } else if (sw == SW_ERR_AUTH_BLOCKED) {
-      res = YKPIV_AUTHENTICATION_ERROR;
-    } else if (sw == SW_ERR_SECURITY_STATUS) {
-      res = YKPIV_AUTHENTICATION_ERROR;
-    } else {
-      res = YKPIV_GENERIC_ERROR;
-    }
+  if (res == YKPIV_OK) {
+    res = _ykpiv_translate_sw(sw);
   }
 
 Cleanup:
@@ -1687,18 +1697,17 @@ static ykpiv_rc _ykpiv_change_pin(ykpiv_state *state, int action, const char * c
 
   if(res != YKPIV_OK) {
     return res;
-  } else if(sw != SW_SUCCESS) {
+  } 
+  res = _ykpiv_translate_sw(sw); 
+  if(res != YKPIV_OK) {
     if((sw >> 8) == 0x63) {
       if (tries) *tries = sw & 0xf;
       return YKPIV_WRONG_PIN;
-    } else if(sw == SW_ERR_AUTH_BLOCKED) {
-      return YKPIV_PIN_LOCKED;
     } else {
-      DBG("Failed changing pin, token response code: %x.", sw);
-      return YKPIV_GENERIC_ERROR;
+      DBG("Failed changing pin");
     }
   }
-  return YKPIV_OK;
+  return res;
 }
 
 ykpiv_rc ykpiv_change_pin(ykpiv_state *state, const char * current_pin, size_t current_pin_len, const char * new_pin, size_t new_pin_len, int *tries) {
@@ -1776,8 +1785,8 @@ ykpiv_rc _ykpiv_fetch_object(ykpiv_state *state, int object_id,
       != YKPIV_OK) {
     return res;
   }
-
-  if(sw == SW_SUCCESS) {
+  res = _ykpiv_translate_sw(sw);
+  if(res == YKPIV_OK) {
     size_t outlen = 0;
     size_t offs = _ykpiv_get_length(data + 1, data + *len, &outlen);    
     if(!offs) {
@@ -1789,17 +1798,10 @@ ykpiv_rc _ykpiv_fetch_object(ykpiv_state *state, int object_id,
     }
     memmove(data, data + 1 + offs, outlen);
     *len = (unsigned long)outlen;
-    return YKPIV_OK;
   } else {
-    if (SW_ERR_FILE_NOT_FOUND == sw) {
-      return YKPIV_INVALID_OBJECT;
-    }
-    if (SW_ERR_SECURITY_STATUS == sw) {
-      return YKPIV_AUTHENTICATION_ERROR;
-    }
-    DBG("Failed to get data for object %x with status %x", object_id, sw);
-    return YKPIV_GENERIC_ERROR;
+    DBG("Failed to get data for object %x", object_id);
   }
+  return res;
 }
 
 ykpiv_rc ykpiv_save_object(ykpiv_state *state, int object_id,
@@ -1845,16 +1847,7 @@ ykpiv_rc _ykpiv_save_object(
     &sw)) != YKPIV_OK) {
     return res;
   }
-
-  if(SW_SUCCESS == sw) {
-    return YKPIV_OK;
-  }
-  else if (SW_ERR_SECURITY_STATUS == sw) {
-    return YKPIV_AUTHENTICATION_ERROR;
-  }
-  else {
-    return YKPIV_GENERIC_ERROR;
-  }
+  return _ykpiv_translate_sw(sw);
 }
 
 ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, unsigned char algorithm,
@@ -1989,11 +1982,8 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
   if ((res = _ykpiv_transfer_data(state, templ, key_data, (unsigned long)(in_ptr - key_data), data, &recv_len, &sw)) != YKPIV_OK) {
     goto Cleanup;
   }
-  if (SW_SUCCESS != sw) {
-    res = YKPIV_GENERIC_ERROR;
-    if (sw == SW_ERR_SECURITY_STATUS) {
-      res = YKPIV_AUTHENTICATION_ERROR;
-    }
+  res = _ykpiv_translate_sw(sw);
+  if (res != YKPIV_OK) {
     goto Cleanup;
   }
 
@@ -2021,17 +2011,8 @@ ykpiv_rc ykpiv_attest(ykpiv_state *state, const unsigned char key, unsigned char
   if ((res = _ykpiv_transfer_data(state, templ, NULL, 0, data, &ul_data_len, &sw)) != YKPIV_OK) {
     goto Cleanup;
   }
-  if (SW_SUCCESS != sw) {
-    res = YKPIV_GENERIC_ERROR;
-    if (SW_ERR_NOT_SUPPORTED == sw) {
-      res = YKPIV_NOT_SUPPORTED;
-    }
-    if (SW_ERR_REFERENCE_NOT_FOUND == sw) {
-      res = YKPIV_KEY_ERROR;
-    }
-    if (SW_ERR_INCORRECT_PARAM == sw) {
-      res = YKPIV_ARGUMENT_ERROR;
-    }
+  res = _ykpiv_translate_sw(sw);
+  if (res != YKPIV_OK) {
     goto Cleanup;
   }
   if (data[0] != 0x30) {
@@ -2100,12 +2081,11 @@ ykpiv_rc ykpiv_auth_getchallenge(ykpiv_state *state, uint8_t *challenge, unsigne
   apdu.st.data[3] = 0x00;
   int sw = 0;
   recv_len = sizeof(data);
-  if ((res = _ykpiv_send_apdu(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK)
-  {
+  if ((res = _ykpiv_send_apdu(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
     goto Cleanup;
   }
-  else if (sw != SW_SUCCESS) {
-    res = YKPIV_AUTHENTICATION_ERROR;
+  res = _ykpiv_translate_sw(sw);
+  if (res != YKPIV_OK) {
     goto Cleanup;
   }
 
@@ -2159,12 +2139,11 @@ ykpiv_rc ykpiv_auth_verifyresponse(ykpiv_state *state, uint8_t *response, unsign
   apdu.st.lc = (unsigned char)(dataptr - apdu.st.data);
   int sw = 0;
   recv_len = sizeof(data);
-  if ((res = _ykpiv_send_apdu(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK)
-  {
+  if ((res = _ykpiv_send_apdu(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
     goto Cleanup;
   }
-  else if (sw != SW_SUCCESS) {
-    res = YKPIV_AUTHENTICATION_ERROR;
+  res = _ykpiv_translate_sw(sw);
+  if (res != YKPIV_OK) {
     goto Cleanup;
   }
 
@@ -2215,12 +2194,11 @@ static ykpiv_rc _ykpiv_auth_deauthenticate(ykpiv_state *state) {
   }
 
   if ((res = _ykpiv_transfer_data(state, templ, aid, aid_len, data, &recv_len, &sw)) < YKPIV_OK) {
-    DBG("Failed communicating with card: '%s'", ykpiv_strerror(res));
     return res;
   }
-  else if (sw != SW_SUCCESS) {
-    DBG("Failed selecting mgmt/yk application: %04x", sw);
-    return YKPIV_GENERIC_ERROR;
+  res = _ykpiv_translate_sw(sw);
+  if (res != YKPIV_OK) {
+    DBG("Failed selecting mgmt/yk application");
   }
 
   return res;
