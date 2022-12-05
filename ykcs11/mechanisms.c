@@ -299,7 +299,7 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
     DBG("ykpiv_sign_data %lu bytes with key %x returned %zu bytes data", session->op_info.buf_len, session->op_info.op.sign.piv_key, siglen);
   } else {
     DBG("ykpiv_sign_data with key %x failed: %s", session->op_info.op.sign.piv_key, ykpiv_strerror(rcc));
-    return rcc == YKPIV_AUTHENTICATION_ERROR ? CKR_USER_NOT_LOGGED_IN : CKR_DEVICE_ERROR;
+    return yrc_to_rv(rcc);
   }
 
   CK_RV rv = CKR_OK;

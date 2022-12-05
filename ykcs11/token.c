@@ -142,14 +142,15 @@ CK_RV get_token_model(ykpiv_state *state, CK_UTF8CHAR_PTR str, CK_ULONG len) {
 CK_RV get_token_version(ykpiv_state *state, CK_VERSION_PTR version) {
 
   char buf[16] = {0};
+  ykpiv_rc rc;
 
   if (version == NULL)
     return CKR_ARGUMENTS_BAD;
 
-  if (ykpiv_get_version(state, buf, sizeof(buf)) != YKPIV_OK) {
+  if ((rc = ykpiv_get_version(state, buf, sizeof(buf))) != YKPIV_OK) {
     version->major = 0;
     version->minor = 0;
-    return CKR_DEVICE_ERROR;
+    return yrc_to_rv(rc);
   }
 
   version->major = (buf[0] - '0');
@@ -160,13 +161,12 @@ CK_RV get_token_version(ykpiv_state *state, CK_VERSION_PTR version) {
 
 CK_RV get_token_serial(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
 
-  uint32_t serial;
+  uint32_t serial = 0;
   char buf[64] = {0};
-  int actual;
 
   ykpiv_rc rc = ykpiv_get_serial(state, &serial);
 
-  actual = snprintf(buf, sizeof(buf), "%u", serial);
+  int actual = snprintf(buf, sizeof(buf), "%u", serial);
 
   if(actual < 0)
     return CKR_FUNCTION_FAILED;
@@ -176,18 +176,17 @@ CK_RV get_token_serial(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
 
   memstrcpy(str, len, buf);
 
-  return rc == YKPIV_OK ? CKR_OK : CKR_DEVICE_ERROR;
+  return yrc_to_rv(rc);
 }
 
 CK_RV get_token_label(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
 
-  uint32_t serial;
+  uint32_t serial = 0;
   char buf[64] = {0};
-  int actual;
 
   ykpiv_rc rc = ykpiv_get_serial(state, &serial);
 
-  actual = snprintf(buf, sizeof(buf), "YubiKey PIV #%u", serial);
+  int actual = snprintf(buf, sizeof(buf), "YubiKey PIV #%u", serial);
 
   if(actual < 0)
     return CKR_FUNCTION_FAILED;
@@ -197,7 +196,7 @@ CK_RV get_token_label(ykpiv_state *state, CK_CHAR_PTR str, CK_ULONG len) {
 
   memstrcpy(str, len, buf);
 
-  return rc == YKPIV_OK ? CKR_OK : CKR_DEVICE_ERROR;
+  return yrc_to_rv(rc);
 }
 
 CK_RV get_token_mechanism_list(CK_MECHANISM_TYPE_PTR mec, CK_ULONG_PTR num) {
@@ -289,16 +288,10 @@ CK_RV token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF8CHAR_P
   }
 
   switch (res) {
-    case YKPIV_OK:
-      return CKR_OK;
     case YKPIV_SIZE_ERROR:
       return CKR_PIN_LEN_RANGE;
-    case YKPIV_WRONG_PIN:
-      return CKR_PIN_INCORRECT;
-    case YKPIV_PIN_LOCKED:
-      return CKR_PIN_LOCKED;
     default:
-      return CKR_DEVICE_ERROR;
+      return yrc_to_rv(res);
   }
 }
 
@@ -320,13 +313,7 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
     if (res != YKPIV_OK) {
       DBG("Failed to login: %s, %d tries left", ykpiv_strerror(res), tries);
 
-      if(res == YKPIV_WRONG_PIN)
-        return CKR_PIN_INCORRECT;
-
-      if(res == YKPIV_PIN_LOCKED)
-        return CKR_PIN_LOCKED;
-
-      return CKR_DEVICE_ERROR;
+      return yrc_to_rv(res);
     }
   } else if(pin_len < YKPIV_MIN_MGM_KEY_LEN || pin_len > YKPIV_MAX_MGM_KEY_LEN || user != CKU_SO) {
     DBG("PIN is wrong length");
@@ -338,17 +325,17 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
 
     if (pin_len >= YKPIV_MIN_MGM_KEY_LEN && pin_len <= YKPIV_MAX_MGM_KEY_LEN) {
       cfg.mgm_len = sizeof(cfg.mgm_key);
-      if(ykpiv_hex_decode((char *)pin, pin_len, cfg.mgm_key, &cfg.mgm_len) != YKPIV_OK) {
+      if((res = ykpiv_hex_decode((char *)pin, pin_len, cfg.mgm_key, &cfg.mgm_len)) != YKPIV_OK) {
         DBG("Failed decoding key");
         OPENSSL_cleanse(cfg.mgm_key, sizeof(cfg.mgm_key));
-        return CKR_ARGUMENTS_BAD;
+        return yrc_to_rv(res);
       }
     } else {
       res = ykpiv_util_get_config(state, &cfg);
       if(res != YKPIV_OK) {
         DBG("Failed to get device configuration: %s", ykpiv_strerror(res));
         OPENSSL_cleanse(cfg.mgm_key, sizeof(cfg.mgm_key));
-        return CKR_DEVICE_ERROR;
+        return yrc_to_rv(res);
       }
 
       if(cfg.mgm_type != YKPIV_CONFIG_MGM_PROTECTED) {
@@ -365,7 +352,7 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
       if(res == YKPIV_AUTHENTICATION_ERROR)
         return CKR_PIN_INCORRECT;
 
-      return CKR_DEVICE_ERROR;
+      return yrc_to_rv(res);
     }
 
     OPENSSL_cleanse(cfg.mgm_key, sizeof(cfg.mgm_key));
@@ -384,12 +371,13 @@ CK_RV token_generate_key(ykpiv_state *state, gen_info_t *gen, CK_BYTE key, CK_BY
   unsigned long len, len_bytes, offs, recv_len = sizeof(data);
   char version[7] = {0};
   char label[32] = {0};
+  ykpiv_rc res;
   int sw;
 
   switch(gen->algorithm) {
     case YKPIV_ALGO_RSA1024:
     case YKPIV_ALGO_RSA2048:
-      if(ykpiv_get_version(state, version, sizeof(version)) == YKPIV_OK) {
+      if((res = ykpiv_get_version(state, version, sizeof(version))) == YKPIV_OK) {
         int major, minor, build;
         int match = sscanf(version, "%d.%d.%d", &major, &minor, &build);
         if(match == 3 && major == 4 && (minor < 3 || (minor == 3 && build < 5))) {
@@ -399,7 +387,7 @@ CK_RV token_generate_key(ykpiv_state *state, gen_info_t *gen, CK_BYTE key, CK_BY
         }
       } else {
         DBG("Failed to communicate.");
-        return CKR_DEVICE_ERROR;
+        return yrc_to_rv(res);
       }
       break;
 
@@ -453,9 +441,11 @@ CK_RV token_generate_key(ykpiv_state *state, gen_info_t *gen, CK_BYTE key, CK_BY
       *in_ptr++ = gen->pin_policy;
   }
 
-  if(ykpiv_transfer_data(state, templ, in_data, in_ptr - in_data, data, &recv_len, &sw) != YKPIV_OK || sw != SW_SUCCESS) {
-    DBG("Failed to generate key, sw = %04x.", sw);
-    return CKR_DEVICE_ERROR;
+  if((res = ykpiv_transfer_data(state, templ, in_data, in_ptr - in_data, data, &recv_len, &sw)) != YKPIV_OK) {
+    return yrc_to_rv(res);
+  }
+  if((res = ykpiv_translate_sw(sw)) != YKPIV_OK) {
+    return yrc_to_rv(res);
   }
 
   snprintf(label, sizeof(label), "YubiKey PIV Slot %x", key);
@@ -491,8 +481,8 @@ CK_RV token_generate_key(ykpiv_state *state, gen_info_t *gen, CK_BYTE key, CK_BY
   }
 
   // Store the certificate into the token
-  if (ykpiv_save_object(state, ykpiv_util_slot_object(key), data, certptr - data) != YKPIV_OK)
-    return CKR_DEVICE_ERROR;
+  if ((res = ykpiv_save_object(state, ykpiv_util_slot_object(key), data, certptr - data)) != YKPIV_OK)
+    return yrc_to_rv(res);
 
   memcpy(cert_data, data, certptr - data);
   *cert_len = certptr - data;
@@ -505,7 +495,7 @@ CK_RV token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_BYTE_PTR in, CK
   unsigned char certdata[YKPIV_OBJ_MAX_SIZE + 16] = {0};
   unsigned char *certptr;
   CK_ULONG cert_len;
-
+  ykpiv_rc res;
   CK_RV rv;
 
   // Check whether or not we have a valid cert
@@ -531,16 +521,17 @@ CK_RV token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_BYTE_PTR in, CK
   *certptr++ = 0;
 
   // Store the certificate into the token
-  if (ykpiv_save_object(state, cert_id, certdata, certptr - certdata) != YKPIV_OK)
-    return CKR_DEVICE_ERROR;
+  if ((res = ykpiv_save_object(state, cert_id, certdata, certptr - certdata)) != YKPIV_OK)
+    return yrc_to_rv(res);
 
   return CKR_OK;
 }
 
 CK_RV token_delete_cert(ykpiv_state *state, CK_ULONG cert_id) {
+  ykpiv_rc res;
 
-  if (ykpiv_save_object(state, cert_id, NULL, 0) != YKPIV_OK)
-    return CKR_DEVICE_ERROR;
+  if ((res = ykpiv_save_object(state, cert_id, NULL, 0)) != YKPIV_OK)
+    return yrc_to_rv(res);
 
   return CKR_OK;
 }

@@ -93,6 +93,7 @@ extern "C"
   ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted);
   ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len);
   ykpiv_rc ykpiv_disconnect(ykpiv_state *state);
+  ykpiv_rc ykpiv_translate_sw(int sw);
   ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
                                const unsigned char *in_data, long in_len,
                                unsigned char *out_data, unsigned long *out_len, int *sw);

@@ -48,4 +48,6 @@ CK_RV native_unlock_mutex(void *mutex);
 CK_RV get_pid(uint64_t *pid);
 CK_RV check_pid(uint64_t pid);
 
+CK_RV yrc_to_rv(ykpiv_rc rc);
+
 #endif
