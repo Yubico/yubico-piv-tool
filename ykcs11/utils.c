@@ -155,3 +155,46 @@ CK_RV check_pid(uint64_t pid) {
 #endif
   return CKR_OK;
 }
+
+CK_RV yrc_to_rv(ykpiv_rc rc) {
+  switch(rc) {
+    case YKPIV_OK:
+      return CKR_OK;
+    case YKPIV_MEMORY_ERROR:
+      return CKR_HOST_MEMORY;
+    case YKPIV_PCSC_ERROR:
+      return CKR_DEVICE_REMOVED;
+    case YKPIV_SIZE_ERROR:
+      return CKR_DATA_LEN_RANGE;
+    case YKPIV_APPLET_ERROR:
+      return CKR_FUNCTION_FAILED;
+    case YKPIV_AUTHENTICATION_ERROR:
+      return CKR_USER_NOT_LOGGED_IN;
+    case YKPIV_RANDOMNESS_ERROR:
+      return CKR_DEVICE_ERROR;
+    case YKPIV_GENERIC_ERROR:
+      return CKR_FUNCTION_FAILED;
+    case YKPIV_KEY_ERROR:
+      return CKR_KEY_HANDLE_INVALID;
+    case YKPIV_PARSE_ERROR:
+      return CKR_ARGUMENTS_BAD;
+    case YKPIV_WRONG_PIN:
+      return CKR_PIN_INCORRECT;
+    case YKPIV_INVALID_OBJECT:
+      return CKR_ARGUMENTS_BAD;
+    case YKPIV_ALGORITHM_ERROR:
+      return CKR_ARGUMENTS_BAD;
+    case YKPIV_PIN_LOCKED:
+      return CKR_PIN_LOCKED;
+    case YKPIV_ARGUMENT_ERROR:
+      return CKR_ARGUMENTS_BAD;
+    case YKPIV_RANGE_ERROR:
+      return CKR_ARGUMENTS_BAD;
+    case YKPIV_NOT_SUPPORTED:
+      return CKR_FUNCTION_NOT_SUPPORTED;
+    case YKPIV_PCSC_SERVICE_ERROR:
+      return CKR_DEVICE_REMOVED;
+    default:
+      return CKR_FUNCTION_FAILED;
+  }
+}
