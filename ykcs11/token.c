@@ -242,6 +242,7 @@ CK_RV token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF8CHAR_P
   switch(user_type){
     case CKU_SO:{
       ykpiv_mgm new_key = {0};
+      new_key.len = sizeof(new_key.data);
       if(ykpiv_hex_decode((const char*)pNewPin, ulNewLen, new_key.data, &new_key.len) != YKPIV_OK) {
         DBG("Failed to decode new pin");
         return CKR_PIN_INVALID;
