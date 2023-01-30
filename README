@@ -62,6 +62,15 @@ handling. The
 link:https://github.com/Yubico/yubico-piv-tool/tree/master/vagrant/development[Vagrant
 VM] has all these dependencies preinstalled.
 
+Please note that these package names are debian based. Other POSIX plarforms might have
+different names. For example, `libssl-dev` can probably be replaced with `openssl-devel` and
+`libpcsclite-dev` can probably be replaced by `pcsc-lite-devel` on a Redhat platform. Also note
+that Gengetopt might not be available on all plarforms and might need to be built from source
+(See https://www.gnu.org/software/gengetopt/gengetopt.html#Installation)
+
+After installation of all dependencies, run the following:
+
+  $ cd yubico-piv-tool
   $ mkdir build; cd build
   $ cmake ..
   $ make
