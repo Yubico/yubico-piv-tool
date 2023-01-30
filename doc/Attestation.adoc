@@ -1,45 +1,69 @@
 == Using Attestation
 
 === Introduction
-This feature is only available in YubiKey 4.3 and newer.
 
-A high level description of the thinking and how this can be used can be found
-at https://developers.yubico.com/PIV/Introduction/PIV_attestation.html
+This feature is only available in YubiKey 4.3 and above.
+
+A description of how PIV attestation can be used is found at https://developers.yubico.com/PIV/Introduction/PIV_attestation.html
+
 
 === Usage
 
-Attestation works through a special key slot called “F9” that comes
-pre-loaded from the factory with a key and certificate signed by Yubico's root PIV CA. 
+PIV attestation provides information on a key in a given PIV slot, information that is signed using the key stored in slot f9 of the YubiKey. 
 
-After a key has been generated in another slot (for example, slot 9a), generate an attestation using the following commands:
 
-  $ yubico-piv-tool --action=generate --slot=9a
-  ...
-  $ yubico-piv-tool --action=attest --slot=9a
+PIV slot f9 comes pre-loaded from the factory with a key and certificate signed by Yubico's root PIV Certificate Authority (CA). This key and certificate can be customized. 
 
-The output of this command is a PEM encoded certificate, signed by the key in slot F9.
 
-=== Verifying
-To verify an attestation statement, step 1 is to build the certificate chain. An example verification using OpenSSL is shown below. 
-Put the attestation root certificate in a file (TrustedCAcerts.pem in this example). The Yubico root PIV certificate can be found at
-https://developers.yubico.com/PIV/Introduction/piv-attestation-ca.pem
+[NOTE]
+====
+Once the Yubico factory-issued key or certificate is overwritten, they cannot be restored. The attestation key and certificate in slot f9 are not modified by a reset of the device.
+====
 
-Then extract the intermediate signing certificate from slot F9 on the YubiKey:
+
+After a key is generated in a given PIV slot, an attestation can be generated for that PIV slot. 
+
+The output of the attest command is a PEM encoded certificate, signed by the key in slot f9.
+
+
+
+=== Verification
+
+[IMPORTANT]
+====
+While OpenSSL, as demonstrated below, can be used as a method to test the concept of attestation verification, verification should be properly evaluated for production purposes. 
+====
+
+[NOTE]
+====
+These commands only apply when the signing key and certificate in PIV slot f9 have not been customized or overwritten.
+====
+
+[NOTE]
+====
+The yubico-piv-tool attest action will fail if there is no key in the slot under attestation, or if the key in the slot under attestation was imported.
+====
+
+To verify an attestation statement perform the following steps:
+
+1. Retrieve the root Yubico PIV CA certificate and place it in a file. This can be performed at the command line: 
+
+  $ curl https://developers.yubico.com/PIV/Introduction/piv-attestation-ca.pem -o TrustedCAcerts.pem
+
+2. Extract the intermediate signing certificate from slot f9 on the YubiKey:
 
   $ yubico-piv-tool --action=read-certificate --slot=f9 > SlotF9Intermediate.pem
-  
-Now we're ready to verify the attestation:
+
+3. Generate an attestation for the key in the PIV slot. The following command generates an attestation for slot 9a:
 
   $ yubico-piv-tool --action=attest --slot=9a > Slot9Aattestation.pem
-  $ openssl verify -CAfile TrustedCAcerts.pem -untrusted SlotF9Intermediate.pem Slot9Aattestation.pem
+
+4. Verify the attestation cryptographically. A demonstration of this capability using OpenSSL is below:
+
+[NOTE]
+====
+The OpenSSL command below does not work with OpenSSL 1.1.0  when used with YubiKey 4 series products. To verify certificate chains for such devices, see link:https://support.yubico.com/support/solutions/articles/15000013406-piv-attestation-verification-fails-with-openssl-1-1-0[PIV Attestation Verification Fails with OpenSSL 1.1.0].
+====
+
+ $ openssl verify -CAfile TrustedCAcerts.pem -untrusted SlotF9Intermediate.pem Slot9Aattestation.pem
   attestation.pem: OK
-
-[NOTE]
-====
-While OpenSSL, as demonstrated above, can be used as a method to test the concept of attestation verification, verification in production should be evaluated to ensure proper verifictaion. 
-====
-
-[NOTE]
-====
-The above OpenSSL command doesn't work with OpenSSL 1.1.0 and newer with YubiKey 4. To verify certificate chains for such devices, see link:https://support.yubico.com/support/solutions/articles/15000013406-piv-attestation-verification-fails-with-openssl-1-1-0[PIV Attestation Verification Fails with OpenSSL 1.1.0].
-====
