@@ -1,5 +1,17 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
+* Version 2.3.1 (released 2023-02-07)
+
+** ykpiv: Add support for T=0 smartcards
+** ykpiv: ykcs11: Minor code optimization
+** ykpiv: ykcs11: Improve logging
+** ykpiv: ykcs11: Improve error handling
+** ykpiv: ykcs11: Fix minor bugs
+** ykcs11: Add support for several PKCS11 Attributes
+** ykcs11: Add support for CKM_ECDSA_SHA512 mechanism
+** ykcs11: Fix incorrect value for public key attributes CKA_PRIVATE, CKA_SENSITIVE, CKA_ALWAYS_SENSITIVE, CKA_EXTRACTABLE and CKA_NEVER_EXTRACTABLE
+** doc: Minor documentation improvement
+
 * Version 2.3.0 (released 2022-03-01)
 
 ** ykpiv: Add support for AES management keys
