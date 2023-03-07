@@ -63,7 +63,10 @@ jobs:
           dpkg-gencontrol -pyubico-piv-tool
           dpkg --build debian/tmp build_dir/
           cd build_dir
-          sudo apt install ../yubico-piv-tool_*_amd64.deb
+          ls
+          echo "-----------------"
+          ls ..
+          sudo apt install yubico-piv-tool_*_amd64.deb
 
           (set +e; yubico-piv-tool -a status; true) 2>&1 >/dev/null | grep "Failed to connect to yubikey."
 
