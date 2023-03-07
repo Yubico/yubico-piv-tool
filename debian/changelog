@@ -10,7 +10,7 @@ yubico-piv-tool (2.3.1) stable; urgency=medium
   * ykcs11: Fix incorrect value for public key attributes CKA_PRIVATE, CKA_SENSITIVE, CKA_ALWAYS_SENSITIVE, CKA_EXTRACTABLE and CKA_NEVER_EXTRACTABLE
   * doc: Minor documentation improvement
 
- -- Aveen Ismail <aveen.ismail@yubico.com>  Tue, 7 Feb 2023 13:46:51 +0100
+ -- Aveen Ismail <aveen.ismail@yubico.com>  Thu, 23 Feb 2023 13:40:26 +0100
 
 yubico-piv-tool (2.3.0) stable; urgency=medium
 
