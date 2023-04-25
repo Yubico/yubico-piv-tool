@@ -127,7 +127,7 @@ static ykpiv_rc _cache_pin(ykpiv_state *state, const char *pin, size_t len);
 static ykpiv_rc _cache_mgm_key(ykpiv_state *state, unsigned const char *key, size_t len);
 static ykpiv_rc _ykpiv_get_serial(ykpiv_state *state);
 static ykpiv_rc _ykpiv_get_version(ykpiv_state *state);
-static ykpiv_rc _ykpiv_verify(ykpiv_state *state, const char *pin, const size_t pin_len);
+static ykpiv_rc _ykpiv_verify(ykpiv_state *state, char *pin, size_t *pin_len, bool bio, bool verify_spin);
 static ykpiv_rc _ykpiv_authenticate2(ykpiv_state *state, unsigned const char *key, size_t len);
 static ykpiv_rc _ykpiv_auth_deauthenticate(ykpiv_state *state);
 
@@ -389,7 +389,7 @@ ykpiv_rc _ykpiv_select_application(ykpiv_state *state) {
    * will result in another selection of the PIV applet. */
 
   // This stores the number of PIN retries left in state
-  _ykpiv_verify(state, NULL, 0);
+  _ykpiv_verify(state, NULL, 0, false, false);
   // WRONG_PIN or PIN_LOCKED is expected on successful query.
 
   res = _ykpiv_get_version(state);
@@ -414,9 +414,10 @@ ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state) {
     return YKPIV_ARGUMENT_ERROR;
   }
 
-  res = _ykpiv_verify(state, NULL, 0);
+  res = _ykpiv_verify(state, NULL, 0, false, false);
 
   if ((YKPIV_OK != res) && (YKPIV_WRONG_PIN != res) && (YKPIV_PIN_LOCKED != res)) {
+    DBG("Failed to detect PIV application: '%s'", ykpiv_strerror(res));
     res = _ykpiv_select_application(state);
   }
   else {
@@ -720,7 +721,8 @@ ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state) {
         return res;
     }
     if (state->pin) {
-      if((res = _ykpiv_verify(state, state->pin, strlen(state->pin))) != YKPIV_OK)
+      size_t pin_len = strlen(state->pin);
+      if((res = _ykpiv_verify(state, state->pin, &pin_len, false, false)) != YKPIV_OK)
         return res;
       // De-authenticate always-authenticate keys by running an arbitrary command
       unsigned char data[80] = {0};
@@ -1557,21 +1559,35 @@ static ykpiv_rc _cache_mgm_key(ykpiv_state *state, unsigned const char *key, siz
 #endif
 }
 
-static ykpiv_rc _ykpiv_verify(ykpiv_state *state, const char *pin, const size_t pin_len) {
+static ykpiv_rc _ykpiv_verify(ykpiv_state *state, char *pin, size_t *p_pin_len, bool bio, bool verify_spin) {
 
-  if (pin_len > CB_PIN_MAX) {
+  if (!bio && p_pin_len && (*p_pin_len > CB_PIN_MAX)) {
     return YKPIV_SIZE_ERROR;
+  }
+
+  if (bio && verify_spin && (!pin || !p_pin_len || *p_pin_len != 16)) {
+    return YKPIV_WRONG_PIN;
   }
 
   APDU apdu = {0};
   apdu.st.ins = YKPIV_INS_VERIFY;
   apdu.st.p1 = 0x00;
-  apdu.st.p2 = 0x80;
-  apdu.st.lc = pin ? 0x08 : 0;
+  apdu.st.p2 = bio ? 0x96 : 0x80;
+  apdu.st.lc = bio ? (verify_spin ? (uint8_t)(*p_pin_len + 2) : 0x02) : (pin ? 0x08 : 0x00);
   if (pin) {
-    memcpy(apdu.st.data, pin, pin_len);
-    if (pin_len < CB_PIN_MAX) {
-      memset(apdu.st.data + pin_len, 0xff, CB_PIN_MAX - pin_len);
+    if (!bio && p_pin_len && (*p_pin_len > 0)) {
+      memcpy(apdu.st.data, pin, *p_pin_len);
+      if (*p_pin_len < CB_PIN_MAX) {
+        memset(apdu.st.data + *p_pin_len, 0xff, CB_PIN_MAX - *p_pin_len);
+      }
+    }
+    else if (verify_spin) {
+      apdu.st.data[0] = 0x01;
+      apdu.st.data[1] = (uint8_t)*p_pin_len;
+      memcpy(apdu.st.data + 2, pin, *p_pin_len);
+    }
+    else if (bio) {
+      memcpy(apdu.st.data, "\x02\x00", 2);
     }
   }
 
@@ -1587,48 +1603,68 @@ static ykpiv_rc _ykpiv_verify(ykpiv_state *state, const char *pin, const size_t 
   }
   res = ykpiv_translate_sw(sw);
   if (res == YKPIV_OK) {
-    if (pin) {
+    if (!bio && pin) {
       // Intentionally ignore errors.  If the PIN fails to save, it will only
       // be a problem if a reconnect is attempted.  Failure deferred until then.
-      _cache_pin(state, pin, pin_len);
+      _cache_pin(state, pin, *p_pin_len);
+    }
+    else if (bio && !verify_spin && pin && p_pin_len && *p_pin_len >= 16 && (recv_len >= 16)) {
+      memcpy(pin, data, 16);
+      *p_pin_len = 16;
     }
     state->tries = -1;
     return YKPIV_OK;
   }
-  else if ((sw >> 8) == 0x63) {
-    if(pin)
-      _cache_pin(state, NULL, 0);
-    state->tries = (sw & 0xf);
-    return YKPIV_WRONG_PIN;
-  }
-  else if (sw == SW_ERR_AUTH_BLOCKED) {
-    if(pin)
-      _cache_pin(state, NULL, 0);
-    state->tries = 0;
-    return YKPIV_PIN_LOCKED;
-  }
   else {
-    state->tries = -1;
-    return res;
+    if (bio && !verify_spin && p_pin_len) {
+      *p_pin_len = 0;
+    }
+
+    if ((sw >> 8) == 0x63) {
+      if (pin)
+        _cache_pin(state, NULL, 0);
+      state->tries = (sw & 0xf);
+      return YKPIV_WRONG_PIN;
+    }
+    else if (sw == SW_ERR_AUTH_BLOCKED) {
+      if (pin)
+        _cache_pin(state, NULL, 0);
+      state->tries = 0;
+      return YKPIV_PIN_LOCKED;
+    }
+    else {
+      state->tries = -1;
+      return res;
+    }
   }
 }
 
-ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
-  return ykpiv_verify_select(state, pin, pin ? strlen(pin) : 0, tries, false);
-}
-
-ykpiv_rc ykpiv_verify_select(ykpiv_state *state, const char *pin, const size_t pin_len, int *tries, bool force_select) {
+static ykpiv_rc _ykpiv_verify_select(ykpiv_state *state, char *pin, size_t* p_pin_len, int *tries, bool force_select, bool bio, bool verify_spin) {
   ykpiv_rc res = YKPIV_OK;
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (force_select) {
     if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
   }
-  res = _ykpiv_verify(state, pin, pin_len);
+  res = _ykpiv_verify(state, pin, p_pin_len, bio, verify_spin);
   if(tries) *tries = state->tries;
 Cleanup:
 
   _ykpiv_end_transaction(state);
   return res;
+}
+
+ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
+  size_t pin_len = pin ? strlen(pin) : 0;
+  return _ykpiv_verify_select(state, (char*)pin, &pin_len, tries, false, false, false);
+}
+
+ykpiv_rc ykpiv_verify_bio(ykpiv_state *state, uint8_t *spin, size_t *p_spin_len, int *tries, bool verify_spin) {
+  return _ykpiv_verify_select(state, spin, p_spin_len, tries, false, true, verify_spin);
+}
+
+ykpiv_rc ykpiv_verify_select(ykpiv_state *state, const char *pin, const size_t pin_len, int *tries, bool force_select) {
+  size_t temp_pin_len = pin_len;
+  return _ykpiv_verify_select(state, (char*)pin, &temp_pin_len, tries, force_select, false, false);
 }
 
 ykpiv_rc ykpiv_get_pin_retries(ykpiv_state *state, int *tries) {
@@ -1915,7 +1951,9 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
   if (pin_policy != YKPIV_PINPOLICY_DEFAULT &&
       pin_policy != YKPIV_PINPOLICY_NEVER &&
       pin_policy != YKPIV_PINPOLICY_ONCE &&
-      pin_policy != YKPIV_PINPOLICY_ALWAYS)
+      pin_policy != YKPIV_PINPOLICY_ALWAYS &&
+      pin_policy != YKPIV_PINPOLICY_MATCH_ONCE &&
+      pin_policy != YKPIV_PINPOLICY_MATCH_ALWAYS)
     return YKPIV_GENERIC_ERROR;
 
   if (touch_policy != YKPIV_TOUCHPOLICY_DEFAULT &&
@@ -2236,7 +2274,7 @@ static ykpiv_rc _ykpiv_auth_deauthenticate(ykpiv_state *state) {
   // Once mgmt_aid is selected on NEO we can't select piv_aid again... So we use yk_aid.
   // But... YK 5 below 5.3 doesn't allow access to yk_aid, so still use mgmt_aid on non-NEO devices
 
-  if (state->ver.major < 4) {
+  if (state->ver.major < 4 && state->ver.major != 0) {
     aid = yk_aid;
     aid_len = sizeof(yk_aid);
   } else {
@@ -2285,4 +2323,24 @@ ykpiv_rc ykpiv_move_key(ykpiv_state *state, const unsigned char from_slot, const
   }
 
   return res;
+}
+
+ykpiv_rc ykpiv_auth_get_verified(ykpiv_state* state) {
+  ykpiv_rc res = YKPIV_OK;
+
+  if (NULL == state) {
+    return YKPIV_ARGUMENT_ERROR;
+  }
+
+  res = _ykpiv_verify(state, NULL, 0, false, false);
+
+  if (res != YKPIV_OK) {
+    res = YKPIV_AUTHENTICATION_ERROR;
+  }
+
+  return res;
+}
+
+ykpiv_rc ykpiv_auth_verify(ykpiv_state* state, uint8_t* pin, size_t* p_pin_len, int *tries, bool force_select, bool bio, bool verify_spin) {
+  return _ykpiv_verify_select(state, pin, p_pin_len, tries, force_select, bio, verify_spin);
 }

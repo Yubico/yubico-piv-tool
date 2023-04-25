@@ -30,7 +30,7 @@ option "reader" r "Only use a matching reader" string optional default="Yubikey"
 option "key" k "Management key to use, if no value is specified key will be asked for" string optional default="010203040506070801020304050607080102030405060708" argoptional
 option "action" a "Action to take" values="version","generate","set-mgm-key",
        "reset","pin-retries","import-key","import-certificate","set-chuid",
-       "request-certificate","verify-pin","change-pin","change-puk","unblock-pin",
+       "request-certificate","verify-pin","verify-bio","change-pin","change-puk","unblock-pin",
        "selfsign-certificate","delete-certificate","read-certificate","status",
        "test-signature","test-decipher","list-readers","set-ccc","write-object",
        "read-object","attest", "move-key", "delete-key" enum multiple
@@ -71,7 +71,7 @@ option "serial" - "Serial number of the self-signed certificate" int optional
 option "valid-days" - "Time (in days) until the self-signed certificate expires" int optional default="365"
 option "pin" P "Pin/puk code for verification, if omitted pin/puk will be asked for" string optional
 option "new-pin" N "New pin/puk code for changing, if omitted pin/puk will be asked for" string optional dependon="pin"
-option "pin-policy" - "Set pin policy for action generate or import-key. Only available on YubiKey 4 or newer" values="never","once","always" enum optional
+option "pin-policy" - "Set pin policy for action generate or import-key. Only available on YubiKey 4 or newer" values="never","once","always","matchonce","matchalways" enum optional
 option "touch-policy" - "Set touch policy for action generate, import-key or set-mgm-key. Only available on YubiKey 4 or newer" values="never","always","cached" enum optional
 option "id" - "Id of object for write/read object" int optional
 option "format" f "Format of data for write/read object" values="hex","base64","binary" enum optional default="hex"

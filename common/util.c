@@ -569,6 +569,10 @@ unsigned char get_pin_policy(enum enum_pin_policy policy) {
       return YKPIV_PINPOLICY_ONCE;
     case pin_policy_arg_always:
       return YKPIV_PINPOLICY_ALWAYS;
+    case pin_policy_arg_matchonce:
+      return YKPIV_PINPOLICY_MATCH_ONCE;
+    case pin_policy_arg_matchalways:
+      return YKPIV_PINPOLICY_MATCH_ALWAYS;
     case pin_policy__NULL:
     default:
       return YKPIV_PINPOLICY_DEFAULT;

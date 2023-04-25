@@ -109,6 +109,7 @@ extern "C"
                                unsigned char algorithm, unsigned char key);
   ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len);
   ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries);
+  ykpiv_rc ykpiv_verify_bio(ykpiv_state *state, uint8_t* spin, size_t* spin_len, int *tries, bool verify_spin);
   ykpiv_rc ykpiv_change_pin(ykpiv_state *state, const char * current_pin, size_t current_pin_len,
                             const char * new_pin, size_t new_pin_len,
                             int *tries);
@@ -197,6 +198,8 @@ extern "C"
    * @param pin PIN code to verify with
    * @param pin_len Length of \p pin
    * @param tries [out] Number of attempts remaining (if non-NULL)
+   * @param bio if true verify using fingerprint
+   * @param tpin if true set temporary pin, otherwise verify with temp pin
    * @param force_select Whether to select the PIV applet before verifying.
    *
    * @return Error code
@@ -746,6 +749,8 @@ extern "C"
 #define YKPIV_PINPOLICY_NEVER 1
 #define YKPIV_PINPOLICY_ONCE 2
 #define YKPIV_PINPOLICY_ALWAYS 3
+#define YKPIV_PINPOLICY_MATCH_ONCE 4
+#define YKPIV_PINPOLICY_MATCH_ALWAYS 5
 
 #define YKPIV_TOUCHPOLICY_TAG 0xab
 #define YKPIV_TOUCHPOLICY_DEFAULT 0
