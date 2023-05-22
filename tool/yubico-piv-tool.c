@@ -1541,7 +1541,11 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     ptr += offs;
     x509 = d2i_X509(NULL, &ptr, cert_len);
     if(!x509) {
-      fprintf(output, "Invalid cert data.\n");
+      if(data[len-5] == TAG_CERT_COMPRESS && data[len-2] == TAG_CERT_LRC) {
+        fprintf(output, "Compressed cert data. Unable to display.\n");
+      } else {
+        fprintf(output, "Invalid cert data.\n");
+      }
       goto cert_out;
     }
     {
