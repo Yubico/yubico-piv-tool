@@ -57,7 +57,7 @@ include_directories (
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-find_package(ZLIB)
+find_package(ZLIB REQUIRED)
 
 add_executable (yubico-piv-tool ${SOURCE})
 target_link_libraries(yubico-piv-tool ${LIBCRYPTO_LDFLAGS} ${LINK_LIBS_WIN} ZLIB::ZLIB ykpiv_shared)
