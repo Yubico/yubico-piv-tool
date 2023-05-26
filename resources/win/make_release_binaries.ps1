@@ -31,6 +31,9 @@ $env:OPENSSL_ROOT_DIR ="$VCPKG_PATH/packages/openssl_$ARCH-windows"
 
 ls $VCPKG_PATH/packages
 
+$env:Path ="C:\vcpkg\packages\zlib_$ARCH-windows;$env:Path"
+$env:include ="C:\vcpkg\packages\zlib_$ARCH-windows/include;$env:include"
+
 # Build for x86 architecture
 cd $SOURCE_DIR
 mkdir $BUILD_DIR; cd $BUILD_DIR
