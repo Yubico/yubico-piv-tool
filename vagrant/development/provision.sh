@@ -15,4 +15,5 @@ sudo apt-get install -qq \
     libtool \
     libykpiv1 \
     pkg-config \
+    zlib1g-dev \
     virtualbox-guest-dkms

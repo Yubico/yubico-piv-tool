@@ -25,6 +25,7 @@ $LICENSES_DIR="$RELEASE_DIR/licenses"
 cd $VCPKG_PATH
 .\vcpkg.exe install openssl:$ARCH-windows
 .\vcpkg.exe install getopt:$ARCH-windows
+.\vcpkg.exe install zlib:$ARCH-windows
 
 $env:OPENSSL_ROOT_DIR ="$VCPKG_PATH/packages/openssl_$ARCH-windows"
 

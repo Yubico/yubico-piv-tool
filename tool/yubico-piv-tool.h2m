@@ -67,6 +67,11 @@ compression in order to fit:
   openssl x509 \-in cert.pem \-outform DER | gzip \-9 > der.gz
   yubico\-piv\-tool \-s9c \-ider.gz \-KGZIP \-aimport\-cert
 
+Import a certificate which is larger than 2048 bytes and have the yubico-piv-tool
+do the GZIP compression in order to fit:
+
+  yubico\-piv\-tool \-s9c \-icert.pem \-\-compress \-aimport\-cert
+
 Change the management key used for administrative authentication:
 
    yubico\-piv\-tool \-aset\-mgm\-key

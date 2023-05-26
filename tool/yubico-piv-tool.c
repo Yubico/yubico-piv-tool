@@ -55,6 +55,7 @@
 #include <openssl/rsa.h>
 #include <openssl/x509v3.h>
 #include <openssl/err.h>
+#include <zlib.h>
 
 #include "cmdline.h"
 #include "../common/util.h"
@@ -566,7 +567,7 @@ import_out:
   return ret;
 }
 
-static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
+static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format, int perform_compress,
     const char *input_file_name, enum enum_slot slot, char *password) {
   bool ret = false;
   FILE *input_file = NULL;
@@ -619,7 +620,7 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
       goto import_cert_out;
     }
     cert_len = st.st_size;
-    compress = 0x01;
+    compress = YKPIV_CERTINFO_GZIP;
   } else {
     /* TODO: more formats go here */
     fprintf(stderr, "Unknown key format.\n");
@@ -634,8 +635,8 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
     unsigned char *certptr = certdata;
     ykpiv_rc res;
 
-    if(cert_len > YKPIV_OBJ_MAX_SIZE || cert_len < 0) {
-      fprintf(stderr, "Length of certificate is more than can fit.\n");
+    if((cert_len > YKPIV_OBJ_MAX_SIZE && !perform_compress) || cert_len < 0) {
+      fprintf(stderr, "Length of certificate is more than can fit. Consider using the 'compress' flag\n");
       goto import_cert_out;
     }
 
@@ -644,12 +645,44 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
         fprintf(stderr, "Failed to read compressed certificate\n");
         goto import_cert_out;
       }
+    } else if(perform_compress) {
+      unsigned char uncompressed_certdata[YKPIV_OBJ_MAX_SIZE*10] = {0};
+      unsigned char *uncompressed_certptr = uncompressed_certdata;
+      if(i2d_X509(cert, &uncompressed_certptr) < 0) {
+        fprintf(stderr, "Failed to encode X509 certificate before compression\n");
+        goto import_cert_out;
+      }
+
+      z_stream zs;
+      zs.zalloc = Z_NULL;
+      zs.zfree = Z_NULL;
+      zs.opaque = Z_NULL;
+      zs.avail_in = (uInt)cert_len;
+      zs.next_in = (Bytef *)uncompressed_certdata;
+      zs.avail_out = (uInt) sizeof(certdata);
+      zs.next_out = (Bytef *)certdata;
+
+      if(deflateInit2(&zs, Z_DEFAULT_COMPRESSION, Z_DEFLATED, MAX_WBITS | 16, 8, Z_DEFAULT_STRATEGY) != Z_OK) {
+        fprintf(stderr, "Failed to compress certificate\n");
+        goto import_cert_out;
+      }
+      if(deflate(&zs, Z_FINISH) != Z_STREAM_END) {
+        fprintf(stderr, "Failed to compress certificate\n");
+        goto import_cert_out;
+      }
+      if(deflateEnd(&zs) != Z_OK) {
+        fprintf(stderr, "Failed to compress certificate\n");
+        goto import_cert_out;
+      }
+      cert_len = zs.total_out;
+      compress = YKPIV_CERTINFO_GZIP;
     } else {
       if(i2d_X509(cert, &certptr) < 0) {
         fprintf(stderr, "Failed to encode X509 certificate\n");
         goto import_cert_out;
       }
     }
+
     if ((res = ykpiv_util_write_cert(state, get_slot_hex(slot), certdata, (size_t)cert_len, compress)) != YKPIV_OK) {
       fprintf(stderr, "Failed commands with device: %s\n", ykpiv_strerror(res));
     } else {
@@ -1541,12 +1574,43 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     ptr += offs;
     x509 = d2i_X509(NULL, &ptr, cert_len);
     if(!x509) {
-      if(data[len-5] == TAG_CERT_COMPRESS && data[len-2] == TAG_CERT_LRC) {
-        fprintf(output, "Compressed cert data. Unable to display.\n");
+      if(data[len-3]) { // This byte is set to 1 if certinfo is YKPIV_CERTINFO_GZIP
+        unsigned char decompressed_data[YKPIV_OBJ_MAX_SIZE*10] = {0};
+        const unsigned char *ptr_decompressed = decompressed_data;
+        z_stream zs;
+        zs.zalloc = Z_NULL;
+        zs.zfree = Z_NULL;
+        zs.opaque = Z_NULL;
+        zs.avail_in = (uInt)cert_len;
+        zs.next_in = (Bytef *)ptr;
+        zs.avail_out = (uInt) sizeof(decompressed_data);
+        zs.next_out = (Bytef *)decompressed_data;
+
+        if(inflateInit2(&zs, MAX_WBITS | 16) != Z_OK) {
+          fprintf(stderr, "Failed to decompress certificate.\n");
+          goto cert_out;
+        }
+        if(inflate(&zs, Z_FINISH) != Z_STREAM_END) {
+          fprintf(stderr, "Failed to decompress certificate.\n");
+          goto cert_out;
+        }
+        if(inflateEnd(&zs) != Z_OK) {
+          fprintf(stderr, "Failed to decompress certificate.\n");
+          goto cert_out;
+        }
+        cert_len = zs.total_out;
+
+        x509 = d2i_X509(NULL, &ptr_decompressed, cert_len);
+        if(!x509) {
+          fprintf(output, "Compressed certificate present. Unable to decompress, probably because "
+                          "certificate was imported already compressed.\n");
+          goto cert_out;
+        }
+
       } else {
         fprintf(output, "Invalid cert data.\n");
+        goto cert_out;
       }
-      goto cert_out;
     }
     {
       EVP_PKEY *key = X509_get_pubkey(x509);
@@ -2420,7 +2484,7 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_importMINUS_certificate:
-        if(import_cert(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_arg, password) == false) {
+        if(import_cert(state, args_info.key_format_arg, args_info.compress_flag, args_info.input_arg, args_info.slot_arg, password) == false) {
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully imported a new certificate.\n");

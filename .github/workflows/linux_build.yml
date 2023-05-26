@@ -15,7 +15,7 @@ jobs:
       - name: Install prerequisites
         run: |
           set -x
-          sudo apt install libpcsclite-dev check gengetopt help2man openssl opensc
+          sudo apt install libpcsclite-dev check gengetopt help2man openssl opensc zlib1g-dev
 
       - name: Build and install
         run: |
@@ -130,7 +130,7 @@ jobs:
       - name: Install prerequisites
         run: |
           set -x
-          sudo apt install libpcsclite-dev check gengetopt help2man openssl opensc
+          sudo apt install libpcsclite-dev check gengetopt help2man openssl opensc zlib1g-dev
 
       - name: Build and install
         run: |

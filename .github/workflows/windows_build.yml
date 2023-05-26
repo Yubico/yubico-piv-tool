@@ -15,7 +15,7 @@ jobs:
       - name: Install prerequisites
         run: |
           set -x
-          sudo apt install libpcsclite-dev check gengetopt help2man
+          sudo apt install libpcsclite-dev check gengetopt help2man zlib1g-dev
       - name: Create tar.gz
         run: |
           set -x
@@ -51,6 +51,7 @@ jobs:
           vcpkg install openssl:x86-windows
           vcpkg install getopt:x86-windows
           vcpkg install check:x86-windows
+          vcpkg install zlib:x86-windows
 
       - name: build for x86 architecture
         run: |
@@ -127,6 +128,7 @@ jobs:
           vcpkg install openssl:x64-windows
           vcpkg install getopt:x64-windows
           vcpkg install check:x64-windows
+          vcpkg install zlib:x64-windows
 
       - name: build for x64 architecture
         run: |

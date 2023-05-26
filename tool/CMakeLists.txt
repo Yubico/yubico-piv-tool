@@ -41,6 +41,10 @@ if(WIN32)
     find_library(GETOPT getopt PATHS ${GETOPT_LIB_DIR})
     set(LINK_LIBS_WIN ${GETOPT})
     include_directories(${GETOPT_INCLUDE_DIR})
+
+    find_library(ZLIB zlib PATHS ${ZLIB_LIBRARY_DIR})
+    set(LINK_LIBS_WIN ${ZLIB})
+    include_directories(${ZLIB_INCLUDE_DIR})
 else(WIN32)
     include(${CMAKE_SOURCE_DIR}/cmake/gengetopt.cmake)
     find_gengetopt()
@@ -53,8 +57,10 @@ include_directories (
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+find_package(ZLIB)
+
 add_executable (yubico-piv-tool ${SOURCE})
-target_link_libraries(yubico-piv-tool ${LIBCRYPTO_LDFLAGS} ${LINK_LIBS_WIN} ykpiv_shared)
+target_link_libraries(yubico-piv-tool ${LIBCRYPTO_LDFLAGS} ${LINK_LIBS_WIN} ZLIB::ZLIB ykpiv_shared)
 add_coverage(yubico-piv-tool)
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
