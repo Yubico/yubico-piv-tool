@@ -70,6 +70,8 @@ jobs:
           mkdir $env:GITHUB_WORKSPACE/artifact
           cp -r $PIVTOOL_SRC_DIR/yubico-piv-tool-$env:RELEASE_VERSION-x86 $env:GITHUB_WORKSPACE/artifact/
 
+          ls $env:GITHUB_WORKSPACE/artifact/
+
       - name: Create Windows Installer
         run: |
           Set-PSDebug -Trace 1
