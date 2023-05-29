@@ -39,12 +39,12 @@ if(WIN32)
     set(SOURCE ${SOURCE} cmdline.c)
 
     find_library(GETOPT getopt PATHS ${GETOPT_LIB_DIR})
-    set(LINK_LIBS_WIN ${GETOPT})
     include_directories(${GETOPT_INCLUDE_DIR})
 
     find_library(ZLIB zlib PATHS ${ZLIB_LIB_DIR})
-    set(LINK_LIBS_WIN ${ZLIB})
     include_directories(${ZLIB_INCL_DIR})
+
+    set(LINK_LIBS_WIN ${GETOPT} ${ZLIB})
 else(WIN32)
     include(${CMAKE_SOURCE_DIR}/cmake/gengetopt.cmake)
     find_gengetopt()
