@@ -29,7 +29,6 @@ cd $VCPKG_PATH
 
 $env:OPENSSL_ROOT_DIR ="$VCPKG_PATH/packages/openssl_$ARCH-windows"
 $env:Path ="$VCPKG_PATH\packages\zlib_$ARCH-windows\bin;$env:Path"
-#$env:include ="$VCPKG_PATH\packages\zlib_$ARCH-windows\include;$env:include"
 
 # Build for x86 architecture
 cd $SOURCE_DIR
@@ -42,13 +41,11 @@ if($ARCH -eq "x86")
 {
     cp $VCPKG_PATH/packages/openssl_x86-windows/bin/libcrypto-3.dll .
     cp $VCPKG_PATH/packages/getopt-win32_x86-windows/bin/getopt.dll .
-#    cp $VCPKG_PATH/packages/zlib_x86-windows/bin/zlib1.dll .
 }
 else
 {
     cp $VCPKG_PATH/packages/openssl_x64-windows/bin/libcrypto-3-x64.dll .
     cp $VCPKG_PATH/packages/getopt-win32_x64-windows/bin/getopt.dll .
-#    cp $VCPKG_PATH/packages/zlib_x64-windows/bin/zlib1.dll .
 }
 
 # Create missing directories
