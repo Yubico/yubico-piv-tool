@@ -47,7 +47,7 @@
 #define YKCS11_MANUFACTURER "Yubico (www.yubico.com)"
 #define YKCS11_LIBDESC      "PKCS#11 PIV Library (SP-800-73)"
 
-#define YKCS11_MAX_SLOTS       16
+#define YKCS11_MAX_SLOTS       512
 #define YKCS11_MAX_SESSIONS    16
 
 static ykcs11_slot_t slots[YKCS11_MAX_SLOTS];
@@ -101,6 +101,14 @@ static void cleanup_slot(ykcs11_slot_t *slot) {
   memset(slot->objects, 0, sizeof(slot->objects));
   slot->login_state = YKCS11_PUBLIC;
   slot->n_objects = 0;
+}
+
+/* if we blow YKCS11_MAX_SLOTS we'll abort with stack trace hinting 
+ * that we have too many card readers and what the limit is.
+ */
+#define ABORT_BECAUSE_TOO_MANY_SMART_CARD_READERS(n) abort_because_more_card_readers_than_##n
+static void ABORT_BECAUSE_TOO_MANY_SMART_CARD_READERS(YKCS11_MAX_SLOTS)() {
+  abort();
 }
 
 /* General Purpose */
@@ -359,7 +367,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
   }
 
   for(char *reader = readers; *reader; reader += strlen(reader) + 1) {
-
+    if (n_slots >= YKCS11_MAX_SLOTS) {
+      ABORT_BECAUSE_TOO_MANY_SMART_CARD_READERS(YKCS11_MAX_SLOTS)();
+    }
     ykcs11_slot_t *slot = slots + n_slots;
 
     // Values must NOT be null terminated and ' ' padded
