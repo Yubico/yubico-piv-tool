@@ -47,7 +47,7 @@
 #define YKCS11_MANUFACTURER "Yubico (www.yubico.com)"
 #define YKCS11_LIBDESC      "PKCS#11 PIV Library (SP-800-73)"
 
-#define YKCS11_MAX_SLOTS       16
+#define YKCS11_MAX_SLOTS       64
 #define YKCS11_MAX_SESSIONS    16
 
 static ykcs11_slot_t slots[YKCS11_MAX_SLOTS];
@@ -384,6 +384,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 
     // Initialize piv_state and increase slot count if this is a new slot
     if(slot == slots + n_slots) {
+      if(n_slots >= YKCS11_MAX_SLOTS) {
+        DBG("Skipping '%s', already managing %u slots", reader, YKCS11_MAX_SLOTS);
+        continue;
+      }
       DBG("Initializing slot %td for '%s'", slot-slots, reader);
       if((rc = ykpiv_init(&slot->piv_state, verbose)) != YKPIV_OK) {
         DBG("Unable to initialize libykpiv: %s", ykpiv_strerror(rc));
