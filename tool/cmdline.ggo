@@ -33,7 +33,7 @@ option "action" a "Action to take" values="version","generate","set-mgm-key",
        "request-certificate","verify-pin","change-pin","change-puk","unblock-pin",
        "selfsign-certificate","delete-certificate","read-certificate","status",
        "test-signature","test-decipher","list-readers","set-ccc","write-object",
-       "read-object","attest" enum multiple
+       "read-object","attest","get-metadata" enum multiple
 text   "
        Multiple actions may be given at once and will be executed in order
        for example --action=verify-pin --action=request-certificate\n"

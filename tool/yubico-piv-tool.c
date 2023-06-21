@@ -2062,6 +2062,30 @@ attest_out:
   return ret;
 }
 
+static bool get_metadata(ykpiv_state *state, enum enum_slot slot) {
+  unsigned char data[2048] = {0};
+  size_t len = sizeof(data);
+
+  int key = get_slot_hex(slot);
+  if (ykpiv_get_metadata(state, key, data, &len) != YKPIV_OK) {
+    fprintf(stderr, "Failed to get metadata.\n");
+    return false;
+  }
+
+  ykpiv_metadata md = {0};
+  if(ykpiv_util_parse_metadata(data, len, &md) != YKPIV_OK) {
+    fprintf(stderr, "Failed to parse metadata.\n");
+    return false;
+  }
+  
+  printf("Algorithm: %u\n", md.algorithm);
+  printf("Origin: %u\n", md.origin);
+  printf("Pin policy: %u\n", md.pin_policy);
+  printf("Touch policy: %u\n", md.touch_policy);
+
+  return true;
+}
+
 static bool write_object(ykpiv_state *state, int id,
     const char *input_file_name, int verbosity, enum enum_format format) {
   bool ret = false;
@@ -2329,6 +2353,7 @@ int main(int argc, char *argv[]) {
       case action_arg_testMINUS_decipher:
       case action_arg_listMINUS_readers:
       case action_arg_attest:
+      case action_arg_getMINUS_metadata:
       case action_arg_readMINUS_object:
       case action__NULL:
       default:
@@ -2557,6 +2582,11 @@ int main(int argc, char *argv[]) {
       case action_arg_attest:
         if(attest(state, args_info.slot_arg, args_info.key_format_arg,
               args_info.output_arg) == false) {
+          ret = EXIT_FAILURE;
+        }
+        break;
+      case action_arg_getMINUS_metadata:
+        if(get_metadata(state, args_info.slot_arg) == false) {
           ret = EXIT_FAILURE;
         }
         break;
