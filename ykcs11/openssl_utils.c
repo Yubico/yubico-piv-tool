@@ -117,8 +117,19 @@ CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, ykcs11_x509_t **cert) {
     if(!offs)
       return CKR_ARGUMENTS_BAD;
     p += offs;
-  }
-  else {
+
+    unsigned char decompressed_data[YKPIV_OBJ_MAX_SIZE * 10] = {0};
+    unsigned long decompressed_data_len = sizeof (decompressed_data);
+    if(ykpiv_util_decompressed_cert(data, len, (uint8_t*) p, decompressed_data, &decompressed_data_len) != YKPIV_OK) {
+      DBG("could not decompress compressed certificate. Maybe because it was already compressed when imported?");
+      return CKR_DATA_INVALID;
+    }
+    if (decompressed_data_len > 0) {
+      p = decompressed_data;
+      cert_len = decompressed_data_len;
+    }
+
+  } else {
     // Raw certificate ...
     cert_len = len;
   }

@@ -1574,33 +1574,16 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     ptr += offs;
     x509 = d2i_X509(NULL, &ptr, cert_len);
     if(!x509) {
-      if(data[len-3]) { // This byte is set to 1 if certinfo is YKPIV_CERTINFO_GZIP
-        unsigned char decompressed_data[YKPIV_OBJ_MAX_SIZE*10] = {0};
+
+      unsigned char decompressed_data[YKPIV_OBJ_MAX_SIZE * 10] = {0};
+      unsigned long decompressed_data_len = sizeof (decompressed_data);
+      if(ykpiv_util_decompressed_cert(data, len, (uint8_t*) ptr, decompressed_data, &decompressed_data_len) != YKPIV_OK) {
+        fprintf(stderr, "could not decompress compressed certificate. Maybe because it was already compressed when imported?\n");
+        goto cert_out;
+      }
+      if(decompressed_data_len > 0) {
         const unsigned char *ptr_decompressed = decompressed_data;
-        z_stream zs;
-        zs.zalloc = Z_NULL;
-        zs.zfree = Z_NULL;
-        zs.opaque = Z_NULL;
-        zs.avail_in = (uInt)cert_len;
-        zs.next_in = (Bytef *)ptr;
-        zs.avail_out = (uInt) sizeof(decompressed_data);
-        zs.next_out = (Bytef *)decompressed_data;
-
-        if(inflateInit2(&zs, MAX_WBITS | 16) != Z_OK) {
-          fprintf(stderr, "Failed to decompress certificate.\n");
-          goto cert_out;
-        }
-        if(inflate(&zs, Z_FINISH) != Z_STREAM_END) {
-          fprintf(stderr, "Failed to decompress certificate.\n");
-          goto cert_out;
-        }
-        if(inflateEnd(&zs) != Z_OK) {
-          fprintf(stderr, "Failed to decompress certificate.\n");
-          goto cert_out;
-        }
-        cert_len = zs.total_out;
-
-        x509 = d2i_X509(NULL, &ptr_decompressed, cert_len);
+        x509 = d2i_X509(NULL, &ptr_decompressed, decompressed_data_len);
         if(!x509) {
           fprintf(output, "Compressed certificate present. Unable to decompress, probably because "
                           "certificate was imported already compressed.\n");

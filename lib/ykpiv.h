@@ -342,6 +342,19 @@ extern "C"
   ykpiv_rc ykpiv_util_read_cert(ykpiv_state *state, uint8_t slot, uint8_t **data, size_t *data_len);
 
   /**
+   * Decompresses a certificate if it was compressed
+   *
+   * @param buf Certificate data
+   * @param len Length of certificate data
+   * @param buf_ptr Pointer to where the start reading the certificate data from in buf
+   * @param decompressed_data Decompressed certificate data
+   * @param decompressed_data_len Length of decompressed data
+   *
+   * @return Error code
+   */
+  ykpiv_rc ykpiv_util_decompressed_cert(uint8_t *buf, size_t len, uint8_t *buf_ptr,
+                                      unsigned char *decompressed_data, unsigned long *decompressed_data_len);
+  /**
    * Write a certificate to a given slot
    *
    * \p certinfo should be \p YKPIV_CERTINFO_UNCOMPRESSED for uncompressed certificates, which is the most

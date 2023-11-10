@@ -36,6 +36,8 @@
 #include <stdint.h>
 #include <ctype.h>
 
+#include <zlib.h>
+
 #include "internal.h"
 #include "ykpiv.h"
 
