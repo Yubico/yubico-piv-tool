@@ -108,27 +108,17 @@ rsa_enc_cleanup:
 CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, ykcs11_x509_t **cert) {
 
   const unsigned char *p = data; // Mandatory temp variable required by OpenSSL
-  unsigned long       offs, cert_len;
+  unsigned long       cert_len;
 
   if (*p == TAG_CERT) {
-    // The certificate is in "PIV" format 0x70 len 0x30 len ...
-    p++;
-    offs = get_length(p, data + len, &cert_len);
-    if(!offs)
-      return CKR_ARGUMENTS_BAD;
-    p += offs;
-
-    unsigned char decompressed_data[YKPIV_OBJ_MAX_SIZE * 10] = {0};
-    unsigned long decompressed_data_len = sizeof (decompressed_data);
-    if(ykpiv_util_decompressed_cert(data, len, (uint8_t*) p, decompressed_data, &decompressed_data_len) != YKPIV_OK) {
-      DBG("could not decompress compressed certificate. Maybe because it was already compressed when imported?");
+    unsigned char certdata[YKPIV_OBJ_MAX_SIZE * 10] = {0};
+    unsigned long certdata_len = sizeof (certdata);
+    if(ykpiv_util_get_certdata(data, len, certdata, &certdata_len) != YKPIV_OK) {
+      DBG("Failed to get certificate data");
       return CKR_DATA_INVALID;
     }
-    if (decompressed_data_len > 0) {
-      p = decompressed_data;
-      cert_len = decompressed_data_len;
-    }
-
+    p = certdata;
+    cert_len = certdata_len;
   } else {
     // Raw certificate ...
     cert_len = len;

@@ -344,16 +344,14 @@ extern "C"
   /**
    * Decompresses a certificate if it was compressed
    *
-   * @param buf Certificate data
-   * @param len Length of certificate data
-   * @param buf_ptr Pointer to where the start reading the certificate data from in buf
-   * @param decompressed_data Decompressed certificate data
-   * @param decompressed_data_len Length of decompressed data
+   * @param buf Fetched certificate data
+   * @param buf_len Length of fetched certificate data
+   * @param certdata Raw certificate bytes
+   * @param certdata_len Length of raw certificate bytes
    *
    * @return Error code
    */
-  ykpiv_rc ykpiv_util_decompressed_cert(uint8_t *buf, size_t len, uint8_t *buf_ptr,
-                                      unsigned char *decompressed_data, unsigned long *decompressed_data_len);
+  ykpiv_rc ykpiv_util_get_certdata(uint8_t *buf, size_t buf_len, uint8_t* certdata, unsigned long *certdata_len);
   /**
    * Write a certificate to a given slot
    *

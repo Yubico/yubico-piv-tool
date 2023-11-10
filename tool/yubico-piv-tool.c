@@ -1549,7 +1549,6 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
   unsigned char data[YKPIV_OBJ_MAX_SIZE] = {0};
   const unsigned char *ptr = data;
   unsigned long len = sizeof(data);
-  unsigned long offs, cert_len;
   X509 *x509 = NULL;
   X509_NAME *subj;
   BIO *bio = NULL;
@@ -1566,35 +1565,15 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     unsigned int md_len = sizeof(data);
     const ASN1_TIME *not_before, *not_after;
 
-    offs = get_length(ptr, data + len, &cert_len);
-    if(!offs) {
-      fprintf(output, "Invalid cert length.\n");
-      goto cert_out;
+    unsigned char certdata[YKPIV_OBJ_MAX_SIZE * 10] = {0};
+    unsigned long certdata_len = sizeof (certdata);
+    if(ykpiv_util_get_certdata(data, len, certdata, &certdata_len) != YKPIV_OK) {
+      fprintf(stderr, "Failed to get certificate data\n");
+      return;
     }
-    ptr += offs;
-    x509 = d2i_X509(NULL, &ptr, cert_len);
-    if(!x509) {
+    const unsigned char *certdata_ptr = certdata;
+    x509 = d2i_X509(NULL, &certdata_ptr, certdata_len);
 
-      unsigned char decompressed_data[YKPIV_OBJ_MAX_SIZE * 10] = {0};
-      unsigned long decompressed_data_len = sizeof (decompressed_data);
-      if(ykpiv_util_decompressed_cert(data, len, (uint8_t*) ptr, decompressed_data, &decompressed_data_len) != YKPIV_OK) {
-        fprintf(stderr, "could not decompress compressed certificate. Maybe because it was already compressed when imported?\n");
-        goto cert_out;
-      }
-      if(decompressed_data_len > 0) {
-        const unsigned char *ptr_decompressed = decompressed_data;
-        x509 = d2i_X509(NULL, &ptr_decompressed, decompressed_data_len);
-        if(!x509) {
-          fprintf(output, "Compressed certificate present. Unable to decompress, probably because "
-                          "certificate was imported already compressed.\n");
-          goto cert_out;
-        }
-
-      } else {
-        fprintf(output, "Invalid cert data.\n");
-        goto cert_out;
-      }
-    }
     {
       EVP_PKEY *key = X509_get_pubkey(x509);
       if(!key) {

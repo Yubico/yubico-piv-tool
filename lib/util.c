@@ -28,11 +28,8 @@
  *
  */
 
-#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <stdint.h>
-#include <ctype.h>
 #include <time.h>
 
 #include <zlib.h>
@@ -1388,52 +1385,60 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
   return (uint32_t)object_id;
 }
 
- ykpiv_rc ykpiv_util_decompressed_cert(uint8_t *buf, size_t len, uint8_t *buf_ptr,
-                                  unsigned char *decompressed_data, unsigned long *decompressed_data_len) {
+ ykpiv_rc ykpiv_util_get_certdata(uint8_t *buf, size_t buf_len, uint8_t* certdata, unsigned long *certdata_len) {
+   size_t offs, len = 0;
+   uint8_t *ptr = buf;
+   unsigned long ul_buflen = (unsigned long)buf_len;
 
-   if (buf[len - 3]) { // This byte is set to 1 if certinfo is YKPIV_CERTINFO_GZIP
+   ptr++;
+   offs = _ykpiv_get_length(ptr, buf + ul_buflen, &len);
+   if(!offs) {
+     *certdata_len = 0;
+     return YKPIV_OK;
+   }
+   ptr += offs;
+
+   if (buf[buf_len - 3]) { // This byte is set to 1 if certinfo is YKPIV_CERTINFO_GZIP
      z_stream zs;
      zs.zalloc = Z_NULL;
      zs.zfree = Z_NULL;
      zs.opaque = Z_NULL;
      zs.avail_in = (uInt) len;
-     zs.next_in = (Bytef *) buf_ptr;
-     zs.avail_out = (uInt) *decompressed_data_len;
-     zs.next_out = (Bytef *) decompressed_data;
+     zs.next_in = (Bytef *) ptr;
+     zs.avail_out = (uInt) *certdata_len;
+     zs.next_out = (Bytef *) certdata;
 
      if (inflateInit2(&zs, MAX_WBITS | 16) != Z_OK) {
-       fprintf(stderr, "Failed to decompress certificate 0.\n");
-       *decompressed_data_len = 0;
+       fprintf(stderr, "Failed to initialize certificate decompression.\n");
+       *certdata_len = 0;
        return YKPIV_INVALID_OBJECT;
      }
      if (inflate(&zs, Z_FINISH) != Z_STREAM_END) {
-       fprintf(stderr, "Failed to decompress certificate 1.\n");
-       *decompressed_data_len = 0;
+       fprintf(stderr, "Failed to decompress certificate.\n");
+       *certdata_len = 0;
        return YKPIV_INVALID_OBJECT;
      }
      if (inflateEnd(&zs) != Z_OK) {
-       fprintf(stderr, "Failed to decompress certificate 2.\n");
-       *decompressed_data_len = 0;
+       fprintf(stderr, "Failed to finish certificate decompression.\n");
+       *certdata_len = 0;
        return YKPIV_INVALID_OBJECT;
      }
-     *decompressed_data_len = zs.total_out;
+     *certdata_len = zs.total_out;
    } else {
-     *decompressed_data_len = 0;
+     memmove(certdata, ptr, len);
+     *certdata_len = len;
    }
    return YKPIV_OK;
- }
+}
 
  static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf, size_t *buf_len) {
   ykpiv_rc res = YKPIV_OK;
-  uint8_t *ptr = NULL;
   unsigned long ul_len = (unsigned long)*buf_len;
   int object_id = (int)ykpiv_util_slot_object(slot);
-  size_t offs, len = 0;
 
   if (-1 == object_id) return YKPIV_INVALID_OBJECT;
 
   if (YKPIV_OK == (res = _ykpiv_fetch_object(state, object_id, buf, &ul_len))) {
-    ptr = buf;
 
     // check that object contents are at least large enough to read the tag
     if (ul_len < CB_OBJ_TAG_MIN) {
@@ -1443,27 +1448,15 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
 
     // check that first byte indicates "certificate" type
 
-    if (*ptr++ == TAG_CERT) {
-      offs = _ykpiv_get_length(ptr, buf + ul_len, &len);
-      if(!offs) {
-        *buf_len = 0;
-        return YKPIV_OK;
-      }
-      ptr += offs;
-
-      unsigned char decompressed_data[YKPIV_OBJ_MAX_SIZE * 10] = {0};
-      unsigned long decompressed_data_len = sizeof (decompressed_data);
-      if((res = ykpiv_util_decompressed_cert(buf, ul_len, ptr, decompressed_data, &decompressed_data_len)) != YKPIV_OK) {
-        DBG("could not decompress compressed certificate. Maybe because it was already compressed when imported?");
+    if (buf[0] == TAG_CERT) {
+      unsigned char certdata[YKPIV_OBJ_MAX_SIZE * 10] = {0};
+      unsigned long certdata_len = sizeof (certdata);
+      if ((res = ykpiv_util_get_certdata(buf, ul_len, certdata, &certdata_len)) != YKPIV_OK) {
+        DBG("Failed to get certificate data");
         return res;
       }
-      if (decompressed_data_len > 0) {
-        memmove(buf, decompressed_data, decompressed_data_len);
-        *buf_len = decompressed_data_len;
-      } else {
-        memmove(buf, ptr, len);
-        *buf_len = len;
-      }
+      memmove(buf, certdata, certdata_len);
+      *buf_len = certdata_len;
     }
   } else {
     *buf_len = 0;
