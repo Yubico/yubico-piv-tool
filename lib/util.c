@@ -36,6 +36,7 @@
 
 #include "internal.h"
 #include "ykpiv.h"
+#include "util.h"
 
 #define MAX(a,b) (a) > (b) ? (a) : (b)
 #define MIN(a,b) (a) < (b) ? (a) : (b)
@@ -1398,7 +1399,7 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
    }
    ptr += offs;
 
-   if (buf[buf_len - 3]) { // This byte is set to 1 if certinfo is YKPIV_CERTINFO_GZIP
+   if (buf[buf_len - 3] == YKPIV_CERTINFO_GZIP) { // This byte is set to 1 if certinfo is YKPIV_CERTINFO_GZIP
      z_stream zs;
      zs.zalloc = Z_NULL;
      zs.zfree = Z_NULL;
@@ -1429,6 +1430,23 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
      *certdata_len = len;
    }
    return YKPIV_OK;
+}
+
+void ykpiv_util_write_certdata(uint8_t *rawdata, size_t rawdata_len, uint8_t certinfo, uint8_t* certdata, unsigned long *certdata_len) {
+  size_t offset = 0;
+
+  unsigned long len_bytes = get_length_size(rawdata_len);
+  memmove(certdata + len_bytes + 1, rawdata, rawdata_len);
+
+  certdata[offset] = TAG_CERT;
+  offset += _ykpiv_set_length(certdata+offset, rawdata_len);
+  offset += rawdata_len;
+  certdata[offset++] = TAG_CERT_COMPRESS;
+  certdata[offset++] = 1;
+  certdata[offset++] = certinfo;
+  certdata[offset++] = TAG_CERT_LRC;
+  certdata[offset++] = 0;
+  *certdata_len = offset;
 }
 
  static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf, size_t *buf_len) {
@@ -1495,17 +1513,7 @@ static ykpiv_rc _write_certificate(ykpiv_state *state, uint8_t slot, uint8_t *da
   if (req_len < data_len) return YKPIV_SIZE_ERROR; /* detect overflow of unsigned size_t */
   if (req_len > _obj_size_max(state)) return YKPIV_SIZE_ERROR; /* obj_size_max includes limits for TLV encoding */
 
-  buf[offset++] = TAG_CERT;
-  offset += _ykpiv_set_length(buf + offset, data_len);
-  memcpy(buf + offset, data, data_len);
-  offset += data_len;
-
-  // write compression info and LRC trailer
-  buf[offset++] = TAG_CERT_COMPRESS;
-  buf[offset++] = 0x01;
-  buf[offset++] = certinfo == YKPIV_CERTINFO_GZIP ? 0x01 : 0x00;
-  buf[offset++] = TAG_CERT_LRC;
-  buf[offset++] = 00;
+  ykpiv_util_write_certdata(data, data_len, certinfo, buf, &offset);
 
   // write onto device
   return _ykpiv_save_object(state, object_id, buf, offset);

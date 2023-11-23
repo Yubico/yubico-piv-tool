@@ -368,8 +368,9 @@ CK_RV token_generate_key(ykpiv_state *state, gen_info_t *gen, CK_BYTE key, CK_BY
   unsigned char *in_ptr = in_data;
   unsigned char data[1024] = {0};
   unsigned char templ[] = {0, YKPIV_INS_GENERATE_ASYMMETRIC, 0, 0};
-  unsigned char *certptr;
-  unsigned long len, len_bytes, offs, recv_len = sizeof(data);
+  uint8_t certdata[YKPIV_OBJ_MAX_SIZE + 16] = {0};
+  size_t certdata_len = sizeof(certdata);
+  unsigned long len, offs, recv_len = sizeof(data);
   char version[7] = {0};
   char label[32] = {0};
   ykpiv_rc res;
@@ -462,31 +463,19 @@ CK_RV token_generate_key(ykpiv_state *state, gen_info_t *gen, CK_BYTE key, CK_BY
   if(rv != CKR_OK)
     return rv;
 
-  len_bytes = get_length_size(recv_len);
+  ykpiv_util_write_certdata(data, recv_len, 0, certdata, &certdata_len);
 
-  certptr = data;
-  memmove(data + len_bytes + 1, data, recv_len);
-
-  *certptr++ = TAG_CERT;
-  certptr += set_length(certptr, recv_len);
-  certptr += recv_len;
-  *certptr++ = TAG_CERT_COMPRESS;
-  *certptr++ = 1;
-  *certptr++ = 0; /* certinfo (gzip etc) */
-  *certptr++ = TAG_CERT_LRC;
-  *certptr++ = 0;
-
-  if(*cert_len < (CK_ULONG)(certptr - data)) {
+  if(*cert_len < (CK_ULONG)certdata_len) {
     DBG("Certificate buffer too small.");
     return CKR_BUFFER_TOO_SMALL;
   }
 
   // Store the certificate into the token
-  if ((res = ykpiv_save_object(state, ykpiv_util_slot_object(key), data, certptr - data)) != YKPIV_OK)
+  if ((res = ykpiv_save_object(state, ykpiv_util_slot_object(key), certdata, certdata_len)) != YKPIV_OK)
     return yrc_to_rv(res);
 
-  memcpy(cert_data, data, certptr - data);
-  *cert_len = certptr - data;
+  memcpy(cert_data, data, (unsigned long) certdata_len);
+  *cert_len = certdata_len;
 
   return CKR_OK;
 }
@@ -494,7 +483,7 @@ CK_RV token_generate_key(ykpiv_state *state, gen_info_t *gen, CK_BYTE key, CK_BY
 CK_RV token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_BYTE_PTR in, CK_ULONG in_len) {
 
   unsigned char certdata[YKPIV_OBJ_MAX_SIZE + 16] = {0};
-  unsigned char *certptr;
+  size_t certdata_len = sizeof(certdata);
   CK_ULONG cert_len;
   ykpiv_rc res;
   CK_RV rv;
@@ -508,21 +497,10 @@ CK_RV token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_BYTE_PTR in, CK
   if (cert_len > YKPIV_OBJ_MAX_SIZE)
     return CKR_FUNCTION_FAILED;
 
-  certptr = certdata;
-
-  *certptr++ = TAG_CERT;
-  certptr += set_length(certptr, cert_len);
-  memcpy(certptr, in, cert_len);
-  certptr += cert_len;
-
-  *certptr++ = TAG_CERT_COMPRESS;
-  *certptr++ = 1;
-  *certptr++ = 0; /* certinfo (gzip etc) */
-  *certptr++ = TAG_CERT_LRC;
-  *certptr++ = 0;
+  ykpiv_util_write_certdata(in, cert_len, 0, certdata, &certdata_len);
 
   // Store the certificate into the token
-  if ((res = ykpiv_save_object(state, cert_id, certdata, certptr - certdata)) != YKPIV_OK)
+  if ((res = ykpiv_save_object(state, cert_id, certdata, certdata_len)) != YKPIV_OK)
     return yrc_to_rv(res);
 
   return CKR_OK;
