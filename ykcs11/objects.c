@@ -366,6 +366,20 @@ static CK_RV get_doa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templa
     data = s->data[piv_objects[obj].sub_id].data;
     break;
 
+  case CKA_COPYABLE:
+    DBG("COPYABLE");
+    len = sizeof(CK_BBOOL);
+    tmp = CK_FALSE;
+    data = &tmp;
+    break;
+
+  case CKA_DESTROYABLE:
+    DBG("DESTROYABLE");
+    len = sizeof(CK_BBOOL);
+    tmp = CK_TRUE;
+    data = &tmp;
+    break;
+
   default:
     DBG("UNKNOWN ATTRIBUTE %lx (%lu)", template[0].type, template[0].type);
     return CKR_ATTRIBUTE_TYPE_INVALID;
