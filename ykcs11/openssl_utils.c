@@ -107,27 +107,20 @@ rsa_enc_cleanup:
 
 CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, ykcs11_x509_t **cert) {
 
-  const unsigned char *p = data; // Mandatory temp variable required by OpenSSL
-  unsigned long       cert_len;
+  unsigned char certdata[YKPIV_OBJ_MAX_SIZE * 10] = {0};
+  unsigned long certdata_len = sizeof (certdata);
 
-  if (*p == TAG_CERT) {
-    unsigned char certdata[YKPIV_OBJ_MAX_SIZE * 10] = {0};
-    unsigned long certdata_len = sizeof (certdata);
-    if(ykpiv_util_get_certdata(data, len, certdata, &certdata_len) != YKPIV_OK) {
-      DBG("Failed to get certificate data");
-      return CKR_DATA_INVALID;
-    }
-    p = certdata;
-    cert_len = certdata_len;
-  } else {
-    // Raw certificate ...
-    cert_len = len;
+  if(ykpiv_util_get_certdata(data, len, certdata, &certdata_len) != YKPIV_OK) {
+    DBG("Failed to get certificate data");
+    return CKR_DATA_INVALID;
   }
 
-  if(*cert)
+  if(*cert) {
     X509_free(*cert);
+  }
 
-  *cert = d2i_X509(NULL, &p, cert_len);
+  const unsigned char *p = certdata; // Mandatory temp variable required by OpenSSL
+  *cert = d2i_X509(NULL, &p, certdata_len);
   if (*cert == NULL)
     return CKR_FUNCTION_FAILED;
 

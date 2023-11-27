@@ -1547,7 +1547,6 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
   int object = (int)ykpiv_util_slot_object(get_slot_hex(slot));
   int slot_name;
   unsigned char data[YKPIV_OBJ_MAX_SIZE] = {0};
-  const unsigned char *ptr = data;
   unsigned long len = sizeof(data);
   X509 *x509 = NULL;
   X509_NAME *subj;
@@ -1561,95 +1560,94 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
 
   fprintf(output, "Slot %x:\t", slot_name);
 
-  if(*ptr++ == TAG_CERT) {
-    unsigned int md_len = sizeof(data);
-    const ASN1_TIME *not_before, *not_after;
+  unsigned char certdata[YKPIV_OBJ_MAX_SIZE * 10] = {0};
+  unsigned long certdata_len = sizeof(certdata);
+  if(ykpiv_util_get_certdata(data, len, certdata, &certdata_len) != YKPIV_OK) {
+    fprintf(stderr, "Failed to get certificate data\n");
+    return;
+  }
 
-    unsigned char certdata[YKPIV_OBJ_MAX_SIZE * 10] = {0};
-    unsigned long certdata_len = sizeof (certdata);
-    if(ykpiv_util_get_certdata(data, len, certdata, &certdata_len) != YKPIV_OK) {
-      fprintf(stderr, "Failed to get certificate data\n");
-      return;
-    }
-    const unsigned char *certdata_ptr = certdata;
-    x509 = d2i_X509(NULL, &certdata_ptr, certdata_len);
-
-    {
-      EVP_PKEY *key = X509_get_pubkey(x509);
-      if(!key) {
-        fprintf(output, "Parse error.\n");
-        goto cert_out;
-      }
-      fprintf(output, "\n\tAlgorithm:\t");
-      switch(get_algorithm(key)) {
-        case YKPIV_ALGO_RSA1024:
-          fprintf(output, "RSA1024\n");
-          break;
-        case YKPIV_ALGO_RSA2048:
-          fprintf(output, "RSA2048\n");
-          break;
-        case YKPIV_ALGO_ECCP256:
-          fprintf(output, "ECCP256\n");
-          break;
-        case YKPIV_ALGO_ECCP384:
-          fprintf(output, "ECCP384\n");
-          break;
-        default:
-          fprintf(output, "Unknown\n");
-      }
-      EVP_PKEY_free(key);
-    }
-    subj = X509_get_subject_name(x509);
-    if(!subj) {
-      fprintf(output, "Parse error.\n");
-      goto cert_out;
-    }
-    fprintf(output, "\tSubject DN:\t");
-    if(X509_NAME_print_ex_fp(output, subj, 0, XN_FLAG_COMPAT) != 1) {
-      fprintf(output, "Failed to write Subject DN.\n");
-      goto cert_out;
-    }
-    fprintf(output, "\n");
-    subj = X509_get_issuer_name(x509);
-    if(!subj) {
-      fprintf(output, "Parse error.\n");
-      goto cert_out;
-    }
-    fprintf(output, "\tIssuer DN:\t");
-    if(X509_NAME_print_ex_fp(output, subj, 0, XN_FLAG_COMPAT) != 1) {
-      fprintf(output, "Failed to write Issuer DN.\n");
-      goto cert_out;
-    }
-    fprintf(output, "\n");
-    if(X509_digest(x509, md, data, &md_len) != 1) {
-      fprintf(output, "Failed to digest data.\n");
-      goto cert_out;
-    }
-    fprintf(output, "\tFingerprint:\t");
-    dump_data(data, md_len, output, false, format_arg_hex);
-
-    bio = BIO_new_fp(output, BIO_NOCLOSE | BIO_FP_TEXT);
-    not_before = X509_get_notBefore(x509);
-    if(not_before) {
-      fprintf(output, "\tNot Before:\t");
-      if(ASN1_TIME_print(bio, not_before) != 1) {
-        fprintf(output, "Failed to write Not Before time.\n");
-        goto cert_out;
-      }
-      fprintf(output, "\n");
-    }
-    not_after = X509_get_notAfter(x509);
-    if(not_after) {
-      fprintf(output, "\tNot After:\t");
-      if(ASN1_TIME_print(bio, not_after) != 1) {
-        fprintf(output, "Failed to write Not After time.\n");
-        goto cert_out;
-      }
-      fprintf(output, "\n");
-    }
-  } else {
+  const unsigned char *certdata_ptr = certdata;
+  x509 = d2i_X509(NULL, &certdata_ptr, certdata_len);
+  if (x509 == NULL) {
     fprintf(output, "Parse error.\n");
     return;
+  }
+
+  unsigned int md_len = sizeof(data);
+  const ASN1_TIME *not_before, *not_after;
+
+  EVP_PKEY *key = X509_get_pubkey(x509);
+  if(!key) {
+    fprintf(output, "Parse error.\n");
+    goto cert_out;
+  }
+  fprintf(output, "\n\tAlgorithm:\t");
+  switch(get_algorithm(key)) {
+    case YKPIV_ALGO_RSA1024:
+      fprintf(output, "RSA1024\n");
+      break;
+    case YKPIV_ALGO_RSA2048:
+      fprintf(output, "RSA2048\n");
+      break;
+    case YKPIV_ALGO_ECCP256:
+      fprintf(output, "ECCP256\n");
+      break;
+    case YKPIV_ALGO_ECCP384:
+      fprintf(output, "ECCP384\n");
+      break;
+    default:
+      fprintf(output, "Unknown\n");
+  }
+  EVP_PKEY_free(key);
+
+  subj = X509_get_subject_name(x509);
+  if(!subj) {
+    fprintf(output, "Parse error.\n");
+    goto cert_out;
+  }
+  fprintf(output, "\tSubject DN:\t");
+  if(X509_NAME_print_ex_fp(output, subj, 0, XN_FLAG_COMPAT) != 1) {
+    fprintf(output, "Failed to write Subject DN.\n");
+    goto cert_out;
+  }
+  fprintf(output, "\n");
+  subj = X509_get_issuer_name(x509);
+  if(!subj) {
+    fprintf(output, "Parse error.\n");
+    goto cert_out;
+  }
+  fprintf(output, "\tIssuer DN:\t");
+  if(X509_NAME_print_ex_fp(output, subj, 0, XN_FLAG_COMPAT) != 1) {
+    fprintf(output, "Failed to write Issuer DN.\n");
+    goto cert_out;
+  }
+  fprintf(output, "\n");
+  if(X509_digest(x509, md, data, &md_len) != 1) {
+    fprintf(output, "Failed to digest data.\n");
+    goto cert_out;
+  }
+  fprintf(output, "\tFingerprint:\t");
+  dump_data(data, md_len, output, false, format_arg_hex);
+
+  bio = BIO_new_fp(output, BIO_NOCLOSE | BIO_FP_TEXT);
+  not_before = X509_get_notBefore(x509);
+  if(not_before) {
+    fprintf(output, "\tNot Before:\t");
+    if(ASN1_TIME_print(bio, not_before) != 1) {
+      fprintf(output, "Failed to write Not Before time.\n");
+      goto cert_out;
+    }
+    fprintf(output, "\n");
+  }
+  not_after = X509_get_notAfter(x509);
+  if(not_after) {
+    fprintf(output, "\tNot After:\t");
+    if(ASN1_TIME_print(bio, not_after) != 1) {
+      fprintf(output, "Failed to write Not After time.\n");
+      goto cert_out;
+    }
+    fprintf(output, "\n");
   }
 cert_out:
   if(x509) {

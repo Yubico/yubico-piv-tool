@@ -1387,25 +1387,55 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
 }
 
  ykpiv_rc ykpiv_util_get_certdata(uint8_t *buf, size_t buf_len, uint8_t* certdata, unsigned long *certdata_len) {
-   size_t offs, len = 0;
+   uint8_t compress_info = 0;
+   uint8_t *certptr;
+   size_t cert_len = 0;
    uint8_t *ptr = buf;
-   unsigned long ul_buflen = (unsigned long)buf_len;
 
-   ptr++;
-   offs = _ykpiv_get_length(ptr, buf + ul_buflen, &len);
-   if(!offs) {
-     *certdata_len = 0;
-     return YKPIV_OK;
+   while (ptr < buf + buf_len) {
+     switch (*ptr) {
+       case TAG_CERT:
+         ptr++; // move to after tag byte
+         size_t offs = _ykpiv_get_length(ptr, buf + (unsigned long) buf_len, &cert_len);
+         if(!offs) {
+           *certdata_len = 0;
+           return YKPIV_OK;
+         }
+         ptr += offs; // move to after length bytes
+         certptr = ptr;
+         ptr += cert_len; // move to after cert bytes
+         break;
+       case TAG_CERT_COMPRESS:
+         ptr++; // move to after tag byte
+         ptr++; // move to after length byte
+         compress_info = *ptr++;
+         break;
+       case TAG_CERT_LRC:
+         // Basically, skip over it
+         ptr++; // move after tag bytes
+         size_t lrc_len = *ptr++; // move to after length byte
+         ptr += lrc_len; // move to after value bytes
+         break;
+       default:
+         fprintf(stderr, "Unknown cert tag. Treating this as a raw certificate\n");
+         if (*certdata_len < buf_len) {
+           fprintf(stderr, "Buffer too small\n");
+           *certdata_len = 0;
+           return YKPIV_SIZE_ERROR;
+         }
+         memmove(certdata, buf, buf_len);
+         *certdata_len = buf_len;
+         return YKPIV_OK;
+     }
    }
-   ptr += offs;
 
-   if (buf[buf_len - 3] == YKPIV_CERTINFO_GZIP) { // This byte is set to 1 if certinfo is YKPIV_CERTINFO_GZIP
+   if (compress_info == YKPIV_CERTINFO_GZIP) { // This byte is set to 1 if certinfo is YKPIV_CERTINFO_GZIP
      z_stream zs;
      zs.zalloc = Z_NULL;
      zs.zfree = Z_NULL;
      zs.opaque = Z_NULL;
-     zs.avail_in = (uInt) len;
-     zs.next_in = (Bytef *) ptr;
+     zs.avail_in = (uInt) cert_len;
+     zs.next_in = (Bytef *) certptr;
      zs.avail_out = (uInt) *certdata_len;
      zs.next_out = (Bytef *) certdata;
 
@@ -1426,8 +1456,8 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
      }
      *certdata_len = zs.total_out;
    } else {
-     memmove(certdata, ptr, len);
-     *certdata_len = len;
+     memmove(certdata, certptr, cert_len);
+     *certdata_len = cert_len;
    }
    return YKPIV_OK;
 }
@@ -1438,7 +1468,7 @@ void ykpiv_util_write_certdata(uint8_t *rawdata, size_t rawdata_len, uint8_t cer
   unsigned long len_bytes = get_length_size(rawdata_len);
   memmove(certdata + len_bytes + 1, rawdata, rawdata_len);
 
-  certdata[offset] = TAG_CERT;
+  certdata[offset++] = TAG_CERT;
   offset += _ykpiv_set_length(certdata+offset, rawdata_len);
   offset += rawdata_len;
   certdata[offset++] = TAG_CERT_COMPRESS;
@@ -1451,30 +1481,24 @@ void ykpiv_util_write_certdata(uint8_t *rawdata, size_t rawdata_len, uint8_t cer
 
  static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf, size_t *buf_len) {
   ykpiv_rc res = YKPIV_OK;
-  unsigned long ul_len = (unsigned long)*buf_len;
   int object_id = (int)ykpiv_util_slot_object(slot);
 
   if (-1 == object_id) return YKPIV_INVALID_OBJECT;
 
-  if (YKPIV_OK == (res = _ykpiv_fetch_object(state, object_id, buf, &ul_len))) {
+   unsigned char data[YKPIV_OBJ_MAX_SIZE * 10] = {0};
+   unsigned long data_len = sizeof (data);
+
+  if (YKPIV_OK == (res = _ykpiv_fetch_object(state, object_id, data, &data_len))) {
 
     // check that object contents are at least large enough to read the tag
-    if (ul_len < CB_OBJ_TAG_MIN) {
+    if (data_len < CB_OBJ_TAG_MIN) {
       *buf_len = 0;
       return YKPIV_OK;
     }
 
-    // check that first byte indicates "certificate" type
-
-    if (buf[0] == TAG_CERT) {
-      unsigned char certdata[YKPIV_OBJ_MAX_SIZE * 10] = {0};
-      unsigned long certdata_len = sizeof (certdata);
-      if ((res = ykpiv_util_get_certdata(buf, ul_len, certdata, &certdata_len)) != YKPIV_OK) {
-        DBG("Failed to get certificate data");
-        return res;
-      }
-      memmove(buf, certdata, certdata_len);
-      *buf_len = certdata_len;
+    if ((res = ykpiv_util_get_certdata(data, data_len, buf, buf_len)) != YKPIV_OK) {
+      DBG("Failed to get certificate data");
+      return res;
     }
   } else {
     *buf_len = 0;
