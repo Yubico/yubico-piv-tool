@@ -1417,9 +1417,9 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
          ptr += lrc_len; // move to after value bytes
          break;
        default:
-         fprintf(stderr, "Unknown cert tag. Treating this as a raw certificate\n");
+         DBG("Unknown cert tag. Treating this as a raw certificate");
          if (*certdata_len < buf_len) {
-           fprintf(stderr, "Buffer too small\n");
+           DBG("Buffer too small");
            *certdata_len = 0;
            return YKPIV_SIZE_ERROR;
          }
@@ -1440,17 +1440,18 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
      zs.next_out = (Bytef *) certdata;
 
      if (inflateInit2(&zs, MAX_WBITS | 16) != Z_OK) {
-       fprintf(stderr, "Failed to initialize certificate decompression.\n");
+
+       DBG("Failed to initialize certificate decompression");
        *certdata_len = 0;
        return YKPIV_INVALID_OBJECT;
      }
      if (inflate(&zs, Z_FINISH) != Z_STREAM_END) {
-       fprintf(stderr, "Failed to decompress certificate.\n");
+       DBG("Failed to decompress certificate");
        *certdata_len = 0;
        return YKPIV_INVALID_OBJECT;
      }
      if (inflateEnd(&zs) != Z_OK) {
-       fprintf(stderr, "Failed to finish certificate decompression.\n");
+       DBG("Failed to finish certificate decompression");
        *certdata_len = 0;
        return YKPIV_INVALID_OBJECT;
      }
