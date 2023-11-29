@@ -1414,11 +1414,11 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
            goto invalid_tlv;
          }
          compress_info = *ptr;
-         DBG("Found TAG_CERT_COMPRESS value 0x%02x", compress_info);
+         DBG("Found TAG_CERT_COMPRESS with length %zu value 0x%02x", len, compress_info);
          break;
        case TAG_CERT_LRC: {
          // basically ignore it
-         DBG("Found TAG_CERT_LRC with length %zu", cert_len);
+         DBG("Found TAG_CERT_LRC with length %zu", len);
          break;
        }
        default:
@@ -1472,7 +1472,7 @@ invalid_tlv:
 #else
      DBG("Found compressed certificate. Decompressing certificate not supported");
      *certdata_len = 0;
-     return YKPIV_OK;
+     return YKPIV_PARSE_ERROR;
 #endif
    } else {
      if (*certdata_len < cert_len) {
