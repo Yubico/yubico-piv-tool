@@ -37,6 +37,7 @@ option(SUPRESS_MSVC_WARNINGS "Suppresses a lot of the warnings when compiling wi
 option(GENERATE_MAN_PAGES "Generate man pages for the command line tool" ON)
 option(OPENSSL_STATIC_LINK "Statically link to OpenSSL" OFF)
 option(ENABLE_COVERAGE "Enable/disable codecov evaluation" OFF)
+option(ENABLE_CERT_COMPRESS "Enable/disable compression of certificate" ON)
 
 set(YKCS11_DBG "0" CACHE STRING "Enable/disable YKCS11 debug messages. Possible values is 0 through 9")
 set(BACKEND "check" CACHE STRING "use specific backend/linkage; 'pcsc', 'macscard' or'winscard'")

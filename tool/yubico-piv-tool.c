@@ -1563,7 +1563,7 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
   unsigned char certdata[YKPIV_OBJ_MAX_SIZE * 10] = {0};
   unsigned long certdata_len = sizeof(certdata);
   if(ykpiv_util_get_certdata(data, len, certdata, &certdata_len) != YKPIV_OK) {
-    fprintf(stderr, "Failed to get certificate data\n");
+    fprintf(output, "Failed to get certificate data\n");
     return;
   }
 

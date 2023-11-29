@@ -1387,20 +1387,6 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
 }
 
  ykpiv_rc ykpiv_util_get_certdata(uint8_t *buf, size_t buf_len, uint8_t* certdata, unsigned long *certdata_len) {
-   const unsigned char *x509ptr = buf;
-  X509 *x509 = d2i_X509(NULL, &x509ptr, buf_len);
-   if(x509 != NULL) {
-     DBG("Found raw certificate");
-     if (*certdata_len < buf_len) {
-       DBG("Buffer too small");
-       *certdata_len = 0;
-       return YKPIV_SIZE_ERROR;
-     }
-     memmove(certdata, buf, buf_len);
-     *certdata_len = buf_len;
-     return YKPIV_OK;
-   }
-
    uint8_t compress_info = 0;
    uint8_t *certptr;
    size_t cert_len = 0;
@@ -1411,28 +1397,46 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
        case TAG_CERT: {
          size_t offs = _ykpiv_get_length(ptr, buf + buf_len, &cert_len);
          if(!offs) {
-           *certdata_len = 0;
-           return YKPIV_OK;
+           DBG("Invalid length bytes. Treating input as raw certificate");
+           goto raw_cert;
          }
          ptr += offs; // move to after length bytes
          certptr = ptr;
          ptr += cert_len; // move to after cert bytes
          break;
        }
-       case TAG_CERT_COMPRESS:
+       case TAG_CERT_COMPRESS: {
+         size_t compress_len = 0;
+         size_t offs = _ykpiv_get_length(ptr, buf + buf_len, &compress_len);
+         if (offs != 1 || compress_len != 1) {
+           DBG("Invalid length bytes. Treating input as raw certificate");
+           goto raw_cert;
+         }
          ptr++; // move to after length byte
          compress_info = *ptr++;
          break;
-       default:
-         DBG("Found cert tag 0x%02x. Ignoring it", *(ptr-1));
+       }
+       case TAG_CERT_LRC: {
+         // basically ignore it
          size_t value_len = 0;
-         ptr += _ykpiv_get_length(ptr, buf + buf_len, &value_len);
+         size_t offs = _ykpiv_get_length(ptr, buf + buf_len, &value_len);
+         if(!offs) {
+           DBG("Invalid length bytes. Treating input as raw certificate");
+           goto raw_cert;
+         }
+         ptr += offs;
          ptr += value_len; // move to after value bytes
+         break;
+       }
+       default:
+         DBG("Unknown cert tag. Treating input as raw certificate");
+         goto raw_cert;
          break;
      }
    }
 
    if (compress_info == YKPIV_CERTINFO_GZIP) { // This byte is set to 1 if certinfo is YKPIV_CERTINFO_GZIP
+#ifdef USE_CERT_COMPRESS
      z_stream zs;
      zs.zalloc = Z_NULL;
      zs.zfree = Z_NULL;
@@ -1464,6 +1468,11 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
        return YKPIV_INVALID_OBJECT;
      }
      *certdata_len = zs.total_out;
+#else
+     DBG("Found compressed certificate. Decompressing certificate not supported");
+     *certdata_len = 0;
+     return YKPIV_OK;
+#endif
    } else {
      if (*certdata_len < cert_len) {
        DBG("Buffer too small");
@@ -1473,6 +1482,17 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
      memmove(certdata, certptr, cert_len);
      *certdata_len = cert_len;
    }
+   return YKPIV_OK;
+
+raw_cert:
+   DBG("Found raw certificate");
+   if (*certdata_len < buf_len) {
+     DBG("Buffer too small");
+     *certdata_len = 0;
+     return YKPIV_SIZE_ERROR;
+   }
+   memmove(certdata, buf, buf_len);
+   *certdata_len = buf_len;
    return YKPIV_OK;
 }
 
