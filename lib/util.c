@@ -1387,52 +1387,53 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
 }
 
  ykpiv_rc ykpiv_util_get_certdata(uint8_t *buf, size_t buf_len, uint8_t* certdata, unsigned long *certdata_len) {
-   uint8_t compress_info = 0;
-   uint8_t *certptr;
+   uint8_t compress_info = YKPIV_CERTINFO_UNCOMPRESSED;
+   uint8_t *certptr = 0;
    size_t cert_len = 0;
    uint8_t *ptr = buf;
 
    while (ptr < buf + buf_len) {
-     switch (*ptr++) {
-       case TAG_CERT: {
-         size_t offs = _ykpiv_get_length(ptr, buf + buf_len, &cert_len);
-         if(!offs) {
-           DBG("Invalid length bytes. Treating input as raw certificate");
-           goto raw_cert;
-         }
-         ptr += offs; // move to after length bytes
+     uint8_t tag = *ptr++;
+     size_t len = 0;
+     size_t offs = _ykpiv_get_length(ptr, buf + buf_len, &len);
+     if(!offs) {
+       DBG("Found invalid length for tag 0x%02x.", tag);
+       goto invalid_tlv;
+     }
+     ptr += offs; // move to after length bytes
+
+     switch (tag) {
+       case TAG_CERT:
          certptr = ptr;
-         ptr += cert_len; // move to after cert bytes
+         cert_len = len;
+         DBG("Found TAG_CERT with length %zu", cert_len);
          break;
-       }
-       case TAG_CERT_COMPRESS: {
-         size_t compress_len = 0;
-         size_t offs = _ykpiv_get_length(ptr, buf + buf_len, &compress_len);
-         if (offs != 1 || compress_len != 1) {
-           DBG("Invalid length bytes. Treating input as raw certificate");
-           goto raw_cert;
+       case TAG_CERT_COMPRESS:
+         if(len != 1) {
+           DBG("Found TAG_CERT_COMPRESS with invalid length %zu", len);
+           goto invalid_tlv;
          }
-         ptr++; // move to after length byte
-         compress_info = *ptr++;
+         compress_info = *ptr;
+         DBG("Found TAG_CERT_COMPRESS value 0x%02x", compress_info);
          break;
-       }
        case TAG_CERT_LRC: {
          // basically ignore it
-         size_t value_len = 0;
-         size_t offs = _ykpiv_get_length(ptr, buf + buf_len, &value_len);
-         if(!offs) {
-           DBG("Invalid length bytes. Treating input as raw certificate");
-           goto raw_cert;
-         }
-         ptr += offs;
-         ptr += value_len; // move to after value bytes
+         DBG("Found TAG_CERT_LRC with length %zu", cert_len);
          break;
        }
        default:
-         DBG("Unknown cert tag. Treating input as raw certificate");
-         goto raw_cert;
+         DBG("Unknown cert tag 0x%02x", tag);
+         goto invalid_tlv;
          break;
      }
+     ptr += len; // move to after value bytes
+   }
+
+invalid_tlv:
+   if(certptr == 0 || cert_len == 0 || ptr != buf + buf_len) {
+     DBG("Invalid TLV encoding, treating as a raw certificate");
+     certptr = buf;
+     cert_len = buf_len;
    }
 
    if (compress_info == YKPIV_CERTINFO_GZIP) { // This byte is set to 1 if certinfo is YKPIV_CERTINFO_GZIP
@@ -1482,17 +1483,6 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
      memmove(certdata, certptr, cert_len);
      *certdata_len = cert_len;
    }
-   return YKPIV_OK;
-
-raw_cert:
-   DBG("Found raw certificate");
-   if (*certdata_len < buf_len) {
-     DBG("Buffer too small");
-     *certdata_len = 0;
-     return YKPIV_SIZE_ERROR;
-   }
-   memmove(certdata, buf, buf_len);
-   *certdata_len = buf_len;
    return YKPIV_OK;
 }
 
