@@ -574,7 +574,7 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format, in
   X509 *cert = NULL;
   PKCS12 *p12 = NULL;
   EVP_PKEY *private_key = NULL;
-  int compress = 0;
+  int compress = YKPIV_CERTINFO_UNCOMPRESSED;
   int cert_len = -1;
 
   input_file = open_file(input_file_name, key_file_mode(cert_format, false));

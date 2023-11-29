@@ -415,7 +415,7 @@ Cleanup:
 }
 
 ykpiv_rc ykpiv_util_delete_cert(ykpiv_state *state, uint8_t slot) {
-  return ykpiv_util_write_cert(state, slot, NULL, 0, 0);
+  return ykpiv_util_write_cert(state, slot, NULL, 0, YKPIV_CERTINFO_UNCOMPRESSED);
 }
 
 ykpiv_rc ykpiv_util_block_puk(ykpiv_state *state) {
@@ -1387,16 +1387,29 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
 }
 
  ykpiv_rc ykpiv_util_get_certdata(uint8_t *buf, size_t buf_len, uint8_t* certdata, unsigned long *certdata_len) {
+   const unsigned char *x509ptr = buf;
+  X509 *x509 = d2i_X509(NULL, &x509ptr, buf_len);
+   if(x509 != NULL) {
+     DBG("Found raw certificate");
+     if (*certdata_len < buf_len) {
+       DBG("Buffer too small");
+       *certdata_len = 0;
+       return YKPIV_SIZE_ERROR;
+     }
+     memmove(certdata, buf, buf_len);
+     *certdata_len = buf_len;
+     return YKPIV_OK;
+   }
+
    uint8_t compress_info = 0;
    uint8_t *certptr;
    size_t cert_len = 0;
    uint8_t *ptr = buf;
 
    while (ptr < buf + buf_len) {
-     switch (*ptr) {
-       case TAG_CERT:
-         ptr++; // move to after tag byte
-         size_t offs = _ykpiv_get_length(ptr, buf + (unsigned long) buf_len, &cert_len);
+     switch (*ptr++) {
+       case TAG_CERT: {
+         size_t offs = _ykpiv_get_length(ptr, buf + buf_len, &cert_len);
          if(!offs) {
            *certdata_len = 0;
            return YKPIV_OK;
@@ -1405,27 +1418,17 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
          certptr = ptr;
          ptr += cert_len; // move to after cert bytes
          break;
+       }
        case TAG_CERT_COMPRESS:
-         ptr++; // move to after tag byte
          ptr++; // move to after length byte
          compress_info = *ptr++;
          break;
-       case TAG_CERT_LRC:
-         // Basically, skip over it
-         ptr++; // move after tag bytes
-         size_t lrc_len = *ptr++; // move to after length byte
-         ptr += lrc_len; // move to after value bytes
-         break;
        default:
-         DBG("Unknown cert tag. Treating this as a raw certificate");
-         if (*certdata_len < buf_len) {
-           DBG("Buffer too small");
-           *certdata_len = 0;
-           return YKPIV_SIZE_ERROR;
-         }
-         memmove(certdata, buf, buf_len);
-         *certdata_len = buf_len;
-         return YKPIV_OK;
+         DBG("Found cert tag 0x%02x. Ignoring it", *(ptr-1));
+         size_t value_len = 0;
+         ptr += _ykpiv_get_length(ptr, buf + buf_len, &value_len);
+         ptr += value_len; // move to after value bytes
+         break;
      }
    }
 
@@ -1440,14 +1443,19 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
      zs.next_out = (Bytef *) certdata;
 
      if (inflateInit2(&zs, MAX_WBITS | 16) != Z_OK) {
-
        DBG("Failed to initialize certificate decompression");
        *certdata_len = 0;
        return YKPIV_INVALID_OBJECT;
      }
-     if (inflate(&zs, Z_FINISH) != Z_STREAM_END) {
-       DBG("Failed to decompress certificate");
+
+     int res = inflate(&zs, Z_FINISH);
+     if (res != Z_STREAM_END) {
        *certdata_len = 0;
+       if (res == Z_BUF_ERROR) {
+         DBG("Failed to decompress certificate. Allocated buffer is too small");
+         return YKPIV_SIZE_ERROR;
+       }
+       DBG("Failed to decompress certificate");
        return YKPIV_INVALID_OBJECT;
      }
      if (inflateEnd(&zs) != Z_OK) {
@@ -1457,13 +1465,18 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
      }
      *certdata_len = zs.total_out;
    } else {
+     if (*certdata_len < cert_len) {
+       DBG("Buffer too small");
+       *certdata_len = 0;
+       return YKPIV_SIZE_ERROR;
+     }
      memmove(certdata, certptr, cert_len);
      *certdata_len = cert_len;
    }
    return YKPIV_OK;
 }
 
-void ykpiv_util_write_certdata(uint8_t *rawdata, size_t rawdata_len, uint8_t certinfo, uint8_t* certdata, unsigned long *certdata_len) {
+void ykpiv_util_write_certdata(uint8_t *rawdata, size_t rawdata_len, uint8_t compress_info, uint8_t* certdata, unsigned long *certdata_len) {
   size_t offset = 0;
 
   unsigned long len_bytes = get_length_size(rawdata_len);
@@ -1474,7 +1487,7 @@ void ykpiv_util_write_certdata(uint8_t *rawdata, size_t rawdata_len, uint8_t cer
   offset += rawdata_len;
   certdata[offset++] = TAG_CERT_COMPRESS;
   certdata[offset++] = 1;
-  certdata[offset++] = certinfo;
+  certdata[offset++] = compress_info;
   certdata[offset++] = TAG_CERT_LRC;
   certdata[offset++] = 0;
   *certdata_len = offset;

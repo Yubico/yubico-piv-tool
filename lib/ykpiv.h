@@ -358,11 +358,11 @@ extern "C"
    *
    * @param data Raw certificate data
    * @param data_len Length of raw certificate data
-   * @param cert_info Type of certificate, tex compressed
+   * @param compress_info Certificate compression state
    * @param certdata Constructed certificate data
    * @param certdata_len Length of constructed certificate data
    */
-  void ykpiv_util_write_certdata(uint8_t *data, size_t data_len, uint8_t certinfo, uint8_t* certdata, unsigned long *certdata_len);
+  void ykpiv_util_write_certdata(uint8_t *data, size_t data_len, uint8_t compress_info, uint8_t* certdata, unsigned long *certdata_len);
 
   /**
    * Write a certificate to a given slot
