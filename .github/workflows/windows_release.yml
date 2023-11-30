@@ -20,7 +20,7 @@ jobs:
       - name: Install prerequisites
         run: |
           set -x
-          sudo apt install libpcsclite-dev check gengetopt help2man
+          sudo apt install libpcsclite-dev check gengetopt help2man zlib1g-dev
       - name: Create tar.gz
         run: |
           set -x

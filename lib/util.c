@@ -28,15 +28,15 @@
  *
  */
 
-#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <stdint.h>
-#include <ctype.h>
 #include <time.h>
+
+#include <zlib.h>
 
 #include "internal.h"
 #include "ykpiv.h"
+#include "util.h"
 
 #define MAX(a,b) (a) > (b) ? (a) : (b)
 #define MIN(a,b) (a) < (b) ? (a) : (b)
@@ -415,7 +415,7 @@ Cleanup:
 }
 
 ykpiv_rc ykpiv_util_delete_cert(ykpiv_state *state, uint8_t slot) {
-  return ykpiv_util_write_cert(state, slot, NULL, 0, 0);
+  return ykpiv_util_write_cert(state, slot, NULL, 0, YKPIV_CERTINFO_UNCOMPRESSED);
 }
 
 ykpiv_rc ykpiv_util_block_puk(ykpiv_state *state) {
@@ -1386,39 +1386,138 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
   return (uint32_t)object_id;
 }
 
-static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf, size_t *buf_len) {
+ ykpiv_rc ykpiv_util_get_certdata(uint8_t *buf, size_t buf_len, uint8_t* certdata, unsigned long *certdata_len) {
+   uint8_t compress_info = YKPIV_CERTINFO_UNCOMPRESSED;
+   uint8_t *certptr = 0;
+   size_t cert_len = 0;
+   uint8_t *ptr = buf;
+
+   while (ptr < buf + buf_len) {
+     uint8_t tag = *ptr++;
+     size_t len = 0;
+     size_t offs = _ykpiv_get_length(ptr, buf + buf_len, &len);
+     if(!offs) {
+       DBG("Found invalid length for tag 0x%02x.", tag);
+       goto invalid_tlv;
+     }
+     ptr += offs; // move to after length bytes
+
+     switch (tag) {
+       case TAG_CERT:
+         certptr = ptr;
+         cert_len = len;
+         DBG("Found TAG_CERT with length %zu", cert_len);
+         break;
+       case TAG_CERT_COMPRESS:
+         if(len != 1) {
+           DBG("Found TAG_CERT_COMPRESS with invalid length %zu", len);
+           goto invalid_tlv;
+         }
+         compress_info = *ptr;
+         DBG("Found TAG_CERT_COMPRESS with length %zu value 0x%02x", len, compress_info);
+         break;
+       case TAG_CERT_LRC: {
+         // basically ignore it
+         DBG("Found TAG_CERT_LRC with length %zu", len);
+         break;
+       }
+       default:
+         DBG("Unknown cert tag 0x%02x", tag);
+         goto invalid_tlv;
+         break;
+     }
+     ptr += len; // move to after value bytes
+   }
+
+invalid_tlv:
+   if(certptr == 0 || cert_len == 0 || ptr != buf + buf_len || compress_info > YKPIV_CERTINFO_GZIP) {
+     DBG("Invalid TLV encoding, treating as a raw certificate");
+     certptr = buf;
+     cert_len = buf_len;
+   }
+
+   if (compress_info == YKPIV_CERTINFO_GZIP) {
+#ifdef USE_CERT_COMPRESS
+     z_stream zs;
+     zs.zalloc = Z_NULL;
+     zs.zfree = Z_NULL;
+     zs.opaque = Z_NULL;
+     zs.avail_in = (uInt) cert_len;
+     zs.next_in = (Bytef *) certptr;
+     zs.avail_out = (uInt) *certdata_len;
+     zs.next_out = (Bytef *) certdata;
+
+     if (inflateInit2(&zs, MAX_WBITS | 16) != Z_OK) {
+       DBG("Failed to initialize certificate decompression");
+       *certdata_len = 0;
+       return YKPIV_INVALID_OBJECT;
+     }
+
+     int res = inflate(&zs, Z_FINISH);
+     if (res != Z_STREAM_END) {
+       *certdata_len = 0;
+       if (res == Z_BUF_ERROR) {
+         DBG("Failed to decompress certificate. Allocated buffer is too small");
+         return YKPIV_SIZE_ERROR;
+       }
+       DBG("Failed to decompress certificate");
+       return YKPIV_INVALID_OBJECT;
+     }
+     if (inflateEnd(&zs) != Z_OK) {
+       DBG("Failed to finish certificate decompression");
+       *certdata_len = 0;
+       return YKPIV_INVALID_OBJECT;
+     }
+     *certdata_len = zs.total_out;
+#else
+     DBG("Found compressed certificate. Decompressing certificate not supported");
+     *certdata_len = 0;
+     return YKPIV_PARSE_ERROR;
+#endif
+   } else {
+     if (*certdata_len < cert_len) {
+       DBG("Buffer too small");
+       *certdata_len = 0;
+       return YKPIV_SIZE_ERROR;
+     }
+     memmove(certdata, certptr, cert_len);
+     *certdata_len = cert_len;
+   }
+   return YKPIV_OK;
+}
+
+void ykpiv_util_write_certdata(uint8_t *rawdata, size_t rawdata_len, uint8_t compress_info, uint8_t* certdata, unsigned long *certdata_len) {
+  size_t offset = 0;
+
+  unsigned long len_bytes = get_length_size(rawdata_len);
+  memmove(certdata + len_bytes + 1, rawdata, rawdata_len);
+
+  certdata[offset++] = TAG_CERT;
+  offset += _ykpiv_set_length(certdata+offset, rawdata_len);
+  offset += rawdata_len;
+  certdata[offset++] = TAG_CERT_COMPRESS;
+  certdata[offset++] = 1;
+  certdata[offset++] = compress_info;
+  certdata[offset++] = TAG_CERT_LRC;
+  certdata[offset++] = 0;
+  *certdata_len = offset;
+}
+
+ static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf, size_t *buf_len) {
   ykpiv_rc res = YKPIV_OK;
-  uint8_t *ptr = NULL;
-  unsigned long ul_len = (unsigned long)*buf_len;
   int object_id = (int)ykpiv_util_slot_object(slot);
-  size_t offs, len = 0;
 
   if (-1 == object_id) return YKPIV_INVALID_OBJECT;
 
-  if (YKPIV_OK == (res = _ykpiv_fetch_object(state, object_id, buf, &ul_len))) {
-    ptr = buf;
+   unsigned char data[YKPIV_OBJ_MAX_SIZE * 10] = {0};
+   unsigned long data_len = sizeof (data);
 
-    // check that object contents are at least large enough to read the tag
-    if (ul_len < CB_OBJ_TAG_MIN) {
-      *buf_len = 0;
-      return YKPIV_OK;
+  if (YKPIV_OK == (res = _ykpiv_fetch_object(state, object_id, data, &data_len))) {
+    if ((res = ykpiv_util_get_certdata(data, data_len, buf, buf_len)) != YKPIV_OK) {
+      DBG("Failed to get certificate data");
+      return res;
     }
-
-    // check that first byte indicates "certificate" type
-
-    if (*ptr++ == TAG_CERT) {
-      offs = _ykpiv_get_length(ptr, buf + ul_len, &len);
-      if(!offs) {
-        *buf_len = 0;
-        return YKPIV_OK;
-      }
-      ptr += offs;
-
-      memmove(buf, ptr, len);
-      *buf_len = len;
-    }
-  }
-  else {
+  } else {
     *buf_len = 0;
   }
 
@@ -1455,17 +1554,7 @@ static ykpiv_rc _write_certificate(ykpiv_state *state, uint8_t slot, uint8_t *da
   if (req_len < data_len) return YKPIV_SIZE_ERROR; /* detect overflow of unsigned size_t */
   if (req_len > _obj_size_max(state)) return YKPIV_SIZE_ERROR; /* obj_size_max includes limits for TLV encoding */
 
-  buf[offset++] = TAG_CERT;
-  offset += _ykpiv_set_length(buf + offset, data_len);
-  memcpy(buf + offset, data, data_len);
-  offset += data_len;
-
-  // write compression info and LRC trailer
-  buf[offset++] = TAG_CERT_COMPRESS;
-  buf[offset++] = 0x01;
-  buf[offset++] = certinfo == YKPIV_CERTINFO_GZIP ? 0x01 : 0x00;
-  buf[offset++] = TAG_CERT_LRC;
-  buf[offset++] = 00;
+  ykpiv_util_write_certdata(data, data_len, certinfo, buf, &offset);
 
   // write onto device
   return _ykpiv_save_object(state, object_id, buf, offset);

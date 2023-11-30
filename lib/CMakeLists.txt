@@ -48,10 +48,21 @@ include_directories(
         ${CMAKE_SOURCE_DIR}/common
 )
 
+if (ENABLE_CERT_COMPRESS)
+    add_definitions(-DUSE_CERT_COMPRESS="1")
+
+    find_library(ZLIB zlib PATHS ${ZLIB_LIB_DIR})
+    include_directories(${ZLIB_INCL_DIR})
+
+    find_package(ZLIB REQUIRED)
+
+    set(ZLIB_LIBS "ZLIB::ZLIB")
+endif()
+
 # static library
 if(BUILD_STATIC_LIB)
     add_library(ykpiv STATIC ${SOURCE})
-    target_link_libraries(ykpiv ${LIBCRYPTO_LIBRARIES} ${PCSC_LIBRARIES} ${PCSC_WIN_LIBS} ${PCSC_MACOSX_LIBS} ${PCSC_CUSTOM_LIBS})
+    target_link_libraries(ykpiv ${LIBCRYPTO_LIBRARIES} ${PCSC_LIBRARIES} ${PCSC_WIN_LIBS} ${PCSC_MACOSX_LIBS} ${PCSC_CUSTOM_LIBS} ${ZLIB_LIBS})
     set_target_properties (ykpiv PROPERTIES COMPILE_FLAGS "-DSTATIC ")
     if(WIN32)
         set_target_properties(ykpiv PROPERTIES OUTPUT_NAME ykpiv_static)
@@ -61,7 +72,7 @@ endif(BUILD_STATIC_LIB)
 
 # dynamic library
 add_library(ykpiv_shared SHARED ${SOURCE})
-target_link_libraries(ykpiv_shared ${LIBCRYPTO_LIBRARIES} ${PCSC_LIBRARIES} ${PCSC_WIN_LIBS} ${PCSC_MACOSX_LIBS} ${PCSC_CUSTOM_LIBS})
+target_link_libraries(ykpiv_shared ${LIBCRYPTO_LIBRARIES} ${PCSC_LIBRARIES} ${PCSC_WIN_LIBS} ${PCSC_MACOSX_LIBS} ${PCSC_CUSTOM_LIBS} ${ZLIB_LIBS})
 set_target_properties(ykpiv_shared PROPERTIES SOVERSION ${SO_VERSION} VERSION ${VERSION})
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     set_target_properties(ykpiv_shared PROPERTIES INSTALL_RPATH "${YKPIV_INSTALL_LIB_DIR}")

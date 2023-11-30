@@ -55,6 +55,7 @@
 #include <openssl/rsa.h>
 #include <openssl/x509v3.h>
 #include <openssl/err.h>
+#include <zlib.h>
 
 #include "cmdline.h"
 #include "../common/util.h"
@@ -566,14 +567,14 @@ import_out:
   return ret;
 }
 
-static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
+static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format, int perform_compress,
     const char *input_file_name, enum enum_slot slot, char *password) {
   bool ret = false;
   FILE *input_file = NULL;
   X509 *cert = NULL;
   PKCS12 *p12 = NULL;
   EVP_PKEY *private_key = NULL;
-  int compress = 0;
+  int compress = YKPIV_CERTINFO_UNCOMPRESSED;
   int cert_len = -1;
 
   input_file = open_file(input_file_name, key_file_mode(cert_format, false));
@@ -619,7 +620,7 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
       goto import_cert_out;
     }
     cert_len = st.st_size;
-    compress = 0x01;
+    compress = YKPIV_CERTINFO_GZIP;
   } else {
     /* TODO: more formats go here */
     fprintf(stderr, "Unknown key format.\n");
@@ -634,8 +635,8 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
     unsigned char *certptr = certdata;
     ykpiv_rc res;
 
-    if(cert_len > YKPIV_OBJ_MAX_SIZE || cert_len < 0) {
-      fprintf(stderr, "Length of certificate is more than can fit.\n");
+    if((cert_len > YKPIV_OBJ_MAX_SIZE && !perform_compress) || cert_len < 0) {
+      fprintf(stderr, "Length of certificate is more than can fit. Consider using the 'compress' flag\n");
       goto import_cert_out;
     }
 
@@ -644,12 +645,44 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
         fprintf(stderr, "Failed to read compressed certificate\n");
         goto import_cert_out;
       }
+    } else if(perform_compress) {
+      unsigned char uncompressed_certdata[YKPIV_OBJ_MAX_SIZE*10] = {0};
+      unsigned char *uncompressed_certptr = uncompressed_certdata;
+      if(i2d_X509(cert, &uncompressed_certptr) < 0) {
+        fprintf(stderr, "Failed to encode X509 certificate before compression\n");
+        goto import_cert_out;
+      }
+
+      z_stream zs;
+      zs.zalloc = Z_NULL;
+      zs.zfree = Z_NULL;
+      zs.opaque = Z_NULL;
+      zs.avail_in = (uInt)cert_len;
+      zs.next_in = (Bytef *)uncompressed_certdata;
+      zs.avail_out = (uInt) sizeof(certdata);
+      zs.next_out = (Bytef *)certdata;
+
+      if(deflateInit2(&zs, Z_DEFAULT_COMPRESSION, Z_DEFLATED, MAX_WBITS | 16, 8, Z_DEFAULT_STRATEGY) != Z_OK) {
+        fprintf(stderr, "Failed to compress certificate\n");
+        goto import_cert_out;
+      }
+      if(deflate(&zs, Z_FINISH) != Z_STREAM_END) {
+        fprintf(stderr, "Failed to compress certificate\n");
+        goto import_cert_out;
+      }
+      if(deflateEnd(&zs) != Z_OK) {
+        fprintf(stderr, "Failed to compress certificate\n");
+        goto import_cert_out;
+      }
+      cert_len = zs.total_out;
+      compress = YKPIV_CERTINFO_GZIP;
     } else {
       if(i2d_X509(cert, &certptr) < 0) {
         fprintf(stderr, "Failed to encode X509 certificate\n");
         goto import_cert_out;
       }
     }
+
     if ((res = ykpiv_util_write_cert(state, get_slot_hex(slot), certdata, (size_t)cert_len, compress)) != YKPIV_OK) {
       fprintf(stderr, "Failed commands with device: %s\n", ykpiv_strerror(res));
     } else {
@@ -1514,9 +1547,7 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
   int object = (int)ykpiv_util_slot_object(get_slot_hex(slot));
   int slot_name;
   unsigned char data[YKPIV_OBJ_MAX_SIZE] = {0};
-  const unsigned char *ptr = data;
   unsigned long len = sizeof(data);
-  unsigned long offs, cert_len;
   X509 *x509 = NULL;
   X509_NAME *subj;
   BIO *bio = NULL;
@@ -1529,97 +1560,94 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
 
   fprintf(output, "Slot %x:\t", slot_name);
 
-  if(*ptr++ == TAG_CERT) {
-    unsigned int md_len = sizeof(data);
-    const ASN1_TIME *not_before, *not_after;
+  unsigned char certdata[YKPIV_OBJ_MAX_SIZE * 10] = {0};
+  unsigned long certdata_len = sizeof(certdata);
+  if(ykpiv_util_get_certdata(data, len, certdata, &certdata_len) != YKPIV_OK) {
+    fprintf(output, "Failed to get certificate data\n");
+    return;
+  }
 
-    offs = get_length(ptr, data + len, &cert_len);
-    if(!offs) {
-      fprintf(output, "Invalid cert length.\n");
-      goto cert_out;
-    }
-    ptr += offs;
-    x509 = d2i_X509(NULL, &ptr, cert_len);
-    if(!x509) {
-      fprintf(output, "Invalid cert data.\n");
-      goto cert_out;
-    }
-    {
-      EVP_PKEY *key = X509_get_pubkey(x509);
-      if(!key) {
-        fprintf(output, "Parse error.\n");
-        goto cert_out;
-      }
-      fprintf(output, "\n\tAlgorithm:\t");
-      switch(get_algorithm(key)) {
-        case YKPIV_ALGO_RSA1024:
-          fprintf(output, "RSA1024\n");
-          break;
-        case YKPIV_ALGO_RSA2048:
-          fprintf(output, "RSA2048\n");
-          break;
-        case YKPIV_ALGO_ECCP256:
-          fprintf(output, "ECCP256\n");
-          break;
-        case YKPIV_ALGO_ECCP384:
-          fprintf(output, "ECCP384\n");
-          break;
-        default:
-          fprintf(output, "Unknown\n");
-      }
-      EVP_PKEY_free(key);
-    }
-    subj = X509_get_subject_name(x509);
-    if(!subj) {
-      fprintf(output, "Parse error.\n");
-      goto cert_out;
-    }
-    fprintf(output, "\tSubject DN:\t");
-    if(X509_NAME_print_ex_fp(output, subj, 0, XN_FLAG_COMPAT) != 1) {
-      fprintf(output, "Failed to write Subject DN.\n");
-      goto cert_out;
-    }
-    fprintf(output, "\n");
-    subj = X509_get_issuer_name(x509);
-    if(!subj) {
-      fprintf(output, "Parse error.\n");
-      goto cert_out;
-    }
-    fprintf(output, "\tIssuer DN:\t");
-    if(X509_NAME_print_ex_fp(output, subj, 0, XN_FLAG_COMPAT) != 1) {
-      fprintf(output, "Failed to write Issuer DN.\n");
-      goto cert_out;
-    }
-    fprintf(output, "\n");
-    if(X509_digest(x509, md, data, &md_len) != 1) {
-      fprintf(output, "Failed to digest data.\n");
-      goto cert_out;
-    }
-    fprintf(output, "\tFingerprint:\t");
-    dump_data(data, md_len, output, false, format_arg_hex);
-
-    bio = BIO_new_fp(output, BIO_NOCLOSE | BIO_FP_TEXT);
-    not_before = X509_get_notBefore(x509);
-    if(not_before) {
-      fprintf(output, "\tNot Before:\t");
-      if(ASN1_TIME_print(bio, not_before) != 1) {
-        fprintf(output, "Failed to write Not Before time.\n");
-        goto cert_out;
-      }
-      fprintf(output, "\n");
-    }
-    not_after = X509_get_notAfter(x509);
-    if(not_after) {
-      fprintf(output, "\tNot After:\t");
-      if(ASN1_TIME_print(bio, not_after) != 1) {
-        fprintf(output, "Failed to write Not After time.\n");
-        goto cert_out;
-      }
-      fprintf(output, "\n");
-    }
-  } else {
+  const unsigned char *certdata_ptr = certdata;
+  x509 = d2i_X509(NULL, &certdata_ptr, certdata_len);
+  if (x509 == NULL) {
     fprintf(output, "Parse error.\n");
     return;
+  }
+
+  unsigned int md_len = sizeof(data);
+  const ASN1_TIME *not_before, *not_after;
+
+  EVP_PKEY *key = X509_get_pubkey(x509);
+  if(!key) {
+    fprintf(output, "Parse error.\n");
+    goto cert_out;
+  }
+  fprintf(output, "\n\tAlgorithm:\t");
+  switch(get_algorithm(key)) {
+    case YKPIV_ALGO_RSA1024:
+      fprintf(output, "RSA1024\n");
+      break;
+    case YKPIV_ALGO_RSA2048:
+      fprintf(output, "RSA2048\n");
+      break;
+    case YKPIV_ALGO_ECCP256:
+      fprintf(output, "ECCP256\n");
+      break;
+    case YKPIV_ALGO_ECCP384:
+      fprintf(output, "ECCP384\n");
+      break;
+    default:
+      fprintf(output, "Unknown\n");
+  }
+  EVP_PKEY_free(key);
+
+  subj = X509_get_subject_name(x509);
+  if(!subj) {
+    fprintf(output, "Parse error.\n");
+    goto cert_out;
+  }
+  fprintf(output, "\tSubject DN:\t");
+  if(X509_NAME_print_ex_fp(output, subj, 0, XN_FLAG_COMPAT) != 1) {
+    fprintf(output, "Failed to write Subject DN.\n");
+    goto cert_out;
+  }
+  fprintf(output, "\n");
+  subj = X509_get_issuer_name(x509);
+  if(!subj) {
+    fprintf(output, "Parse error.\n");
+    goto cert_out;
+  }
+  fprintf(output, "\tIssuer DN:\t");
+  if(X509_NAME_print_ex_fp(output, subj, 0, XN_FLAG_COMPAT) != 1) {
+    fprintf(output, "Failed to write Issuer DN.\n");
+    goto cert_out;
+  }
+  fprintf(output, "\n");
+  if(X509_digest(x509, md, data, &md_len) != 1) {
+    fprintf(output, "Failed to digest data.\n");
+    goto cert_out;
+  }
+  fprintf(output, "\tFingerprint:\t");
+  dump_data(data, md_len, output, false, format_arg_hex);
+
+  bio = BIO_new_fp(output, BIO_NOCLOSE | BIO_FP_TEXT);
+  not_before = X509_get_notBefore(x509);
+  if(not_before) {
+    fprintf(output, "\tNot Before:\t");
+    if(ASN1_TIME_print(bio, not_before) != 1) {
+      fprintf(output, "Failed to write Not Before time.\n");
+      goto cert_out;
+    }
+    fprintf(output, "\n");
+  }
+  not_after = X509_get_notAfter(x509);
+  if(not_after) {
+    fprintf(output, "\tNot After:\t");
+    if(ASN1_TIME_print(bio, not_after) != 1) {
+      fprintf(output, "Failed to write Not After time.\n");
+      goto cert_out;
+    }
+    fprintf(output, "\n");
   }
 cert_out:
   if(x509) {
@@ -2416,7 +2444,7 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_importMINUS_certificate:
-        if(import_cert(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_arg, password) == false) {
+        if(import_cert(state, args_info.key_format_arg, args_info.compress_flag, args_info.input_arg, args_info.slot_arg, password) == false) {
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully imported a new certificate.\n");
