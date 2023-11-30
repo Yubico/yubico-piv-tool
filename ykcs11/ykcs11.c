@@ -1715,6 +1715,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
     goto destroy_out;
   }
 
+  // Mark removed objects as invalid in the session find_obj if it's active
+  if (session->find_obj.active) {
+    for (CK_ULONG i = 0; i < session->find_obj.n_objects; i++) {
+      if (get_sub_id(session->find_obj.objects[i]) == id) {
+        session->find_obj.objects[i] = PIV_INVALID_OBJ;
+      }
+    }
+  }
+
   locking.pfnUnlockMutex(session->slot->mutex);
   rv = CKR_OK;
 
@@ -1962,6 +1971,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_FindObjects)(
 
   // Return the next object, if any
   while(session->find_obj.idx < session->find_obj.n_objects && *pulObjectCount < ulMaxObjectCount) {
+    if (session->find_obj.objects[session->find_obj.idx] == PIV_INVALID_OBJ) {
+      DBG("Skipping invalid object");
+      session->find_obj.idx++;
+      continue;
+    }
+
     *phObject++ = (CK_OBJECT_HANDLE)session->find_obj.objects[session->find_obj.idx++];
     (*pulObjectCount)++;
   }
