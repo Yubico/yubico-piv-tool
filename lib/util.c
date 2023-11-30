@@ -1430,13 +1430,13 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
    }
 
 invalid_tlv:
-   if(certptr == 0 || cert_len == 0 || ptr != buf + buf_len) {
+   if(certptr == 0 || cert_len == 0 || ptr != buf + buf_len || compress_info > YKPIV_CERTINFO_GZIP) {
      DBG("Invalid TLV encoding, treating as a raw certificate");
      certptr = buf;
      cert_len = buf_len;
    }
 
-   if (compress_info == YKPIV_CERTINFO_GZIP) { // This byte is set to 1 if certinfo is YKPIV_CERTINFO_GZIP
+   if (compress_info == YKPIV_CERTINFO_GZIP) {
 #ifdef USE_CERT_COMPRESS
      z_stream zs;
      zs.zalloc = Z_NULL;
@@ -1513,13 +1513,6 @@ void ykpiv_util_write_certdata(uint8_t *rawdata, size_t rawdata_len, uint8_t com
    unsigned long data_len = sizeof (data);
 
   if (YKPIV_OK == (res = _ykpiv_fetch_object(state, object_id, data, &data_len))) {
-
-    // check that object contents are at least large enough to read the tag
-    if (data_len < CB_OBJ_TAG_MIN) {
-      *buf_len = 0;
-      return YKPIV_OK;
-    }
-
     if ((res = ykpiv_util_get_certdata(data, data_len, buf, buf_len)) != YKPIV_OK) {
       DBG("Failed to get certificate data");
       return res;
