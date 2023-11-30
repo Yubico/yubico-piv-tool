@@ -1,3 +1,11 @@
+yubico-piv-tool (2.4.0) stable; urgency=medium
+
+  * ykpiv: cmd: Add support for compressing certificate upon import
+  * ykcs11: Increase maximum number of slots to handle overflow
+  * ykcs11: Add support for CKA_COPYABLE and CKA_DESTROYABLE attributes
+
+ -- Aveen Ismail <aveen.ismail@yubico.com>  Thu, 30 Nov 2023 20:00:23 +0100
+
 yubico-piv-tool (2.3.1) stable; urgency=medium
 
   * ykpiv: Add support for T=0 smartcards

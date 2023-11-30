@@ -1,5 +1,11 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
+* Version 2.4.0 (released 2023-11-30)
+
+** ykpiv: cmd: Add support for compressing certificate upon import
+** ykcs11: Increase maximum number of slots to handle overflow
+** ykcs11: Add support for CKA_COPYABLE and CKA_DESTROYABLE attributes
+
 * Version 2.3.1 (released 2023-02-07)
 
 ** ykpiv: Add support for T=0 smartcards
