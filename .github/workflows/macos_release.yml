@@ -75,11 +75,13 @@ jobs:
           mv resources/macos/yubico-piv-tool-$RELEASE_VERSION-mac-$ARCH.zip $GITHUB_WORKSPACE/artifact/
 
       - name: Create installer
+        env:
+          ARCH: ${{ matrix.arch }}
         run: |
           set -x
 
           cd yubico-piv-tool-$RELEASE_VERSION
-          ./resources/macos/make_installer.sh $RELEASE_VERSION $GITHUB_WORKSPACE/artifact/yubico-piv-tool-$RELEASE_VERSION-mac.zip
+          ./resources/macos/make_installer.sh $RELEASE_VERSION $GITHUB_WORKSPACE/artifact/yubico-piv-tool-$RELEASE_VERSION-mac-$ARCH.zip
 
       - name: Install yubico-piv-tool from installer
         run: |
