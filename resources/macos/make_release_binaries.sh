@@ -36,12 +36,8 @@ else
   exit
 fi
 
-
 PACKAGE=yubico-piv-tool
-OPENSSLVERSION=1.1.1f
 CFLAGS="-mmacosx-version-min=10.6"
-
-echo "OpenSSL version: $OPENSSLVERSION"
 
 SOURCE_DIR=$PWD
 MAC_DIR=$SOURCE_DIR/resources/macos
@@ -63,7 +59,22 @@ CFLAGS=$CFLAGS PKG_CONFIG_PATH=$BREW_LIB/openssl/lib/pkgconfig cmake $SOURCE_DIR
 make
 env DESTDIR="$INSTALL_DIR" make install;
 
+echo "-------------- ls -l lib"
+ls -l lib
+echo "-------------- otool -L lib/libykpiv.dylib"
+otool -L lib/libykpiv.dylib
+
+echo "-------------- ls $BREW_LIB"
+ls $BREW_LIB
+echo "-------------- ls $BREW_LIB/zlib"
+ls $BREW_LIB/zlib
+echo "-------------- ls $BREW_LIB/zlib/lib"
+ls $BREW_LIB/zlib/lib
+echo "--------------"
+
+
 cp "$BREW_LIB/openssl/lib/libcrypto.3.dylib" "$FINAL_INSTALL_DIR/lib"
+cp "$BREW_LIB/zlib/lib/zlib.dylib" "$FINAL_INSTALL_DIR/lib"
 chmod +w "$FINAL_INSTALL_DIR/lib/libcrypto.3.dylib"
 cp -r $BREW_LIB/openssl/include/openssl "$FINAL_INSTALL_DIR/include"
 
