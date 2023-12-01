@@ -80,7 +80,7 @@ cp -r $BREW_LIB/openssl/include/openssl "$FINAL_INSTALL_DIR/include"
 
 cp "$BREW_LIB/zlib/lib/libz.1.dylib" "$FINAL_INSTALL_DIR/lib"
 chmod +w "$FINAL_INSTALL_DIR/lib/libz.1.dylib"
-cp -r $BREW_LIB/zlib/include/zlib "$FINAL_INSTALL_DIR/include"
+cp -r $BREW_LIB/zlib/include/zlib.h "$FINAL_INSTALL_DIR/include"
 
 # Fix paths
 install_name_tool -id "@loader_path/../lib/libcrypto.3.dylib" "$FINAL_INSTALL_DIR/lib/libcrypto.3.dylib"
