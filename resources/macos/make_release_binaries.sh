@@ -59,33 +59,42 @@ CFLAGS=$CFLAGS PKG_CONFIG_PATH=$BREW_LIB/openssl/lib/pkgconfig cmake $SOURCE_DIR
 make
 env DESTDIR="$INSTALL_DIR" make install;
 
-echo "-------------- ls -l lib"
+echo "-------------- ls -l $INSTALL_DIR/lib"
 ls -l lib
-echo "-------------- otool -L lib/libykpiv.dylib"
+echo "-------------- otool -L $INSTALL_DIR/lib/libykpiv.dylib"
 otool -L lib/libykpiv.dylib
 
-echo "-------------- ls $BREW_LIB"
-ls $BREW_LIB
 echo "-------------- ls $BREW_LIB/zlib"
 ls $BREW_LIB/zlib
 echo "-------------- ls $BREW_LIB/zlib/lib"
 ls $BREW_LIB/zlib/lib
+echo "-------------- ls $BREW_LIB/zlib/include"
+ls $BREW_LIB/zlib/include
 echo "--------------"
 
 
+
 cp "$BREW_LIB/openssl/lib/libcrypto.3.dylib" "$FINAL_INSTALL_DIR/lib"
-cp "$BREW_LIB/zlib/lib/zlib.dylib" "$FINAL_INSTALL_DIR/lib"
 chmod +w "$FINAL_INSTALL_DIR/lib/libcrypto.3.dylib"
 cp -r $BREW_LIB/openssl/include/openssl "$FINAL_INSTALL_DIR/include"
 
+cp "$BREW_LIB/zlib/lib/libz.1.dylib" "$FINAL_INSTALL_DIR/lib"
+chmod +w "$FINAL_INSTALL_DIR/lib/libz.1.dylib"
+cp -r $BREW_LIB/zlib/include/zlib "$FINAL_INSTALL_DIR/include"
+
 # Fix paths
 install_name_tool -id "@loader_path/../lib/libcrypto.3.dylib" "$FINAL_INSTALL_DIR/lib/libcrypto.3.dylib"
+install_name_tool -id "@loader_path/../lib/libz.1.dylib" "$FINAL_INSTALL_DIR/lib/libz.1.dylib"
 
 install_name_tool -change $BREW_LIB/openssl@3/lib/libcrypto.3.dylib @loader_path/../lib/libcrypto.3.dylib $FINAL_INSTALL_DIR/lib/libykpiv.$VERSION.dylib
 install_name_tool -change $BREW_LIB/openssl@3/lib/libcrypto.3.dylib @loader_path/../lib/libcrypto.3.dylib $FINAL_INSTALL_DIR/lib/libykcs11.$VERSION.dylib
 install_name_tool -change $BREW_LIB/openssl@3/lib/libcrypto.3.dylib @loader_path/../lib/libcrypto.3.dylib $FINAL_INSTALL_DIR/bin/yubico-piv-tool
 
-install_name_tool -rpath "$FINAL_INSTALL_DIR/lib" "@loader_path/../lib" "$FINAL_INSTALL_DIR/bin/yubihsm-shell"
+install_name_tool -change $BREW_LIB/zlib/lib/libz.1.dylib @loader_path/../lib/libz.1.dylib $FINAL_INSTALL_DIR/lib/libykpiv.$VERSION.dylib
+install_name_tool -change $BREW_LIB/zlib/lib/libz.1.dylib @loader_path/../lib/libz.1.dylib $FINAL_INSTALL_DIR/lib/libykcs11.$VERSION.dylib
+install_name_tool -change $BREW_LIB/zlib/lib/libz.1.dylib @loader_path/../lib/libz.1.dylib $FINAL_INSTALL_DIR/bin/yubico-piv-tool
+
+install_name_tool -rpath "$FINAL_INSTALL_DIR/lib" "@loader_path/../lib" "$FINAL_INSTALL_DIR/bin/yubico-piv-tool"
 
 if otool -L $FINAL_INSTALL_DIR/lib/*.dylib $FINAL_INSTALL_DIR/bin/* | grep '$FINAL_INSTALL_DIR' | grep -q compatibility; then
 	echo "something is incorrectly linked!";
@@ -95,6 +104,7 @@ fi
 # Copy yubico-piv-tool license and move the whole lisenses directory under FINALINSTALL_DIR.
 cd $SOURCE_DIR
 cp COPYING $LICENSE_DIR/$PACKAGE.txt
+cp $BREW_LIB/zlib/LICENSE $LICENSE_DIR/zlib.txt
 mv $LICENSE_DIR $FINAL_INSTALL_DIR/
 
 cd $INSTALL_DIR
