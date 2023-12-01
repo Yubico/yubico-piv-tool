@@ -50,7 +50,7 @@ else
     cp $VCPKG_PATH/packages/openssl_x64-windows/bin/libcrypto-3-x64.dll .
     cp $VCPKG_PATH/packages/getopt-win32_x64-windows/bin/getopt.dll .
 }
-cp $VCPKG_PATH/packages/zlib_$ARCH-windows/bin/zlib.dll .
+cp $VCPKG_PATH/packages/zlib_$ARCH-windows/bin/zlib1.dll .
 
 # Create missing directories
 mkdir -p $LICENSES_DIR
