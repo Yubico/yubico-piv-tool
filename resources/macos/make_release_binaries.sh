@@ -94,6 +94,8 @@ install_name_tool -change $BREW_LIB/zlib/lib/libz.1.dylib @loader_path/../lib/li
 install_name_tool -change $BREW_LIB/zlib/lib/libz.1.dylib @loader_path/../lib/libz.1.dylib $FINAL_INSTALL_DIR/lib/libykcs11.$VERSION.dylib
 install_name_tool -change $BREW_LIB/zlib/lib/libz.1.dylib @loader_path/../lib/libz.1.dylib $FINAL_INSTALL_DIR/bin/yubico-piv-tool
 
+install_name_tool -rpath "$FINAL_INSTALL_DIR/lib" "@loader_path/../lib" "$FINAL_INSTALL_DIR/lib/libykpiv.$VERSION.dylib"
+install_name_tool -rpath "$FINAL_INSTALL_DIR/lib" "@loader_path/../lib" "$FINAL_INSTALL_DIR/lib/libykcs11.$VERSION.dylib"
 install_name_tool -rpath "$FINAL_INSTALL_DIR/lib" "@loader_path/../lib" "$FINAL_INSTALL_DIR/bin/yubico-piv-tool"
 
 if otool -L $FINAL_INSTALL_DIR/lib/*.dylib $FINAL_INSTALL_DIR/bin/* | grep '$FINAL_INSTALL_DIR' | grep -q compatibility; then
