@@ -1,0 +1,35 @@
+name: Ubuntu with LibreSSL and OpenSSL
+on: [push]
+
+jobs:
+
+
+
+  job_4:
+    name: Build on 32b arch
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+      - name: Install prerequisites
+        run: |
+          set -x
+          sudo apt install libpcsclite-dev check gengetopt help2man zlib1g-dev
+
+      - name: Install OpenSSL 3.0 from source
+        run: |
+          set -x
+          cd ..
+          wget -nv https://www.openssl.org/source/openssl-3.0.7.tar.gz
+          tar -xzf openssl-3.0.7.tar.gz
+          cd openssl-3.0.7
+          ./Configure linux-x86_64 shared --prefix=/home/runner/work/yubico-piv-tool/openssl
+          sudo make all install VERSION="3.0.7"
+
+      - name: Build and install
+        run: |
+          set -x
+          mkdir build; cd build
+          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_PKG_PATH=/home/runner/work/yubico-piv-tool/openssl/lib64/pkgconfig -DCMAKE_C_FLAGS=-m32 -DCMAKE_CXX_FLAGS=-m32
+          make
+          make test
