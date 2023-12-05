@@ -1386,7 +1386,7 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
   return (uint32_t)object_id;
 }
 
- ykpiv_rc ykpiv_util_get_certdata(uint8_t *buf, size_t buf_len, uint8_t* certdata, unsigned long *certdata_len) {
+ ykpiv_rc ykpiv_util_get_certdata(uint8_t *buf, size_t buf_len, uint8_t* certdata, size_t *certdata_len) {
    uint8_t compress_info = YKPIV_CERTINFO_UNCOMPRESSED;
    uint8_t *certptr = 0;
    size_t cert_len = 0;
@@ -1486,7 +1486,7 @@ invalid_tlv:
    return YKPIV_OK;
 }
 
-void ykpiv_util_write_certdata(uint8_t *rawdata, size_t rawdata_len, uint8_t compress_info, uint8_t* certdata, unsigned long *certdata_len) {
+void ykpiv_util_write_certdata(uint8_t *rawdata, size_t rawdata_len, uint8_t compress_info, uint8_t* certdata, size_t *certdata_len) {
   size_t offset = 0;
 
   unsigned long len_bytes = get_length_size(rawdata_len);
@@ -1513,7 +1513,7 @@ void ykpiv_util_write_certdata(uint8_t *rawdata, size_t rawdata_len, uint8_t com
    unsigned long data_len = sizeof (data);
 
   if (YKPIV_OK == (res = _ykpiv_fetch_object(state, object_id, data, &data_len))) {
-    if ((res = ykpiv_util_get_certdata(data, data_len, buf, (unsigned long *) buf_len)) != YKPIV_OK) {
+    if ((res = ykpiv_util_get_certdata(data, data_len, buf, buf_len)) != YKPIV_OK) {
       DBG("Failed to get certificate data");
       return res;
     }
@@ -1554,7 +1554,7 @@ static ykpiv_rc _write_certificate(ykpiv_state *state, uint8_t slot, uint8_t *da
   if (req_len < data_len) return YKPIV_SIZE_ERROR; /* detect overflow of unsigned size_t */
   if (req_len > _obj_size_max(state)) return YKPIV_SIZE_ERROR; /* obj_size_max includes limits for TLV encoding */
 
-  ykpiv_util_write_certdata(data, data_len, certinfo, buf, (unsigned long *) &offset);
+  ykpiv_util_write_certdata(data, data_len, certinfo, buf, &offset);
 
   // write onto device
   return _ykpiv_save_object(state, object_id, buf, offset);

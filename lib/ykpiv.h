@@ -351,7 +351,7 @@ extern "C"
    *
    * @return Error code
    */
-  ykpiv_rc ykpiv_util_get_certdata(uint8_t *buf, size_t buf_len, uint8_t* certdata, unsigned long *certdata_len);
+  ykpiv_rc ykpiv_util_get_certdata(uint8_t *buf, size_t buf_len, uint8_t* certdata, size_t *certdata_len);
 
   /**
    * Construct cert data to store
@@ -362,7 +362,7 @@ extern "C"
    * @param certdata Constructed certificate data
    * @param certdata_len Length of constructed certificate data
    */
-  void ykpiv_util_write_certdata(uint8_t *data, size_t data_len, uint8_t compress_info, uint8_t* certdata, unsigned long *certdata_len);
+  void ykpiv_util_write_certdata(uint8_t *data, size_t data_len, uint8_t compress_info, uint8_t* certdata, size_t *certdata_len);
 
   /**
    * Write a certificate to a given slot
