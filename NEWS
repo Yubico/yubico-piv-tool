@@ -1,5 +1,9 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
+* Version 2.4.0 (released 2023-12-05)
+
+** ykpiv: ykcs11: Fix minor bug effecting certain architectures on Linux platforms
+
 * Version 2.4.0 (released 2023-11-30)
 
 ** ykpiv: cmd: Add support for compressing certificate upon import
