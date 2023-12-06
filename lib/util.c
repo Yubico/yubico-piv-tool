@@ -86,7 +86,7 @@ static ykpiv_rc _write_metadata(ykpiv_state *state, uint8_t tag, uint8_t *data, 
 static ykpiv_rc _get_metadata_item(uint8_t *data, size_t cb_data, uint8_t tag, uint8_t **pp_item, size_t *pcb_item);
 static ykpiv_rc _set_metadata_item(uint8_t *data, size_t *pcb_data, size_t cb_data_max, uint8_t tag, uint8_t *p_item, size_t cb_item);
 
-static size_t _obj_size_max(ykpiv_state *state) {
+size_t obj_size_max(ykpiv_state *state) {
   return (state && state->model == DEVTYPE_NEOr3) ? CB_OBJ_MAX_NEO : CB_OBJ_MAX;
 }
 
@@ -558,7 +558,7 @@ ykpiv_rc ykpiv_util_write_mscmap(ykpiv_state *state, ykpiv_container *containers
   // calculate the required length of the encoded object
   req_len = 1 /* data tag */ + (unsigned long)_ykpiv_set_length(buf, data_len) + data_len;
 
-  if (req_len > _obj_size_max(state)) {
+  if (req_len > obj_size_max(state)) {
     res = YKPIV_SIZE_ERROR;
     goto Cleanup;
   }
@@ -600,7 +600,7 @@ ykpiv_rc ykpiv_util_read_msroots(ykpiv_state *state, uint8_t **data, size_t *dat
   *data_len = 0;
 
   // allocate first page
-  cbData = _obj_size_max(state);
+  cbData = obj_size_max(state);
   if (NULL == (pData = _ykpiv_alloc(state, cbData))) { res = YKPIV_MEMORY_ERROR; goto Cleanup; }
 
   for (object_id = YKPIV_OBJ_MSROOTS1; object_id <= YKPIV_OBJ_MSROOTS5; object_id++) {
@@ -678,7 +678,7 @@ ykpiv_rc ykpiv_util_write_msroots(ykpiv_state *state, uint8_t *data, size_t data
   size_t data_chunk = 0;
   size_t n_objs = 0;
   unsigned int i = 0;
-  size_t cb_obj_max = _obj_size_max(state);
+  size_t cb_obj_max = obj_size_max(state);
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
@@ -1486,10 +1486,22 @@ invalid_tlv:
    return YKPIV_OK;
 }
 
-void ykpiv_util_write_certdata(uint8_t *rawdata, size_t rawdata_len, uint8_t compress_info, uint8_t* certdata, size_t *certdata_len) {
+ ykpiv_rc ykpiv_util_write_certdata(uint8_t *rawdata, size_t rawdata_len, uint8_t compress_info, uint8_t* certdata, size_t *certdata_len, size_t max_object_size) {
   size_t offset = 0;
+  size_t buf_len = 0;
 
   unsigned long len_bytes = get_length_size(rawdata_len);
+
+   // calculate the required length of the encoded object
+   buf_len = 1 /* cert tag */ + 3 /* compression tag + data*/ + 2 /* lrc */;
+   buf_len += get_length_size(rawdata_len);
+   buf_len += rawdata_len;
+
+   if (buf_len > *certdata_len || /* detect overflow of unsigned size_t */
+       buf_len > max_object_size) { /* obj_size_max includes limits for TLV encoding */
+     return YKPIV_SIZE_ERROR;
+   }
+
   memmove(certdata + len_bytes + 1, rawdata, rawdata_len);
 
   certdata[offset++] = TAG_CERT;
@@ -1501,6 +1513,7 @@ void ykpiv_util_write_certdata(uint8_t *rawdata, size_t rawdata_len, uint8_t com
   certdata[offset++] = TAG_CERT_LRC;
   certdata[offset++] = 0;
   *certdata_len = offset;
+  return YKPIV_OK;
 }
 
  static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf, size_t *buf_len) {
@@ -1526,9 +1539,9 @@ void ykpiv_util_write_certdata(uint8_t *rawdata, size_t rawdata_len, uint8_t com
 
 static ykpiv_rc _write_certificate(ykpiv_state *state, uint8_t slot, uint8_t *data, size_t data_len, uint8_t certinfo) {
   uint8_t buf[CB_OBJ_MAX] = {0};
+  size_t buf_len = sizeof buf;
   int object_id = (int)ykpiv_util_slot_object(slot);
-  size_t offset = 0;
-  size_t req_len = 0;
+
 
   if (-1 == object_id) return YKPIV_INVALID_OBJECT;
 
@@ -1545,19 +1558,13 @@ static ykpiv_rc _write_certificate(ykpiv_state *state, uint8_t slot, uint8_t *da
   }
 
   // encode certificate data for storage
-
-  // calculate the required length of the encoded object
-  req_len = 1 /* cert tag */ + 3 /* compression tag + data*/ + 2 /* lrc */;
-  req_len += _ykpiv_set_length(buf, data_len);
-  req_len += data_len;
-
-  if (req_len < data_len) return YKPIV_SIZE_ERROR; /* detect overflow of unsigned size_t */
-  if (req_len > _obj_size_max(state)) return YKPIV_SIZE_ERROR; /* obj_size_max includes limits for TLV encoding */
-
-  ykpiv_util_write_certdata(data, data_len, certinfo, buf, &offset);
+  ykpiv_rc res = YKPIV_OK;
+  if ( (res=ykpiv_util_write_certdata(data, data_len, certinfo, buf, &buf_len, obj_size_max(state))) != YKPIV_OK) {
+    return res;
+  }
 
   // write onto device
-  return _ykpiv_save_object(state, object_id, buf, offset);
+  return _ykpiv_save_object(state, object_id, buf, buf_len);
 }
 
 /*
@@ -1804,7 +1811,7 @@ static ykpiv_rc _write_metadata(ykpiv_state *state, uint8_t tag, uint8_t *data, 
   uint8_t *pTemp = buf;
   int obj_id = 0;
 
-  if (cb_data > (_obj_size_max(state) - CB_OBJ_TAG_MAX)) {
+  if (cb_data > (obj_size_max(state) - CB_OBJ_TAG_MAX)) {
     return YKPIV_GENERIC_ERROR;
   }
 
