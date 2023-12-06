@@ -362,14 +362,7 @@ extern "C"
    * @param certdata Constructed certificate data
    * @param certdata_len Length of constructed certificate data
    */
-  ykpiv_rc ykpiv_util_write_certdata(uint8_t *data, size_t data_len, uint8_t compress_info, uint8_t* certdata, size_t *certdata_len, size_t max_object_size);
-
-  /**
-   * Return the maximum object size depending on the YubiKey type
-   * @param state State handle
-   * @return Maximum object size
-   */
-  size_t obj_size_max(ykpiv_state *state);
+  ykpiv_rc ykpiv_util_write_certdata(uint8_t *data, size_t data_len, uint8_t compress_info, uint8_t* certdata, size_t *certdata_len);
 
   /**
    * Write a certificate to a given slot
