@@ -1494,10 +1494,11 @@ invalid_tlv:
 
    // calculate the required length of the encoded object
    buf_len = 1 /* cert tag */ + 3 /* compression tag + data*/ + 2 /* lrc */;
-   buf_len += get_length_size(rawdata_len);
-   buf_len += rawdata_len;
+   buf_len += len_bytes + rawdata_len;
 
    if (buf_len > *certdata_len) {
+     DBG("Buffer too small");
+     *certdata_len = 0;
      return YKPIV_SIZE_ERROR;
    }
 
