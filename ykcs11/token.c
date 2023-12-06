@@ -463,7 +463,9 @@ CK_RV token_generate_key(ykpiv_state *state, gen_info_t *gen, CK_BYTE key, CK_BY
   if(rv != CKR_OK)
     return rv;
 
-  ykpiv_util_write_certdata(data, recv_len, YKPIV_CERTINFO_UNCOMPRESSED, certdata, &certdata_len);
+  if ((res = ykpiv_util_write_certdata(data, recv_len, YKPIV_CERTINFO_UNCOMPRESSED, certdata, &certdata_len)) != YKPIV_OK) {
+    return yrc_to_rv(res);
+  }
 
   if(*cert_len < (CK_ULONG)certdata_len) {
     DBG("Certificate buffer too small.");
@@ -494,7 +496,9 @@ CK_RV token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_BYTE_PTR in, CK
     return rv;
   }
 
-  ykpiv_util_write_certdata(in, cert_len, YKPIV_CERTINFO_UNCOMPRESSED, certdata, &certdata_len);
+  if ((res = ykpiv_util_write_certdata(in, cert_len, YKPIV_CERTINFO_UNCOMPRESSED, certdata, &certdata_len)) != YKPIV_OK) {
+    return yrc_to_rv(res);
+  }
 
   // Store the certificate into the token
   if ((res = ykpiv_save_object(state, cert_id, certdata, certdata_len)) != YKPIV_OK)
