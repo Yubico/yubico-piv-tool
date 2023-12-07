@@ -60,7 +60,7 @@ jobs:
       - name: Install prerequisites
         run: |
           set -x
-          brew install pkg-config check gengetopt help2man openssl
+          brew install pkg-config check gengetopt help2man openssl zlib
 
       - name: Build MacOS binaries
         env:
