@@ -108,7 +108,7 @@ rsa_enc_cleanup:
 CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, ykcs11_x509_t **cert) {
 
   unsigned char certdata[YKPIV_OBJ_MAX_SIZE * 10] = {0};
-  unsigned long certdata_len = sizeof (certdata);
+  size_t certdata_len = sizeof (certdata);
 
   if(ykpiv_util_get_certdata(data, len, certdata, &certdata_len) != YKPIV_OK) {
     DBG("Failed to get certificate data");
