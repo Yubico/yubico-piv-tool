@@ -1,5 +1,9 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
+* Version 2.4.2 (released 2023-12-07)
+
+** ykpiv: Fix potential type casting bug.
+
 * Version 2.4.1 (released 2023-12-05)
 
 ** ykpiv: ykcs11: Fix building on certain architectures. Existing builds are not affected.

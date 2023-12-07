@@ -1,3 +1,9 @@
+yubico-piv-tool (2.4.2) stable; urgency=medium
+
+  * ykpiv: Fix potential type casting bug.
+
+ -- Aveen Ismail <aveen.ismail@yubico.com>  Thu, 7 Dec 2023 11:00:56 +0100
+
 yubico-piv-tool (2.4.1) stable; urgency=medium
 
   * ykpiv: ykcs11: Fix building on certain architectures. Existing builds are not affected.
