@@ -59,21 +59,6 @@ CFLAGS=$CFLAGS PKG_CONFIG_PATH=$BREW_LIB/openssl/lib/pkgconfig cmake $SOURCE_DIR
 make
 env DESTDIR="$INSTALL_DIR" make install;
 
-echo "-------------- ls -l $INSTALL_DIR/lib"
-ls -l lib
-echo "-------------- otool -L $INSTALL_DIR/lib/libykpiv.dylib"
-otool -L lib/libykpiv.dylib
-
-echo "-------------- ls $BREW_LIB/zlib"
-ls $BREW_LIB/zlib
-echo "-------------- ls $BREW_LIB/zlib/lib"
-ls $BREW_LIB/zlib/lib
-echo "-------------- ls $BREW_LIB/zlib/include"
-ls $BREW_LIB/zlib/include
-echo "--------------"
-
-
-
 cp "$BREW_LIB/openssl/lib/libcrypto.3.dylib" "$FINAL_INSTALL_DIR/lib"
 chmod +w "$FINAL_INSTALL_DIR/lib/libcrypto.3.dylib"
 cp -r $BREW_LIB/openssl/include/openssl "$FINAL_INSTALL_DIR/include"
