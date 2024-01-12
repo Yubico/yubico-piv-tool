@@ -767,6 +767,12 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
 
   if (!state) return YKPIV_ARGUMENT_ERROR;
 
+  if ((algorithm == YKPIV_ALGO_RSA3072 || algorithm == YKPIV_ALGO_RSA4096) &&
+      (state->ver.major < 5 || (ykpiv_util_devicemodel(state) == DEVTYPE_YK5 && state->ver.minor < 7))) {
+    DBG("RSA3072 and RSA4096 keys are only supported in YubiKey version 5.7.0 and above");
+    return YKPIV_NOT_SUPPORTED;
+
+  }
   if (ykpiv_util_devicemodel(state) == DEVTYPE_YK4 && (algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048)) {
     if ((state->ver.major == 4) && (state->ver.minor < 3 || ((state->ver.minor == 3) && (state->ver.patch < 5)))) {
       const char *psz_msg = NULL;
@@ -799,6 +805,8 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
   switch (algorithm) {
   case YKPIV_ALGO_RSA1024:
   case YKPIV_ALGO_RSA2048:
+  case YKPIV_ALGO_RSA3072:
+  case YKPIV_ALGO_RSA4096:
     if (!modulus || !modulus_len || !exp || !exp_len) {
       DBG("Invalid output parameter for RSA algorithm");
       return YKPIV_ARGUMENT_ERROR;
@@ -864,7 +872,8 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     goto Cleanup;
   }
 
-  if ((YKPIV_ALGO_RSA1024 == algorithm) || (YKPIV_ALGO_RSA2048 == algorithm)) {
+  if ((YKPIV_ALGO_RSA1024 == algorithm) || (YKPIV_ALGO_RSA2048 == algorithm) ||
+      (YKPIV_ALGO_RSA3072 == algorithm) || (YKPIV_ALGO_RSA4096 == algorithm)) {
     size_t len;
     unsigned char *data_ptr = data + 2 + _ykpiv_get_length(data + 2, data + recv_len, &len);
 

@@ -625,6 +625,8 @@ extern "C"
 #define YKPIV_ALGO_AES256 0x0c
 #define YKPIV_ALGO_RSA1024 0x06
 #define YKPIV_ALGO_RSA2048 0x07
+#define YKPIV_ALGO_RSA3072 0x05
+#define YKPIV_ALGO_RSA4096 0x16
 #define YKPIV_ALGO_ECCP256 0x11
 #define YKPIV_ALGO_ECCP384 0x14
 
@@ -761,7 +763,7 @@ extern "C"
 #define YKPIV_METADATA_PUBKEY_TAG 0x04 // RSA: DER-encoded sequence N, E; EC: Uncompressed EC point X, Y
 
 #define YKPIV_IS_EC(a) ((a == YKPIV_ALGO_ECCP256 || a == YKPIV_ALGO_ECCP384))
-#define YKPIV_IS_RSA(a) ((a == YKPIV_ALGO_RSA1024 || a == YKPIV_ALGO_RSA2048))
+#define YKPIV_IS_RSA(a) ((a == YKPIV_ALGO_RSA1024 || a == YKPIV_ALGO_RSA2048 || a == YKPIV_ALGO_RSA3072 || a == YKPIV_ALGO_RSA4096))
 
 #define YKPIV_MIN_PIN_LEN 6
 #define YKPIV_MAX_PIN_LEN 8

@@ -624,6 +624,12 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
         case 2048:
           gen->algorithm = YKPIV_ALGO_RSA2048; 
           break;
+        case 3072:
+          gen->algorithm = YKPIV_ALGO_RSA3072;
+          break;
+        case 4096:
+          gen->algorithm = YKPIV_ALGO_RSA4096;
+          break;
         default:
           DBG("Unsupported MODULUS_BITS (key length)");
           return CKR_ATTRIBUTE_VALUE_INVALID;

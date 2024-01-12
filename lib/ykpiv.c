@@ -38,6 +38,7 @@
 
 #include <zlib.h>
 
+#include "../common/util.h"
 #include "internal.h"
 #include "ykpiv.h"
 
@@ -1210,8 +1211,16 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
       if(key_len == 0) {
 	      key_len = 256;
       }
+    case YKPIV_ALGO_RSA3072:
+      if(key_len == 0) {
+        key_len = 384;
+      }
+    case YKPIV_ALGO_RSA4096:
+      if(key_len == 0) {
+        key_len = 512;
+      }
       if(in_len != key_len) {
-	      return YKPIV_SIZE_ERROR;
+        return YKPIV_SIZE_ERROR;
       }
       break;
     case YKPIV_ALGO_ECCP256:
@@ -1898,16 +1907,29 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
       touch_policy != YKPIV_TOUCHPOLICY_CACHED)
     return YKPIV_GENERIC_ERROR;
 
-  if (algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048) {
+  if (is_rsa_key_algorithm(algorithm)) {
+
+    if ((algorithm == YKPIV_ALGO_RSA3072 || algorithm == YKPIV_ALGO_RSA4096) &&
+        (state->ver.major < 5 || (ykpiv_util_devicemodel(state) == DEVTYPE_YK5 && state->ver.minor < 7))) {
+      DBG("RSA3072 and RSA4096 keys are only supported in YubiKey version 5.7.0 and above");
+      return YKPIV_NOT_SUPPORTED;
+
+    }
 
     if (p_len + q_len + dp_len + dq_len + qinv_len >= sizeof(key_data)) {
       return YKPIV_SIZE_ERROR;
     }
 
-    if (algorithm == YKPIV_ALGO_RSA1024)
-      elem_len = 64;
-    if (algorithm == YKPIV_ALGO_RSA2048)
-      elem_len = 128;
+    switch (algorithm) {
+      case YKPIV_ALGO_RSA1024:
+        elem_len = 64;
+      case YKPIV_ALGO_RSA2048:
+        elem_len = 128;
+      case YKPIV_ALGO_RSA3072:
+        elem_len = 192;
+      case YKPIV_ALGO_RSA4096:
+      elem_len = 256;
+    }
 
     if (p == NULL || q == NULL || dp == NULL ||
         dq == NULL || qinv == NULL)

@@ -1603,6 +1603,12 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     case YKPIV_ALGO_RSA2048:
       fprintf(output, "RSA2048\n");
       break;
+    case YKPIV_ALGO_RSA3072:
+      fprintf(output, "RSA3072\n");
+      break;
+    case YKPIV_ALGO_RSA4096:
+      fprintf(output, "RSA4096\n");
+      break;
     case YKPIV_ALGO_ECCP256:
       fprintf(output, "ECCP256\n");
       break;
