@@ -381,6 +381,12 @@ static bool generate_key(ykpiv_state *state, enum enum_slot slot,
         }
       }
         break;
+      case algorithm_arg_ED25519:
+        public_key = EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, NULL, point, point_len);
+        break;
+      case algorithm_arg_X25519:
+        public_key = EVP_PKEY_new_raw_public_key(EVP_PKEY_X25519, NULL, point, point_len);
+        break;
       default:
         fprintf(stderr, "Wrong algorithm.\n");
     }
@@ -567,6 +573,24 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
 
       if(set_component(s_ptr, s, element_len) == false) {
         fprintf(stderr, "Failed setting ec private key.\n");
+        goto import_out;
+      }
+
+      rc = ykpiv_import_private_key(state, key, algorithm,
+                                    NULL, 0,
+                                    NULL, 0,
+                                    NULL, 0,
+                                    NULL, 0,
+                                    NULL, 0,
+                                    s_ptr, element_len,
+                                    pp, tp);
+    }
+    else if(YKPIV_IS_25519(algorithm)) {
+      unsigned char s_ptr[48] = {0};
+      size_t element_len = sizeof(s_ptr);
+
+      if (EVP_PKEY_get_raw_private_key(private_key, s_ptr, &element_len) != 1) {
+        fprintf(stderr, "Failed to extract private key.\n");
         goto import_out;
       }
 

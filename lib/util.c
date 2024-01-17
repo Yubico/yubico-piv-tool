@@ -816,8 +816,10 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     *exp_len = 0;
     break;
 
-  case  YKPIV_ALGO_ECCP256:
-  case  YKPIV_ALGO_ECCP384:
+  case YKPIV_ALGO_ECCP256:
+  case YKPIV_ALGO_ECCP384:
+  case YKPIV_ALGO_ED25519:
+  case YKPIV_ALGO_X25519:
     if (!point || !point_len) {
       DBG("Invalid output parameter for ECC algorithm");
       return YKPIV_ARGUMENT_ERROR;
@@ -934,15 +936,16 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     ptr_exp = NULL;
     *exp_len = cb_exp;
   }
-  else if (YKPIV_IS_EC(algorithm)) {
+  else if (YKPIV_IS_EC(algorithm) || YKPIV_IS_25519(algorithm)) {
     unsigned char *data_ptr = data + 3;
     size_t len;
 
     if (YKPIV_ALGO_ECCP256 == algorithm) {
       len = CB_ECC_POINTP256;
-    }
-    else {
+    } else if (YKPIV_ALGO_ECCP384 == algorithm) {
       len = CB_ECC_POINTP384;
+    } else {
+      len = CB_ECC_POINT25519;
     }
 
     if (*data_ptr++ != TAG_ECC_POINT) {

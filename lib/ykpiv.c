@@ -1968,6 +1968,20 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
     param_tag = 0x06;
     n_params = 1;
   }
+  else if (algorithm == YKPIV_ALGO_ED25519 || algorithm == YKPIV_ALGO_X25519) {
+    elem_len = 32;
+    if (ec_data == NULL)
+      return YKPIV_ARGUMENT_ERROR;
+
+    params[0] = ec_data;
+    lens[0] = ec_data_len;
+    if (algorithm == YKPIV_ALGO_ED25519) {
+      param_tag = 0x07;
+    } else {
+      param_tag = 0x08;
+    }
+    n_params = 1;
+  }
   else
     return YKPIV_ALGORITHM_ERROR;
 
