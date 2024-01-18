@@ -120,7 +120,24 @@ static bool sign_data(ykpiv_state *state, const unsigned char *in, size_t len, u
 
   unsigned char signinput[1024] = {0};
   if(YKPIV_IS_RSA(algorithm)) {
-    size_t padlen = algorithm == YKPIV_ALGO_RSA1024 ? 128 : 256;
+    size_t padlen = 0;
+    switch (algorithm) {
+      case YKPIV_ALGO_RSA1024:
+        padlen = 128;
+        break;
+      case YKPIV_ALGO_RSA2048:
+        padlen = 256;
+        break;
+      case YKPIV_ALGO_RSA3072:
+        padlen = 384;
+        break;
+      case YKPIV_ALGO_RSA4096:
+        padlen = 512;
+        break;
+      default:
+        fprintf(stderr, "Unknown RSA algorithm.\n");
+        return false;
+    }
     if(RSA_padding_add_PKCS1_type_1(signinput, padlen, in, len) == 0) {
       fprintf(stderr, "Failed adding padding.\n");
       return false;
@@ -301,62 +318,71 @@ static bool generate_key(ykpiv_state *state, enum enum_slot slot,
     goto generate_out;
   }
 
-  if(key_format == key_format_arg_PEM) {
+  if (key_format == key_format_arg_PEM) {
     public_key = EVP_PKEY_new();
-    if(algorithm == algorithm_arg_RSA1024 || algorithm == algorithm_arg_RSA2048) {
-      BIGNUM *bignum_n = NULL;
-      BIGNUM *bignum_e = NULL;
-      rsa = RSA_new();
-      bignum_n = BN_bin2bn(mod, mod_len, NULL);
-      if (bignum_n == NULL) {
-        fprintf(stderr, "Failed to parse public key modulus.\n");
-        goto generate_out;
-      }
-      bignum_e = BN_bin2bn(exp, exp_len, NULL);
-      if(bignum_e == NULL) {
-        fprintf(stderr, "Failed to parse public key exponent.\n");
-        goto generate_out;
-      }
+    switch (algorithm) {
+      case algorithm_arg_RSA1024:
+      case algorithm_arg_RSA2048:
+      case algorithm_arg_RSA3072:
+      case algorithm_arg_RSA4096: {
+        BIGNUM *bignum_n = NULL;
+        BIGNUM *bignum_e = NULL;
+        rsa = RSA_new();
+        bignum_n = BN_bin2bn(mod, mod_len, NULL);
+        if (bignum_n == NULL) {
+          fprintf(stderr, "Failed to parse public key modulus.\n");
+          goto generate_out;
+        }
+        bignum_e = BN_bin2bn(exp, exp_len, NULL);
+        if (bignum_e == NULL) {
+          fprintf(stderr, "Failed to parse public key exponent.\n");
+          goto generate_out;
+        }
 
-      if(RSA_set0_key(rsa, bignum_n, bignum_e, NULL) != 1) {
-        fprintf(stderr, "Failed to set RSA key\n");
-        goto generate_out;
+        if (RSA_set0_key(rsa, bignum_n, bignum_e, NULL) != 1) {
+          fprintf(stderr, "Failed to set RSA key\n");
+          goto generate_out;
+        }
+        if (EVP_PKEY_set1_RSA(public_key, rsa) != 1) {
+          fprintf(stderr, "Failed to set RSA public key\n");
+          goto generate_out;
+        }
       }
-      if(EVP_PKEY_set1_RSA(public_key, rsa) != 1) {
-        fprintf(stderr, "Failed to set RSA public key\n");
-        goto generate_out;
-      }
-    } else if(algorithm == algorithm_arg_ECCP256 || algorithm == algorithm_arg_ECCP384) {
-      int nid;
+        break;
+      case algorithm_arg_ECCP256:
+      case algorithm_arg_ECCP384: {
+        int nid;
 
-      if(algorithm == algorithm_arg_ECCP256) {
-        nid = NID_X9_62_prime256v1;
-      } else {
-        nid = NID_secp384r1;
-      }
-      eckey = EC_KEY_new();
-      group = EC_GROUP_new_by_curve_name(nid);
-      EC_GROUP_set_asn1_flag(group, OPENSSL_EC_NAMED_CURVE);
-      if(EC_KEY_set_group(eckey, group) != 1) {
-        fprintf(stderr, "Failed to set EC group.\n");
-        goto generate_out;
-      }
-      ecpoint = EC_POINT_new(group);
+        if (algorithm == algorithm_arg_ECCP256) {
+          nid = NID_X9_62_prime256v1;
+        } else {
+          nid = NID_secp384r1;
+        }
+        eckey = EC_KEY_new();
+        group = EC_GROUP_new_by_curve_name(nid);
+        EC_GROUP_set_asn1_flag(group, OPENSSL_EC_NAMED_CURVE);
+        if (EC_KEY_set_group(eckey, group) != 1) {
+          fprintf(stderr, "Failed to set EC group.\n");
+          goto generate_out;
+        }
+        ecpoint = EC_POINT_new(group);
 
-      if(!EC_POINT_oct2point(group, ecpoint, point, point_len, NULL)) {
-        fprintf(stderr, "Failed to load public point.\n");
-        goto generate_out;
+        if (!EC_POINT_oct2point(group, ecpoint, point, point_len, NULL)) {
+          fprintf(stderr, "Failed to load public point.\n");
+          goto generate_out;
+        }
+        if (!EC_KEY_set_public_key(eckey, ecpoint)) {
+          fprintf(stderr, "Failed to set the public key.\n");
+          goto generate_out;
+        }
+        if (EVP_PKEY_set1_EC_KEY(public_key, eckey) != 1) {
+          fprintf(stderr, "Failed to set EC public key.\n");
+          goto generate_out;
+        }
       }
-      if(!EC_KEY_set_public_key(eckey, ecpoint)) {
-        fprintf(stderr, "Failed to set the public key.\n");
-        goto generate_out;
-      }
-      if(EVP_PKEY_set1_EC_KEY(public_key, eckey) != 1) {
-        fprintf(stderr, "Failed to set EC public key.\n");
-        goto generate_out;
-      }
-    } else {
-      fprintf(stderr, "Wrong algorithm.\n");
+        break;
+      default:
+        fprintf(stderr, "Wrong algorithm.\n");
     }
     if(PEM_write_PUBKEY(output_file, public_key) == 1) {
       ret = true;
@@ -1843,6 +1869,8 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
     switch(algorithm) {
       case YKPIV_ALGO_RSA1024:
       case YKPIV_ALGO_RSA2048:
+      case YKPIV_ALGO_RSA3072:
+      case YKPIV_ALGO_RSA4096:
         {
           RSA *rsa = EVP_PKEY_get1_RSA(pubkey);
           if(!rsa) {

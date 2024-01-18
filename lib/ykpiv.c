@@ -38,7 +38,6 @@
 
 #include <zlib.h>
 
-#include "../common/util.h"
 #include "internal.h"
 #include "ykpiv.h"
 
@@ -1907,7 +1906,7 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
       touch_policy != YKPIV_TOUCHPOLICY_CACHED)
     return YKPIV_GENERIC_ERROR;
 
-  if (is_rsa_key_algorithm(algorithm)) {
+  if (YKPIV_IS_RSA(algorithm)) {
 
     if ((algorithm == YKPIV_ALGO_RSA3072 || algorithm == YKPIV_ALGO_RSA4096) &&
         (state->ver.major < 5 || (ykpiv_util_devicemodel(state) == DEVTYPE_YK5 && state->ver.minor < 7))) {

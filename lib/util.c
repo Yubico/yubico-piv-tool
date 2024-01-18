@@ -771,7 +771,6 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
       (state->ver.major < 5 || (ykpiv_util_devicemodel(state) == DEVTYPE_YK5 && state->ver.minor < 7))) {
     DBG("RSA3072 and RSA4096 keys are only supported in YubiKey version 5.7.0 and above");
     return YKPIV_NOT_SUPPORTED;
-
   }
   if (ykpiv_util_devicemodel(state) == DEVTYPE_YK4 && (algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048)) {
     if ((state->ver.major == 4) && (state->ver.minor < 3 || ((state->ver.minor == 3) && (state->ver.patch < 5)))) {
@@ -872,8 +871,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     goto Cleanup;
   }
 
-  if ((YKPIV_ALGO_RSA1024 == algorithm) || (YKPIV_ALGO_RSA2048 == algorithm) ||
-      (YKPIV_ALGO_RSA3072 == algorithm) || (YKPIV_ALGO_RSA4096 == algorithm)) {
+  if (YKPIV_IS_RSA(algorithm)) {
     size_t len;
     unsigned char *data_ptr = data + 2 + _ykpiv_get_length(data + 2, data + recv_len, &len);
 
@@ -936,7 +934,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     ptr_exp = NULL;
     *exp_len = cb_exp;
   }
-  else if ((YKPIV_ALGO_ECCP256 == algorithm) || (YKPIV_ALGO_ECCP384 == algorithm)) {
+  else if (YKPIV_IS_EC(algorithm)) {
     unsigned char *data_ptr = data + 3;
     size_t len;
 
