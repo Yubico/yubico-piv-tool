@@ -235,7 +235,7 @@ static EVP_PKEY* wrap_public_key(ykpiv_state *state, int algorithm, EVP_PKEY *pu
     }
     EVP_PKEY_assign_RSA(pkey, sk);
   }
-  else {
+  else if(YKPIV_IS_EC(algorithm)){
     const EC_KEY *ec = EVP_PKEY_get0_EC_KEY(public_key);
     EC_KEY_METHOD *meth = EC_KEY_METHOD_new(EC_KEY_get_method(ec));
     EC_KEY_METHOD_set_init(meth, NULL, yk_ec_meth_finish, NULL, NULL, NULL, NULL);
@@ -252,6 +252,10 @@ static EVP_PKEY* wrap_public_key(ykpiv_state *state, int algorithm, EVP_PKEY *pu
       fprintf(stderr, "Failed to wrap public EC key\n");
     }
     EVP_PKEY_assign_EC_KEY(pkey, sk);
+  } else if (algorithm == YKPIV_ALGO_ED25519) {
+    EVP_PKEY_assign(pkey, EVP_PKEY_ED25519, public_key);
+  } else if (algorithm == YKPIV_ALGO_X25519) {
+    EVP_PKEY_assign(pkey, EVP_PKEY_X25519, public_key);
   }
   return pkey;
 }
@@ -840,7 +844,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
   FILE *input_file = NULL;
   FILE *output_file = NULL;
   EVP_PKEY *public_key = NULL;
-  const EVP_MD *md;
+  const EVP_MD *md = NULL;
   bool ret = false;
   unsigned char algorithm;
   int key = 0;
@@ -932,9 +936,11 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     goto request_out;
   }
 
-  md = get_hash(hash, &oid, &oid_len);
-  if(md == NULL) {
-    goto request_out;
+  if (!YKPIV_IS_25519(algorithm)) {
+    md = get_hash(hash, &oid, &oid_len);
+    if (md == NULL) {
+      goto request_out;
+    }
   }
 
   if(!X509_REQ_set_pubkey(req, public_key)) {
@@ -1139,9 +1145,12 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
 
   size_t oid_len = 0;
   const unsigned char *oid = 0;
-  const EVP_MD *md = get_hash(hash, &oid, &oid_len);
-  if(md == NULL) {
-    goto selfsign_out;
+  const EVP_MD *md = NULL;
+  if (!YKPIV_IS_25519(algorithm)) {
+    md = get_hash(hash, &oid, &oid_len);
+    if (md == NULL) {
+      goto selfsign_out;
+    }
   }
   x509 = X509_new();
   if(!x509) {
@@ -1664,6 +1673,12 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
       break;
     case YKPIV_ALGO_ECCP384:
       fprintf(output, "ECCP384\n");
+      break;
+    case YKPIV_ALGO_ED25519:
+      fprintf(output, "ED25519\n");
+      break;
+    case YKPIV_ALGO_X25519:
+      fprintf(output, "X25519\n");
       break;
     default:
       fprintf(output, "Unknown\n");

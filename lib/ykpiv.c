@@ -1223,6 +1223,8 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
       }
       break;
     case YKPIV_ALGO_ECCP256:
+    case YKPIV_ALGO_ED25519:
+    case YKPIV_ALGO_X25519:
       key_len = 32;
       // fall through
     case YKPIV_ALGO_ECCP384:
@@ -1246,7 +1248,7 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   dataptr += _ykpiv_set_length(dataptr, in_len + bytes + 3);
   *dataptr++ = 0x82;
   *dataptr++ = 0x00;
-  *dataptr++ = YKPIV_IS_EC(algorithm) && decipher ? 0x85 : 0x81;
+  *dataptr++ = (YKPIV_IS_EC(algorithm) || YKPIV_IS_25519(algorithm)) && decipher ? 0x85 : 0x81;
   dataptr += _ykpiv_set_length(dataptr, in_len);
   memcpy(dataptr, sign_in, in_len);
   dataptr += in_len;
@@ -1907,12 +1909,10 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
     return YKPIV_GENERIC_ERROR;
 
   if (YKPIV_IS_RSA(algorithm)) {
-
     if ((algorithm == YKPIV_ALGO_RSA3072 || algorithm == YKPIV_ALGO_RSA4096) &&
         (state->ver.major < 5 || (ykpiv_util_devicemodel(state) == DEVTYPE_YK5 && state->ver.minor < 7))) {
       DBG("RSA3072 and RSA4096 keys are only supported in YubiKey version 5.7.0 and above");
       return YKPIV_NOT_SUPPORTED;
-
     }
 
     if (p_len + q_len + dp_len + dq_len + qinv_len >= sizeof(key_data)) {
@@ -1948,7 +1948,7 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
 
     n_params = 5;
   }
-  else if (algorithm == YKPIV_ALGO_ECCP256 || algorithm == YKPIV_ALGO_ECCP384) {
+  else if (YKPIV_IS_EC(algorithm)) {
 
     if ((size_t)ec_data_len >= sizeof(key_data)) {
       /* This can never be true, but check to be explicit. */
@@ -1968,7 +1968,7 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
     param_tag = 0x06;
     n_params = 1;
   }
-  else if (algorithm == YKPIV_ALGO_ED25519 || algorithm == YKPIV_ALGO_X25519) {
+  else if (YKPIV_IS_25519(algorithm)) {
     elem_len = 32;
     if (ec_data == NULL)
       return YKPIV_ARGUMENT_ERROR;

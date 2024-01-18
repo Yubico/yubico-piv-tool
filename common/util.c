@@ -524,6 +524,10 @@ int get_hashnid(enum enum_hash hash, unsigned char algorithm) {
         default:
           return 0;
       }
+    case YKPIV_ALGO_ED25519:
+      return  NID_ED25519;
+    case YKPIV_ALGO_X25519:
+      return NID_X25519;
     default:
       return 0;
   }
