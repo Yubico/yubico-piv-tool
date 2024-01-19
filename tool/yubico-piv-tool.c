@@ -257,8 +257,8 @@ static EVP_PKEY* wrap_public_key(ykpiv_state *state, int algorithm, EVP_PKEY *pu
     EVP_PKEY_assign(pkey, EVP_PKEY_ED25519, public_key);
   } else if (algorithm == YKPIV_ALGO_X25519) {
     EVP_PKEY_assign(pkey, EVP_PKEY_X25519, public_key);
-  }
 #endif
+  }
   return pkey;
 }
 #endif
@@ -593,6 +593,7 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
                                     s_ptr, element_len,
                                     pp, tp);
     }
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
     else if(YKPIV_IS_25519(algorithm)) {
       unsigned char s_ptr[48] = {0};
       size_t element_len = sizeof(s_ptr);
@@ -611,6 +612,7 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
                                     s_ptr, element_len,
                                     pp, tp);
     }
+#endif
 
     ret = true;
     if(rc != YKPIV_OK) {
@@ -939,13 +941,16 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
   if(algorithm == 0) {
     goto request_out;
   }
-
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
   if (!YKPIV_IS_25519(algorithm)) {
+#endif
     md = get_hash(hash, &oid, &oid_len);
     if (md == NULL) {
       goto request_out;
     }
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
   }
+#endif
 
   if(!X509_REQ_set_pubkey(req, public_key)) {
     fprintf(stderr, "Failed setting the request public key.\n");
@@ -1150,12 +1155,16 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   size_t oid_len = 0;
   const unsigned char *oid = 0;
   const EVP_MD *md = NULL;
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
   if (!YKPIV_IS_25519(algorithm)) {
+#endif
     md = get_hash(hash, &oid, &oid_len);
     if (md == NULL) {
       goto selfsign_out;
     }
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
   }
+#endif
   x509 = X509_new();
   if(!x509) {
     fprintf(stderr, "Failed to allocate certificate structure.\n");

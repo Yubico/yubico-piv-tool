@@ -946,8 +946,10 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
       len = CB_ECC_POINTP256;
     } else if (YKPIV_ALGO_ECCP384 == algorithm) {
       len = CB_ECC_POINTP384;
-    } else {
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+    } else if (YKPIV_IS_25519(algorithm)) {
       len = CB_ECC_POINT25519;
+#endif
     }
 
     if (*data_ptr++ != TAG_ECC_POINT) {
