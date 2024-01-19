@@ -252,11 +252,13 @@ static EVP_PKEY* wrap_public_key(ykpiv_state *state, int algorithm, EVP_PKEY *pu
       fprintf(stderr, "Failed to wrap public EC key\n");
     }
     EVP_PKEY_assign_EC_KEY(pkey, sk);
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
   } else if (algorithm == YKPIV_ALGO_ED25519) {
     EVP_PKEY_assign(pkey, EVP_PKEY_ED25519, public_key);
   } else if (algorithm == YKPIV_ALGO_X25519) {
     EVP_PKEY_assign(pkey, EVP_PKEY_X25519, public_key);
   }
+#endif
   return pkey;
 }
 #endif
@@ -385,12 +387,14 @@ static bool generate_key(ykpiv_state *state, enum enum_slot slot,
         }
       }
         break;
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
       case algorithm_arg_ED25519:
         public_key = EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, NULL, point, point_len);
         break;
       case algorithm_arg_X25519:
         public_key = EVP_PKEY_new_raw_public_key(EVP_PKEY_X25519, NULL, point, point_len);
         break;
+#endif
       default:
         fprintf(stderr, "Wrong algorithm.\n");
     }
@@ -1674,12 +1678,14 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     case YKPIV_ALGO_ECCP384:
       fprintf(output, "ECCP384\n");
       break;
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
     case YKPIV_ALGO_ED25519:
       fprintf(output, "ED25519\n");
       break;
     case YKPIV_ALGO_X25519:
       fprintf(output, "X25519\n");
       break;
+#endif
     default:
       fprintf(output, "Unknown\n");
   }
