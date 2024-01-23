@@ -240,6 +240,40 @@ static EVP_PKEY* wrap_public_key(ykpiv_state *state, int algorithm, EVP_PKEY *pu
 }
 #endif
 
+static bool move_key(ykpiv_state *state, enum enum_slot slot, enum enum_to_slot to_slot) {
+  int key = 0;
+  int dest_slot = 0;
+  bool ret = false;
+  ykpiv_rc res;
+
+  key = get_slot_hex(slot);
+  dest_slot = get_slot_hex((enum enum_slot) to_slot);
+
+  res = ykpiv_move_key(state, (uint8_t) (key & 0xFF), (uint8_t) (dest_slot & 0xFF));
+  if (res != YKPIV_OK) {
+    fprintf(stderr, "Failed to move key.\n");
+  } else {
+    ret = true;
+  }
+  return ret;
+}
+
+static bool delete_key(ykpiv_state *state, enum enum_slot slot) {
+  int key = 0;
+  bool ret = false;
+  ykpiv_rc res;
+
+  key = get_slot_hex(slot);
+
+  res = ykpiv_delete_key(state, (uint8_t)(key & 0xFF));
+  if (res != YKPIV_OK) {
+    fprintf(stderr, "Failed to move key.\n");
+  } else {
+    ret = true;
+  }
+  return ret;
+}
+
 static bool generate_key(ykpiv_state *state, enum enum_slot slot,
     enum enum_algorithm algorithm, const char *output_file_name,
     enum enum_key_format key_format, enum enum_pin_policy pin_policy,
@@ -2201,9 +2235,18 @@ int main(int argc, char *argv[]) {
       case action_arg_testMINUS_signature:
       case action_arg_testMINUS_decipher:
       case action_arg_attest:
+      case action_arg_deleteMINUS_key:
         if(args_info.slot_arg == slot__NULL) {
           fprintf(stderr, "The '%s' action needs a slot (-s) to operate on.\n",
               cmdline_parser_action_values[action]);
+          cmdline_parser_free(&args_info);
+          return EXIT_FAILURE;
+        }
+        break;
+      case action_arg_moveMINUS_key:
+        if(args_info.slot_arg == slot__NULL || args_info.to_slot_arg == to_slot__NULL) {
+          fprintf(stderr, "The '%s' action needs both a slot (-s) to operate on and a --to-slot to move the key to.\n",
+                  cmdline_parser_action_values[action]);
           cmdline_parser_free(&args_info);
           return EXIT_FAILURE;
         }
@@ -2296,6 +2339,8 @@ int main(int argc, char *argv[]) {
       case action_arg_setMINUS_ccc:
       case action_arg_deleteMINUS_certificate:
       case action_arg_writeMINUS_object:
+      case action_arg_moveMINUS_key:
+      case action_arg_deleteMINUS_key:
         if(!authed) {
           if(verbosity) {
             fprintf(stderr, "Authenticating since action '%s' needs that.\n", cmdline_parser_action_values[action]);
@@ -2586,6 +2631,20 @@ int main(int argc, char *argv[]) {
         if(attest(state, args_info.slot_arg, args_info.key_format_arg,
               args_info.output_arg) == false) {
           ret = EXIT_FAILURE;
+        }
+        break;
+      case action_arg_moveMINUS_key:
+        if(move_key(state, args_info.slot_arg, args_info.to_slot_arg) == false) {
+          ret = EXIT_FAILURE;
+        } else {
+          fprintf(stderr, "Successfully moved key.\n");
+        }
+        break;
+      case action_arg_deleteMINUS_key:
+        if(delete_key(state, args_info.slot_arg) == false) {
+          ret = EXIT_FAILURE;
+        } else {
+          fprintf(stderr, "Successfully deleted key.\n");
         }
         break;
       case action__NULL:

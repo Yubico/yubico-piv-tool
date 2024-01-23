@@ -2205,3 +2205,58 @@ static ykpiv_rc _ykpiv_auth_deauthenticate(ykpiv_state *state) {
 
   return res;
 }
+
+static bool check_version(ykpiv_state *state, uint8_t major, uint8_t minor) {
+  return state->ver.major > major || (state->ver.major == major && state->ver.minor >= minor);
+}
+
+ykpiv_rc ykpiv_move_key(ykpiv_state *state, const unsigned char from_slot, const unsigned char to_slot) {
+  if(!check_version(state, 5, 7)) {
+    DBG("Move key operation available with firmware version 5.7.0 or higher");
+    return YKPIV_NOT_SUPPORTED;
+  }
+  ykpiv_rc res = YKPIV_OK;
+  unsigned char data[256] = {0};
+  unsigned long recv_len = sizeof(data);
+  int sw = 0;
+  unsigned char adpu[] = {0, YKPIV_INS_MOVE_KEY, to_slot, from_slot};
+  DBG("Moving key from slot %x to slot %x", from_slot, to_slot);
+
+  if ((res = _ykpiv_transfer_data(state, adpu, NULL, 0, data, &recv_len, &sw)) != YKPIV_OK) {
+    return res;
+  }
+  res = ykpiv_translate_sw(sw);
+  if (res != YKPIV_OK) {
+    DBG("Failed to move key");
+  } else {
+    DBG("Key moved from slot %x to %x", from_slot, to_slot);
+  }
+
+  return res;
+}
+
+ ykpiv_rc ykpiv_delete_key(ykpiv_state *state, const unsigned char key) {
+   if(!check_version(state, 5, 7)) {
+     DBG("Delete key operation available with firmware version 5.7.0 or higher");
+     return YKPIV_NOT_SUPPORTED;
+   }
+
+   ykpiv_rc res = YKPIV_OK;
+   unsigned char data[256] = {0};
+   unsigned long recv_len = sizeof(data);
+   int sw = 0;
+   unsigned char adpu[] = {0, YKPIV_INS_MOVE_KEY, 0xff, key};
+   DBG("Deleting key from slot %x", key);
+
+   if ((res = _ykpiv_transfer_data(state, adpu, NULL, 0, data, &recv_len, &sw)) != YKPIV_OK) {
+     return res;
+   }
+   res = ykpiv_translate_sw(sw);
+   if (res != YKPIV_OK) {
+     DBG("Failed to move key");
+   } else {
+     DBG("Key deleted from slot %x", key);
+   }
+
+   return res;
+ }

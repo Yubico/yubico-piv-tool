@@ -138,6 +138,9 @@ extern "C"
   ykpiv_rc ykpiv_attest(ykpiv_state *state, const unsigned char key, unsigned char *data, size_t *data_len);
   ykpiv_rc ykpiv_get_metadata(ykpiv_state *state, const unsigned char key, unsigned char *data, size_t *data_len);
 
+  ykpiv_rc ykpiv_move_key(ykpiv_state *state, const unsigned char from_slot, const unsigned char to_slot);
+  ykpiv_rc ykpiv_delete_key(ykpiv_state *state, const unsigned char key);
+
   /**
    * Return the number of PIN attempts remaining before PIN is locked.
    *
@@ -708,6 +711,7 @@ extern "C"
 #define YKPIV_INS_AUTHENTICATE 0x87
 #define YKPIV_INS_GET_DATA 0xcb
 #define YKPIV_INS_PUT_DATA 0xdb
+#define YKPIV_INS_MOVE_KEY 0xf6
 #define YKPIV_INS_SELECT_APPLICATION 0xa4
 #define YKPIV_INS_GET_RESPONSE_APDU 0xc0
 
