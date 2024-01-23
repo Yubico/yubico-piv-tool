@@ -2206,16 +2206,16 @@ static ykpiv_rc _ykpiv_auth_deauthenticate(ykpiv_state *state) {
   return res;
 }
 
-//static bool check_version(ykpiv_state *state, uint8_t major, uint8_t minor) {
-//  return state->ver.major > major || (state->ver.major == major && state->ver.minor >= minor);
-//}
+static bool check_version(ykpiv_state *state, uint8_t major, uint8_t minor) {
+  return state->ver.major > major || (state->ver.major == major && state->ver.minor >= minor);
+}
 
 // if to_slot is set to 0xff, the key will be deleted
 ykpiv_rc ykpiv_move_key(ykpiv_state *state, const unsigned char from_slot, const unsigned char to_slot) {
-//  if(!check_version(state, 5, 7)) {
-//    DBG("Move key operation available with firmware version 5.7.0 or higher");
-//    return YKPIV_NOT_SUPPORTED;
-//  }
+  if(!check_version(state, 5, 7)) {
+    DBG("Move key operation available with firmware version 5.7.0 or higher");
+    return YKPIV_NOT_SUPPORTED;
+  }
   ykpiv_rc res = YKPIV_OK;
   unsigned char data[256] = {0};
   unsigned long recv_len = sizeof(data);
