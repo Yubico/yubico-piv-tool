@@ -265,7 +265,7 @@ static bool delete_key(ykpiv_state *state, enum enum_slot slot) {
 
   key = get_slot_hex(slot);
 
-  res = ykpiv_delete_key(state, (uint8_t)(key & 0xFF));
+  res = ykpiv_move_key(state, (uint8_t)(key & 0xFF), 0xFF);
   if (res != YKPIV_OK) {
     fprintf(stderr, "Failed to move key.\n");
   } else {

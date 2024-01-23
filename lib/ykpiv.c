@@ -2210,6 +2210,7 @@ static bool check_version(ykpiv_state *state, uint8_t major, uint8_t minor) {
   return state->ver.major > major || (state->ver.major == major && state->ver.minor >= minor);
 }
 
+// if to_slot is set to 0xff, the key will be deleted
 ykpiv_rc ykpiv_move_key(ykpiv_state *state, const unsigned char from_slot, const unsigned char to_slot) {
   if(!check_version(state, 5, 7)) {
     DBG("Move key operation available with firmware version 5.7.0 or higher");
@@ -2234,11 +2235,3 @@ ykpiv_rc ykpiv_move_key(ykpiv_state *state, const unsigned char from_slot, const
 
   return res;
 }
-
- ykpiv_rc ykpiv_delete_key(ykpiv_state *state, const unsigned char key) {
-   if(!check_version(state, 5, 7)) {
-     DBG("Delete key operation available with firmware version 5.7.0 or higher");
-     return YKPIV_NOT_SUPPORTED;
-   }
-   return ykpiv_move_key(state, key, 0xff);
- }
