@@ -240,32 +240,11 @@ static EVP_PKEY* wrap_public_key(ykpiv_state *state, int algorithm, EVP_PKEY *pu
 }
 #endif
 
-static bool move_key(ykpiv_state *state, enum enum_slot slot, enum enum_to_slot to_slot) {
-  int key = 0;
-  int dest_slot = 0;
+static bool move_key(ykpiv_state *state, int from_slot, int to_slot) {
   bool ret = false;
   ykpiv_rc res;
 
-  key = get_slot_hex(slot);
-  dest_slot = get_slot_hex((enum enum_slot) to_slot);
-
-  res = ykpiv_move_key(state, (uint8_t) (key & 0xFF), (uint8_t) (dest_slot & 0xFF));
-  if (res != YKPIV_OK) {
-    fprintf(stderr, "Failed to move key.\n");
-  } else {
-    ret = true;
-  }
-  return ret;
-}
-
-static bool delete_key(ykpiv_state *state, enum enum_slot slot) {
-  int key = 0;
-  bool ret = false;
-  ykpiv_rc res;
-
-  key = get_slot_hex(slot);
-
-  res = ykpiv_move_key(state, (uint8_t)(key & 0xFF), 0xFF);
+  res = ykpiv_move_key(state, (uint8_t) (from_slot & 0xFF), (uint8_t) (to_slot & 0xFF));
   if (res != YKPIV_OK) {
     fprintf(stderr, "Failed to move key.\n");
   } else {
@@ -2633,15 +2612,18 @@ int main(int argc, char *argv[]) {
           ret = EXIT_FAILURE;
         }
         break;
-      case action_arg_moveMINUS_key:
-        if(move_key(state, args_info.slot_arg, args_info.to_slot_arg) == false) {
+      case action_arg_moveMINUS_key: {
+        int from_slot = get_slot_hex(args_info.slot_arg);
+        int to_slot = get_slot_hex((enum enum_slot) args_info.to_slot_arg);
+        if (move_key(state, from_slot, to_slot) == false) {
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully moved key.\n");
         }
         break;
+      }
       case action_arg_deleteMINUS_key:
-        if(delete_key(state, args_info.slot_arg) == false) {
+        if(move_key(state, get_slot_hex(args_info.slot_arg), 0xFF) == false) {
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully deleted key.\n");
