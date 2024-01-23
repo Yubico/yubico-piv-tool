@@ -2240,23 +2240,5 @@ ykpiv_rc ykpiv_move_key(ykpiv_state *state, const unsigned char from_slot, const
      DBG("Delete key operation available with firmware version 5.7.0 or higher");
      return YKPIV_NOT_SUPPORTED;
    }
-
-   ykpiv_rc res = YKPIV_OK;
-   unsigned char data[256] = {0};
-   unsigned long recv_len = sizeof(data);
-   int sw = 0;
-   unsigned char adpu[] = {0, YKPIV_INS_MOVE_KEY, 0xff, key};
-   DBG("Deleting key from slot %x", key);
-
-   if ((res = _ykpiv_transfer_data(state, adpu, NULL, 0, data, &recv_len, &sw)) != YKPIV_OK) {
-     return res;
-   }
-   res = ykpiv_translate_sw(sw);
-   if (res != YKPIV_OK) {
-     DBG("Failed to move key");
-   } else {
-     DBG("Key deleted from slot %x", key);
-   }
-
-   return res;
+   return ykpiv_move_key(state, key, 0xff);
  }
