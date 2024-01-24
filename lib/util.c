@@ -767,37 +767,35 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
 
   if (!state) return YKPIV_ARGUMENT_ERROR;
 
-  if ((algorithm == YKPIV_ALGO_RSA3072 || algorithm == YKPIV_ALGO_RSA4096) &&
-      (state->ver.major < 5 || (ykpiv_util_devicemodel(state) == DEVTYPE_YK5 && state->ver.minor < 7))) {
+  if ((algorithm == YKPIV_ALGO_RSA3072 || algorithm == YKPIV_ALGO_RSA4096) && !is_version_compatible(state, 5, 7, 0)) {
     DBG("RSA3072 and RSA4096 keys are only supported in YubiKey version 5.7.0 and above");
     return YKPIV_NOT_SUPPORTED;
   }
-  if (ykpiv_util_devicemodel(state) == DEVTYPE_YK4 && (algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048)) {
-    if ((state->ver.major == 4) && (state->ver.minor < 3 || ((state->ver.minor == 3) && (state->ver.patch < 5)))) {
-      const char *psz_msg = NULL;
-      setting_roca = setting_get_bool(sz_setting_roca, true);
+  if ((algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048) && !is_version_compatible(state, 4, 3, 5)) {
+    const char *psz_msg = NULL;
+    setting_roca = setting_get_bool(sz_setting_roca, true);
 
-      switch (setting_roca.source) {
-        case SETTING_SOURCE_ADMIN:
-          psz_msg = setting_roca.value ? sz_roca_allow_admin : sz_roca_block_admin;
-          break;
+    switch (setting_roca.source) {
+      case SETTING_SOURCE_ADMIN:
+        psz_msg = setting_roca.value ? sz_roca_allow_admin : sz_roca_block_admin;
+        break;
 
-        case SETTING_SOURCE_USER:
-          psz_msg = setting_roca.value ? sz_roca_allow_user : sz_roca_block_user;
-          break;
+      case SETTING_SOURCE_USER:
+        psz_msg = setting_roca.value ? sz_roca_allow_user : sz_roca_block_user;
+        break;
 
-        default:
-        case SETTING_SOURCE_DEFAULT:
-          psz_msg = sz_roca_default;
-          break;
-      }
+      default:
+      case SETTING_SOURCE_DEFAULT:
+        psz_msg = sz_roca_default;
+        break;
+    }
 
-      DBG(sz_roca_format, state->serial, psz_msg);
-      yc_log_event("YubiKey PIV Library", 1, setting_roca.value ? YC_LOG_LEVEL_WARN : YC_LOG_LEVEL_ERROR, sz_roca_format, state->serial, psz_msg);
+    DBG(sz_roca_format, state->serial, psz_msg);
+    yc_log_event("YubiKey PIV Library", 1, setting_roca.value ? YC_LOG_LEVEL_WARN : YC_LOG_LEVEL_ERROR, sz_roca_format,
+                 state->serial, psz_msg);
 
-      if (!setting_roca.value) {
-        return YKPIV_NOT_SUPPORTED;
-      }
+    if (!setting_roca.value) {
+      return YKPIV_NOT_SUPPORTED;
     }
   }
 

@@ -2245,13 +2245,15 @@ static ykpiv_rc _ykpiv_auth_deauthenticate(ykpiv_state *state) {
   return res;
 }
 
-static bool check_version(ykpiv_state *state, uint8_t major, uint8_t minor) {
-  return state->ver.major > major || (state->ver.major == major && state->ver.minor >= minor);
+bool is_version_compatible(ykpiv_state *state, uint8_t major, uint8_t minor, uint8_t patch) {
+  return state->ver.major > major ||
+         (state->ver.major == major && state->ver.minor >= minor) ||
+         (state->ver.major == major && state->ver.minor == minor && state->ver.patch >= patch);
 }
 
 // if to_slot is set to 0xff, the key will be deleted
 ykpiv_rc ykpiv_move_key(ykpiv_state *state, const unsigned char from_slot, const unsigned char to_slot) {
-  if(!check_version(state, 5, 7)) {
+  if(!is_version_compatible(state, 5, 7, 0)) {
     DBG("Move key operation available with firmware version 5.7.0 or higher");
     return YKPIV_NOT_SUPPORTED;
   }

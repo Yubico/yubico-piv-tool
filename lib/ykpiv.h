@@ -138,6 +138,7 @@ extern "C"
   ykpiv_rc ykpiv_attest(ykpiv_state *state, const unsigned char key, unsigned char *data, size_t *data_len);
   ykpiv_rc ykpiv_get_metadata(ykpiv_state *state, const unsigned char key, unsigned char *data, size_t *data_len);
 
+  bool is_version_compatible(ykpiv_state *state, uint8_t major, uint8_t minor, uint8_t patch);
   ykpiv_rc ykpiv_move_key(ykpiv_state *state, const unsigned char from_slot, const unsigned char to_slot);
 
   /**
