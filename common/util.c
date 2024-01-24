@@ -111,12 +111,10 @@ unsigned char get_algorithm(EVP_PKEY *key) {
           return 0;
         }
       }
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
     case EVP_PKEY_ED25519:
       return YKPIV_ALGO_ED25519;
     case EVP_PKEY_X25519:
       return YKPIV_ALGO_X25519;
-#endif
     default:
       fprintf(stderr, "Unknown algorithm %d.\n", type);
       return 0;
@@ -526,12 +524,10 @@ int get_hashnid(enum enum_hash hash, unsigned char algorithm) {
         default:
           return 0;
       }
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
     case YKPIV_ALGO_ED25519:
       return  NID_ED25519;
     case YKPIV_ALGO_X25519:
       return NID_X25519;
-#endif
     default:
       return 0;
   }
@@ -551,12 +547,10 @@ unsigned char get_piv_algorithm(enum enum_algorithm algorithm) {
       return YKPIV_ALGO_ECCP256;
     case algorithm_arg_ECCP384:
       return YKPIV_ALGO_ECCP384;
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
     case algorithm_arg_ED25519:
       return YKPIV_ALGO_ED25519;
     case algorithm_arg_X25519:
       return YKPIV_ALGO_X25519;
-#endif
     case algorithm__NULL:
     default:
       return 0;

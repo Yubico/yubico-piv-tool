@@ -1223,10 +1223,8 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
       }
       break;
     case YKPIV_ALGO_ECCP256:
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
     case YKPIV_ALGO_ED25519:
     case YKPIV_ALGO_X25519:
-#endif
       key_len = 32;
       // fall through
     case YKPIV_ALGO_ECCP384:
@@ -1924,12 +1922,16 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
     switch (algorithm) {
       case YKPIV_ALGO_RSA1024:
         elem_len = 64;
+        break;
       case YKPIV_ALGO_RSA2048:
         elem_len = 128;
+        break;
       case YKPIV_ALGO_RSA3072:
         elem_len = 192;
+        break;
       case YKPIV_ALGO_RSA4096:
-      elem_len = 256;
+        elem_len = 256;
+        break;
     }
 
     if (p == NULL || q == NULL || dp == NULL ||
@@ -1970,7 +1972,6 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
     param_tag = 0x06;
     n_params = 1;
   }
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
   else if (YKPIV_IS_25519(algorithm)) {
     elem_len = 32;
     if (ec_data == NULL)
@@ -1985,7 +1986,6 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
     }
     n_params = 1;
   }
-#endif
   else
     return YKPIV_ALGORITHM_ERROR;
 

@@ -941,16 +941,12 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
   if(algorithm == 0) {
     goto request_out;
   }
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
   if (!YKPIV_IS_25519(algorithm)) {
-#endif
     md = get_hash(hash, &oid, &oid_len);
     if (md == NULL) {
       goto request_out;
     }
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
   }
-#endif
 
   if(!X509_REQ_set_pubkey(req, public_key)) {
     fprintf(stderr, "Failed setting the request public key.\n");
@@ -1155,16 +1151,12 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   size_t oid_len = 0;
   const unsigned char *oid = 0;
   const EVP_MD *md = NULL;
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
   if (!YKPIV_IS_25519(algorithm)) {
-#endif
     md = get_hash(hash, &oid, &oid_len);
     if (md == NULL) {
       goto selfsign_out;
     }
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
   }
-#endif
   x509 = X509_new();
   if(!x509) {
     fprintf(stderr, "Failed to allocate certificate structure.\n");
@@ -1687,14 +1679,12 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     case YKPIV_ALGO_ECCP384:
       fprintf(output, "ECCP384\n");
       break;
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
     case YKPIV_ALGO_ED25519:
       fprintf(output, "ED25519\n");
       break;
     case YKPIV_ALGO_X25519:
       fprintf(output, "X25519\n");
       break;
-#endif
     default:
       fprintf(output, "Unknown\n");
   }
