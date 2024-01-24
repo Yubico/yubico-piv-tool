@@ -526,10 +526,12 @@ int get_hashnid(enum enum_hash hash, unsigned char algorithm) {
         default:
           return 0;
       }
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
     case YKPIV_ALGO_ED25519:
       return  NID_ED25519;
     case YKPIV_ALGO_X25519:
       return NID_X25519;
+#endif
     default:
       return 0;
   }
