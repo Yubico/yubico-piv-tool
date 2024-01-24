@@ -111,10 +111,12 @@ unsigned char get_algorithm(EVP_PKEY *key) {
           return 0;
         }
       }
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
     case EVP_PKEY_ED25519:
       return YKPIV_ALGO_ED25519;
     case EVP_PKEY_X25519:
       return YKPIV_ALGO_X25519;
+#endif
     default:
       fprintf(stderr, "Unknown algorithm %d.\n", type);
       return 0;
