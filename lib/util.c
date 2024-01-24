@@ -767,7 +767,8 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
 
   if (!state) return YKPIV_ARGUMENT_ERROR;
 
-  if ((algorithm == YKPIV_ALGO_RSA3072 || algorithm == YKPIV_ALGO_RSA4096) && !is_version_compatible(state, 5, 7, 0)) {
+  if ((algorithm == YKPIV_ALGO_RSA3072 || algorithm == YKPIV_ALGO_RSA4096 || YKPIV_IS_25519(algorithm))
+       && !is_version_compatible(state, 5, 7, 0)) {
     DBG("RSA3072 and RSA4096 keys are only supported in YubiKey version 5.7.0 and above");
     return YKPIV_NOT_SUPPORTED;
   }
