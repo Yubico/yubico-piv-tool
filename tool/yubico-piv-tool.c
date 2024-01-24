@@ -119,32 +119,31 @@ static bool sign_data(ykpiv_state *state, const unsigned char *in, size_t len, u
     size_t *out_len, unsigned char algorithm, int key) {
 
   unsigned char signinput[1024] = {0};
-  if(YKPIV_IS_RSA(algorithm)) {
-    size_t padlen = 0;
-    switch (algorithm) {
-      case YKPIV_ALGO_RSA1024:
-        padlen = 128;
-        break;
-      case YKPIV_ALGO_RSA2048:
-        padlen = 256;
-        break;
-      case YKPIV_ALGO_RSA3072:
-        padlen = 384;
-        break;
-      case YKPIV_ALGO_RSA4096:
-        padlen = 512;
-        break;
-      default:
-        fprintf(stderr, "Unknown RSA algorithm.\n");
-        return false;
-    }
-    if(RSA_padding_add_PKCS1_type_1(signinput, padlen, in, len) == 0) {
+  size_t padlen = 0;
+  switch (algorithm) {
+    case YKPIV_ALGO_RSA1024:
+      padlen = 128;
+      break;
+    case YKPIV_ALGO_RSA2048:
+      padlen = 256;
+      break;
+    case YKPIV_ALGO_RSA3072:
+      padlen = 384;
+      break;
+    case YKPIV_ALGO_RSA4096:
+      padlen = 512;
+      break;
+    default:
+      fprintf(stderr, "Unknown RSA algorithm.\n");
+      return false;
+  }
+  if (RSA_padding_add_PKCS1_type_1(signinput, padlen, in, len) == 0) {
       fprintf(stderr, "Failed adding padding.\n");
       return false;
     }
     in = signinput;
     len = padlen;
-  }
+
   ykpiv_rc rc;
   if((rc = ykpiv_sign_data(state, in, len, out, out_len, algorithm, key)) == YKPIV_OK) {
     return true;
