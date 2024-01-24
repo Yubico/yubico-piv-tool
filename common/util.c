@@ -96,7 +96,7 @@ unsigned char get_algorithm(EVP_PKEY *key) {
           case 4096:
             return YKPIV_ALGO_RSA4096;
           default:
-            fprintf(stderr, "Unusable RSA key of %d bits, only 1024 and 2048 are supported.\n", size);
+            fprintf(stderr, "Unusable RSA key of %d bits, only 1024, 2048 3072 and 4096 are supported.\n", size);
             return 0;
         }
       }
