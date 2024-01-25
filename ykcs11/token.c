@@ -371,7 +371,6 @@ CK_RV token_generate_key(ykpiv_state *state, gen_info_t *gen, CK_BYTE key, CK_BY
   uint8_t certdata[YKPIV_OBJ_MAX_SIZE + 16] = {0};
   size_t certdata_len = sizeof(certdata);
   unsigned long len, offs, recv_len = sizeof(data);
-  char version[7] = {0};
   char label[32] = {0};
   ykpiv_rc res;
   int sw;
@@ -381,24 +380,15 @@ CK_RV token_generate_key(ykpiv_state *state, gen_info_t *gen, CK_BYTE key, CK_BY
     case YKPIV_ALGO_RSA2048:
     case YKPIV_ALGO_RSA3072:
     case YKPIV_ALGO_RSA4096:
-      if((res = ykpiv_get_version(state, version, sizeof(version))) == YKPIV_OK) {
-        int major, minor, build;
-        int match = sscanf(version, "%d.%d.%d", &major, &minor, &build);
-        if(match == 3) {
-          if(major == 4 && (minor < 3 || (minor == 3 && build < 5))) {
-            DBG("On-chip RSA key generation on this YubiKey has been blocked.");
-            DBG("Please see https://yubi.co/ysa201701/ for details.");
-            return CKR_FUNCTION_FAILED;
-          }
-          if((major < 5 || (major == 5 && minor < 7)) &&
-             (gen->algorithm == YKPIV_ALGO_RSA3072 || gen->algorithm == YKPIV_ALGO_RSA4096)) {
-            DBG("RSA3072 and RSA4096 key types are only available with YubiKeys with version number 5.7.0 or later");
-            return CKR_FUNCTION_NOT_SUPPORTED;
-          }
-        }
-      } else {
-        DBG("Failed to communicate.");
-        return yrc_to_rv(res);
+      if (!is_version_compatible(state, 4, 3, 5)) {
+        DBG("On-chip RSA key generation on this YubiKey has been blocked.");
+        DBG("Please see https://yubi.co/ysa201701/ for details.");
+        return CKR_FUNCTION_FAILED;
+      }
+      if (!is_version_compatible(state, 5, 7, 0) &&
+         (gen->algorithm == YKPIV_ALGO_RSA3072 || gen->algorithm == YKPIV_ALGO_RSA4096)) {
+        DBG("RSA3072 and RSA4096 key types are only available with YubiKeys with version number 5.7.0 or later");
+        return CKR_FUNCTION_NOT_SUPPORTED;
       }
       break;
 
