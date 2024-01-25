@@ -393,6 +393,12 @@ static bool generate_key(ykpiv_state *state, enum enum_slot slot,
       case algorithm_arg_X25519:
         public_key = EVP_PKEY_new_raw_public_key(EVP_PKEY_X25519, NULL, point, point_len);
         break;
+#else
+      case algorithm_arg_ED25519:
+      case algorithm_arg_X25519:
+        fprintf(stderr, "Key was generated successfully but a public key cannot be parsed due to too old OpenSSL version. "
+                        "Upgrade OpenSSL to at least 1.1 or use attestation command to get a signed certificate instead.\n");
+        return true;
 #endif
       default:
         fprintf(stderr, "Wrong algorithm.\n");
