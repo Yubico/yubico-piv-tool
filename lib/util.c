@@ -767,38 +767,44 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
 
   if (!state) return YKPIV_ARGUMENT_ERROR;
 
-  if (ykpiv_util_devicemodel(state) == DEVTYPE_YK4 && (algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048)) {
-    if ((state->ver.major == 4) && (state->ver.minor < 3 || ((state->ver.minor == 3) && (state->ver.patch < 5)))) {
-      const char *psz_msg = NULL;
-      setting_roca = setting_get_bool(sz_setting_roca, true);
+  if ((algorithm == YKPIV_ALGO_RSA3072 || algorithm == YKPIV_ALGO_RSA4096 || YKPIV_IS_25519(algorithm))
+       && !is_version_compatible(state, 5, 7, 0)) {
+    DBG("RSA3072 and RSA4096 keys are only supported in YubiKey version 5.7.0 and above");
+    return YKPIV_NOT_SUPPORTED;
+  }
+  if ((algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048) && !is_version_compatible(state, 4, 3, 5)) {
+    const char *psz_msg = NULL;
+    setting_roca = setting_get_bool(sz_setting_roca, true);
 
-      switch (setting_roca.source) {
-        case SETTING_SOURCE_ADMIN:
-          psz_msg = setting_roca.value ? sz_roca_allow_admin : sz_roca_block_admin;
-          break;
+    switch (setting_roca.source) {
+      case SETTING_SOURCE_ADMIN:
+        psz_msg = setting_roca.value ? sz_roca_allow_admin : sz_roca_block_admin;
+        break;
 
-        case SETTING_SOURCE_USER:
-          psz_msg = setting_roca.value ? sz_roca_allow_user : sz_roca_block_user;
-          break;
+      case SETTING_SOURCE_USER:
+        psz_msg = setting_roca.value ? sz_roca_allow_user : sz_roca_block_user;
+        break;
 
-        default:
-        case SETTING_SOURCE_DEFAULT:
-          psz_msg = sz_roca_default;
-          break;
-      }
+      default:
+      case SETTING_SOURCE_DEFAULT:
+        psz_msg = sz_roca_default;
+        break;
+    }
 
-      DBG(sz_roca_format, state->serial, psz_msg);
-      yc_log_event("YubiKey PIV Library", 1, setting_roca.value ? YC_LOG_LEVEL_WARN : YC_LOG_LEVEL_ERROR, sz_roca_format, state->serial, psz_msg);
+    DBG(sz_roca_format, state->serial, psz_msg);
+    yc_log_event("YubiKey PIV Library", 1, setting_roca.value ? YC_LOG_LEVEL_WARN : YC_LOG_LEVEL_ERROR, sz_roca_format,
+                 state->serial, psz_msg);
 
-      if (!setting_roca.value) {
-        return YKPIV_NOT_SUPPORTED;
-      }
+    if (!setting_roca.value) {
+      return YKPIV_NOT_SUPPORTED;
     }
   }
 
   switch (algorithm) {
   case YKPIV_ALGO_RSA1024:
   case YKPIV_ALGO_RSA2048:
+  case YKPIV_ALGO_RSA3072:
+  case YKPIV_ALGO_RSA4096:
     if (!modulus || !modulus_len || !exp || !exp_len) {
       DBG("Invalid output parameter for RSA algorithm");
       return YKPIV_ARGUMENT_ERROR;
@@ -809,8 +815,10 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     *exp_len = 0;
     break;
 
-  case  YKPIV_ALGO_ECCP256:
-  case  YKPIV_ALGO_ECCP384:
+  case YKPIV_ALGO_ECCP256:
+  case YKPIV_ALGO_ECCP384:
+  case YKPIV_ALGO_ED25519:
+  case YKPIV_ALGO_X25519:
     if (!point || !point_len) {
       DBG("Invalid output parameter for ECC algorithm");
       return YKPIV_ARGUMENT_ERROR;
@@ -864,7 +872,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     goto Cleanup;
   }
 
-  if ((YKPIV_ALGO_RSA1024 == algorithm) || (YKPIV_ALGO_RSA2048 == algorithm)) {
+  if (YKPIV_IS_RSA(algorithm)) {
     size_t len;
     unsigned char *data_ptr = data + 2 + _ykpiv_get_length(data + 2, data + recv_len, &len);
 
@@ -927,15 +935,16 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     ptr_exp = NULL;
     *exp_len = cb_exp;
   }
-  else if ((YKPIV_ALGO_ECCP256 == algorithm) || (YKPIV_ALGO_ECCP384 == algorithm)) {
+  else if (YKPIV_IS_EC(algorithm) || YKPIV_IS_25519(algorithm)) {
     unsigned char *data_ptr = data + 3;
     size_t len;
 
     if (YKPIV_ALGO_ECCP256 == algorithm) {
       len = CB_ECC_POINTP256;
-    }
-    else {
+    } else if (YKPIV_ALGO_ECCP384 == algorithm) {
       len = CB_ECC_POINTP384;
+    } else if (YKPIV_IS_25519(algorithm)) {
+      len = CB_ECC_POINT25519;
     }
 
     if (*data_ptr++ != TAG_ECC_POINT) {

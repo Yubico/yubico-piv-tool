@@ -86,13 +86,18 @@ unsigned char get_algorithm(EVP_PKEY *key) {
   switch(type) {
     case EVP_PKEY_RSA:
       {
-        if(size == 2048) {
-          return YKPIV_ALGO_RSA2048;
-        } else if(size == 1024) {
-          return YKPIV_ALGO_RSA1024;
-        } else {
-          fprintf(stderr, "Unusable RSA key of %d bits, only 1024 and 2048 are supported.\n", size);
-          return 0;
+        switch (size) {
+          case 1024:
+            return YKPIV_ALGO_RSA1024;
+          case 2048:
+            return YKPIV_ALGO_RSA2048;
+          case 3072:
+            return YKPIV_ALGO_RSA3072;
+          case 4096:
+            return YKPIV_ALGO_RSA4096;
+          default:
+            fprintf(stderr, "Unusable RSA key of %d bits, only 1024, 2048 3072 and 4096 are supported.\n", size);
+            return 0;
         }
       }
     case EVP_PKEY_EC:
@@ -106,6 +111,12 @@ unsigned char get_algorithm(EVP_PKEY *key) {
           return 0;
         }
       }
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+    case EVP_PKEY_ED25519:
+      return YKPIV_ALGO_ED25519;
+    case EVP_PKEY_X25519:
+      return YKPIV_ALGO_X25519;
+#endif
     default:
       fprintf(stderr, "Unknown algorithm %d.\n", type);
       return 0;
@@ -485,6 +496,8 @@ int get_hashnid(enum enum_hash hash, unsigned char algorithm) {
   switch(algorithm) {
     case YKPIV_ALGO_RSA1024:
     case YKPIV_ALGO_RSA2048:
+    case YKPIV_ALGO_RSA3072:
+    case YKPIV_ALGO_RSA4096:
       switch(hash) {
         case hash_arg_SHA1:
           return NID_sha1WithRSAEncryption;
@@ -513,6 +526,12 @@ int get_hashnid(enum enum_hash hash, unsigned char algorithm) {
         default:
           return 0;
       }
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+    case YKPIV_ALGO_ED25519:
+      return  NID_ED25519;
+    case YKPIV_ALGO_X25519:
+      return NID_X25519;
+#endif
     default:
       return 0;
   }
@@ -524,10 +543,18 @@ unsigned char get_piv_algorithm(enum enum_algorithm algorithm) {
       return YKPIV_ALGO_RSA2048;
     case algorithm_arg_RSA1024:
       return YKPIV_ALGO_RSA1024;
+    case algorithm_arg_RSA3072:
+      return YKPIV_ALGO_RSA3072;
+    case algorithm_arg_RSA4096:
+      return YKPIV_ALGO_RSA4096;
     case algorithm_arg_ECCP256:
       return YKPIV_ALGO_ECCP256;
     case algorithm_arg_ECCP384:
       return YKPIV_ALGO_ECCP384;
+    case algorithm_arg_ED25519:
+      return YKPIV_ALGO_ED25519;
+    case algorithm_arg_X25519:
+      return YKPIV_ALGO_X25519;
     case algorithm__NULL:
     default:
       return 0;
@@ -651,18 +678,4 @@ int SSH_write_X509(FILE *fp, X509 *x) {
 
   return ret;
 
-}
-
-bool is_rsa_key_algorithm(unsigned char algo) {
-  if(algo == YKPIV_ALGO_RSA1024 || algo == YKPIV_ALGO_RSA2048) {
-    return true;
-  }
-  return false;
-}
-
-bool is_ec_key_algorithm(unsigned char algo) {
-  if(algo == YKPIV_ALGO_ECCP256 || algo == YKPIV_ALGO_ECCP384) {
-    return true;
-  }
-  return false;
 }

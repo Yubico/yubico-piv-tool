@@ -138,6 +138,7 @@ extern "C"
   ykpiv_rc ykpiv_attest(ykpiv_state *state, const unsigned char key, unsigned char *data, size_t *data_len);
   ykpiv_rc ykpiv_get_metadata(ykpiv_state *state, const unsigned char key, unsigned char *data, size_t *data_len);
 
+  bool is_version_compatible(ykpiv_state *state, uint8_t major, uint8_t minor, uint8_t patch);
   ykpiv_rc ykpiv_move_key(ykpiv_state *state, const unsigned char from_slot, const unsigned char to_slot);
 
   /**
@@ -625,8 +626,12 @@ extern "C"
 #define YKPIV_ALGO_AES256 0x0c
 #define YKPIV_ALGO_RSA1024 0x06
 #define YKPIV_ALGO_RSA2048 0x07
+#define YKPIV_ALGO_RSA3072 0x05
+#define YKPIV_ALGO_RSA4096 0x16
 #define YKPIV_ALGO_ECCP256 0x11
 #define YKPIV_ALGO_ECCP384 0x14
+#define YKPIV_ALGO_ED25519 0xE0
+#define YKPIV_ALGO_X25519 0xE1
 
 #define YKPIV_ALGO_AUTO 0xff
 
@@ -761,7 +766,8 @@ extern "C"
 #define YKPIV_METADATA_PUBKEY_TAG 0x04 // RSA: DER-encoded sequence N, E; EC: Uncompressed EC point X, Y
 
 #define YKPIV_IS_EC(a) ((a == YKPIV_ALGO_ECCP256 || a == YKPIV_ALGO_ECCP384))
-#define YKPIV_IS_RSA(a) ((a == YKPIV_ALGO_RSA1024 || a == YKPIV_ALGO_RSA2048))
+#define YKPIV_IS_RSA(a) ((a == YKPIV_ALGO_RSA1024 || a == YKPIV_ALGO_RSA2048 || a == YKPIV_ALGO_RSA3072 || a == YKPIV_ALGO_RSA4096))
+#define YKPIV_IS_25519(a) ((a == YKPIV_ALGO_ED25519 || a == YKPIV_ALGO_X25519))
 
 #define YKPIV_MIN_PIN_LEN 6
 #define YKPIV_MAX_PIN_LEN 8

@@ -1533,7 +1533,24 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
                                 &touch_policy, &pin_policy);
       if (rv == CKR_OK) {
         DBG("Key is RSA");
-        algorithm = p_len <= 64 ? YKPIV_ALGO_RSA1024 : YKPIV_ALGO_RSA2048;
+        switch (p_len) {
+          case 63:
+          case 64:
+            algorithm = YKPIV_ALGO_RSA1024;
+            break;
+          case 127:
+          case 128:
+            algorithm = YKPIV_ALGO_RSA2048;
+            break;
+          case 191:
+          case 192:
+            algorithm = YKPIV_ALGO_RSA3072;
+            break;
+          case 255:
+          case 256:
+            algorithm = YKPIV_ALGO_RSA4096;
+            break;
+        }
       } else {
         DBG("Private key template not valid");
         goto create_out;

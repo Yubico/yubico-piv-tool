@@ -119,15 +119,31 @@ static bool sign_data(ykpiv_state *state, const unsigned char *in, size_t len, u
     size_t *out_len, unsigned char algorithm, int key) {
 
   unsigned char signinput[1024] = {0};
-  if(YKPIV_IS_RSA(algorithm)) {
-    size_t padlen = algorithm == YKPIV_ALGO_RSA1024 ? 128 : 256;
-    if(RSA_padding_add_PKCS1_type_1(signinput, padlen, in, len) == 0) {
+  size_t padlen = 0;
+  switch (algorithm) {
+    case YKPIV_ALGO_RSA1024:
+      padlen = 128;
+      break;
+    case YKPIV_ALGO_RSA2048:
+      padlen = 256;
+      break;
+    case YKPIV_ALGO_RSA3072:
+      padlen = 384;
+      break;
+    case YKPIV_ALGO_RSA4096:
+      padlen = 512;
+      break;
+    default:
+      fprintf(stderr, "Unknown RSA algorithm.\n");
+      return false;
+  }
+  if (RSA_padding_add_PKCS1_type_1(signinput, padlen, in, len) == 0) {
       fprintf(stderr, "Failed adding padding.\n");
       return false;
     }
     in = signinput;
     len = padlen;
-  }
+
   ykpiv_rc rc;
   if((rc = ykpiv_sign_data(state, in, len, out, out_len, algorithm, key)) == YKPIV_OK) {
     return true;
@@ -218,7 +234,7 @@ static EVP_PKEY* wrap_public_key(ykpiv_state *state, int algorithm, EVP_PKEY *pu
     }
     EVP_PKEY_assign_RSA(pkey, sk);
   }
-  else {
+  else if(YKPIV_IS_EC(algorithm)){
     const EC_KEY *ec = EVP_PKEY_get0_EC_KEY(public_key);
     EC_KEY_METHOD *meth = EC_KEY_METHOD_new(EC_KEY_get_method(ec));
     EC_KEY_METHOD_set_init(meth, NULL, yk_ec_meth_finish, NULL, NULL, NULL, NULL);
@@ -235,6 +251,12 @@ static EVP_PKEY* wrap_public_key(ykpiv_state *state, int algorithm, EVP_PKEY *pu
       fprintf(stderr, "Failed to wrap public EC key\n");
     }
     EVP_PKEY_assign_EC_KEY(pkey, sk);
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+  } else if (algorithm == YKPIV_ALGO_ED25519) {
+    EVP_PKEY_assign(pkey, EVP_PKEY_ED25519, public_key);
+  } else if (algorithm == YKPIV_ALGO_X25519) {
+    EVP_PKEY_assign(pkey, EVP_PKEY_X25519, public_key);
+#endif
   }
   return pkey;
 }
@@ -301,62 +323,85 @@ static bool generate_key(ykpiv_state *state, enum enum_slot slot,
     goto generate_out;
   }
 
-  if(key_format == key_format_arg_PEM) {
+  if (key_format == key_format_arg_PEM) {
     public_key = EVP_PKEY_new();
-    if(algorithm == algorithm_arg_RSA1024 || algorithm == algorithm_arg_RSA2048) {
-      BIGNUM *bignum_n = NULL;
-      BIGNUM *bignum_e = NULL;
-      rsa = RSA_new();
-      bignum_n = BN_bin2bn(mod, mod_len, NULL);
-      if (bignum_n == NULL) {
-        fprintf(stderr, "Failed to parse public key modulus.\n");
-        goto generate_out;
-      }
-      bignum_e = BN_bin2bn(exp, exp_len, NULL);
-      if(bignum_e == NULL) {
-        fprintf(stderr, "Failed to parse public key exponent.\n");
-        goto generate_out;
-      }
+    switch (algorithm) {
+      case algorithm_arg_RSA1024:
+      case algorithm_arg_RSA2048:
+      case algorithm_arg_RSA3072:
+      case algorithm_arg_RSA4096: {
+        BIGNUM *bignum_n = NULL;
+        BIGNUM *bignum_e = NULL;
+        rsa = RSA_new();
+        bignum_n = BN_bin2bn(mod, mod_len, NULL);
+        if (bignum_n == NULL) {
+          fprintf(stderr, "Failed to parse public key modulus.\n");
+          goto generate_out;
+        }
+        bignum_e = BN_bin2bn(exp, exp_len, NULL);
+        if (bignum_e == NULL) {
+          fprintf(stderr, "Failed to parse public key exponent.\n");
+          goto generate_out;
+        }
 
-      if(RSA_set0_key(rsa, bignum_n, bignum_e, NULL) != 1) {
-        fprintf(stderr, "Failed to set RSA key\n");
-        goto generate_out;
+        if (RSA_set0_key(rsa, bignum_n, bignum_e, NULL) != 1) {
+          fprintf(stderr, "Failed to set RSA key\n");
+          goto generate_out;
+        }
+        if (EVP_PKEY_set1_RSA(public_key, rsa) != 1) {
+          fprintf(stderr, "Failed to set RSA public key\n");
+          goto generate_out;
+        }
       }
-      if(EVP_PKEY_set1_RSA(public_key, rsa) != 1) {
-        fprintf(stderr, "Failed to set RSA public key\n");
-        goto generate_out;
-      }
-    } else if(algorithm == algorithm_arg_ECCP256 || algorithm == algorithm_arg_ECCP384) {
-      int nid;
+        break;
+      case algorithm_arg_ECCP256:
+      case algorithm_arg_ECCP384: {
+        int nid;
 
-      if(algorithm == algorithm_arg_ECCP256) {
-        nid = NID_X9_62_prime256v1;
-      } else {
-        nid = NID_secp384r1;
-      }
-      eckey = EC_KEY_new();
-      group = EC_GROUP_new_by_curve_name(nid);
-      EC_GROUP_set_asn1_flag(group, OPENSSL_EC_NAMED_CURVE);
-      if(EC_KEY_set_group(eckey, group) != 1) {
-        fprintf(stderr, "Failed to set EC group.\n");
-        goto generate_out;
-      }
-      ecpoint = EC_POINT_new(group);
+        if (algorithm == algorithm_arg_ECCP256) {
+          nid = NID_X9_62_prime256v1;
+        } else {
+          nid = NID_secp384r1;
+        }
+        eckey = EC_KEY_new();
+        group = EC_GROUP_new_by_curve_name(nid);
+        EC_GROUP_set_asn1_flag(group, OPENSSL_EC_NAMED_CURVE);
+        if (EC_KEY_set_group(eckey, group) != 1) {
+          fprintf(stderr, "Failed to set EC group.\n");
+          goto generate_out;
+        }
+        ecpoint = EC_POINT_new(group);
 
-      if(!EC_POINT_oct2point(group, ecpoint, point, point_len, NULL)) {
-        fprintf(stderr, "Failed to load public point.\n");
-        goto generate_out;
+        if (!EC_POINT_oct2point(group, ecpoint, point, point_len, NULL)) {
+          fprintf(stderr, "Failed to load public point.\n");
+          goto generate_out;
+        }
+        if (!EC_KEY_set_public_key(eckey, ecpoint)) {
+          fprintf(stderr, "Failed to set the public key.\n");
+          goto generate_out;
+        }
+        if (EVP_PKEY_set1_EC_KEY(public_key, eckey) != 1) {
+          fprintf(stderr, "Failed to set EC public key.\n");
+          goto generate_out;
+        }
       }
-      if(!EC_KEY_set_public_key(eckey, ecpoint)) {
-        fprintf(stderr, "Failed to set the public key.\n");
-        goto generate_out;
-      }
-      if(EVP_PKEY_set1_EC_KEY(public_key, eckey) != 1) {
-        fprintf(stderr, "Failed to set EC public key.\n");
-        goto generate_out;
-      }
-    } else {
-      fprintf(stderr, "Wrong algorithm.\n");
+        break;
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+      case algorithm_arg_ED25519:
+        public_key = EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, NULL, point, point_len);
+        break;
+      case algorithm_arg_X25519:
+        public_key = EVP_PKEY_new_raw_public_key(EVP_PKEY_X25519, NULL, point, point_len);
+        break;
+#else
+      case algorithm_arg_ED25519:
+      case algorithm_arg_X25519:
+        fprintf(stderr, "Key was generated successfully but a public key cannot be parsed due to too old OpenSSL version. "
+                        "Upgrade OpenSSL to at least 1.1 or use attestation command to get a signed certificate instead.\n");
+        return true;
+#endif
+      default:
+        fprintf(stderr, "Wrong algorithm.\n");
     }
     if(PEM_write_PUBKEY(output_file, public_key) == 1) {
       ret = true;
@@ -553,6 +598,26 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
                                     s_ptr, element_len,
                                     pp, tp);
     }
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+    else if(YKPIV_IS_25519(algorithm)) {
+      unsigned char s_ptr[48] = {0};
+      size_t element_len = sizeof(s_ptr);
+
+      if (EVP_PKEY_get_raw_private_key(private_key, s_ptr, &element_len) != 1) {
+        fprintf(stderr, "Failed to extract private key.\n");
+        goto import_out;
+      }
+
+      rc = ykpiv_import_private_key(state, key, algorithm,
+                                    NULL, 0,
+                                    NULL, 0,
+                                    NULL, 0,
+                                    NULL, 0,
+                                    NULL, 0,
+                                    s_ptr, element_len,
+                                    pp, tp);
+    }
+#endif
 
     ret = true;
     if(rc != YKPIV_OK) {
@@ -790,7 +855,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
   FILE *input_file = NULL;
   FILE *output_file = NULL;
   EVP_PKEY *public_key = NULL;
-  const EVP_MD *md;
+  const EVP_MD *md = NULL;
   bool ret = false;
   unsigned char algorithm;
   int key = 0;
@@ -881,10 +946,11 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
   if(algorithm == 0) {
     goto request_out;
   }
-
-  md = get_hash(hash, &oid, &oid_len);
-  if(md == NULL) {
-    goto request_out;
+  if (!YKPIV_IS_25519(algorithm)) {
+    md = get_hash(hash, &oid, &oid_len);
+    if (md == NULL) {
+      goto request_out;
+    }
   }
 
   if(!X509_REQ_set_pubkey(req, public_key)) {
@@ -1089,9 +1155,12 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
 
   size_t oid_len = 0;
   const unsigned char *oid = 0;
-  const EVP_MD *md = get_hash(hash, &oid, &oid_len);
-  if(md == NULL) {
-    goto selfsign_out;
+  const EVP_MD *md = NULL;
+  if (!YKPIV_IS_25519(algorithm)) {
+    md = get_hash(hash, &oid, &oid_len);
+    if (md == NULL) {
+      goto selfsign_out;
+    }
   }
   x509 = X509_new();
   if(!x509) {
@@ -1603,11 +1672,23 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     case YKPIV_ALGO_RSA2048:
       fprintf(output, "RSA2048\n");
       break;
+    case YKPIV_ALGO_RSA3072:
+      fprintf(output, "RSA3072\n");
+      break;
+    case YKPIV_ALGO_RSA4096:
+      fprintf(output, "RSA4096\n");
+      break;
     case YKPIV_ALGO_ECCP256:
       fprintf(output, "ECCP256\n");
       break;
     case YKPIV_ALGO_ECCP384:
       fprintf(output, "ECCP384\n");
+      break;
+    case YKPIV_ALGO_ED25519:
+      fprintf(output, "ED25519\n");
+      break;
+    case YKPIV_ALGO_X25519:
+      fprintf(output, "X25519\n");
       break;
     default:
       fprintf(output, "Unknown\n");
@@ -1837,6 +1918,8 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
     switch(algorithm) {
       case YKPIV_ALGO_RSA1024:
       case YKPIV_ALGO_RSA2048:
+      case YKPIV_ALGO_RSA3072:
+      case YKPIV_ALGO_RSA4096:
         {
           RSA *rsa = EVP_PKEY_get1_RSA(pubkey);
           if(!rsa) {

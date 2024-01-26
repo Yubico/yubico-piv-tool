@@ -1210,11 +1210,21 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
       if(key_len == 0) {
 	      key_len = 256;
       }
+    case YKPIV_ALGO_RSA3072:
+      if(key_len == 0) {
+        key_len = 384;
+      }
+    case YKPIV_ALGO_RSA4096:
+      if(key_len == 0) {
+        key_len = 512;
+      }
       if(in_len != key_len) {
-	      return YKPIV_SIZE_ERROR;
+        return YKPIV_SIZE_ERROR;
       }
       break;
     case YKPIV_ALGO_ECCP256:
+    case YKPIV_ALGO_ED25519:
+    case YKPIV_ALGO_X25519:
       key_len = 32;
       // fall through
     case YKPIV_ALGO_ECCP384:
@@ -1238,7 +1248,7 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   dataptr += _ykpiv_set_length(dataptr, in_len + bytes + 3);
   *dataptr++ = 0x82;
   *dataptr++ = 0x00;
-  *dataptr++ = YKPIV_IS_EC(algorithm) && decipher ? 0x85 : 0x81;
+  *dataptr++ = (YKPIV_IS_EC(algorithm) || YKPIV_IS_25519(algorithm)) && decipher ? 0x85 : 0x81;
   dataptr += _ykpiv_set_length(dataptr, in_len);
   memcpy(dataptr, sign_in, in_len);
   dataptr += in_len;
@@ -1898,16 +1908,31 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
       touch_policy != YKPIV_TOUCHPOLICY_CACHED)
     return YKPIV_GENERIC_ERROR;
 
-  if (algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048) {
+  if (YKPIV_IS_RSA(algorithm)) {
+    if ((algorithm == YKPIV_ALGO_RSA3072 || algorithm == YKPIV_ALGO_RSA4096) &&
+        (state->ver.major < 5 || (ykpiv_util_devicemodel(state) == DEVTYPE_YK5 && state->ver.minor < 7))) {
+      DBG("RSA3072 and RSA4096 keys are only supported in YubiKey version 5.7.0 and above");
+      return YKPIV_NOT_SUPPORTED;
+    }
 
     if (p_len + q_len + dp_len + dq_len + qinv_len >= sizeof(key_data)) {
       return YKPIV_SIZE_ERROR;
     }
 
-    if (algorithm == YKPIV_ALGO_RSA1024)
-      elem_len = 64;
-    if (algorithm == YKPIV_ALGO_RSA2048)
-      elem_len = 128;
+    switch (algorithm) {
+      case YKPIV_ALGO_RSA1024:
+        elem_len = 64;
+        break;
+      case YKPIV_ALGO_RSA2048:
+        elem_len = 128;
+        break;
+      case YKPIV_ALGO_RSA3072:
+        elem_len = 192;
+        break;
+      case YKPIV_ALGO_RSA4096:
+        elem_len = 256;
+        break;
+    }
 
     if (p == NULL || q == NULL || dp == NULL ||
         dq == NULL || qinv == NULL)
@@ -1927,7 +1952,7 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
 
     n_params = 5;
   }
-  else if (algorithm == YKPIV_ALGO_ECCP256 || algorithm == YKPIV_ALGO_ECCP384) {
+  else if (YKPIV_IS_EC(algorithm)) {
 
     if ((size_t)ec_data_len >= sizeof(key_data)) {
       /* This can never be true, but check to be explicit. */
@@ -1945,6 +1970,20 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
     params[0] = ec_data;
     lens[0] = ec_data_len;
     param_tag = 0x06;
+    n_params = 1;
+  }
+  else if (YKPIV_IS_25519(algorithm)) {
+    elem_len = 32;
+    if (ec_data == NULL)
+      return YKPIV_ARGUMENT_ERROR;
+
+    params[0] = ec_data;
+    lens[0] = ec_data_len;
+    if (algorithm == YKPIV_ALGO_ED25519) {
+      param_tag = 0x07;
+    } else {
+      param_tag = 0x08;
+    }
     n_params = 1;
   }
   else
@@ -2206,13 +2245,15 @@ static ykpiv_rc _ykpiv_auth_deauthenticate(ykpiv_state *state) {
   return res;
 }
 
-static bool check_version(ykpiv_state *state, uint8_t major, uint8_t minor) {
-  return state->ver.major > major || (state->ver.major == major && state->ver.minor >= minor);
+bool is_version_compatible(ykpiv_state *state, uint8_t major, uint8_t minor, uint8_t patch) {
+  return state->ver.major > major ||
+         (state->ver.major == major && state->ver.minor >= minor) ||
+         (state->ver.major == major && state->ver.minor == minor && state->ver.patch >= patch);
 }
 
 // if to_slot is set to 0xff, the key will be deleted
 ykpiv_rc ykpiv_move_key(ykpiv_state *state, const unsigned char from_slot, const unsigned char to_slot) {
-  if(!check_version(state, 5, 7)) {
+  if(!is_version_compatible(state, 5, 7, 0)) {
     DBG("Move key operation available with firmware version 5.7.0 or higher");
     return YKPIV_NOT_SUPPORTED;
   }

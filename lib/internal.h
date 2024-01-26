@@ -98,6 +98,7 @@ extern "C"
 
 #define CB_ECC_POINTP256    65
 #define CB_ECC_POINTP384    97
+#define CB_ECC_POINT25519   32
 
 #define YKPIV_OBJ_ADMIN_DATA 0x5fff00
 #define YKPIV_OBJ_ATTESTATION 0x5fff01

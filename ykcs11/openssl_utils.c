@@ -559,6 +559,10 @@ CK_BYTE do_get_key_algorithm(ykcs11_pkey_t *key) {
         return YKPIV_ALGO_RSA1024;
       case 2048:
         return YKPIV_ALGO_RSA2048;
+      case 3072:
+        return YKPIV_ALGO_RSA3072;
+      case 4096:
+        return YKPIV_ALGO_RSA4096;
       }
     case EVP_PKEY_EC:
       switch(EVP_PKEY_bits(key)) {
