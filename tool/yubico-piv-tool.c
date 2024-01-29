@@ -1563,6 +1563,10 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
   if(algo == 0) {
     goto out;
   }
+  if(algo == YKPIV_ALGO_X25519) {
+    fprintf(stderr, "Signing with X25519 key is not supported\n");
+    goto out;
+  }
 
   {
     EVP_MD_CTX *mdctx;
