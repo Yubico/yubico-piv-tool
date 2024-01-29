@@ -1153,11 +1153,15 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   if(algorithm == 0) {
     goto selfsign_out;
   }
+  if(algorithm == YKPIV_ALGO_X25519) {
+    fprintf(stderr, "Signing with X25519 keys is not supported.\n");
+    goto selfsign_out;
+  }
 
   size_t oid_len = 0;
   const unsigned char *oid = 0;
   const EVP_MD *md = NULL;
-  if (!YKPIV_IS_25519(algorithm)) {
+  if (algorithm != YKPIV_ALGO_ED25519) {
     md = get_hash(hash, &oid, &oid_len);
     if (md == NULL) {
       goto selfsign_out;
