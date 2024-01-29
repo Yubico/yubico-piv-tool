@@ -1202,7 +1202,7 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   size_t len = 0;
   ykpiv_rc res;
 
-  if (algorithm == YKPIV_ALGO_X25519 || !decipher) {
+  if (algorithm == YKPIV_ALGO_X25519 && !decipher) {
     DBG("Signing with X25519 key is not supported");
     return YKPIV_NOT_SUPPORTED;
   }
