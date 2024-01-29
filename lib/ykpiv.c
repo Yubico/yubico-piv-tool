@@ -1202,6 +1202,11 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   size_t len = 0;
   ykpiv_rc res;
 
+  if (algorithm == YKPIV_ALGO_X25519 || !decipher) {
+    DBG("Signing with X25519 key is not supported");
+    return YKPIV_NOT_SUPPORTED;
+  }
+
   switch(algorithm) {
     case YKPIV_ALGO_RSA1024:
       key_len = 128;
@@ -1243,12 +1248,12 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   }
 
   bytes = _ykpiv_get_length_size(in_len);
-  
+
   *dataptr++ = 0x7c;
   dataptr += _ykpiv_set_length(dataptr, in_len + bytes + 3);
   *dataptr++ = 0x82;
   *dataptr++ = 0x00;
-  *dataptr++ = (YKPIV_IS_EC(algorithm) || YKPIV_IS_25519(algorithm)) && decipher ? 0x85 : 0x81;
+  *dataptr++ = (YKPIV_IS_EC(algorithm) || (algorithm == YKPIV_ALGO_X25519)) && decipher ? 0x85 : 0x81;
   dataptr += _ykpiv_set_length(dataptr, in_len);
   memcpy(dataptr, sign_in, in_len);
   dataptr += in_len;
