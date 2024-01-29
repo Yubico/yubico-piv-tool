@@ -769,7 +769,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
 
   if ((algorithm == YKPIV_ALGO_RSA3072 || algorithm == YKPIV_ALGO_RSA4096 || YKPIV_IS_25519(algorithm))
        && !is_version_compatible(state, 5, 7, 0)) {
-    DBG("RSA3072 and RSA4096 keys are only supported in YubiKey version 5.7.0 and above");
+    DBG("RSA3072, RSA4096, ED25519 and X25519 keys are only supported in YubiKey version 5.7.0 and newer");
     return YKPIV_NOT_SUPPORTED;
   }
   if ((algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048) && !is_version_compatible(state, 4, 3, 5)) {
