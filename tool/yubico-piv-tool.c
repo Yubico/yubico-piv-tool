@@ -860,8 +860,8 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
   bool ret = false;
   unsigned char algorithm;
   int key = 0;
-  size_t oid_len;
-  const unsigned char *oid;
+  size_t oid_len = 0;
+  const unsigned char *oid = NULL;
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
   unsigned char digest[EVP_MAX_MD_SIZE + MAX_OID_LEN] = {0};
   unsigned int md_len;
