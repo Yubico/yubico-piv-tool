@@ -1228,8 +1228,6 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
       }
       break;
     case YKPIV_ALGO_ECCP256:
-    case YKPIV_ALGO_ED25519:
-    case YKPIV_ALGO_X25519:
       key_len = 32;
       // fall through
     case YKPIV_ALGO_ECCP384:
@@ -1241,6 +1239,16 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
         in_len = key_len;
       } else if(decipher && in_len != (key_len * 2) + 1) {
 	      return YKPIV_SIZE_ERROR;
+      }
+      break;
+    case YKPIV_ALGO_X25519:
+      if(in_len != 32) {
+        return YKPIV_SIZE_ERROR;
+      }
+      break;
+    case YKPIV_ALGO_ED25519:
+      if(in_len > CB_BUF_MAX) {
+        return YKPIV_SIZE_ERROR;
       }
       break;
     default:
