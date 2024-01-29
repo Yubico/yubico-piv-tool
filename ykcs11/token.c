@@ -39,7 +39,7 @@
 #include "../common/util.h"
 
 #define MIN_RSA_KEY_SIZE 1024
-#define MAX_RSA_KEY_SIZE 2048
+#define MAX_RSA_KEY_SIZE 4096
 #define MIN_ECC_KEY_SIZE 256
 #define MAX_ECC_KEY_SIZE 384
 
