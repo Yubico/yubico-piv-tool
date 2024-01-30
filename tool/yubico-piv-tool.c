@@ -1566,12 +1566,19 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
 
   {
     EVP_MD_CTX *mdctx;
-    if (!YKPIV_IS_25519(algo)) {
+    if(algo == YKPIV_ALGO_X25519) {
+      fprintf(stderr, "Signing with X25519 key is not supported\n");
+      goto out;
+    } else if (algo == YKPIV_ALGO_ED25519) {
+      char buf[1024] = {0};
+      size_t len = fread(buf, 1, 1024, input_file);
+      memcpy(hashed, buf, len);
+      hash_len = len;
+    } else {
       md = get_hash(hash, NULL, NULL);
       if (md == NULL) {
         goto out;
       }
-
 
       mdctx = EVP_MD_CTX_create();
       if (EVP_DigestInit_ex(mdctx, md, NULL) != 1) {
@@ -1596,11 +1603,6 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
         dump_data(hashed, hash_len, stderr, true, format_arg_hex);
       }
       EVP_MD_CTX_destroy(mdctx);
-    } else {
-      char buf[1024] = {0};
-      size_t len = fread(buf, 1, 1024, input_file);
-      memcpy(hashed, buf, len);
-      hash_len = len;
     }
   }
 
