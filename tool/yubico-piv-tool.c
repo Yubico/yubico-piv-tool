@@ -1570,12 +1570,11 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
       fprintf(stderr, "Signing with X25519 key is not supported\n");
       goto out;
     } else if (algo == YKPIV_ALGO_ED25519) {
-      size_t len = fread(hashed, 1, YKPIV_OBJ_MAX_SIZE, input_file);
-      if(len >= YKPIV_OBJ_MAX_SIZE) {
+      hash_len = fread(hashed, 1, YKPIV_OBJ_MAX_SIZE, input_file);
+      if(hash_len >= YKPIV_OBJ_MAX_SIZE) {
         fprintf(stderr, "Cannot perform signature. File too big.\n");
         goto out;
       }
-      hash_len = len;
     } else {
       md = get_hash(hash, NULL, NULL);
       if (md == NULL) {
@@ -1588,8 +1587,8 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
         goto out;
       }
       while (!feof(input_file)) {
-        char buf[1024] = {0};
-        size_t len = fread(buf, 1, 1024, input_file);
+        char buf[8192] = {0};
+        size_t len = fread(buf, 1, sizeof(buf), input_file);
         if (EVP_DigestUpdate(mdctx, buf, len) != 1) {
           fprintf(stderr, "Failed to update digest data\n");
           goto out;
