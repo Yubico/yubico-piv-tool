@@ -1566,36 +1566,42 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
 
   {
     EVP_MD_CTX *mdctx;
-    if (!YKPIV_IS_25519(algorithm)) {
+    if (!YKPIV_IS_25519(algo)) {
       md = get_hash(hash, NULL, NULL);
       if (md == NULL) {
         goto out;
       }
-    }
 
-    mdctx = EVP_MD_CTX_create();
-    if(EVP_DigestInit_ex(mdctx, md, NULL) != 1) {
-      fprintf(stderr, "Failed to initialize digest operation\n");
-      goto out;
-    }
-    while(!feof(input_file)) {
-      char buf[1024] = {0};
-      size_t len = fread(buf, 1, 1024, input_file);
-      if(EVP_DigestUpdate(mdctx, buf, len) != 1) {
-        fprintf(stderr, "Failed to update digest data\n");
+
+      mdctx = EVP_MD_CTX_create();
+      if (EVP_DigestInit_ex(mdctx, md, NULL) != 1) {
+        fprintf(stderr, "Failed to initialize digest operation\n");
         goto out;
       }
-    }
-    if(EVP_DigestFinal_ex(mdctx, hashed, &hash_len) != 1) {
-      fprintf(stderr, "Failed to finalize digest operation\n");
-      goto out;
-    }
+      while (!feof(input_file)) {
+        char buf[1024] = {0};
+        size_t len = fread(buf, 1, 1024, input_file);
+        if (EVP_DigestUpdate(mdctx, buf, len) != 1) {
+          fprintf(stderr, "Failed to update digest data\n");
+          goto out;
+        }
+      }
+      if (EVP_DigestFinal_ex(mdctx, hashed, &hash_len) != 1) {
+        fprintf(stderr, "Failed to finalize digest operation\n");
+        goto out;
+      }
 
-    if(verbosity) {
-      fprintf(stderr, "File hashed as: ");
-      dump_data(hashed, hash_len, stderr, true, format_arg_hex);
+      if (verbosity) {
+        fprintf(stderr, "File hashed as: ");
+        dump_data(hashed, hash_len, stderr, true, format_arg_hex);
+      }
+      EVP_MD_CTX_destroy(mdctx);
+    } else {
+      char buf[1024] = {0};
+      size_t len = fread(buf, 1, 1024, input_file);
+      memcpy(hashed, buf, len);
+      hash_len = len;
     }
-    EVP_MD_CTX_destroy(mdctx);
   }
 
   if(YKPIV_IS_RSA(algo)) {
