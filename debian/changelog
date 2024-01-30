@@ -1,3 +1,12 @@
+yubico-piv-tool (2.5.0) stable; urgency=medium
+
+  * ykpiv: cmd: ykcs11: Add support for RSA3072 and RSA4096 key types. Available in firmware 5.7.0 and newer
+  * ykpiv: cmd: Add support for ED25519 and X25519 key types. Available in firmware 5.7.0 and newer
+  * ykpiv: cmd: Add support for deleting keys. Available in firmware 5.7.0 and newer
+  * ykpiv: cmd: Add support for moving keys between slots. Available in firmware 5.7.0 and newer
+
+ -- Aveen Ismail <aveen.ismail@yubico.com>  Tue, 30 Jan 2024 20:07:42 +0100
+
 yubico-piv-tool (2.4.2) stable; urgency=medium
 
   * ykpiv: Fix potential type casting bug.

@@ -10,7 +10,7 @@ jobs:
     name: Build dist with Linux
     runs-on: ubuntu-latest
     env:
-      RELEASE_VERSION: 2.4.2
+      RELEASE_VERSION: 2.5.0
     steps:
       - name: checkout
         uses: actions/checkout@v3
@@ -44,7 +44,7 @@ jobs:
           - os: macos-latest-xlarge
             arch: arm
     env:
-      RELEASE_VERSION: 2.4.2
+      RELEASE_VERSION: 2.5.0
       SO_VERSION: 2
     steps:
       - name: Download source from job_1
