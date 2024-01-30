@@ -1571,7 +1571,7 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
       goto out;
     } else if (algo == YKPIV_ALGO_ED25519) {
       hash_len = fread(hashed, 1, sizeof(hashed), input_file);
-      if(hash_len >= YKPIV_OBJ_MAX_SIZE) {
+      if(hash_len >= sizeof(hashed)) {
         fprintf(stderr, "Cannot perform signature. File too big.\n");
         goto out;
       }
