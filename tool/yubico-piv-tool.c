@@ -1153,11 +1153,15 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
   if(algorithm == 0) {
     goto selfsign_out;
   }
+  if(algorithm == YKPIV_ALGO_X25519) {
+    fprintf(stderr, "Signing with X25519 keys is not supported.\n");
+    goto selfsign_out;
+  }
 
   size_t oid_len = 0;
   const unsigned char *oid = 0;
   const EVP_MD *md = NULL;
-  if (!YKPIV_IS_25519(algorithm)) {
+  if (algorithm != YKPIV_ALGO_ED25519) {
     md = get_hash(hash, &oid, &oid_len);
     if (md == NULL) {
       goto selfsign_out;
@@ -1531,10 +1535,10 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
   FILE *output_file = NULL;
   int key;
   unsigned int hash_len;
-  unsigned char hashed[EVP_MAX_MD_SIZE * 2] = {0};
+  unsigned char hashed[YKPIV_OBJ_MAX_SIZE] = {0};
   bool ret = false;
   int algo;
-  const EVP_MD *md;
+  const EVP_MD *md = NULL;
 
   key = get_slot_hex(slot);
 
@@ -1562,35 +1566,45 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
 
   {
     EVP_MD_CTX *mdctx;
-
-    md = get_hash(hash, NULL, NULL);
-    if(md == NULL) {
+    if(algo == YKPIV_ALGO_X25519) {
+      fprintf(stderr, "Signing with X25519 key is not supported\n");
       goto out;
-    }
-
-    mdctx = EVP_MD_CTX_create();
-    if(EVP_DigestInit_ex(mdctx, md, NULL) != 1) {
-      fprintf(stderr, "Failed to initialize digest operation\n");
-      goto out;
-    }
-    while(!feof(input_file)) {
-      char buf[1024] = {0};
-      size_t len = fread(buf, 1, 1024, input_file);
-      if(EVP_DigestUpdate(mdctx, buf, len) != 1) {
-        fprintf(stderr, "Failed to update digest data\n");
+    } else if (algo == YKPIV_ALGO_ED25519) {
+      hash_len = fread(hashed, 1, sizeof(hashed), input_file);
+      if(hash_len >= sizeof(hashed)) {
+        fprintf(stderr, "Cannot perform signature. File too big.\n");
         goto out;
       }
-    }
-    if(EVP_DigestFinal_ex(mdctx, hashed, &hash_len) != 1) {
-      fprintf(stderr, "Failed to finalize digest operation\n");
-      goto out;
-    }
+    } else {
+      md = get_hash(hash, NULL, NULL);
+      if (md == NULL) {
+        goto out;
+      }
 
-    if(verbosity) {
-      fprintf(stderr, "File hashed as: ");
-      dump_data(hashed, hash_len, stderr, true, format_arg_hex);
+      mdctx = EVP_MD_CTX_create();
+      if (EVP_DigestInit_ex(mdctx, md, NULL) != 1) {
+        fprintf(stderr, "Failed to initialize digest operation\n");
+        goto out;
+      }
+      while (!feof(input_file)) {
+        char buf[8192] = {0};
+        size_t len = fread(buf, 1, sizeof(buf), input_file);
+        if (EVP_DigestUpdate(mdctx, buf, len) != 1) {
+          fprintf(stderr, "Failed to update digest data\n");
+          goto out;
+        }
+      }
+      if (EVP_DigestFinal_ex(mdctx, hashed, &hash_len) != 1) {
+        fprintf(stderr, "Failed to finalize digest operation\n");
+        goto out;
+      }
+
+      if (verbosity) {
+        fprintf(stderr, "File hashed as: ");
+        dump_data(hashed, hash_len, stderr, true, format_arg_hex);
+      }
+      EVP_MD_CTX_destroy(mdctx);
     }
-    EVP_MD_CTX_destroy(mdctx);
   }
 
   if(YKPIV_IS_RSA(algo)) {

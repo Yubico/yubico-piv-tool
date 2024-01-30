@@ -1191,7 +1191,7 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
     const unsigned char *sign_in, size_t in_len,
     unsigned char *out, size_t *out_len,
     unsigned char algorithm, unsigned char key, bool decipher) {
-  unsigned char indata[1024] = {0};
+  unsigned char indata[YKPIV_OBJ_MAX_SIZE] = {0};
   unsigned char *dataptr = indata;
   unsigned char data[1024] = {0};
   unsigned char templ[] = {0, YKPIV_INS_AUTHENTICATE, algorithm, key};
@@ -1223,8 +1223,6 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
       }
       break;
     case YKPIV_ALGO_ECCP256:
-    case YKPIV_ALGO_ED25519:
-    case YKPIV_ALGO_X25519:
       key_len = 32;
       // fall through
     case YKPIV_ALGO_ECCP384:
@@ -1238,18 +1236,36 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
 	      return YKPIV_SIZE_ERROR;
       }
       break;
+    case YKPIV_ALGO_X25519:
+      if(!decipher) {
+        DBG("Signing with x25519 keys is not supported");
+        return YKPIV_NOT_SUPPORTED;
+      }
+      if(in_len != 32) {
+        return YKPIV_SIZE_ERROR;
+      }
+      break;
+    case YKPIV_ALGO_ED25519:
+      if(decipher) {
+        DBG("Deciphering with ed25519 keys is not supported");
+        return YKPIV_NOT_SUPPORTED;
+      }
+      break;
     default:
       return YKPIV_ALGORITHM_ERROR;
   }
 
   bytes = _ykpiv_get_length_size(in_len);
-  
+
   *dataptr++ = 0x7c;
   dataptr += _ykpiv_set_length(dataptr, in_len + bytes + 3);
   *dataptr++ = 0x82;
   *dataptr++ = 0x00;
-  *dataptr++ = (YKPIV_IS_EC(algorithm) || YKPIV_IS_25519(algorithm)) && decipher ? 0x85 : 0x81;
+  *dataptr++ = !YKPIV_IS_RSA(algorithm) && decipher ? 0x85 : 0x81;
   dataptr += _ykpiv_set_length(dataptr, in_len);
+  if(dataptr - indata + in_len > sizeof(indata)) {
+    return YKPIV_SIZE_ERROR;
+  }
   memcpy(dataptr, sign_in, in_len);
   dataptr += in_len;
 

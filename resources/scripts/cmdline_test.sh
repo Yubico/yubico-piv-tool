@@ -130,6 +130,7 @@ do
   fi
 
   $BIN -a verify-pin -P123456 --sign -s $slot -A RSA1024 -i data.txt -o data.sig
+  openssl dgst -sha256 -verify key.pub -signature data.sig data.txt
 done
 
 echo "********************** Generate RSA2048 in all slots ********************* "
@@ -160,9 +161,100 @@ do
   fi
 
   $BIN -a verify-pin -P123456 --sign -s $slot -A RSA2048 -i data.txt -o data.sig
+  openssl dgst -sha256 -verify key.pub -signature data.sig data.txt
 done
 
+echo "********************** Generate RSA3072 in all slots ********************* "
 
+for slot in "${SLOTS[@]}"
+do
+  # Generate key on-board, issue certificate, and verify it
+  $BIN -agenerate -s$slot -ARSA3072 -o key.pub
+  $BIN -averify -P123456 -s$slot -S'/CN=YubicoTestRSA3072/OU=YubicoGenerated/O=yubico.com/' -aselfsign -i key.pub -o cert.pem
+  $BIN -averify -P123456 -s$slot -atest-signature -i cert.pem
+  $BIN -aimport-certificate -P123456 -s$slot -i cert.pem
+
+  # Read status and validate fields
+  STATUS=$($BIN -astatus)
+  echo "$STATUS"
+  ALGO=$(echo "$STATUS" |grep "Slot $slot" -A 6 |grep "Algorithm" |tr -d "[:blank:]")
+  if [ "x$ALGO" != "xAlgorithm:RSA3072" ]; then
+    echo "$ALGO"
+    echo "Generated algorithm incorrect." >/dev/stderr
+    exit 1
+  fi
+
+  SUBJECT=$(echo "$STATUS" |grep "Slot $slot" -A 6 |grep "Subject DN" |tr -d "[:blank:]")
+  if [ "x$SUBJECT" != "xSubjectDN:CN=YubicoTestRSA3072,OU=YubicoGenerated,O=yubico.com" ]; then
+    echo "$SUBJECT"
+    echo "Certificate subject incorrect." >/dev/stderr
+    exit 1
+  fi
+
+  $BIN -a verify-pin -P123456 --sign -s $slot -A RSA3072 -i data.txt -o data.sig
+  openssl dgst -sha256 -verify key.pub -signature data.sig data.txt
+done
+
+echo "********************** Generate RSA4096 in all slots ********************* "
+
+for slot in "${SLOTS[@]}"
+do
+  # Generate key on-board, issue certificate, and verify it
+  $BIN -agenerate -s$slot -ARSA4096 -o key.pub
+  $BIN -averify -P123456 -s$slot -S'/CN=YubicoTestRSA4096/OU=YubicoGenerated/O=yubico.com/' -aselfsign -i key.pub -o cert.pem
+  $BIN -averify -P123456 -s$slot -atest-signature -i cert.pem
+  $BIN -aimport-certificate -P123456 -s$slot -i cert.pem
+
+  # Read status and validate fields
+  STATUS=$($BIN -astatus)
+  echo "$STATUS"
+  ALGO=$(echo "$STATUS" |grep "Slot $slot" -A 6 |grep "Algorithm" |tr -d "[:blank:]")
+  if [ "x$ALGO" != "xAlgorithm:RSA4096" ]; then
+    echo "$ALGO"
+    echo "Generated algorithm incorrect." >/dev/stderr
+    exit 1
+  fi
+
+  SUBJECT=$(echo "$STATUS" |grep "Slot $slot" -A 6 |grep "Subject DN" |tr -d "[:blank:]")
+  if [ "x$SUBJECT" != "xSubjectDN:CN=YubicoTestRSA4096,OU=YubicoGenerated,O=yubico.com" ]; then
+    echo "$SUBJECT"
+    echo "Certificate subject incorrect." >/dev/stderr
+    exit 1
+  fi
+
+  $BIN -a verify-pin -P123456 --sign -s $slot -A RSA4096 -i data.txt -o data.sig
+  openssl dgst -sha256 -verify key.pub -signature data.sig data.txt
+done
+
+echo "********************** Generate ED25519 in all slots ********************* "
+
+for slot in "${SLOTS[@]}"
+do
+  # Generate key on-board, issue certificate, and verify it
+  $BIN -agenerate -s$slot -AED25519 -o key.pub
+  $BIN -averify -P123456 -s$slot -S'/CN=YubicoTestED25519/OU=YubicoGenerated/O=yubico.com/' -aselfsign -i key.pub -o cert.pem
+  $BIN -aimport-certificate -P123456 -s$slot -i cert.pem
+
+  # Read status and validate fields
+  STATUS=$($BIN -astatus)
+  echo "$STATUS"
+  ALGO=$(echo "$STATUS" |grep "Slot $slot" -A 6 |grep "Algorithm" |tr -d "[:blank:]")
+  if [ "x$ALGO" != "xAlgorithm:ED25519" ]; then
+    echo "$ALGO"
+    echo "Generated algorithm incorrect." >/dev/stderr
+    exit 1
+  fi
+
+  SUBJECT=$(echo "$STATUS" |grep "Slot $slot" -A 6 |grep "Subject DN" |tr -d "[:blank:]")
+  if [ "x$SUBJECT" != "xSubjectDN:CN=YubicoTestED25519,OU=YubicoGenerated,O=yubico.com" ]; then
+    echo "$SUBJECT"
+    echo "Certificate subject incorrect." >/dev/stderr
+    exit 1
+  fi
+
+  $BIN -a verify-pin -P123456 --sign -s $slot -A ED25519 -i data.txt -o data.sig
+  openssl pkeyutl -verify -pubin -inkey key.pub -rawin -in data.txt -sigfile data.sig
+done
 
 
 
