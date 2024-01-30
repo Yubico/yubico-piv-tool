@@ -1538,7 +1538,7 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
   unsigned char hashed[EVP_MAX_MD_SIZE * 2] = {0};
   bool ret = false;
   int algo;
-  const EVP_MD *md;
+  const EVP_MD *md = NULL;
 
   key = get_slot_hex(slot);
 
@@ -1566,10 +1566,11 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
 
   {
     EVP_MD_CTX *mdctx;
-
-    md = get_hash(hash, NULL, NULL);
-    if(md == NULL) {
-      goto out;
+    if (!YKPIV_IS_25519(algorithm)) {
+      md = get_hash(hash, NULL, NULL);
+      if (md == NULL) {
+        goto out;
+      }
     }
 
     mdctx = EVP_MD_CTX_create();
