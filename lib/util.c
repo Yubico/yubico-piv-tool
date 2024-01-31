@@ -937,7 +937,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
   }
   else if (YKPIV_IS_EC(algorithm) || YKPIV_IS_25519(algorithm)) {
     unsigned char *data_ptr = data + 3;
-    size_t len;
+    size_t len = 0;
 
     if (YKPIV_ALGO_ECCP256 == algorithm) {
       len = CB_ECC_POINTP256;

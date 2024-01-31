@@ -1409,7 +1409,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
   CK_ULONG         qinv_len = 0;
   CK_BYTE_PTR      ec_data = NULL;
   CK_ULONG         ec_data_len = 0;
-  unsigned char    algorithm;
+  unsigned char    algorithm = 0;
   piv_obj_id_t     dobj_id;
   piv_obj_id_t     cert_id;
   piv_obj_id_t     pubk_id;
