@@ -1498,7 +1498,7 @@ invalid_tlv:
  ykpiv_rc ykpiv_util_write_certdata(uint8_t *rawdata, size_t rawdata_len, uint8_t compress_info, uint8_t* certdata, size_t *certdata_len) {
   size_t offset = 0;
   size_t buf_len = 0;
-
+   DBG("ykpiv_util_write_certdata(): Start");
   unsigned long len_bytes = get_length_size(rawdata_len);
 
    // calculate the required length of the encoded object
@@ -1522,6 +1522,7 @@ invalid_tlv:
   certdata[offset++] = TAG_CERT_LRC;
   certdata[offset++] = 0;
   *certdata_len = offset;
+   DBG("ykpiv_util_write_certdata(): Done");
   return YKPIV_OK;
 }
 

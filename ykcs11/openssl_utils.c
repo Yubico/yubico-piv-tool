@@ -329,6 +329,7 @@ CK_RV do_sign_empty_cert(const char *cn, ykcs11_pkey_t *pubkey, ykcs11_pkey_t *p
 
 CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm,
                           const char *cn, CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
+  DBG("do_create_empty_cert: Start");
 
   EVP_PKEY  *pubkey = NULL;
   EVP_PKEY  *pvtkey = NULL;
@@ -336,30 +337,36 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm,
   CK_RV     rv;
 
   if((rv = do_create_public_key(in, in_len, algorithm, &pubkey)) != CKR_OK) {
+    DBG("do_create_empty_cert: do_create_public_key() failed");
     goto create_empty_cert_cleanup;
   }
 
   if((rv = do_generate_ec_key(NID_X9_62_prime256v1, &pvtkey)) != CKR_OK) {
+    DBG("do_create_empty_cert: do_generate_ec_key() failed");
     goto create_empty_cert_cleanup;
   }
   
   if((rv = do_sign_empty_cert(cn, pubkey, pvtkey, &cert)) != CKR_OK) {
+    DBG("do_create_empty_cert: do_sign_empty_cert() failed");
     goto create_empty_cert_cleanup;
   }
 
   int len = i2d_X509(cert, NULL);
   if (len <= 0) {
+    DBG("do_create_empty_cert: getting cert len failed");
     rv = CKR_GENERAL_ERROR;
     goto create_empty_cert_cleanup;
   }
 
   if ((CK_ULONG)len > *out_len) {
+    DBG("do_create_empty_cert: buffer too small");
     rv = CKR_BUFFER_TOO_SMALL;
     goto create_empty_cert_cleanup;
   }
 
   len = i2d_X509(cert, &out);
   if (len <= 0) {
+    DBG("do_create_empty_cert: encoding certificate failed");
     rv = CKR_GENERAL_ERROR;
     goto create_empty_cert_cleanup;
   }
@@ -377,6 +384,7 @@ create_empty_cert_cleanup:
   if (cert != NULL) {
     X509_free(cert);
   }
+  DBG("do_create_empty_cert(): Done");
   return rv;
 }
 

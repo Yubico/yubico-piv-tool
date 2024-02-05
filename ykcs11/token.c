@@ -448,21 +448,27 @@ CK_RV token_generate_key(ykpiv_state *state, gen_info_t *gen, CK_BYTE key, CK_BY
   if((res = ykpiv_translate_sw(sw)) != YKPIV_OK) {
     return yrc_to_rv(res);
   }
+  DBG("Asymmetric key generated on the YubiKey successfully");
 
   snprintf(label, sizeof(label), "YubiKey PIV Slot %x", key);
+  DBG("label: %s", label);
 
   // Create a new empty certificate for the key
   offs = 2 + get_length(data + 2, data + recv_len, &len);
+  DBG("Offs: %ld", offs);
   if(offs == 2)
     return CKR_DEVICE_ERROR;
 
   len = recv_len;
   recv_len = sizeof(data);
   CK_RV rv = do_create_empty_cert(data + offs, len - offs, gen->algorithm, label, data, &recv_len);
-  if(rv != CKR_OK)
+  if(rv != CKR_OK) {
+    DBG("do_create_empty_cert() failed");
     return rv;
+  }
 
   if ((res = ykpiv_util_write_certdata(data, recv_len, YKPIV_CERTINFO_UNCOMPRESSED, certdata, &certdata_len)) != YKPIV_OK) {
+    DBG("ykpiv_util_write_certdata() failed");
     return yrc_to_rv(res);
   }
 
@@ -472,8 +478,10 @@ CK_RV token_generate_key(ykpiv_state *state, gen_info_t *gen, CK_BYTE key, CK_BY
   }
 
   // Store the certificate into the token
-  if ((res = ykpiv_save_object(state, ykpiv_util_slot_object(key), certdata, certdata_len)) != YKPIV_OK)
+  if ((res = ykpiv_save_object(state, ykpiv_util_slot_object(key), certdata, certdata_len)) != YKPIV_OK) {
+    DBG("Failed to store the certificate into the token");
     return yrc_to_rv(res);
+  }
 
   memcpy(cert_data, data, (unsigned long) certdata_len);
   *cert_len = certdata_len;

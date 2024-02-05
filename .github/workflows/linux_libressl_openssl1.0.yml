@@ -27,8 +27,9 @@ jobs:
       - name: Build and install
         run: |
           set -x
+          mkdir yubico-piv-tool-binaries
           mkdir build; cd build
-          PKG_CONFIG_PATH=/home/runner/work/yubico-piv-tool/libressl-3.6.1/build/pkgconfig cmake .. -DVERBOSE_CMAKE=ON
+          PKG_CONFIG_PATH=/home/runner/work/yubico-piv-tool/libressl-3.6.1/build/pkgconfig cmake .. -DVERBOSE_CMAKE=ON -DCMAKE_INSTALL_PREFIX="../yubico-piv-tool-binaries"
           make
           make test
           ./tool/yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
@@ -38,13 +39,19 @@ jobs:
           ldd lib/libykpiv.so | grep libcrypto.so
           ldd ykcs11/libykcs11.so | grep libcrypto.so
 
-          sudo make install
+          make install
 
           cd ..
           LIBDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_LIB_DIR:PATH=\s*\(\S*\).*$/\1/p")
           export LD_LIBRARY_PATH=$LIBDIR
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
           objdump -T $LIBDIR/libykcs11.so | grep C_Sign
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: yubico-piv-tool-LibreSSL
+          path: yubico-piv-tool-binaries
 
   job_2:
     name: Build with OpenSSL 1.0
@@ -114,8 +121,9 @@ jobs:
       - name: Build and install
         run: |
           set -x
+          mkdir yubico-piv-tool-binaries
           mkdir build; cd build
-          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_PKG_PATH=/home/runner/work/yubico-piv-tool/openssl/lib/pkgconfig
+          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_PKG_PATH=/home/runner/work/yubico-piv-tool/openssl/lib/pkgconfig -DCMAKE_INSTALL_PREFIX="../yubico-piv-tool-binaries"
           make
           make test
           ./tool/yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
@@ -125,7 +133,7 @@ jobs:
           ldd lib/libykpiv.so | grep libcrypto.so
           ldd ykcs11/libykcs11.so | grep libcrypto.so
 
-          sudo make install
+          make install
 
           cd ..
           LIBDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_LIB_DIR:PATH=\s*\(\S*\).*$/\1/p")
@@ -133,6 +141,12 @@ jobs:
           export LD_LIBRARY_PATH=$LIBDIR
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
           objdump -T $LIBDIR/libykcs11.so | grep C_Sign
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: yubico-piv-tool-OpenSSL1.1
+          path: yubico-piv-tool-binaries
 
   job_4:
     name: Build with OpenSSL 3.0
@@ -158,8 +172,9 @@ jobs:
       - name: Build and install
         run: |
           set -x
+          mkdir yubico-piv-tool-binaries
           mkdir build; cd build
-          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_PKG_PATH=/home/runner/work/yubico-piv-tool/openssl/lib64/pkgconfig
+          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_PKG_PATH=/home/runner/work/yubico-piv-tool/openssl/lib64/pkgconfig -DCMAKE_INSTALL_PREFIX="../yubico-piv-tool-binaries"
           make
           make test
           ./tool/yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
@@ -169,7 +184,7 @@ jobs:
           ldd lib/libykpiv.so | grep libcrypto.so
           ldd ykcs11/libykcs11.so | grep libcrypto.so
 
-          sudo make install
+          make install
 
           cd ..
           LIBDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_LIB_DIR:PATH=\s*\(\S*\).*$/\1/p")
@@ -177,3 +192,9 @@ jobs:
           export LD_LIBRARY_PATH=$LIBDIR
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
           objdump -T $LIBDIR/libykcs11.so | grep C_Sign
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: yubico-piv-tool-OpenSSL3.0
+          path: yubico-piv-tool-binaries
