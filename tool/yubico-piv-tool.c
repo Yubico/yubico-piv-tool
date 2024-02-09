@@ -520,16 +520,30 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
     if(YKPIV_IS_RSA(algorithm)) {
       RSA *rsa_private_key = EVP_PKEY_get1_RSA(private_key);
       unsigned char e[4] = {0};
-      unsigned char p[128] = {0};
-      unsigned char q[128] = {0};
-      unsigned char dmp1[128] = {0};
-      unsigned char dmq1[128] = {0};
-      unsigned char iqmp[128] = {0};
+      unsigned char p[256] = {0};
+      unsigned char q[256] = {0};
+      unsigned char dmp1[256] = {0};
+      unsigned char dmq1[256] = {0};
+      unsigned char iqmp[256] = {0};
       const BIGNUM *bn_e, *bn_p, *bn_q, *bn_dmp1, *bn_dmq1, *bn_iqmp;
 
-      int element_len = 128;
-      if(algorithm == YKPIV_ALGO_RSA1024) {
-        element_len = 64;
+      int element_len = 0;
+      switch(algorithm) {
+        case YKPIV_ALGO_RSA1024:
+          element_len = 64;
+          break;
+        case YKPIV_ALGO_RSA2048:
+          element_len = 128;
+          break;
+        case YKPIV_ALGO_RSA3072:
+          element_len = 192;
+          break;
+        case YKPIV_ALGO_RSA4096:
+          element_len = 256;
+          break;
+        default:
+          fprintf(stderr, "Unsupported RSA algorithm\n");
+          goto import_out;
       }
 
       RSA_get0_key(rsa_private_key, NULL, &bn_e, NULL);
@@ -567,11 +581,11 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
       }
 
       rc = ykpiv_import_private_key(state, key, algorithm,
-                                    p, (size_t)element_len,
-                                    q, (size_t)element_len,
-                                    dmp1, (size_t)element_len,
-                                    dmq1, (size_t)element_len,
-                                    iqmp, (size_t)element_len,
+                                    p, element_len,
+                                    q, element_len,
+                                    dmp1, element_len,
+                                    dmq1, element_len,
+                                    iqmp, element_len,
                                     NULL, 0,
                                     pp, tp);
     }

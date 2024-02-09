@@ -1887,7 +1887,7 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
                                   const unsigned char *ec_data, unsigned char ec_data_len,
                                   const unsigned char pin_policy, const unsigned char touch_policy) {
 
-  unsigned char key_data[1024] = {0};
+  unsigned char key_data[2048] = {0};
   unsigned char *in_ptr = key_data;
   unsigned char templ[] = {0, YKPIV_INS_IMPORT_KEY, algorithm, key};
   unsigned char data[256] = {0};
