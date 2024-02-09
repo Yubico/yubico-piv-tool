@@ -228,55 +228,92 @@ END_TEST
 
 // RSA2048 private key, generated with: `openssl genrsa 2048 -out private.pem`
 static const char *private_key_pem =
-  "-----BEGIN RSA PRIVATE KEY-----\n"
-  "MIIEpAIBAAKCAQEAwVUwmVbc+ffOy2+RivxBpgleTVN6bUa0q7jNYB+AseFQYaYq\n"
-  "EGfa+VGdxSGo+8DV1KT9+fNEd5243gXn/tcjtMItKeB+oAQc64s9lIFlYuR8bpq1\n"
-  "ibr33iW2elnnv9mpecqohdCVwM2McWveoPyb7MwlwVuhqexOzJO29bqJcazLbtkf\n"
-  "ZETK0oBx53/ylA4Y6nE9Pa46jW2qhj+KShf1iBg+gAyt3eI+wI2Wmub1WxLLH8D2\n"
-  "w+kow8QhQOa8dHCkRRw771JxVO5+d+Y/Y+x9B1HgF4q0q9xUlhWLK2TR4ChBFzXe\n"
-  "47sAHsSqi/pl5JbwYrHPOE/VEBLukmjL8NFCSQIDAQABAoIBADmEyOK2DyRnb6Ti\n"
-  "2qBJEJb/boj+7wuX36S/ZIrWlIlXiXyj3RvoaiOG/rNpokbURknvlIhKsfIMgLW9\n"
-  "eBo/k6Xxp1IwMjwVPS1uzbFjFfDoHYUijiQd9iSnf7TDDsnrThqoCp9VQViNTt1n\n"
-  "xGKNBS7cRddTFbPiVEdVIzfUeZPR2oRrc4maBCRCrQgg8WNknawmc8zhkf2NiPj3\n"
-  "tWLQHMy1/MgW2W1LM9sgzllEtS5CZUnyGy2HbbhS2tbZ6j9kPzOp0pPxxTTzJmmV\n"
-  "fi1vkJcVW4+MdXjWmhALcPA4dO7Y2Ljiu6VxIxQORRO1DyiCjAs1AVMQxgPAAY41\n"
-  "YR4Q2EkCgYEA4zE0oytg97aVaBY9CKi7/PqR+NI/uEvfoQCnT+ddaJgp/qsspuXo\n"
-  "tJt94p13ANd8O7suqQTVNvbZq1rX10xQjJZ9nvlqQa6iHkN6Epq31XBK3Z+acjIV\n"
-  "A2rAgKBByjz9/CpKHqnOsrTWU1Y7x416IG4BZt42hHdrxRH98/wiDH8CgYEA2djj\n"
-  "AjwgK+MwDnshwT1NNgCSP/2ZHatBAykZ5BCs9BJ6MNYqqXVGYoqs5Z5kSkow+Db3\n"
-  "pipkEieo5w2Rd5zkolTThaVCvRkSe5wRiBpZhaeY+b0UFwavGCb6zU/MmJIMDPiI\n"
-  "2iRGeCXgQDvIS/icIqzbTtp6dZaoMgG7LdSR7TcCgYBtxGhaLas8A8tL7vKuLFgn\n"
-  "cij0vyBqOr5hW596y54l2t7vXGTGfm5gVIAN7WaB0ZsEgPuaTet2Eu44DDwcmZKR\n"
-  "WmR3Wqor8eQCGzfvpTEMvqRtT5+fbPMaI4m+m68ttyo/m28UQZbMYPLscM2RLJnE\n"
-  "8WFcAiD0/33iST8ZksggoQKBgQDE/7Yhsj+hkHxHzB+1QPtOp2uaBHnvc4uCESwB\n"
-  "qvbMbN0kxrejsJLqz98UcozdBYSNIiAHmvQN2uGJuCJhGXdEORNjGxRkLoUhVPwh\n"
-  "qTplfC8BQHQncnrqi21oNw6ctg3BuQsAwaccRZwqWiWCVhrT3J8iCr6NEaWeOySK\n"
-  "iF1CNwKBgQCRpkkZArlccwS0kMvkK+tQ1rG2xWm7c05G34gP/g6dHFRy0gPNMyvi\n"
-  "SkiLTJmQIEZSAEiq0FFgcVwM6o556ftvQZuwDp5rHUbwqnHCpMJKpD9aJpStvfPi\n"
-  "4p9JbYdaGqnq4eoNKemmGnbUof0dR9Zr0lGmcMTwwzBib+4E1d7soA==\n"
-  "-----END RSA PRIVATE KEY-----\n";
+    "-----BEGIN RSA PRIVATE KEY-----\n"
+    "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\n"
+    "-----END RSA PRIVATE KEY-----\n";
 
 // Certificate signed with key above:
 // `openssl req -x509 -key private.pem -out cert.pem -subj "/CN=bar/OU=test/O=example.com/" -new`
 static const char *certificate_pem =
-  "-----BEGIN CERTIFICATE-----\n"
-  "MIIC5zCCAc+gAwIBAgIJAOq8A/cmpxF5MA0GCSqGSIb3DQEBCwUAMDMxDDAKBgNV\n"
-  "BAMMA2JhcjENMAsGA1UECwwEdGVzdDEUMBIGA1UECgwLZXhhbXBsZS5jb20wHhcN\n"
-  "MTcwODAzMTE1MDI2WhcNMTgwODAzMTE1MDI2WjAzMQwwCgYDVQQDDANiYXIxDTAL\n"
-  "BgNVBAsMBHRlc3QxFDASBgNVBAoMC2V4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0B\n"
-  "AQEFAAOCAQ8AMIIBCgKCAQEAwVUwmVbc+ffOy2+RivxBpgleTVN6bUa0q7jNYB+A\n"
-  "seFQYaYqEGfa+VGdxSGo+8DV1KT9+fNEd5243gXn/tcjtMItKeB+oAQc64s9lIFl\n"
-  "YuR8bpq1ibr33iW2elnnv9mpecqohdCVwM2McWveoPyb7MwlwVuhqexOzJO29bqJ\n"
-  "cazLbtkfZETK0oBx53/ylA4Y6nE9Pa46jW2qhj+KShf1iBg+gAyt3eI+wI2Wmub1\n"
-  "WxLLH8D2w+kow8QhQOa8dHCkRRw771JxVO5+d+Y/Y+x9B1HgF4q0q9xUlhWLK2TR\n"
-  "4ChBFzXe47sAHsSqi/pl5JbwYrHPOE/VEBLukmjL8NFCSQIDAQABMA0GCSqGSIb3\n"
-  "DQEBCwUAA4IBAQCamrwdEhNmY2GCQWq6U90Q3XQT6w0HHW/JmtuGeF+BTpVr12gN\n"
-  "/UvEXTo9geWbGcCTjaMMURTa7mUjVUIttIWEVHZMKqBuvsUM1RcuOEX/vitaJJ8K\n"
-  "Sw4upjCNa3ZxUXmSA1FBixZgDzFqjEeSiaJjMU0yX5W2p1T4iNYtF3YqzMF5AWSI\n"
-  "qCO7gP5ezPyg5kDnrO3V7DBgnDiqawq7Pyn9DynKNULX/hc1yls/R+ebb2u8Z+h5\n"
-  "W4YXbzGZb8qdT27qIZaHD638tL6liLkI6UE4KCXH8X8e3fqdbmqvwrq403nOGmsP\n"
-  "cbJb2PEXibNEQG234riKxm7x7vNDLL79Jwtc\n"
-  "-----END CERTIFICATE-----\n";
+    "-----BEGIN CERTIFICATE-----\n"
+    "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\n"
+    "CuRM0YVggUE4so4=\n"
+    "-----END CERTIFICATE-----\n";
 
 
 static void import_key(unsigned char slot, unsigned char pin_policy) {
@@ -288,12 +325,12 @@ static void import_key(unsigned char slot, unsigned char pin_policy) {
     BIO *bio = NULL;
     RSA *rsa_private_key = NULL;
     unsigned char e[4] = {0};
-    unsigned char p[128] = {0};
-    unsigned char q[128] = {0};
-    unsigned char dmp1[128] = {0};
-    unsigned char dmq1[128] = {0};
-    unsigned char iqmp[128] = {0};
-    int element_len = 128;
+    unsigned char p[256] = {0};
+    unsigned char q[256] = {0};
+    unsigned char dmp1[256] = {0};
+    unsigned char dmq1[256] = {0};
+    unsigned char iqmp[256] = {0};
+    int element_len = 256;
     const BIGNUM *bn_e, *bn_p, *bn_q, *bn_dmp1, *bn_dmq1, *bn_iqmp;
 
     bio = BIO_new_mem_buf(private_key_pem, strlen(private_key_pem));
@@ -328,7 +365,7 @@ static void import_key(unsigned char slot, unsigned char pin_policy) {
     // Try right algorithm
     res = ykpiv_import_private_key(g_state,
                                    slot,
-                                   YKPIV_ALGO_RSA2048,
+                                   YKPIV_ALGO_RSA4096,
                                    p, element_len,
                                    q, element_len,
                                    dmp1, element_len,
@@ -346,9 +383,9 @@ static void import_key(unsigned char slot, unsigned char pin_policy) {
     BIO *bio = NULL;
     X509 *cert = NULL;
     EVP_PKEY *pub_key = NULL;
-    unsigned char secret[32] = {0};
-    unsigned char secret2[32] = {0};
-    unsigned char data[256] = {0};
+    unsigned char secret[64] = {0};
+    unsigned char secret2[64] = {0};
+    unsigned char data[512] = {0};
     int len;
     size_t len2 = sizeof(data);
     RSA *rsa = NULL;
@@ -367,7 +404,7 @@ static void import_key(unsigned char slot, unsigned char pin_policy) {
     ck_assert_int_ge(len, 0);
     res = ykpiv_verify(g_state, "123456", NULL);
     ck_assert_int_eq(res, YKPIV_OK);
-    res = ykpiv_decipher_data(g_state, data, (size_t)len, data, &len2, YKPIV_ALGO_RSA2048, slot);
+    res = ykpiv_decipher_data(g_state, data, (size_t)len, data, &len2, YKPIV_ALGO_RSA4096, slot);
     ck_assert_int_eq(res, YKPIV_OK);
     len = RSA_padding_check_PKCS1_type_2(secret2, sizeof(secret2), data + 1, len2 - 1, RSA_size(rsa));
     ck_assert_int_eq(len, sizeof(secret));
@@ -391,14 +428,14 @@ START_TEST(test_import_key) {
     const EVP_MD *md = EVP_sha256();
     EVP_MD_CTX *mdctx;
 
-    unsigned char signature[1024] = {0};
-    unsigned char encoded[1024] = {0};
-    unsigned char data[1024] = {0};
-    unsigned char signinput[1024] = {0};
+    unsigned char signature[2048] = {0};
+    unsigned char encoded[2048] = {0};
+    unsigned char data[2048] = {0};
+    unsigned char signinput[2048] = {0};
     unsigned char rand[128] = {0};
 
     size_t sig_len = sizeof(signature);
-    size_t padlen = 256;
+    size_t padlen = 512;
     unsigned int enc_len;
     unsigned int data_len;
 
@@ -420,7 +457,7 @@ START_TEST(test_import_key) {
 
     prepare_rsa_signature(data, data_len, encoded, &enc_len, EVP_MD_type(md));
     ck_assert_int_ne(RSA_padding_add_PKCS1_type_1(signinput, padlen, encoded, enc_len), 0);
-    res = ykpiv_sign_data(g_state, signinput, padlen, signature, &sig_len, YKPIV_ALGO_RSA2048, 0x9a);
+    res = ykpiv_sign_data(g_state, signinput, padlen, signature, &sig_len, YKPIV_ALGO_RSA4096, 0x9a);
     ck_assert_int_eq(res, YKPIV_OK);
 
     ck_assert_int_eq(RSA_verify(EVP_MD_type(md), data, data_len, signature, sig_len, rsa), 1);
@@ -432,7 +469,7 @@ START_TEST(test_import_key) {
 
   // Verify that imported key can not be attested
   {
-    unsigned char attest[2048] = {0};
+    unsigned char attest[4096] = {0};
     size_t attest_len = sizeof(attest);
     ykpiv_devmodel model;
     model = ykpiv_util_devicemodel(g_state);
@@ -502,23 +539,23 @@ START_TEST(test_pin_policy_always) {
     ck_assert_int_ne(RSA_padding_add_PKCS1_type_1(signinput, padlen, encoded, enc_len), 0);
 
     // Sign without verify: fail
-    res = ykpiv_sign_data(g_state, signinput, padlen, signature, &sig_len, YKPIV_ALGO_RSA2048, 0x9e);
+    res = ykpiv_sign_data(g_state, signinput, padlen, signature, &sig_len, YKPIV_ALGO_RSA4096, 0x9e);
     ck_assert_int_eq(res, YKPIV_AUTHENTICATION_ERROR);
 
     // Sign with verify: pass
     res = ykpiv_verify(g_state, "123456", NULL);
     ck_assert_int_eq(res, YKPIV_OK);
-    res = ykpiv_sign_data(g_state, signinput, padlen, signature, &sig_len, YKPIV_ALGO_RSA2048, 0x9e);
+    res = ykpiv_sign_data(g_state, signinput, padlen, signature, &sig_len, YKPIV_ALGO_RSA4096, 0x9e);
     ck_assert_int_eq(res, YKPIV_OK);
 
     // Sign again without verify: fail
-    res = ykpiv_sign_data(g_state, signinput, padlen, signature, &sig_len, YKPIV_ALGO_RSA2048, 0x9e);
+    res = ykpiv_sign_data(g_state, signinput, padlen, signature, &sig_len, YKPIV_ALGO_RSA4096, 0x9e);
     ck_assert_int_eq(res, YKPIV_AUTHENTICATION_ERROR);
 
     // Sign again with verify: pass
     res = ykpiv_verify(g_state, "123456", NULL);
     ck_assert_int_eq(res, YKPIV_OK);
-    res = ykpiv_sign_data(g_state, signinput, padlen, signature, &sig_len, YKPIV_ALGO_RSA2048, 0x9e);
+    res = ykpiv_sign_data(g_state, signinput, padlen, signature, &sig_len, YKPIV_ALGO_RSA4096, 0x9e);
     ck_assert_int_eq(res, YKPIV_OK);
 
     ck_assert_int_eq(RSA_verify(EVP_MD_type(md), data, data_len, signature, sig_len, rsa), 1);
