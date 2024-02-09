@@ -581,11 +581,11 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
       }
 
       rc = ykpiv_import_private_key(state, key, algorithm,
-                                    p, (size_t)element_len,
-                                    q, (size_t)element_len,
-                                    dmp1, (size_t)element_len,
-                                    dmq1, (size_t)element_len,
-                                    iqmp, (size_t)element_len,
+                                    p, element_len,
+                                    q, element_len,
+                                    dmp1, element_len,
+                                    dmq1, element_len,
+                                    iqmp, element_len,
                                     NULL, 0,
                                     pp, tp);
     }
