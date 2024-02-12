@@ -20,6 +20,8 @@ pkcs11-tool --module $MODULE --login --login-type so --so-pin 010203040506070801
 pkcs11-tool --module $MODULE --login --login-type so --so-pin 010203040506070801020304050607080102030405060708 --keypairgen --id 2 --key-type EC:prime256v1
 pkcs11-tool --module $MODULE --login --login-type so --so-pin 010203040506070801020304050607080102030405060708 --keypairgen --id 3 --key-type rsa:1024
 pkcs11-tool --module $MODULE --login --login-type so --so-pin 010203040506070801020304050607080102030405060708 --keypairgen --id 4 --key-type rsa:2048
+pkcs11-tool --module $MODULE --login --login-type so --so-pin 010203040506070801020304050607080102030405060708 --keypairgen --id 3 --key-type rsa:3072
+pkcs11-tool --module $MODULE --login --login-type so --so-pin 010203040506070801020304050607080102030405060708 --keypairgen --id 4 --key-type rsa:4096
 
 echo "******************* Signing Tests ********************* "
 echo "this is test data" > data.txt

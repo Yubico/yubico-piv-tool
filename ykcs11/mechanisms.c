@@ -292,7 +292,7 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
   }
 
   // Sign with PIV
-  unsigned char sigbuf[256] = {0};
+  unsigned char sigbuf[512] = {0};
   size_t siglen = sizeof(sigbuf);
   ykpiv_rc rcc = ykpiv_sign_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, sigbuf, &siglen, session->op_info.op.sign.algorithm, session->op_info.op.sign.piv_key);
   if(rcc == YKPIV_OK) {
