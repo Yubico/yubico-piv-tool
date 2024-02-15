@@ -25,7 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-cmake_minimum_required (VERSION 3.5)
+cmake_minimum_required (VERSION 3.12)
 # policy CMP0025 is to get AppleClang identifier rather than Clang for both
 # this matters since the apple compiler accepts different flags.
 cmake_policy(SET CMP0025 NEW)
