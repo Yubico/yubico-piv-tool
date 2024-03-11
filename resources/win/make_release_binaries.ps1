@@ -27,6 +27,8 @@ cd $VCPKG_PATH
 .\vcpkg.exe install getopt:$ARCH-windows
 .\vcpkg.exe install zlib:$ARCH-windows
 
+ls $VCPKG_PATH\packages
+
 $env:OPENSSL_ROOT_DIR ="$VCPKG_PATH/packages/openssl_$ARCH-windows"
 $env:Path ="$VCPKG_PATH\packages\zlib_$ARCH-windows\bin;$env:Path"
 
