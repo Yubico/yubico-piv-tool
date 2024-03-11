@@ -28,6 +28,7 @@ cd $VCPKG_PATH
 .\vcpkg.exe install zlib:$ARCH-windows
 
 ls $VCPKG_PATH\packages
+ls $VCPKG_PATH\packages\zlib_$ARCH-windows
 
 $env:OPENSSL_ROOT_DIR ="$VCPKG_PATH/packages/openssl_$ARCH-windows"
 $env:Path ="$VCPKG_PATH\packages\zlib_$ARCH-windows\bin;$env:Path"
@@ -35,7 +36,7 @@ $env:Path ="$VCPKG_PATH\packages\zlib_$ARCH-windows\bin;$env:Path"
 # Build for x86 architecture
 cd $SOURCE_DIR
 mkdir $BUILD_DIR; cd $BUILD_DIR
-cmake -A "$CMAKE_ARCH" -DVERBOSE_CMAKE=1 -DGETOPT_LIB_DIR="$VCPKG_PATH/packages/getopt-win32_$ARCH-windows/lib" -DGETOPT_INCLUDE_DIR="$VCPKG_PATH/packages/getopt-win32_$ARCH-windows/include" -DZLIB_LIB_DIR="$VCPKG_PATH/packages/zlib_$ARCH-windows/lib" -DZLIB_INCL_DIR="$VCPKG_PATH/packages/zlib_$ARCH-windows/include" -DCMAKE_INSTALL_PREFIX="$RELEASE_DIR" ..
+cmake -A "$CMAKE_ARCH" -DVERBOSE_CMAKE=1 -DGETOPT_LIB_DIR="$VCPKG_PATH/packages/getopt-win32_$ARCH-windows/lib" -DGETOPT_INCLUDE_DIR="$VCPKG_PATH/packages/getopt-win32_$ARCH-windows/include" -DCMAKE_INSTALL_PREFIX="$RELEASE_DIR" ..
 cmake --build . -v --config Release
 cmake --install .
 cd $RELEASE_DIR/bin
