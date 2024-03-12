@@ -56,7 +56,7 @@ if (ENABLE_CERT_COMPRESS)
 
     find_package(ZLIB REQUIRED)
 
-    set(ZLIB_LIBS "PRIVATE ZLIB::ZLIB")
+    set(ZLIB_LIBS "ZLIB::ZLIB")
 endif()
 
 # static library
