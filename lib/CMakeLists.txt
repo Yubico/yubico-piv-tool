@@ -72,7 +72,7 @@ endif(BUILD_STATIC_LIB)
 
 # dynamic library
 add_library(ykpiv_shared SHARED ${SOURCE})
-target_link_libraries(ykpiv_shared ${LIBCRYPTO_LIBRARIES} ${PCSC_LIBRARIES} ${PCSC_WIN_LIBS} ${PCSC_MACOSX_LIBS} ${PCSC_CUSTOM_LIBS} ${ZLIB_LIBS})
+target_link_libraries(ykpiv_shared PRIVATE ${LIBCRYPTO_LIBRARIES} ${PCSC_LIBRARIES} ${PCSC_WIN_LIBS} ${PCSC_MACOSX_LIBS} ${PCSC_CUSTOM_LIBS} ${ZLIB_LIBS})
 set_target_properties(ykpiv_shared PROPERTIES SOVERSION ${SO_VERSION} VERSION ${VERSION})
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     set_target_properties(ykpiv_shared PROPERTIES INSTALL_RPATH "${YKPIV_INSTALL_LIB_DIR}")
