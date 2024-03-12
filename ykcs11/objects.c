@@ -37,7 +37,6 @@
 #include "utils.h"
 #include "debug.h"
 
-#define F4 "\x01\x00\x01" // TODO: already define in mechanisms.c. Move
 #define PRIME256V1 "\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07" // TODO: already define in mechanisms.c. Move
 #define SECP384R1 "\x06\x05\x2b\x81\x04\x00\x22" // TODO: already define in mechanisms.c. Move
 
@@ -758,9 +757,9 @@ static CK_RV get_proa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
 
   case CKA_PUBLIC_EXPONENT:
     DBG("PUBLIC EXPONENT");
-    len = sizeof(F4) - 1;
+    len = sizeof(b_tmp);
 
-    if ((rv = do_get_public_exponent(s->pkeys[piv_objects[obj].sub_id], b_tmp, len)) != CKR_OK)
+    if ((rv = do_get_public_exponent(s->pkeys[piv_objects[obj].sub_id], b_tmp, &len)) != CKR_OK)
       return rv;
     data = b_tmp;
     break;
@@ -1070,9 +1069,9 @@ static CK_RV get_puoa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
 
   case CKA_PUBLIC_EXPONENT:
     DBG("PUBLIC EXPONENT");
-    len = sizeof(F4) - 1;
+    len = sizeof(b_tmp);
 
-    if ((rv = do_get_public_exponent(s->pkeys[piv_objects[obj].sub_id], b_tmp, len)) != CKR_OK)
+    if ((rv = do_get_public_exponent(s->pkeys[piv_objects[obj].sub_id], b_tmp, &len)) != CKR_OK)
       return rv;
     data = b_tmp;
     break;
@@ -1969,8 +1968,8 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
 
     case CKA_PUBLIC_EXPONENT:
       has_e = CK_TRUE;
-      if (templ[i].ulValueLen != 3 || memcmp((CK_BYTE_PTR)templ[i].pValue, F4, 3) != 0) {
-        DBG("CKA_PUBLIC_EXPONENT must be 0x010001");
+      if (!do_check_public_exponent(templ[i].pValue, templ[i].ulValueLen)) {
+        DBG("Unsupported public exponent");
         return CKR_ATTRIBUTE_VALUE_INVALID;
       }
       break;

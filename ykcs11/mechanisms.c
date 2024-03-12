@@ -37,7 +37,6 @@
 #include "utils.h"
 #include "debug.h"
 
-#define F4 "\x01\x00\x01"
 #define PRIME256V1 "\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07"
 #define SECP384R1 "\x06\x05\x2b\x81\x04\x00\x22"
 
@@ -604,8 +603,7 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
         return CKR_TEMPLATE_INCONSISTENT;
       }
 
-      // Only support F4
-      if (templ[i].ulValueLen != 3 || memcmp((CK_BYTE_PTR)templ[i].pValue, F4, 3) != 0) {
+      if(!do_check_public_exponent(templ[i].pValue, templ[i].ulValueLen)) {
         DBG("Unsupported public exponent");
         return CKR_ATTRIBUTE_VALUE_INVALID;
       }

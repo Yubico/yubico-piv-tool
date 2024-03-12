@@ -592,19 +592,32 @@ CK_RV do_get_modulus(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG len) {
   return CKR_OK;
 }
 
-CK_RV do_get_public_exponent(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG len) {
+CK_BBOOL do_check_public_exponent(CK_BYTE_PTR data, CK_ULONG len) {
+  BIGNUM *bn = BN_bin2bn(data, len, NULL);
+  BIGNUM *f4 = BN_new();
+  BN_set_word(f4, 0x10001);
+  CK_BBOOL ret = BN_cmp(bn, f4) ? CK_FALSE : CK_TRUE;
+  BN_free(f4);
+  BN_free(bn);
+  return ret;
+}
 
-  const RSA *rsa = NULL;
-  const BIGNUM *bn_e;
+CK_RV do_get_public_exponent(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
 
-  rsa = key ? EVP_PKEY_get0_RSA(key) : 0;
+  const RSA *rsa = key ? EVP_PKEY_get0_RSA(key) : 0;
   if (rsa == NULL)
     return CKR_ATTRIBUTE_TYPE_INVALID;
 
+  const BIGNUM *bn_e = NULL;
   RSA_get0_key(rsa, NULL, &bn_e, NULL);
 
-  if(BN_bn2binpad(bn_e, data, len) < 0)
+  if (bn_e == NULL)
+    return CKR_ATTRIBUTE_TYPE_INVALID;
+
+  if(*len < BN_num_bytes(bn_e))
     return CKR_DATA_LEN_RANGE;
+
+  *len = BN_bn2bin(bn_e, data);
 
   return CKR_OK;
 }
