@@ -2105,22 +2105,24 @@ Cleanup:
   return res;
 }
 
-ykpiv_rc ykpiv_auth_getchallenge(ykpiv_state *state, uint8_t *challenge, unsigned long *challenge_len) {
+ykpiv_rc ykpiv_auth_getchallenge(ykpiv_state *state, ykpiv_metadata *metadata, uint8_t *challenge, unsigned long *challenge_len) {
   ykpiv_rc res;
   
   if (NULL == state) return YKPIV_ARGUMENT_ERROR;
+  if (NULL == metadata) return YKPIV_ARGUMENT_ERROR;
   if (NULL == challenge) return YKPIV_ARGUMENT_ERROR;
   if (NULL == challenge_len) return YKPIV_ARGUMENT_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
-  ykpiv_metadata metadata = {YKPIV_ALGO_3DES};
+  metadata->algorithm = YKPIV_ALGO_3DES;
+
   unsigned char data[256] = {0};
   unsigned long recv_len = sizeof(data);
   res = _ykpiv_get_metadata(state, YKPIV_KEY_CARDMGM, data, &recv_len);
   if (res == YKPIV_OK) {
-    res = ykpiv_util_parse_metadata(data, recv_len, &metadata);
+    res = ykpiv_util_parse_metadata(data, recv_len, metadata);
     if (res != YKPIV_OK) {
       goto Cleanup;
     }
@@ -2129,7 +2131,7 @@ ykpiv_rc ykpiv_auth_getchallenge(ykpiv_state *state, uint8_t *challenge, unsigne
   /* get a challenge from the card */
   APDU apdu = {0};
   apdu.st.ins = YKPIV_INS_AUTHENTICATE;
-  apdu.st.p1 = metadata.algorithm;
+  apdu.st.p1 = metadata->algorithm;
   apdu.st.p2 = YKPIV_KEY_CARDMGM; /* management key */
   apdu.st.lc = 0x04;
   apdu.st.data[0] = 0x7c;
@@ -2160,31 +2162,24 @@ Cleanup:
   return res;
 }
 
-ykpiv_rc ykpiv_auth_verifyresponse(ykpiv_state *state, uint8_t *response, unsigned long response_len) {
+ykpiv_rc ykpiv_auth_verifyresponse(ykpiv_state *state, ykpiv_metadata *metadata, uint8_t *response, unsigned long response_len) {
   ykpiv_rc res;
 
   if (NULL == state) return YKPIV_ARGUMENT_ERROR;
+  if (NULL == metadata) return YKPIV_ARGUMENT_ERROR;
   if (NULL == response) return YKPIV_ARGUMENT_ERROR;
   if (16 < response_len) return YKPIV_ARGUMENT_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   /* note: do not select the applet here, as it resets the challenge state */
 
-  ykpiv_metadata metadata = {YKPIV_ALGO_3DES};
   unsigned char data[256] = {0};
   unsigned long recv_len = sizeof(data);
-  res = _ykpiv_get_metadata(state, YKPIV_KEY_CARDMGM, data, &recv_len);
-  if (res == YKPIV_OK) {
-    res = ykpiv_util_parse_metadata(data, recv_len, &metadata);
-    if (res != YKPIV_OK) {
-      goto Cleanup;
-    }
-  }
 
   /* send the response to the card. */
   APDU apdu = {0};
   apdu.st.ins = YKPIV_INS_AUTHENTICATE;
-  apdu.st.p1 = metadata.algorithm;
+  apdu.st.p1 = metadata->algorithm;
   apdu.st.p2 = YKPIV_KEY_CARDMGM; /* management key */
   unsigned char *dataptr = apdu.st.data;
   *dataptr++ = 0x7c;
@@ -2195,7 +2190,6 @@ ykpiv_rc ykpiv_auth_verifyresponse(ykpiv_state *state, uint8_t *response, unsign
   dataptr += response_len;
   apdu.st.lc = (unsigned char)(dataptr - apdu.st.data);
   int sw = 0;
-  recv_len = sizeof(data);
   if ((res = _ykpiv_send_apdu(state, &apdu, data, &recv_len, &sw)) != YKPIV_OK) {
     goto Cleanup;
   }

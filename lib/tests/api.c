@@ -691,7 +691,8 @@ static void test_authenticate_helper(bool full) {
 
   // Test external auth
   data_len = sizeof(data);
-  res = ykpiv_auth_getchallenge(g_state, data, &data_len);
+  ykpiv_metadata metadata = {0};
+  res = ykpiv_auth_getchallenge(g_state, &metadata, data, &data_len);
   ck_assert_int_eq(res, YKPIV_OK);
 
   crc = cipher_import_key(YKPIV_ALGO_3DES, key, key_len, &cipher);
@@ -703,7 +704,7 @@ static void test_authenticate_helper(bool full) {
   crc = cipher_destroy_key(cipher);
   ck_assert_int_eq(crc, CIPHER_OK);
 
-  res = ykpiv_auth_verifyresponse(g_state, data, data_len);
+  res = ykpiv_auth_verifyresponse(g_state, &metadata, data, data_len);
   ck_assert_int_eq(res, YKPIV_OK);
 
   // Metadata support implies AES support for YKPIV_KEY_CARDMGM

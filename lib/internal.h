@@ -212,8 +212,8 @@ ykpiv_rc _ykpiv_transfer_data(
     int *sw);
 
 /* authentication functions not ready for public api */
-ykpiv_rc ykpiv_auth_getchallenge(ykpiv_state *state, uint8_t *challenge, unsigned long *challenge_len);
-ykpiv_rc ykpiv_auth_verifyresponse(ykpiv_state *state, uint8_t *response, unsigned long response_len);
+ykpiv_rc ykpiv_auth_getchallenge(ykpiv_state *state, ykpiv_metadata *metadata, uint8_t *challenge, unsigned long *challenge_len);
+ykpiv_rc ykpiv_auth_verifyresponse(ykpiv_state *state, ykpiv_metadata *metadata, uint8_t *response, unsigned long response_len);
 ykpiv_rc ykpiv_auth_deauthenticate(ykpiv_state *state);
 
 typedef enum _setting_source_t {
