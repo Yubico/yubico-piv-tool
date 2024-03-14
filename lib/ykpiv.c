@@ -1269,17 +1269,30 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   memcpy(dataptr, sign_in, in_len);
   dataptr += in_len;
 
-  if((res = _ykpiv_transfer_data(state, templ, indata, (unsigned long)(dataptr - indata), data, &recv_len, &sw)) != YKPIV_OK) {
+retry:
+  DBG("General authenticate with key %x.", key);
+  recv_len = sizeof(data);
+  if((res = _ykpiv_transfer_data(state, templ, indata, (long)(dataptr - indata), data, &recv_len, &sw)) != YKPIV_OK) {
+    DBG("General authenticate command failed to communicate: %s.", ykpiv_strerror(res));
     return res;
-  }
-  res = ykpiv_translate_sw(sw);
-  if(res != YKPIV_OK) {
-    DBG("Sign command failed");
+  } else if(sw != SW_SUCCESS) {
+    res = YKPIV_GENERIC_ERROR;
+    DBG("General authenticate command failed with status %x.", sw);
+    if (sw == SW_ERR_SECURITY_STATUS) {
+      res = YKPIV_AUTHENTICATION_ERROR;
+      if(state->pin) {
+        DBG("Verify cached pin.");
+        if((res = _ykpiv_verify(state, state->pin, strlen(state->pin))) == YKPIV_OK) {
+          goto retry;
+        }
+        DBG("Verify cached pin failed: %s.", ykpiv_strerror(res));
+      }
+    }
     return res;
   }
   /* skip the first 7c tag */
   if(data[0] != 0x7c) {
-    DBG("Failed parsing signature reply.");
+    DBG("Failed parsing general authenticate reply.");
     return YKPIV_PARSE_ERROR;
   }
   dataptr = data + 1;
@@ -1287,7 +1300,7 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
   dataptr += offs;
   /* skip the 82 tag */
   if(!offs || *dataptr != 0x82) {
-    DBG("Failed parsing signature reply.");
+    DBG("Failed parsing general authenticate reply.");
     return YKPIV_PARSE_ERROR;
   }
   dataptr++;
