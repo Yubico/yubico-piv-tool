@@ -36,8 +36,6 @@
 #include <stdint.h>
 #include <ctype.h>
 
-#include <zlib.h>
-
 #include "internal.h"
 #include "ykpiv.h"
 
@@ -1963,8 +1961,7 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
     return YKPIV_GENERIC_ERROR;
 
   if (YKPIV_IS_RSA(algorithm)) {
-    if ((algorithm == YKPIV_ALGO_RSA3072 || algorithm == YKPIV_ALGO_RSA4096) &&
-        (state->ver.major < 5 || (ykpiv_util_devicemodel(state) == DEVTYPE_YK5 && state->ver.minor < 7))) {
+    if ((algorithm == YKPIV_ALGO_RSA3072 || algorithm == YKPIV_ALGO_RSA4096) && !is_version_compatible(state, 5, 7, 0)) {
       DBG("RSA3072 and RSA4096 keys are only supported in YubiKey version 5.7.0 and above");
       return YKPIV_NOT_SUPPORTED;
     }
@@ -2294,6 +2291,12 @@ static ykpiv_rc _ykpiv_auth_deauthenticate(ykpiv_state *state) {
 }
 
 bool is_version_compatible(ykpiv_state *state, uint8_t major, uint8_t minor, uint8_t patch) {
+#ifdef DEBUG_YK
+  if (state->ver.major == 0) {
+    return true;
+  }
+#endif
+
   return state->ver.major > major ||
          (state->ver.major == major && state->ver.minor >= minor) ||
          (state->ver.major == major && state->ver.minor == minor && state->ver.patch >= patch);

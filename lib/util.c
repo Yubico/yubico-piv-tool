@@ -32,11 +32,10 @@
 #include <stdio.h>
 #include <time.h>
 
-#include <zlib.h>
+//#include <zlib.h>
 
 #include "internal.h"
 #include "ykpiv.h"
-#include "util.h"
 
 #define MAX(a,b) (a) > (b) ? (a) : (b)
 #define MIN(a,b) (a) < (b) ? (a) : (b)
@@ -88,6 +87,18 @@ static ykpiv_rc _set_metadata_item(uint8_t *data, size_t *pcb_data, size_t cb_da
 
 static size_t _obj_size_max(ykpiv_state *state) {
   return (state && state->model == DEVTYPE_NEOr3) ? CB_OBJ_MAX_NEO : CB_OBJ_MAX;
+}
+
+static unsigned long get_length_size(unsigned long length) {
+  if (length < 0x80) {
+    return 1;
+  }
+  else if (length < 0x100) {
+    return 2;
+  }
+  else {
+    return 3;
+  }
 }
 
 /*
@@ -1499,7 +1510,7 @@ invalid_tlv:
   size_t offset = 0;
   size_t buf_len = 0;
 
-  unsigned long len_bytes = get_length_size(rawdata_len);
+  unsigned long len_bytes = get_length_size((unsigned long)rawdata_len);
 
    // calculate the required length of the encoded object
    buf_len = 1 /* cert tag */ + 3 /* compression tag + data*/ + 2 /* lrc */;
@@ -1531,7 +1542,7 @@ invalid_tlv:
 
   if (-1 == object_id) return YKPIV_INVALID_OBJECT;
 
-   unsigned char data[YKPIV_OBJ_MAX_SIZE * 10] = {0};
+   unsigned char data[YKPIV_OBJ_MAX_SIZE] = {0};
    unsigned long data_len = sizeof (data);
 
   if (YKPIV_OK == (res = _ykpiv_fetch_object(state, object_id, data, &data_len))) {
