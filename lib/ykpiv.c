@@ -1601,7 +1601,7 @@ static ykpiv_rc _ykpiv_verify(ykpiv_state *state, char *pin, size_t *p_pin_len, 
   }
   res = ykpiv_translate_sw(sw);
   if (res == YKPIV_OK) {
-    if (!bio && pin) {
+    if (!bio && pin && p_pin_len) {
       // Intentionally ignore errors.  If the PIN fails to save, it will only
       // be a problem if a reconnect is attempted.  Failure deferred until then.
       _cache_pin(state, pin, *p_pin_len);
