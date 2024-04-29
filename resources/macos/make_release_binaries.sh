@@ -52,6 +52,8 @@ LICENSE_DIR=$PKG_DIR/licenses
 rm -rf $PKG_DIR
 mkdir -p $PKG_DIR $INSTALL_DIR $BUILD_DIR $LICENSE_DIR $FINAL_INSTALL_DIR
 
+export LIBRARY_PATH="$LIBRARY_PATH:/opt/homebrew/Cellar/openssl@3/3.3.0/lib"
+export PATH="$PATH:/opt/homebrew/Cellar/openssl@3/3.3.0/bin"
 
 # Build yubico-piv-tool and install it in $INSTALL_DIR
 cd $BUILD_DIR
