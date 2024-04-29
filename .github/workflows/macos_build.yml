@@ -20,7 +20,7 @@ jobs:
           set -x
           mkdir build
           cd build
-          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_PKG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig
+          cmake .. -DVERBOSE_CMAKE=ON
           make
           make test
 
