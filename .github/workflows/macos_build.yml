@@ -18,6 +18,10 @@ jobs:
       - name: Build and install
         run: |
           set -x
+          
+          ls /opt/homebrew/Cellar/openssl@3/3.3.0
+          
+          
           mkdir build
           cd build
           cmake .. -DVERBOSE_CMAKE=ON
