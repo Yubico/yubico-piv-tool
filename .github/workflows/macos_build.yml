@@ -19,8 +19,8 @@ jobs:
         run: |
           set -x
           
-          ls /opt/homebrew/Cellar/openssl@3/3.3.0
-          
+          export LIBRARY_PATH="$LIBRARY_PATH:/opt/homebrew/Cellar/openssl@3/3.3.0/lib"
+          export PATH="$PATH:/opt/homebrew/Cellar/openssl@3/3.3.0/bin"
           
           mkdir build
           cd build
