@@ -55,10 +55,6 @@ mkdir -p $PKG_DIR $INSTALL_DIR $BUILD_DIR $LICENSE_DIR $FINAL_INSTALL_DIR
 export LIBRARY_PATH="$LIBRARY_PATH:/opt/homebrew/Cellar/openssl@3/3.3.0/lib"
 export PATH="$PATH:/opt/homebrew/Cellar/openssl@3/3.3.0/bin"
 
-
-ls /opt/homebrew/Cellar/zlib/1.3.1
-
-
 # Build yubico-piv-tool and install it in $INSTALL_DIR
 cd $BUILD_DIR
 CFLAGS=$CFLAGS PKG_CONFIG_PATH=$BREW_LIB/openssl/lib/pkgconfig cmake $SOURCE_DIR -DCMAKE_BUILD_TYPE=Release
@@ -69,21 +65,21 @@ cp "/opt/homebrew/Cellar/openssl@3/3.3.0/lib/libcrypto.3.dylib" "$FINAL_INSTALL_
 chmod +w "$FINAL_INSTALL_DIR/lib/libcrypto.3.dylib"
 cp -r /opt/homebrew/Cellar/openssl@3/3.3.0/include/openssl "$FINAL_INSTALL_DIR/include"
 
-cp "$BREW_LIB/zlib/lib/libz.1.dylib" "$FINAL_INSTALL_DIR/lib"
+cp "/opt/homebrew/Cellar/zlib/1.3.1/lib/libz.1.dylib" "$FINAL_INSTALL_DIR/lib"
 chmod +w "$FINAL_INSTALL_DIR/lib/libz.1.dylib"
-cp -r $BREW_LIB/zlib/include/zlib.h "$FINAL_INSTALL_DIR/include"
+cp -r /opt/homebrew/Cellar/zlib/1.3.1/include/zlib.h "$FINAL_INSTALL_DIR/include"
 
 # Fix paths
 install_name_tool -id "@loader_path/../lib/libcrypto.3.dylib" "$FINAL_INSTALL_DIR/lib/libcrypto.3.dylib"
 install_name_tool -id "@loader_path/../lib/libz.1.dylib" "$FINAL_INSTALL_DIR/lib/libz.1.dylib"
 
-install_name_tool -change $BREW_LIB/openssl@3/lib/libcrypto.3.dylib @loader_path/../lib/libcrypto.3.dylib $FINAL_INSTALL_DIR/lib/libykpiv.$VERSION.dylib
-install_name_tool -change $BREW_LIB/openssl@3/lib/libcrypto.3.dylib @loader_path/../lib/libcrypto.3.dylib $FINAL_INSTALL_DIR/lib/libykcs11.$VERSION.dylib
-install_name_tool -change $BREW_LIB/openssl@3/lib/libcrypto.3.dylib @loader_path/../lib/libcrypto.3.dylib $FINAL_INSTALL_DIR/bin/yubico-piv-tool
+install_name_tool -change /opt/homebrew/Cellar/openssl@3/3.3.0/lib/libcrypto.3.dylib @loader_path/../lib/libcrypto.3.dylib $FINAL_INSTALL_DIR/lib/libykpiv.$VERSION.dylib
+install_name_tool -change /opt/homebrew/Cellar/openssl@3/3.3.0/lib/libcrypto.3.dylib @loader_path/../lib/libcrypto.3.dylib $FINAL_INSTALL_DIR/lib/libykcs11.$VERSION.dylib
+install_name_tool -change /opt/homebrew/Cellar/openssl@3/3.3.0/lib/libcrypto.3.dylib @loader_path/../lib/libcrypto.3.dylib $FINAL_INSTALL_DIR/bin/yubico-piv-tool
 
-install_name_tool -change /usr/lib/libz.1.dylib @loader_path/../lib/libz.1.dylib $FINAL_INSTALL_DIR/lib/libykcs11.$VERSION.dylib
-install_name_tool -change /usr/lib/libz.1.dylib @loader_path/../lib/libz.1.dylib $FINAL_INSTALL_DIR/lib/libykpiv.$VERSION.dylib
-install_name_tool -change /usr/lib/libz.1.dylib @loader_path/../lib/libz.1.dylib $FINAL_INSTALL_DIR/bin/yubico-piv-tool
+install_name_tool -change /opt/homebrew/Cellar/zlib/1.3.1/lib/libz.1.dylib @loader_path/../lib/libz.1.dylib $FINAL_INSTALL_DIR/lib/libykcs11.$VERSION.dylib
+install_name_tool -change /opt/homebrew/Cellar/zlib/1.3.1/lib/libz.1.dylib @loader_path/../lib/libz.1.dylib $FINAL_INSTALL_DIR/lib/libykpiv.$VERSION.dylib
+install_name_tool -change /opt/homebrew/Cellar/zlib/1.3.1/lib/libz.1.dylib @loader_path/../lib/libz.1.dylib $FINAL_INSTALL_DIR/bin/yubico-piv-tool
 
 install_name_tool -rpath "/usr/local/lib" "@loader_path/../lib" "$FINAL_INSTALL_DIR/lib/libykcs11.$VERSION.dylib"
 install_name_tool -rpath "/usr/local/lib" "@loader_path/../lib" "$FINAL_INSTALL_DIR/lib/libykpiv.$VERSION.dylib"
@@ -97,7 +93,7 @@ fi
 # Copy yubico-piv-tool license and move the whole lisenses directory under FINALINSTALL_DIR.
 cd $SOURCE_DIR
 cp COPYING $LICENSE_DIR/$PACKAGE.txt
-cp $BREW_LIB/zlib/LICENSE $LICENSE_DIR/zlib.txt
+cp /opt/homebrew/Cellar/zlib/1.3.1/LICENSE $LICENSE_DIR/zlib.txt
 mv $LICENSE_DIR $FINAL_INSTALL_DIR/
 
 cd $INSTALL_DIR
