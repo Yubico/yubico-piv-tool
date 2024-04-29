@@ -55,15 +55,19 @@ mkdir -p $PKG_DIR $INSTALL_DIR $BUILD_DIR $LICENSE_DIR $FINAL_INSTALL_DIR
 export LIBRARY_PATH="$LIBRARY_PATH:/opt/homebrew/Cellar/openssl@3/3.3.0/lib"
 export PATH="$PATH:/opt/homebrew/Cellar/openssl@3/3.3.0/bin"
 
+
+/opt/homebrew/Cellar
+
+
 # Build yubico-piv-tool and install it in $INSTALL_DIR
 cd $BUILD_DIR
 CFLAGS=$CFLAGS PKG_CONFIG_PATH=$BREW_LIB/openssl/lib/pkgconfig cmake $SOURCE_DIR -DCMAKE_BUILD_TYPE=Release
 make
 env DESTDIR="$INSTALL_DIR" make install;
 
-cp "$BREW_LIB/openssl/lib/libcrypto.3.dylib" "$FINAL_INSTALL_DIR/lib"
+cp "/opt/homebrew/Cellar/openssl@3/3.3.0/lib/libcrypto.3.dylib" "$FINAL_INSTALL_DIR/lib"
 chmod +w "$FINAL_INSTALL_DIR/lib/libcrypto.3.dylib"
-cp -r $BREW_LIB/openssl/include/openssl "$FINAL_INSTALL_DIR/include"
+cp -r /opt/homebrew/Cellar/openssl@3/3.3.0/include/openssl "$FINAL_INSTALL_DIR/include"
 
 cp "$BREW_LIB/zlib/lib/libz.1.dylib" "$FINAL_INSTALL_DIR/lib"
 chmod +w "$FINAL_INSTALL_DIR/lib/libz.1.dylib"
