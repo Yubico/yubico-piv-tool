@@ -326,6 +326,7 @@ ykpiv_rc ykpiv_util_list_keys(ykpiv_state *state, uint8_t *key_count, ykpiv_key 
           res = YKPIV_MEMORY_ERROR;
           goto Cleanup;
         }
+        yc_memzero(pTemp + cbData, cbRealloc); // clear newly allocated memory
         pData = pTemp;
         pTemp = NULL;
       }
@@ -1751,7 +1752,7 @@ static ykpiv_rc _set_metadata_item(uint8_t *data, size_t *pcb_data, size_t cb_da
   cb_len = _ykpiv_get_length_size(cb_item);
 
   // length would cause buffer overflow, return error
-  if (*pcb_data + cb_len + cb_item > cb_data_max) {
+  if (*pcb_data + 1 + cb_len + cb_item > cb_data_max) {
     return YKPIV_GENERIC_ERROR;
   }
 

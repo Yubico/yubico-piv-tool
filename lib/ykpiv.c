@@ -1579,7 +1579,7 @@ static ykpiv_rc _ykpiv_verify(ykpiv_state *state, char *pin, size_t *p_pin_len, 
         memset(apdu.st.data + *p_pin_len, 0xff, CB_PIN_MAX - *p_pin_len);
       }
     }
-    else if (verify_spin) {
+    else if (verify_spin && p_pin_len) {
       apdu.st.data[0] = 0x01;
       apdu.st.data[1] = (uint8_t)*p_pin_len;
       memcpy(apdu.st.data + 2, pin, *p_pin_len);
