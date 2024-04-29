@@ -55,6 +55,8 @@
 #include <openssl/rsa.h>
 #include <openssl/x509v3.h>
 #include <openssl/err.h>
+#include <openssl/evp.h>
+#include <openssl/crypto.h>
 #include <zlib.h>
 
 #include "cmdline.h"
@@ -252,12 +254,6 @@ static EVP_PKEY* wrap_public_key(ykpiv_state *state, int algorithm, EVP_PKEY *pu
       fprintf(stderr, "Failed to wrap public EC key\n");
     }
     EVP_PKEY_assign_EC_KEY(pkey, sk);
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
-  } else if (algorithm == YKPIV_ALGO_ED25519) {
-    EVP_PKEY_assign(pkey, EVP_PKEY_ED25519, public_key);
-  } else if (algorithm == YKPIV_ALGO_X25519) {
-    EVP_PKEY_assign(pkey, EVP_PKEY_X25519, public_key);
-#endif
   }
   return pkey;
 }
@@ -1031,17 +1027,84 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     req->signature->flags = ASN1_STRING_FLAG_BITS_LEFT;
   }
 #else
-  /* With opaque structures we can not touch whatever we want, but we need
-   * to embed the sign_data function in the RSA/EC key structures  */
-  EVP_PKEY *sk = wrap_public_key(state, algorithm, public_key, key, oid, oid_len);
 
-  if(X509_REQ_sign(req, sk, md) == 0) {
-    fprintf(stderr, "Failed signing request.\n");
-    ERR_print_errors_fp(stderr);
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+  if (algorithm == YKPIV_ALGO_ED25519) {
+
+    // Generate a dummy ED25519 to sign with OpenSSL
+    EVP_PKEY *ed_key = NULL;
+    EVP_PKEY_CTX *ed_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_ED25519, NULL);
+    EVP_PKEY_keygen_init(ed_ctx);
+    EVP_PKEY_keygen(ed_ctx, &ed_key);
+    EVP_PKEY_CTX_free(ed_ctx);
+    PEM_write_PrivateKey(stdout, ed_key, NULL, NULL, 0, NULL, NULL);
+
+    // Sign the request object using the dummy key
+    if (X509_REQ_sign(req, ed_key, md) == 0) {
+      fprintf(stderr, "Failed signing certificate.\n");
+      ERR_print_errors_fp(stderr);
+      EVP_PKEY_free(ed_key);
+      goto request_out;
+    }
+    EVP_PKEY_free(ed_key);
+
+    // encode the signed certificate request
+    unsigned char *all_req_data = NULL;
+    int all_req_len = i2d_X509_REQ(req, &all_req_data);
+
+    // Extract the request data without the signature
+    unsigned char *req_data = NULL;
+    int req_len = i2d_re_X509_REQ_tbs(req, &req_data);
+
+    // Extract the signature from the certificate and encode it
+    ASN1_BIT_STRING *psig;
+    const X509_ALGOR *palg;
+    X509_REQ_get0_signature(req, (const ASN1_BIT_STRING **) &psig, &palg);
+    unsigned char *ossl_sig_data = NULL;
+    int ossl_sig_len = i2d_ASN1_BIT_STRING(psig, &ossl_sig_data);
+
+    // Sign the request data using the YubiKey
+    unsigned char yk_sig[1024] = {0};
+    size_t yk_siglen = sizeof(yk_sig);
+    if (!sign_data(state, req_data, req_len, yk_sig, &yk_siglen, algorithm, key)) {
+      fprintf(stderr, "Failed signing tbs request portion.\n");
+      EVP_PKEY_free(ed_key);
+      goto request_out;
+    }
+
+    // replace the signature from OpenSSL with the signature from the YubiKey
+    ASN1_BIT_STRING_set(psig, yk_sig, yk_siglen);
+    unsigned char *sig_data = NULL;
+    int sig_len = i2d_ASN1_BIT_STRING(psig, &sig_data);
+
+    // Find the signature on the req from OpenSSL and replace it with the signature from the YubiKey
+    unsigned char *p = all_req_data;
+    while((memcmp(p, ossl_sig_data, ossl_sig_len) != 0) && (p < all_req_data+all_req_len)) {
+      p++;
+    }
+    if(p >= all_req_data+all_req_len) {
+      fprintf(stderr, "Failed to find dummy signature.\n");
+      goto request_out;
+    }
+    memcpy(p, sig_data, sig_len);
+
+  } else {
+#endif
+    /* With opaque structures we can not touch whatever we want, but we need
+     * to embed the sign_data function in the RSA/EC key structures  */
+    EVP_PKEY *sk = wrap_public_key(state, algorithm, public_key, key, oid, oid_len);
+
+    if(X509_REQ_sign(req, sk, md) == 0) {
+      fprintf(stderr, "Failed signing request.\n");
+      ERR_print_errors_fp(stderr);
+      EVP_PKEY_free(sk);
+      goto request_out;
+    }
     EVP_PKEY_free(sk);
-    goto request_out;
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
   }
-  EVP_PKEY_free(sk);
+#endif
+
 #endif
 
   if(key_format == key_format_arg_PEM) {
@@ -1341,18 +1404,85 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     x509->signature->flags = ASN1_STRING_FLAG_BITS_LEFT;
   }
 #else
-  /* With opaque structures we can not touch whatever we want, but we need
-   * to embed the sign_data function in the RSA/EC key structures  */
-  EVP_PKEY *sk = wrap_public_key(state, algorithm, public_key, key, oid, oid_len);
 
-  if(X509_sign(x509, sk, md) == 0) {
-    fprintf(stderr, "Failed signing certificate.\n");
-    ERR_print_errors_fp(stderr);
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+  if (algorithm == YKPIV_ALGO_ED25519) {
+
+    // Generate a dummy ED25519 to sign with OpenSSL
+    EVP_PKEY *ed_key = NULL;
+    EVP_PKEY_CTX *ed_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_ED25519, NULL);
+    EVP_PKEY_keygen_init(ed_ctx);
+    EVP_PKEY_keygen(ed_ctx, &ed_key);
+    EVP_PKEY_CTX_free(ed_ctx);
+    PEM_write_PrivateKey(stdout, ed_key, NULL, NULL, 0, NULL, NULL);
+
+    // Sign the X509 object using the dummy key
+    if (X509_sign(x509, ed_key, md) == 0) {
+      fprintf(stderr, "Failed signing certificate.\n");
+      ERR_print_errors_fp(stderr);
+      EVP_PKEY_free(ed_key);
+      goto selfsign_out;
+    }
+    EVP_PKEY_free(ed_key);
+
+    // encode the signed certificate
+    unsigned char *all_cert_data = NULL;
+    int all_cert_len = i2d_X509(x509, &all_cert_data);
+
+    // Extract the certificate data without the signature
+    unsigned char *cert_data = NULL;
+    int cert_len = i2d_re_X509_tbs(x509, &cert_data);
+
+    // Extract the signature from the certificate and encode it
+    ASN1_BIT_STRING *psig;
+    const X509_ALGOR *palg;
+    X509_get0_signature((const ASN1_BIT_STRING **) &psig, &palg, x509);
+    unsigned char *ossl_sig_data = NULL;
+    int ossl_sig_len = i2d_ASN1_BIT_STRING(psig, &ossl_sig_data);
+
+    // Sign the certificate data using the YubiKey
+    unsigned char yk_sig[1024] = {0};
+    size_t yk_siglen = sizeof(yk_sig);
+    if (!sign_data(state, cert_data, cert_len, yk_sig, &yk_siglen, algorithm, key)) {
+      fprintf(stderr, "Failed signing tbs certificate portion.\n");
+      EVP_PKEY_free(ed_key);
+      goto selfsign_out;
+    }
+
+    // replace the signature from OpenSSL with the signature from the YubiKey
+    ASN1_BIT_STRING_set(psig, yk_sig, yk_siglen);
+    unsigned char *sig_data = NULL;
+    int sig_len = i2d_ASN1_BIT_STRING(psig, &sig_data);
+
+
+    // Find the signature on the cert from OpenSSL and replace it with the signature from the YubiKey
+    unsigned char *p = all_cert_data;
+    while((memcmp(p, ossl_sig_data, ossl_sig_len) != 0) && (p < all_cert_data+all_cert_len)) {
+      p++;
+    }
+    if(p >= all_cert_data+all_cert_len) {
+      fprintf(stderr, "Failed to find dummy signature.\n");
+      goto selfsign_out;
+    }
+    memcpy(p, sig_data, sig_len);
+
+  } else {
+#endif
+    /* With opaque structures we can not touch whatever we want, but we need
+     * to embed the sign_data function in the RSA/EC key structures  */
+    EVP_PKEY *sk = wrap_public_key(state, algorithm, public_key, key, oid, oid_len);
+
+    if(X509_sign(x509, sk, md) == 0) {
+      fprintf(stderr, "Failed signing certificate.\n");
+      ERR_print_errors_fp(stderr);
+      EVP_PKEY_free(sk);
+      goto selfsign_out;
+    }
     EVP_PKEY_free(sk);
-    goto selfsign_out;
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
   }
+#endif
 
-  EVP_PKEY_free(sk);
 #endif
 
   if(key_format == key_format_arg_PEM) {
