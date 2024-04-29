@@ -76,6 +76,9 @@ jobs:
       - name: Build only library (no CLI and no ykcs11)
         run: |
           set -x
+          
+          export LIBRARY_PATH="$LIBRARY_PATH:/opt/homebrew/Cellar/openssl@3/3.3.0/lib"
+          export PATH="$PATH:/opt/homebrew/Cellar/openssl@3/3.3.0/bin"
 
           rm -rf build; mkdir build; cd build
           cmake .. -DVERBOSE_CMAKE=ON -DBUILD_ONLY_LIB=ON

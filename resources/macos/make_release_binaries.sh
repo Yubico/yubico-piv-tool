@@ -56,7 +56,7 @@ export LIBRARY_PATH="$LIBRARY_PATH:/opt/homebrew/Cellar/openssl@3/3.3.0/lib"
 export PATH="$PATH:/opt/homebrew/Cellar/openssl@3/3.3.0/bin"
 
 
-/opt/homebrew/Cellar
+ls /opt/homebrew/Cellar
 
 
 # Build yubico-piv-tool and install it in $INSTALL_DIR
