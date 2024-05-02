@@ -1037,7 +1037,6 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     EVP_PKEY_keygen_init(ed_ctx);
     EVP_PKEY_keygen(ed_ctx, &ed_key);
     EVP_PKEY_CTX_free(ed_ctx);
-    PEM_write_PrivateKey(stdout, ed_key, NULL, NULL, 0, NULL, NULL);
 
     // Sign the request object using the dummy key
     if (X509_REQ_sign(req, ed_key, md) == 0) {
@@ -1414,7 +1413,6 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     EVP_PKEY_keygen_init(ed_ctx);
     EVP_PKEY_keygen(ed_ctx, &ed_key);
     EVP_PKEY_CTX_free(ed_ctx);
-    PEM_write_PrivateKey(stdout, ed_key, NULL, NULL, 0, NULL, NULL);
 
     // Sign the X509 object using the dummy key
     if (X509_sign(x509, ed_key, md) == 0) {
