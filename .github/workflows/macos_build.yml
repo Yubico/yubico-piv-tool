@@ -18,13 +18,9 @@ jobs:
       - name: Build and install
         run: |
           set -x
-          
-          export LIBRARY_PATH="$LIBRARY_PATH:/opt/homebrew/Cellar/openssl@3/3.3.0/lib"
-          export PATH="$PATH:/opt/homebrew/Cellar/openssl@3/3.3.0/bin"
-          
           mkdir build
           cd build
-          cmake .. -DVERBOSE_CMAKE=ON
+          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_PKG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig
           make
           make test
 
@@ -32,7 +28,7 @@ jobs:
           otool -L lib/libykpiv.dylib | grep libcrypto
           otool -L ykcs11/libykcs11.dylib | grep libcrypto
 
-          sudo make install
+          make install
 
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
           objdump --syms /usr/local/lib/libykcs11.dylib | grep C_Sign
@@ -41,6 +37,7 @@ jobs:
       - name: Build using OpenSSL static link
         run: |
           set -x
+          export PKG_CONFIG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig:PKG_CONFIG_PATH
 
           rm -rf build; mkdir build; cd build
           cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_STATIC_LINK=ON -DBACKEND=macscard
@@ -60,9 +57,7 @@ jobs:
       - name: Build with YKCS11_DBG is set
         run: |
           set -x
-          
-          export LIBRARY_PATH="$LIBRARY_PATH:/opt/homebrew/Cellar/openssl@3/3.3.0/lib"
-          export PATH="$PATH:/opt/homebrew/Cellar/openssl@3/3.3.0/bin"
+          export PKG_CONFIG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig:PKG_CONFIG_PATH
 
           rm -rf build; mkdir build; cd build
           cmake .. -DVERBOSE_CMAKE=ON -DYKCS11_DBG=3
@@ -76,9 +71,7 @@ jobs:
       - name: Build only library (no CLI and no ykcs11)
         run: |
           set -x
-          
-          export LIBRARY_PATH="$LIBRARY_PATH:/opt/homebrew/Cellar/openssl@3/3.3.0/lib"
-          export PATH="$PATH:/opt/homebrew/Cellar/openssl@3/3.3.0/bin"
+          export PKG_CONFIG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig:PKG_CONFIG_PATH
 
           rm -rf build; mkdir build; cd build
           cmake .. -DVERBOSE_CMAKE=ON -DBUILD_ONLY_LIB=ON
@@ -88,9 +81,7 @@ jobs:
       - name: Build only dynamic libaries
         run: |
           set -x
-          
-          export LIBRARY_PATH="$LIBRARY_PATH:/opt/homebrew/Cellar/openssl@3/3.3.0/lib"
-          export PATH="$PATH:/opt/homebrew/Cellar/openssl@3/3.3.0/bin"          
+          export PKG_CONFIG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig:PKG_CONFIG_PATH
 
           rm -rf build; mkdir build; cd build
           cmake .. -DVERBOSE_CMAKE=ON -DBUILD_STATIC_LIB=OFF
