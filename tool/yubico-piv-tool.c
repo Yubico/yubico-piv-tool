@@ -1056,16 +1056,15 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     int req_len = i2d_re_X509_REQ_tbs(req, &req_data);
 
     // Extract the signature from the certificate and encode it
-    const ASN1_BIT_STRING *psig;
+    ASN1_BIT_STRING *psig;
     const X509_ALGOR *palg;
-    X509_REQ_get0_signature(req, &psig, &palg);
+    X509_REQ_get0_signature(req, (const ASN1_BIT_STRING **) &psig, &palg);
 
     // Sign the request data using the YubiKey
     unsigned char yk_sig[64] = {0};
     size_t yk_siglen = sizeof(yk_sig);
     if (!sign_data(state, req_data, req_len, yk_sig, &yk_siglen, algorithm, key)) {
       fprintf(stderr, "Failed signing tbs request portion.\n");
-      EVP_PKEY_free(ed_key);
       goto request_out;
     }
 
@@ -1074,16 +1073,12 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
       goto request_out;
     }
 
-    // Find the signature on the req from OpenSSL and replace it with the signature from the YubiKey
-    unsigned char *p = all_req_data + all_req_len - yk_siglen;
-    while((p >= all_req_data) && (memcmp(p, psig->data, psig->length) != 0)) {
-      p--;
-    }
-    if(p < all_req_data) {
-      fprintf(stderr, "Failed to find dummy signature.\n");
+    ASN1_BIT_STRING_set(psig, yk_sig, yk_siglen);
+    int len = i2d_X509_REQ(req, &all_req_data);
+    if(len != all_req_len) {
+      fprintf(stderr, "Failed to sign certificate.\n");
       goto request_out;
     }
-    memcpy(p, yk_sig, yk_siglen);
 
   } else {
 #endif
@@ -1430,16 +1425,15 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     int cert_len = i2d_re_X509_tbs(x509, &cert_data);
 
     // Extract the signature from the certificate and encode it
-    const ASN1_BIT_STRING *psig;
+    ASN1_BIT_STRING *psig;
     const X509_ALGOR *palg;
-    X509_get0_signature(&psig, &palg, x509);
+    X509_get0_signature((const ASN1_BIT_STRING **) &psig, &palg, x509);
 
     // Sign the certificate data using the YubiKey
     unsigned char yk_sig[64] = {0};
     size_t yk_siglen = sizeof(yk_sig);
     if (!sign_data(state, cert_data, cert_len, yk_sig, &yk_siglen, algorithm, key)) {
       fprintf(stderr, "Failed signing tbs certificate portion.\n");
-      EVP_PKEY_free(ed_key);
       goto selfsign_out;
     }
 
@@ -1448,17 +1442,12 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
       goto selfsign_out;
     }
 
-    // Find the signature on the cert from OpenSSL and replace it with the signature from the YubiKey
-    unsigned char *p = all_cert_data + all_cert_len - yk_siglen;
-    while((p >= all_cert_data) && (memcmp(p, psig->data, psig->length) != 0)) {
-      p--;
-    }
-    if(p < all_cert_data) {
-      fprintf(stderr, "Failed to find dummy signature.\n");
+    ASN1_BIT_STRING_set(psig, yk_sig, yk_siglen);
+    int len = i2d_X509(x509, &all_cert_data);
+    if(len != all_cert_len) {
+      fprintf(stderr, "Failed to sign certificate.\n");
       goto selfsign_out;
     }
-    memcpy(p, yk_sig, yk_siglen);
-
   } else {
 #endif
     /* With opaque structures we can not touch whatever we want, but we need
