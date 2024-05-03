@@ -61,6 +61,7 @@ jobs:
         run: |
           set -x
           brew install pkg-config check gengetopt help2man openssl zlib
+          brew reinstall openssl
 
       - name: Build MacOS binaries
         env:

@@ -15,6 +15,7 @@ jobs:
         run: |
           set -x
           brew install pkg-config check gengetopt help2man opensc
+          brew reinstall openssl
       - name: Build and install
         run: |
           set -x
