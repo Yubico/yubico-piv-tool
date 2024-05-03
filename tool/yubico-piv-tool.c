@@ -1047,15 +1047,11 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     }
     EVP_PKEY_free(ed_key);
 
-    // encode the signed certificate request
-    unsigned char *all_req_data = NULL;
-    int all_req_len = i2d_X509_REQ(req, &all_req_data);
-
     // Extract the request data without the signature
     unsigned char *req_data = NULL;
     int req_len = i2d_re_X509_REQ_tbs(req, &req_data);
 
-    // Extract the signature from the certificate and encode it
+    // Extract the signature from the certificate
     ASN1_BIT_STRING *psig;
     const X509_ALGOR *palg;
     X509_REQ_get0_signature(req, (const ASN1_BIT_STRING **) &psig, &palg);
@@ -1073,12 +1069,8 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
       goto request_out;
     }
 
+    // Replace the dummy signature with the signature from the yubikey
     ASN1_BIT_STRING_set(psig, yk_sig, yk_siglen);
-    int len = i2d_X509_REQ(req, &all_req_data);
-    if(len != all_req_len) {
-      fprintf(stderr, "Failed to sign certificate.\n");
-      goto request_out;
-    }
 
   } else {
 #endif
@@ -1416,15 +1408,11 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     }
     EVP_PKEY_free(ed_key);
 
-    // encode the signed certificate
-    unsigned char *all_cert_data = NULL;
-    int all_cert_len = i2d_X509(x509, &all_cert_data);
-
     // Extract the certificate data without the signature
     unsigned char *cert_data = NULL;
     int cert_len = i2d_re_X509_tbs(x509, &cert_data);
 
-    // Extract the signature from the certificate and encode it
+    // Extract the signature from the certificate
     ASN1_BIT_STRING *psig;
     const X509_ALGOR *palg;
     X509_get0_signature((const ASN1_BIT_STRING **) &psig, &palg, x509);
@@ -1442,12 +1430,8 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
       goto selfsign_out;
     }
 
+    // Replace the dummy signature with the signature from the yubikey
     ASN1_BIT_STRING_set(psig, yk_sig, yk_siglen);
-    int len = i2d_X509(x509, &all_cert_data);
-    if(len != all_cert_len) {
-      fprintf(stderr, "Failed to sign certificate.\n");
-      goto selfsign_out;
-    }
   } else {
 #endif
     /* With opaque structures we can not touch whatever we want, but we need
