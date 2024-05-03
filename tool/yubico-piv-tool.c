@@ -1076,12 +1076,17 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     unsigned char *sig_data = NULL;
     int sig_len = i2d_ASN1_BIT_STRING(psig, &sig_data);
 
-    // Find the signature on the req from OpenSSL and replace it with the signature from the YubiKey
-    unsigned char *p = all_req_data;
-    while((memcmp(p, ossl_sig_data, ossl_sig_len) != 0) && (p < all_req_data+all_req_len)) {
-      p++;
+    if(ossl_sig_len != sig_len) {
+      fprintf(stderr, "Dummy signature and real signature are not the same length.\n");
+      goto request_out;
     }
-    if(p >= all_req_data+all_req_len) {
+
+    // Find the signature on the req from OpenSSL and replace it with the signature from the YubiKey
+    unsigned char *p = all_req_data + all_req_len - ossl_sig_len;
+    while((p > all_req_data) && (memcmp(p, ossl_sig_data, ossl_sig_len) != 0)) {
+      p--;
+    }
+    if(p < all_req_data) {
       fprintf(stderr, "Failed to find dummy signature.\n");
       goto request_out;
     }
@@ -1452,13 +1457,17 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     unsigned char *sig_data = NULL;
     int sig_len = i2d_ASN1_BIT_STRING(psig, &sig_data);
 
+    if(ossl_sig_len != sig_len) {
+      fprintf(stderr, "Dummy signature and real signature are not the same length.\n");
+      goto selfsign_out;
+    }
 
     // Find the signature on the cert from OpenSSL and replace it with the signature from the YubiKey
-    unsigned char *p = all_cert_data;
-    while((memcmp(p, ossl_sig_data, ossl_sig_len) != 0) && (p < all_cert_data+all_cert_len)) {
-      p++;
+    unsigned char *p = all_cert_data + all_cert_len - ossl_sig_len;
+    while((p > all_cert_data) && (memcmp(p, ossl_sig_data, ossl_sig_len) != 0)) {
+      p--;
     }
-    if(p >= all_cert_data+all_cert_len) {
+    if(p < all_cert_data) {
       fprintf(stderr, "Failed to find dummy signature.\n");
       goto selfsign_out;
     }
