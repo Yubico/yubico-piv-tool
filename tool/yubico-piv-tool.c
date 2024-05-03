@@ -1063,7 +1063,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     int ossl_sig_len = i2d_ASN1_BIT_STRING(psig, &ossl_sig_data);
 
     // Sign the request data using the YubiKey
-    unsigned char yk_sig[1024] = {0};
+    unsigned char yk_sig[64] = {0};
     size_t yk_siglen = sizeof(yk_sig);
     if (!sign_data(state, req_data, req_len, yk_sig, &yk_siglen, algorithm, key)) {
       fprintf(stderr, "Failed signing tbs request portion.\n");
@@ -1444,7 +1444,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     int ossl_sig_len = i2d_ASN1_BIT_STRING(psig, &ossl_sig_data);
 
     // Sign the certificate data using the YubiKey
-    unsigned char yk_sig[1024] = {0};
+    unsigned char yk_sig[64] = {0};
     size_t yk_siglen = sizeof(yk_sig);
     if (!sign_data(state, cert_data, cert_len, yk_sig, &yk_siglen, algorithm, key)) {
       fprintf(stderr, "Failed signing tbs certificate portion.\n");
