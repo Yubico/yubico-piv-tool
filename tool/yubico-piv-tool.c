@@ -1056,9 +1056,9 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     int req_len = i2d_re_X509_REQ_tbs(req, &req_data);
 
     // Extract the signature from the certificate and encode it
-    ASN1_BIT_STRING *psig;
+    const ASN1_BIT_STRING *psig;
     const X509_ALGOR *palg;
-    X509_REQ_get0_signature(req, (const ASN1_BIT_STRING **) &psig, &palg);
+    X509_REQ_get0_signature(req, &psig, &palg);
 
     // Sign the request data using the YubiKey
     unsigned char yk_sig[64] = {0};
@@ -1430,9 +1430,9 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     int cert_len = i2d_re_X509_tbs(x509, &cert_data);
 
     // Extract the signature from the certificate and encode it
-    ASN1_BIT_STRING *psig;
+    const ASN1_BIT_STRING *psig;
     const X509_ALGOR *palg;
-    X509_get0_signature((const ASN1_BIT_STRING **) &psig, &palg, x509);
+    X509_get0_signature(&psig, &palg, x509);
 
     // Sign the certificate data using the YubiKey
     unsigned char yk_sig[64] = {0};
