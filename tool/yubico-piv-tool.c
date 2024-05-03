@@ -1048,28 +1048,21 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     EVP_PKEY_free(ed_key);
 
     // Extract the request data without the signature
-    unsigned char *req_data = NULL;
-    int req_len = i2d_re_X509_REQ_tbs(req, &req_data);
-
-    // Extract the signature from the certificate
-    ASN1_BIT_STRING *psig;
-    const X509_ALGOR *palg;
-    X509_REQ_get0_signature(req, (const ASN1_BIT_STRING **) &psig, &palg);
+    unsigned char *tbs_data = NULL;
+    int tbs_len = i2d_re_X509_REQ_tbs(req, &tbs_data);
 
     // Sign the request data using the YubiKey
     unsigned char yk_sig[64] = {0};
     size_t yk_siglen = sizeof(yk_sig);
-    if (!sign_data(state, req_data, req_len, yk_sig, &yk_siglen, algorithm, key)) {
+    if (!sign_data(state, tbs_data, tbs_len, yk_sig, &yk_siglen, algorithm, key)) {
       fprintf(stderr, "Failed signing tbs request portion.\n");
       goto request_out;
     }
 
-    if(psig->length != yk_siglen) {
-      fprintf(stderr, "Dummy signature and real signature are not the same length.\n");
-      goto request_out;
-    }
-
     // Replace the dummy signature with the signature from the yubikey
+    ASN1_BIT_STRING *psig;
+    const X509_ALGOR *palg;
+    X509_REQ_get0_signature(req, (const ASN1_BIT_STRING **) &psig, &palg);
     ASN1_BIT_STRING_set(psig, yk_sig, yk_siglen);
 
   } else {
@@ -1096,6 +1089,12 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
       ret = true;
     } else {
       fprintf(stderr, "Failed writing x509 information\n");
+    }
+  } else if(key_format == key_format_arg_DER) {
+    if(i2d_X509_REQ_fp(output_file, req)) {
+      ret = true;
+    } else {
+      fprintf(stderr, "Failed writing DER information\n");
     }
   } else {
     fprintf(stderr, "Only PEM support available for certificate requests.\n");
@@ -1409,28 +1408,21 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     EVP_PKEY_free(ed_key);
 
     // Extract the certificate data without the signature
-    unsigned char *cert_data = NULL;
-    int cert_len = i2d_re_X509_tbs(x509, &cert_data);
-
-    // Extract the signature from the certificate
-    ASN1_BIT_STRING *psig;
-    const X509_ALGOR *palg;
-    X509_get0_signature((const ASN1_BIT_STRING **) &psig, &palg, x509);
+    unsigned char *tbs_data = NULL;
+    int tbs_len = i2d_re_X509_tbs(x509, &tbs_data);
 
     // Sign the certificate data using the YubiKey
     unsigned char yk_sig[64] = {0};
     size_t yk_siglen = sizeof(yk_sig);
-    if (!sign_data(state, cert_data, cert_len, yk_sig, &yk_siglen, algorithm, key)) {
+    if (!sign_data(state, tbs_data, tbs_len, yk_sig, &yk_siglen, algorithm, key)) {
       fprintf(stderr, "Failed signing tbs certificate portion.\n");
       goto selfsign_out;
     }
 
-    if(psig->length != yk_siglen) {
-      fprintf(stderr, "Dummy signature and real signature are not the same length.\n");
-      goto selfsign_out;
-    }
-
     // Replace the dummy signature with the signature from the yubikey
+    ASN1_BIT_STRING *psig;
+    const X509_ALGOR *palg;
+    X509_get0_signature((const ASN1_BIT_STRING **) &psig, &palg, x509);
     ASN1_BIT_STRING_set(psig, yk_sig, yk_siglen);
   } else {
 #endif
@@ -1457,9 +1449,14 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     } else {
       fprintf(stderr, "Failed writing x509 information\n");
     }
-
+  } else if(key_format == key_format_arg_DER) {
+    if(i2d_X509_fp(output_file, x509)) {
+      ret = true;
+    } else {
+      fprintf(stderr, "Failed writing DER information\n");
+    }
   } else {
-    fprintf(stderr, "Only PEM support available for certificates.\n");
+    fprintf(stderr, "Only PEM and DER support available for certificates.\n");
   }
 
 selfsign_out:
