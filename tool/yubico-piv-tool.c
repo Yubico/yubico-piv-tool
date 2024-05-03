@@ -1076,7 +1076,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
 
     // Find the signature on the req from OpenSSL and replace it with the signature from the YubiKey
     unsigned char *p = all_req_data + all_req_len - yk_siglen;
-    while((p > all_req_data) && (memcmp(p, psig->data, psig->length) != 0)) {
+    while((p >= all_req_data) && (memcmp(p, psig->data, psig->length) != 0)) {
       p--;
     }
     if(p < all_req_data) {
@@ -1450,7 +1450,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
 
     // Find the signature on the cert from OpenSSL and replace it with the signature from the YubiKey
     unsigned char *p = all_cert_data + all_cert_len - yk_siglen;
-    while((p > all_cert_data) && (memcmp(p, psig->data, psig->length) != 0)) {
+    while((p >= all_cert_data) && (memcmp(p, psig->data, psig->length) != 0)) {
       p--;
     }
     if(p < all_cert_data) {
