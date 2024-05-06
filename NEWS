@@ -1,5 +1,9 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
+* Version 2.5.2 (released 2024-05-07)
+
+** cmd: Fix signing selfsigned certificate for ED25519 key.
+
 * Version 2.5.1 (released 2024-02-14)
 
 ** ykpiv: cmd: ykcs11: Fix buffer size for key import.
