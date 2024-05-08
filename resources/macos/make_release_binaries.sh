@@ -25,17 +25,6 @@ echo "Working directory: $PWD"
 
 set -x
 
-#if [ "$ARCH" == "amd" ]; then
-#  BREW_LIB="/usr/local/opt"
-#  #BREW_CELLAR="/usr/local/Cellar"
-#elif [ "$ARCH" == "arm" ]; then
-#  BREW_LIB="/opt/homebrew/opt"
-#  #BREW_CELLAR="/opt/homebrew/Cellar"
-#else
-#  echo "Unknown architecture"
-#  exit
-#fi
-
 BREW_LIB="/opt/homebrew/opt"
 
 PACKAGE=yubico-piv-tool

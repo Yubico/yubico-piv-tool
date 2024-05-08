@@ -30,7 +30,7 @@ jobs:
           otool -L lib/libykpiv.dylib | grep libcrypto
           otool -L ykcs11/libykcs11.dylib | grep libcrypto
 
-          make install
+          sudo make install
 
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
           objdump --syms /usr/local/lib/libykcs11.dylib | grep C_Sign
