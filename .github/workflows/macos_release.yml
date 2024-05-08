@@ -21,12 +21,13 @@ jobs:
       SO_VERSION: 2
     steps:
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install prerequisites
         run: |
           set -x
-          brew install check gengetopt help2man opensc zlib openssl
+          brew install check gengetopt help2man opensc zlib
+          brew reinstall openssl@3
 
       - name: Build MacOS binaries
         env:
@@ -57,7 +58,7 @@ jobs:
           cp yubico-piv-tool-$RELEASE_VERSION.pkg $GITHUB_WORKSPACE/artifact/
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: yubico-piv-tool-mac-${{ matrix.arch }}64
           path: artifact
