@@ -52,12 +52,6 @@ LICENSE_DIR=$PKG_DIR/licenses
 rm -rf $PKG_DIR
 mkdir -p $PKG_DIR $INSTALL_DIR $BUILD_DIR $LICENSE_DIR $FINAL_INSTALL_DIR
 
-echo "--------------"
-ls $BREW_LIB
-echo "--------------"
-ls $BREW_LIB/openssl
-echo "--------------"
-
 # Build yubico-piv-tool and install it in $INSTALL_DIR
 cd $BUILD_DIR
 CFLAGS=$CFLAGS PKG_CONFIG_PATH=$BREW_LIB/openssl/lib/pkgconfig cmake $SOURCE_DIR -DCMAKE_BUILD_TYPE=Release -DVERBOSE_CMAKE=ON

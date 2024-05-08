@@ -26,6 +26,7 @@ jobs:
       - name: Install prerequisites
         run: |
           set -x
+          brew update
           brew install check gengetopt help2man opensc zlib
           brew reinstall openssl@3
 
