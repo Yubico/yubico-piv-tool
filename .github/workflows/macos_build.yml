@@ -10,10 +10,11 @@ jobs:
     steps:
       # This action checks-out the repository under $GITHUB_WORKSPACE, so the workflow can access it.
       - name: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install prerequisites
         run: |
           set -x
+          brew update
           brew install check gengetopt help2man opensc zlib
           brew reinstall openssl@3
       - name: Build and install
