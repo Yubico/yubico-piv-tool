@@ -60,7 +60,7 @@ echo "--------------"
 
 # Build yubico-piv-tool and install it in $INSTALL_DIR
 cd $BUILD_DIR
-CFLAGS=$CFLAGS PKG_CONFIG_PATH=$BREW_LIB/openssl/lib/pkgconfig cmake $SOURCE_DIR -DCMAKE_BUILD_TYPE=Release
+CFLAGS=$CFLAGS PKG_CONFIG_PATH=$BREW_LIB/openssl/lib/pkgconfig cmake $SOURCE_DIR -DCMAKE_BUILD_TYPE=Release -DVERBOSE_CMAKE=ON
 make
 env DESTDIR="$INSTALL_DIR" make install;
 
