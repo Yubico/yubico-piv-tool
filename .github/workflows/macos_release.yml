@@ -5,35 +5,8 @@ name: MacOS Release
 on: [push]
 
 jobs:
-
-  job_1:
-    name: Build dist with Linux
-    runs-on: ubuntu-latest
-    env:
-      RELEASE_VERSION: 2.5.2
-    steps:
-      - name: checkout
-        uses: actions/checkout@v3
-
-      - name: Install prerequisites
-        run: |
-          sudo apt install libpcsclite-dev check gengetopt help2man
-      - name: Create tar.gz
-        run: |
-          set -x
-          ./resources/make_src_dist.sh $RELEASE_VERSION
-          mkdir $GITHUB_WORKSPACE/artifact
-          mv $GITHUB_WORKSPACE/yubico-piv-tool-$RELEASE_VERSION.tar.gz $GITHUB_WORKSPACE/artifact/
-          ls $GITHUB_WORKSPACE/artifact/
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: yubico-piv-tool-src
-          path: artifact
-
-  job_2:
+  release_built:
     name: Build pkg from source
-    needs: job_1
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -47,19 +20,13 @@ jobs:
       RELEASE_VERSION: 2.5.2
       SO_VERSION: 2
     steps:
-      - name: Download source from job_1
-        uses: actions/download-artifact@v3
-        with:
-          name: yubico-piv-tool-src
-
-      - name: Extract source
-        run: |
-          set -x
-          tar xf yubico-piv-tool-$RELEASE_VERSION.tar.gz
+      - name: checkout
+        uses: actions/checkout@v4
 
       - name: Install prerequisites
         run: |
           set -x
+          brew update
           brew install check gengetopt help2man opensc zlib
           brew reinstall openssl@3
 
@@ -70,7 +37,6 @@ jobs:
           set -x
           export INSTALL_PREFIX=/usr/local
 
-          cd yubico-piv-tool-$RELEASE_VERSION
           ./resources/macos/make_release_binaries.sh $ARCH $RELEASE_VERSION $SO_VERSION $INSTALL_PREFIX
           mkdir $GITHUB_WORKSPACE/artifact
           mv resources/macos/yubico-piv-tool-$RELEASE_VERSION-mac-$ARCH.zip $GITHUB_WORKSPACE/artifact/
@@ -80,22 +46,20 @@ jobs:
           ARCH: ${{ matrix.arch }}
         run: |
           set -x
-
-          cd yubico-piv-tool-$RELEASE_VERSION
           ./resources/macos/make_installer.sh $RELEASE_VERSION $GITHUB_WORKSPACE/artifact/yubico-piv-tool-$RELEASE_VERSION-mac-$ARCH.zip
 
       - name: Install yubico-piv-tool from installer
         run: |
           set -x
 
-          cd yubico-piv-tool-$RELEASE_VERSION/resources/macos
-          sudo installer -verbose -store -pkg "$PWD/yubico-piv-tool-$RELEASE_VERSION.pkg" -target /
+          cd resources/macos
+          sudo installer -verbose -store -pkg $PWD/yubico-piv-tool-$RELEASE_VERSION.pkg -target /
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
-          cp $PWD/yubico-piv-tool-$RELEASE_VERSION.pkg $GITHUB_WORKSPACE/artifact/
+          cp yubico-piv-tool-$RELEASE_VERSION.pkg $GITHUB_WORKSPACE/artifact/
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: yubico-piv-tool-mac-${{ matrix.arch }}64
           path: artifact

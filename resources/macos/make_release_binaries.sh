@@ -25,16 +25,7 @@ echo "Working directory: $PWD"
 
 set -x
 
-if [ "$ARCH" == "amd" ]; then
-  BREW_LIB="/usr/local/opt"
-  #BREW_CELLAR="/usr/local/Cellar"
-elif [ "$ARCH" == "arm" ]; then
-  BREW_LIB="/opt/homebrew/opt"
-  #BREW_CELLAR="/opt/homebrew/Cellar"
-else
-  echo "Unknown architecture"
-  exit
-fi
+BREW_LIB="/opt/homebrew/opt"
 
 PACKAGE=yubico-piv-tool
 CFLAGS="-mmacosx-version-min=10.6"
@@ -51,7 +42,6 @@ LICENSE_DIR=$PKG_DIR/licenses
 # Create missing directories
 rm -rf $PKG_DIR
 mkdir -p $PKG_DIR $INSTALL_DIR $BUILD_DIR $LICENSE_DIR $FINAL_INSTALL_DIR
-
 
 # Build yubico-piv-tool and install it in $INSTALL_DIR
 cd $BUILD_DIR
