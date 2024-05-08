@@ -45,15 +45,9 @@ mkdir -p $PKG_DIR $INSTALL_DIR $BUILD_DIR $LICENSE_DIR $FINAL_INSTALL_DIR
 
 # Build yubico-piv-tool and install it in $INSTALL_DIR
 cd $BUILD_DIR
-CFLAGS=$CFLAGS PKG_CONFIG_PATH=$BREW_LIB/openssl/lib/pkgconfig cmake $SOURCE_DIR -DCMAKE_BUILD_TYPE=Release -DVERBOSE_CMAKE=ON
+CFLAGS=$CFLAGS PKG_CONFIG_PATH=$BREW_LIB/openssl/lib/pkgconfig cmake $SOURCE_DIR -DCMAKE_BUILD_TYPE=Release
 make
 env DESTDIR="$INSTALL_DIR" make install;
-
-ls $BREW_LIB
-echo "--------------"
-ls $BREW_LIB/openssl
-echo "--------------"
-ls $BREW_LIB/zlib
 
 cp "$BREW_LIB/openssl/lib/libcrypto.3.dylib" "$FINAL_INSTALL_DIR/lib"
 chmod +w "$FINAL_INSTALL_DIR/lib/libcrypto.3.dylib"
