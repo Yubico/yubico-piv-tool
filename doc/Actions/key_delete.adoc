@@ -2,7 +2,7 @@
     $ yubico-piv-tool -a delete-key -s <slot> -k
 
 === Description
-Deletes a key from the specified PIV slot.
+Deletes a key from the specified PIV slot. The function requires YubiKey 5.7 or higher.
 
 NOTE: This actions deletes only the key, not the certificate. So if the slot already stores a certificate, it
 might still look populated even if the key is no longer there.

@@ -14,8 +14,8 @@ The signing operation requires verifying the PIN code, which is done using the "
 
 |-s, --slot        | X | | What key slot to operate on | 9a, 9c, 9d, 9e, 82, 83, 84, 85, 86, 87, 88, 89,
                                                           8a, 8b, 8c, 8d, 8e, 8f, 90, 91, 92, 93, 94, 95, f9 |
-|-A, --algorithm   | | X | What algorithm to use to generate the key pair | RSA1024, RSA2048, RSA3072, RSA4096, ECCP256, ECCP384, ED25519 | RSA2048
-|-H, --hash        | | X |  Hash to use for signatures | SHA1, SHA256, SHA384, SHA512 | SHA256
+|-A, --algorithm   | | X | Signing key algorithm | RSA1024, RSA2048, RSA3072 (Requires YubiKey 5.7 or higher), RSA4096 (Requires YubiKey 5.7 or higher), ECCP256, ECCP384, ED25519 (Requires YubiKey 5.7 or higher) | RSA2048
+|-H, --hash        | | X | Hash to use for signatures | SHA1, SHA256, SHA384, SHA512 | SHA256
 |-i, --input       | | X | Filename to use as input | file name or "-" for stdin | -
 |-o, --output      | | X | Filename to use as output | file name or "-" for stdin | -
 |===================================

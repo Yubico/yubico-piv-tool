@@ -2,7 +2,7 @@
     $ yubico-piv-tool -a move-key -s <slot> --to-slot <slot> -k
 
 === Description
-Moves a key from one PIV slot to another.
+Moves a key from one PIV slot to another. The function requires YubiKey 5.7 or higher.
 
 NOTE: This actions moves only the key, not the certificate. So if the slot already stores a certificate, it
 might still look populated even if the key is no longer there.
