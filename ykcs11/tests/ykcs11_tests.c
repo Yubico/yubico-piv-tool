@@ -29,8 +29,8 @@
  */
 
 #include "../../common/openssl-compat.h"
-#include "ykcs11.h"
-#include "ykcs11-config.h"
+#include "../ykcs11.h"
+#include "../ykcs11-config.h"
 
 #include <string.h>
 
@@ -49,7 +49,7 @@
 #define dprintf(fd, ...) fprintf(stdout, __VA_ARGS__)
 #endif
 
-CK_FUNCTION_LIST_PTR funcs;
+CK_FUNCTION_LIST_3_0_PTR funcs;
 
 #define N_ALL_KEYS      24
 #define N_SELECTED_KEYS 4
@@ -71,12 +71,9 @@ static void _asrt(const char *file, int line, CK_ULONG check, CK_ULONG expected,
 }
 
 static void get_functions() {
-
-  if (C_GetFunctionList(&funcs) != CKR_OK) {
-    fprintf(stderr, "Get function list failed\n");
-    exit(EXIT_FAILURE);
-  }
-
+  CK_INTERFACE_PTR interface;
+  asrt(C_GetInterface(NULL,NULL,&interface,0), CKR_OK, "C_GetInterface default");
+  funcs = interface->pFunctionList;
 }
 
 static void test_lib_info() {
@@ -84,8 +81,8 @@ static void test_lib_info() {
 
   const CK_CHAR_PTR MANUFACTURER_ID = (const CK_CHAR_PTR)"Yubico (www.yubico.com)";
   const CK_CHAR_PTR YKCS11_DESCRIPTION = (const CK_CHAR_PTR)"PKCS#11 PIV Library (SP-800-73)";
-  const CK_ULONG CRYPTOKI_VERSION_MAJ = 2;
-  const CK_ULONG CRYPTOKI_VERSION_MIN = 40;
+  const CK_ULONG CRYPTOKI_VERSION_MAJ = CRYPTOKI_VERSION_MAJOR;
+  const CK_ULONG CRYPTOKI_VERSION_MIN = CRYPTOKI_VERSION_MINOR;
 
   CK_INFO info;
   asrt(funcs->C_Initialize(NULL), CKR_OK, "INITIALIZE");

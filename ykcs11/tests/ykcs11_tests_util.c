@@ -39,7 +39,7 @@
 #include <openssl/x509.h>
 #include <openssl/rand.h>
 #include <openssl/err.h>
-#include "pkcs11y.h"
+#include "../pkcs11y.h"
 #include "ykcs11_tests_util.h"
 
 static CK_BYTE SHA1_DIGEST[] = {0x30, 0x21, 0x30, 0x09, 0x06,
@@ -75,7 +75,7 @@ static void _asrt(const char *file, int line, CK_ULONG check, CK_ULONG expected,
 
 }
 
-static CK_OBJECT_HANDLE get_public_key_handle(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
+static CK_OBJECT_HANDLE get_public_key_handle(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session,
                         CK_OBJECT_HANDLE privkey) {
   CK_OBJECT_HANDLE found_obj[10] = {0};
   CK_ULONG n_found_obj = 0;
@@ -98,7 +98,7 @@ static CK_OBJECT_HANDLE get_public_key_handle(CK_FUNCTION_LIST_PTR funcs, CK_SES
   return found_obj[0];
 }
 
-void destroy_test_objects(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_cert, CK_ULONG n) {
+void destroy_test_objects(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_cert, CK_ULONG n) {
   CK_ULONG i;
   asrt(funcs->C_Login(session, CKU_SO, (CK_CHAR_PTR)"010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
   for(i=0; i<n; i++) {
@@ -266,7 +266,7 @@ static CK_MECHANISM_TYPE get_md_of(CK_MECHANISM_TYPE mech) {
   }
 }
 
-void test_digest_func(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_MECHANISM_TYPE mech_type) {
+void test_digest_func(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_MECHANISM_TYPE mech_type) {
   CK_MECHANISM mech = {mech_type, NULL, 0};
 
   for(CK_BYTE i=0; i<10; i++) {
@@ -297,7 +297,7 @@ void test_digest_func(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   }
 }
 
-EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_BYTE n_keys, int curve, CK_ULONG key_len, 
+EC_KEY* import_ec_key(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_BYTE n_keys, int curve, CK_ULONG key_len,
                       CK_BYTE* ec_params, CK_ULONG ec_params_len, CK_OBJECT_HANDLE_PTR obj_cert, CK_OBJECT_HANDLE_PTR obj_pvtkey) {
 
   CK_ULONG    class_k = CKO_PRIVATE_KEY;
@@ -382,7 +382,7 @@ EC_KEY* import_ec_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   return eck;
 }
 
-void import_rsa_key_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int keylen, CK_BYTE n_keys,
+void import_rsa_key_with_policy(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, int keylen, CK_BYTE n_keys,
                                 CK_BYTE touch_attr_val, CK_BYTE pin_attr_val, CK_BBOOL always_auth_val) {
   int len = keylen / 16;
   CK_BYTE *p = malloc(len);
@@ -457,7 +457,7 @@ void import_rsa_key_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE se
   free(qinv);
 }
 
-void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int keylen, EVP_PKEY** evp, RSA** rsak,
+void import_rsa_key(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, int keylen, EVP_PKEY** evp, RSA** rsak,
                     CK_BYTE n_keys, CK_OBJECT_HANDLE_PTR obj_cert, CK_OBJECT_HANDLE_PTR obj_pvtkey) {
   int len = keylen / 16;
   CK_BYTE *p = malloc(len);
@@ -554,7 +554,7 @@ void import_rsa_key(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, int k
   free(qinv);
 }
 
-void generate_ec_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_BYTE n_keys,
+void generate_ec_keys(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_BYTE n_keys,
                       CK_BYTE* ec_params, CK_ULONG ec_params_len, 
                       CK_OBJECT_HANDLE_PTR obj_pubkey, CK_OBJECT_HANDLE_PTR obj_pvtkey) {
   CK_ULONG    class_k = CKO_PRIVATE_KEY;
@@ -587,7 +587,7 @@ void generate_ec_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
 }
 
-void generate_ec_keys_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_BYTE n_keys, 
+void generate_ec_keys_with_policy(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_BYTE n_keys,
                                   CK_BYTE* ec_params, CK_ULONG ec_params_len, CK_BYTE touch_attr_val,
                                   CK_BYTE pin_attr_val, CK_BBOOL always_auth_val) {
   CK_ULONG    class_k = CKO_PRIVATE_KEY;
@@ -630,7 +630,7 @@ void generate_ec_keys_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE 
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
 }
 
-void generate_rsa_key_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_ULONG key_size,
+void generate_rsa_key_with_policy(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_ULONG key_size,
                                   CK_OBJECT_HANDLE_PTR obj_pubkey, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
                                   CK_BYTE touch_attr_val, CK_BYTE pin_attr_val, CK_BBOOL always_auth_val) {
   CK_BYTE     e[] = {0x01, 0x00, 0x01};
@@ -667,7 +667,7 @@ void generate_rsa_key_with_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE 
   test_privkey_policy(funcs, session, *obj_pvtkey, touch_attr_val, pin_attr_val, always_auth_val, 4, 30);
 }
 
-void generate_rsa_keys(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_ULONG key_size, CK_BYTE n_keys,
+void generate_rsa_keys(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_ULONG key_size, CK_BYTE n_keys,
                       CK_OBJECT_HANDLE_PTR obj_pubkey, CK_OBJECT_HANDLE_PTR obj_pvtkey) {
   CK_BYTE     e[] = {0x01, 0x00, 0x01};
   CK_ULONG    class_k = CKO_PRIVATE_KEY;
@@ -749,7 +749,7 @@ static void construct_der_encoded_sig(CK_BYTE sig[], CK_BYTE_PTR der_encoded, CK
   der_encoded[1] = der_ptr - der_encoded - 2;
 }
 
-void test_ec_sign_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
+void test_ec_sign_simple(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey,
                          CK_BYTE n_keys, EC_KEY *eck, CK_ULONG key_len) {
 
   CK_MECHANISM mech = {CKM_ECDSA, NULL, 0};
@@ -782,7 +782,7 @@ void test_ec_sign_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
   asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");  
 }
 
-void test_ec_ecdh_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
+void test_ec_ecdh_simple(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey,
                          CK_BYTE n_keys, int curve) {
                     
   CK_BYTE     pubkey[128]={0}, pubkey2[128]={0}, secret[128]={0}, secret2[128]={0};
@@ -844,7 +844,7 @@ void test_ec_ecdh_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
   EC_KEY_free(tmpkey);
 }
 
-void test_ec_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
+void test_ec_sign_thorough(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey,
                            CK_MECHANISM_TYPE mech_type, EC_KEY *eck, CK_ULONG key_len) {
 
   CK_MECHANISM mech = {mech_type, NULL, 0};
@@ -898,7 +898,7 @@ void test_ec_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session
   asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");  
 }
 
-void test_rsa_sign_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
+void test_rsa_sign_simple(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey,
                           CK_BYTE n_keys, EVP_PKEY* evp) {
   CK_MECHANISM mech = {CKM_RSA_PKCS, NULL, 0};
 
@@ -936,7 +936,7 @@ void test_rsa_sign_simple(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session,
   asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
 }
 
-void test_rsa_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
+void test_rsa_sign_thorough(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey,
                             CK_BYTE n_keys, EVP_PKEY* evp, CK_MECHANISM_TYPE mech_type) {
   CK_MECHANISM mech = {mech_type, NULL, 0};
 
@@ -1003,7 +1003,7 @@ void test_rsa_sign_thorough(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE sessio
   asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
 }
 
-void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
+void test_rsa_sign_pss(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey,
                        CK_BYTE n_keys, RSA* rsak, CK_MECHANISM_TYPE mech_type) {
 
   CK_RSA_PKCS_PSS_PARAMS pss_params = {get_md_of(mech_type), get_md_of(mech_type), EVP_MD_size(get_md_type(get_md_of(mech_type)))};
@@ -1099,7 +1099,7 @@ void test_rsa_sign_pss(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK
   asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
 }
 
-void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
+void test_rsa_decrypt(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey,
                       CK_BYTE n_keys, RSA* rsak, CK_MECHANISM_TYPE mech_type, CK_ULONG padding) {
 
   int data_len;
@@ -1160,7 +1160,7 @@ void test_rsa_decrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
 }
 
-void test_rsa_decrypt_oaep(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
+void test_rsa_decrypt_oaep(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey,
                            CK_BYTE n_keys, CK_MECHANISM_TYPE mdhash,  RSA* rsak) {
 
   CK_RSA_PKCS_OAEP_PARAMS params = {mdhash, mdhash, 0, NULL, 0};
@@ -1213,7 +1213,7 @@ void test_rsa_decrypt_oaep(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session
   asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
 }
 
-void test_rsa_encrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey, 
+void test_rsa_encrypt(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey,
                       CK_BYTE n_keys, RSA* rsak, CK_MECHANISM_TYPE mech_type, CK_ULONG padding) {
 
   CK_RSA_PKCS_OAEP_PARAMS params = {0};
@@ -1274,7 +1274,7 @@ void test_rsa_encrypt(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, CK_
   asrt(funcs->C_Logout(session), CKR_OK, "Logout USER");
 }
 
-static void test_pubkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
+static void test_pubkey_basic_attributes(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session,
                                          CK_OBJECT_HANDLE pubkey, CK_ULONG key_type, CK_ULONG key_size,
                                          const unsigned char* label) {
   CK_ULONG obj_class;
@@ -1331,7 +1331,7 @@ static void test_pubkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_
   asrt(strncmp(obj_label, (char*)label, obj_label_len), 0, "LABEL");
 }
 
-void test_pubkey_attributes_rsa(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
+void test_pubkey_attributes_rsa(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session,
                                 CK_OBJECT_HANDLE pubkey, CK_ULONG key_size, 
                                 const unsigned char* label, CK_ULONG modulus_len,
                                 CK_BYTE_PTR pubexp, CK_ULONG pubexp_len) {
@@ -1352,7 +1352,7 @@ void test_pubkey_attributes_rsa(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE se
   asrt(memcmp(obj_pubexp, pubexp, pubexp_len), 0, "PUBLIC EXPONENT");
 }
 
-void test_pubkey_attributes_ec(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
+void test_pubkey_attributes_ec(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session,
                                 CK_OBJECT_HANDLE pubkey, CK_ULONG key_size, 
                                 const unsigned char* label, CK_ULONG ec_point_len,
                                 CK_BYTE_PTR ec_params, CK_ULONG ec_params_len) {
@@ -1372,7 +1372,7 @@ void test_pubkey_attributes_ec(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE ses
   asrt(memcmp(obj_ec_param, ec_params, ec_params_len), 0, "EC PARAMS");
 }
 
-static void test_privkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
+static void test_privkey_basic_attributes(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session,
                                           CK_OBJECT_HANDLE privkey, CK_ULONG key_type, CK_ULONG key_size,
                                          const unsigned char* label, CK_BBOOL always_authenticate) {
   CK_ULONG obj_class;
@@ -1443,7 +1443,7 @@ static void test_privkey_basic_attributes(CK_FUNCTION_LIST_PTR funcs, CK_SESSION
   asrt(strncmp(obj_label, (char*)label, obj_label_len), 0, "LABEL");
 }
 
-void test_privkey_attributes_rsa(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
+void test_privkey_attributes_rsa(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session,
                                 CK_OBJECT_HANDLE pubkey, CK_ULONG key_size, 
                                 const unsigned char* label, CK_ULONG modulus_len,
                                 CK_BYTE_PTR pubexp, CK_ULONG pubexp_len, 
@@ -1465,7 +1465,7 @@ void test_privkey_attributes_rsa(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE s
   asrt(memcmp(obj_pubexp, pubexp, pubexp_len), 0, "PUBLIC EXPONENT");
 }
 
-void test_privkey_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session,
+void test_privkey_policy(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session,
                          CK_OBJECT_HANDLE privkey, CK_BYTE touch_attr_val, 
                          CK_BYTE pin_attr_val, CK_BBOOL always_auth_val,
                          CK_BYTE major, CK_BYTE minor) {
@@ -1510,7 +1510,7 @@ void test_privkey_policy(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session,
   asrt(always_auth, always_auth_val, "ALWAYS AUTH");
 }
 
-void test_privkey_attributes_ec(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
+void test_privkey_attributes_ec(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session,
                                 CK_OBJECT_HANDLE pubkey, CK_ULONG key_size, 
                                 const unsigned char* label, CK_ULONG ec_point_len,
                                 CK_BYTE_PTR ec_params, CK_ULONG ec_params_len, 
@@ -1531,7 +1531,7 @@ void test_privkey_attributes_ec(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE se
   asrt(memcmp(obj_ec_param, ec_params, ec_params_len), 0, "EC PARAMS");
 }
 
-void test_find_objects_by_class(CK_FUNCTION_LIST_PTR funcs, CK_SESSION_HANDLE session, 
+void test_find_objects_by_class(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session,
                                 CK_ULONG class, CK_BYTE ckaid,
                                 CK_ULONG n_expected, CK_OBJECT_HANDLE obj_expected) {
   CK_OBJECT_HANDLE obj[10] = {0};
