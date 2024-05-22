@@ -64,7 +64,7 @@ static void get_default_functions() {
   funcs = interface->pFunctionList;
 }
 
-static void get_named_functions(CK_UTF8CHAR_PTR name) {
+static void get_named_functions() {
   CK_INTERFACE_PTR interface;
   asrt(C_GetInterface((CK_UTF8CHAR_PTR)"PKCS 11",NULL,&interface,0), CKR_OK, "C_GetInterface named");
   funcs = interface->pFunctionList;
@@ -113,7 +113,7 @@ int main(void) {
   get_versioned_functions(CRYPTOKI_VERSION_MAJOR, CRYPTOKI_VERSION_MINOR);
   test_lib_info(CRYPTOKI_VERSION_MAJOR, CRYPTOKI_VERSION_MINOR);
 
-  get_named_functions("PKCS 11");
+  get_named_functions();
   test_lib_info(CRYPTOKI_VERSION_MAJOR, CRYPTOKI_VERSION_MINOR);
 
   return EXIT_SUCCESS;

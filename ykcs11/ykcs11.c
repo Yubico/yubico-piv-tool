@@ -64,6 +64,12 @@ static const CK_FUNCTION_LIST function_list;
 static const CK_FUNCTION_LIST_3_0 function_list_3;
 static struct CK_INTERFACE active_interface;
 
+static const CK_INTERFACE interfaces_list[] = {{(CK_CHAR_PTR) "PKCS 11",
+                                                   (CK_VOID_PTR)&function_list_3, 0},
+                                               {(CK_CHAR_PTR) "PKCS 11",
+                                                   (CK_VOID_PTR)&function_list, 0}};
+
+
 static CK_SESSION_HANDLE get_session_handle(ykcs11_session_t *session) {
   return (CK_SESSION_HANDLE)(session - sessions + 1);
 }
@@ -302,6 +308,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetFunctionList)(
     goto funclist_out;
   }
   *ppFunctionList = (CK_FUNCTION_LIST_PTR)&function_list;
+  active_interface = interfaces_list[1];
   rv = CKR_OK;
 
 
@@ -3873,11 +3880,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_CancelFunction)(
   DOUT;
   return CKR_FUNCTION_NOT_PARALLEL;
 }
-
-static const CK_INTERFACE interfaces_list[] = {{(CK_CHAR_PTR) "PKCS 11",
-                                                (CK_VOID_PTR)&function_list_3, 0},
-                                               {(CK_CHAR_PTR) "PKCS 11",
-                                                (CK_VOID_PTR)&function_list, 0}};
 
 /* C_GetInterfaceList returns all the interfaces supported by the module*/
 CK_DEFINE_FUNCTION(CK_RV, C_GetInterfaceList)
