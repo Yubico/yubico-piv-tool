@@ -46,25 +46,26 @@
 #include <stdlib.h>
 #include <string.h>
 
-/*
-** Definitions
-*/
+ /*
+ ** Definitions
+ */
 
-/* crypt defines */
+ /* crypt defines */
 
 #ifdef _WIN32
 
 #define strcasecmp _stricmp
 
 struct _cipher_key {
-    BCRYPT_KEY_HANDLE hKey;
+  BCRYPT_ALG_HANDLE hAlg;
+  BCRYPT_KEY_HANDLE hKey;
 };
 
 #else
 
 struct _cipher_key {
-  const EVP_CIPHER *cipher;
-  EVP_CIPHER_CTX *ctx;
+  const EVP_CIPHER* cipher;
+  EVP_CIPHER_CTX* ctx;
   unsigned char key[EVP_MAX_KEY_LENGTH];
 };
 
@@ -80,9 +81,9 @@ struct _cipher_key {
 
 #define _ENV_PREFIX    "YUBIKEY_PIV_"
 
-char *_strip_ws(char *sz);
-setting_bool_t _get_bool_config(const char *sz_setting);
-setting_bool_t _get_bool_env(const char *sz_setting);
+char* _strip_ws(char* sz);
+setting_bool_t _get_bool_config(const char* sz_setting);
+setting_bool_t _get_bool_env(const char* sz_setting);
 
 /*
 ** Methods
@@ -90,35 +91,44 @@ setting_bool_t _get_bool_env(const char *sz_setting);
 
 #ifdef _WIN32
 
-static BCRYPT_ALG_HANDLE bcrypt_algo(unsigned char algo) {
-	switch (algo) {
-	case YKPIV_ALGO_3DES:
-    return BCRYPT_3DES_ECB_ALG_HANDLE;
-	case YKPIV_ALGO_AES128:
+static LPCWSTR bcrypt_algo(unsigned char algo) {
+  switch (algo) {
+  case YKPIV_ALGO_3DES:
+    return BCRYPT_3DES_ALGORITHM;
+  case YKPIV_ALGO_AES128:
   case YKPIV_ALGO_AES192:
   case YKPIV_ALGO_AES256:
-    return BCRYPT_AES_ECB_ALG_HANDLE;
+    return BCRYPT_AES_ALGORITHM;
   default:
     return NULL;
-	}
+  }
 }
 
-cipher_rc cipher_import_key(unsigned char algo, const unsigned char *keyraw, uint32_t keyrawlen, cipher_key *key) {
+cipher_rc cipher_import_key(unsigned char algo, const unsigned char* keyraw, uint32_t keyrawlen, cipher_key* key) {
   *key = calloc(1, sizeof(**key));
-	if (!*key) {
+  if (!*key) {
     return CIPHER_MEMORY_ERROR;
   }
-	if(!BCRYPT_SUCCESS(BCryptGenerateSymmetricKey(bcrypt_algo(algo), &(*key)->hKey, NULL, 0, (PUCHAR)keyraw, keyrawlen, 0))) {
-		return CIPHER_INVALID_PARAMETER;
-	}
-	return 0;
+  if (!BCRYPT_SUCCESS(BCryptOpenAlgorithmProvider(&(*key)->hAlg, bcrypt_algo(algo), NULL, 0))) {
+    return CIPHER_INVALID_PARAMETER;
+  }
+  if (!BCRYPT_SUCCESS(BCryptSetProperty((*key)->hAlg, BCRYPT_CHAINING_MODE, (PBYTE)BCRYPT_CHAIN_MODE_ECB, sizeof(BCRYPT_CHAIN_MODE_ECB), 0))) {
+    return CIPHER_INVALID_PARAMETER;
+  }
+  if (!BCRYPT_SUCCESS(BCryptGenerateSymmetricKey((*key)->hAlg, &(*key)->hKey, NULL, 0, (PUCHAR)keyraw, keyrawlen, 0))) {
+    return CIPHER_INVALID_PARAMETER;
+  }
+  return 0;
 }
 
 cipher_rc cipher_destroy_key(cipher_key key) {
-	if (key == NULL) {
+  if (key == NULL) {
     return CIPHER_MEMORY_ERROR;
   }
-	if(!BCRYPT_SUCCESS(BCryptDestroyKey(key->hKey))) {
+  if (!BCRYPT_SUCCESS(BCryptDestroyKey(key->hKey))) {
+    return CIPHER_INVALID_PARAMETER;
+  }
+  if (!BCRYPT_SUCCESS(BCryptCloseAlgorithmProvider(key->hAlg, 0))) {
     return CIPHER_INVALID_PARAMETER;
   }
 	free(key);
@@ -331,7 +341,15 @@ prng_rc _ykpiv_prng_generate(unsigned char *buffer, const size_t cb_req) {
   prng_rc rc = PRNG_OK;
 
 #ifdef _WIN32
-  if (!BCRYPT_SUCCESS(BCryptGenRandom(BCRYPT_RNG_ALG_HANDLE, buffer, (ULONG)cb_req, 0))) {
+  BCRYPT_ALG_HANDLE hAlg = 0;
+
+  if (BCRYPT_SUCCESS(BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_RNG_ALGORITHM, NULL, 0))) {
+    if (!BCRYPT_SUCCESS(BCryptGenRandom(hAlg, buffer, (ULONG)cb_req, 0))) {
+      rc = PRNG_GENERAL_ERROR;
+    }
+    BCryptCloseAlgorithmProvider(hAlg, 0);
+  }
+  else {
     rc = PRNG_GENERAL_ERROR;
   }
 #else
