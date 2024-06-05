@@ -12,6 +12,11 @@ hardware functionality.
 === General information
 The default PIN code is 123456.  The default PUK code is 12345678.
 
+For firmware 5.7 and above:
+The default AES-192 management key (9B) is
+010203040506070801020304050607080102030405060708.
+
+For firmware 5.4 and below:
 The default 3DES management key (9B) is
 010203040506070801020304050607080102030405060708.
 
