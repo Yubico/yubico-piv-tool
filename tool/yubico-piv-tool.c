@@ -2139,7 +2139,7 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
     if(YKPIV_IS_RSA(algorithm)) {
       unsigned char secret[32] = {0};
       unsigned char secret2[32] = {0};
-      unsigned char data[256] = {0};
+      unsigned char data[512] = {0};
       int len;
       size_t len2 = sizeof(data);
       RSA *rsa = EVP_PKEY_get1_RSA(pubkey);
