@@ -408,33 +408,33 @@ bool prepare_rsa_signature(const unsigned char *in, unsigned int in_len, unsigne
 bool read_pw(const char *name, char *pwbuf, size_t pwbuflen, int verify, int stdin_input) {
   #define READ_PW_PROMPT_BASE "Enter %s: "
   char prompt[sizeof(READ_PW_PROMPT_BASE) + 32] = {0};
-  int ret;
 
   if (pwbuflen < 1) {
     fprintf(stderr, "Failed to read %s: buffer too small.", name);
     return false;
   }
 
-  if(stdin_input) {
-    fprintf(stdout, "%s\n", name);
+  int ret = snprintf(prompt, sizeof(prompt), READ_PW_PROMPT_BASE, name);
+  if (ret < 0 || ret >= sizeof(prompt)) {
+    fprintf(stderr, "Failed to read %s: snprintf failed.\n", name);
+    return false;
+  }
+
+  if (stdin_input) {
+    fprintf(stdout, "%s\n", prompt);
     if(fgets(pwbuf, pwbuflen, stdin)) {
       if(pwbuf[strlen(pwbuf) - 1] == '\n') {
         pwbuf[strlen(pwbuf) - 1] = '\0';
       }
       return true;
     } else {
+      fprintf(stderr, "Failed to read %s: fgets failed.\n", name);
       return false;
     }
   }
 
-  ret = snprintf(prompt, sizeof(prompt), READ_PW_PROMPT_BASE, name);
-  if (ret < 0 || ret >= sizeof(prompt)) {
-    fprintf(stderr, "Failed to read %s: snprintf failed.\n", name);
-    return false;
-  }
-
   if (0 != EVP_read_pw_string(pwbuf, pwbuflen-1, prompt, verify)) {
-    fprintf(stderr, "Retrieving %s failed.\n", name);
+    fprintf(stderr, "Failed to read %s: EVP_read_pw_string failed.\n", name);
     return false;
   }
   return true;
