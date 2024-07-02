@@ -2074,6 +2074,28 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
           }
         }
         break;
+      case YKPIV_ALGO_ED25519:
+        {
+          EVP_MD_CTX *ctx;
+          int rc;
+          ctx = EVP_MD_CTX_new();
+          if (!ctx || EVP_DigestVerifyInit(ctx, NULL, NULL, NULL, pubkey) <= 0) {
+            fprintf(stderr, "Failed routine initialization\n");
+            EVP_MD_CTX_free(ctx); // It's OK if ctx is NULL
+            goto test_out;
+          }
+          rc = EVP_DigestVerify(ctx, signature, (int)sig_len, data, (int)data_len);
+          EVP_MD_CTX_free(ctx);
+          if(rc == 1) {
+            fprintf(stderr, "Successful EDDSA verification.\n");
+            ret = true;
+            goto test_out;
+          } else {
+            fprintf(stderr, "Failed EDDSA verification.\n");
+            goto test_out;
+          }
+        }
+        break;
       default:
         fprintf(stderr, "Unknown algorithm.\n");
         goto test_out;
