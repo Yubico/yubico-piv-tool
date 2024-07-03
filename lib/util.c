@@ -32,7 +32,9 @@
 #include <stdio.h>
 #include <time.h>
 
-//#include <zlib.h>
+#ifdef USE_CERT_COMPRESS
+#include <zlib.h>
+#endif
 
 #include "internal.h"
 #include "ykpiv.h"
