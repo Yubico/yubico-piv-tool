@@ -1,12 +1,19 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
+* Version 2.5.2 (released 2024-05-07)
+
+** cmd: Fix signing selfsigned certificate for ED25519 key.
+
 * Version 2.5.1 (released 2024-02-14)
 
 ** ykpiv: cmd: ykcs11: Fix buffer size for key import.
 
 * Version 2.5.0 (released 2024-01-31)
 
-** ykpiv: cmd: ykcs11: Various changes and improvements.
+** ykpiv: cmd: ykcs11: Add support for RSA3072 and RSA4096 key types. Available in firmware 5.7.0 and newer
+** ykpiv: cmd: Add support for ED25519 and X25519 key types. Available in firmware 5.7.0 and newer
+** ykpiv: cmd: Add support for deleting keys. Available in firmware 5.7.0 and newer
+** ykpiv: cmd: Add support for moving keys between slots. Available in firmware 5.7.0 and newer
 
 * Version 2.4.2 (released 2023-12-07)
 

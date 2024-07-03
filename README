@@ -54,7 +54,7 @@ steps below from the `yubico-piv-tool` directory.
 Please make sure to have recent versions of the following packages 
 installed on your system. 
 
-  cmake libtool libssl-dev pkg-config check libpcsclite-dev gengetopt help2man
+  cmake libtool libssl-dev pkg-config check libpcsclite-dev gengetopt help2man zlib-devel
 
 Help2man is used to generate the manpages.  
 Gengetopt version 2.22.6 or later is needed for command line parameter 

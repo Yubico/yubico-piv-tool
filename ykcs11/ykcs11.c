@@ -695,12 +695,19 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetMechanismInfo)(
     goto mechinfo_out;
   }
 
-  locking.pfnUnlockMutex(global_mutex);
-
   if ((rv = get_token_mechanism_info(type, pInfo)) != CKR_OK) {
     DBG("Unable to retrieve mechanism information");
+    locking.pfnUnlockMutex(global_mutex);
     goto mechinfo_out;
   }
+
+  if(!is_version_compatible(slots[slotID].piv_state, 5, 7, 0)) {
+    if(pInfo->ulMaxKeySize == 4096) {
+      pInfo->ulMaxKeySize = 2048;
+    }
+  }
+
+  locking.pfnUnlockMutex(global_mutex);
 
   rv = CKR_OK;
 
