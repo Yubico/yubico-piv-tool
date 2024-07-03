@@ -2074,6 +2074,7 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
           }
         }
         break;
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
       case YKPIV_ALGO_ED25519:
         {
           EVP_MD_CTX *ctx;
@@ -2096,6 +2097,7 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
           }
         }
         break;
+#endif
       default:
         fprintf(stderr, "Unknown algorithm.\n");
         goto test_out;
