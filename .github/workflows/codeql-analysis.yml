@@ -1,0 +1,33 @@
+name: "Code scanning - action"
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '0 9 * * 1'
+
+permissions:
+  security-events: write
+  actions: read
+  contents: read
+
+jobs:
+  CodeQL-Build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      
+    # Initializes the CodeQL tools for scanning.
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v2
+
+    - run: |
+        sudo apt install libpcsclite-dev check gengetopt help2man openssl opensc
+        mkdir cmake_build; cd cmake_build
+        cmake .. -DVERBOSE_CMAKE=ON && make
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2

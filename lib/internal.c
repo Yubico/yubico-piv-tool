@@ -28,21 +28,14 @@
  *
  */
 
+#include "internal.h"
 #ifdef _WIN32
 #include <windows.h>
-#ifdef _MSC_VER
-#define strcasecmp _stricmp
-#endif
+#include <bcrypt.h>
+#include <strsafe.h>
 #else
 #include <ctype.h>
 #include <syslog.h>
-#endif
-
-/* the _WINDOWS define really means Windows native crypto-api/CNG */
-#ifdef _WINDOWS
-#include <wincrypt.h>
-#include <bcrypt.h>
-#else
 #include <openssl/des.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
@@ -53,85 +46,26 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef _WIN32
-#include <strsafe.h> /* must be included after openssl headers */
-#endif
-
-#include "internal.h"
-
 /*
 ** Definitions
 */
 
 /* crypt defines */
 
-#ifdef _WINDOWS
+#ifdef _WIN32
 
-#define STATUS_SUCCESS                   ((NTSTATUS)0x00000000L)
+#define strcasecmp _stricmp
 
-struct des_key {
-  HCRYPTPROV hProv;
-  HCRYPTKEY  hKey;
-  ALG_ID     alg;
+struct _cipher_key {
+    BCRYPT_KEY_HANDLE hKey;
 };
-
-static const BYTE PRIVATEKEY_EXPOF1_BLOB[] =
-{
-  0x07, 0x02, 0x00, 0x00, 0x00, 0xA4, 0x00, 0x00,
-  0x52, 0x53, 0x41, 0x32, 0x00, 0x02, 0x00, 0x00,
-  0x01, 0x00, 0x00, 0x00, 0xAB, 0xEF, 0xFA, 0xC6,
-  0x7D, 0xE8, 0xDE, 0xFB, 0x68, 0x38, 0x09, 0x92,
-  0xD9, 0x42, 0x7E, 0x6B, 0x89, 0x9E, 0x21, 0xD7,
-  0x52, 0x1C, 0x99, 0x3C, 0x17, 0x48, 0x4E, 0x3A,
-  0x44, 0x02, 0xF2, 0xFA, 0x74, 0x57, 0xDA, 0xE4,
-  0xD3, 0xC0, 0x35, 0x67, 0xFA, 0x6E, 0xDF, 0x78,
-  0x4C, 0x75, 0x35, 0x1C, 0xA0, 0x74, 0x49, 0xE3,
-  0x20, 0x13, 0x71, 0x35, 0x65, 0xDF, 0x12, 0x20,
-  0xF5, 0xF5, 0xF5, 0xC1, 0xED, 0x5C, 0x91, 0x36,
-  0x75, 0xB0, 0xA9, 0x9C, 0x04, 0xDB, 0x0C, 0x8C,
-  0xBF, 0x99, 0x75, 0x13, 0x7E, 0x87, 0x80, 0x4B,
-  0x71, 0x94, 0xB8, 0x00, 0xA0, 0x7D, 0xB7, 0x53,
-  0xDD, 0x20, 0x63, 0xEE, 0xF7, 0x83, 0x41, 0xFE,
-  0x16, 0xA7, 0x6E, 0xDF, 0x21, 0x7D, 0x76, 0xC0,
-  0x85, 0xD5, 0x65, 0x7F, 0x00, 0x23, 0x57, 0x45,
-  0x52, 0x02, 0x9D, 0xEA, 0x69, 0xAC, 0x1F, 0xFD,
-  0x3F, 0x8C, 0x4A, 0xD0,
-
-  0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-
-  0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-
-  0x64, 0xD5, 0xAA, 0xB1,
-  0xA6, 0x03, 0x18, 0x92, 0x03, 0xAA, 0x31, 0x2E,
-  0x48, 0x4B, 0x65, 0x20, 0x99, 0xCD, 0xC6, 0x0C,
-  0x15, 0x0C, 0xBF, 0x3E, 0xFF, 0x78, 0x95, 0x67,
-  0xB1, 0x74, 0x5B, 0x60,
-
-  0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-};
-
-const DWORD PRIVATEKEY_EXPOF1_BITLEN = 512;
-const ALG_ID PRIVATEKEY_EXPOF1_ALG = CALG_RSA_KEYX;
 
 #else
 
-struct des_key {
-  DES_key_schedule ks1;
-  DES_key_schedule ks2;
-  DES_key_schedule ks3;
+struct _cipher_key {
+  const EVP_CIPHER *cipher;
+  EVP_CIPHER_CTX *ctx;
+  unsigned char key[EVP_MAX_KEY_LENGTH];
 };
 
 #endif
@@ -150,243 +84,187 @@ char *_strip_ws(char *sz);
 setting_bool_t _get_bool_config(const char *sz_setting);
 setting_bool_t _get_bool_env(const char *sz_setting);
 
-/* log */
-
-const char szLOG_SOURCE[] = "YubiKey PIV Library";
-
 /*
 ** Methods
 */
 
-des_rc des_import_key(const int type, const unsigned char* keyraw, const size_t keyrawlen, des_key** key) {
-  des_rc rc = DES_OK;
-  size_t cb_expectedkey = DES_LEN_3DES;
+#ifdef _WIN32
 
-#ifdef _WINDOWS
-
-  HCRYPTKEY hNullKey = 0;
-  ALG_ID alg = 0;
-  unsigned char* pbSessionBlob = NULL;
-  DWORD cbSessionBlob = 0;
-  DWORD cbRandom = 0;
-  unsigned char* pbTmp = NULL;
-  size_t n = 0;
-
-  switch (type) {
-  case DES_TYPE_3DES:
-    alg = CALG_3DES;
-    cb_expectedkey = DES_LEN_3DES;
-    break;
+static BCRYPT_ALG_HANDLE bcrypt_algo(unsigned char algo) {
+	switch (algo) {
+	case YKPIV_ALGO_3DES:
+    return BCRYPT_3DES_ECB_ALG_HANDLE;
+	case YKPIV_ALGO_AES128:
+  case YKPIV_ALGO_AES192:
+  case YKPIV_ALGO_AES256:
+    return BCRYPT_AES_ECB_ALG_HANDLE;
   default:
-    rc = DES_INVALID_PARAMETER;
-    goto ERROR_EXIT;
+    return NULL;
+	}
+}
+
+cipher_rc cipher_import_key(unsigned char algo, const unsigned char *keyraw, uint32_t keyrawlen, cipher_key *key) {
+  *key = calloc(1, sizeof(**key));
+	if (!*key) {
+    return CIPHER_MEMORY_ERROR;
   }
+	if(!BCRYPT_SUCCESS(BCryptGenerateSymmetricKey(bcrypt_algo(algo), &(*key)->hKey, NULL, 0, (PUCHAR)keyraw, keyrawlen, 0))) {
+		return CIPHER_INVALID_PARAMETER;
+	}
+	return 0;
+}
 
-  if (!keyraw) { rc = DES_INVALID_PARAMETER; goto ERROR_EXIT; }
-  if (keyrawlen != cb_expectedkey) { rc = DES_INVALID_PARAMETER; goto ERROR_EXIT; }
-  if (!key) { rc = DES_INVALID_PARAMETER; goto ERROR_EXIT; }
-  if (!(*key = (des_key*)malloc(sizeof(des_key)))) { rc = DES_MEMORY_ERROR; goto ERROR_EXIT; }
-
-  memset(*key, 0, sizeof(des_key));
-
-  (*key)->alg = alg;
-
-  if (!CryptAcquireContext(&((*key)->hProv), NULL, MS_ENHANCED_PROV, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) { rc = DES_GENERAL_ERROR; goto ERROR_EXIT; }
-
-  // Import the exponent-of-one private key.
-  if (!CryptImportKey((*key)->hProv, PRIVATEKEY_EXPOF1_BLOB, sizeof(PRIVATEKEY_EXPOF1_BLOB), 0, 0, &hNullKey)) { rc = DES_GENERAL_ERROR; goto ERROR_EXIT; }
-
-  // calculate Simple blob's length
-  cbSessionBlob = (PRIVATEKEY_EXPOF1_BITLEN / 8) + sizeof(ALG_ID) + sizeof(BLOBHEADER);
-
-  // allocate simple blob buffer
-  if (!(pbSessionBlob = malloc(cbSessionBlob))) { rc = DES_MEMORY_ERROR; goto ERROR_EXIT; }
-  memset(pbSessionBlob, 0, cbSessionBlob);
-
-  pbTmp = pbSessionBlob;
-
-  // SIMPLEBLOB Format is documented in SDK
-  // Copy header to buffer
-  ((BLOBHEADER *)pbTmp)->bType = SIMPLEBLOB;
-  ((BLOBHEADER *)pbTmp)->bVersion = 2;
-  ((BLOBHEADER *)pbTmp)->reserved = 0;
-  ((BLOBHEADER *)pbTmp)->aiKeyAlg = alg;
-  pbTmp += sizeof(BLOBHEADER);
-
-  // Copy private key algorithm to buffer
-  *((DWORD *)pbTmp) = PRIVATEKEY_EXPOF1_ALG;
-  pbTmp += sizeof(ALG_ID);
-
-  // Place the key material in reverse order
-  for (n = 0; n < keyrawlen; n++) {
-    pbTmp[n] = keyraw[keyrawlen - n - 1];
+cipher_rc cipher_destroy_key(cipher_key key) {
+	if (key == NULL) {
+    return CIPHER_MEMORY_ERROR;
   }
-
-  // 3 is for the first reserved byte after the key material + the 2 reserved bytes at the end.
-  cbRandom = cbSessionBlob - (sizeof(ALG_ID) + sizeof(BLOBHEADER) + (DWORD)keyrawlen + 3);
-  pbTmp += (keyrawlen + 1);
-
-  // Generate random data for the rest of the buffer
-  // (except that last two bytes)
-  if (!CryptGenRandom((*key)->hProv, cbRandom, pbTmp)) { rc = DES_GENERAL_ERROR; goto ERROR_EXIT; }
-
-  for (n = 0; n < cbRandom; n++) {
-    if (pbTmp[n] == 0) pbTmp[n] = 1;
+	if(!BCRYPT_SUCCESS(BCryptDestroyKey(key->hKey))) {
+    return CIPHER_INVALID_PARAMETER;
   }
+	free(key);
+	return CIPHER_OK;
+}
 
-  pbSessionBlob[cbSessionBlob - 2] = 2;
+cipher_rc cipher_encrypt(cipher_key key, const unsigned char* in, uint32_t inlen, unsigned char* out, uint32_t* outlen) {
+	if (key == NULL) {
+    return CIPHER_MEMORY_ERROR;
+  }
+	if(!BCRYPT_SUCCESS(BCryptEncrypt(key->hKey, (PUCHAR)in, inlen, NULL, NULL, 0, out, *outlen, (PULONG)outlen, 0))) {
+    return CIPHER_INVALID_PARAMETER;
+  }
+  return CIPHER_OK;
+}
 
-  if (!CryptImportKey((*key)->hProv, pbSessionBlob, cbSessionBlob, hNullKey, CRYPT_EXPORTABLE, &((*key)->hKey))) { rc = DES_GENERAL_ERROR; goto ERROR_EXIT; }
+cipher_rc cipher_decrypt(cipher_key key, const unsigned char* in, uint32_t inlen, unsigned char* out, uint32_t* outlen) {
+	if (key == NULL) {
+    return CIPHER_MEMORY_ERROR;
+  }
+	if(!BCRYPT_SUCCESS(BCryptDecrypt(key->hKey, (PUCHAR)in, inlen, NULL, NULL, 0, out, *outlen, (PULONG)outlen, 0))) {
+    return CIPHER_INVALID_PARAMETER;
+  }
+  return CIPHER_OK;
+}
+
+uint32_t cipher_blocksize(cipher_key key) {
+	if (key == NULL) {
+    return 0;
+  }
+  DWORD size = 0;
+  ULONG len = 0;
+	if(!BCRYPT_SUCCESS(BCryptGetProperty(key->hKey, BCRYPT_BLOCK_LENGTH, (PUCHAR)&size, sizeof(size), &len, 0))) {
+    return 0;
+  }
+  return size;
+}
 
 #else
 
-  const_DES_cblock key_tmp;
-  size_t cb_keysize = 8;
+static int encrypt_ex(const uint8_t *in, uint8_t *out, int len,
+                      const uint8_t *iv, int enc, cipher_key ctx) {
+  if (EVP_CipherInit_ex(ctx->ctx, ctx->cipher, NULL, ctx->key, iv, enc) != 1) {
+    return -1;
+  }
+  if (EVP_CIPHER_CTX_set_padding(ctx->ctx, 0) != 1) {
+    return -2;
+  }
+  int update_len = len;
+  if (EVP_CipherUpdate(ctx->ctx, out, &update_len, in, len) != 1) {
+    return -3;
+  }
+  int final_len = len - update_len;
+  if (EVP_CipherFinal_ex(ctx->ctx, out + update_len, &final_len) != 1) {
+    return -4;
+  }
+  if (update_len + final_len != len) {
+    return -5;
+  }
+  return 0;
+}
 
+cipher_rc cipher_import_key(unsigned char algo, const unsigned char* keyraw, uint32_t keyrawlen, cipher_key* key) {
+  cipher_rc rc = CIPHER_OK;
 
-  switch (type) {
-  case DES_TYPE_3DES:
-    cb_expectedkey = DES_LEN_3DES;
-    cb_keysize = 8;
+  *key = calloc(1, sizeof(**key));
+  (*key)->ctx = EVP_CIPHER_CTX_new();
+
+  switch (algo) {
+  case YKPIV_ALGO_3DES:
+    (*key)->cipher = EVP_des_ede3_ecb();
+    break;
+  case YKPIV_ALGO_AES128:
+    (*key)->cipher = EVP_aes_128_ecb();
+    break;
+  case YKPIV_ALGO_AES192:
+    (*key)->cipher = EVP_aes_192_ecb();
+    break;
+  case YKPIV_ALGO_AES256:
+    (*key)->cipher = EVP_aes_256_ecb();
     break;
   default:
-    rc = DES_INVALID_PARAMETER;
+    rc = CIPHER_INVALID_PARAMETER;
     goto ERROR_EXIT;
   }
 
-  if (cb_keysize > sizeof(key_tmp)) { rc = DES_MEMORY_ERROR; goto ERROR_EXIT; }
-  if (!keyraw) { rc = DES_INVALID_PARAMETER; goto ERROR_EXIT; }
-  if (keyrawlen != cb_expectedkey) { rc = DES_INVALID_PARAMETER; goto ERROR_EXIT; }
-  if (!key) { rc = DES_INVALID_PARAMETER; goto ERROR_EXIT; }
-  if (!(*key = (des_key*)malloc(sizeof(des_key)))) { rc = DES_MEMORY_ERROR; goto ERROR_EXIT; }
+  if((*key)->cipher == NULL || EVP_CIPHER_key_length((*key)->cipher) != keyrawlen) {
+    rc = CIPHER_INVALID_PARAMETER;
+    goto ERROR_EXIT;
+  }
 
-  memset(*key, 0, sizeof(des_key));
-
-  memcpy(key_tmp, keyraw, cb_keysize);
-  DES_set_key_unchecked(&key_tmp, &((*key)->ks1));
-  memcpy(key_tmp, keyraw + cb_keysize, cb_keysize);
-  DES_set_key_unchecked(&key_tmp, &((*key)->ks2));
-  memcpy(key_tmp, keyraw + (2 * cb_keysize), cb_keysize);
-  DES_set_key_unchecked(&key_tmp, &((*key)->ks3));
-
-#endif
+  memcpy((*key)->key, keyraw, keyrawlen);
 
 EXIT:
-#ifdef _WINDOWS
-  if (pbSessionBlob) {
-    yc_memzero(pbSessionBlob, cbSessionBlob);
-    free(pbSessionBlob);
-    pbSessionBlob = NULL;
-  }
-
-  if (hNullKey) {
-    CryptDestroyKey(hNullKey);
-    hNullKey = 0;
-  }
-#endif
   return rc;
 
 ERROR_EXIT:
   if (key) {
-    des_destroy_key(*key);
+    cipher_destroy_key(*key);
     *key = NULL;
   }
   goto EXIT;
-
-
 }
 
-des_rc des_destroy_key(des_key* key) {
+cipher_rc cipher_destroy_key(cipher_key key) {
   if (key) {
-#ifdef _WINDOWS
-    if (key->hKey) {
-      CryptDestroyKey(key->hKey);
-      key->hKey = 0;
-    }
-
-    if (key->hProv) {
-      CryptReleaseContext(key->hProv, 0);
-      key->hProv = 0;
-    }
-#endif
+    EVP_CIPHER_CTX_free(key->ctx);
+    memset(key, 0, sizeof(*key));
     free(key);
   }
-
-  return DES_OK;
+  return CIPHER_OK;
 }
 
-des_rc des_encrypt(des_key* key, const unsigned char* in, const size_t inlen, unsigned char* out, size_t* outlen) {
-  des_rc rc = DES_OK;
+cipher_rc cipher_encrypt(cipher_key key, const unsigned char* in, uint32_t inlen, unsigned char* out, uint32_t* outlen) {
+  cipher_rc rc = CIPHER_OK;
 
-#ifdef _WINDOWS
-  unsigned char buf[8] = { 0 };
-  size_t buflen = sizeof(buf);
-#endif
+  if (!key || !outlen || (*outlen < inlen) || !in || !out) { rc = CIPHER_INVALID_PARAMETER; goto EXIT; }
 
-  if (!key || !outlen || (*outlen < inlen) || !in || !out) { rc = DES_INVALID_PARAMETER; goto EXIT; }
-
-#ifdef _WINDOWS
-
-  if (!key->hKey) { rc = DES_INVALID_PARAMETER; goto EXIT; }
-
-  memcpy(out, in, inlen);
-  *outlen = inlen;
-
-  if (!CryptEncrypt(key->hKey, 0, FALSE, 0, out, (DWORD*)&inlen, (DWORD)*outlen)) { fwprintf(stderr, L"GetLastError = %x\n", GetLastError()); rc = DES_GENERAL_ERROR; goto EXIT; }
-  // reset key usage by encrypting a fake padded block
-  CryptEncrypt(key->hKey, 0, TRUE, 0, buf, (DWORD*)&buflen, (DWORD)buflen);
-
-#else
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-qual"
-  /* openssl returns void */
-  DES_ecb3_encrypt((const_DES_cblock *)in, (DES_cblock*)out, &(key->ks1), &(key->ks2), &(key->ks3), 1);
-#pragma GCC diagnostic pop
-
-#endif
+  rc = encrypt_ex(in, out, inlen, NULL, 1, key);
 
 EXIT:
   return rc;
 }
 
-des_rc des_decrypt(des_key* key, const unsigned char* in, const size_t inlen, unsigned char* out, size_t* outlen) {
-  des_rc rc = DES_OK;
+cipher_rc cipher_decrypt(cipher_key key, const unsigned char* in, uint32_t inlen, unsigned char* out, uint32_t* outlen) {
+  cipher_rc rc = CIPHER_OK;
 
-#ifdef _WINDOWS
-  unsigned char buf[8] = { 0 };
-  size_t buflen = sizeof(buf);
-#endif
+  if (!key || !outlen || (*outlen < inlen) || !in || !out) { rc = CIPHER_INVALID_PARAMETER; goto EXIT; }
 
-  if (!key || !outlen || (*outlen < inlen) || !in || !out) { rc = DES_INVALID_PARAMETER; goto EXIT; }
-
-#ifdef _WINDOWS
-
-  if (!key->hKey) { rc = DES_INVALID_PARAMETER; goto EXIT; }
-
-  memcpy(out, in, inlen);
-  *outlen = inlen;
-
-  if (!CryptDecrypt(key->hKey, 0, FALSE, 0, out, (DWORD*)outlen)) { fwprintf(stderr, L"GetLastError = %x\n", GetLastError()); rc = DES_GENERAL_ERROR; goto EXIT; }
-  // reset key usage by decrypting a fake padded block
-  CryptDecrypt(key->hKey, 0, TRUE, 0, buf, (DWORD*)&buflen);
-
-#else
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-qual"
-  /* openssl returns void */
-  DES_ecb3_encrypt((const_DES_cblock*)in, (DES_cblock*)out, &(key->ks1), &(key->ks2), &(key->ks3), 0);
-#pragma GCC diagnostic pop
-
-#endif
+  rc = encrypt_ex(in, out, inlen, NULL, 0, key);
 
 EXIT:
   return rc;
 }
+
+uint32_t cipher_blocksize(cipher_key key) {
+  if(key) {
+    return EVP_CIPHER_block_size(key->cipher);
+  }
+  return 0;
+}
+
+#endif
 
 bool yk_des_is_weak_key(const unsigned char *key, const size_t cb_key) {
-#ifdef _WINDOWS
+#ifdef _WIN32
   bool rv = false;
   /* defined weak keys, borrowed from openssl to be consistent across platforms */
   static const unsigned char weak_keys[][DES_LEN_DES] = {
@@ -445,35 +323,21 @@ bool yk_des_is_weak_key(const unsigned char *key, const size_t cb_key) {
 #else
   (void)cb_key; /* unused */
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-qual"
   return DES_is_weak_key((const_DES_cblock *)key);
-#pragma GCC diagnostic pop
 #endif
 }
 
 prng_rc _ykpiv_prng_generate(unsigned char *buffer, const size_t cb_req) {
   prng_rc rc = PRNG_OK;
 
-#ifdef _WINDOWS
-  HCRYPTPROV hProv = 0;
-
-  if (CryptAcquireContext(&hProv, NULL, MS_ENHANCED_PROV, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
-    if (!CryptGenRandom(hProv, (DWORD)cb_req, buffer)) {
-      rc = PRNG_GENERAL_ERROR;
-    }
-
-    CryptReleaseContext(hProv, 0);
-  }
-  else {
+#ifdef _WIN32
+  if (!BCRYPT_SUCCESS(BCryptGenRandom(BCRYPT_RNG_ALG_HANDLE, buffer, (ULONG)cb_req, 0))) {
     rc = PRNG_GENERAL_ERROR;
   }
-
 #else
   if (RAND_bytes(buffer, cb_req) <= 0) {
     rc = PRNG_GENERAL_ERROR;
   }
-
 #endif
 
   return rc;
@@ -482,9 +346,7 @@ prng_rc _ykpiv_prng_generate(unsigned char *buffer, const size_t cb_req) {
 pkcs5_rc pkcs5_pbkdf2_sha1(const uint8_t* password, const size_t cb_password, const uint8_t* salt, const size_t cb_salt, uint64_t iterations, const uint8_t* key, const size_t cb_key) {
   pkcs5_rc rc = PKCS5_OK;
 
-#ifdef _WINDOWS
-  BCRYPT_ALG_HANDLE hAlg = 0;
-
+#ifdef _WIN32
   /* mingw64 defines the BCryptDeriveKeyPBKDF2 function, but its dll link library doesn't include the export.
   **
   ** In case this is needed, we'll need to dynamically load the function:
@@ -494,26 +356,17 @@ pkcs5_rc pkcs5_pbkdf2_sha1(const uint8_t* password, const size_t cb_password, co
   ** PFN_BCryptDeriveKeyPBKDF2 pbkdf2 = GetProcAddress(hBCrypt, "BCryptDeriveKeyPBKDF2");
   */
 
-  if (STATUS_SUCCESS == BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_SHA1_ALGORITHM, NULL, BCRYPT_ALG_HANDLE_HMAC_FLAG)) {
     /* suppress const qualifier warning b/c BCrypt doesn't take const input buffers */
 #pragma warning(suppress: 4090)
-    if (STATUS_SUCCESS != BCryptDeriveKeyPBKDF2(hAlg, (PUCHAR)password, (ULONG)cb_password, (PUCHAR)salt, (ULONG)cb_salt, iterations, key, (ULONG)cb_key, 0)) {
-      rc = PKCS5_GENERAL_ERROR;
-    }
-
-    BCryptCloseAlgorithmProvider(hAlg, 0);
-  }
-  else {
+  if (!BCRYPT_SUCCESS(BCryptDeriveKeyPBKDF2(BCRYPT_HMAC_SHA1_ALG_HANDLE, (PUCHAR)password, (ULONG)cb_password, (PUCHAR)salt, (ULONG)cb_salt, iterations, key, (ULONG)cb_key, 0)))
+  {
     rc = PKCS5_GENERAL_ERROR;
   }
 
 #else
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-qual"
   if(PKCS5_PBKDF2_HMAC_SHA1((const char*)password, cb_password, salt, cb_salt, iterations, cb_key, (unsigned char*)key) <= 0)
     rc = PKCS5_GENERAL_ERROR;
-#pragma GCC diagnostic pop
 
 #endif
 
@@ -560,7 +413,7 @@ setting_bool_t _get_bool_config(const char *sz_setting) {
 
 #else
   /* read from config file*/
-  char sz_line[256];
+  char sz_line[256] = { 0 };
   char *psz_name = 0;
   char *psz_value = 0;
   char sz_name[256] = { 0 };
@@ -600,23 +453,8 @@ setting_bool_t _get_bool_env(const char *sz_setting) {
   setting_bool_t setting = { false, SETTING_SOURCE_DEFAULT };
   char *psz_value = NULL;
   char sz_name[256] = { 0 };
-
   snprintf(sz_name, sizeof(sz_name) - 1, "%s%s", _ENV_PREFIX, sz_setting);
-
-  /* MINGW does not implement getenv_s, only _wgetenv_s */
-#ifdef _MSC_VER
-  size_t cb_value = 0;
-  char sz_value[100] = { 0 };
-
-  if ((getenv_s(&cb_value, sz_value, sizeof(sz_value) - 1, sz_name) == 0) && (cb_value > 0)) {
-    psz_value = sz_value;
-  }
-
-#else
   psz_value = getenv(sz_name);
-
-#endif
-
   if (psz_value) {
     setting.source = SETTING_SOURCE_USER;
     setting.value = (!strcmp(psz_value, "1") || !strcasecmp(psz_value, "true"));
@@ -643,8 +481,8 @@ setting_bool_t setting_get_bool(const char *sz_setting, bool def) {
 
 /* logging */
 
-void yc_log_event(uint32_t id, yc_log_level_t level, const char * sz_format, ...) {
-  char rgsz_message[4096];
+void yc_log_event(const char *sz_source, uint32_t id, yc_log_level_t level, const char * sz_format, ...) {
+  char rgsz_message[4096] = {0};
   va_list vl;
 
 #ifdef _WIN32
@@ -678,7 +516,7 @@ void yc_log_event(uint32_t id, yc_log_level_t level, const char * sz_format, ...
       break;
   }
 
-  if (!(hLog = RegisterEventSourceA(NULL, szLOG_SOURCE))) {
+  if (!(hLog = RegisterEventSourceA(NULL, sz_source))) {
     goto Cleanup;
   }
 
@@ -730,7 +568,7 @@ void yc_log_event(uint32_t id, yc_log_level_t level, const char * sz_format, ...
      goto Cleanup;
    }
 
-   openlog(szLOG_SOURCE, LOG_PID | LOG_NDELAY, LOG_USER);
+   openlog(sz_source, LOG_PID | LOG_NDELAY, LOG_USER);
    syslog(priority, "%s", rgsz_message);
    closelog();
 

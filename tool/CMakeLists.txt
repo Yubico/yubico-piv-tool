@@ -27,7 +27,10 @@
 
 message("tool/CMakeList.txt")
 
-set (SOURCE yubico-piv-tool.c)
+set (SOURCE
+        yubico-piv-tool.c
+        ../common/openssl-compat.c
+        ../common/util.c)
 
 if(WIN32)
     add_definitions (-DPACKAGE="yubico-piv-tool")
@@ -36,8 +39,12 @@ if(WIN32)
     set(SOURCE ${SOURCE} cmdline.c)
 
     find_library(GETOPT getopt PATHS ${GETOPT_LIB_DIR})
-    set(LINK_LIBS_WIN ${GETOPT})
     include_directories(${GETOPT_INCLUDE_DIR})
+
+    find_library(ZLIB zlib PATHS ${ZLIB_LIB_DIR})
+    include_directories(${ZLIB_INCL_DIR})
+
+    set(LINK_LIBS_WIN ${GETOPT} ${ZLIB})
 else(WIN32)
     include(${CMAKE_SOURCE_DIR}/cmake/gengetopt.cmake)
     find_gengetopt()
@@ -50,11 +57,16 @@ include_directories (
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+find_package(ZLIB REQUIRED)
+
 add_executable (yubico-piv-tool ${SOURCE})
-target_link_libraries(yubico-piv-tool ${LIBCRYPTO_LDFLAGS} ${LINK_LIBS_WIN} ykpiv_shared)
+target_link_libraries(yubico-piv-tool ${LIBCRYPTO_LDFLAGS} ${LINK_LIBS_WIN} ZLIB::ZLIB ykpiv_shared)
 add_coverage(yubico-piv-tool)
 
-set_target_properties(yubico-piv-tool PROPERTIES INSTALL_RPATH "${YKPIV_INSTALL_LIB_DIR}")
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    set_target_properties(yubico-piv-tool PROPERTIES INSTALL_RPATH "${YKPIV_INSTALL_LIB_DIR}")
+endif()
+
 install(
         TARGETS yubico-piv-tool
         ARCHIVE DESTINATION "${YKPIV_INSTALL_LIB_DIR}"
@@ -63,11 +75,13 @@ install(
 
 if (GENERATE_MAN_PAGES)
     include (${CMAKE_SOURCE_DIR}/cmake/help2man.cmake)
-    add_help2man_manpage (yubico-piv-tool.1 yubico-piv-tool)
+    add_help2man_manpage (yubico-piv-tool.1 yubico-piv-tool "Tool for managing Personal Identity Verification credentials on Yubikeys")
 
     add_custom_target (yubico-piv-tool-man ALL DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/yubico-piv-tool.1)
+    install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/yubico-piv-tool.1" DESTINATION "${YKPIV_INSTALL_MAN_DIR}/man1")
 endif(GENERATE_MAN_PAGES)
 
+# If somehow a manpage was generated before configure started, install that too
 find_file(MAN_PAGE yubico-piv-tool.1 PATHS ${CMAKE_CURRENT_SOURCE_DIR})
 if(MAN_PAGE)
     install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/yubico-piv-tool.1" DESTINATION "${YKPIV_INSTALL_MAN_DIR}/man1")

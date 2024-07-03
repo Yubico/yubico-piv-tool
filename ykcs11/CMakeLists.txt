@@ -41,6 +41,8 @@ set(
         utils.c
         openssl_utils.c
         objects.c
+        ../common/openssl-compat.c
+        ../common/util.c
 )
 
 include_directories(
@@ -73,7 +75,9 @@ endif(BUILD_STATIC_LIB)
 add_library(ykcs11_shared SHARED ${SOURCE})
 target_link_libraries(ykcs11_shared ${LIBCRYPTO_LDFLAGS} ykpiv_shared)
 set_target_properties(ykcs11_shared PROPERTIES SOVERSION ${SO_VERSION} VERSION ${VERSION})
-set_target_properties(ykcs11_shared PROPERTIES INSTALL_RPATH "${YKPIV_INSTALL_LIB_DIR}")
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    set_target_properties(ykcs11_shared PROPERTIES INSTALL_RPATH "${YKPIV_INSTALL_LIB_DIR}")
+endif()
 if(WIN32)
     set_target_properties(ykcs11_shared PROPERTIES OUTPUT_NAME libykcs11)
 else(WIN32)

@@ -50,21 +50,18 @@
 // differs: Windows defines a DWORD as 32-bits, but pcsclite defines it as
 // 'unsigned long' on x86_64 Linux, which is often 64-bits.
 typedef DWORD pcsc_word;
+typedef LONG pcsc_long;
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
-#define DES_TYPE_3DES 1
-
 #define DES_LEN_DES   8
 #define DES_LEN_3DES  DES_LEN_DES*3
 
 #define READER_LEN  32
 #define MAX_READERS 16
-
-#define CB_MGM_KEY DES_LEN_3DES
 
 // the object size is restricted to the firmware's message buffer size, which
 // always contains 0x5C + 1 byte len + 3 byte id + 0x53 + 3 byte len = 9 bytes,
@@ -84,9 +81,6 @@ extern "C"
 #define CHREF_ACT_UNBLOCK_PIN 1
 #define CHREF_ACT_CHANGE_PUK 2
 
-#define TAG_CERT              0x70
-#define TAG_CERT_COMPRESS     0x71
-#define TAG_CERT_LRC          0xFE
 #define TAG_ADMIN             0x80
 #define TAG_ADMIN_FLAGS_1     0x81
 #define TAG_ADMIN_SALT        0x82
@@ -104,6 +98,7 @@ extern "C"
 
 #define CB_ECC_POINTP256    65
 #define CB_ECC_POINTP384    97
+#define CB_ECC_POINT25519   32
 
 #define YKPIV_OBJ_ADMIN_DATA 0x5fff00
 #define YKPIV_OBJ_ATTESTATION 0x5fff01
@@ -128,15 +123,14 @@ extern "C"
 #define CB_OBJ_TAG_MAX      (CB_OBJ_TAG_MIN + 2)      // 1 byte tag + 3 bytes len
 
 #define CB_PIN_MAX          8
-#define member_size(type, member) sizeof(((type*)0)->member)
 
 typedef enum {
-  DES_OK = 0,
-  DES_INVALID_PARAMETER = -1,
-  DES_BUFFER_TOO_SMALL = -2,
-  DES_MEMORY_ERROR = -3,
-  DES_GENERAL_ERROR = -4
-} des_rc;
+  CIPHER_OK = 0,
+  CIPHER_INVALID_PARAMETER = -1,
+  CIPHER_BUFFER_TOO_SMALL = -2,
+  CIPHER_MEMORY_ERROR = -3,
+  CIPHER_GENERAL_ERROR = -4
+} cipher_rc;
 
 typedef enum {
     PKCS5_OK = 0,
@@ -157,10 +151,12 @@ typedef struct _ykpiv_version_t {
 struct ykpiv_state {
   SCARDCONTEXT context;
   SCARDHANDLE card;
-  int  verbose;
+  pcsc_word protocol;
+  char reader[2048];
   int tries;
   char *pin;
   uint8_t *mgm_key;
+  uint32_t mgm_len;
   ykpiv_allocator allocator;
   uint32_t model;
   ykpiv_version_t ver;
@@ -174,18 +170,20 @@ union u_APDU {
     unsigned char p1;
     unsigned char p2;
     unsigned char lc;
-    unsigned char data[0xff];
+    unsigned char data[0x100]; // Max 255 bytes + Le
   } st;
-  unsigned char raw[0xff + 5];
+  unsigned char raw[0x100 + 5];
 };
 
 typedef union u_APDU APDU;
-typedef struct des_key des_key;
+typedef struct _cipher_key *cipher_key;
 
-des_rc des_import_key(const int type, const unsigned char* keyraw, const size_t keyrawlen, des_key** key);
-des_rc des_destroy_key(des_key* key);
-des_rc des_encrypt(des_key* key, const unsigned char* in, const size_t inlen, unsigned char* out, size_t* outlen);
-des_rc des_decrypt(des_key* key, const unsigned char* in, const size_t inlen, unsigned char* out, size_t* outlen);
+cipher_rc cipher_import_key(unsigned char algo, const unsigned char *keyraw, uint32_t keyrawlen, cipher_key *key);
+cipher_rc cipher_destroy_key(cipher_key key);
+cipher_rc cipher_encrypt(cipher_key key, const unsigned char *in, uint32_t inlen, unsigned char *out, uint32_t *outlen);
+cipher_rc cipher_decrypt(cipher_key key, const unsigned char *in, uint32_t inlen, unsigned char *out, uint32_t *outlen);
+uint32_t cipher_blocksize(cipher_key key);
+
 pkcs5_rc pkcs5_pbkdf2_sha1(const uint8_t* password, const size_t cb_password, const uint8_t* salt, const size_t cb_salt, uint64_t iterations, const uint8_t* key, const size_t cb_key);
 bool   yk_des_is_weak_key(const unsigned char *key, const size_t cb_key);
 
@@ -203,19 +201,19 @@ void* _ykpiv_realloc(ykpiv_state *state, void *address, size_t size);
 void _ykpiv_free(ykpiv_state *state, void *data);
 ykpiv_rc _ykpiv_save_object(ykpiv_state *state, int object_id, unsigned char *indata, size_t len);
 ykpiv_rc _ykpiv_fetch_object(ykpiv_state *state, int object_id, unsigned char *data, unsigned long *len);
-ykpiv_rc _send_data(ykpiv_state *state, APDU *apdu, unsigned char *data, uint32_t *recv_len, int *sw);
+ykpiv_rc _ykpiv_send_apdu(ykpiv_state *state, APDU *apdu, unsigned char *data, unsigned long *recv_len, int *sw);
 ykpiv_rc _ykpiv_transfer_data(
     ykpiv_state *state,
     const unsigned char *templ,
     const unsigned char *in_data,
-    long in_len,
+    unsigned long in_len,
     unsigned char *out_data,
     unsigned long *out_len,
     int *sw);
 
 /* authentication functions not ready for public api */
-ykpiv_rc ykpiv_auth_getchallenge(ykpiv_state *state, uint8_t *challenge, const size_t challenge_len);
-ykpiv_rc ykpiv_auth_verifyresponse(ykpiv_state *state, uint8_t *response, const size_t response_len);
+ykpiv_rc ykpiv_auth_getchallenge(ykpiv_state *state, ykpiv_metadata *metadata, uint8_t *challenge, unsigned long *challenge_len);
+ykpiv_rc ykpiv_auth_verifyresponse(ykpiv_state *state, ykpiv_metadata *metadata, uint8_t *response, unsigned long response_len);
 ykpiv_rc ykpiv_auth_deauthenticate(ykpiv_state *state);
 
 typedef enum _setting_source_t {
@@ -239,12 +237,19 @@ typedef enum _yc_log_level_t {
   YC_LOG_LEVEL_DEBUG
 } yc_log_level_t;
 
-void yc_log_event(uint32_t id, yc_log_level_t level, const char *sz_format, ...);
+void yc_log_event(const char *sz_source, uint32_t id, yc_log_level_t level, const char *sz_format, ...);
+
+void _ykpiv_set_debug(void (*dbg)(const char *));
+void _ykpiv_debug(const char *file, int line, const char *func, int lvl, const char *fmt, ...);
+
+#define DBG(fmt, ...) _ykpiv_debug(__FILE__, __LINE__, __FUNCTION__, 1, fmt, ##__VA_ARGS__)
+#define DBG2(fmt, ...) _ykpiv_debug(__FILE__, __LINE__, __FUNCTION__, 2, fmt, ##__VA_ARGS__)
+#define DBG3(fmt, ...) _ykpiv_debug(__FILE__, __LINE__, __FUNCTION__, 3, fmt, ##__VA_ARGS__)
 
 #ifdef _WIN32
 #include <windows.h>
 #define yc_memzero SecureZeroMemory
-#elif defined(BSD)
+#elif defined(HAVE_EXPLICIT_BZERO)
 #include <strings.h>
 #define yc_memzero explicit_bzero
 #elif defined(__linux__)

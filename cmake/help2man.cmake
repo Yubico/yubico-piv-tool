@@ -30,9 +30,9 @@ IF (NOT HELP2MAN_LOCATION)
     message (FATAL_ERROR "Cannot find help2man. Please install it.")
 ENDIF ()
 
-MACRO (add_help2man_manpage file command)
+MACRO (add_help2man_manpage file command description)
     add_custom_command (OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${file}
-            COMMAND  ${HELP2MAN_LOCATION} ARGS -s1 -N -o ${CMAKE_CURRENT_SOURCE_DIR}/${file} ./${command}
+            COMMAND  ${HELP2MAN_LOCATION} ARGS -s1 -N -n ${description} -o ${CMAKE_CURRENT_SOURCE_DIR}/${file} ./${command}
             DEPENDS ${command}
             COMMENT "Building manpage for ${command}")
 ENDMACRO ()

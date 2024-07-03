@@ -175,6 +175,7 @@ typedef enum {
   PIV_PUBK_OBJ_RETIRED19,         // Public key for retired key 19
   PIV_PUBK_OBJ_RETIRED20,         // Public key for retired key 20
   PIV_PUBK_OBJ_ATTESTATION,       // Public key for Attestation
+  PIV_SECRET_OBJ,
 
   PIV_OBJ_COUNT,
   PIV_INVALID_OBJ = -1

@@ -31,17 +31,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <locale.h>
 #include <limits.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-//#include <unistd.h>
 
 #include "ykpiv.h"
 
 #ifdef _WIN32
 #include <windows.h>
 #include <openssl/applink.c>
+#else
+#include <unistd.h>
 #endif
 
 #include "../common/openssl-compat.h"
@@ -52,6 +54,8 @@
 #include <openssl/rand.h>
 #include <openssl/rsa.h>
 #include <openssl/x509v3.h>
+#include <openssl/err.h>
+#include <zlib.h>
 
 #include "cmdline.h"
 #include "../common/util.h"
@@ -63,7 +67,7 @@
 
 #define MAX_OID_LEN 19
 
-#define KEY_LEN 24
+#define KEY_LEN 32
 
 #define YKPIV_ATTESTATION_OID "1.3.6.1.4.1.41482.3"
 
@@ -94,7 +98,7 @@ static enum file_mode data_file_mode(enum enum_format fmt, bool output) {
 }
 
 static void print_version(ykpiv_state *state, const char *output_file_name) {
-  char version[7];
+  char version[7] = {0};
   FILE *output_file = open_file(output_file_name, OUTPUT_TEXT);
   if(!output_file) {
     return;
@@ -114,19 +118,38 @@ static void print_version(ykpiv_state *state, const char *output_file_name) {
 static bool sign_data(ykpiv_state *state, const unsigned char *in, size_t len, unsigned char *out,
     size_t *out_len, unsigned char algorithm, int key) {
 
-  unsigned char signinput[1024];
+  unsigned char signinput[1024] = {0};
   if(YKPIV_IS_RSA(algorithm)) {
-    size_t padlen = algorithm == YKPIV_ALGO_RSA1024 ? 128 : 256;
-    if(RSA_padding_add_PKCS1_type_1(signinput, padlen, in, len) == 0) {
+    size_t padlen = 0;
+    switch (algorithm) {
+      case YKPIV_ALGO_RSA1024:
+        padlen = 128;
+        break;
+      case YKPIV_ALGO_RSA2048:
+        padlen = 256;
+        break;
+      case YKPIV_ALGO_RSA3072:
+        padlen = 384;
+        break;
+      case YKPIV_ALGO_RSA4096:
+        padlen = 512;
+        break;
+      default:
+        fprintf(stderr, "Unknown RSA algorithm.\n");
+        return false;
+    }
+    if (RSA_padding_add_PKCS1_type_1(signinput, padlen, in, len) == 0) {
       fprintf(stderr, "Failed adding padding.\n");
       return false;
     }
     in = signinput;
     len = padlen;
   }
-  if(ykpiv_sign_data(state, in, len, out, out_len, algorithm, key) == YKPIV_OK) {
+  ykpiv_rc rc;
+  if((rc = ykpiv_sign_data(state, in, len, out, out_len, algorithm, key)) == YKPIV_OK) {
     return true;
   }
+  fprintf(stderr, "Failed signing data: %s.\n", ykpiv_strerror(rc));
   return false;
 }
 
@@ -141,7 +164,12 @@ struct internal_key {
   size_t oid_len;
 };
 
-int yk_rsa_meth_sign(int dtype, const unsigned char *m, unsigned int m_length,
+static int yk_rsa_meth_finish(RSA *rsa) {
+  free(RSA_meth_get0_app_data(RSA_get_method(rsa)));
+  return 1;
+}
+
+static int yk_rsa_meth_sign(int dtype, const unsigned char *m, unsigned int m_length,
     unsigned char *sigret, unsigned int *siglen, const RSA *rsa) {
   size_t yk_siglen = RSA_size(rsa);
   const RSA_METHOD *meth = RSA_get_method(rsa);
@@ -162,7 +190,11 @@ int yk_rsa_meth_sign(int dtype, const unsigned char *m, unsigned int m_length,
   return 0;
 }
 
-int yk_ec_meth_sign(int type, const unsigned char *dgst, int dlen,
+static void yk_ec_meth_finish(EC_KEY *ec) {
+  free(EC_KEY_get_ex_data(ec, ec_key_ex_data_idx));
+}
+
+static int yk_ec_meth_sign(int type, const unsigned char *dgst, int dlen,
     unsigned char *sig, unsigned int *siglen, const BIGNUM *kinv,
     const BIGNUM *r, EC_KEY *ec) {
   size_t yk_siglen = ECDSA_size(ec);
@@ -175,32 +207,74 @@ int yk_ec_meth_sign(int type, const unsigned char *dgst, int dlen,
   return 0;
 }
 
-static int wrap_public_key(ykpiv_state *state, int algorithm, EVP_PKEY *public_key,
+static EVP_PKEY* wrap_public_key(ykpiv_state *state, int algorithm, EVP_PKEY *public_key, 
     int key, const unsigned char *oid, size_t oid_len) {
-  static struct internal_key int_key;
-  int_key.state = state;
-  int_key.algorithm = algorithm;
-  int_key.key = key;
-  int_key.oid = oid;
-  int_key.oid_len = oid_len;
-  if(YKPIV_IS_RSA(algorithm)) {
+  struct internal_key *int_key = malloc(sizeof(struct internal_key));
+  int_key->state = state;
+  int_key->algorithm = algorithm;
+  int_key->key = key;
+  int_key->oid = oid;
+  int_key->oid_len = oid_len;
+  EVP_PKEY *pkey = EVP_PKEY_new();
+  if (YKPIV_IS_RSA(algorithm)) {
+    const RSA *pk = EVP_PKEY_get0_RSA(public_key);
     RSA_METHOD *meth = RSA_meth_dup(RSA_get_default_method());
-    RSA *rsa = EVP_PKEY_get0_RSA(public_key);
-    RSA_meth_set0_app_data(meth, &int_key);
-    RSA_meth_set_sign(meth, yk_rsa_meth_sign);
-    RSA_set_method(rsa, meth);
-  } else {
-    EC_KEY *ec = EVP_PKEY_get0_EC_KEY(public_key);
-    EC_KEY_METHOD *meth = EC_KEY_METHOD_new(EC_KEY_get_method(ec));
-    if (ec_key_ex_data_idx == -1)
-      ec_key_ex_data_idx = EC_KEY_get_ex_new_index(0, NULL, NULL, NULL, 0);
-    EC_KEY_set_ex_data(ec, ec_key_ex_data_idx, &int_key);
-    EC_KEY_METHOD_set_sign(meth, yk_ec_meth_sign, NULL, NULL); /* XXX ?? */
-    EC_KEY_set_method(ec, meth);
+    if(RSA_meth_set0_app_data(meth, int_key) != 1) {
+      fprintf(stderr, "Failed to set RSA data\n");
+    }
+    if(RSA_meth_set_finish(meth, yk_rsa_meth_finish) != 1) {
+      fprintf(stderr, "Failed to set RSA finish method\n");
+    }
+    if(RSA_meth_set_sign(meth, yk_rsa_meth_sign) != 1) {
+      fprintf(stderr, "Failed to set RSA sign method\n");
+    }
+    RSA *sk = RSA_new();
+    RSA_set0_key(sk, BN_dup(RSA_get0_n(pk)), BN_dup(RSA_get0_e(pk)), NULL);
+    if(RSA_set_method(sk, meth) != 1) {
+      fprintf(stderr, "Failed to set RSA key method\n");
+    }
+    EVP_PKEY_assign_RSA(pkey, sk);
   }
-  return 0;
+  else if(YKPIV_IS_EC(algorithm)){
+    const EC_KEY *ec = EVP_PKEY_get0_EC_KEY(public_key);
+    EC_KEY_METHOD *meth = EC_KEY_METHOD_new(EC_KEY_get_method(ec));
+    EC_KEY_METHOD_set_init(meth, NULL, yk_ec_meth_finish, NULL, NULL, NULL, NULL);
+    EC_KEY_METHOD_set_sign(meth, yk_ec_meth_sign, NULL, NULL);
+    EC_KEY *sk = EC_KEY_new();
+    EC_KEY_set_group(sk, EC_KEY_get0_group(ec));
+    EC_KEY_set_public_key(sk, EC_KEY_get0_public_key(ec));
+    if (ec_key_ex_data_idx == -1)
+      ec_key_ex_data_idx = EC_KEY_get_ex_new_index(0, NULL, NULL, NULL, NULL);
+    if(EC_KEY_set_ex_data(sk, ec_key_ex_data_idx, int_key) != 1) {
+      fprintf(stderr, "Failed to set EC data\n");
+    }
+    if(EC_KEY_set_method(sk, meth) != 1) {
+      fprintf(stderr, "Failed to wrap public EC key\n");
+    }
+    EVP_PKEY_assign_EC_KEY(pkey, sk);
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+  } else if (algorithm == YKPIV_ALGO_ED25519) {
+    EVP_PKEY_assign(pkey, EVP_PKEY_ED25519, public_key);
+  } else if (algorithm == YKPIV_ALGO_X25519) {
+    EVP_PKEY_assign(pkey, EVP_PKEY_X25519, public_key);
+#endif
+  }
+  return pkey;
 }
 #endif
+
+static bool move_key(ykpiv_state *state, int from_slot, int to_slot) {
+  bool ret = false;
+  ykpiv_rc res;
+
+  res = ykpiv_move_key(state, (uint8_t) (from_slot & 0xFF), (uint8_t) (to_slot & 0xFF));
+  if (res != YKPIV_OK) {
+    fprintf(stderr, "Failed to move key.\n");
+  } else {
+    ret = true;
+  }
+  return ret;
+}
 
 static bool generate_key(ykpiv_state *state, enum enum_slot slot,
     enum enum_algorithm algorithm, const char *output_file_name,
@@ -213,6 +287,7 @@ static bool generate_key(ykpiv_state *state, enum enum_slot slot,
   EVP_PKEY *public_key = NULL;
   RSA *rsa = NULL;
   EC_KEY *eckey = NULL;
+  EC_GROUP *group = NULL;
   EC_POINT *ecpoint = NULL;
   uint8_t *mod = NULL;
   uint8_t *exp = NULL;
@@ -226,6 +301,11 @@ static bool generate_key(ykpiv_state *state, enum enum_slot slot,
   output_file = open_file(output_file_name, key_file_mode(key_format, true));
   if(!output_file) {
     return false;
+  }
+
+  if(algorithm == algorithm_arg_RSA1024) {
+    fprintf(stderr, "\nWARNING. The use of RSA1024 is discouraged by the National Institute of Standards "
+                         "and Technology (NIST). See https://www.yubico.com/blog/comparing-asymmetric-encryption-algorithms\n\n");
   }
 
   res = ykpiv_util_generate_key(state,
@@ -244,54 +324,92 @@ static bool generate_key(ykpiv_state *state, enum enum_slot slot,
     goto generate_out;
   }
 
-  if(key_format == key_format_arg_PEM) {
+  if (key_format == key_format_arg_PEM) {
     public_key = EVP_PKEY_new();
-    if(algorithm == algorithm_arg_RSA1024 || algorithm == algorithm_arg_RSA2048) {
-      BIGNUM *bignum_n = NULL;
-      BIGNUM *bignum_e = NULL;
-      rsa = RSA_new();
-      bignum_n = BN_bin2bn(mod, mod_len, NULL);
-      if (bignum_n == NULL) {
-        fprintf(stderr, "Failed to parse public key modulus.\n");
-        goto generate_out;
-      }
-      bignum_e = BN_bin2bn(exp, exp_len, NULL);
-      if(bignum_e == NULL) {
-        fprintf(stderr, "Failed to parse public key exponent.\n");
-        goto generate_out;
-      }
+    switch (algorithm) {
+      case algorithm_arg_RSA1024:
+      case algorithm_arg_RSA2048:
+      case algorithm_arg_RSA3072:
+      case algorithm_arg_RSA4096: {
+        BIGNUM *bignum_n = NULL;
+        BIGNUM *bignum_e = NULL;
+        rsa = RSA_new();
+        bignum_n = BN_bin2bn(mod, mod_len, NULL);
+        if (bignum_n == NULL) {
+          fprintf(stderr, "Failed to parse public key modulus.\n");
+          goto generate_out;
+        }
+        bignum_e = BN_bin2bn(exp, exp_len, NULL);
+        if (bignum_e == NULL) {
+          fprintf(stderr, "Failed to parse public key exponent.\n");
+          goto generate_out;
+        }
 
-      RSA_set0_key(rsa, bignum_n, bignum_e, NULL);
-      EVP_PKEY_set1_RSA(public_key, rsa);
-    } else if(algorithm == algorithm_arg_ECCP256 || algorithm == algorithm_arg_ECCP384) {
-      EC_GROUP *group;
-      int nid;
+        if (RSA_set0_key(rsa, bignum_n, bignum_e, NULL) != 1) {
+          fprintf(stderr, "Failed to set RSA key\n");
+          goto generate_out;
+        }
+        if (EVP_PKEY_set1_RSA(public_key, rsa) != 1) {
+          fprintf(stderr, "Failed to set RSA public key\n");
+          goto generate_out;
+        }
+      }
+        break;
+      case algorithm_arg_ECCP256:
+      case algorithm_arg_ECCP384: {
+        int nid;
 
-      if(algorithm == algorithm_arg_ECCP256) {
-        nid = NID_X9_62_prime256v1;
-      } else {
-        nid = NID_secp384r1;
-      }
-      eckey = EC_KEY_new();
-      group = EC_GROUP_new_by_curve_name(nid);
-      EC_GROUP_set_asn1_flag(group, nid);
-      EC_KEY_set_group(eckey, group);
-      ecpoint = EC_POINT_new(group);
+        if (algorithm == algorithm_arg_ECCP256) {
+          nid = NID_X9_62_prime256v1;
+        } else {
+          nid = NID_secp384r1;
+        }
+        eckey = EC_KEY_new();
+        group = EC_GROUP_new_by_curve_name(nid);
+        EC_GROUP_set_asn1_flag(group, OPENSSL_EC_NAMED_CURVE);
+        if (EC_KEY_set_group(eckey, group) != 1) {
+          fprintf(stderr, "Failed to set EC group.\n");
+          goto generate_out;
+        }
+        ecpoint = EC_POINT_new(group);
 
-      if(!EC_POINT_oct2point(group, ecpoint, point, point_len, NULL)) {
-        fprintf(stderr, "Failed to load public point.\n");
-        goto generate_out;
+        if (!EC_POINT_oct2point(group, ecpoint, point, point_len, NULL)) {
+          fprintf(stderr, "Failed to load public point.\n");
+          goto generate_out;
+        }
+        if (!EC_KEY_set_public_key(eckey, ecpoint)) {
+          fprintf(stderr, "Failed to set the public key.\n");
+          goto generate_out;
+        }
+        if (EVP_PKEY_set1_EC_KEY(public_key, eckey) != 1) {
+          fprintf(stderr, "Failed to set EC public key.\n");
+          goto generate_out;
+        }
       }
-      if(!EC_KEY_set_public_key(eckey, ecpoint)) {
-        fprintf(stderr, "Failed to set the public key.\n");
-        goto generate_out;
-      }
-      EVP_PKEY_set1_EC_KEY(public_key, eckey);
-    } else {
-      fprintf(stderr, "Wrong algorithm.\n");
+        break;
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+      case algorithm_arg_ED25519:
+        public_key = EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, NULL, point, point_len);
+        break;
+      case algorithm_arg_X25519:
+        public_key = EVP_PKEY_new_raw_public_key(EVP_PKEY_X25519, NULL, point, point_len);
+        break;
+#else
+      case algorithm_arg_ED25519:
+      case algorithm_arg_X25519:
+        fprintf(stderr, "Key was generated successfully but a public key cannot be parsed due to too old OpenSSL version. "
+                        "Upgrade OpenSSL to at least 1.1 or use attestation command to get a signed certificate instead.\n");
+        return true;
+#endif
+      default:
+        fprintf(stderr, "Wrong algorithm.\n");
     }
-    PEM_write_PUBKEY(output_file, public_key);
-    ret = true;
+    if(PEM_write_PUBKEY(output_file, public_key) == 1) {
+      ret = true;
+    } else {
+      fprintf(stderr, "Failed to write public key in PEM format\n");
+      goto generate_out;
+    }
   } else {
     fprintf(stderr, "Only PEM is supported as public_key output.\n");
     goto generate_out;
@@ -300,6 +418,9 @@ static bool generate_key(ykpiv_state *state, enum enum_slot slot,
 generate_out:
   if (output_file != stdout) {
     fclose(output_file);
+  }
+  if (group) {
+    EC_GROUP_clear_free(group);
   }
   if (ecpoint) {
     EC_POINT_free(ecpoint);
@@ -389,34 +510,40 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
 
   {
     unsigned char algorithm = get_algorithm(private_key);
-    unsigned char pp = YKPIV_PINPOLICY_DEFAULT;
-    unsigned char tp = YKPIV_TOUCHPOLICY_DEFAULT;
+    unsigned char pp = get_pin_policy(pin_policy);
+    unsigned char tp = get_touch_policy(touch_policy);
 
     if(algorithm == 0) {
       goto import_out;
     }
 
-    if(pin_policy != pin_policy__NULL) {
-        pp = get_pin_policy(pin_policy);
-    }
-
-    if(touch_policy != touch_policy__NULL) {
-      tp = get_touch_policy(touch_policy);
-    }
-
     if(YKPIV_IS_RSA(algorithm)) {
       RSA *rsa_private_key = EVP_PKEY_get1_RSA(private_key);
-      unsigned char e[4];
-      unsigned char p[128];
-      unsigned char q[128];
-      unsigned char dmp1[128];
-      unsigned char dmq1[128];
-      unsigned char iqmp[128];
+      unsigned char e[4] = {0};
+      unsigned char p[256] = {0};
+      unsigned char q[256] = {0};
+      unsigned char dmp1[256] = {0};
+      unsigned char dmq1[256] = {0};
+      unsigned char iqmp[256] = {0};
       const BIGNUM *bn_e, *bn_p, *bn_q, *bn_dmp1, *bn_dmq1, *bn_iqmp;
 
-      int element_len = 128;
-      if(algorithm == YKPIV_ALGO_RSA1024) {
-        element_len = 64;
+      int element_len = 0;
+      switch(algorithm) {
+        case YKPIV_ALGO_RSA1024:
+          element_len = 64;
+          break;
+        case YKPIV_ALGO_RSA2048:
+          element_len = 128;
+          break;
+        case YKPIV_ALGO_RSA3072:
+          element_len = 192;
+          break;
+        case YKPIV_ALGO_RSA4096:
+          element_len = 256;
+          break;
+        default:
+          fprintf(stderr, "Unsupported RSA algorithm\n");
+          goto import_out;
       }
 
       RSA_get0_key(rsa_private_key, NULL, &bn_e, NULL);
@@ -454,18 +581,18 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
       }
 
       rc = ykpiv_import_private_key(state, key, algorithm,
-                                    p, (size_t)element_len,
-                                    q, (size_t)element_len,
-                                    dmp1, (size_t)element_len,
-                                    dmq1, (size_t)element_len,
-                                    iqmp, (size_t)element_len,
+                                    p, element_len,
+                                    q, element_len,
+                                    dmp1, element_len,
+                                    dmq1, element_len,
+                                    iqmp, element_len,
                                     NULL, 0,
                                     pp, tp);
     }
     else if(YKPIV_IS_EC(algorithm)) {
       EC_KEY *ec = EVP_PKEY_get1_EC_KEY(private_key);
       const BIGNUM *s = EC_KEY_get0_private_key(ec);
-      unsigned char s_ptr[48];
+      unsigned char s_ptr[48] = {0};
 
       int element_len = 32;
       if(algorithm == YKPIV_ALGO_ECCP384) {
@@ -486,6 +613,26 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
                                     s_ptr, element_len,
                                     pp, tp);
     }
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+    else if(YKPIV_IS_25519(algorithm)) {
+      unsigned char s_ptr[48] = {0};
+      size_t element_len = sizeof(s_ptr);
+
+      if (EVP_PKEY_get_raw_private_key(private_key, s_ptr, &element_len) != 1) {
+        fprintf(stderr, "Failed to extract private key.\n");
+        goto import_out;
+      }
+
+      rc = ykpiv_import_private_key(state, key, algorithm,
+                                    NULL, 0,
+                                    NULL, 0,
+                                    NULL, 0,
+                                    NULL, 0,
+                                    NULL, 0,
+                                    s_ptr, element_len,
+                                    pp, tp);
+    }
+#endif
 
     ret = true;
     if(rc != YKPIV_OK) {
@@ -513,14 +660,14 @@ import_out:
   return ret;
 }
 
-static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
+static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format, int perform_compress,
     const char *input_file_name, enum enum_slot slot, char *password) {
   bool ret = false;
   FILE *input_file = NULL;
   X509 *cert = NULL;
   PKCS12 *p12 = NULL;
   EVP_PKEY *private_key = NULL;
-  int compress = 0;
+  int compress = YKPIV_CERTINFO_UNCOMPRESSED;
   int cert_len = -1;
 
   input_file = open_file(input_file_name, key_file_mode(cert_format, false));
@@ -566,7 +713,7 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
       goto import_cert_out;
     }
     cert_len = st.st_size;
-    compress = 0x01;
+    compress = YKPIV_CERTINFO_GZIP;
   } else {
     /* TODO: more formats go here */
     fprintf(stderr, "Unknown key format.\n");
@@ -577,12 +724,12 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
   }
 
   {
-    unsigned char certdata[YKPIV_OBJ_MAX_SIZE];
+    unsigned char certdata[YKPIV_OBJ_MAX_SIZE] = {0};
     unsigned char *certptr = certdata;
     ykpiv_rc res;
 
-    if(cert_len > YKPIV_OBJ_MAX_SIZE || cert_len < 0) {
-      fprintf(stderr, "Length of certificate is more than can fit.\n");
+    if((cert_len > YKPIV_OBJ_MAX_SIZE && !perform_compress) || cert_len < 0) {
+      fprintf(stderr, "Length of certificate is more than can fit. Consider using the 'compress' flag\n");
       goto import_cert_out;
     }
 
@@ -591,9 +738,44 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format,
         fprintf(stderr, "Failed to read compressed certificate\n");
         goto import_cert_out;
       }
+    } else if(perform_compress) {
+      unsigned char uncompressed_certdata[YKPIV_OBJ_MAX_SIZE*10] = {0};
+      unsigned char *uncompressed_certptr = uncompressed_certdata;
+      if(i2d_X509(cert, &uncompressed_certptr) < 0) {
+        fprintf(stderr, "Failed to encode X509 certificate before compression\n");
+        goto import_cert_out;
+      }
+
+      z_stream zs;
+      zs.zalloc = Z_NULL;
+      zs.zfree = Z_NULL;
+      zs.opaque = Z_NULL;
+      zs.avail_in = (uInt)cert_len;
+      zs.next_in = (Bytef *)uncompressed_certdata;
+      zs.avail_out = (uInt) sizeof(certdata);
+      zs.next_out = (Bytef *)certdata;
+
+      if(deflateInit2(&zs, Z_DEFAULT_COMPRESSION, Z_DEFLATED, MAX_WBITS | 16, 8, Z_DEFAULT_STRATEGY) != Z_OK) {
+        fprintf(stderr, "Failed to compress certificate\n");
+        goto import_cert_out;
+      }
+      if(deflate(&zs, Z_FINISH) != Z_STREAM_END) {
+        fprintf(stderr, "Failed to compress certificate\n");
+        goto import_cert_out;
+      }
+      if(deflateEnd(&zs) != Z_OK) {
+        fprintf(stderr, "Failed to compress certificate\n");
+        goto import_cert_out;
+      }
+      cert_len = zs.total_out;
+      compress = YKPIV_CERTINFO_GZIP;
     } else {
-      i2d_X509(cert, &certptr);
+      if(i2d_X509(cert, &certptr) < 0) {
+        fprintf(stderr, "Failed to encode X509 certificate\n");
+        goto import_cert_out;
+      }
     }
+
     if ((res = ykpiv_util_write_cert(state, get_slot_hex(slot), certdata, (size_t)cert_len, compress)) != YKPIV_OK) {
       fprintf(stderr, "Failed commands with device: %s\n", ykpiv_strerror(res));
     } else {
@@ -620,7 +802,7 @@ import_cert_out:
 
 static bool set_cardid(ykpiv_state *state, int verbose, int type) {
   ykpiv_rc res;
-  unsigned char id[MAX(sizeof(ykpiv_cardid), sizeof(ykpiv_cccid))];
+  unsigned char id[MAX(sizeof(ykpiv_cardid), sizeof(ykpiv_cccid))] = {0};
 
   if(type == CHUID) {
     res = ykpiv_util_set_cardid(state, NULL);
@@ -642,11 +824,14 @@ static bool set_cardid(ykpiv_state *state, int verbose, int type) {
   return res == YKPIV_OK;
 }
 
-static int add_ext(STACK_OF(X509_EXTENSION) *exts, const char *oid, const char *name, const char *descr, const unsigned char *data, int len) {
-  int nid = OBJ_create(oid, name, descr);
+static X509_EXTENSION *create_ext(const char *oid, const char *name, const char *descr, const unsigned char *data, int len) {
+  int nid = OBJ_txt2nid(oid);
   if(nid <= 0) {
-    fprintf(stderr, "Failed creating %s extension object.\n", name);
-    return 0;
+    nid = OBJ_create(oid, name, descr);
+    if (nid <= 0) {
+      fprintf(stderr, "Failed creating %s extension object.\n", name);
+      return 0;
+    }
   }
   ASN1_OCTET_STRING *octets = ASN1_OCTET_STRING_new();
   if(!octets) {
@@ -660,9 +845,17 @@ static int add_ext(STACK_OF(X509_EXTENSION) *exts, const char *oid, const char *
   X509_EXTENSION *ext = X509_EXTENSION_create_by_NID(NULL, nid, 0, octets);
   if(!ext) {
     fprintf(stderr, "Failed creating %s extension.\n", name);
+  }
+  return ext;
+}
+
+static int add_ext(STACK_OF(X509_EXTENSION) * exts, const char *oid, const char *name, const char *descr, const unsigned char *data, int len)
+{
+  X509_EXTENSION *ext = create_ext(oid, name, descr, data, len);
+  if (!ext) {
     return 0;
   }
-  if(!sk_X509_EXTENSION_push(exts, ext)) {
+  if (!sk_X509_EXTENSION_push(exts, ext)) {
     fprintf(stderr, "Failed pushing %s extension.\n", name);
     return 0;
   }
@@ -671,20 +864,20 @@ static int add_ext(STACK_OF(X509_EXTENSION) *exts, const char *oid, const char *
 
 static bool request_certificate(ykpiv_state *state, enum enum_key_format key_format,
     const char *input_file_name, enum enum_slot slot, char *subject, enum enum_hash hash,
-    const char *output_file_name, int attestation) {
+    const char *output_file_name, int attest) {
   X509_REQ *req = NULL;
   X509_NAME *name = NULL;
   FILE *input_file = NULL;
   FILE *output_file = NULL;
   EVP_PKEY *public_key = NULL;
-  const EVP_MD *md;
+  const EVP_MD *md = NULL;
   bool ret = false;
   unsigned char algorithm;
   int key = 0;
-  size_t oid_len;
-  const unsigned char *oid;
+  size_t oid_len = 0;
+  const unsigned char *oid = NULL;
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
-  unsigned char digest[EVP_MAX_MD_SIZE + MAX_OID_LEN];
+  unsigned char digest[EVP_MAX_MD_SIZE + MAX_OID_LEN] = {0};
   unsigned int md_len;
   unsigned int digest_len;
   unsigned char *signinput;
@@ -707,8 +900,8 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     goto request_out;
   }
 
-  if(attestation) {
-    unsigned char buf[YKPIV_OBJ_MAX_SIZE];
+  if(attest) {
+    unsigned char buf[YKPIV_OBJ_MAX_SIZE] = {0};
     size_t buflen = sizeof(buf);
     ykpiv_rc rc;
 
@@ -768,10 +961,11 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
   if(algorithm == 0) {
     goto request_out;
   }
-
-  md = get_hash(hash, &oid, &oid_len);
-  if(md == NULL) {
-    goto request_out;
+  if (!YKPIV_IS_25519(algorithm)) {
+    md = get_hash(hash, &oid, &oid_len);
+    if (md == NULL) {
+      goto request_out;
+    }
   }
 
   if(!X509_REQ_set_pubkey(req, public_key)) {
@@ -779,7 +973,9 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
     goto request_out;
   }
 
-  X509_REQ_set_version(req, 0);
+  if(X509_REQ_set_version(req, 0) != 1) {
+    fprintf(stderr, "Failed setting the certificate request version.\n");
+  }
 
   name = parse_name(subject);
   if(!name) {
@@ -824,7 +1020,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
 
   req->sig_alg->algorithm = OBJ_nid2obj(nid);
   {
-    unsigned char signature[1024];
+    unsigned char signature[1024] = {0};
     size_t sig_len = sizeof(signature);
     if(!sign_data(state, signinput, len, signature, &sig_len, algorithm, key)) {
       fprintf(stderr, "Failed signing request.\n");
@@ -837,17 +1033,23 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
 #else
   /* With opaque structures we can not touch whatever we want, but we need
    * to embed the sign_data function in the RSA/EC key structures  */
-  wrap_public_key(state, algorithm, public_key, key, oid, oid_len);
+  EVP_PKEY *sk = wrap_public_key(state, algorithm, public_key, key, oid, oid_len);
 
-  if(X509_REQ_sign(req, public_key, md) == 0) {
+  if(X509_REQ_sign(req, sk, md) == 0) {
     fprintf(stderr, "Failed signing request.\n");
+    ERR_print_errors_fp(stderr);
+    EVP_PKEY_free(sk);
     goto request_out;
   }
+  EVP_PKEY_free(sk);
 #endif
 
   if(key_format == key_format_arg_PEM) {
-    PEM_write_X509_REQ(output_file, req);
-    ret = true;
+    if(PEM_write_X509_REQ(output_file, req) == 1) {
+      ret = true;
+    } else {
+      fprintf(stderr, "Failed writing x509 information\n");
+    }
   } else {
     fprintf(stderr, "Only PEM support available for certificate requests.\n");
   }
@@ -859,20 +1061,16 @@ request_out:
   if(output_file && output_file != stdout) {
     fclose(output_file);
   }
-  if(public_key) {
-    EVP_PKEY_free(public_key);
-  }
-  if(req) {
+  EVP_PKEY_free(public_key);
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
+  if(req) {
     if(req->sig_alg->parameter) {
       req->sig_alg->parameter = NULL;
     }
+  }
 #endif
-    X509_REQ_free(req);
-  }
-  if(name) {
-    X509_NAME_free(name);
-  }
+  X509_REQ_free(req);
+  X509_NAME_free(name);
   return ret;
 }
 
@@ -888,60 +1086,100 @@ static const struct {
 
 static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_format,
     const char *input_file_name, enum enum_slot slot, char *subject, enum enum_hash hash,
-    const int *serial, int validDays, const char *output_file_name) {
-  FILE *input_file = NULL;
-  FILE *output_file = NULL;
+    const int *serial, int validDays, const char *output_file_name, int attest) {
   bool ret = false;
-  EVP_PKEY *public_key = NULL;
+  X509_EXTENSION *attestation = NULL;
+  X509_EXTENSION *attest_cert = NULL;
   X509 *x509 = NULL;
+  EVP_PKEY *public_key = NULL;
   X509_NAME *name = NULL;
-  const EVP_MD *md;
-  unsigned char algorithm;
-  int key = 0;
-  size_t oid_len;
-  const unsigned char *oid;
-  int nid;
   ASN1_INTEGER *sno = ASN1_INTEGER_new();
   BIGNUM *ser = NULL;
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
-  unsigned char digest[EVP_MAX_MD_SIZE + MAX_OID_LEN];
-  unsigned int digest_len;
-  unsigned int md_len;
-  unsigned char *signinput;
-  size_t len = 0;
-  ASN1_TYPE null_parameter;
-#endif
 
-  key = get_slot_hex(slot);
+  int key = get_slot_hex(slot);
 
-  input_file = open_file(input_file_name, key_file_mode(key_format, false));
-  output_file = open_file(output_file_name, key_file_mode(key_format, true));
+  FILE *input_file = open_file(input_file_name, key_file_mode(key_format, false));
+  FILE *output_file = open_file(output_file_name, key_file_mode(key_format, true));
   if(!input_file || !output_file) {
     goto selfsign_out;
   }
 
-  if(isatty(fileno(input_file))) {
-    fprintf(stderr, "Please paste the public key...\n");
+  if (attest) {
+    unsigned char buf[YKPIV_OBJ_MAX_SIZE] = {0};
+    size_t buflen = sizeof(buf);
+    ykpiv_rc rc = 0;
+
+    if ((rc = ykpiv_attest(state, key, buf, &buflen)) == YKPIV_OK) {
+      // Extract the public key for the request from the attestation
+      const unsigned char *ptr = buf;
+      X509 *cert = d2i_X509(NULL, &ptr, buflen);
+      if (cert) {
+        public_key = X509_get_pubkey(cert);
+        if (!public_key) {
+          fprintf(stderr, "Failed extracting public key from attestation.\n");
+        }
+        X509_free(cert);
+      } else {
+        fprintf(stderr, "Failed extracting attestation.\n");
+      }
+
+      attestation = create_ext(YKPIV_ATTESTATION_OID ".11", "ykpiv attestation", "Yubico PIV X.509 Attestation", buf, buflen);
+      if (!attestation) {
+        fprintf(stderr, "Failed creating attestation extension.\n");
+      }
+
+      unsigned char *pb = 0;
+      size_t pblen = 0;
+      if ((rc = ykpiv_util_read_cert(state, YKPIV_KEY_ATTESTATION, &pb, &pblen)) == YKPIV_OK && pblen > 0) {
+        attest_cert = create_ext(YKPIV_ATTESTATION_OID ".2", "ykpiv attest cert", "Yubico PIV Attestation Certificate", pb, pblen);
+        if (!attest_cert) {
+          fprintf(stderr, "Failed creating attestation certificate extension.\n");
+        }
+        ykpiv_util_free(state, pb);
+      }
+      else {
+        fprintf(stderr, "Failed reading attestation certificate: %s.\n", ykpiv_strerror(rc));
+      }
+    }
+    else {
+      fprintf(stderr, "Failed creating attestation: %s.\n", ykpiv_strerror(rc));
+    }
   }
 
-  if(key_format == key_format_arg_PEM) {
-    public_key = PEM_read_PUBKEY(input_file, NULL, NULL, NULL);
-    if(!public_key) {
-      fprintf(stderr, "Failed loading public key for certificate.\n");
+  if(!public_key) {
+    if(isatty(fileno(input_file))) {
+      fprintf(stderr, "Please paste the public key...\n");
+    }
+
+    if(key_format == key_format_arg_PEM) {
+      public_key = PEM_read_PUBKEY(input_file, NULL, NULL, NULL);
+      if(!public_key) {
+        fprintf(stderr, "Failed loading public key for certificate.\n");
+        goto selfsign_out;
+      }
+    } else {
+      fprintf(stderr, "Only PEM supported for public key input.\n");
       goto selfsign_out;
     }
-  } else {
-    fprintf(stderr, "Only PEM supported for public key input.\n");
-    goto selfsign_out;
   }
-  algorithm = get_algorithm(public_key);
+
+  unsigned char algorithm = get_algorithm(public_key);
   if(algorithm == 0) {
     goto selfsign_out;
   }
-
-  md = get_hash(hash, &oid, &oid_len);
-  if(md == NULL) {
+  if(algorithm == YKPIV_ALGO_X25519) {
+    fprintf(stderr, "Signing with X25519 keys is not supported.\n");
     goto selfsign_out;
+  }
+
+  size_t oid_len = 0;
+  const unsigned char *oid = 0;
+  const EVP_MD *md = NULL;
+  if (algorithm != YKPIV_ALGO_ED25519) {
+    md = get_hash(hash, &oid, &oid_len);
+    if (md == NULL) {
+      goto selfsign_out;
+    }
   }
   x509 = X509_new();
   if(!x509) {
@@ -957,7 +1195,10 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     goto selfsign_out;
   }
   if(serial) {
-    ASN1_INTEGER_set(sno, *serial);
+    if(ASN1_INTEGER_set(sno, *serial) != 1) {
+      fprintf(stderr, "Failed to read serial number.\n");
+      goto selfsign_out;
+    }
   } else {
     ser = BN_new();
     if(!ser) {
@@ -998,7 +1239,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     fprintf(stderr, "Failed setting certificate issuer.\n");
     goto selfsign_out;
   }
-  nid = get_hashnid(hash, algorithm);
+  int nid = get_hashnid(hash, algorithm);
   if(nid == 0) {
     goto selfsign_out;
   }
@@ -1042,14 +1283,29 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
         goto selfsign_out;
       }
     }
+
+    if(attestation && !X509_add_ext(x509, attestation, -1)) {
+      fprintf(stderr, "Failed adding attestation extension.\n");
+      goto selfsign_out;
+    }
+
+    if(attest_cert && !X509_add_ext(x509, attest_cert, -1)) {
+      fprintf(stderr, "Failed adding attestation certificate extension.\n");
+      goto selfsign_out;
+    }
   }
 
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
+  unsigned char digest[EVP_MAX_MD_SIZE + MAX_OID_LEN] = {0};
+  unsigned char *signinput;
+  size_t len = 0;
+
+  ASN1_TYPE null_parameter;
   null_parameter.type = V_ASN1_NULL;
   null_parameter.value.ptr = NULL;
 
-  md_len = (unsigned int)EVP_MD_size(md);
-  digest_len = sizeof(digest) - md_len;
+  unsigned int md_len = (unsigned int)EVP_MD_size(md);
+  unsigned int digest_len = sizeof(digest) - md_len;
 
   if(YKPIV_IS_RSA(algorithm)) {
     signinput = digest;
@@ -1072,7 +1328,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     goto selfsign_out;
   }
   {
-    unsigned char signature[1024];
+    unsigned char signature[1024] = {0};
     size_t sig_len = sizeof(signature);
     if(!sign_data(state, signinput, len, signature, &sig_len, algorithm, key)) {
       fprintf(stderr, "Failed signing certificate.\n");
@@ -1087,19 +1343,27 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
 #else
   /* With opaque structures we can not touch whatever we want, but we need
    * to embed the sign_data function in the RSA/EC key structures  */
-  wrap_public_key(state, algorithm, public_key, key, oid, oid_len);
+  EVP_PKEY *sk = wrap_public_key(state, algorithm, public_key, key, oid, oid_len);
 
-  if(X509_sign(x509, public_key, md) == 0) {
+  if(X509_sign(x509, sk, md) == 0) {
     fprintf(stderr, "Failed signing certificate.\n");
+    ERR_print_errors_fp(stderr);
+    EVP_PKEY_free(sk);
     goto selfsign_out;
   }
+
+  EVP_PKEY_free(sk);
 #endif
 
   if(key_format == key_format_arg_PEM) {
-    PEM_write_X509(output_file, x509);
-    ret = true;
+    if(PEM_write_X509(output_file, x509) == 1) {
+      ret = true;
+    } else {
+      fprintf(stderr, "Failed writing x509 information\n");
+    }
+
   } else {
-    fprintf(stderr, "Only PEM support available for certificate requests.\n");
+    fprintf(stderr, "Only PEM support available for certificates.\n");
   }
 
 selfsign_out:
@@ -1109,27 +1373,19 @@ selfsign_out:
   if(output_file && output_file != stdout) {
     fclose(output_file);
   }
+ #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
   if(x509) {
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
-    if(x509->sig_alg->parameter) {
+   if(x509->sig_alg->parameter) {
       x509->sig_alg->parameter = NULL;
       x509->cert_info->signature->parameter = NULL;
     }
+  }
 #endif
-    X509_free(x509);
-  }
-  if(public_key) {
-    EVP_PKEY_free(public_key);
-  }
-  if(name) {
-    X509_NAME_free(name);
-  }
-  if(ser) {
-    BN_free(ser);
-  }
-  if(sno) {
-    ASN1_INTEGER_free(sno);
-  }
+  X509_free(x509);
+  EVP_PKEY_free(public_key);
+  X509_NAME_free(name);
+  BN_free(ser);
+  ASN1_INTEGER_free(sno);
   return ret;
 }
 
@@ -1163,7 +1419,7 @@ static bool verify_pin(ykpiv_state *state, const char *pin) {
 static bool change_pin(ykpiv_state *state, enum enum_action action, const char *pin,
     const char *new_pin) {
   const char *name = action == action_arg_changeMINUS_pin ? "pin" : "puk";
-  int (*op)(ykpiv_state *state, const char * puk, size_t puk_len,
+  ykpiv_rc (*op)(ykpiv_state *state, const char * puk, size_t puk_len,
             const char * new_pin, size_t new_pin_len, int *tries) = ykpiv_change_pin;
   size_t pin_len;
   size_t new_len;
@@ -1191,8 +1447,6 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
   }
   res = op(state, pin, pin_len, new_pin, new_len, &tries);
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wswitch-enum"
   switch (res) {
     case YKPIV_OK:
       return true;
@@ -1214,7 +1468,6 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
       fprintf(stderr, "Failed changing/unblocking code, error: %s\n", ykpiv_strerror(res));
       return false;
   }
-#pragma GCC diagnostic pop
 }
 
 static bool delete_certificate(ykpiv_state *state, enum enum_slot slot) {
@@ -1257,8 +1510,11 @@ static bool read_certificate(ykpiv_state *state, enum enum_slot slot,
     }
 
     if (key_format == key_format_arg_PEM) {
-      PEM_write_X509(output_file, x509);
-      ret = true;
+      if(PEM_write_X509(output_file, x509) == 1) {
+        ret = true;
+      } else {
+        fprintf(stderr, "Failed writing x509 information\n");
+      }
     }
     else {
       if (!SSH_write_X509(output_file, x509)) {
@@ -1293,10 +1549,10 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
   FILE *output_file = NULL;
   int key;
   unsigned int hash_len;
-  unsigned char hashed[EVP_MAX_MD_SIZE * 2];
+  unsigned char hashed[YKPIV_OBJ_MAX_SIZE] = {0};
   bool ret = false;
   int algo;
-  const EVP_MD *md;
+  const EVP_MD *md = NULL;
 
   key = get_slot_hex(slot);
 
@@ -1324,26 +1580,45 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
 
   {
     EVP_MD_CTX *mdctx;
-
-    md = get_hash(hash, NULL, NULL);
-    if(md == NULL) {
+    if(algo == YKPIV_ALGO_X25519) {
+      fprintf(stderr, "Signing with X25519 key is not supported\n");
       goto out;
-    }
+    } else if (algo == YKPIV_ALGO_ED25519) {
+      hash_len = fread(hashed, 1, sizeof(hashed), input_file);
+      if(hash_len >= sizeof(hashed)) {
+        fprintf(stderr, "Cannot perform signature. File too big.\n");
+        goto out;
+      }
+    } else {
+      md = get_hash(hash, NULL, NULL);
+      if (md == NULL) {
+        goto out;
+      }
 
-    mdctx = EVP_MD_CTX_create();
-    EVP_DigestInit_ex(mdctx, md, NULL);
-    while(!feof(input_file)) {
-      char buf[1024];
-      size_t len = fread(buf, 1, 1024, input_file);
-      EVP_DigestUpdate(mdctx, buf, len);
-    }
-    EVP_DigestFinal_ex(mdctx, hashed, &hash_len);
+      mdctx = EVP_MD_CTX_create();
+      if (EVP_DigestInit_ex(mdctx, md, NULL) != 1) {
+        fprintf(stderr, "Failed to initialize digest operation\n");
+        goto out;
+      }
+      while (!feof(input_file)) {
+        char buf[8192] = {0};
+        size_t len = fread(buf, 1, sizeof(buf), input_file);
+        if (EVP_DigestUpdate(mdctx, buf, len) != 1) {
+          fprintf(stderr, "Failed to update digest data\n");
+          goto out;
+        }
+      }
+      if (EVP_DigestFinal_ex(mdctx, hashed, &hash_len) != 1) {
+        fprintf(stderr, "Failed to finalize digest operation\n");
+        goto out;
+      }
 
-    if(verbosity) {
-      fprintf(stderr, "file hashed as: ");
-      dump_data(hashed, hash_len, stderr, true, format_arg_hex);
+      if (verbosity) {
+        fprintf(stderr, "File hashed as: ");
+        dump_data(hashed, hash_len, stderr, true, format_arg_hex);
+      }
+      EVP_MD_CTX_destroy(mdctx);
     }
-    EVP_MD_CTX_destroy(mdctx);
   }
 
   if(YKPIV_IS_RSA(algo)) {
@@ -1351,15 +1626,15 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
   }
 
   {
-    unsigned char buf[1024];
+    unsigned char buf[1024] = {0};
     size_t len = sizeof(buf);
     if(!sign_data(state, hashed, hash_len, buf, &len, algo, key)) {
-      fprintf(stderr, "failed signing file\n");
+      fprintf(stderr, "Failed signing file\n");
       goto out;
     }
 
     if(verbosity) {
-      fprintf(stderr, "file signed as: ");
+      fprintf(stderr, "File signed as: ");
       dump_data(buf, len, stderr, true, format_arg_hex);
     }
     fwrite(buf, 1, len, output_file);
@@ -1382,10 +1657,8 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     FILE *output) {
   int object = (int)ykpiv_util_slot_object(get_slot_hex(slot));
   int slot_name;
-  unsigned char data[YKPIV_OBJ_MAX_SIZE];
-  const unsigned char *ptr = data;
+  unsigned char data[YKPIV_OBJ_MAX_SIZE] = {0};
   unsigned long len = sizeof(data);
-  unsigned long offs, cert_len;
   X509 *x509 = NULL;
   X509_NAME *subj;
   BIO *bio = NULL;
@@ -1398,82 +1671,106 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
 
   fprintf(output, "Slot %x:\t", slot_name);
 
-  if(*ptr++ == 0x70) {
-    unsigned int md_len = sizeof(data);
-    const ASN1_TIME *not_before, *not_after;
+  unsigned char certdata[YKPIV_OBJ_MAX_SIZE * 10] = {0};
+  size_t certdata_len = sizeof(certdata);
+  if(ykpiv_util_get_certdata(data, len, certdata, &certdata_len) != YKPIV_OK) {
+    fprintf(output, "Failed to get certificate data\n");
+    return;
+  }
 
-    offs = get_length(ptr, data + len, &cert_len);
-    if(!offs) {
-      fprintf(output, "Invalid cert length.\n");
-      goto cert_out;
-    }
-    ptr += offs;
-    x509 = d2i_X509(NULL, &ptr, cert_len);
-    if(!x509) {
-      fprintf(output, "Invalid cert data.\n");
-      goto cert_out;
-    }
-    {
-      EVP_PKEY *key = X509_get_pubkey(x509);
-      if(!key) {
-        fprintf(output, "Parse error.\n");
-        goto cert_out;
-      }
-      fprintf(output, "\n\tAlgorithm:\t");
-      switch(get_algorithm(key)) {
-        case YKPIV_ALGO_RSA1024:
-          fprintf(output, "RSA1024\n");
-          break;
-        case YKPIV_ALGO_RSA2048:
-          fprintf(output, "RSA2048\n");
-          break;
-        case YKPIV_ALGO_ECCP256:
-          fprintf(output, "ECCP256\n");
-          break;
-        case YKPIV_ALGO_ECCP384:
-          fprintf(output, "ECCP384\n");
-          break;
-        default:
-          fprintf(output, "Unknown\n");
-      }
-      EVP_PKEY_free(key);
-    }
-    subj = X509_get_subject_name(x509);
-    if(!subj) {
-      fprintf(output, "Parse error.\n");
-      goto cert_out;
-    }
-    fprintf(output, "\tSubject DN:\t");
-    X509_NAME_print_ex_fp(output, subj, 0, XN_FLAG_COMPAT);
-    fprintf(output, "\n");
-    subj = X509_get_issuer_name(x509);
-    if(!subj) {
-      fprintf(output, "Parse error.\n");
-      goto cert_out;
-    }
-    fprintf(output, "\tIssuer DN:\t");
-    X509_NAME_print_ex_fp(output, subj, 0, XN_FLAG_COMPAT);
-    fprintf(output, "\n");
-    X509_digest(x509, md, data, &md_len);
-    fprintf(output, "\tFingerprint:\t");
-    dump_data(data, md_len, output, false, format_arg_hex);
-
-    bio = BIO_new_fp(output, BIO_NOCLOSE | BIO_FP_TEXT);
-    not_before = X509_get_notBefore(x509);
-    if(not_before) {
-      fprintf(output, "\tNot Before:\t");
-      ASN1_TIME_print(bio, not_before);
-      fprintf(output, "\n");
-    }
-    not_after = X509_get_notAfter(x509);
-    if(not_after) {
-      fprintf(output, "\tNot After:\t");
-      ASN1_TIME_print(bio, not_after);
-      fprintf(output, "\n");
-    }
-  } else {
+  const unsigned char *certdata_ptr = certdata;
+  x509 = d2i_X509(NULL, &certdata_ptr, certdata_len);
+  if (x509 == NULL) {
     fprintf(output, "Parse error.\n");
     return;
+  }
+
+  unsigned int md_len = sizeof(data);
+  const ASN1_TIME *not_before, *not_after;
+
+  EVP_PKEY *key = X509_get_pubkey(x509);
+  if(!key) {
+    fprintf(output, "Parse error.\n");
+    goto cert_out;
+  }
+  fprintf(output, "\n\tAlgorithm:\t");
+  switch(get_algorithm(key)) {
+    case YKPIV_ALGO_RSA1024:
+      fprintf(output, "RSA1024\n");
+      break;
+    case YKPIV_ALGO_RSA2048:
+      fprintf(output, "RSA2048\n");
+      break;
+    case YKPIV_ALGO_RSA3072:
+      fprintf(output, "RSA3072\n");
+      break;
+    case YKPIV_ALGO_RSA4096:
+      fprintf(output, "RSA4096\n");
+      break;
+    case YKPIV_ALGO_ECCP256:
+      fprintf(output, "ECCP256\n");
+      break;
+    case YKPIV_ALGO_ECCP384:
+      fprintf(output, "ECCP384\n");
+      break;
+    case YKPIV_ALGO_ED25519:
+      fprintf(output, "ED25519\n");
+      break;
+    case YKPIV_ALGO_X25519:
+      fprintf(output, "X25519\n");
+      break;
+    default:
+      fprintf(output, "Unknown\n");
+  }
+  EVP_PKEY_free(key);
+
+  subj = X509_get_subject_name(x509);
+  if(!subj) {
+    fprintf(output, "Parse error.\n");
+    goto cert_out;
+  }
+  fprintf(output, "\tSubject DN:\t");
+  if(X509_NAME_print_ex_fp(output, subj, 0, XN_FLAG_COMPAT) != 1) {
+    fprintf(output, "Failed to write Subject DN.\n");
+    goto cert_out;
+  }
+  fprintf(output, "\n");
+  subj = X509_get_issuer_name(x509);
+  if(!subj) {
+    fprintf(output, "Parse error.\n");
+    goto cert_out;
+  }
+  fprintf(output, "\tIssuer DN:\t");
+  if(X509_NAME_print_ex_fp(output, subj, 0, XN_FLAG_COMPAT) != 1) {
+    fprintf(output, "Failed to write Issuer DN.\n");
+    goto cert_out;
+  }
+  fprintf(output, "\n");
+  if(X509_digest(x509, md, data, &md_len) != 1) {
+    fprintf(output, "Failed to digest data.\n");
+    goto cert_out;
+  }
+  fprintf(output, "\tFingerprint:\t");
+  dump_data(data, md_len, output, false, format_arg_hex);
+
+  bio = BIO_new_fp(output, BIO_NOCLOSE | BIO_FP_TEXT);
+  not_before = X509_get_notBefore(x509);
+  if(not_before) {
+    fprintf(output, "\tNot Before:\t");
+    if(ASN1_TIME_print(bio, not_before) != 1) {
+      fprintf(output, "Failed to write Not Before time.\n");
+      goto cert_out;
+    }
+    fprintf(output, "\n");
+  }
+  not_after = X509_get_notAfter(x509);
+  if(not_after) {
+    fprintf(output, "\tNot After:\t");
+    if(ASN1_TIME_print(bio, not_after) != 1) {
+      fprintf(output, "Failed to write Not After time.\n");
+      goto cert_out;
+    }
+    fprintf(output, "\n");
   }
 cert_out:
   if(x509) {
@@ -1488,7 +1785,7 @@ static bool status(ykpiv_state *state, enum enum_hash hash,
                    enum enum_slot slot,
                    const char *output_file_name) {
   const EVP_MD *md;
-  unsigned char buf[YKPIV_OBJ_MAX_SIZE];
+  unsigned char buf[YKPIV_OBJ_MAX_SIZE] = {0};
   long unsigned len = sizeof(buf);
   int i;
   uint32_t serial = 0;
@@ -1556,7 +1853,7 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
     enum enum_key_format cert_format, int verbose) {
   const EVP_MD *md;
   bool ret = false;
-  unsigned char data[1024];
+  unsigned char data[1024] = {0};
   unsigned int data_len;
   X509 *x509 = NULL;
   EVP_PKEY *pubkey = NULL;
@@ -1590,7 +1887,7 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
   }
 
   {
-    unsigned char rand[128];
+    unsigned char rand[128] = {0};
     EVP_MD_CTX *mdctx;
     if(RAND_bytes(rand, sizeof(rand)) <= 0) {
       fprintf(stderr, "error: no randomness.\n");
@@ -1598,9 +1895,18 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
     }
 
     mdctx = EVP_MD_CTX_create();
-    EVP_DigestInit_ex(mdctx, md, NULL);
-    EVP_DigestUpdate(mdctx, rand, 128);
-    EVP_DigestFinal_ex(mdctx, data, &data_len);
+    if(EVP_DigestInit_ex(mdctx, md, NULL) != 1) {
+      fprintf(stderr, "Failed to initialize digest operation\n");
+      goto test_out;
+    }
+    if(EVP_DigestUpdate(mdctx, rand, 128) != 1) {
+      fprintf(stderr, "Failed to update digest data\n");
+      goto test_out;
+    }
+    if(EVP_DigestFinal_ex(mdctx, data, &data_len) != 1) {
+      fprintf(stderr, "Failed to finalize digest operation\n");
+      goto test_out;
+    }
     if(verbose) {
       fprintf(stderr, "Test data hashes as: ");
       dump_data(data, data_len, stderr, true, format_arg_hex);
@@ -1609,8 +1915,8 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
   }
 
   {
-    unsigned char signature[1024];
-    unsigned char encoded[1024];
+    unsigned char signature[1024] = {0};
+    unsigned char encoded[1024] = {0};
     unsigned char *ptr = data;
     unsigned int enc_len;
     size_t sig_len = sizeof(signature);
@@ -1641,6 +1947,8 @@ static bool test_signature(ykpiv_state *state, enum enum_slot slot,
     switch(algorithm) {
       case YKPIV_ALGO_RSA1024:
       case YKPIV_ALGO_RSA2048:
+      case YKPIV_ALGO_RSA3072:
+      case YKPIV_ALGO_RSA4096:
         {
           RSA *rsa = EVP_PKEY_get1_RSA(pubkey);
           if(!rsa) {
@@ -1736,9 +2044,9 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
     }
     key = get_slot_hex(slot);
     if(YKPIV_IS_RSA(algorithm)) {
-      unsigned char secret[32];
-      unsigned char secret2[32];
-      unsigned char data[256];
+      unsigned char secret[32] = {0};
+      unsigned char secret2[32] = {0};
+      unsigned char data[256] = {0};
       int len;
       size_t len2 = sizeof(data);
       RSA *rsa = EVP_PKEY_get1_RSA(pubkey);
@@ -1777,9 +2085,9 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
         fprintf(stderr, "Failed unwrapping PKCS1 envelope.\n");
       }
     } else if(YKPIV_IS_EC(algorithm)) {
-      unsigned char secret[48];
-      unsigned char secret2[48];
-      unsigned char public_key[97];
+      unsigned char secret[48] = {0};
+      unsigned char secret2[48] = {0};
+      unsigned char public_key[97] = {0};
       unsigned char *ptr = public_key;
       size_t len = sizeof(secret);
       EC_KEY *ec = EVP_PKEY_get1_EC_KEY(pubkey);
@@ -1795,10 +2103,19 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
       }
 
       tmpkey = EC_KEY_new_by_curve_name(nid);
-      EC_KEY_generate_key(tmpkey);
-      ECDH_compute_key(secret, len, EC_KEY_get0_public_key(ec), tmpkey, NULL);
+      if(EC_KEY_generate_key(tmpkey) != 1) {
+        fprintf(stderr, "Failed to generate EC key\n");
+        goto decipher_out;
+      }
+      if(ECDH_compute_key(secret, len, EC_KEY_get0_public_key(ec), tmpkey, NULL) == -1) {
+        fprintf(stderr, "Failed to compute ECDH key\n");
+        goto decipher_out;
+      }
 
-      i2o_ECPublicKey(tmpkey, &ptr);
+      if(i2o_ECPublicKey(tmpkey, &ptr) < 0) {
+        fprintf(stderr, "Failed to parse EC public key\n");
+        goto decipher_out;
+      }
       if(ykpiv_decipher_data(state, public_key, (key_len * 2) + 1, secret2, &len, algorithm, key) != YKPIV_OK) {
         fprintf(stderr, "Failed ECDH exchange!\n");
         goto decipher_out;
@@ -1835,7 +2152,7 @@ decipher_out:
 }
 
 static bool list_readers(ykpiv_state *state) {
-  char readers[2048];
+  char readers[2048] = {0};
   char *reader_ptr;
   size_t len = sizeof(readers);
   ykpiv_rc rc = ykpiv_list_readers(state, readers, &len);
@@ -1851,7 +2168,7 @@ static bool list_readers(ykpiv_state *state) {
 
 static bool attest(ykpiv_state *state, enum enum_slot slot,
     enum enum_key_format key_format, const char *output_file_name) {
-  unsigned char data[2048];
+  unsigned char data[2048] = {0};
   size_t len = sizeof(data);
   bool ret = false;
   X509 *x509 = NULL;
@@ -1880,7 +2197,9 @@ static bool attest(ykpiv_state *state, enum enum_slot slot,
       fprintf(stderr, "Failed parsing x509 information.\n");
       goto attest_out;
     }
-    PEM_write_X509(output_file, x509);
+    if(PEM_write_X509(output_file, x509) != 1){
+      fprintf(stderr, "Failed writing x509 information\n");
+    }
   } else {
     fwrite(data, len, 1, output_file);
   }
@@ -1900,7 +2219,7 @@ static bool write_object(ykpiv_state *state, int id,
     const char *input_file_name, int verbosity, enum enum_format format) {
   bool ret = false;
   FILE *input_file = NULL;
-  unsigned char data[YKPIV_OBJ_MAX_SIZE];
+  unsigned char data[YKPIV_OBJ_MAX_SIZE] = {0};
   size_t len = sizeof(data);
   ykpiv_rc res;
 
@@ -1939,7 +2258,7 @@ write_out:
 static bool read_object(ykpiv_state *state, int id, const char *output_file_name,
     enum enum_format format) {
   FILE *output_file = NULL;
-  unsigned char data[YKPIV_OBJ_MAX_SIZE];
+  unsigned char data[YKPIV_OBJ_MAX_SIZE] = {0};
   unsigned long len = sizeof(data);
   bool ret = false;
 
@@ -1965,20 +2284,26 @@ read_out:
 
 int main(int argc, char *argv[]) {
   struct gengetopt_args_info args_info;
+  const uint8_t mgm_algo[] = {YKPIV_ALGO_3DES, YKPIV_ALGO_AES128, YKPIV_ALGO_AES192, YKPIV_ALGO_AES256};
   ykpiv_state *state;
+  ykpiv_rc rc;
   int verbosity;
   enum enum_action action;
   unsigned int i;
   int ret = EXIT_SUCCESS;
   bool authed = false;
-  char pwbuf[128];
+  char pwbuf[128] = {0};
   char *password;
+
+  if (setlocale(LC_ALL, "") == NULL) {
+    fprintf(stderr, "Warning, unable to reset locale\n");
+  }
 
   if(cmdline_parser(argc, argv, &args_info) != 0) {
     return EXIT_FAILURE;
   }
 
-  verbosity = args_info.verbose_arg + (int)args_info.verbose_given;
+  verbosity = args_info.verbose_arg ? args_info.verbose_arg : (int)args_info.verbose_given;
   password = args_info.password_arg;
 
   for(i = 0; i < args_info.action_given; i++) {
@@ -2001,9 +2326,18 @@ int main(int argc, char *argv[]) {
       case action_arg_testMINUS_signature:
       case action_arg_testMINUS_decipher:
       case action_arg_attest:
+      case action_arg_deleteMINUS_key:
         if(args_info.slot_arg == slot__NULL) {
           fprintf(stderr, "The '%s' action needs a slot (-s) to operate on.\n",
               cmdline_parser_action_values[action]);
+          cmdline_parser_free(&args_info);
+          return EXIT_FAILURE;
+        }
+        break;
+      case action_arg_moveMINUS_key:
+        if(args_info.slot_arg == slot__NULL || args_info.to_slot_arg == to_slot__NULL) {
+          fprintf(stderr, "The '%s' action needs both a slot (-s) to operate on and a --to-slot to move the key to.\n",
+                  cmdline_parser_action_values[action]);
           cmdline_parser_free(&args_info);
           return EXIT_FAILURE;
         }
@@ -2042,14 +2376,26 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  if(ykpiv_init(&state, verbosity) != YKPIV_OK) {
-    fprintf(stderr, "Failed initializing library.\n");
+  /* openssl setup.. */
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
+  OpenSSL_add_all_algorithms();
+#else
+  OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, 0);
+#endif
+
+  if((rc = ykpiv_init(&state, verbosity)) != YKPIV_OK) {
+    fprintf(stderr, "Failed initializing library: %s.\n", ykpiv_strerror(rc));
     cmdline_parser_free(&args_info);
     return EXIT_FAILURE;
   }
 
-  if(ykpiv_connect(state, args_info.reader_arg) != YKPIV_OK) {
-    fprintf(stderr, "Failed to connect to yubikey.\nTry removing and reconnecting the device.\n");
+  if((rc = ykpiv_connect(state, args_info.reader_arg)) != YKPIV_OK) {
+    fprintf(stderr, "Failed to connect to yubikey: %s.\n", ykpiv_strerror(rc));
+    if (rc == YKPIV_PCSC_SERVICE_ERROR) {
+      fprintf(stderr, "Try restarting the PCSC subsystem.\n");
+    } else if (rc == YKPIV_PCSC_ERROR) {
+      fprintf(stderr, "Try removing and reconnecting the device.\n");
+    }
     ykpiv_done(state);
     cmdline_parser_free(&args_info);
     return EXIT_FAILURE;
@@ -2057,12 +2403,16 @@ int main(int argc, char *argv[]) {
 
   for(i = 0; i < args_info.action_given; i++) {
     action = *(args_info.action_arg + i);
+    if(verbosity) {
+      fprintf(stderr, "Now processing for action '%s'.\n",
+          cmdline_parser_action_values[action]);
+    }
     switch(action) {
       case action_arg_importMINUS_key:
       case action_arg_importMINUS_certificate:
         if(args_info.key_format_arg == key_format_arg_PKCS12 && !password) {
           if(verbosity) {
-            fprintf(stderr, "Asking for password since '%s' needs it.\n", cmdline_parser_action_values[action]);
+            fprintf(stderr, "Asking for password since action '%s' needs it.\n", cmdline_parser_action_values[action]);
           }
           if(!read_pw("Password", pwbuf, sizeof(pwbuf), false, args_info.stdin_input_flag)) {
             fprintf(stderr, "Failed to get password.\n");
@@ -2080,32 +2430,41 @@ int main(int argc, char *argv[]) {
       case action_arg_setMINUS_ccc:
       case action_arg_deleteMINUS_certificate:
       case action_arg_writeMINUS_object:
+      case action_arg_moveMINUS_key:
+      case action_arg_deleteMINUS_key:
         if(!authed) {
-          unsigned char key[KEY_LEN];
-          size_t key_len = sizeof(key);
-          char keybuf[KEY_LEN*2+2]; /* one extra byte for potential \n */
-          char *key_ptr = args_info.key_arg;
           if(verbosity) {
             fprintf(stderr, "Authenticating since action '%s' needs that.\n", cmdline_parser_action_values[action]);
           }
-          if(args_info.key_given && args_info.key_orig == NULL) {
-            if(!read_pw("management key", keybuf, sizeof(keybuf), false, args_info.stdin_input_flag)) {
-              fprintf(stderr, "Failed to read management key from stdin,\n");
-              ykpiv_done(state);
-              cmdline_parser_free(&args_info);
-              return EXIT_FAILURE;
-            }
-            key_ptr = keybuf;
-          }
-          if(ykpiv_hex_decode(key_ptr, strlen(key_ptr), key, &key_len) != YKPIV_OK) {
-            fprintf(stderr, "Failed decoding key!\n");
+          ykpiv_config cfg = {0};
+          if((rc = ykpiv_util_get_config(state, &cfg)) != YKPIV_OK) {
+            fprintf(stderr, "Failed to get config metadata: %s.\n", ykpiv_strerror(rc));
             ykpiv_done(state);
             cmdline_parser_free(&args_info);
             return EXIT_FAILURE;
           }
-
-          if(ykpiv_authenticate(state, key) != YKPIV_OK) {
-            fprintf(stderr, "Failed authentication with the application.\n");
+          if(cfg.mgm_type != YKPIV_CONFIG_MGM_PROTECTED) {
+            char keybuf[KEY_LEN * 2 + 2] = {0}; /* one extra byte for potential \n */
+            char *key_ptr = args_info.key_arg;
+            if(args_info.key_given && args_info.key_orig == NULL) {
+              if(!read_pw("management key", keybuf, sizeof(keybuf), false, args_info.stdin_input_flag)) {
+                fprintf(stderr, "Failed to read management key from stdin,\n");
+                ykpiv_done(state);
+                cmdline_parser_free(&args_info);
+                return EXIT_FAILURE;
+              }
+              key_ptr = keybuf;
+            }
+            cfg.mgm_len = sizeof(cfg.mgm_key);
+            if((rc = ykpiv_hex_decode(key_ptr, strlen(key_ptr), cfg.mgm_key, &cfg.mgm_len)) != YKPIV_OK) {
+              fprintf(stderr, "Failed decoding key: %s.\n", ykpiv_strerror(rc));
+              ykpiv_done(state);
+              cmdline_parser_free(&args_info);
+              return EXIT_FAILURE;
+            }
+          }
+          if((rc = ykpiv_authenticate2(state, cfg.mgm_key, cfg.mgm_len)) != YKPIV_OK) {
+            fprintf(stderr, "Failed authentication with the application: %s.\n", ykpiv_strerror(rc));
             ykpiv_done(state);
             cmdline_parser_free(&args_info);
             return EXIT_FAILURE;
@@ -2116,7 +2475,7 @@ int main(int argc, char *argv[]) {
           authed = true;
         } else {
           if(verbosity) {
-            fprintf(stderr, "Skipping authentication for '%s' since it's already done.\n", cmdline_parser_action_values[action]);
+            fprintf(stderr, "Skipping authentication for action '%s' since it's already done.\n", cmdline_parser_action_values[action]);
           }
         }
         break;
@@ -2141,23 +2500,6 @@ int main(int argc, char *argv[]) {
           fprintf(stderr, "Action '%s' does not need authentication.\n", cmdline_parser_action_values[action]);
         }
     }
-  }
-
-
-  /* openssl setup.. */
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-  OpenSSL_add_all_algorithms();
-#endif
-
-
-  for(i = 0; i < args_info.action_given; i++) {
-    char new_keybuf[KEY_LEN*2+2] = {0}; /* one extra byte for potential \n */
-    char *new_mgm_key = args_info.new_key_arg;
-    action = *(args_info.action_arg + i);
-    if(verbosity) {
-      fprintf(stderr, "Now processing for action '%s'.\n",
-          cmdline_parser_action_values[action]);
-    }
     switch(action) {
       case action_arg_version:
         print_version(state, args_info.output_arg);
@@ -2171,33 +2513,44 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_setMINUS_mgmMINUS_key:
-        if(!new_mgm_key) {
-          if(!read_pw("new management key", new_keybuf, sizeof(new_keybuf), true, args_info.stdin_input_flag)) {
-            fprintf(stderr, "Failed to read management key from stdin,\n");
-            ret = EXIT_FAILURE;
-            break;
+        {
+          char new_keybuf[KEY_LEN * 2 + 2] = {0}; /* one extra byte for potential \n */
+          char *new_mgm_key = args_info.new_key_arg;
+          if(!new_mgm_key) {
+            if(!read_pw("new management key", new_keybuf, sizeof(new_keybuf), true, args_info.stdin_input_flag)) {
+              fprintf(stderr, "Failed to read management key from stdin,\n");
+              ret = EXIT_FAILURE;
+              break;
+            }
+            new_mgm_key = new_keybuf;
           }
-          new_mgm_key = new_keybuf;
-        }
-        if(strlen(new_mgm_key) == (KEY_LEN * 2)){
-          unsigned char new_key[KEY_LEN];
-          size_t new_key_len = sizeof(new_key);
-          if(ykpiv_hex_decode(new_mgm_key, strlen(new_mgm_key), new_key, &new_key_len) != YKPIV_OK) {
-            fprintf(stderr, "Failed decoding new key!\n");
+          ykpiv_mgm new_key = {KEY_LEN};
+          if((rc = ykpiv_hex_decode(new_mgm_key, strlen(new_mgm_key), new_key.data, &new_key.len)) != YKPIV_OK) {
+            fprintf(stderr, "Failed decoding new key: %s.\n", ykpiv_strerror(rc));
             ret = EXIT_FAILURE;
-          } else if(ykpiv_set_mgmkey2(state, new_key, args_info.touch_policy_arg == touch_policy_arg_always ? 1 : 0) != YKPIV_OK) {
-            fprintf(stderr, "Failed setting the new key!");
+          } else if((rc = ykpiv_set_mgmkey3(state, new_key.data, new_key.len, mgm_algo[args_info.new_key_algo_arg],
+                        get_touch_policy(args_info.touch_policy_arg))) != YKPIV_OK) {
+            fprintf(stderr, "Failed setting the new key: %s.\n", ykpiv_strerror(rc));
             if(args_info.touch_policy_arg != touch_policy__NULL) {
-              fprintf(stderr, " Maybe touch policy is not supported on this key?");
+              fprintf(stderr, " Maybe this touch policy or algorithm is not supported on this key?");
             }
             fprintf(stderr, "\n");
             ret = EXIT_FAILURE;
           } else {
             fprintf(stderr, "Successfully set new management key.\n");
+            ykpiv_config config = {0};
+            if((rc = ykpiv_util_get_config(state, &config)) != YKPIV_OK) {
+              fprintf(stderr, "Failed reading configuration metadata: %s.\n", ykpiv_strerror(rc));
+            } else {
+              if (config.mgm_type == YKPIV_CONFIG_MGM_PROTECTED) {
+                if((rc = ykpiv_util_update_protected_mgm(state, &new_key)) != YKPIV_OK) {
+                  fprintf(stderr, "Failed updating pin-protected management key metadata: %s.\n", ykpiv_strerror(rc));
+                } else {
+                  fprintf(stderr, "Successfully updated pin-protected management key metadata.\n");
+                }
+              }
+            }
           }
-        } else {
-          fprintf(stderr, "The new management key has to be exactly %d hexadecimal characters.\n", KEY_LEN * 2);
-          ret = EXIT_FAILURE;
         }
         break;
       case action_arg_reset:
@@ -2227,7 +2580,7 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_importMINUS_certificate:
-        if(import_cert(state, args_info.key_format_arg, args_info.input_arg, args_info.slot_arg, password) == false) {
+        if(import_cert(state, args_info.key_format_arg, args_info.compress_flag, args_info.input_arg, args_info.slot_arg, password) == false) {
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully imported a new certificate.\n");
@@ -2314,7 +2667,7 @@ int main(int argc, char *argv[]) {
         if(selfsign_certificate(state, args_info.key_format_arg, args_info.input_arg,
               args_info.slot_arg, args_info.subject_arg, args_info.hash_arg,
               args_info.serial_given ? &args_info.serial_arg : NULL, args_info.valid_days_arg,
-              args_info.output_arg) == false) {
+              args_info.output_arg, args_info.attestation_flag) == false) {
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully generated a new self signed certificate.\n");
@@ -2371,6 +2724,23 @@ int main(int argc, char *argv[]) {
           ret = EXIT_FAILURE;
         }
         break;
+      case action_arg_moveMINUS_key: {
+        int from_slot = get_slot_hex(args_info.slot_arg);
+        int to_slot = get_slot_hex((enum enum_slot) args_info.to_slot_arg);
+        if (move_key(state, from_slot, to_slot) == false) {
+          ret = EXIT_FAILURE;
+        } else {
+          fprintf(stderr, "Successfully moved key.\n");
+        }
+        break;
+      }
+      case action_arg_deleteMINUS_key:
+        if(move_key(state, get_slot_hex(args_info.slot_arg), 0xFF) == false) {
+          ret = EXIT_FAILURE;
+        } else {
+          fprintf(stderr, "Successfully deleted key.\n");
+        }
+        break;
       case action__NULL:
       default:
         fprintf(stderr, "Wrong action. %d.\n", action);
@@ -2391,7 +2761,6 @@ int main(int argc, char *argv[]) {
         verbosity)) {
       fprintf(stderr, "Signature successful!\n");
     } else {
-      fprintf(stderr, "Failed signing!\n");
       ret = EXIT_FAILURE;
     }
   }

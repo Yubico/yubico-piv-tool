@@ -36,8 +36,12 @@ void ECDSA_SIG_get0(const ECDSA_SIG *sig, const BIGNUM **pr, const BIGNUM **ps);
 
 #if (LIBRESSL_VERSION_NUMBER < 0x2070500fL)
 
+#define ASN1_STRING_get0_data ASN1_STRING_data
+
 RSA *EVP_PKEY_get0_RSA(const EVP_PKEY *pkey);
 EC_KEY *EVP_PKEY_get0_EC_KEY(const EVP_PKEY *pkey);
+
+int BN_bn2binpad(const BIGNUM *a, unsigned char *to, int tolen);
 
 #endif
 

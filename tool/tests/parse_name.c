@@ -52,10 +52,17 @@ struct name {
   {"/foo/", "", false},
   {"/CN=test/foobar/", "", false},
   {"/CN=test/foo=bar/", "", false},
+  {"/CN=test/OU=foo/bar/O=EXAMPLE/", "", false},
+  {"/CN=test/OU=foo\\/bar/O=EXAMPLE/", "CN = test, OU = foo/bar, O = EXAMPLE", true},
+  {"CN=test/OU=bar/O=EXAMPLE/", "", false},
+  {"/CN=test/OU=bar/O=EXAMPLE", "", false},
+  {"/CN=test/OU=foo\\bar/O=EXAMPLE/", "CN = test, OU = foo\\\\bar, O = EXAMPLE", true},
+  {"/CN=test/OU=foo\\\\/O=EXAMPLE/", "CN = test, OU = foo\\\\, O = EXAMPLE", true},
+  {"/CN=test/OU=foo\\\\\\\\/bar/O=EXAMPLE/", "", false},
 };
 
 static bool test_name(const char *name, const char *expected) {
-  char buf[1024];
+  char buf[1024] = {0};
   BIO *bio;
   const char none[] = {0};
   X509_NAME *parsed = parse_name(name);
@@ -82,7 +89,7 @@ START_TEST(test_parse_name) {
 }
 END_TEST
 
-Suite *test_suite(void) {
+static Suite *test_suite(void) {
   Suite *s;
   TCase *tc;
 

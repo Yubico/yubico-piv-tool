@@ -3,76 +3,87 @@ name: MacOS Build
 on: [push]
 
 jobs:
-  build:
 
+  job1:
+    name: MacOS
     runs-on: macos-latest
-
     steps:
       # This action checks-out the repository under $GITHUB_WORKSPACE, so the workflow can access it.
       - name: checkout
         uses: actions/checkout@v2
       - name: Install prerequisites
         run: |
-          echo brew install pkg-config check gengetopt help2man opensc
+          set -x
           brew install pkg-config check gengetopt help2man opensc
-      - name: run cmake
+      - name: Build and install
         run: |
-          echo mkdir cmake_build
-          mkdir cmake_build
-
-          echo cd cmake_build
-          cd cmake_build
-
-          echo cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_PKG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig
+          set -x
+          mkdir build
+          cd build
           cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_PKG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig
-
-          echo make
           make
-
-          echo make test
           make test
 
-          echo "otool -L {yubico-piv-tool/libykpiv.dylib/libykcs11.dylib} | grep libcrypto"
           otool -L tool/yubico-piv-tool | grep libcrypto
           otool -L lib/libykpiv.dylib | grep libcrypto
           otool -L ykcs11/libykcs11.dylib | grep libcrypto
 
-          echo make install
           make install
 
-          echo "yubico-piv-tool --help | grep 'Usage: yubico-piv-tool'"
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
-
-          echo "objdump --syms /usr/local/lib/libykcs11.dylib | grep C_Sign"
           objdump --syms /usr/local/lib/libykcs11.dylib | grep C_Sign
-
           pkcs11-tool --module /usr/local/lib/libykcs11.dylib --show-info | grep Yubico
 
       - name: Build using OpenSSL static link
         run: |
+          set -x
           export PKG_CONFIG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig:PKG_CONFIG_PATH
 
-          echo "rm -rf cmake_build; mkdir cmake_build; cd cmake_build"
-          rm -rf cmake_build; mkdir cmake_build; cd cmake_build
-
-          echo cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_STATIC_LINK=ON -DBACKEND=macscard
+          rm -rf build; mkdir build; cd build
           cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_STATIC_LINK=ON -DBACKEND=macscard
-
-          echo make
           make
-
-          echo make test
           make test
 
-          echo "otool -L {yubico-piv-tool/libykpiv.dylib/libykcs11.dylib} | grep libcrypto"
           otool -L tool/yubico-piv-tool | grep libcrypto | wc -l | grep 0
           otool -L lib/libykpiv.dylib | grep libcrypto | wc -l | grep 0
           otool -L ykcs11/libykcs11.dylib | grep libcrypto | wc -l | grep 0
 
-          echo sudo make install
           sudo make install
 
-          echo "yubico-piv-tool --help | grep 'Usage: yubico-piv-tool'"
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
           pkcs11-tool --module /usr/local/lib/libykcs11.dylib --show-info | grep Yubico
+
+      - name: Build with YKCS11_DBG is set
+        run: |
+          set -x
+          export PKG_CONFIG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig:PKG_CONFIG_PATH
+
+          rm -rf build; mkdir build; cd build
+          cmake .. -DVERBOSE_CMAKE=ON -DYKCS11_DBG=3
+          make
+          make test
+
+          otool -L ykcs11/libykcs11.dylib | grep libcrypto
+
+          pkcs11-tool --module ykcs11/libykcs11.dylib --show-info | grep Yubico
+
+      - name: Build only library (no CLI and no ykcs11)
+        run: |
+          set -x
+          export PKG_CONFIG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig:PKG_CONFIG_PATH
+
+          rm -rf build; mkdir build; cd build
+          cmake .. -DVERBOSE_CMAKE=ON -DBUILD_ONLY_LIB=ON
+          make
+          make test
+
+      - name: Build only dynamic libaries
+        run: |
+          set -x
+          export PKG_CONFIG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig:PKG_CONFIG_PATH
+
+          rm -rf build; mkdir build; cd build
+          cmake .. -DVERBOSE_CMAKE=ON -DBUILD_STATIC_LIB=OFF
+          make
+          make test

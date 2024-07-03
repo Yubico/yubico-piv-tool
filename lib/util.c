@@ -28,15 +28,15 @@
  *
  */
 
-#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <stdint.h>
-#include <ctype.h>
 #include <time.h>
+
+#include <zlib.h>
 
 #include "internal.h"
 #include "ykpiv.h"
+#include "util.h"
 
 #define MAX(a,b) (a) > (b) ? (a) : (b)
 #define MIN(a,b) (a) < (b) ? (a) : (b)
@@ -96,13 +96,13 @@ static size_t _obj_size_max(ykpiv_state *state) {
 
 ykpiv_rc ykpiv_util_get_cardid(ykpiv_state *state, ykpiv_cardid *cardid) {
   ykpiv_rc res = YKPIV_OK;
-  uint8_t buf[CB_OBJ_MAX];
+  uint8_t buf[CB_OBJ_MAX] = {0};
   unsigned long len = sizeof(buf);
   uint8_t *p_temp = NULL;
   size_t offs, cb_temp = 0;
   uint8_t tag = 0;
 
-  if (!cardid) return YKPIV_GENERIC_ERROR;
+  if (!cardid) return YKPIV_ARGUMENT_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
@@ -148,11 +148,11 @@ Cleanup:
 
 ykpiv_rc ykpiv_util_set_cardid(ykpiv_state *state, const ykpiv_cardid *cardid) {
   ykpiv_rc res = YKPIV_OK;
-  uint8_t id[YKPIV_CARDID_SIZE];
-  uint8_t buf[sizeof(CHUID_TMPL)];
+  uint8_t id[YKPIV_CARDID_SIZE] = {0};
+  uint8_t buf[sizeof(CHUID_TMPL)] = {0};
   size_t len = 0;
 
-  if (!state) return YKPIV_GENERIC_ERROR;
+  if (!state) return YKPIV_ARGUMENT_ERROR;
 
   if (!cardid) {
     if (PRNG_OK != _ykpiv_prng_generate(id, sizeof(id))) {
@@ -180,10 +180,10 @@ Cleanup:
 
 ykpiv_rc ykpiv_util_get_cccid(ykpiv_state *state, ykpiv_cccid *ccc) {
   ykpiv_rc res = YKPIV_OK;
-  uint8_t buf[CB_OBJ_MAX];
+  uint8_t buf[CB_OBJ_MAX] = {0};
   unsigned long len = sizeof(buf);
 
-  if (!ccc) return YKPIV_GENERIC_ERROR;
+  if (!ccc) return YKPIV_ARGUMENT_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
@@ -206,11 +206,11 @@ Cleanup:
 
 ykpiv_rc ykpiv_util_set_cccid(ykpiv_state *state, const ykpiv_cccid *ccc) {
   ykpiv_rc res = YKPIV_OK;
-  uint8_t id[YKPIV_CCCID_SIZE];
-  uint8_t buf[sizeof(CCC_TMPL)];
+  uint8_t id[YKPIV_CCCID_SIZE] = {0};
+  uint8_t buf[sizeof(CCC_TMPL)] = {0};
   size_t len = 0;
 
-  if (!state) return YKPIV_GENERIC_ERROR;
+  if (!state) return YKPIV_ARGUMENT_ERROR;
 
   if (!ccc) {
     if (PRNG_OK != _ykpiv_prng_generate(id, sizeof(id))) {
@@ -248,7 +248,7 @@ ykpiv_rc ykpiv_util_list_keys(ykpiv_state *state, uint8_t *key_count, ykpiv_key 
   uint8_t *pTemp = NULL;
   size_t cbData = 0;
   size_t offset = 0;
-  uint8_t buf[CB_BUF_MAX];
+  uint8_t buf[CB_BUF_MAX] = {0};
   size_t cbBuf = 0;
   size_t i = 0;
   size_t cbRealloc = 0;
@@ -282,7 +282,7 @@ ykpiv_rc ykpiv_util_list_keys(ykpiv_state *state, uint8_t *key_count, ykpiv_key 
     YKPIV_KEY_CARDAUTH
   };
 
-  if ((NULL == data) || (NULL == data_len) || (NULL == key_count)) { return YKPIV_GENERIC_ERROR; }
+  if ((NULL == data) || (NULL == data_len) || (NULL == key_count)) { return YKPIV_ARGUMENT_ERROR; }
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
@@ -355,7 +355,7 @@ Cleanup:
 
 ykpiv_rc ykpiv_util_free(ykpiv_state *state, void *data) {
   if (!data) return YKPIV_OK;
-  if (!state || (!(state->allocator.pfn_free))) return YKPIV_GENERIC_ERROR;
+  if (!state || (!(state->allocator.pfn_free))) return YKPIV_ARGUMENT_ERROR;
 
   _ykpiv_free(state, data);
 
@@ -364,10 +364,10 @@ ykpiv_rc ykpiv_util_free(ykpiv_state *state, void *data) {
 
 ykpiv_rc ykpiv_util_read_cert(ykpiv_state *state, uint8_t slot, uint8_t **data, size_t *data_len) {
   ykpiv_rc res = YKPIV_OK;
-  uint8_t buf[CB_BUF_MAX];
+  uint8_t buf[CB_BUF_MAX] = {0};
   size_t cbBuf = sizeof(buf);
 
-  if ((NULL == data )|| (NULL == data_len)) return YKPIV_GENERIC_ERROR;
+  if ((NULL == data )|| (NULL == data_len)) return YKPIV_ARGUMENT_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
@@ -415,20 +415,20 @@ Cleanup:
 }
 
 ykpiv_rc ykpiv_util_delete_cert(ykpiv_state *state, uint8_t slot) {
-  return ykpiv_util_write_cert(state, slot, NULL, 0, 0);
+  return ykpiv_util_write_cert(state, slot, NULL, 0, YKPIV_CERTINFO_UNCOMPRESSED);
 }
 
 ykpiv_rc ykpiv_util_block_puk(ykpiv_state *state) {
   ykpiv_rc res = YKPIV_OK;
   uint8_t puk[] = { 0x30, 0x42, 0x41, 0x44, 0x46, 0x30, 0x30, 0x44 };
   int tries = -1;
-  uint8_t data[CB_BUF_MAX];
+  uint8_t data[CB_BUF_MAX] = {0};
   size_t  cb_data = sizeof(data);
   uint8_t *p_item = NULL;
   size_t  cb_item = 0;
   uint8_t flags = 0;
 
-  if (NULL == state) return YKPIV_GENERIC_ERROR;
+  if (NULL == state) return YKPIV_ARGUMENT_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
@@ -456,7 +456,7 @@ ykpiv_rc ykpiv_util_block_puk(ykpiv_state *state) {
         memcpy(&flags, p_item, cb_item);
       }
       else {
-        if (state->verbose) { fprintf(stderr, "admin flags exist, but are incorrect size = %lu", (unsigned long)cb_item); }
+        DBG("admin flags exist, but are incorrect size = %lu", (unsigned long)cb_item);
       }
     }
   }
@@ -464,11 +464,11 @@ ykpiv_rc ykpiv_util_block_puk(ykpiv_state *state) {
   flags |= ADMIN_FLAGS_1_PUK_BLOCKED;
 
   if (YKPIV_OK != _set_metadata_item(data, &cb_data, CB_OBJ_MAX, TAG_ADMIN_FLAGS_1, (uint8_t*)&flags, sizeof(flags))) {
-    if (state->verbose) { fprintf(stderr, "could not set admin flags"); }
+    DBG("could not set admin flags");
   }
   else {
     if (YKPIV_OK != _write_metadata(state, TAG_ADMIN, data, cb_data)) {
-      if (state->verbose) { fprintf(stderr, "could not write admin metadata"); }
+      DBG("could not write admin metadata");
     }
   }
 
@@ -480,12 +480,12 @@ Cleanup:
 
 ykpiv_rc ykpiv_util_read_mscmap(ykpiv_state *state, ykpiv_container **containers, size_t *n_containers) {
   ykpiv_rc res = YKPIV_OK;
-  uint8_t buf[CB_BUF_MAX];
+  uint8_t buf[CB_BUF_MAX] = {0};
   unsigned long cbBuf = sizeof(buf);
   size_t offs, len = 0;
   uint8_t *ptr = NULL;
 
-  if ((NULL == containers) || (NULL == n_containers)) { res = YKPIV_GENERIC_ERROR; goto Cleanup; }
+  if ((NULL == containers) || (NULL == n_containers)) { res = YKPIV_ARGUMENT_ERROR; goto Cleanup; }
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
@@ -529,7 +529,7 @@ Cleanup:
 
 ykpiv_rc ykpiv_util_write_mscmap(ykpiv_state *state, ykpiv_container *containers, size_t n_containers) {
   ykpiv_rc res = YKPIV_OK;
-  uint8_t buf[CB_OBJ_MAX];
+  uint8_t buf[CB_OBJ_MAX] = {0};
   size_t offset = 0;
   size_t req_len = 0;
   size_t data_len = n_containers * sizeof(ykpiv_container);
@@ -544,7 +544,7 @@ ykpiv_rc ykpiv_util_write_mscmap(ykpiv_state *state, ykpiv_container *containers
     // if either containers or n_containers are non-zero, return an error,
     // that we only delete strictly when both are set properly
     if ((NULL != containers) || (0 != n_containers)) {
-      res = YKPIV_GENERIC_ERROR;
+      res = YKPIV_ARGUMENT_ERROR;
     }
     else {
       res = _ykpiv_save_object(state, YKPIV_OBJ_MSCMAP, NULL, 0);
@@ -579,7 +579,7 @@ Cleanup:
 
 ykpiv_rc ykpiv_util_read_msroots(ykpiv_state *state, uint8_t **data, size_t *data_len) {
   ykpiv_rc res = YKPIV_OK;
-  uint8_t buf[CB_BUF_MAX];
+  uint8_t buf[CB_BUF_MAX] = {0};
   unsigned long cbBuf = sizeof(buf);
   size_t offs, len = 0;
   uint8_t *ptr = NULL;
@@ -591,7 +591,7 @@ ykpiv_rc ykpiv_util_read_msroots(ykpiv_state *state, uint8_t **data, size_t *dat
   size_t cbRealloc = 0;
   size_t offset = 0;
 
-  if (!data || !data_len) return YKPIV_GENERIC_ERROR;
+  if (!data || !data_len) return YKPIV_ARGUMENT_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
@@ -672,7 +672,7 @@ Cleanup:
 
 ykpiv_rc ykpiv_util_write_msroots(ykpiv_state *state, uint8_t *data, size_t data_len) {
   ykpiv_rc res = YKPIV_OK;
-  uint8_t buf[CB_OBJ_MAX];
+  uint8_t buf[CB_OBJ_MAX] = {0};
   size_t offset = 0;
   size_t data_offset = 0;
   size_t data_chunk = 0;
@@ -690,7 +690,7 @@ ykpiv_rc ykpiv_util_write_msroots(ykpiv_state *state, uint8_t *data, size_t data
     // if either data or data_len are non-zero, return an error,
     // that we only delete strictly when both are set properly
     if ((NULL != data) || (0 != data_len)) {
-      res = YKPIV_GENERIC_ERROR;
+      res = YKPIV_ARGUMENT_ERROR;
     }
     else {
       // it should be sufficient to just delete the first object, though
@@ -738,12 +738,12 @@ Cleanup:
 
 ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algorithm, uint8_t pin_policy, uint8_t touch_policy, uint8_t **modulus, size_t *modulus_len, uint8_t **exp, size_t *exp_len, uint8_t **point, size_t *point_len) {
   ykpiv_rc res = YKPIV_OK;
-  unsigned char in_data[11];
+  unsigned char in_data[11] = {0};
   unsigned char *in_ptr = in_data;
-  unsigned char data[1024];
+  unsigned char data[1024] = {0};
   unsigned char templ[] = { 0, YKPIV_INS_GENERATE_ASYMMETRIC, 0, 0 };
   unsigned long recv_len = sizeof(data);
-  int sw;
+  int sw = 0;
   uint8_t *ptr_modulus = NULL;
   size_t  cb_modulus = 0;
   uint8_t *ptr_exp = NULL;
@@ -767,41 +767,47 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
 
   if (!state) return YKPIV_ARGUMENT_ERROR;
 
-  if (ykpiv_util_devicemodel(state) == DEVTYPE_YK4 && (algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048)) {
-    if ((state->ver.major == 4) && (state->ver.minor < 3 || ((state->ver.minor == 3) && (state->ver.patch < 5)))) {
-      const char *psz_msg = NULL;
-      setting_roca = setting_get_bool(sz_setting_roca, true);
+  if ((algorithm == YKPIV_ALGO_RSA3072 || algorithm == YKPIV_ALGO_RSA4096 || YKPIV_IS_25519(algorithm))
+       && !is_version_compatible(state, 5, 7, 0)) {
+    DBG("RSA3072, RSA4096, ED25519 and X25519 keys are only supported in YubiKey version 5.7.0 and newer");
+    return YKPIV_NOT_SUPPORTED;
+  }
+  if ((algorithm == YKPIV_ALGO_RSA1024 || algorithm == YKPIV_ALGO_RSA2048) && !is_version_compatible(state, 4, 3, 5)) {
+    const char *psz_msg = NULL;
+    setting_roca = setting_get_bool(sz_setting_roca, true);
 
-      switch (setting_roca.source) {
-        case SETTING_SOURCE_ADMIN:
-          psz_msg = setting_roca.value ? sz_roca_allow_admin : sz_roca_block_admin;
-          break;
+    switch (setting_roca.source) {
+      case SETTING_SOURCE_ADMIN:
+        psz_msg = setting_roca.value ? sz_roca_allow_admin : sz_roca_block_admin;
+        break;
 
-        case SETTING_SOURCE_USER:
-          psz_msg = setting_roca.value ? sz_roca_allow_user : sz_roca_block_user;
-          break;
+      case SETTING_SOURCE_USER:
+        psz_msg = setting_roca.value ? sz_roca_allow_user : sz_roca_block_user;
+        break;
 
-        default:
-        case SETTING_SOURCE_DEFAULT:
-          psz_msg = sz_roca_default;
-          break;
-      }
+      default:
+      case SETTING_SOURCE_DEFAULT:
+        psz_msg = sz_roca_default;
+        break;
+    }
 
-      fprintf(stderr, sz_roca_format, state->serial, psz_msg);
-      yc_log_event(1, setting_roca.value ? YC_LOG_LEVEL_WARN : YC_LOG_LEVEL_ERROR, sz_roca_format, state->serial, psz_msg);
+    DBG(sz_roca_format, state->serial, psz_msg);
+    yc_log_event("YubiKey PIV Library", 1, setting_roca.value ? YC_LOG_LEVEL_WARN : YC_LOG_LEVEL_ERROR, sz_roca_format,
+                 state->serial, psz_msg);
 
-      if (!setting_roca.value) {
-        return YKPIV_NOT_SUPPORTED;
-      }
+    if (!setting_roca.value) {
+      return YKPIV_NOT_SUPPORTED;
     }
   }
 
   switch (algorithm) {
   case YKPIV_ALGO_RSA1024:
   case YKPIV_ALGO_RSA2048:
+  case YKPIV_ALGO_RSA3072:
+  case YKPIV_ALGO_RSA4096:
     if (!modulus || !modulus_len || !exp || !exp_len) {
-      if (state->verbose) { fprintf(stderr, "Invalid output parameter for RSA algorithm"); }
-      return YKPIV_GENERIC_ERROR;
+      DBG("Invalid output parameter for RSA algorithm");
+      return YKPIV_ARGUMENT_ERROR;
     }
     *modulus = NULL;
     *modulus_len = 0;
@@ -809,18 +815,20 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     *exp_len = 0;
     break;
 
-  case  YKPIV_ALGO_ECCP256:
-  case  YKPIV_ALGO_ECCP384:
+  case YKPIV_ALGO_ECCP256:
+  case YKPIV_ALGO_ECCP384:
+  case YKPIV_ALGO_ED25519:
+  case YKPIV_ALGO_X25519:
     if (!point || !point_len) {
-      if (state->verbose) { fprintf(stderr, "Invalid output parameter for ECC algorithm"); }
-      return YKPIV_GENERIC_ERROR;
+      DBG("Invalid output parameter for ECC algorithm");
+      return YKPIV_ARGUMENT_ERROR;
     }
     *point = NULL;
     *point_len = 0;
     break;
 
   default:
-    if (state->verbose) { fprintf(stderr, "Invalid algorithm specified"); }
+    DBG("Invalid algorithm specified");
     return YKPIV_GENERIC_ERROR;
   }
 
@@ -837,7 +845,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
 
   if (in_data[4] == 0) {
     res = YKPIV_ALGORITHM_ERROR;
-    if (state->verbose) { fprintf(stderr, "Unexpected algorithm.\n"); }
+    DBG("Unexpected algorithm");
     goto Cleanup;
   }
 
@@ -855,50 +863,21 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     *in_ptr++ = touch_policy;
   }
 
-  if (YKPIV_OK != (res = _ykpiv_transfer_data(state, templ, in_data, (long)(in_ptr - in_data), data, &recv_len, &sw))) {
-    if (state->verbose) { fprintf(stderr, "Failed to communicate.\n"); }
+  if (YKPIV_OK != (res = _ykpiv_transfer_data(state, templ, in_data, (unsigned long)(in_ptr - in_data), data, &recv_len, &sw))) {
     goto Cleanup;
   }
-  else if (sw != SW_SUCCESS) {
-    if (state->verbose) { fprintf(stderr, "Failed to generate new key ("); }
-
-    if (sw == SW_ERR_INCORRECT_SLOT) {
-      res = YKPIV_KEY_ERROR;
-      if (state->verbose) { fprintf(stderr, "incorrect slot)\n"); }
-    }
-    else if (sw == SW_ERR_INCORRECT_PARAM) {
-      res = YKPIV_ALGORITHM_ERROR;
-
-      if (state->verbose) {
-        if (pin_policy != YKPIV_PINPOLICY_DEFAULT) {
-          fprintf(stderr, "pin policy not supported?)\n");
-        }
-        else if (touch_policy != YKPIV_TOUCHPOLICY_DEFAULT) {
-          fprintf(stderr, "touch policy not supported?)\n");
-        }
-        else {
-          fprintf(stderr, "algorithm not supported?)\n");
-        }
-      }
-    }
-    else if (sw == SW_ERR_SECURITY_STATUS) {
-      res = YKPIV_AUTHENTICATION_ERROR;
-      if (state->verbose) { fprintf(stderr, "not authenticated)\n"); }
-    }
-    else {
-      res = YKPIV_GENERIC_ERROR;
-      if (state->verbose) { fprintf(stderr, "error %x)\n", sw); }
-    }
-
+  res = ykpiv_translate_sw(sw);
+  if (res != YKPIV_OK) {
+    DBG("Failed to generate new key");
     goto Cleanup;
   }
 
-  if ((YKPIV_ALGO_RSA1024 == algorithm) || (YKPIV_ALGO_RSA2048 == algorithm)) {
+  if (YKPIV_IS_RSA(algorithm)) {
     size_t len;
     unsigned char *data_ptr = data + 2 + _ykpiv_get_length(data + 2, data + recv_len, &len);
 
     if (*data_ptr != TAG_RSA_MODULUS) {
-      if (state->verbose) { fprintf(stderr, "Failed to parse public key structure (modulus).\n"); }
+      DBG("Failed to parse public key structure (modulus).");
       res = YKPIV_PARSE_ERROR;
       goto Cleanup;
     }
@@ -906,7 +885,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     data_ptr++;
     offs = _ykpiv_get_length(data_ptr, data + recv_len, &len);
     if(!offs) {
-      if (state->verbose) { fprintf(stderr, "Failed to parse public key structure (modulus length).\n"); }
+      DBG("Failed to parse public key structure (modulus length).");
       res = YKPIV_PARSE_ERROR;
       goto Cleanup;
     }
@@ -914,7 +893,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
 
     cb_modulus = len;
     if (NULL == (ptr_modulus = _ykpiv_alloc(state, cb_modulus))) {
-      if (state->verbose) { fprintf(stderr, "Failed to allocate memory for modulus.\n"); }
+      DBG("Failed to allocate memory for modulus.");
       res = YKPIV_MEMORY_ERROR;
       goto Cleanup;
     }
@@ -924,7 +903,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     data_ptr += len;
 
     if (*data_ptr != TAG_RSA_EXP) {
-      if (state->verbose) { fprintf(stderr, "Failed to parse public key structure (public exponent).\n"); }
+      DBG("Failed to parse public key structure (public exponent).");
       res = YKPIV_PARSE_ERROR;
       goto Cleanup;
     }
@@ -932,7 +911,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     data_ptr++;
     offs = _ykpiv_get_length(data_ptr, data + recv_len, &len);
     if(!offs) {
-      if (state->verbose) { fprintf(stderr, "Failed to parse public key structure (public exponent length).\n"); }
+      DBG("Failed to parse public key structure (public exponent length).");
       res = YKPIV_PARSE_ERROR;
       goto Cleanup;
     }
@@ -940,7 +919,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
 
     cb_exp = len;
     if (NULL == (ptr_exp = _ykpiv_alloc(state, cb_exp))) {
-      if (state->verbose) { fprintf(stderr, "Failed to allocate memory for public exponent.\n"); }
+      DBG("Failed to allocate memory for public exponent.");
       res = YKPIV_MEMORY_ERROR;
       goto Cleanup;
     }
@@ -956,32 +935,33 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     ptr_exp = NULL;
     *exp_len = cb_exp;
   }
-  else if ((YKPIV_ALGO_ECCP256 == algorithm) || (YKPIV_ALGO_ECCP384 == algorithm)) {
+  else if (YKPIV_IS_EC(algorithm) || YKPIV_IS_25519(algorithm)) {
     unsigned char *data_ptr = data + 3;
-    size_t len;
+    size_t len = 0;
 
     if (YKPIV_ALGO_ECCP256 == algorithm) {
       len = CB_ECC_POINTP256;
-    }
-    else {
+    } else if (YKPIV_ALGO_ECCP384 == algorithm) {
       len = CB_ECC_POINTP384;
+    } else if (YKPIV_IS_25519(algorithm)) {
+      len = CB_ECC_POINT25519;
     }
 
     if (*data_ptr++ != TAG_ECC_POINT) {
-      if (state->verbose) { fprintf(stderr, "Failed to parse public key structure.\n"); }
+      DBG("Failed to parse public key structure.");
       res = YKPIV_PARSE_ERROR;
       goto Cleanup;
     }
 
     if (*data_ptr++ != len) { /* the curve point should always be determined by the curve */
-      if (state->verbose) { fprintf(stderr, "Unexpected length.\n"); }
+      DBG("Unexpected length.");
       res = YKPIV_ALGORITHM_ERROR;
       goto Cleanup;
     }
 
     cb_point = len;
     if (NULL == (ptr_point = _ykpiv_alloc(state, cb_point))) {
-      if (state->verbose) { fprintf(stderr, "Failed to allocate memory for public point.\n"); }
+      DBG("Failed to allocate memory for public point.");
       res = YKPIV_MEMORY_ERROR;
       goto Cleanup;
     }
@@ -995,7 +975,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     *point_len = cb_point;
   }
   else {
-    if (state->verbose) { fprintf(stderr, "Wrong algorithm.\n"); }
+    DBG("Wrong algorithm.");
     res = YKPIV_ALGORITHM_ERROR;
     goto Cleanup;
   }
@@ -1017,8 +997,8 @@ ykpiv_rc ykpiv_util_get_config(ykpiv_state *state, ykpiv_config *config) {
   uint8_t *p_item = NULL;
   size_t cb_item = 0;
 
-  if (NULL == state) return YKPIV_GENERIC_ERROR;
-  if (NULL == config) return YKPIV_GENERIC_ERROR;
+  if (NULL == state) return YKPIV_ARGUMENT_ERROR;
+  if (NULL == config) return YKPIV_ARGUMENT_ERROR;
 
   // initialize default values
 
@@ -1039,10 +1019,8 @@ ykpiv_rc ykpiv_util_get_config(ykpiv_state *state, ykpiv_config *config) {
 
     if (YKPIV_OK == _get_metadata_item(data, cb_data, TAG_ADMIN_SALT, &p_item, &cb_item)) {
       if (config->mgm_type != YKPIV_CONFIG_MGM_MANUAL) {
-        if (state->verbose) {
-          fprintf(stderr, "conflicting types of mgm key administration configured\n");
-          config->mgm_type = YKPIV_CONFIG_MGM_INVALID;
-        }
+        DBG("conflicting types of mgm key administration configured");
+        config->mgm_type = YKPIV_CONFIG_MGM_INVALID;
       }
       else {
         config->mgm_type = YKPIV_CONFIG_MGM_DERIVED;
@@ -1051,9 +1029,7 @@ ykpiv_rc ykpiv_util_get_config(ykpiv_state *state, ykpiv_config *config) {
 
     if (YKPIV_OK == _get_metadata_item(data, cb_data, TAG_ADMIN_TIMESTAMP, &p_item, &cb_item)) {
       if (CB_ADMIN_TIMESTAMP != cb_item)  {
-        if (state->verbose) {
-          fprintf(stderr, "pin timestamp in admin metadata is an invalid size");
-        }
+        DBG("pin timestamp in admin metadata is an invalid size");
       }
       else {
         memcpy(&(config->pin_last_changed), p_item, cb_item);
@@ -1071,21 +1047,22 @@ ykpiv_rc ykpiv_util_get_config(ykpiv_state *state, ykpiv_config *config) {
     }
 
     if (YKPIV_OK == _get_metadata_item(data, cb_data, TAG_PROTECTED_MGM, &p_item, &cb_item)) {
-      if(sizeof(config->mgm_key) == cb_item) {
+      if(sizeof(config->mgm_key) >= cb_item) {
         memcpy(config->mgm_key, p_item, cb_item);
+        config->mgm_len = cb_item;
         if (config->mgm_type != YKPIV_CONFIG_MGM_PROTECTED) {
-          if (state->verbose) fprintf(stderr, "conflicting types of mgm key administration configured - protected mgm exists\n");
-          config->mgm_type = YKPIV_CONFIG_MGM_PROTECTED;
+          DBG("conflicting types of mgm key administration configured - protected mgm exists");
+          config->mgm_type = YKPIV_CONFIG_MGM_INVALID;
         }
       } else {
-        if (state->verbose) fprintf(stderr, "protected data contains mgm, but is the wrong size = %lu\n", (unsigned long)cb_item);
+        DBG("protected data contains mgm, but is the wrong size = %lu", (unsigned long)cb_item);
         config->mgm_type = YKPIV_CONFIG_MGM_INVALID;
       }
     }
   }
   else {
     if (config->mgm_type == YKPIV_CONFIG_MGM_PROTECTED) {
-      if (state->verbose) fprintf(stderr, "admin data indicates protected mgm present, but the object cannot be read\n");
+      DBG("admin data indicates protected mgm present, but the object cannot be read");
       config->mgm_type = YKPIV_CONFIG_MGM_INVALID;
     }
   }
@@ -1103,7 +1080,7 @@ ykpiv_rc ykpiv_util_set_pin_last_changed(ykpiv_state *state) {
   size_t   cb_data = sizeof(data);
   time_t   tnow = 0;
 
-  if (NULL == state) return YKPIV_GENERIC_ERROR;
+  if (NULL == state) return YKPIV_ARGUMENT_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
@@ -1116,12 +1093,12 @@ ykpiv_rc ykpiv_util_set_pin_last_changed(ykpiv_state *state) {
   tnow = time(NULL);
 
   if (YKPIV_OK != (res = _set_metadata_item(data, &cb_data, CB_OBJ_MAX, TAG_ADMIN_TIMESTAMP, (uint8_t*)&tnow, CB_ADMIN_TIMESTAMP))) {
-    if (state->verbose) fprintf(stderr, "could not set pin timestamp, err = %d\n", res);
+    DBG("could not set pin timestamp, err = %d", res);
   }
   else {
     if (YKPIV_OK != (res = _write_metadata(state, TAG_ADMIN, data, cb_data))) {
       /* Note: this can fail if authenticate() wasn't called previously - expected behavior */
-      if (state->verbose) fprintf(stderr, "could not write admin data, err = %d\n", res);
+      DBG("could not write admin data, err = %d", res);
     }
   }
 
@@ -1139,8 +1116,8 @@ ykpiv_rc ykpiv_util_get_derived_mgm(ykpiv_state *state, const uint8_t *pin, cons
   uint8_t  *p_item = NULL;
   size_t   cb_item = 0;
 
-  if (NULL == state) return YKPIV_GENERIC_ERROR;
-  if ((NULL == pin) || (0 == pin_len) || (NULL == mgm)) return YKPIV_GENERIC_ERROR;
+  if (NULL == state) return YKPIV_ARGUMENT_ERROR;
+  if ((NULL == pin) || (0 == pin_len) || (NULL == mgm)) return YKPIV_ARGUMENT_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
@@ -1149,13 +1126,13 @@ ykpiv_rc ykpiv_util_get_derived_mgm(ykpiv_state *state, const uint8_t *pin, cons
   if (YKPIV_OK == (res = _read_metadata(state, TAG_ADMIN, data, &cb_data))) {
     if (YKPIV_OK == (res = _get_metadata_item(data, cb_data, TAG_ADMIN_SALT, &p_item, &cb_item))) {
       if (cb_item != CB_ADMIN_SALT) {
-        if (state->verbose) fprintf(stderr, "derived mgm salt exists, but is incorrect size = %lu\n", (unsigned long)cb_item);
+        DBG("derived mgm salt exists, but is incorrect size = %lu", (unsigned long)cb_item);
         res = YKPIV_GENERIC_ERROR;
         goto Cleanup;
       }
-
-      if (PKCS5_OK != (p5rc = pkcs5_pbkdf2_sha1(pin, pin_len, p_item, cb_item, ITER_MGM_PBKDF2, mgm->data, member_size(ykpiv_mgm, data)))) {
-        if (state->verbose) fprintf(stderr, "pbkdf2 failure, err = %d\n", p5rc);
+      mgm->len = DES_LEN_3DES;
+      if (PKCS5_OK != (p5rc = pkcs5_pbkdf2_sha1(pin, pin_len, p_item, cb_item, ITER_MGM_PBKDF2, mgm->data, mgm->len))) {
+        DBG("pbkdf2 failure, err = %d", p5rc);
         res = YKPIV_GENERIC_ERROR;
         goto Cleanup;
       }
@@ -1175,28 +1152,29 @@ ykpiv_rc ykpiv_util_get_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
   uint8_t  *p_item = NULL;
   size_t   cb_item = 0;
 
-  if (NULL == state) return YKPIV_GENERIC_ERROR;
-  if (NULL == mgm) return YKPIV_GENERIC_ERROR;
+  if (NULL == state) return YKPIV_ARGUMENT_ERROR;
+  if (NULL == mgm) return YKPIV_ARGUMENT_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   if (YKPIV_OK != (res = _read_metadata(state, TAG_PROTECTED, data, &cb_data))) {
-    if (state->verbose) fprintf(stderr, "could not read protected data, err = %d\n", res);
+    DBG("could not read protected data, err = %d", res);
     goto Cleanup;
   }
 
   if (YKPIV_OK != (res = _get_metadata_item(data, cb_data, TAG_PROTECTED_MGM, &p_item, &cb_item))) {
-    if (state->verbose) fprintf(stderr, "could not read protected mgm from metadata, err = %d\n", res);
+    DBG("could not read protected mgm from metadata, err = %d", res);
     goto Cleanup;
   }
 
-  if (cb_item != member_size(ykpiv_mgm, data)) {
-    if (state->verbose) fprintf(stderr, "protected data contains mgm, but is the wrong size = %lu\n", (unsigned long)cb_item);
+  if (cb_item > sizeof(mgm->data)) {
+    DBG("protected data contains mgm, but is the wrong size = %lu", (unsigned long)cb_item);
     res = YKPIV_AUTHENTICATION_ERROR;
     goto Cleanup;
   }
 
+  mgm->len = cb_item;
   memcpy(mgm->data, p_item, cb_item);
 
 Cleanup:
@@ -1208,13 +1186,42 @@ Cleanup:
 
 }
 
+ykpiv_rc ykpiv_util_update_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
+  ykpiv_rc res = YKPIV_OK;
+  uint8_t data[CB_BUF_MAX] = {0};
+  size_t cb_data = sizeof(data);
+
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+
+  if (YKPIV_OK != (res = _read_metadata(state, TAG_PROTECTED, data, &cb_data))) {
+    cb_data = 0; /* set current metadata blob size to zero, we'll add to the blank blob */
+  }
+
+  if (YKPIV_OK != (res = _set_metadata_item(data, &cb_data, CB_OBJ_MAX, TAG_PROTECTED_MGM, mgm->data, mgm->len))) {
+    DBG("could not set protected mgm item, err = %d", res);
+  }
+  else {
+    if (YKPIV_OK != (res = _write_metadata(state, TAG_PROTECTED, data, cb_data))) {
+      DBG("could not write protected data, err = %d", res);
+      goto Cleanup;
+    }
+  }
+
+Cleanup:
+
+  _ykpiv_end_transaction(state);
+  return res;
+}
+
 /* to set a generated mgm, pass NULL for mgm, or set mgm.data to all zeroes */
 ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
   ykpiv_rc res = YKPIV_OK;
   ykpiv_rc ykrc = YKPIV_OK;
   prng_rc  prngrc = PRNG_OK;
   bool     fGenerate = false;
-  uint8_t  mgm_key[member_size(ykpiv_mgm, data)] = { 0 };
+  size_t   mgm_len = DES_LEN_3DES;
+  uint8_t  mgm_key[sizeof(mgm->data)] = { 0 };
   size_t   i = 0;
   uint8_t  data[CB_BUF_MAX] = { 0 };
   size_t   cb_data = sizeof(data);
@@ -1222,16 +1229,14 @@ ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
   size_t   cb_item = 0;
   uint8_t  flags_1 = 0;
 
-  if (NULL == state) return YKPIV_GENERIC_ERROR;
+  if (NULL == state) return YKPIV_ARGUMENT_ERROR;
 
-  if (!mgm) {
-    fGenerate = true;
-  }
-  else {
-    fGenerate = true;
-    memcpy(mgm_key, mgm->data, sizeof(mgm_key));
+  fGenerate = true;
+  if (mgm) {
+    mgm_len = mgm->len;
+    memcpy(mgm_key, mgm->data, mgm->len);
 
-    for (i = 0; i < sizeof(mgm_key); i++) {
+    for (i = 0; i < mgm_len; i++) {
       if (mgm_key[i] != 0) {
         fGenerate = false;
         break;
@@ -1246,21 +1251,21 @@ ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
   do {
     if (fGenerate) {
       /* generate a new mgm key */
-      if (PRNG_OK != (prngrc = _ykpiv_prng_generate(mgm_key, sizeof(mgm_key)))) {
-        if (state->verbose) fprintf(stderr, "could not generate new mgm, err = %d\n", prngrc);
+      if (PRNG_OK != (prngrc = _ykpiv_prng_generate(mgm_key, mgm_len))) {
+        DBG("could not generate new mgm, err = %d", prngrc);
         res = YKPIV_RANDOMNESS_ERROR;
         goto Cleanup;
       }
     }
 
-    if (YKPIV_OK != (ykrc = ykpiv_set_mgmkey(state, mgm_key))) {
+    if (YKPIV_OK != (ykrc = ykpiv_set_mgmkey3(state, mgm_key, mgm_len, YKPIV_ALGO_AUTO, YKPIV_TOUCHPOLICY_AUTO))) {
       /*
       ** if _set_mgmkey fails with YKPIV_KEY_ERROR, it means the generated key is weak
       ** otherwise, log a warning, since the device mgm key is corrupt or we're in
       ** a state where we can't set the mgm key
       */
       if (YKPIV_KEY_ERROR != ykrc) {
-        if (state->verbose) fprintf(stderr, "could not set new derived mgm key, err = %d\n", ykrc);
+        DBG("could not set new derived mgm key, err = %d", ykrc);
         res = ykrc;
         goto Cleanup;
       }
@@ -1273,7 +1278,7 @@ ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
 
   /* set output mgm */
   if (mgm) {
-    memcpy(mgm->data, mgm_key, sizeof(mgm_key));
+    memcpy(mgm->data, mgm_key, mgm_len);
   }
 
   /* after this point, we've set the mgm key, so the function should succeed, regardless of being able to set the metadata */
@@ -1283,12 +1288,12 @@ ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
     cb_data = 0; /* set current metadata blob size to zero, we'll add to the blank blob */
   }
 
-  if (YKPIV_OK != (ykrc = _set_metadata_item(data, &cb_data, CB_OBJ_MAX, TAG_PROTECTED_MGM, mgm_key, sizeof(mgm_key)))) {
-    if (state->verbose) fprintf(stderr, "could not set protected mgm item, err = %d\n", ykrc);
+  if (YKPIV_OK != (ykrc = _set_metadata_item(data, &cb_data, CB_OBJ_MAX, TAG_PROTECTED_MGM, mgm_key, mgm_len))) {
+    DBG("could not set protected mgm item, err = %d", ykrc);
   }
   else {
     if (YKPIV_OK != (ykrc = _write_metadata(state, TAG_PROTECTED, data, cb_data))) {
-      if (state->verbose) fprintf(stderr, "could not write protected data, err = %d\n", ykrc);
+      DBG("could not write protected data, err = %d", ykrc);
       goto Cleanup;
     }
   }
@@ -1303,30 +1308,30 @@ ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
 
     if (YKPIV_OK != (ykrc = _get_metadata_item(data, cb_data, TAG_ADMIN_FLAGS_1, &p_item, &cb_item))) {
       /* flags are not set */
-      if (state->verbose) fprintf(stderr, "admin data exists, but flags are not present\n");
+      DBG("admin data exists, but flags are not present");
     }
 
     if (cb_item == sizeof(flags_1)) {
       memcpy(&flags_1, p_item, cb_item);
     }
     else {
-      if (state->verbose) fprintf(stderr, "admin data flags are an incorrect size = %lu\n", (unsigned long)cb_item);
+      DBG("admin data flags are an incorrect size = %lu", (unsigned long)cb_item);
     }
 
     /* remove any existing salt */
     if (YKPIV_OK != (ykrc = _set_metadata_item(data, &cb_data, CB_OBJ_MAX, TAG_ADMIN_SALT, NULL, 0))) {
-      if (state->verbose) fprintf(stderr, "could not unset derived mgm salt, err = %d\n", ykrc);
+      DBG("could not unset derived mgm salt, err = %d", ykrc);
     }
   }
 
   flags_1 |= ADMIN_FLAGS_1_PROTECTED_MGM;
 
   if (YKPIV_OK != (ykrc = _set_metadata_item(data, &cb_data, CB_OBJ_MAX, TAG_ADMIN_FLAGS_1, &flags_1, sizeof(flags_1)))) {
-    if (state->verbose) fprintf(stderr, "could not set admin flags item, err = %d\n", ykrc);
+    DBG("could not set admin flags item, err = %d", ykrc);
   }
   else {
     if (YKPIV_OK != (ykrc = _write_metadata(state, TAG_ADMIN, data, cb_data))) {
-      if (state->verbose) fprintf(stderr, "could not write admin data, err = %d\n", ykrc);
+      DBG("could not write admin data, err = %d", ykrc);
       goto Cleanup;
     }
   }
@@ -1343,17 +1348,17 @@ Cleanup:
 
 ykpiv_rc ykpiv_util_reset(ykpiv_state *state) {
   unsigned char templ[] = {0, YKPIV_INS_RESET, 0, 0};
-  unsigned char data[0xff];
+  unsigned char data[256] = {0};
   unsigned long recv_len = sizeof(data);
   ykpiv_rc res;
   int sw;
 
   /* note: the reset function is only available when both pins are blocked. */
   res = ykpiv_transfer_data(state, templ, NULL, 0, data, &recv_len, &sw);
-  if (YKPIV_OK == res && SW_SUCCESS == sw) {
-     return YKPIV_OK;
+  if(res != YKPIV_OK) {
+    return res;
   }
-  return YKPIV_GENERIC_ERROR;
+  return ykpiv_translate_sw(sw);
 }
 
 uint32_t ykpiv_util_slot_object(uint8_t slot) {
@@ -1390,39 +1395,151 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
   return (uint32_t)object_id;
 }
 
-static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf, size_t *buf_len) {
+ ykpiv_rc ykpiv_util_get_certdata(uint8_t *buf, size_t buf_len, uint8_t* certdata, size_t *certdata_len) {
+   uint8_t compress_info = YKPIV_CERTINFO_UNCOMPRESSED;
+   uint8_t *certptr = 0;
+   size_t cert_len = 0;
+   uint8_t *ptr = buf;
+
+   while (ptr < buf + buf_len) {
+     uint8_t tag = *ptr++;
+     size_t len = 0;
+     size_t offs = _ykpiv_get_length(ptr, buf + buf_len, &len);
+     if(!offs) {
+       DBG("Found invalid length for tag 0x%02x.", tag);
+       goto invalid_tlv;
+     }
+     ptr += offs; // move to after length bytes
+
+     switch (tag) {
+       case TAG_CERT:
+         certptr = ptr;
+         cert_len = len;
+         DBG("Found TAG_CERT with length %zu", cert_len);
+         break;
+       case TAG_CERT_COMPRESS:
+         if(len != 1) {
+           DBG("Found TAG_CERT_COMPRESS with invalid length %zu", len);
+           goto invalid_tlv;
+         }
+         compress_info = *ptr;
+         DBG("Found TAG_CERT_COMPRESS with length %zu value 0x%02x", len, compress_info);
+         break;
+       case TAG_CERT_LRC: {
+         // basically ignore it
+         DBG("Found TAG_CERT_LRC with length %zu", len);
+         break;
+       }
+       default:
+         DBG("Unknown cert tag 0x%02x", tag);
+         goto invalid_tlv;
+         break;
+     }
+     ptr += len; // move to after value bytes
+   }
+
+invalid_tlv:
+   if(certptr == 0 || cert_len == 0 || ptr != buf + buf_len || compress_info > YKPIV_CERTINFO_GZIP) {
+     DBG("Invalid TLV encoding, treating as a raw certificate");
+     certptr = buf;
+     cert_len = buf_len;
+   }
+
+   if (compress_info == YKPIV_CERTINFO_GZIP) {
+#ifdef USE_CERT_COMPRESS
+     z_stream zs;
+     zs.zalloc = Z_NULL;
+     zs.zfree = Z_NULL;
+     zs.opaque = Z_NULL;
+     zs.avail_in = (uInt) cert_len;
+     zs.next_in = (Bytef *) certptr;
+     zs.avail_out = (uInt) *certdata_len;
+     zs.next_out = (Bytef *) certdata;
+
+     if (inflateInit2(&zs, MAX_WBITS | 16) != Z_OK) {
+       DBG("Failed to initialize certificate decompression");
+       *certdata_len = 0;
+       return YKPIV_INVALID_OBJECT;
+     }
+
+     int res = inflate(&zs, Z_FINISH);
+     if (res != Z_STREAM_END) {
+       *certdata_len = 0;
+       if (res == Z_BUF_ERROR) {
+         DBG("Failed to decompress certificate. Allocated buffer is too small");
+         return YKPIV_SIZE_ERROR;
+       }
+       DBG("Failed to decompress certificate");
+       return YKPIV_INVALID_OBJECT;
+     }
+     if (inflateEnd(&zs) != Z_OK) {
+       DBG("Failed to finish certificate decompression");
+       *certdata_len = 0;
+       return YKPIV_INVALID_OBJECT;
+     }
+     *certdata_len = zs.total_out;
+#else
+     DBG("Found compressed certificate. Decompressing certificate not supported");
+     *certdata_len = 0;
+     return YKPIV_PARSE_ERROR;
+#endif
+   } else {
+     if (*certdata_len < cert_len) {
+       DBG("Buffer too small");
+       *certdata_len = 0;
+       return YKPIV_SIZE_ERROR;
+     }
+     memmove(certdata, certptr, cert_len);
+     *certdata_len = cert_len;
+   }
+   return YKPIV_OK;
+}
+
+ ykpiv_rc ykpiv_util_write_certdata(uint8_t *rawdata, size_t rawdata_len, uint8_t compress_info, uint8_t* certdata, size_t *certdata_len) {
+  size_t offset = 0;
+  size_t buf_len = 0;
+
+  unsigned long len_bytes = get_length_size(rawdata_len);
+
+   // calculate the required length of the encoded object
+   buf_len = 1 /* cert tag */ + 3 /* compression tag + data*/ + 2 /* lrc */;
+   buf_len += len_bytes + rawdata_len;
+
+   if (buf_len > *certdata_len) {
+     DBG("Buffer too small");
+     *certdata_len = 0;
+     return YKPIV_SIZE_ERROR;
+   }
+
+  memmove(certdata + len_bytes + 1, rawdata, rawdata_len);
+
+  certdata[offset++] = TAG_CERT;
+  offset += _ykpiv_set_length(certdata+offset, rawdata_len);
+  offset += rawdata_len;
+  certdata[offset++] = TAG_CERT_COMPRESS;
+  certdata[offset++] = 1;
+  certdata[offset++] = compress_info;
+  certdata[offset++] = TAG_CERT_LRC;
+  certdata[offset++] = 0;
+  *certdata_len = offset;
+  return YKPIV_OK;
+}
+
+ static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf, size_t *buf_len) {
   ykpiv_rc res = YKPIV_OK;
-  uint8_t *ptr = NULL;
-  unsigned long ul_len = (unsigned long)*buf_len;
   int object_id = (int)ykpiv_util_slot_object(slot);
-  size_t offs, len = 0;
 
   if (-1 == object_id) return YKPIV_INVALID_OBJECT;
 
-  if (YKPIV_OK == (res = _ykpiv_fetch_object(state, object_id, buf, &ul_len))) {
-    ptr = buf;
+   unsigned char data[YKPIV_OBJ_MAX_SIZE * 10] = {0};
+   unsigned long data_len = sizeof (data);
 
-    // check that object contents are at least large enough to read the tag
-    if (ul_len < CB_OBJ_TAG_MIN) {
-      *buf_len = 0;
-      return YKPIV_OK;
+  if (YKPIV_OK == (res = _ykpiv_fetch_object(state, object_id, data, &data_len))) {
+    if ((res = ykpiv_util_get_certdata(data, data_len, buf, buf_len)) != YKPIV_OK) {
+      DBG("Failed to get certificate data");
+      return res;
     }
-
-    // check that first byte indicates "certificate" type
-
-    if (*ptr++ == TAG_CERT) {
-      offs = _ykpiv_get_length(ptr, buf + ul_len, &len);
-      if(!offs) {
-        *buf_len = 0;
-        return YKPIV_OK;
-      }
-      ptr += offs;
-
-      memmove(buf, ptr, len);
-      *buf_len = len;
-    }
-  }
-  else {
+  } else {
     *buf_len = 0;
   }
 
@@ -1430,10 +1547,10 @@ static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf
 }
 
 static ykpiv_rc _write_certificate(ykpiv_state *state, uint8_t slot, uint8_t *data, size_t data_len, uint8_t certinfo) {
-  uint8_t buf[CB_OBJ_MAX];
+  uint8_t buf[CB_OBJ_MAX] = {0};
+  size_t buf_len = sizeof(buf);
   int object_id = (int)ykpiv_util_slot_object(slot);
-  size_t offset = 0;
-  size_t req_len = 0;
+
 
   if (-1 == object_id) return YKPIV_INVALID_OBJECT;
 
@@ -1443,36 +1560,20 @@ static ykpiv_rc _write_certificate(ykpiv_state *state, uint8_t slot, uint8_t *da
     // if either data or data_len are non-zero, return an error,
     // that we only delete strictly when both are set properly
     if ((NULL != data) || (0 != data_len)) {
-      return YKPIV_GENERIC_ERROR;
+      return YKPIV_ARGUMENT_ERROR;
     }
 
     return _ykpiv_save_object(state, object_id, NULL, 0);
   }
 
   // encode certificate data for storage
-
-  // calculate the required length of the encoded object
-  req_len = 1 /* cert tag */ + 3 /* compression tag + data*/ + 2 /* lrc */;
-  req_len += _ykpiv_set_length(buf, data_len);
-  req_len += data_len;
-
-  if (req_len < data_len) return YKPIV_SIZE_ERROR; /* detect overflow of unsigned size_t */
-  if (req_len > _obj_size_max(state)) return YKPIV_SIZE_ERROR; /* obj_size_max includes limits for TLV encoding */
-
-  buf[offset++] = TAG_CERT;
-  offset += _ykpiv_set_length(buf + offset, data_len);
-  memcpy(buf + offset, data, data_len);
-  offset += data_len;
-
-  // write compression info and LRC trailer
-  buf[offset++] = TAG_CERT_COMPRESS;
-  buf[offset++] = 0x01;
-  buf[offset++] = certinfo == YKPIV_CERTINFO_GZIP ? 0x01 : 0x00;
-  buf[offset++] = TAG_CERT_LRC;
-  buf[offset++] = 00;
+  ykpiv_rc res = YKPIV_OK;
+  if ( (res=ykpiv_util_write_certdata(data, data_len, certinfo, buf, &buf_len)) != YKPIV_OK) {
+    return res;
+  }
 
   // write onto device
-  return _ykpiv_save_object(state, object_id, buf, offset);
+  return _ykpiv_save_object(state, object_id, buf, buf_len);
 }
 
 /*
@@ -1498,7 +1599,7 @@ static ykpiv_rc _get_metadata_item(uint8_t *data, size_t cb_data, uint8_t tag, u
   uint8_t tag_temp = 0;
   bool found = false;
 
-  if (!data || !pp_item || !pcb_item) return YKPIV_GENERIC_ERROR;
+  if (!data || !pp_item || !pcb_item) return YKPIV_ARGUMENT_ERROR;
 
   *pp_item = NULL;
   *pcb_item = 0;
@@ -1531,41 +1632,37 @@ static ykpiv_rc _get_metadata_item(uint8_t *data, size_t cb_data, uint8_t tag, u
 }
 
 ykpiv_rc ykpiv_util_parse_metadata(uint8_t *data, size_t data_len, ykpiv_metadata *metadata) {
-  uint8_t *p;
-  size_t cb;
+  uint8_t *p = 0;
+  size_t cb = 0;
+  uint32_t cnt = 0;
 
   ykpiv_rc rc = _get_metadata_item(data, data_len, YKPIV_METADATA_ALGORITHM_TAG, &p, &cb);
-  if(rc != YKPIV_OK)
-    return rc;
-  if(cb != 1)
-    return YKPIV_PARSE_ERROR;
-  metadata->algorithm = p[0];
+  if(rc == YKPIV_OK && cb == 1) {
+    metadata->algorithm = p[0];
+    cnt++;
+  }
 
   rc = _get_metadata_item(data, data_len, YKPIV_METADATA_POLICY_TAG, &p, &cb);
-  if(rc != YKPIV_OK)
-    return rc;
-  if(cb != 2)
-    return YKPIV_PARSE_ERROR;
-  metadata->pin_policy = p[0];
-  metadata->touch_policy = p[1];
+  if(rc == YKPIV_OK && cb == 2) {
+    metadata->pin_policy = p[0];
+    metadata->touch_policy = p[1];
+    cnt++;
+  }
 
   rc = _get_metadata_item(data, data_len, YKPIV_METADATA_ORIGIN_TAG, &p, &cb);
-  if(rc != YKPIV_OK)
-    return rc;
-  if(cb != 1)
-    return YKPIV_PARSE_ERROR;
-  metadata->origin = p[0];
+  if(rc == YKPIV_OK && cb == 1) {
+    metadata->origin = p[0];
+    cnt++;
+  }
 
   rc = _get_metadata_item(data, data_len, YKPIV_METADATA_PUBKEY_TAG, &p, &cb);
-  if(rc != YKPIV_OK)
-    return rc;
-  if(cb > sizeof(metadata->pubkey))
-    return YKPIV_PARSE_ERROR;
+  if(rc == YKPIV_OK && cb > 0 && cb <= sizeof(metadata->pubkey)) {
+    metadata->pubkey_len = cb;
+    memcpy(metadata->pubkey, p, cb);
+    cnt++;
+  }
 
-  metadata->pubkey_len = cb;
-  memcpy(metadata->pubkey, p, cb);
-
-  return YKPIV_OK;
+  return cnt ? YKPIV_OK : YKPIV_PARSE_ERROR;
 }
 
 /*
@@ -1586,7 +1683,7 @@ static ykpiv_rc _set_metadata_item(uint8_t *data, size_t *pcb_data, size_t cb_da
   uint8_t *p_next = NULL;
   long    cb_moved = 0; /* must be signed to have negative offsets */
 
-  if (!data || !pcb_data) return YKPIV_GENERIC_ERROR;
+  if (!data || !pcb_data) return YKPIV_ARGUMENT_ERROR;
 
   while (p_temp < (data + *pcb_data)) {
     tag_temp = *p_temp++;
@@ -1612,19 +1709,13 @@ static ykpiv_rc _set_metadata_item(uint8_t *data, size_t *pcb_data, size_t cb_da
         (long)cb_len); /* accounts for different length encoding */
 
       /* length would cause buffer overflow, return error */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wsign-conversion"
       if ((size_t)(*pcb_data + cb_moved) > cb_data_max) {
         return YKPIV_GENERIC_ERROR;
       }
-#pragma GCC diagnostic pop
 
       /* move remaining data */
       memmove(p_next + cb_moved, p_next, *pcb_data - (size_t)(p_next - data));
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wsign-conversion"
       *pcb_data += cb_moved;
-#pragma GCC diagnostic pop
 
       /* re-encode item and insert */
       if (cb_item != 0) {
@@ -1680,7 +1771,7 @@ static ykpiv_rc _read_metadata(ykpiv_state *state, uint8_t tag, uint8_t* data, s
   size_t offs;
   int obj_id = 0;
 
-  if (!data || !pcb_data || (CB_BUF_MAX > *pcb_data)) return YKPIV_GENERIC_ERROR;
+  if (!data || !pcb_data || (CB_BUF_MAX > *pcb_data)) return YKPIV_ARGUMENT_ERROR;
 
   switch (tag) {
   case TAG_ADMIN: obj_id = YKPIV_OBJ_ADMIN_DATA; break;

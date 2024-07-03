@@ -23,7 +23,7 @@ however, will *not* display the content of the retired slots (slots 82-95).
     CHUID:	No data available
     CCC:	No data available
     Slot 9a:
-	        Algorithm:	RSA1024
+	        Algorithm:	RSA2048
 	        Subject DN:	CN=piv_auth, C=SE
 	        Issuer DN:	CN=TestCA, O=Yubico, C=SE
 	        Fingerprint:	4a1416fce853b29eaf520174bf8639d72ff30bd84e4586f81ac2a19eda43fdf1
@@ -37,7 +37,7 @@ however, will *not* display the content of the retired slots (slots 82-95).
 	        Not Before:	Aug  8 14:29:50 2019 GMT
 	        Not After:	Aug  7 14:29:50 2021 GMT
     Slot 9d:
-	        Algorithm:	RSA1024
+	        Algorithm:	RSA2048
 	        Subject DN:	CN=key_mgm, C=SE
 	        Issuer DN:	CN=TestCA, O=Yubico, C=SE
 	        Fingerprint:	4a1416fce853429eaf420074bf8d39d72ff30bd84e4586f81ac2a19eda43fdf1
@@ -58,7 +58,7 @@ however, will *not* display the content of the retired slots (slots 82-95).
     CHUID:	No data available
     CCC:	No data available
     Slot 9a:
-	        Algorithm:	RSA1024
+	        Algorithm:	RSA2048
 	        Subject DN:	CN=piv_auth, C=SE
 	        Issuer DN:	CN=TestCA, O=Yubico, C=SE
 	        Fingerprint:	4a1416fce853b29eaf520174bf8639d72ff30bd84e4586f81ac2a19eda43fdf1

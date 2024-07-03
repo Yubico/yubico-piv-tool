@@ -1,0 +1,3 @@
+version=3
+opts=pgpsigurlmangle=s/$/.sig/ \
+  https://developers.yubico.com/yubico-piv-tool/Releases/ yubico-piv-tool-(.*)\.tar\.gz

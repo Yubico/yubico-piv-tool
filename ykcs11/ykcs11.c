@@ -47,7 +47,7 @@
 #define YKCS11_MANUFACTURER "Yubico (www.yubico.com)"
 #define YKCS11_LIBDESC      "PKCS#11 PIV Library (SP-800-73)"
 
-#define YKCS11_MAX_SLOTS       16
+#define YKCS11_MAX_SLOTS       64
 #define YKCS11_MAX_SESSIONS    16
 
 static ykcs11_slot_t slots[YKCS11_MAX_SLOTS];
@@ -87,16 +87,17 @@ static void cleanup_session(ykcs11_session_t *session) {
 }
 
 static void cleanup_slot(ykcs11_slot_t *slot) {
-  DBG("Cleaning up slot %lu", slot - slots);
+  DBG("Cleaning up slot %td", slot - slots);
   for(size_t i = 0; i < sizeof(slot->data) / sizeof(slot->data[0]); i++) {
     free(slot->data[i].data);
     slot->data[i].data = NULL;
   }
   for(size_t i = 0; i < sizeof(slot->certs) / sizeof(slot->certs[0]); i++) {
-    do_delete_pubk(slot->pkeys + i);
-    do_delete_cert(slot->certs + i);
-    do_delete_cert(slot->atst + i);
+    delete_cert(slot, i);
   }
+  memset(slot->origin, 0, sizeof(slot->origin));
+  memset(slot->pin_policy, 0, sizeof(slot->pin_policy));
+  memset(slot->touch_policy, 0, sizeof(slot->touch_policy));
   memset(slot->objects, 0, sizeof(slot->objects));
   slot->login_state = YKCS11_PUBLIC;
   slot->n_objects = 0;
@@ -260,6 +261,12 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetInfo)(
   CK_RV rv;
   DIN;
 
+  if (!pid) {
+    DBG("libykpiv is not initialized or already finalized");
+    rv = CKR_CRYPTOKI_NOT_INITIALIZED;
+    goto info_out;
+  }
+
   if (pInfo == NULL) {
     DBG("Wrong/Missing parameter");
     rv = CKR_ARGUMENTS_BAD;
@@ -310,8 +317,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 )
 {
   DIN;
-  char readers[2048];
+  char readers[2048] = {0};
   size_t len = sizeof(readers);
+  ykpiv_rc rc;
   CK_RV rv;
 
   if (!pid) {
@@ -327,14 +335,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
   }
 
   ykpiv_state *piv_state;
-  if (ykpiv_init(&piv_state, verbose) != YKPIV_OK) {
-    DBG("Unable to initialize libykpiv");
+  if ((rc = ykpiv_init(&piv_state, verbose)) != YKPIV_OK) {
+    DBG("Unable to initialize libykpiv: %s", ykpiv_strerror(rc));
     rv = CKR_FUNCTION_FAILED;
     goto slotlist_out;
   }
 
-  if (ykpiv_list_readers(piv_state, readers, &len) != YKPIV_OK) {
-    DBG("Unable to list readers");
+  if ((rc = ykpiv_list_readers(piv_state, readers, &len)) != YKPIV_OK) {
+    DBG("Unable to list readers: %s", ykpiv_strerror(rc));
     ykpiv_done(piv_state);
     rv = CKR_DEVICE_ERROR;
     goto slotlist_out;
@@ -352,56 +360,64 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
 
   for(char *reader = readers; *reader; reader += strlen(reader) + 1) {
 
-    if(is_yubico_reader(reader)) {
+    ykcs11_slot_t *slot = slots + n_slots;
 
-      ykcs11_slot_t *slot = slots + n_slots;
+    // Values must NOT be null terminated and ' ' padded
 
-      // Values must NOT be null terminated and ' ' padded
+    memstrcpy(slot->slot_info.slotDescription, sizeof(slot->slot_info.slotDescription), reader);
+    memstrcpy(slot->slot_info.manufacturerID, sizeof(slot->slot_info.manufacturerID), YKCS11_MANUFACTURER);
 
-      memstrcpy(slot->slot_info.slotDescription, sizeof(slot->slot_info.slotDescription), reader);
-      memstrcpy(slot->slot_info.manufacturerID, sizeof(slot->slot_info.manufacturerID), YKCS11_MANUFACTURER);
+    slot->slot_info.hardwareVersion.major = 1;
+    slot->slot_info.hardwareVersion.minor = 0;
+    slot->slot_info.firmwareVersion.major = 1;
+    slot->slot_info.firmwareVersion.minor = 0;
+    slot->slot_info.flags = CKF_HW_SLOT | CKF_REMOVABLE_DEVICE;
 
-      slot->slot_info.hardwareVersion.major = 1;
-      slot->slot_info.hardwareVersion.minor = 0;
-      slot->slot_info.firmwareVersion.major = 1;
-      slot->slot_info.firmwareVersion.minor = 0;
-      slot->slot_info.flags = CKF_HW_SLOT | CKF_REMOVABLE_DEVICE;
-
-      // Find existing slot, if any
-      for(CK_ULONG i = 0; i < n_slots; i++) {
-        if(!memcmp(slot->slot_info.slotDescription, slots[i].slot_info.slotDescription, sizeof(slot->slot_info.slotDescription))) {
-          slot = slots + i;
-          mark[i] = false; // Un-mark for disconnect
-          break;
-        }
+    // Find existing slot, if any
+    for(CK_ULONG i = 0; i < n_slots; i++) {
+      if(!memcmp(slot->slot_info.slotDescription, slots[i].slot_info.slotDescription, sizeof(slot->slot_info.slotDescription))) {
+        slot = slots + i;
+        mark[i] = false; // Un-mark for disconnect
+        break;
       }
+    }
 
-      // Initialize piv_state and increase slot count if this is a new slot
-      if(slot == slots + n_slots) {
-        DBG("Initializing slot %lu for '%s'", slot-slots, reader);
-        ykpiv_rc rc;
-        if((rc = ykpiv_init(&slot->piv_state, verbose)) != YKPIV_OK) {
-          DBG("Unable to initialize libykpiv: %s", ykpiv_strerror(rc));
-          locking.pfnUnlockMutex(global_mutex);
-          rv = CKR_FUNCTION_FAILED;
-          goto slotlist_out;
-        }
-        n_slots++;
+    // Initialize piv_state and increase slot count if this is a new slot
+    if(slot == slots + n_slots) {
+      if(n_slots >= YKCS11_MAX_SLOTS) {
+        DBG("Skipping '%s', already managing %u slots", reader, YKCS11_MAX_SLOTS);
+        continue;
       }
+      DBG("Initializing slot %td for '%s'", slot-slots, reader);
+      if((rc = ykpiv_init(&slot->piv_state, verbose)) != YKPIV_OK) {
+        DBG("Unable to initialize libykpiv: %s", ykpiv_strerror(rc));
+        locking.pfnUnlockMutex(global_mutex);
+        rv = CKR_FUNCTION_FAILED;
+        goto slotlist_out;
+      }
+      n_slots++;
+    }
 
-      char buf[sizeof(readers) + 1];
+    // Try to connect if unconnected (both new and existing slots)
+    if ((rc = ykpiv_validate(slot->piv_state, reader)) != YKPIV_OK) {
+
+      DBG("Failed to validate %s: %s", reader, ykpiv_strerror(rc));
+
+      slot->login_state = YKCS11_PUBLIC;
+      slot->slot_info.flags &= ~CKF_TOKEN_PRESENT;
+
+      char buf[sizeof(readers) + 1] = {0};
       snprintf(buf, sizeof(buf), "@%s", reader);
 
-      // Try to connect if unconnected (both new and existing slots)
-      if (!(slot->slot_info.flags & CKF_TOKEN_PRESENT) && ykpiv_connect(slot->piv_state, buf) == YKPIV_OK) {
+      if ((rc = ykpiv_connect(slot->piv_state, buf)) == YKPIV_OK) {
 
-        DBG("Connected slot %lu to '%s'", slot-slots, reader);
+        DBG("Connected slot %td to '%s'", slot-slots, reader);
 
         slot->slot_info.flags |= CKF_TOKEN_PRESENT;
         slot->token_info.flags = CKF_RNG | CKF_LOGIN_REQUIRED | CKF_USER_PIN_INITIALIZED | CKF_TOKEN_INITIALIZED;
 
         slot->token_info.ulMinPinLen = YKPIV_MIN_PIN_LEN;
-        slot->token_info.ulMaxPinLen = YKPIV_MGM_KEY_LEN;
+        slot->token_info.ulMaxPinLen = YKPIV_MAX_MGM_KEY_LEN;
 
         slot->token_info.ulMaxRwSessionCount = YKCS11_MAX_SESSIONS;
         slot->token_info.ulMaxSessionCount = YKCS11_MAX_SESSIONS;
@@ -421,6 +437,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetSlotList)(
         get_token_serial(slot->piv_state, slot->token_info.serialNumber, sizeof(slot->token_info.serialNumber));
         get_token_version(slot->piv_state, &slot->token_info.firmwareVersion);
         get_token_label(slot->piv_state, slot->token_info.label, sizeof(slot->token_info.label));
+      } else {
+        DBG("Unable to connect slot %td to '%s': %s", slot - slots, reader, ykpiv_strerror(rc));
       }
     }
   }
@@ -734,7 +752,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
 
   locking.pfnUnlockMutex(global_mutex);
 
-  CK_BYTE mgm_key[24];
+  CK_BYTE mgm_key[32] = {0};
   size_t len = sizeof(mgm_key);
   ykpiv_rc rc;
 
@@ -744,20 +762,20 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
     goto inittoken_out;
   }
 
-  if((rc = ykpiv_hex_decode((const char*)pPin, ulPinLen, mgm_key, &len)) != YKPIV_OK || len != 24) {
+  if((rc = ykpiv_hex_decode((const char*)pPin, ulPinLen, mgm_key, &len)) != YKPIV_OK) {
     DBG("ykpiv_hex_decode failed %s", ykpiv_strerror(rc));
     rv = CKR_PIN_INVALID;
     goto inittoken_out;
   }
 
-  int tries;
+  int tries = 0;
   ykcs11_slot_t *slot = slots + slotID;
 
   locking.pfnLockMutex(slot->mutex);
 
   // Verify existing mgm key (SO_PIN)
-  if((rc = ykpiv_authenticate(slot->piv_state, mgm_key)) != YKPIV_OK) {
-    DBG("ykpiv_authenticate failed %s", ykpiv_strerror(rc));
+  if((rc = ykpiv_authenticate2(slot->piv_state, mgm_key, len)) != YKPIV_OK) {
+    DBG("ykpiv_authenticate2 failed %s", ykpiv_strerror(rc));
     locking.pfnUnlockMutex(slot->mutex);
     rv = rc == YKPIV_AUTHENTICATION_ERROR ? CKR_PIN_INCORRECT : CKR_DEVICE_ERROR;
     goto inittoken_out;
@@ -782,16 +800,16 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitToken)(
   }
 
   // Authenticate with default mgm key (SO PIN)
-  if((rc = ykpiv_authenticate(slot->piv_state, NULL)) != YKPIV_OK) {
-    DBG("ykpiv_authenticate failed %s", ykpiv_strerror(rc));
+  if((rc = ykpiv_authenticate2(slot->piv_state, NULL, 0)) != YKPIV_OK) {
+    DBG("ykpiv_authenticate2 failed %s", ykpiv_strerror(rc));
     locking.pfnUnlockMutex(slot->mutex);
     rv = rc == YKPIV_AUTHENTICATION_ERROR ? CKR_PIN_INCORRECT : CKR_DEVICE_ERROR;
     goto inittoken_out;
   }
 
-  // Set new mgm key (SO PIN)
-  if((rc = ykpiv_set_mgmkey(slot->piv_state, mgm_key)) != YKPIV_OK) {
-    DBG("ykpiv_set_mgmkey failed %s", ykpiv_strerror(rc));
+  // Set new mgm key (SO PIN) with the same algorithm and touch policy the old one had
+  if((rc = ykpiv_set_mgmkey3(slot->piv_state, mgm_key, len, YKPIV_ALGO_AUTO, YKPIV_TOUCHPOLICY_AUTO)) != YKPIV_OK) {
+    DBG("ykpiv_set_mgmkey3 failed %s", ykpiv_strerror(rc));
     locking.pfnUnlockMutex(slot->mutex);
     rv = CKR_DEVICE_ERROR;
     goto inittoken_out;
@@ -938,18 +956,24 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
       piv_obj_id_t pubk_id = find_pubk_object(sub_id);
       piv_obj_id_t pvtk_id = find_pvtk_object(sub_id);
       piv_obj_id_t atst_id = find_atst_object(sub_id);
-      CK_BYTE data[YKPIV_OBJ_MAX_SIZE];  // Max cert value for ykpiv
+      CK_BYTE data[YKPIV_OBJ_MAX_SIZE] = {0}; // Max cert value for ykpiv
       size_t len;
       if(pvtk_id != PIV_INVALID_OBJ) {
+        session->slot->origin[sub_id] = 0;
+        session->slot->pin_policy[sub_id] = 0;
+        session->slot->touch_policy[sub_id] = 0;
         CK_ULONG slot = piv_2_ykpiv(pvtk_id);
         len = sizeof(data);
         if((rc = ykpiv_attest(session->slot->piv_state, slot, data, &len)) == YKPIV_OK) {
+          session->slot->origin[sub_id] = YKPIV_METADATA_ORIGIN_GENERATED;
           DBG("Created attestation for object %u slot %lx", pvtk_id, slot);
           if((rv = do_store_cert(data, len, &session->slot->atst[sub_id])) == CKR_OK) {
-            if(atst_id != PIV_INVALID_OBJ)
+            if ((rv = do_parse_attestation(session->slot->atst[sub_id], &session->slot->pin_policy[sub_id], &session->slot->touch_policy[sub_id])) != CKR_OK) {
+              DBG("Failed to parse pin and touch policy from attestation for object %u slot %lx: %lu", pvtk_id, slot, rv);
+            }
+            if (atst_id != PIV_INVALID_OBJ)
               add_object(session->slot, atst_id);
             if((rv = do_store_pubk(session->slot->atst[sub_id], &session->slot->pkeys[sub_id])) == CKR_OK) {
-              session->slot->local[sub_id] = CK_TRUE;
               add_object(session->slot, pvtk_id);
               add_object(session->slot, pubk_id);
             } else {
@@ -962,15 +986,19 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
           DBG("Failed to create attestation for object %u slot %lx: %s", pvtk_id, slot, ykpiv_strerror(rc));
           len = sizeof(data);
           if((rc = ykpiv_get_metadata(session->slot->piv_state, slot, data, &len)) == YKPIV_OK) {
-            DBG("Fetched %lu bytes metadata for object %u slot %lx", len, pvtk_id, slot);
+            DBG("Fetched %zu bytes metadata for object %u slot %lx", len, pvtk_id, slot);
             ykpiv_metadata md = {0};
             if((rc = ykpiv_util_parse_metadata(data, len, &md)) == YKPIV_OK) {
-              if((rv = do_create_public_key(md.pubkey, md.pubkey_len, md.algorithm, &session->slot->pkeys[sub_id])) == CKR_OK) {
-                session->slot->local[sub_id] = md.origin == YKPIV_METADATA_ORIGIN_GENERATED ? CK_TRUE : CK_FALSE;
-                add_object(session->slot, pvtk_id);
-                add_object(session->slot, pubk_id);
-              } else {
-                DBG("Failed to create public key for slot %lx, algorithm %u from metadata: %lu", slot, md.algorithm, rv);
+              session->slot->origin[sub_id] = md.origin;
+              session->slot->pin_policy[sub_id] = md.pin_policy;
+              session->slot->touch_policy[sub_id] = md.touch_policy;
+              if(md.pubkey_len) {
+                if((rv = do_create_public_key(md.pubkey, md.pubkey_len, md.algorithm, &session->slot->pkeys[sub_id])) == CKR_OK) {
+                  add_object(session->slot, pvtk_id);
+                  add_object(session->slot, pubk_id);
+                } else {
+                  DBG("Failed to create public key for slot %lx, algorithm %u from metadata: %lu", slot, md.algorithm, rv);
+                }
               }
             } else {
               DBG("Failed to parse metadata for object %u slot %lx: %s", pvtk_id, slot, ykpiv_strerror(rc));
@@ -1000,7 +1028,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
           continue; // Bail out, can't create key objects without the public key from the cert
         }
         add_object(session->slot, cert_id);
-        if(rc != YKPIV_OK) { // Failed to get attestation or metadata, fall back to assuming we have keys for cert objects
+        if(rc != YKPIV_OK && rc != YKPIV_KEY_ERROR) { // Failed to get attestation or metadata, fall back to assuming we have keys for cert objects
           add_object(session->slot, pvtk_id);
           add_object(session->slot, pubk_id);
         }
@@ -1369,23 +1397,25 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
   CK_BYTE          id;
   CK_BYTE_PTR      value;
   CK_ULONG         value_len;
-  CK_BYTE_PTR      p;
-  CK_BYTE_PTR      q;
-  CK_BYTE_PTR      dp;
-  CK_BYTE_PTR      dq;
-  CK_BYTE_PTR      qinv;
-  CK_ULONG         p_len;
-  CK_ULONG         q_len;
-  CK_ULONG         dp_len;
-  CK_ULONG         dq_len;
-  CK_ULONG         qinv_len;
-  CK_BYTE_PTR      ec_data;
-  CK_ULONG         ec_data_len;
-  CK_BBOOL         is_rsa;
+  CK_BYTE_PTR      p = NULL;
+  CK_BYTE_PTR      q = NULL;
+  CK_BYTE_PTR      dp = NULL;
+  CK_BYTE_PTR      dq = NULL;
+  CK_BYTE_PTR      qinv = NULL;
+  CK_ULONG         p_len = 0;
+  CK_ULONG         q_len = 0;
+  CK_ULONG         dp_len = 0;
+  CK_ULONG         dq_len = 0;
+  CK_ULONG         qinv_len = 0;
+  CK_BYTE_PTR      ec_data = NULL;
+  CK_ULONG         ec_data_len = 0;
+  unsigned char    algorithm = 0;
   piv_obj_id_t     dobj_id;
   piv_obj_id_t     cert_id;
   piv_obj_id_t     pubk_id;
   piv_obj_id_t     pvtk_id;
+  CK_BYTE          touch_policy = YKPIV_TOUCHPOLICY_DEFAULT;
+  CK_BYTE          pin_policy = YKPIV_PINPOLICY_DEFAULT;
 
   if (!pid) {
     DBG("libykpiv is not initialized or already finalized");
@@ -1462,7 +1492,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       goto create_out;
     }
 
-    session->slot->local[id] = CK_FALSE;
+    session->slot->origin[id] = YKPIV_METADATA_ORIGIN_IMPORTED;
+    session->slot->pin_policy[id] = YKPIV_PINPOLICY_DEFAULT;
+    session->slot->touch_policy[id] = YKPIV_TOUCHPOLICY_DEFAULT;
 
     // Add objects that were not already present
 
@@ -1484,18 +1516,42 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     DBG("Importing private key");
 
     // Try to parse the key as EC
-    is_rsa = CK_FALSE;
-    rv = check_create_ec_key(pTemplate, ulCount, &id, &ec_data, &ec_data_len);
-    if (rv != CKR_OK) {
+    rv = check_create_ec_key(pTemplate, ulCount, &id,
+                             &ec_data, &ec_data_len,
+                             &touch_policy, &pin_policy);
+    if (rv == CKR_OK) {
+      DBG("Key is ECDSA");
+      algorithm = ec_data_len <= 32 ? YKPIV_ALGO_ECCP256 : YKPIV_ALGO_ECCP384;
+    } else {
       // Try to parse the key as RSA
-      is_rsa = CK_TRUE;
       rv = check_create_rsa_key(pTemplate, ulCount, &id,
                                 &p, &p_len,
                                 &q, &q_len,
                                 &dp, &dp_len,
                                 &dq, &dq_len,
-                                &qinv, &qinv_len);
-      if (rv != CKR_OK) {
+                                &qinv, &qinv_len,
+                                &touch_policy, &pin_policy);
+      if (rv == CKR_OK) {
+        DBG("Key is RSA");
+        switch (p_len) {
+          case 63:
+          case 64:
+            algorithm = YKPIV_ALGO_RSA1024;
+            break;
+          case 127:
+          case 128:
+            algorithm = YKPIV_ALGO_RSA2048;
+            break;
+          case 191:
+          case 192:
+            algorithm = YKPIV_ALGO_RSA3072;
+            break;
+          case 255:
+          case 256:
+            algorithm = YKPIV_ALGO_RSA4096;
+            break;
+        }
+      } else {
         DBG("Private key template not valid");
         goto create_out;
       }
@@ -1504,6 +1560,8 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     DBG("Key id is %u", id);
 
     pvtk_id = find_pvtk_object(id);
+    pubk_id = find_pubk_object(id);
+    CK_ULONG slot = piv_2_ykpiv(pvtk_id);
 
     locking.pfnLockMutex(session->slot->mutex);
 
@@ -1514,38 +1572,56 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
       goto create_out;
     }
 
-    if (is_rsa == CK_TRUE) {
-      DBG("Key is RSA");
-      rv = token_import_private_key(session->slot->piv_state, piv_2_ykpiv(pvtk_id),
-                                          p, p_len,
-                                          q, q_len,
-                                          dp, dp_len,
-                                          dq, dq_len,
-                                          qinv, qinv_len,
-                                          NULL, 0);
-      if (rv != CKR_OK) {
-        DBG("Unable to import RSA private key");
-        locking.pfnUnlockMutex(session->slot->mutex);
-        goto create_out;
-      }
-    }
-    else {
-      DBG("Key is ECDSA");
-      rv = token_import_private_key(session->slot->piv_state, piv_2_ykpiv(pvtk_id),
-                                          NULL, 0,
-                                          NULL, 0,
-                                          NULL, 0,
-                                          NULL, 0,
-                                          NULL, 0,
-                                          ec_data, ec_data_len);
-      if (rv != CKR_OK) {
-        DBG("Unable to import ECDSA private key");
-        locking.pfnUnlockMutex(session->slot->mutex);
-        goto create_out;
-      }
+    ykpiv_rc rc = ykpiv_import_private_key(session->slot->piv_state, slot, algorithm,
+                               p, p_len,
+                               q, q_len,
+                               dp, dp_len,
+                               dq, dq_len,
+                               qinv, qinv_len,
+                               ec_data, ec_data_len,
+                               pin_policy, touch_policy);
+    if (rc != YKPIV_OK) {
+      DBG("Unable to import private key: %s", ykpiv_strerror(rc));
+      locking.pfnUnlockMutex(session->slot->mutex);
+      rv = CKR_DEVICE_ERROR;
+      goto create_out;
     }
 
-    session->slot->local[id] = CK_FALSE;
+    session->slot->origin[id] = YKPIV_METADATA_ORIGIN_IMPORTED;
+    session->slot->pin_policy[id] = pin_policy;
+    session->slot->touch_policy[id] = touch_policy;
+
+    do_delete_cert(session->slot->atst + id);
+    do_store_pubk(session->slot->certs[id], session->slot->pkeys + id);
+
+    unsigned char data[YKPIV_OBJ_MAX_SIZE];
+    size_t len = sizeof(data);
+    if((rc = ykpiv_get_metadata(session->slot->piv_state, slot, data, &len)) == YKPIV_OK) {
+      DBG("Fetched %zu bytes metadata for object %u slot %lx", len, pvtk_id, slot);
+      ykpiv_metadata md = {0};
+      if((rc = ykpiv_util_parse_metadata(data, len, &md)) == YKPIV_OK) {
+        session->slot->origin[id] = md.origin;
+        session->slot->pin_policy[id] = md.pin_policy;
+        session->slot->touch_policy[id] = md.touch_policy;
+        if(md.pubkey_len) {
+          if((rv = do_create_public_key(md.pubkey, md.pubkey_len, md.algorithm, &session->slot->pkeys[id])) == CKR_OK) {
+            add_object(session->slot, pubk_id);
+          } else {
+            DBG("Failed to create public key for slot %lx, algorithm %u from metadata: %lu", slot, md.algorithm, rv);
+          }
+        }
+      } else {
+        DBG("Failed to parse metadata for object %u slot %lx: %s", pvtk_id, slot, ykpiv_strerror(rc));
+      }
+    } else {
+      DBG("Failed to fetch metadata for object %u slot %lx: %s", pvtk_id, slot, ykpiv_strerror(rc));
+    }
+
+    add_object(session->slot, pvtk_id);
+
+    // No attestation can be created for imported objects
+
+    sort_objects(session->slot);
 
     locking.pfnUnlockMutex(session->slot->mutex);
     *phObject = (CK_OBJECT_HANDLE)pvtk_id;
@@ -1602,7 +1678,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
 
   // Silently ignore valid but not-present handles for compatibility with applications
   CK_BYTE id = get_sub_id(hObject);
-  if(id == 0) {
+  if(id == 0 && hObject != PIV_SECRET_OBJ) {
     DBG("Object handle is invalid");
     rv = CKR_OBJECT_HANDLE_INVALID;
     goto destroy_out;
@@ -1610,26 +1686,28 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
 
   locking.pfnLockMutex(session->slot->mutex);
 
-  // SO must be logged in
-  if (session->slot->login_state != YKCS11_SO) {
-    DBG("Authentication as SO required to delete objects");
-    locking.pfnUnlockMutex(session->slot->mutex);
-    rv = CKR_USER_TYPE_INVALID;
-    goto destroy_out;
-  }
+  if(id) {
+    // SO must be logged in
+    if (session->slot->login_state != YKCS11_SO) {
+      DBG("Authentication as SO required to delete objects");
+      locking.pfnUnlockMutex(session->slot->mutex);
+      rv = CKR_USER_TYPE_INVALID;
+      goto destroy_out;
+    }
 
-  DBG("Deleting object %lu", hObject);
-
-  rv = token_delete_cert(session->slot->piv_state, piv_2_ykpiv(find_data_object(id)));
-  if (rv != CKR_OK) {
-    DBG("Unable to delete object %lx from token", piv_2_ykpiv(find_data_object(id)));
-    locking.pfnUnlockMutex(session->slot->mutex);
-    goto destroy_out;
+    DBG("Deleting object %lx from token", piv_2_ykpiv(find_data_object(id)));
+ 
+    rv = token_delete_cert(session->slot->piv_state, piv_2_ykpiv(find_data_object(id)));
+    if (rv != CKR_OK) {
+      DBG("Unable to delete object %lx from token", piv_2_ykpiv(find_data_object(id)));
+      locking.pfnUnlockMutex(session->slot->mutex);
+      goto destroy_out;
+    }
   }
 
   // Remove the related objects from the session
 
-  DBG("%lu session objects before destroying object %lu", session->slot->n_objects, hObject);
+  DBG("%lu slot objects before destroying object %lu", session->slot->n_objects, hObject);
 
   CK_ULONG j = 0;
   for (CK_ULONG i = 0; i < session->slot->n_objects; i++) {
@@ -1638,18 +1716,18 @@ CK_DEFINE_FUNCTION(CK_RV, C_DestroyObject)(
   }
   session->slot->n_objects = j;
 
-  DBG("%lu session objects after destroying object %lu", session->slot->n_objects, hObject);
+  DBG("%lu slot objects after destroying object %lu", session->slot->n_objects, hObject);
 
   rv = delete_data(session->slot, id);
   if (rv != CKR_OK) {
-    DBG("Unable to delete data from session");
+    DBG("Unable to delete data from slot");
     locking.pfnUnlockMutex(session->slot->mutex);
     goto destroy_out;
   }
 
   rv = delete_cert(session->slot, id);
   if (rv != CKR_OK) {
-    DBG("Unable to delete certificate from session");
+    DBG("Unable to delete certificate from slot");
     locking.pfnUnlockMutex(session->slot->mutex);
     goto destroy_out;
   }
@@ -1756,6 +1834,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetAttributeValue)(
     // TODO: this function has some complex cases for return value. Make sure to check them.
     if (rv != CKR_OK) {
       DBG("Unable to get attribute 0x%lx of object %lu", (pTemplate + i)->type, hObject);
+      (pTemplate + i)->ulValueLen = CK_UNAVAILABLE_INFORMATION;
       rv_final = rv;
     }
   }
@@ -2117,7 +2196,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_EncryptUpdate)(
   }
 
   if(session->op_info.buf_len + ulPartLen > sizeof(session->op_info.buf)) {
-    DBG("Too much data added to operation buffer, max is %lu bytes", sizeof(session->op_info.buf));
+    DBG("Too much data added to operation buffer, max is %zu bytes", sizeof(session->op_info.buf));
     rv = CKR_DATA_LEN_RANGE;
     goto encupdate_out;
   }
@@ -2311,7 +2390,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
     goto decrypt_out;
   }
 
-  CK_ULONG key_len = do_get_key_size(session->op_info.op.encrypt.key);
+  CK_ULONG key_len = do_get_key_bits(session->op_info.op.encrypt.key);
   CK_ULONG datalen = (key_len + 7) / 8; // When RSA_NO_PADDING is used
   if(session->op_info.op.encrypt.padding == RSA_PKCS1_PADDING) {
     datalen -= 11;
@@ -2331,7 +2410,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Decrypt)(
   DBG("Using slot %x to decrypt %lu bytes", session->op_info.op.encrypt.piv_key, ulEncryptedDataLen);
 
   if(ulEncryptedDataLen > sizeof(session->op_info.buf)) {
-    DBG("Too much data added to operation buffer, max is %lu bytes", sizeof(session->op_info.buf));
+    DBG("Too much data added to operation buffer, max is %zu bytes", sizeof(session->op_info.buf));
     rv = CKR_DATA_LEN_RANGE;
     goto decrypt_out;
   }
@@ -2401,7 +2480,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptUpdate)(
   DBG("Adding %lu bytes to be decrypted", ulEncryptedPartLen);
 
   if(session->op_info.buf_len + ulEncryptedPartLen > sizeof(session->op_info.buf)) {
-    DBG("Too much data added to operation buffer, max is %lu bytes", sizeof(session->op_info.buf));
+    DBG("Too much data added to operation buffer, max is %zu bytes", sizeof(session->op_info.buf));
     rv = CKR_DATA_LEN_RANGE;
     goto decrypt_out;
   }
@@ -2452,7 +2531,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_DecryptFinal)(
     goto decrypt_out;
   }
 
-  CK_ULONG key_len = do_get_key_size(session->op_info.op.encrypt.key);
+  CK_ULONG key_len = do_get_key_bits(session->op_info.op.encrypt.key);
   CK_ULONG datalen = (key_len + 7) / 8; // When RSA_NO_PADDING is used
   if(session->op_info.op.encrypt.padding == RSA_PKCS1_PADDING) {
     datalen -= 11;
@@ -3388,7 +3467,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   piv_obj_id_t   pvtk_id;
   piv_obj_id_t   pubk_id;
   piv_obj_id_t   atst_id;
-  CK_BYTE        cert_data[YKPIV_OBJ_MAX_SIZE];
+  CK_BYTE        cert_data[YKPIV_OBJ_MAX_SIZE] = {0};
   CK_ULONG       cert_len;
   
   if (!pid) {
@@ -3477,7 +3556,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   }
 
   cert_len = sizeof(cert_data);
-  if ((rv = token_generate_key(session->slot->piv_state, gen.algorithm, slot, cert_data, &cert_len)) != CKR_OK) {
+  if ((rv = token_generate_key(session->slot->piv_state, &gen, slot, cert_data, &cert_len)) != CKR_OK) {
     DBG("Unable to generate key pair");
     locking.pfnUnlockMutex(session->slot->mutex);
     goto genkp_out;
@@ -3497,7 +3576,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
     goto genkp_out;
   }
 
-  session->slot->local[gen.key_id] = CK_TRUE;
+  session->slot->origin[gen.key_id] = YKPIV_METADATA_ORIGIN_GENERATED;
+  session->slot->pin_policy[gen.key_id] = gen.pin_policy;
+  session->slot->touch_policy[gen.key_id] = gen.touch_policy;
 
   // Add objects that were not already present
 
@@ -3509,12 +3590,15 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
   // Create an attestation, if appropriate and able
 
   if(atst_id != PIV_INVALID_OBJ) {
-    unsigned char data[YKPIV_OBJ_MAX_SIZE];
+    unsigned char data[YKPIV_OBJ_MAX_SIZE] = {0};
     size_t len = sizeof(data);
     ykpiv_rc rc = ykpiv_attest(session->slot->piv_state, slot, data, &len);
     if(rc == YKPIV_OK) {
       DBG("Created attestation for slot %lx", slot);
       if((rv = do_store_cert(data, len, session->slot->atst + gen.key_id)) == CKR_OK) {
+        if ((rv = do_parse_attestation(session->slot->atst[gen.key_id], session->slot->pin_policy + gen.key_id, session->slot->touch_policy + gen.key_id)) != CKR_OK) {
+          DBG("Failed to parse pin and touch policy from attestation for object %u slot %lx: %lu", gen.key_id, slot, rv);
+        }
         // Add attestation object if not already present
         add_object(session->slot, atst_id);
       } else {
@@ -3522,6 +3606,19 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
       }
     } else {
       DBG("Failed to create attestation for slot %lx: %s", slot, ykpiv_strerror(rc));
+      if((rc = ykpiv_get_metadata(session->slot->piv_state, slot, data, &len)) == YKPIV_OK) {
+        DBG("Fetched %zu bytes metadata for slot %lx", len, slot);
+        ykpiv_metadata md = {0};
+        if((rc = ykpiv_util_parse_metadata(data, len, &md)) == YKPIV_OK) {
+          session->slot->origin[gen.key_id] = md.origin;
+          session->slot->pin_policy[gen.key_id] = md.pin_policy;
+          session->slot->touch_policy[gen.key_id] = md.touch_policy;
+        } else {
+          DBG("Failed to parse metadata for slot %lx: %s", slot, ykpiv_strerror(rc));
+        }
+      } else {
+        DBG("Failed to fetch metadata for slot %lx: %s", slot, ykpiv_strerror(rc));
+      }
     }
   }
 
@@ -3580,9 +3677,85 @@ CK_DEFINE_FUNCTION(CK_RV, C_DeriveKey)(
 )
 {
   DIN;
-  DBG("TODO!!!");
+  ykcs11_session_t* session = get_session(hSession);
+
+  if (session == NULL || session->slot == NULL) {
+    DBG("Session is not open");
+    return CKR_SESSION_HANDLE_INVALID;
+  }
+
+  if (hBaseKey < PIV_PVTK_OBJ_PIV_AUTH || hBaseKey > PIV_PVTK_OBJ_ATTESTATION) {
+    DBG("Key handle %lu is not a private key", hBaseKey);
+    return CKR_KEY_HANDLE_INVALID;
+  }
+
+  CK_BYTE id = get_sub_id(hBaseKey);
+  CK_BYTE algo = do_get_key_algorithm(session->slot->pkeys[id]);
+  CK_ULONG size;
+
+  switch(algo) {
+    case YKPIV_ALGO_ECCP256:
+      size = 65;
+      break;
+    case YKPIV_ALGO_ECCP384:
+      size = 97;
+      break;
+    default:
+      DBG("Key handle %lu is not an ECDH private key", hBaseKey);
+      return CKR_KEY_TYPE_INCONSISTENT;
+  }
+
+  if (pMechanism->mechanism != CKM_ECDH1_DERIVE) {
+    DBG("Mechanism invalid");
+    return CKR_MECHANISM_INVALID;
+  }
+
+  if (pMechanism->pParameter == NULL || pMechanism->ulParameterLen != sizeof(CK_ECDH1_DERIVE_PARAMS)) {
+    DBG("Mechanism parameters invalid");
+    return CKR_MECHANISM_PARAM_INVALID;
+  }
+
+  CK_ECDH1_DERIVE_PARAMS *params = pMechanism->pParameter;
+
+  if (params->kdf != CKD_NULL || params->ulSharedDataLen != 0 || params->pPublicData == NULL || params->ulPublicDataLen != size) {
+    DBG("Key derivation parameters invalid");
+    return CKR_MECHANISM_PARAM_INVALID;
+  }
+
+  for(CK_ULONG i = 0; i < ulAttributeCount; i++) {
+    CK_RV rv = validate_derive_key_attribute(pTemplate[i].type, pTemplate[i].pValue);
+    if(rv != CKR_OK) {
+      DOUT;
+      return rv;
+    }
+  }
+
+  CK_ULONG slot = piv_2_ykpiv(hBaseKey);
+  unsigned char buf[128];
+  size_t len = sizeof(buf);
+
+  locking.pfnLockMutex(session->slot->mutex);
+
+  DBG("Deriving ECDH shared secret into object %u using slot %lx", PIV_SECRET_OBJ, slot);
+  ykpiv_rc rc = ykpiv_decipher_data(session->slot->piv_state, params->pPublicData, params->ulPublicDataLen, buf, &len, algo, slot);
+
+  if(rc != YKPIV_OK) {
+    DBG("Failed to derive key in slot %lx: %s", slot, ykpiv_strerror(rc));
+    locking.pfnUnlockMutex(session->slot->mutex);
+    DOUT;
+    return CKR_FUNCTION_FAILED;
+  }
+
+  *phKey = PIV_SECRET_OBJ;
+
+  store_data(session->slot, 0, buf, len);
+  add_object(session->slot, *phKey);
+  sort_objects(session->slot);
+
+  locking.pfnUnlockMutex(session->slot->mutex);
+  
   DOUT;
-  return CKR_FUNCTION_NOT_SUPPORTED;
+  return CKR_OK;
 }
 
 /* Random number generation functions */

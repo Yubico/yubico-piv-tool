@@ -33,41 +33,21 @@
 
 #include "pkcs11.h"
 
-typedef CK_FLAGS * CK_FLAGS_PTR;
+/* This is an offset for the vendor definitions to avoid clashes */
+#define YUBICO_BASE_VENDOR 0x59554200
+#define CKA_YUBICO (CKA_VENDOR_DEFINED + YUBICO_BASE_VENDOR)
 
-// YUBICO specific attributes
-#define CKA_TOUCH_PIN_DEFAULT 0x00000000U
-#define CKA_TOUCH_ALWAYS      0x00000001U
-#define CKA_PIN_ONCE          0x00000002U
-#define CKA_PIN_ALWAYS        0x00000004U
-#define CKA_PIN_NEVER         0x00000008U
-#define CKA_TOUCH_NEVER       0x00000016U
+#define CKA_YUBICO_TOUCH_POLICY (CKA_YUBICO + 1)
+#define CKA_YUBICO_PIN_POLICY (CKA_YUBICO + 2)
 
-// Standard stuff that we use but is not in pkcs11.h
-
-#define CKG_MGF1_SHA1			  (0x1UL)
-#define CKG_MGF1_SHA256			(0x2UL)
-#define CKG_MGF1_SHA384			(0x3UL)
-#define CKG_MGF1_SHA512			(0x4UL)
-#define CKG_MGF1_SHA224			(0x5UL)
-
-#define CKZ_DATA_SPECIFIED  (0x1UL) // = CK_BYTE. The only supported option for CK_RSA_PKCS_OAEP_SOURCE_TYPE
-
-typedef unsigned long CK_RSA_PKCS_MGF_TYPE;
-typedef unsigned long CK_RSA_PKCS_OAEP_SOURCE_TYPE;
-
-typedef struct {
-  CK_MECHANISM_TYPE       hashAlg;
-  CK_RSA_PKCS_MGF_TYPE    mgf;
-  CK_ULONG                sLen;
-} CK_RSA_PKCS_PSS_PARAMS, *CK_RSA_PKCS_PSS_PARAMS_PTR;
-
-typedef struct {
-  CK_MECHANISM_TYPE             hashAlg;
-  CK_RSA_PKCS_MGF_TYPE          mgf;
-  CK_RSA_PKCS_OAEP_SOURCE_TYPE  source;
-  CK_VOID_PTR                   pSourceData;
-  CK_ULONG                      ulSourceDataLen;
-} CK_RSA_PKCS_OAEP_PARAMS, *CK_RSA_PKCS_OAEP_PARAMS_PTR;
+/* Values for CKA_YUBICO_[TOUCH,PIN]_POLICY. Must match defines in ykpiv.h */
+#define YKPIV_TOUCHPOLICY_DEFAULT 0
+#define YKPIV_TOUCHPOLICY_NEVER 1
+#define YKPIV_TOUCHPOLICY_ALWAYS 2
+#define YKPIV_TOUCHPOLICY_CACHED 3
+#define YKPIV_PINPOLICY_DEFAULT 0
+#define YKPIV_PINPOLICY_NEVER 1
+#define YKPIV_PINPOLICY_ONCE 2
+#define YKPIV_PINPOLICY_ALWAYS 3
 
 #endif

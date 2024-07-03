@@ -4,82 +4,230 @@ name: Ubuntu Build
 on: [push]
 
 jobs:
-  build:
 
-    runs-on: ubuntu-latest
-
+  job1:
+    name: Ubuntu 22.04
+    runs-on: ubuntu-22.04
     steps:
       # This action checks-out the repository under $GITHUB_WORKSPACE, so the workflow can access it.
       - name: checkout
         uses: actions/checkout@v2
       - name: Install prerequisites
         run: |
-          echo sudo apt install libpcsclite-dev check gengetopt help2man openssl opensc
-          sudo apt install libpcsclite-dev check gengetopt help2man openssl opensc
+          set -x
+          sudo apt install libpcsclite-dev check gengetopt help2man openssl opensc zlib1g-dev
 
       - name: Build and install
         run: |
-          echo ">> mkdir cmake_build; cd cmake_build"
-          mkdir cmake_build; cd cmake_build
-
-          echo ">> cmake .. -DVERBOSE_CMAKE=ON"
+          set -x
+          mkdir build; cd build
           cmake .. -DVERBOSE_CMAKE=ON
-
-          echo ">> make"
           make
-
-          echo ">> make test"
           make test
 
-          echo ">> ldd {yubico-piv-tool/libykpiv.so/libykcs11.so} | grep libcrypto.so"
           ldd tool/yubico-piv-tool | grep libcrypto.so
           ldd lib/libykpiv.so | grep libcrypto.so
           ldd ykcs11/libykcs11.so | grep libcrypto.so
 
-          echo ">> pkcs11-tool --module ykcs11/libykcs11.so --show-info | grep Yubico"
+          ./tool/yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
           pkcs11-tool --module ykcs11/libykcs11.so --show-info | grep Yubico
 
-          echo ">> sudo make install"
           sudo make install
           sudo ldconfig
 
-          echo ">> yubico-piv-tool --help | grep 'Usage: yubico-piv-tool'"
+          cd ..
+          LIBDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_LIB_DIR:PATH=\s*\(\S*\).*$/\1/p")
+          BINDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_BIN_DIR:PATH=\s*\(\S*\).*$/\1/p")
+
+          echo "libdir: $LIBDIR"
+          echo "bindir: $BINDIR"
+
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
-          echo ">> objdump -T /usr/local/lib/libykcs11.so | grep C_Sign"
-          objdump -T /usr/local/lib/libykcs11.so | grep C_Sign
+          objdump -T $LIBDIR/libykcs11.so | grep C_Sign
+          pkcs11-tool --module $LIBDIR/libykcs11.so --show-info | grep Yubico
 
-          echo ">> pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico"
-          pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico
+          sudo rm $BINDIR/yubico-piv-tool
+          sudo rm $LIBDIR/libyk*
+
+      - name: Build and install debian package
+        run: |
+          set -x
+          mkdir build_dir;
+          cd build_dir; cmake -DCMAKE_INSTALL_PREFIX=../debian/tmp/usr .. -B .
+          cd ..
+          make -C build_dir
+          cd build_dir; cmake -P cmake_install.cmake
+          cd ..
+          mkdir debian/tmp/DEBIAN
+          dpkg-gencontrol -pyubico-piv-tool
+          dpkg --build debian/tmp build_dir/
+          cd build_dir
+          sudo apt install ./yubico-piv-tool_*_amd64.deb
+
+          (set +e; yubico-piv-tool -a status; true) 2>&1 >/dev/null | grep "Failed to connect to yubikey."
 
       - name: Build using OpenSSL static link
         run: |
-          echo ">> rm -rf cmake_build; mkdir cmake_build; cd cmake_build"
-          rm -rf cmake_build; mkdir cmake_build; cd cmake_build
+          set -x
 
-          echo ">> cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_STATIC_LINK=ON"
-          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_STATIC_LINK=ON
-
-          echo ">> make"
+          rm -rf build; mkdir build; cd build
+          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_STATIC_LINK=ON -B .
           make
-
-          echo ">> make test"
           make test
 
-          echo ">> ldd {yubico-piv-tool/libykpiv.so/libykcs11.so} | grep libcrypto.so | wc -l | grep 0"
           ldd tool/yubico-piv-tool | grep libcrypto.so | wc -l | grep 0
           ldd lib/libykpiv.so | grep libcrypto.so | wc -l | grep 0
           ldd ykcs11/libykcs11.so | grep libcrypto.so | wc -l | grep 0
 
-          echo ">> pkcs11-tool --module ykcs11/libykcs11.so --show-info | grep Yubico"
           pkcs11-tool --module ykcs11/libykcs11.so --show-info | grep Yubico
 
-          echo ">> sudo make install"
           sudo make install
           sudo ldconfig
 
-          echo ">> yubico-piv-tool --help | grep 'Usage: yubico-piv-tool'"
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
 
-          echo ">> pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico"
-          pkcs11-tool --module /usr/local/lib/libykcs11.so --show-info | grep Yubico
+          cd ..
+          LIBDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_LIB_DIR:PATH=\s*\(\S*\).*$/\1/p")
+          pkcs11-tool --module $LIBDIR/libykcs11.so --show-info | grep Yubico
+
+      - name: Build with YKCS11_DBG is set
+        run: |
+          set -x
+
+          rm -rf build; mkdir build; cd build
+          cmake .. -DVERBOSE_CMAKE=ON -DYKCS11_DBG=3 -B .
+          make
+          make test
+
+          ldd ykcs11/libykcs11.so | grep libcrypto.so
+
+          pkcs11-tool --module ykcs11/libykcs11.so --show-info | grep Yubico
+
+      - name: Build only library (no CLI and no ykcs11)
+        run: |
+          set -x
+          rm -rf build; mkdir build; cd build
+          cmake .. -DVERBOSE_CMAKE=ON -DBUILD_ONLY_LIB=ON -B .
+          make
+          make test
+
+      - name: Build only dynamic libaries
+        run: |
+          set -x
+          rm -rf build; mkdir build; cd build
+          cmake .. -DVERBOSE_CMAKE=ON -DBUILD_STATIC_LIB=OFF -B .
+          make
+          make test
+
+  job2:
+    name: Ubuntu 20.04
+    runs-on: ubuntu-20.04
+    steps:
+      # This action checks-out the repository under $GITHUB_WORKSPACE, so the workflow can access it.
+      - name: checkout
+        uses: actions/checkout@v2
+      - name: Install prerequisites
+        run: |
+          set -x
+          sudo apt install libpcsclite-dev check gengetopt help2man openssl opensc zlib1g-dev
+
+      - name: Build and install
+        run: |
+          set -x
+          mkdir build; cd build
+          cmake .. -DVERBOSE_CMAKE=ON
+          make
+          make test
+
+          ldd tool/yubico-piv-tool | grep libcrypto.so
+          ldd lib/libykpiv.so | grep libcrypto.so
+          ldd ykcs11/libykcs11.so | grep libcrypto.so
+
+          ./tool/yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
+          pkcs11-tool --module ykcs11/libykcs11.so --show-info | grep Yubico
+
+          sudo make install
+          sudo ldconfig
+
+          cd ..
+          LIBDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_LIB_DIR:PATH=\s*\(\S*\).*$/\1/p")
+          BINDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_BIN_DIR:PATH=\s*\(\S*\).*$/\1/p")
+
+          yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
+
+          objdump -T $LIBDIR/libykcs11.so | grep C_Sign
+          pkcs11-tool --module $LIBDIR/libykcs11.so --show-info | grep Yubico
+
+          sudo rm $BINDIR/yubico-piv-tool
+          sudo rm $LIBDIR/libyk*
+
+      - name: Build and install debian package
+        run: |
+          set -x
+          mkdir build_dir;
+          cd build_dir; cmake -DCMAKE_INSTALL_PREFIX=../debian/tmp/usr .. -B .
+          cd ..
+          make -C build_dir
+          cd build_dir; cmake -P cmake_install.cmake
+          cd ..
+          mkdir debian/tmp/DEBIAN
+          dpkg-gencontrol -pyubico-piv-tool
+          dpkg --build debian/tmp build_dir/
+          cd build_dir
+          sudo apt install ./yubico-piv-tool_*_amd64.deb
+
+          (set +e; yubico-piv-tool -a status; true) 2>&1 >/dev/null | grep "Failed to connect to yubikey."
+
+      - name: Build using OpenSSL static link
+        run: |
+          set -x
+
+          rm -rf build; mkdir build; cd build
+          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_STATIC_LINK=ON -B .
+          make
+          make test
+
+          ldd tool/yubico-piv-tool | grep libcrypto.so | wc -l | grep 0
+          ldd lib/libykpiv.so | grep libcrypto.so | wc -l | grep 0
+          ldd ykcs11/libykcs11.so | grep libcrypto.so | wc -l | grep 0
+
+          pkcs11-tool --module ykcs11/libykcs11.so --show-info | grep Yubico
+
+          sudo make install
+          sudo ldconfig
+
+          yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
+
+          cd ..
+          LIBDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_LIB_DIR:PATH=\s*\(\S*\).*$/\1/p")
+          pkcs11-tool --module $LIBDIR/libykcs11.so --show-info | grep Yubico
+
+      - name: Build with YKCS11_DBG is set
+        run: |
+          set -x
+
+          rm -rf build; mkdir build; cd build
+          cmake .. -DVERBOSE_CMAKE=ON -DYKCS11_DBG=3 -B .
+          make
+          make test
+
+          ldd ykcs11/libykcs11.so | grep libcrypto.so
+
+          pkcs11-tool --module ykcs11/libykcs11.so --show-info | grep Yubico
+
+      - name: Build only library (no CLI and no ykcs11)
+        run: |
+          set -x
+          rm -rf build; mkdir build; cd build
+          cmake .. -DVERBOSE_CMAKE=ON -DBUILD_ONLY_LIB=ON -B .
+          make
+          make test
+
+      - name: Build only dynamic libaries
+        run: |
+          set -x
+          rm -rf build; mkdir build; cd build
+          cmake .. -DVERBOSE_CMAKE=ON -DBUILD_STATIC_LIB=OFF -B .
+          make
+          make test

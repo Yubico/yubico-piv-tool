@@ -86,13 +86,18 @@ unsigned char get_algorithm(EVP_PKEY *key) {
   switch(type) {
     case EVP_PKEY_RSA:
       {
-        if(size == 2048) {
-          return YKPIV_ALGO_RSA2048;
-        } else if(size == 1024) {
-          return YKPIV_ALGO_RSA1024;
-        } else {
-          fprintf(stderr, "Unusable RSA key of %d bits, only 1024 and 2048 are supported.\n", size);
-          return 0;
+        switch (size) {
+          case 1024:
+            return YKPIV_ALGO_RSA1024;
+          case 2048:
+            return YKPIV_ALGO_RSA2048;
+          case 3072:
+            return YKPIV_ALGO_RSA3072;
+          case 4096:
+            return YKPIV_ALGO_RSA4096;
+          default:
+            fprintf(stderr, "Unusable RSA key of %d bits, only 1024, 2048 3072 and 4096 are supported.\n", size);
+            return 0;
         }
       }
     case EVP_PKEY_EC:
@@ -106,26 +111,60 @@ unsigned char get_algorithm(EVP_PKEY *key) {
           return 0;
         }
       }
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+    case EVP_PKEY_ED25519:
+      return YKPIV_ALGO_ED25519;
+    case EVP_PKEY_X25519:
+      return YKPIV_ALGO_X25519;
+#endif
     default:
       fprintf(stderr, "Unknown algorithm %d.\n", type);
       return 0;
   }
 }
 
+static char *string_parser(char *str_orig, char delimiter, char *str_found) {
+  char escape_char = '\\';
+  int f = 0;
+  char *p = str_orig;
+  while (*p == delimiter) {
+    p++;
+  }
+  for (; *p; p++) {
+    if (*p != delimiter) {
+      str_found[f++] = *p;
+    } else if (*p == delimiter) {
+      if ((*(p - 1) == escape_char &&
+           *(p - 2) == escape_char)) { // The escape_char before the delimiter is escaped => the delimiter is still in effect
+        str_found[f - 1] = '\0';
+        return ++p;
+      } else if (*(p - 1) == escape_char && *(p - 2) != escape_char) { // the delimiter is escaped
+        str_found[f - 1] = delimiter;
+      } else { // nothing is escaped
+        str_found[f] = '\0';
+        return ++p;
+      }
+    }
+  }
+  str_found[f] = '\0';
+  return NULL;
+}
+
 X509_NAME *parse_name(const char *orig_name) {
-  char name[1025];
+  char name[1025] = {0};
+  char part[1025] = {0};
   X509_NAME *parsed = NULL;
   char *ptr = name;
-  char *part;
 
   if(strlen(orig_name) > 1024) {
     fprintf(stderr, "Name is too long!\n");
     return NULL;
   }
-  strcpy(name, orig_name);
+  strncpy(name, orig_name, sizeof(name));
+  name[sizeof(name) - 1] = 0;
 
-  if(*name != '/') {
-    fprintf(stderr, "Name does not start with '/'!\n");
+  if(*name != '/' || name[strlen(name)-1] != '/') {
+    fprintf(stderr, "Name does not start or does not end with '/'!\n");
     return NULL;
   }
   parsed = X509_NAME_new();
@@ -133,7 +172,7 @@ X509_NAME *parse_name(const char *orig_name) {
     fprintf(stderr, "Failed to allocate memory\n");
     return NULL;
   }
-  while((part = strtok(ptr, "/"))) {
+  while((ptr = string_parser(ptr, '/', part))) {
     char *key;
     char *value;
     char *equals = strchr(part, '=');
@@ -145,7 +184,6 @@ X509_NAME *parse_name(const char *orig_name) {
     value = equals;
     key = part;
 
-    ptr = NULL;
     if(!key) {
       fprintf(stderr, "Malformed name (%s)\n", part);
       goto parse_err;
@@ -166,7 +204,7 @@ parse_err:
 }
 
 size_t read_data(unsigned char *buf, size_t len, FILE* input, enum enum_format format) {
-  char raw_buf[YKPIV_OBJ_MAX_SIZE * 2 + 1];
+  char raw_buf[YKPIV_OBJ_MAX_SIZE * 2 + 1] = {0};
   size_t raw_len = fread(raw_buf, 1, sizeof(raw_buf), input);
   switch(format) {
     case format_arg_hex:
@@ -208,7 +246,7 @@ void dump_data(const unsigned char *buf, unsigned int len, FILE *output, bool sp
   switch(format) {
     case format_arg_hex:
       {
-        char tmp[YKPIV_OBJ_MAX_SIZE * 3 + 1];
+        char tmp[YKPIV_OBJ_MAX_SIZE * 3 + 1] = {0};
         unsigned int i;
         unsigned int step = 2;
         if(space) step += 1;
@@ -226,8 +264,10 @@ void dump_data(const unsigned char *buf, unsigned int len, FILE *output, bool sp
         BIO *b64 = BIO_new(BIO_f_base64());
         BIO *bio = BIO_new_fp(output, BIO_NOCLOSE);
         BIO_push(b64, bio);
-        BIO_write(b64, buf, (int)len);
-        BIO_flush(b64);
+        if(BIO_write(b64, buf, (int)len) <= 0) {
+          fprintf(stderr, "Failed to write data in base64 format\n");
+        }
+        (void)BIO_flush(b64);
         BIO_free_all(b64);
       }
       return;
@@ -337,23 +377,14 @@ int get_slot_hex(enum enum_slot slot_enum) {
 }
 
 bool set_component(unsigned char *in_ptr, const BIGNUM *bn, int element_len) {
-  int real_len = BN_num_bytes(bn);
-
-  if(real_len > element_len) {
-    return false;
-  }
-  memset(in_ptr, 0, (size_t)(element_len - real_len));
-  in_ptr += element_len - real_len;
-  BN_bn2bin(bn, in_ptr);
-
-  return true;
+  return BN_bn2binpad(bn, in_ptr, element_len) == element_len;
 }
 
 bool prepare_rsa_signature(const unsigned char *in, unsigned int in_len, unsigned char *out, unsigned int *out_len, int nid) {
   X509_SIG *digestInfo;
   X509_ALGOR *algor;
   ASN1_OCTET_STRING *digest;
-  unsigned char data[1024];
+  unsigned char data[1024] = {0};
 
   if(in_len > sizeof(data))
     return false;
@@ -363,7 +394,11 @@ bool prepare_rsa_signature(const unsigned char *in, unsigned int in_len, unsigne
   digestInfo = X509_SIG_new();
   X509_SIG_getm(digestInfo, &algor, &digest);
   algor->algorithm = OBJ_nid2obj(nid);
-  X509_ALGOR_set0(algor, OBJ_nid2obj(nid), V_ASN1_NULL, NULL);
+  if(X509_ALGOR_set0(algor, OBJ_nid2obj(nid), V_ASN1_NULL, NULL) == 0) {
+    fprintf(stderr, "Failed to set X509 Algorithm\n");
+    X509_SIG_free(digestInfo);
+    return false;
+  }
   ASN1_STRING_set(digest, data, in_len);
   *out_len = (unsigned int)i2d_X509_SIG(digestInfo, &out);
   X509_SIG_free(digestInfo);
@@ -461,6 +496,8 @@ int get_hashnid(enum enum_hash hash, unsigned char algorithm) {
   switch(algorithm) {
     case YKPIV_ALGO_RSA1024:
     case YKPIV_ALGO_RSA2048:
+    case YKPIV_ALGO_RSA3072:
+    case YKPIV_ALGO_RSA4096:
       switch(hash) {
         case hash_arg_SHA1:
           return NID_sha1WithRSAEncryption;
@@ -489,6 +526,12 @@ int get_hashnid(enum enum_hash hash, unsigned char algorithm) {
         default:
           return 0;
       }
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+    case YKPIV_ALGO_ED25519:
+      return  NID_ED25519;
+    case YKPIV_ALGO_X25519:
+      return NID_X25519;
+#endif
     default:
       return 0;
   }
@@ -500,10 +543,18 @@ unsigned char get_piv_algorithm(enum enum_algorithm algorithm) {
       return YKPIV_ALGO_RSA2048;
     case algorithm_arg_RSA1024:
       return YKPIV_ALGO_RSA1024;
+    case algorithm_arg_RSA3072:
+      return YKPIV_ALGO_RSA3072;
+    case algorithm_arg_RSA4096:
+      return YKPIV_ALGO_RSA4096;
     case algorithm_arg_ECCP256:
       return YKPIV_ALGO_ECCP256;
     case algorithm_arg_ECCP384:
       return YKPIV_ALGO_ECCP384;
+    case algorithm_arg_ED25519:
+      return YKPIV_ALGO_ED25519;
+    case algorithm_arg_X25519:
+      return YKPIV_ALGO_X25519;
     case algorithm__NULL:
     default:
       return 0;
@@ -520,7 +571,7 @@ unsigned char get_pin_policy(enum enum_pin_policy policy) {
       return YKPIV_PINPOLICY_ALWAYS;
     case pin_policy__NULL:
     default:
-      return 0;
+      return YKPIV_PINPOLICY_DEFAULT;
   }
 }
 
@@ -534,7 +585,7 @@ unsigned char get_touch_policy(enum enum_touch_policy policy) {
       return YKPIV_TOUCHPOLICY_CACHED;
     case touch_policy__NULL:
     default:
-      return 0;
+      return YKPIV_TOUCHPOLICY_DEFAULT;
   }
 }
 
@@ -552,13 +603,16 @@ int SSH_write_X509(FILE *fp, X509 *x) {
   switch (EVP_PKEY_base_id(pkey)) {
   case EVP_PKEY_RSA: {
     RSA *rsa;
-    unsigned char n[256];
+    unsigned char n[256] = {0};
     const BIGNUM *bn_n;
 
     char rsa_id[] = "\x00\x00\x00\x07ssh-rsa";
     char rsa_f4[] = "\x00\x00\x00\x03\x01\x00\x01";
 
     rsa = EVP_PKEY_get1_RSA(pkey);
+    if(rsa == NULL) {
+      break;
+    }
     RSA_get0_key(rsa, &bn_n, NULL, NULL);
 
     if (!set_component(n, bn_n, RSA_size(rsa))) {
@@ -566,7 +620,7 @@ int SSH_write_X509(FILE *fp, X509 *x) {
     }
 
     uint32_t bytes = BN_num_bytes(bn_n);
-    char len_buf[5];
+    char len_buf[5] = {0};
     int len = 4;
 
     len_buf[0] = (bytes >> 24) & 0x000000ff;
@@ -589,11 +643,27 @@ int SSH_write_X509(FILE *fp, X509 *x) {
     BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
     BIO_push(b64, bio);
 
-    BIO_write(b64, rsa_id, sizeof(rsa_id) - 1);
-    BIO_write(b64, rsa_f4, sizeof(rsa_f4) - 1);
-    BIO_write(b64, len_buf, len);
-    BIO_write(b64, n, RSA_size(rsa));
-    BIO_flush(b64);
+    if(BIO_write(b64, rsa_id, sizeof(rsa_id) - 1) <= 0 ) {
+      fprintf(stderr, "Failed to write RSA ID\n");
+      BIO_free_all(b64);
+      break;
+    }
+    if(BIO_write(b64, rsa_f4, sizeof(rsa_f4) - 1) <= 0) {
+      fprintf(stderr, "Failed to write RSA f4\n");
+      BIO_free_all(b64);
+      break;
+    }
+    if(BIO_write(b64, len_buf, len) <= 0) {
+      fprintf(stderr, "Failed to write RSA length\n");
+      BIO_free_all(b64);
+      break;
+    }
+    if(BIO_write(b64, n, RSA_size(rsa)) <= 0) {
+      fprintf(stderr, "Failed to write RSA n component\n");
+      BIO_free_all(b64);
+      break;
+    }
+    (void)BIO_flush(b64);
     BIO_free_all(b64);
 
     ret = 1;
@@ -608,18 +678,4 @@ int SSH_write_X509(FILE *fp, X509 *x) {
 
   return ret;
 
-}
-
-bool is_rsa_key_algorithm(unsigned char algo) {
-  if(algo == YKPIV_ALGO_RSA1024 || algo == YKPIV_ALGO_RSA2048) {
-    return true;
-  }
-  return false;
-}
-
-bool is_ec_key_algorithm(unsigned char algo) {
-  if(algo == YKPIV_ALGO_ECCP256 || algo == YKPIV_ALGO_ECCP384) {
-    return true;
-  }
-  return false;
 }

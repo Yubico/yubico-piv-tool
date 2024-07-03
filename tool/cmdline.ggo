@@ -33,7 +33,7 @@ option "action" a "Action to take" values="version","generate","set-mgm-key",
        "request-certificate","verify-pin","change-pin","change-puk","unblock-pin",
        "selfsign-certificate","delete-certificate","read-certificate","status",
        "test-signature","test-decipher","list-readers","set-ccc","write-object",
-       "read-object","attest" enum multiple
+       "read-object","attest", "move-key", "delete-key" enum multiple
 text   "
        Multiple actions may be given at once and will be executed in order
        for example --action=verify-pin --action=request-certificate\n"
@@ -45,7 +45,15 @@ text   "
        9e is for Card Authentication (PIN never checked)
        82-95 is for Retired Key Management
        f9 is for Attestation\n"
-option "algorithm" A "What algorithm to use" values="RSA1024","RSA2048","ECCP256","ECCP384" enum optional default="RSA2048"
+option "to-slot" - "What slot to move an existing key to" values="9a","9c","9d","9e","82","83","84","85","86","87","88","89","8a","8b","8c","8d","8e","8f","90","91","92","93","94","95","f9" enum optional
+text   "
+       9a is for PIV Authentication
+       9c is for Digital Signature (PIN always checked)
+       9d is for Key Management
+       9e is for Card Authentication (PIN never checked)
+       82-95 is for Retired Key Management
+       f9 is for Attestation\n"
+option "algorithm" A "What algorithm to use" values="RSA1024","RSA2048","RSA3072", "RSA4096", "ECCP256","ECCP384", "ED25519", "X25519" enum optional default="RSA2048"
 option "hash" H "Hash to use for signatures" values="SHA1","SHA256","SHA384","SHA512" enum optional default="SHA256"
 option "new-key" n "New management key to use for action set-mgm-key, if omitted key will be asked for" string optional
 option "pin-retries" - "Number of retries before the pin code is blocked" int optional dependon="puk-retries"
@@ -53,6 +61,7 @@ option "puk-retries" - "Number of retries before the puk code is blocked" int op
 option "input" i "Filename to use as input, - for stdin" string optional default="-"
 option "output" o "Filename to use as output, - for stdout" string optional default="-"
 option "key-format" K "Format of the key being read/written" values="PEM","PKCS12","GZIP","DER","SSH" enum optional default="PEM"
+option "compress" - "Compress a large certificate using GZIP before import" flag off
 option "password" p "Password for decryption of private key file, if omitted password will be asked for" string optional
 option "subject" S "The subject to use for certificate request" string optional
 text   "
@@ -69,3 +78,4 @@ option "format" f "Format of data for write/read object" values="hex","base64","
 option "sign" - "Sign data" flag off hidden
 option "stdin-input" - "Read sensitive values from stdin" flag off hidden
 option "attestation" - "Add attestation cross-signature" flag off
+option "new-key-algo" m "New management key algorithm to use for action set-mgm-key" values="TDES","AES128","AES192","AES256" enum optional default="TDES"

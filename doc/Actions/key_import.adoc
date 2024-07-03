@@ -38,6 +38,6 @@ management key before start using it.]
     Successfully imported a new private key.
     Successfully imported a new certificate.
 
-    $ yubico-piv-tool -a import-certificate -s 9c -k -i cert_4096.gz -K GZIP
+    $ yubico-piv-tool -a import-certificate -s 9c -k -i cert_large.gz -K GZIP
     Successfully imported a new certificate.
 

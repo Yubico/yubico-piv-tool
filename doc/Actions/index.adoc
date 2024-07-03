@@ -12,6 +12,8 @@
 |link:key_generation.adoc[request, request-certificate]         | Generated a certification request for an asymmetric key stored on a specific slot
 |link:key_generation.adoc[selfsign, selfsign-certificate]       | Generates a self signed X509 certificate for an asymmetric key stored on a specific slot
 |link:delete_certificate.adoc[delete-cert, delete-certificate]  | Deletes a certificate from a specific slot
+|link:key_delete.adoc[delete-key]                               | Deletes a key from a specific slot
+|link:key_move.adoc[move-key]                                   | Moves a key between slots
 |link:read_certificate.adoc[read-cert, read-certificate]        | Returns the X509 certificate stored on a specific slot
 |link:read_write_objects.adoc[write-object]                     | Stores an object in a slot
 |link:read_write_objects.adoc[read-object]                      | Returns the content of a slot

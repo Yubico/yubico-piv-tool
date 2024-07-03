@@ -37,7 +37,6 @@
 #include "utils.h"
 #include "debug.h"
 
-#define F4 "\x01\x00\x01"
 #define PRIME256V1 "\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07"
 #define SECP384R1 "\x06\x05\x2b\x81\x04\x00\x22"
 
@@ -76,9 +75,6 @@ static CK_BBOOL is_RSA_mechanism(CK_MECHANISM_TYPE m) {
   default:
     return CK_FALSE;
   }
-
-  // Not reached
-  return CK_FALSE;
 }
 
 static const ykcs11_md_t* EVP_MD_by_mechanism(CK_MECHANISM_TYPE m) {
@@ -103,6 +99,11 @@ static const ykcs11_md_t* EVP_MD_by_mechanism(CK_MECHANISM_TYPE m) {
 }
 
 CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_MECHANISM_PTR mech) {
+
+  if(!key) {
+    DBG("No public key avilable, can't determine key type");
+    return CKR_KEY_TYPE_INCONSISTENT;
+  }
 
   const ykcs11_md_t *md = NULL;
 
@@ -141,7 +142,7 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_MECH
 
     case CKM_SHA512_RSA_PKCS:
     case CKM_SHA512_RSA_PKCS_PSS:
-//    case CKM_ECDSA_SHA512:
+    case CKM_ECDSA_SHA512:
       md = EVP_sha512();
       break;
 
@@ -149,9 +150,9 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_MECH
       DBG("Mechanism %lu not supported", session->op_info.mechanism);
       return CKR_MECHANISM_INVALID;
   }
-
+  
   session->op_info.out_len = do_get_signature_size(key);
-  session->op_info.op.sign.rsa = EVP_PKEY_get0_RSA(key);
+  session->op_info.op.sign.rsa = (RSA*)EVP_PKEY_get0_RSA(key);
   session->op_info.op.sign.algorithm = do_get_key_algorithm(key);
 
   switch (session->op_info.mechanism) {
@@ -190,7 +191,7 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_MECH
         DBG("Mechanism %lu requires PSS parameters", session->op_info.mechanism);
         return CKR_MECHANISM_PARAM_INVALID;
       }
-      CK_RSA_PKCS_PSS_PARAMS_PTR pss = mech->pParameter;
+      CK_RSA_PKCS_PSS_PARAMS *pss = mech->pParameter;
       session->op_info.op.sign.padding = RSA_PKCS1_PSS_PADDING;
       session->op_info.op.sign.pss_md = EVP_MD_by_mechanism(pss->hashAlg);
       session->op_info.op.sign.mgf1_md = EVP_MD_by_mechanism(pss->mgf);
@@ -258,7 +259,7 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
   }
 
   CK_ULONG padlen = session->op_info.out_len;
-  CK_BYTE buf[1024];
+  CK_BYTE buf[1024] = {0};
 
   // Apply padding
   switch(session->op_info.op.sign.padding) {
@@ -290,14 +291,14 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
   }
 
   // Sign with PIV
-  unsigned char sigbuf[256];
+  unsigned char sigbuf[512] = {0};
   size_t siglen = sizeof(sigbuf);
   ykpiv_rc rcc = ykpiv_sign_data(session->slot->piv_state, session->op_info.buf, session->op_info.buf_len, sigbuf, &siglen, session->op_info.op.sign.algorithm, session->op_info.op.sign.piv_key);
   if(rcc == YKPIV_OK) {
-    DBG("ykpiv_sign_data %lu bytes with key %x returned %lu bytes data", session->op_info.buf_len, session->op_info.op.sign.piv_key, siglen);
+    DBG("ykpiv_sign_data %lu bytes with key %x returned %zu bytes data", session->op_info.buf_len, session->op_info.op.sign.piv_key, siglen);
   } else {
     DBG("ykpiv_sign_data with key %x failed: %s", session->op_info.op.sign.piv_key, ykpiv_strerror(rcc));
-    return rcc == YKPIV_AUTHENTICATION_ERROR ? CKR_USER_NOT_LOGGED_IN : CKR_DEVICE_ERROR;
+    return yrc_to_rv(rcc);
   }
 
   CK_RV rv = CKR_OK;
@@ -306,7 +307,7 @@ CK_RV sign_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG_
   switch(session->op_info.op.sign.algorithm) {
     case YKPIV_ALGO_ECCP256:
     case YKPIV_ALGO_ECCP384:
-      DBG("Stripping DER encoding from %lu bytes, returning %lu", siglen, session->op_info.out_len);
+      DBG("Stripping DER encoding from %zu bytes, returning %lu", siglen, session->op_info.out_len);
       rv = do_strip_DER_encoding_from_ECSIG(sigbuf, siglen, session->op_info.out_len);
       siglen = session->op_info.out_len;
       break;
@@ -347,6 +348,11 @@ CK_RV verify_mechanism_cleanup(ykcs11_session_t *session) {
 
 CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_MECHANISM_PTR mech) {
 
+  if(!key) {
+    DBG("No public key avilable, can't determine key type");
+    return CKR_KEY_TYPE_INCONSISTENT;
+  }
+
   const ykcs11_md_t *md = NULL;
 
   session->op_info.md_ctx = NULL;
@@ -385,7 +391,7 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_ME
 
     case CKM_SHA512_RSA_PKCS:
     case CKM_SHA512_RSA_PKCS_PSS:
-//    case CKM_ECDSA_SHA512:
+    case CKM_ECDSA_SHA512:
       md = EVP_sha512();
       break;
 
@@ -394,8 +400,8 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_ME
       return CKR_MECHANISM_INVALID;
   }
 
-  ykcs11_rsa_t *rsa = EVP_PKEY_get0_RSA(key);
-  CK_RSA_PKCS_PSS_PARAMS_PTR pss = NULL;
+  const ykcs11_rsa_t *rsa = EVP_PKEY_get0_RSA(key);
+  CK_RSA_PKCS_PSS_PARAMS *pss = NULL;
 
   switch (session->op_info.mechanism) {
     case CKM_RSA_X_509:
@@ -485,9 +491,18 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_ME
         DBG("Mechanism %lu requires PSS parameters to specify hashAlg %s", session->op_info.mechanism, EVP_MD_name(md));
         return CKR_ARGUMENTS_BAD;
       }
-      EVP_PKEY_CTX_set_signature_md(session->op_info.op.verify.pkey_ctx, EVP_MD_by_mechanism(pss->hashAlg));
-      EVP_PKEY_CTX_set_rsa_mgf1_md(session->op_info.op.verify.pkey_ctx, EVP_MD_by_mechanism(pss->mgf));
-      EVP_PKEY_CTX_set_rsa_pss_saltlen(session->op_info.op.verify.pkey_ctx, pss->sLen);
+      if(EVP_PKEY_CTX_set_signature_md(session->op_info.op.verify.pkey_ctx, EVP_MD_by_mechanism(pss->hashAlg)) <= 0) {
+        DBG("Failed to set signature");
+        return CKR_FUNCTION_FAILED;
+      }
+      if(EVP_PKEY_CTX_set_rsa_mgf1_md(session->op_info.op.verify.pkey_ctx, EVP_MD_by_mechanism(pss->mgf)) <= 0) {
+        DBG("Failed to set PSS MGF type parameter");
+        return CKR_FUNCTION_FAILED;
+      }
+      if(EVP_PKEY_CTX_set_rsa_pss_saltlen(session->op_info.op.verify.pkey_ctx, pss->sLen) <= 0) {
+        DBG("Failed to set PSS salt length");
+        return CKR_FUNCTION_FAILED;
+      }
     }
   }
 
@@ -501,7 +516,7 @@ CK_RV verify_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULON
 
   int rc;
 
-  CK_BYTE der[1024];
+  CK_BYTE der[1024] = {0};
   if(!session->op_info.op.verify.padding) {
     if(sig_len > sizeof(der)) {
       DBG("do_apply_DER_encoding_to_ECSIG failed because signature was too large (%lu)", sig_len);
@@ -575,7 +590,7 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
 
     case CKA_KEY_TYPE:
       if ((rsa == CK_TRUE  && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_RSA) ||
-          (rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_ECDSA)) {
+          (rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_EC)) {
         DBG("Bad CKA_KEY_TYPE");
         return CKR_TEMPLATE_INCONSISTENT;
       }
@@ -588,8 +603,7 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
         return CKR_TEMPLATE_INCONSISTENT;
       }
 
-      // Only support F4
-      if (templ[i].ulValueLen != 3 || memcmp((CK_BYTE_PTR)templ[i].pValue, F4, 3) != 0) {
+      if(!do_check_public_exponent(templ[i].pValue, templ[i].ulValueLen)) {
         DBG("Unsupported public exponent");
         return CKR_ATTRIBUTE_VALUE_INVALID;
       }
@@ -607,6 +621,12 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
           break;
         case 2048:
           gen->algorithm = YKPIV_ALGO_RSA2048; 
+          break;
+        case 3072:
+          gen->algorithm = YKPIV_ALGO_RSA3072;
+          break;
+        case 4096:
+          gen->algorithm = YKPIV_ALGO_RSA4096;
           break;
         default:
           DBG("Unsupported MODULUS_BITS (key length)");
@@ -638,14 +658,23 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
       gen->key_id = *((CK_BYTE_PTR)templ[i].pValue);
       break;
 
+    case CKA_COPYABLE:
+    case CKA_DESTROYABLE:
+    case CKA_EXTRACTABLE:
     case CKA_SENSITIVE:
     case CKA_TOKEN:
     case CKA_ENCRYPT:
+    case CKA_DECRYPT:
+    case CKA_SIGN:
+    case CKA_SIGN_RECOVER:
     case CKA_VERIFY:
+    case CKA_VERIFY_RECOVER:
     case CKA_WRAP:
+    case CKA_UNWRAP:
     case CKA_DERIVE:
     case CKA_PRIVATE:
     case CKA_LABEL:
+    case CKA_ISSUER:
     case CKA_SUBJECT:
       // Ignore these attributes for now
       break;
@@ -663,6 +692,7 @@ CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
 CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTRIBUTE_PTR templ, CK_ULONG n) {
 
   CK_BBOOL rsa = is_RSA_mechanism(mechanism->mechanism);
+  CK_BYTE b_tmp = 0;
 
   for (CK_ULONG i = 0; i < n; i++) {
     switch (templ[i].type) {
@@ -675,7 +705,7 @@ CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
 
     case CKA_KEY_TYPE:
       if ((rsa == CK_TRUE  && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_RSA) ||
-          (rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_ECDSA)) {
+          (rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_EC)) {
         DBG("Bad CKA_KEY_TYPE");
         return CKR_TEMPLATE_INCONSISTENT;
       }
@@ -696,26 +726,150 @@ CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTR
       gen->key_id = *((CK_BYTE_PTR)templ[i].pValue);
       break;
 
+    case CKA_TOKEN:
+      if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
+        DBG("CKA_TOKEN must be TRUE or omitted");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+      break;
+
+    case CKA_PRIVATE:
+      if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
+        DBG("CKA_PRIVATE must be TRUE or omitted");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+      break;
+
     case CKA_SENSITIVE:
+      if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
+        DBG("CKA_SENSITIVE must be TRUE or omitted");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+      break;
+
+    case CKA_EXTRACTABLE:
+      if (*((CK_BBOOL *)templ[i].pValue) != CK_FALSE) {
+        DBG("CKA_EXTRACTABLE must be FALSE or omitted");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+      break;
+
+    case CKA_ALWAYS_AUTHENTICATE:
+      if (*((CK_BBOOL *)templ[i].pValue) == CK_TRUE) {
+        if (gen->pin_policy != YKPIV_PINPOLICY_DEFAULT &&
+            gen->pin_policy != YKPIV_PINPOLICY_ALWAYS) {
+          DBG("Inconsistent PIN policy");
+          return CKR_TEMPLATE_INCONSISTENT;
+        }
+        gen->pin_policy = YKPIV_PINPOLICY_ALWAYS;
+      } else if (*((CK_BBOOL *)templ[i].pValue) == CK_FALSE) {
+        if (gen->pin_policy != YKPIV_PINPOLICY_DEFAULT) {
+          DBG("Inconsistent PIN policy");
+          return CKR_TEMPLATE_INCONSISTENT;
+        }
+      } else {
+        DBG("CKA_ALWAYS_AUTHENTICATE must be TRUE, FALSE, or omitted");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+      break;
+
+    case CKA_YUBICO_TOUCH_POLICY:
+      b_tmp = *((CK_BYTE *)templ[i].pValue);
+      if (b_tmp != YKPIV_TOUCHPOLICY_ALWAYS &&
+          b_tmp != YKPIV_TOUCHPOLICY_CACHED &&
+          b_tmp != YKPIV_TOUCHPOLICY_NEVER &&
+          b_tmp != YKPIV_TOUCHPOLICY_DEFAULT) {
+        DBG("Invalid value for CKA_YUBICO_TOUCH_POLICY");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+      if (gen->touch_policy != YKPIV_TOUCHPOLICY_DEFAULT &&
+          gen->touch_policy != b_tmp) {
+        DBG("Inconsistent touch policy");
+        return CKR_TEMPLATE_INCONSISTENT;
+      }
+      gen->touch_policy = b_tmp;
+      break;
+
+    case CKA_YUBICO_PIN_POLICY:
+      b_tmp = *((CK_BYTE *)templ[i].pValue);
+      if (b_tmp != YKPIV_PINPOLICY_ALWAYS &&
+          b_tmp != YKPIV_PINPOLICY_ONCE &&
+          b_tmp != YKPIV_PINPOLICY_NEVER &&
+          b_tmp != YKPIV_PINPOLICY_DEFAULT) {
+        DBG("Invalid value for CKA_YUBICO_PIN_POLICY");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+      if (gen->pin_policy != YKPIV_PINPOLICY_DEFAULT &&
+          gen->pin_policy != b_tmp) {
+        DBG("Inconsistent PIN policy");
+        return CKR_TEMPLATE_INCONSISTENT;
+      }
+      gen->pin_policy = b_tmp;
+      break;
+
+    case CKA_COPYABLE:
+    case CKA_DESTROYABLE:
+    case CKA_ENCRYPT:
     case CKA_DECRYPT:
+    case CKA_WRAP:
     case CKA_UNWRAP:
     case CKA_SIGN:
-    case CKA_PRIVATE:
-    case CKA_TOKEN:
+    case CKA_SIGN_RECOVER:
+    case CKA_VERIFY:
+    case CKA_VERIFY_RECOVER:
     case CKA_DERIVE:
     case CKA_LABEL:
+    case CKA_ISSUER:
     case CKA_SUBJECT:
       // Ignore these attributes for now
       break;
 
     default:
-      DBG("Invalid attribute %lx in private key template", templ[i].type);
+      DBG("Invalid attribute 0x%lx in private key template", templ[i].type);
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
   }
 
   return CKR_OK;
 
+}
+
+CK_RV validate_derive_key_attribute(CK_ATTRIBUTE_TYPE type, void *value) {
+  switch (type) {
+    case CKA_TOKEN:
+      if (*((CK_BBOOL *) value) != CK_FALSE) {
+        DBG("Derived key can only be a session object");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+      break;
+
+    case CKA_CLASS:
+      if (*((CK_ULONG_PTR) value) != CKO_SECRET_KEY) {
+        DBG("Derived key class is unsupported");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+      break;
+
+    case CKA_KEY_TYPE:
+      if (*((CK_ULONG_PTR) value) != CKK_GENERIC_SECRET) {
+        DBG("Derived key type is unsupported");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+      break;
+
+    case CKA_EXTRACTABLE:
+      if (*((CK_BBOOL *) value) != CK_TRUE) {
+        DBG("The derived key must be extractable");
+        return CKR_ATTRIBUTE_VALUE_INVALID;
+      }
+      break;
+
+    default:
+      DBG("ECDH key derive template contains the ignored attribute: %lx", type);
+      break;
+  }
+
+  return CKR_OK;
 }
 
 CK_RV digest_mechanism_init(ykcs11_session_t *session, CK_MECHANISM_PTR mech) {
@@ -774,7 +928,7 @@ CK_RV digest_mechanism_update(ykcs11_session_t *session, CK_BYTE_PTR in, CK_ULON
     }
   } else {
     if(session->op_info.buf_len + in_len > sizeof(session->op_info.buf)) {
-      DBG("Too much data added to operation buffer, max is %lu bytes", sizeof(session->op_info.buf));
+      DBG("Too much data added to operation buffer, max is %zu bytes", sizeof(session->op_info.buf));
       return CKR_DATA_LEN_RANGE;
     }
     memcpy(session->op_info.buf + session->op_info.buf_len, in, in_len);
@@ -826,7 +980,7 @@ CK_RV decrypt_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_M
     if(mech->pParameter == NULL || mech->ulParameterLen != sizeof(CK_RSA_PKCS_OAEP_PARAMS)) {
         return CKR_MECHANISM_PARAM_INVALID;
     }
-    CK_RSA_PKCS_OAEP_PARAMS_PTR oaep = mech->pParameter;
+    CK_RSA_PKCS_OAEP_PARAMS *oaep = mech->pParameter;
     DBG("OAEP params : hashAlg 0x%lx mgf 0x%lx source 0x%lx pSourceData %p ulSourceDataLen %lu", oaep->hashAlg, oaep->mgf, oaep->source, oaep->pSourceData, oaep->ulSourceDataLen);
     session->op_info.op.encrypt.oaep_md = EVP_MD_by_mechanism(oaep->hashAlg);
     session->op_info.op.encrypt.mgf1_md = EVP_MD_by_mechanism(oaep->mgf);
@@ -853,7 +1007,7 @@ CK_RV decrypt_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_M
 
 CK_RV decrypt_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR data, CK_ULONG_PTR data_len, CK_ULONG key_len) {
   ykpiv_rc piv_rv;
-  CK_BYTE  dec[1024];
+  CK_BYTE  dec[1024] = {0};
   size_t   dec_len = sizeof(dec);
   int      cb_len;
 
@@ -889,7 +1043,7 @@ CK_RV decrypt_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR data, CK_UL
     return CKR_FUNCTION_FAILED;
   }
 
-  if(cb_len > *data_len) {
+  if((CK_ULONG)cb_len > *data_len) {
     DBG("Unpadded data too large (%d) for provided buffer (%lu)", cb_len, *data_len);
     *data_len = 0;
     return CKR_BUFFER_TOO_SMALL;

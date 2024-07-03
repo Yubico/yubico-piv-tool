@@ -1,5 +1,250 @@
+yubico-piv-tool (2.5.1) stable; urgency=medium
+
+  * ykpiv: cmd: ykcs11: Fix buffer size for key import.
+
+ -- Aveen Ismail <aveen.ismail@yubico.com>  Wed, 14 Feb 2024 13:08:31 +0100
+
+yubico-piv-tool (2.5.0) stable; urgency=medium
+
+  * ykpiv: cmd: ykcs11: Add support for RSA3072 and RSA4096 key types. Available in firmware 5.7.0 and newer
+  * ykpiv: cmd: Add support for ED25519 and X25519 key types. Available in firmware 5.7.0 and newer
+  * ykpiv: cmd: Add support for deleting keys. Available in firmware 5.7.0 and newer
+  * ykpiv: cmd: Add support for moving keys between slots. Available in firmware 5.7.0 and newer
+
+ -- Aveen Ismail <aveen.ismail@yubico.com>  Tue, 30 Jan 2024 20:07:42 +0100
+
+yubico-piv-tool (2.4.2) stable; urgency=medium
+
+  * ykpiv: Fix potential type casting bug.
+
+ -- Aveen Ismail <aveen.ismail@yubico.com>  Thu, 7 Dec 2023 11:00:56 +0100
+
+yubico-piv-tool (2.4.1) stable; urgency=medium
+
+  * ykpiv: ykcs11: Fix building on certain architectures. Existing builds are not affected.
+
+ -- Aveen Ismail <aveen.ismail@yubico.com>  Tue, 2 Dec 2023 16:03:59 +0100
+
+yubico-piv-tool (2.4.0) stable; urgency=medium
+
+  * ykpiv: cmd: Add support for compressing certificate upon import
+  * ykcs11: Increase maximum number of slots to handle overflow
+  * ykcs11: Add support for CKA_COPYABLE and CKA_DESTROYABLE attributes
+
+ -- Aveen Ismail <aveen.ismail@yubico.com>  Thu, 30 Nov 2023 20:00:23 +0100
+
+yubico-piv-tool (2.3.1) stable; urgency=medium
+
+  * ykpiv: Add support for T=0 smartcards
+  * ykpiv: ykcs11: Minor code optimization
+  * ykpiv: ykcs11: Improve logging
+  * ykpiv: ykcs11: Improve error handling
+  * ykpiv: ykcs11: Fix minor bugs
+  * ykcs11: Add support for several PKCS11 Attributes
+  * ykcs11: Add support for CKM_ECDSA_SHA512 mechanism
+  * ykcs11: Fix incorrect value for public key attributes CKA_PRIVATE, CKA_SENSITIVE, CKA_ALWAYS_SENSITIVE, CKA_EXTRACTABLE and CKA_NEVER_EXTRACTABLE
+  * doc: Minor documentation improvement
+
+ -- Aveen Ismail <aveen.ismail@yubico.com>  Thu, 23 Feb 2023 13:40:26 +0100
+
+yubico-piv-tool (2.3.0) stable; urgency=medium
+
+  * ykpiv: Add support for AES management keys
+  * ykpiv: Better handling of connection reset
+  * ykpiv: Add support for T=0 protocol
+  * ykcs11: Support YubiKeys in NFC readers
+  * ykcs11: Support touch and PIN policies for imported private keys
+  * ykcs11: Support touch and PIN policy when generating keys
+  * ykcs11: Set length to -1 on function fail
+  * ykcs11: Ignore CKA_NAME_HASH_ALGORITHM and CKA_HASH_OF_SUBJECT_PUBLIC_KEY for certificates
+  * cmd: Support attestation in selfsign certificates
+  * build: Compile cleanly with openssl 1.1 and 3
+
+ -- Aveen Ismail <aveen.ismail@yubico.com>  Tue, 1 Mar 2022 14:14:50 +0100
+
+yubico-piv-tool (2.2.1) stable; urgency=medium
+
+  * 2.2.1 release
+
+ -- Aveen Ismail <aveen.ismail@yubico.com>  Thu, 2 Sep 2021 13:14:40 +0100
+
+yubico-piv-tool (2.2.0) stable; urgency=medium
+
+  * 2.2.0 release
+
+ -- Aveen Ismail <aveen.ismail@yubico.com>  Wed, 16 Dec 2020 16:43:50 +0100
+
+yubico-piv-tool (2.1.1) stable; urgency=medium
+
+  * 2.1.1 release
+
+ -- Aveen Ismail <aveen.ismail@yubico.com>  Mon, 20 Jul 2020 10:57:43 +0100
+
 yubico-piv-tool (2.1.0) stable; urgency=medium
 
   * 2.1.0 release
 
  -- Aveen Ismail <aveen.ismail@yubico.com>  Mon, 8 Jun 2020 11:19:47 +0100
+
+yubico-piv-tool (2.0.0-2~ppa3~ppadisttarget1) ppadisttarget; urgency=medium
+
+  * More compiler flags
+
+ -- Klas Lindfors <klas@yubico.com>  Fri, 31 Jan 2020 12:44:31 +0100
+
+yubico-piv-tool (2.0.0-2~ppa2~ppadisttarget1) ppadisttarget; urgency=medium
+
+  * Fix compiler flags
+
+ -- Klas Lindfors <klas@yubico.com>  Fri, 31 Jan 2020 11:15:34 +0100
+
+yubico-piv-tool (2.0.0-2~ppa1~ppadisttarget1) ppadisttarget; urgency=medium
+
+  * New upstream version.
+
+ -- Klas Lindfors <klas@yubico.com>  Fri, 31 Jan 2020 11:03:42 +0100
+
+yubico-piv-tool (1.7.0-1~ppa1~ppadisttarget1) ppadisttarget; urgency=medium
+
+  * New upstream version.
+
+ -- Klas Lindfors <klas@yubico.com>  Wed, 03 Apr 2019 09:55:44 +0200
+
+yubico-piv-tool (1.6.2-1~ppa1~ppadisttarget1) ppadisttarget; urgency=medium
+
+  * New upstream version.
+
+ -- Klas Lindfors <klas@yubico.com>  Fri, 14 Sep 2018 10:06:16 +0200
+
+yubico-piv-tool (1.6.1-1~ppa1~ppadisttarget1) ppadisttarget; urgency=medium
+
+  * New upstream version.
+
+ -- Klas Lindfors <klas@yubico.com>  Fri, 17 Aug 2018 09:27:54 +0200
+
+yubico-piv-tool (1.5.0-1~ppa2~ppadisttarget1) ppadisttarget; urgency=medium
+
+  * Fixup build-depends, now additional dependency on check.
+
+ -- Klas Lindfors <klas@yubico.com>  Wed, 29 Nov 2017 12:59:54 +0100
+
+yubico-piv-tool (1.5.0-1~ppa1~ppadisttarget1) ppadisttarget; urgency=medium
+
+  * New upstream version.
+
+ -- Klas Lindfors <klas@yubico.com>  Wed, 29 Nov 2017 12:55:33 +0100
+
+yubico-piv-tool (1.4.4-1~ppa1~ppadisttarget1) ppadisttarget; urgency=medium
+
+  * New upstream version.
+
+ -- Klas Lindfors <klas@yubico.com>  Tue, 17 Oct 2017 14:09:16 +0200
+
+yubico-piv-tool (1.4.3-1~ppa1~ppadisttarget1) ppadisttarget; urgency=medium
+
+  * New upstream version.
+
+ -- Klas Lindfors <klas@yubico.com>  Tue, 18 Apr 2017 13:14:00 +0200
+
+yubico-piv-tool (1.4.2-1~ppa2~ppadisttarget1) ppadisttarget; urgency=medium
+
+  * Fixup that ykcs11 installed without any files.
+
+ -- Klas Lindfors <klas@yubico.com>  Fri, 02 Sep 2016 08:59:54 +0200
+
+yubico-piv-tool (1.4.2-1~ppa1~ppadisttarget1) ppadisttarget; urgency=medium
+
+  * New upstream version.
+
+ -- Klas Lindfors <klas@yubico.com>  Fri, 12 Aug 2016 16:06:04 +0200
+
+yubico-piv-tool (1.4.0-1~ppa1~ppadisttarget1) ppadisttarget; urgency=medium
+
+  * New upstream version.
+
+ -- Klas Lindfors <klas@yubico.com>  Tue, 03 May 2016 09:45:47 +0200
+
+yubico-piv-tool (1.3.1-1~ppa1~ppadisttarget1) ppadisttarget; urgency=medium
+
+  * New upstream version.
+
+ -- Klas Lindfors <klas@yubico.com>  Tue, 19 Apr 2016 07:42:18 +0200
+
+yubico-piv-tool (1.3.0-1~ppa1~ppadisttarget1) ppadisttarget; urgency=medium
+
+  * New upstream version.
+
+ -- Klas Lindfors <klas@yubico.com>  Fri, 19 Feb 2016 12:41:05 +0100
+
+yubico-piv-tool (1.2.2-1~ppa1~ppadisttarget1) ppadisttarget; urgency=medium
+
+  * New upstream version.
+
+ -- Klas Lindfors <klas@yubico.com>  Tue, 08 Dec 2015 14:15:29 +0100
+
+yubico-piv-tool (1.2.1-1~ppa1~ppadisttarget1) ppadisttarget; urgency=medium
+
+  * New upstream version.
+
+ -- Klas Lindfors <klas@yubico.com>  Tue, 08 Dec 2015 13:21:22 +0100
+
+yubico-piv-tool (1.2.0-1~ppa1~ppadisttarget1) ppadisttarget; urgency=medium
+
+  * New upstream version.
+
+ -- Klas Lindfors <klas@yubico.com>  Mon, 07 Dec 2015 09:50:53 +0100
+
+yubico-piv-tool (1.1.0-1~ppa3~ppadisttarget1) ppadisttarget; urgency=medium
+
+  * PPA package with conflicts/replaces on libykpiv0
+
+ -- Klas Lindfors <klas@yubico.com>  Tue, 10 Nov 2015 09:36:44 +0100
+
+yubico-piv-tool (1.1.0-1) unstable; urgency=low
+
+  * New upstream version.
+
+ -- Alessio Di Mauro <alessio@yubico.com>  Mon, 09 Nov 2015 09:30:26 +0100
+
+yubico-piv-tool (1.0.3-1) unstable; urgency=low
+
+  * New upstream version.
+
+ -- Simon Josefsson <simon@josefsson.org>  Thu, 08 Oct 2015 12:37:17 +0200
+
+yubico-piv-tool (1.0.2-1) unstable; urgency=low
+
+  * New upstream version.
+  * Update upstream-signing-key.pgp.
+  * Tweak watch file.
+
+ -- Simon Josefsson <simon@josefsson.org>  Tue, 22 Sep 2015 08:31:55 +0200
+
+yubico-piv-tool (1.0.1-1) unstable; urgency=low
+
+  * New upstream version.
+    - Update debian/copyright to match GPL->BSD relicense.
+
+ -- Simon Josefsson <simon@josefsson.org>  Tue, 11 Aug 2015 14:02:39 +0200
+
+yubico-piv-tool (1.0.0-1) unstable; urgency=low
+
+  * New upstream version.
+  * Update README.source.
+  * Add gbp.conf.
+  * Add Alessio as uploader, and update upstream-signing-key.pgp.
+  * Update symbols.
+
+ -- Simon Josefsson <simon@josefsson.org>  Tue, 07 Jul 2015 22:47:03 +0200
+
+yubico-piv-tool (0.1.6-1) unstable; urgency=low
+
+  * New upstream version.
+
+ -- Simon Josefsson <simon@josefsson.org>  Wed, 15 Apr 2015 14:53:54 +0200
+
+yubico-piv-tool (0.1.5-1) unstable; urgency=low
+
+  * Initial release. (Closes: #779837)
+
+ -- Hans-Christoph Steiner <hans@eds.org>  Mon, 30 Mar 2015 16:53:01 -0400

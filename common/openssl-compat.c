@@ -8,10 +8,24 @@
  */
 
 #include "openssl-compat.h"
+
+int make_iso_compilers_happy;
+
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
 
 #include <string.h>
 #include <limits.h>
+
+void X509_SIG_getm(X509_SIG *sig, X509_ALGOR **palg,
+                   ASN1_OCTET_STRING **pdigest)
+{
+    if (palg)
+        *palg = sig->algor;
+    if (pdigest)
+        *pdigest = sig->digest;
+}
+
+#if (LIBRESSL_VERSION_NUMBER < 0x2070000fL)
 
 int RSA_set0_key(RSA *r, BIGNUM *n, BIGNUM *e, BIGNUM *d)
 {
@@ -69,15 +83,6 @@ void RSA_get0_crt_params(const RSA *r,
         *iqmp = r->iqmp;
 }
 
-void X509_SIG_getm(X509_SIG *sig, X509_ALGOR **palg,
-                   ASN1_OCTET_STRING **pdigest)
-{
-    if (palg)
-        *palg = sig->algor;
-    if (pdigest)
-        *pdigest = sig->digest;
-}
-
 int ECDSA_SIG_set0(ECDSA_SIG *sig, BIGNUM *r, BIGNUM *s)
 {
     if (r == NULL || s == NULL)
@@ -96,8 +101,6 @@ void ECDSA_SIG_get0(const ECDSA_SIG *sig, const BIGNUM **pr, const BIGNUM **ps) 
         *ps = sig->s;
 }
 
-#if (LIBRESSL_VERSION_NUMBER < 0x2070500fL)
-
 RSA *EVP_PKEY_get0_RSA(const EVP_PKEY *pkey) {
   if (pkey->type != EVP_PKEY_RSA) {
     return NULL;
@@ -112,9 +115,28 @@ EC_KEY *EVP_PKEY_get0_EC_KEY(const EVP_PKEY *pkey) {
   return pkey->pkey.ec;
 }
 
+int BN_bn2binpad(const BIGNUM *a, unsigned char *to, int tolen) {
+
+  unsigned char buf[1024] = {0};
+  int actual = BN_bn2bin(a, buf);
+  if(actual <= 0)
+    return actual;
+  if(actual < tolen) {
+    memset(to,  0, tolen - actual);
+    memcpy(to + tolen - actual, buf, actual);
+  } else {
+    for(int i = 0; i < actual - tolen; i++) {
+      if(buf[i])
+        return -1; // Non-zero byte would have been lost
+    }
+    memcpy(to, buf + actual - tolen, tolen);
+  }
+  return tolen;
+}
+
 #endif
 
-#if (LIBRESSL_VERSION_NUMBER > 0L) && (LIBRESSL_VERSION_NUMBER < 0x31000000L)
+#if (LIBRESSL_VERSION_NUMBER > 0L) && (LIBRESSL_VERSION_NUMBER < 0x3010000fL)
 
 static inline unsigned int constant_time_msb(unsigned int a)
 {
@@ -234,7 +256,7 @@ int RSA_padding_add_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
 	int i, emlen = tlen - 1;
 	unsigned char *db, *seed;
 	unsigned char *dbmask = NULL;
-	unsigned char seedmask[EVP_MAX_MD_SIZE];
+	unsigned char seedmask[EVP_MAX_MD_SIZE] = {0};
 	int mdlen, dbmask_len = 0;
 	int rv = 0;
 
@@ -266,7 +288,9 @@ int RSA_padding_add_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
 	memset(db + mdlen, 0, emlen - flen - 2 * mdlen - 1);
 	db[emlen - flen - mdlen - 1] = 0x01;
 	memcpy(db + emlen - flen - mdlen, from, flen);
-	RAND_bytes(seed, mdlen);
+	if(RAND_bytes(seed, mdlen) <= 0) {
+		goto err;
+	}
 
 	dbmask_len = emlen - mdlen;
 	if ((dbmask = malloc(dbmask_len)) == NULL) {
@@ -299,7 +323,7 @@ int RSA_padding_check_PKCS1_OAEP_mgf1(unsigned char *to, int tlen,
 	int i, dblen = 0, mlen = -1, one_index = 0, msg_index;
 	unsigned int good = 0, found_one_byte, mask;
 	const unsigned char *maskedseed, *maskeddb;
-	unsigned char seed[EVP_MAX_MD_SIZE], phash[EVP_MAX_MD_SIZE];
+	unsigned char seed[EVP_MAX_MD_SIZE]={0}, phash[EVP_MAX_MD_SIZE]={0};
 	unsigned char *db = NULL, *em = NULL;
 	int mdlen;
 

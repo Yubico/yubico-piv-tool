@@ -67,10 +67,10 @@ extern "C"
     YKPIV_INVALID_OBJECT = -11,
     YKPIV_ALGORITHM_ERROR = -12,
     YKPIV_PIN_LOCKED = -13,
-
     YKPIV_ARGUMENT_ERROR = -14, //i.e. invalid input argument
     YKPIV_RANGE_ERROR = -15, //i.e. value range error
-    YKPIV_NOT_SUPPORTED = -16
+    YKPIV_NOT_SUPPORTED = -16,
+    YKPIV_PCSC_SERVICE_ERROR = -17,
   } ykpiv_rc;
 
   typedef void* (*ykpiv_pfn_alloc)(void* alloc_data, size_t size);
@@ -89,9 +89,11 @@ extern "C"
   ykpiv_rc ykpiv_init(ykpiv_state **state, int verbose);
   ykpiv_rc ykpiv_init_with_allocator(ykpiv_state **state, int verbose, const ykpiv_allocator *allocator);
   ykpiv_rc ykpiv_done(ykpiv_state *state);
+  ykpiv_rc ykpiv_validate(ykpiv_state *state, const char *wanted);
   ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted);
   ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len);
   ykpiv_rc ykpiv_disconnect(ykpiv_state *state);
+  ykpiv_rc ykpiv_translate_sw(int sw);
   ykpiv_rc ykpiv_transfer_data(ykpiv_state *state, const unsigned char *templ,
                                const unsigned char *in_data, long in_len,
                                unsigned char *out_data, unsigned long *out_len, int *sw);
@@ -118,8 +120,11 @@ extern "C"
                              int *tries);
   ykpiv_rc ykpiv_fetch_object(ykpiv_state *state, int object_id,
                               unsigned char *data, unsigned long *len);
+  ykpiv_rc ykpiv_authenticate2(ykpiv_state *state, unsigned const char *key, size_t len);
   ykpiv_rc ykpiv_set_mgmkey2(ykpiv_state *state, const unsigned char *new_key,
                              const unsigned char touch);
+  ykpiv_rc ykpiv_set_mgmkey3(ykpiv_state *state, const unsigned char *new_key, size_t len, unsigned char algorithm,
+                             unsigned char touch);
   ykpiv_rc ykpiv_save_object(ykpiv_state *state, int object_id,
                              unsigned char *indata, size_t len);
   ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, unsigned char algorithm,
@@ -132,6 +137,9 @@ extern "C"
                                     const unsigned char pin_policy, const unsigned char touch_policy);
   ykpiv_rc ykpiv_attest(ykpiv_state *state, const unsigned char key, unsigned char *data, size_t *data_len);
   ykpiv_rc ykpiv_get_metadata(ykpiv_state *state, const unsigned char key, unsigned char *data, size_t *data_len);
+
+  bool is_version_compatible(ykpiv_state *state, uint8_t major, uint8_t minor, uint8_t patch);
+  ykpiv_rc ykpiv_move_key(ykpiv_state *state, const unsigned char from_slot, const unsigned char to_slot);
 
   /**
    * Return the number of PIN attempts remaining before PIN is locked.
@@ -277,11 +285,13 @@ extern "C"
     uint8_t               puk_noblock_on_upgrade;
     uint32_t              pin_last_changed;
     ykpiv_config_mgm_type mgm_type;
-    uint8_t               mgm_key[24];
+    size_t                mgm_len;
+    uint8_t               mgm_key[32];
   } ykpiv_config;
 
   typedef struct _ykpiv_mgm {
-    uint8_t data[24];
+    size_t len;
+    uint8_t data[32];
   } ykpiv_mgm;
 #pragma pack(pop)
 
@@ -333,6 +343,31 @@ extern "C"
    * @return Error code
    */
   ykpiv_rc ykpiv_util_read_cert(ykpiv_state *state, uint8_t slot, uint8_t **data, size_t *data_len);
+
+  /**
+   * Decompresses a certificate if it was compressed
+   *
+   * @param buf Fetched certificate data
+   * @param buf_len Length of fetched certificate data
+   * @param certdata Raw certificate bytes
+   * @param certdata_len Length of raw certificate bytes
+   *
+   * @return Error code
+   */
+  ykpiv_rc ykpiv_util_get_certdata(uint8_t *buf, size_t buf_len, uint8_t* certdata, size_t *certdata_len);
+
+  /**
+   * Construct cert data to store
+   *
+   * @param data Raw certificate data
+   * @param data_len Length of raw certificate data
+   * @param compress_info Certificate compression state
+   * @param certdata Constructed certificate data
+   * @param certdata_len Length of constructed certificate data
+   *
+   * @return Error code
+   */
+  ykpiv_rc ykpiv_util_write_certdata(uint8_t *data, size_t data_len, uint8_t compress_info, uint8_t* certdata, size_t *certdata_len);
 
   /**
    * Write a certificate to a given slot
@@ -433,6 +468,18 @@ extern "C"
    * @return ykpiv_rc error code
    */
   ykpiv_rc ykpiv_util_get_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm);
+
+  /**
+   * Update Protected MGM key. Should only be used when mgm_type is YKPIV_CONFIG_MGM_PROTECTED.
+   *
+   * The user pin must be verified to call this function
+   *
+   * @param state State handle
+   * @param mgm   [in] Protected MGM key
+   *
+   * @return ykpiv_rc error code
+   */
+  ykpiv_rc ykpiv_util_update_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm);
 
   /**
    * Set Protected MGM key
@@ -574,10 +621,19 @@ extern "C"
 
 #define YKPIV_ALGO_TAG 0x80
 #define YKPIV_ALGO_3DES 0x03
+#define YKPIV_ALGO_AES128 0x08
+#define YKPIV_ALGO_AES192 0x0a
+#define YKPIV_ALGO_AES256 0x0c
 #define YKPIV_ALGO_RSA1024 0x06
 #define YKPIV_ALGO_RSA2048 0x07
+#define YKPIV_ALGO_RSA3072 0x05
+#define YKPIV_ALGO_RSA4096 0x16
 #define YKPIV_ALGO_ECCP256 0x11
 #define YKPIV_ALGO_ECCP384 0x14
+#define YKPIV_ALGO_ED25519 0xE0
+#define YKPIV_ALGO_X25519 0xE1
+
+#define YKPIV_ALGO_AUTO 0xff
 
 #define YKPIV_KEY_AUTHENTICATION 0x9a
 #define YKPIV_KEY_CARDMGM 0x9b
@@ -646,6 +702,10 @@ extern "C"
 
 #define YKPIV_OBJ_ATTESTATION 0x5fff01
 
+#define TAG_CERT              0x70
+#define TAG_CERT_COMPRESS     0x71
+#define TAG_CERT_LRC          0xFE
+
 #define YKPIV_OBJ_MAX_SIZE 3072
 
 #define YKPIV_INS_VERIFY 0x20
@@ -655,6 +715,7 @@ extern "C"
 #define YKPIV_INS_AUTHENTICATE 0x87
 #define YKPIV_INS_GET_DATA 0xcb
 #define YKPIV_INS_PUT_DATA 0xdb
+#define YKPIV_INS_MOVE_KEY 0xf6
 #define YKPIV_INS_SELECT_APPLICATION 0xa4
 #define YKPIV_INS_GET_RESPONSE_APDU 0xc0
 
@@ -692,6 +753,8 @@ extern "C"
 #define YKPIV_TOUCHPOLICY_ALWAYS 2
 #define YKPIV_TOUCHPOLICY_CACHED 3
 
+#define YKPIV_TOUCHPOLICY_AUTO 255
+
 #define YKPIV_METADATA_ALGORITHM_TAG 0x01 // See values for YKPIV_ALGO_TAG
 
 #define YKPIV_METADATA_POLICY_TAG 0x02 // Two bytes, see values for YKPIV_PINPOLICY_TAG and YKPIV_TOUCHPOLICY_TAG
@@ -703,17 +766,24 @@ extern "C"
 #define YKPIV_METADATA_PUBKEY_TAG 0x04 // RSA: DER-encoded sequence N, E; EC: Uncompressed EC point X, Y
 
 #define YKPIV_IS_EC(a) ((a == YKPIV_ALGO_ECCP256 || a == YKPIV_ALGO_ECCP384))
-#define YKPIV_IS_RSA(a) ((a == YKPIV_ALGO_RSA1024 || a == YKPIV_ALGO_RSA2048))
+#define YKPIV_IS_RSA(a) ((a == YKPIV_ALGO_RSA1024 || a == YKPIV_ALGO_RSA2048 || a == YKPIV_ALGO_RSA3072 || a == YKPIV_ALGO_RSA4096))
+#define YKPIV_IS_25519(a) ((a == YKPIV_ALGO_ED25519 || a == YKPIV_ALGO_X25519))
 
 #define YKPIV_MIN_PIN_LEN 6
 #define YKPIV_MAX_PIN_LEN 8
-#define YKPIV_MGM_KEY_LEN 48
+#define YKPIV_MIN_MGM_KEY_LEN 32
+#define YKPIV_MAX_MGM_KEY_LEN 64
 
 #define YKPIV_RETRIES_DEFAULT 3
 #define YKPIV_RETRIES_MAX 0xff
 
 #define YKPIV_CERTINFO_UNCOMPRESSED 0
 #define YKPIV_CERTINFO_GZIP 1
+
+#define YKPIV_OID_FIRMWARE_VERSION "1.3.6.1.4.1.41482.3.3"
+#define YKPIV_OID_SERIAL_NUMBER "1.3.6.1.4.1.41482.3.7"
+#define YKPIV_OID_USAGE_POLICY "1.3.6.1.4.1.41482.3.8"
+#define YKPIV_OID_FORM_FACTOR "1.3.6.1.4.1.41482.3.9"
 
 #define YKPIV_ATR_NEO_R3 "\x3b\xfc\x13\x00\x00\x81\x31\xfe\x15\x59\x75\x62\x69\x6b\x65\x79\x4e\x45\x4f\x72\x33\xe1"
 #define YKPIV_ATR_NEO_R3_NFC "\x3b\x8c\x80\x01\x59\x75\x62\x69\x6b\x65\x79\x4e\x45\x4f\x72\x33\x58"

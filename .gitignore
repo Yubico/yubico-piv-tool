@@ -1,5 +1,7 @@
 .deps/
 .vagrant/
+.vscode/
+.DS_Store
 CMakeFiles
 cmake-build-debug
 Makefile
@@ -36,6 +38,7 @@ GTAGS
 tmp/
 tmp32/
 tmp64/
+build/
 yubico-piv-tool-*-win32.zip
 yubico-piv-tool-*-win32.zip.sig
 yubico-piv-tool-*-win64.zip
@@ -57,6 +60,7 @@ lib/tests/parse_key.log
 lib/tests/parse_key.o
 lib/tests/parse_key.trs
 lib/tests/test-suite.log
+lib/tests/test-config.h
 lib/error.lo
 lib/error.o
 lib/internal.la
@@ -127,5 +131,3 @@ ykcs11/tests/ykcs11_tests_util.o
 ykcs11/tests/ykcs11_tests.trs
 ykcs11/tests/ykcs11_tests.exe
 yubico-piv-tool.1.txt
-.DS_Store
-.vscode/c_cpp_properties.json

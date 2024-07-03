@@ -38,7 +38,6 @@ CK_BYTE get_sub_id(piv_obj_id_t obj);
 
 CK_BBOOL is_present(ykcs11_slot_t *s, piv_obj_id_t id);
 CK_BBOOL add_object(ykcs11_slot_t *s, piv_obj_id_t id);
-CK_BBOOL is_local_key(ykcs11_slot_t *s, piv_obj_id_t id);
 
 piv_obj_id_t find_data_object(CK_BYTE sub_id);
 piv_obj_id_t find_cert_object(CK_BYTE sub_id);
@@ -60,11 +59,13 @@ CK_RV    get_data_len(ykcs11_slot_t *s, CK_BYTE sub_id, CK_ULONG_PTR len);
 CK_RV check_create_cert(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
                         CK_BYTE_PTR *value, CK_ULONG_PTR cert_len);
 CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
-                          CK_BYTE_PTR *value, CK_ULONG_PTR value_len);
+                          CK_BYTE_PTR *value, CK_ULONG_PTR value_len,
+                          CK_BYTE_PTR touch_policy, CK_BYTE_PTR pin_policy);
 CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
                            CK_BYTE_PTR *p, CK_ULONG_PTR p_len,
                            CK_BYTE_PTR *q, CK_ULONG_PTR q_len,
                            CK_BYTE_PTR *dp, CK_ULONG_PTR dp_len,
                            CK_BYTE_PTR *dq, CK_ULONG_PTR dq_len,
-                           CK_BYTE_PTR *qinv, CK_ULONG_PTR qinv_len);
+                           CK_BYTE_PTR *qinv, CK_ULONG_PTR qinv_len,
+                           CK_BYTE_PTR touch_policy, CK_BYTE_PTR pin_policy);
 #endif

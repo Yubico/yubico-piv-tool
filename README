@@ -54,7 +54,7 @@ steps below from the `yubico-piv-tool` directory.
 Please make sure to have recent versions of the following packages 
 installed on your system. 
 
-  cmake libtool libssl pkg-config check libpcsc gengetopt help2man
+  cmake libtool libssl-dev pkg-config check libpcsclite-dev gengetopt help2man
 
 Help2man is used to generate the manpages.  
 Gengetopt version 2.22.6 or later is needed for command line parameter 
@@ -62,6 +62,15 @@ handling. The
 link:https://github.com/Yubico/yubico-piv-tool/tree/master/vagrant/development[Vagrant
 VM] has all these dependencies preinstalled.
 
+Please note that these package names are debian based. Other POSIX plarforms might have
+different names. For example, `libssl-dev` can probably be replaced with `openssl-devel` and
+`libpcsclite-dev` can probably be replaced by `pcsc-lite-devel` on a Redhat platform. Also note
+that Gengetopt might not be available on all plarforms and might need to be built from source
+(See https://www.gnu.org/software/gengetopt/gengetopt.html#Installation)
+
+After installation of all dependencies, run the following:
+
+  $ cd yubico-piv-tool
   $ mkdir build; cd build
   $ cmake ..
   $ make
@@ -71,6 +80,9 @@ On macos, you might need to point out homebrew openssl version when
 running pkg-config.
 
   $ PKG_CONFIG_PATH="/usr/local/opt/openssl@1.1/lib/pkgconfig" cmake ..
+
+To statically link to OpenSSL (the `libcrypto` library), use the cmake
+option `-DOPENSSL_STATIC_LINK=ON`
 
 Don't forget you might need to be root for the last command. On Linux 
 it might be needed to update your linked libraries after install
@@ -89,19 +101,23 @@ backend to use.
 
 === Building on Windows
 
-Building on Windows require MSBuild or Visual Studio and the MSVC compiler.
+Building on Windows requires MSBuild or Visual Studio and the MSVC compiler. It also requires
+building the binaries from the https://developers.yubico.com/yubico-piv-tool/Releases/[source release] package
+and not from the source checked out from the repository on GitHub. This is because some files that are part of
+the command line shell are generated but they cannot, currently, be generated on Windows. Those files are, however,
+included in the source release package.
 
-On Windows, `getopt` is needed to read command line arguments. The path to `getopt`
-library and include file need to be specified as a command line argument to `cmake`.
-Also the path to OpenSSL need to be specified either as a command line argument to `cmake`
+On Windows, `getopt` is needed to read command line arguments. The easiest way to install `getopt`
+is with the https://docs.microsoft.com/en-us/cpp/build/vcpkg?view=msvc-160[`vcpkg` package manager]. The
+path to `getopt` DLL library and include file need to be specified as a command line argument to `cmake`.
+Also the path to OpenSSL needs to be specified either as a command line argument to `cmake`
 or by setting the environment variable `OPENSSL_ROOT_DIR`
 
-The command line examples bellow are for `PowerShell` and the prerequisites
-were installed from source.
+The command line examples bellow are for `PowerShell` and the prerequisites were installed from source (using `vcpkg`).
 
     $ env:OPENSSL_ROOT_DIR ="PATH/TO/OPENSSL_DIR"
     $ mkdir build; cd build
-    $ cmake -A ARCH -DGETOPT_LIB_DIR="PATH/TO/GETOPT_DIR/lib" -DGETOPT_INCLUDE_DIR="PATH/TO/GETOPT_DIR/include ..
+    $ cmake -A <ARCH> -DGETOPT_LIB_DIR="PATH/TO/GETOPT_DIR/lib" -DGETOPT_INCLUDE_DIR="PATH/TO/GETOPT_DIR/include ..
     $ cmake --build .
 
 To run the tests, `check` is used. The path to the `check` directory needs to be
@@ -110,7 +126,7 @@ specified as a command line argument to `cmake`. Also the path to `check` binari
 
     $ env:OPENSSL_ROOT_DIR ="PATH/TO/OPENSSL_DIR"
     $ mkdir build; cd build
-    $ cmake -A ARCH -DGETOPT_LIB_DIR="PATH/TO/GETOPT_DIR/lib" -DGETOPT_INCLUDE_DIR="PATH/TO/GETOPT_DIR/include -DCHECK_PATH="PATH/TO/CHECK_DIR" ..
+    $ cmake -A <ARCH> -DGETOPT_LIB_DIR="PATH/TO/GETOPT_DIR/lib" -DGETOPT_INCLUDE_DIR="PATH/TO/GETOPT_DIR/include -DCHECK_PATH="PATH/TO/CHECK_DIR" ..
     $ cmake --build .
     $ $env:Path +=";PATH/TO//CHECK_DIR/bin;PATH/TO/OPENSSL_DIR/bin;PATH/TO/build\lib\Debug;PATH/TO/build\ykcs11\Debug"
     $ ctest.exe -C Debug

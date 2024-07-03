@@ -30,7 +30,7 @@ take place before the generation action, otherwise the operation will fail.
 |-s, --slot        | X | | What key slot to operate on | 9a, 9c, 9d, 9e, 82, 83, 84, 85, 86, 87, 88, 89,
                                                           8a, 8b, 8c, 8d, 8e, 8f, 90, 91, 92, 93, 94, 95, f9 |
 |-k, --key         | X | | Management key to use, if no value is specified key will be asked for | | 010203040506070801020304050607080102030405060708
-|-A, --algorithm   | | X | What algorithm to use to generate the key pair | RSA1024, RSA2048, ECCP256, ECCP384 | RSA2048
+|-A, --algorithm   | | X | What algorithm to use to generate the key pair | RSA1024, RSA2048, RSA3072, RSA4096, ECCP256, ECCP384, ED25519, X25519 | RSA2048
 |-i, --input       | | X | Filename to use as input | file name or "-" for stdin | -
 |-o, --output      | | X | Filename to use as output | file name or "-" for stdin | -
 |-S, --subject     | | X | The subject to use for the certificate. The subject must be written as: /CN=host.example.com/OU=test/O=example.com/ | |
@@ -94,7 +94,7 @@ It is also possible to combine all these commands above into one single command 
 
 ==== Signed certificate on slot 9c
 
-    $ yubico-piv-tool -a generate -s 9c -A RSA1024 -o pub.key
+    $ yubico-piv-tool -a generate -s 9c -A RSA2048 -o pub.key
     Successfully generated a new private key.
 
     $ yubico-piv-tool -a verify-pin -a request-certificate -s 9c -S '/CN=digi_sign/OU=test/O=example.com/' -i pub.key -o csr.pem

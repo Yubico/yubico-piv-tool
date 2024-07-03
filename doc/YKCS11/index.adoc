@@ -38,7 +38,7 @@ On Windows 10, setting the system path is done by following these steps:
 
 3- Under System Variables, highlight “Path“ and click “Edit…“
 
-4- Click “New“ and add the absolute path to yubico-piv-tool/bin
+4- Click “New“ and add the absolute path to `Yubico PIV Tool\bin` 
 
 If setting the system path is not desirable, the `libykpiv.dll` and `libcrypto-1_1.dll` can be copied into the same
 directory as the application that needs to access the ykcs11 module.
