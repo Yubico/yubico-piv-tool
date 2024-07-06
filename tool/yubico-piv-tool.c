@@ -2117,11 +2117,11 @@ test_out:
 }
 
 static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
-    const char *input_file_name, enum enum_key_format cert_format, int verbose) {
+    const char *input_file_name, enum enum_key_format cert_format,
+    enum enum_algorithm algorithm_arg, int verbose) {
   bool ret = false;
   X509 *x509 = NULL;
   EVP_PKEY *pubkey = NULL;
-  EC_KEY *tmpkey = NULL;
   FILE *input_file = open_file(input_file_name, key_file_mode(cert_format, false));
 
   if(!input_file) {
@@ -2133,28 +2133,45 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
     fprintf(stderr, "Please paste the certificate to encrypt for...\n");
   }
 
-  if(cert_format == key_format_arg_PEM) {
-    x509 = PEM_read_X509(input_file, NULL, NULL, NULL);
-  } else if(cert_format == key_format_arg_DER) {
-    x509 = d2i_X509_fp(input_file, NULL);
+  // Cannot sign a certificate with X25519. So a public key file is provided instead.
+  if(algorithm_arg == algorithm_arg_X25519) {
+#if !(OPENSSL_VERSION_NUMBER >= 0x10100000L)
+    fprintf(stderr, "Upgrade OpenSSL to at least 1.1 for X25519 support.\n");
+    goto decipher_out;
+#else
+    if(cert_format == key_format_arg_PEM) {
+      pubkey = PEM_read_PUBKEY(input_file, NULL, NULL, NULL);
+    } else if(cert_format == key_format_arg_DER) {
+      pubkey = d2i_PUBKEY_fp(input_file, NULL);
+    } else {
+      fprintf(stderr, "Only PEM or DER format is supported for test-decipher.\n");
+      goto decipher_out;
+    }
+    if (!pubkey) {
+      fprintf(stderr, "Failed loading public key for test-decipher.\n");
+      goto decipher_out;
+    }
+#endif
   } else {
-    fprintf(stderr, "Only PEM or DER format is supported for test-decipher.\n");
-    goto decipher_out;
-  }
-  if(!x509) {
-    fprintf(stderr, "Failed loading certificate for test-decipher.\n");
-    goto decipher_out;
+    if(cert_format == key_format_arg_PEM) {
+      x509 = PEM_read_X509(input_file, NULL, NULL, NULL);
+    } else if(cert_format == key_format_arg_DER) {
+      x509 = d2i_X509_fp(input_file, NULL);
+    } else {
+      fprintf(stderr, "Only PEM or DER format is supported for test-decipher.\n");
+      goto decipher_out;
+    }
+    pubkey = X509_get_pubkey(x509);
+    if(!pubkey) {
+      fprintf(stderr, "Parse error.\n");
+      goto decipher_out;
+    }
   }
 
   {
     int key = 0;
     unsigned char algorithm;
 
-    pubkey = X509_get_pubkey(x509);
-    if(!pubkey) {
-      fprintf(stderr, "Parse error.\n");
-      goto decipher_out;
-    }
     algorithm = get_algorithm(pubkey);
     if(algorithm == 0) {
       goto decipher_out;
@@ -2201,42 +2218,61 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
       } else {
         fprintf(stderr, "Failed unwrapping PKCS1 envelope.\n");
       }
-    } else if(YKPIV_IS_EC(algorithm)) {
+    } else if(YKPIV_IS_EC(algorithm) || YKPIV_IS_25519(algorithm)) {
       unsigned char secret[48] = {0};
       unsigned char secret2[48] = {0};
       unsigned char public_key[97] = {0};
       unsigned char *ptr = public_key;
+      size_t raw_pub_len = sizeof(public_key);
       size_t len = sizeof(secret);
-      EC_KEY *ec = EVP_PKEY_get1_EC_KEY(pubkey);
-      int nid;
       size_t key_len;
+      EVP_PKEY_CTX *ctx = NULL;
+      EVP_PKEY *tmpkey = NULL;
 
       if(algorithm == YKPIV_ALGO_ECCP256) {
-        nid = NID_X9_62_prime256v1;
         key_len = 32;
-      } else {
-        nid = NID_secp384r1;
+      } else if(algorithm == YKPIV_ALGO_ECCP384) {
         key_len = 48;
+      } else {
+        key_len = 32;
       }
 
-      tmpkey = EC_KEY_new_by_curve_name(nid);
-      if(EC_KEY_generate_key(tmpkey) != 1) {
-        fprintf(stderr, "Failed to generate EC key\n");
-        goto decipher_out;
+      ctx = EVP_PKEY_CTX_new(pubkey, NULL);
+      if (!ctx || EVP_PKEY_keygen_init(ctx) <= 0) {
+        fprintf(stderr, "Failed routine initialization\n");
+        goto test_decipher_err;
       }
-      if(ECDH_compute_key(secret, len, EC_KEY_get0_public_key(ec), tmpkey, NULL) == -1) {
-        fprintf(stderr, "Failed to compute ECDH key\n");
-        goto decipher_out;
+      if (EVP_PKEY_keygen(ctx, &tmpkey) <= 0)
+        goto test_decipher_err;
+      if (algorithm == YKPIV_ALGO_X25519) {
+        if (EVP_PKEY_get_raw_public_key(tmpkey, public_key, &raw_pub_len) <= 0) {
+          fprintf(stderr, "Failed raw key convertion\n");
+          goto test_decipher_err;
+        }
+      } else {
+        if(i2o_ECPublicKey(EVP_PKEY_get0_EC_KEY(tmpkey), &ptr) < 0) {
+          fprintf(stderr, "Failed to parse EC public key\n");
+          goto test_decipher_err;
+        }
+        raw_pub_len = (key_len * 2) + 1;
+      }
+      EVP_PKEY_CTX_free(ctx);
+
+      ctx = EVP_PKEY_CTX_new(tmpkey, NULL);
+      if (EVP_PKEY_derive_init(ctx) <= 0)
+        goto test_decipher_err;
+      if (EVP_PKEY_derive_set_peer(ctx, pubkey) <= 0)
+        goto test_decipher_err;
+      if (EVP_PKEY_derive(ctx, secret, &len) <= 0) {
+        fprintf(stderr, "Failed key derivation\n");
+        goto test_decipher_err;
       }
 
-      if(i2o_ECPublicKey(tmpkey, &ptr) < 0) {
-        fprintf(stderr, "Failed to parse EC public key\n");
-        goto decipher_out;
-      }
-      if(ykpiv_decipher_data(state, public_key, (key_len * 2) + 1, secret2, &len, algorithm, key) != YKPIV_OK) {
+      if(ykpiv_decipher_data(state, public_key, raw_pub_len, secret2, &len, algorithm, key) != YKPIV_OK) {
         fprintf(stderr, "Failed ECDH exchange!\n");
-        goto decipher_out;
+        goto test_decipher_err;
       }
+
       if(verbose) {
         fprintf(stderr, "ECDH host generated: ");
         dump_data(secret, len, stderr, true, format_arg_hex);
@@ -2249,13 +2285,14 @@ static bool test_decipher(ykpiv_state *state, enum enum_slot slot,
       } else {
         fprintf(stderr, "ECDH exchange with card failed!\n");
       }
+
+test_decipher_err:
+      EVP_PKEY_free(tmpkey);
+      EVP_PKEY_CTX_free(ctx);
     }
   }
 
 decipher_out:
-  if(tmpkey) {
-    EC_KEY_free(tmpkey);
-  }
   if(pubkey) {
     EVP_PKEY_free(pubkey);
   }
@@ -2814,7 +2851,7 @@ int main(int argc, char *argv[]) {
         break;
       case action_arg_testMINUS_decipher:
         if(test_decipher(state, args_info.slot_arg, args_info.input_arg,
-              args_info.key_format_arg, verbosity) == false) {
+              args_info.key_format_arg, args_info.algorithm_arg, verbosity) == false) {
           ret = EXIT_FAILURE;
         }
         break;
