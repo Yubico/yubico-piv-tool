@@ -83,6 +83,7 @@ jobs:
           Set-PSDebug -Trace 1
           cd "$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\resources\win"
           msiexec /i yubico-piv-tool-$env:RELEASE_VERSION-x86.msi /quiet /log $env:GITHUB_WORKSPACE/artifact/log_x86.txt
+          Start-Sleep -s 5
 
       - name: Upload artifact
         uses: actions/upload-artifact@v1

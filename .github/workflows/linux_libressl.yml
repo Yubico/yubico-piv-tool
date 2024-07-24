@@ -3,7 +3,7 @@ on: [push]
 
 jobs:
 
-  job_1:
+  libressl_build:
     name: Build with LibreSSL
     runs-on: ubuntu-latest
     steps:
@@ -46,51 +46,7 @@ jobs:
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
           objdump -T $LIBDIR/libykcs11.so | grep C_Sign
 
-  job_2:
-    name: Build with OpenSSL 1.0
-    runs-on: ubuntu-latest
-    steps:
-      - name: checkout
-        uses: actions/checkout@v2
-      - name: Install prerequisites
-        run: |
-          set -x
-          sudo apt install libpcsclite-dev check gengetopt help2man zlib1g-dev
-
-      - name: Install OpenSSL 1.0 from source
-        run: |
-          set -x
-          cd ..
-          wget -nv https://www.openssl.org/source/openssl-1.0.2u.tar.gz
-          tar -xzf openssl-1.0.2u.tar.gz
-          cd openssl-1.0.2u
-          ./Configure linux-x86_64 shared --prefix=/home/runner/work/yubico-piv-tool/openssl
-          sudo make all install VERSION="1.0.2u"
-
-      - name: Build and install
-        run: |
-          set -x
-          mkdir build; cd build
-          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_PKG_PATH=/home/runner/work/yubico-piv-tool/openssl/lib/pkgconfig
-          make
-          make test
-          ./tool/yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
-          objdump -T ykcs11/libykcs11.so | grep C_Sign
-
-          ldd tool/yubico-piv-tool | grep libcrypto.so
-          ldd lib/libykpiv.so | grep libcrypto.so
-          ldd ykcs11/libykcs11.so | grep libcrypto.so
-
-          sudo make install
-
-          cd ..
-          LIBDIR=$(cmake -L | sed -n "s/^.*YKPIV_INSTALL_LIB_DIR:PATH=\s*\(\S*\).*$/\1/p")
-          sudo cp /home/runner/work/yubico-piv-tool/openssl/lib/libcrypto.* $LIBDIR/
-          export LD_LIBRARY_PATH=$LIBDIR
-          yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
-          objdump -T $LIBDIR/libykcs11.so | grep C_Sign
-
-  job_3:
+  openssl_1_1_build:
     name: Build with OpenSSL 1.1
     runs-on: ubuntu-latest
     steps:
@@ -105,9 +61,9 @@ jobs:
         run: |
           set -x
           cd ..
-          wget -nv https://www.openssl.org/source/openssl-1.1.1s.tar.gz
-          tar -xzf openssl-1.1.1s.tar.gz
-          cd openssl-1.1.1s
+          wget -nv  https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1w.tar.gz
+          tar -xzf OpenSSL_1_1_1w.tar.gz
+          cd openssl-OpenSSL_1_1_1w
           ./Configure linux-x86_64 shared --prefix=/home/runner/work/yubico-piv-tool/openssl
           sudo make all install VERSION="1.1.1s"
 
@@ -134,7 +90,7 @@ jobs:
           yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
           objdump -T $LIBDIR/libykcs11.so | grep C_Sign
 
-  job_4:
+  openss_3_build:
     name: Build with OpenSSL 3.0
     runs-on: ubuntu-latest
     steps:
@@ -149,9 +105,9 @@ jobs:
         run: |
           set -x
           cd ..
-          wget -nv https://www.openssl.org/source/openssl-3.0.7.tar.gz
-          tar -xzf openssl-3.0.7.tar.gz
-          cd openssl-3.0.7
+          wget -nv https://github.com/openssl/openssl/archive/refs/tags/openssl-3.3.1.tar.gz
+          tar -xzf openssl-3.3.1.tar.gz
+          cd openssl-openssl-3.3.1
           ./Configure linux-x86_64 shared --prefix=/home/runner/work/yubico-piv-tool/openssl
           sudo make all install VERSION="3.0.7"
 
