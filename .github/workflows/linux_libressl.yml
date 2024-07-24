@@ -63,8 +63,7 @@ jobs:
           cd ..
           wget -nv  https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1w.tar.gz
           tar -xzf OpenSSL_1_1_1w.tar.gz
-          ls
-          cd OpenSSL_1_1_1w
+          cd openssl-OpenSSL_1_1_1w
           ./Configure linux-x86_64 shared --prefix=/home/runner/work/yubico-piv-tool/openssl
           sudo make all install VERSION="1.1.1s"
 
@@ -108,8 +107,7 @@ jobs:
           cd ..
           wget -nv https://github.com/openssl/openssl/archive/refs/tags/openssl-3.3.1.tar.gz
           tar -xzf openssl-3.3.1.tar.gz
-          ls
-          cd openssl-3.3.1
+          cd openssl-openssl-3.3.1
           ./Configure linux-x86_64 shared --prefix=/home/runner/work/yubico-piv-tool/openssl
           sudo make all install VERSION="3.0.7"
 
