@@ -32,11 +32,12 @@
 #include <stdio.h>
 #include <time.h>
 
+#ifdef USE_CERT_COMPRESS
 #include <zlib.h>
+#endif
 
 #include "internal.h"
 #include "ykpiv.h"
-#include "util.h"
 
 #define MAX(a,b) (a) > (b) ? (a) : (b)
 #define MIN(a,b) (a) < (b) ? (a) : (b)
@@ -88,6 +89,18 @@ static ykpiv_rc _set_metadata_item(uint8_t *data, size_t *pcb_data, size_t cb_da
 
 static size_t _obj_size_max(ykpiv_state *state) {
   return (state && state->model == DEVTYPE_NEOr3) ? CB_OBJ_MAX_NEO : CB_OBJ_MAX;
+}
+
+static unsigned long get_length_size(unsigned long length) {
+  if (length < 0x80) {
+    return 1;
+  }
+  else if (length < 0x100) {
+    return 2;
+  }
+  else {
+    return 3;
+  }
 }
 
 /*
@@ -315,6 +328,7 @@ ykpiv_rc ykpiv_util_list_keys(ykpiv_state *state, uint8_t *key_count, ykpiv_key 
           res = YKPIV_MEMORY_ERROR;
           goto Cleanup;
         }
+        yc_memzero(pTemp + cbData, cbRealloc); // clear newly allocated memory
         pData = pTemp;
         pTemp = NULL;
       }
@@ -1499,7 +1513,7 @@ invalid_tlv:
   size_t offset = 0;
   size_t buf_len = 0;
 
-  unsigned long len_bytes = get_length_size(rawdata_len);
+  unsigned long len_bytes = get_length_size((unsigned long)rawdata_len);
 
    // calculate the required length of the encoded object
    buf_len = 1 /* cert tag */ + 3 /* compression tag + data*/ + 2 /* lrc */;
@@ -1531,7 +1545,7 @@ invalid_tlv:
 
   if (-1 == object_id) return YKPIV_INVALID_OBJECT;
 
-   unsigned char data[YKPIV_OBJ_MAX_SIZE * 10] = {0};
+   unsigned char data[YKPIV_OBJ_MAX_SIZE] = {0};
    unsigned long data_len = sizeof (data);
 
   if (YKPIV_OK == (res = _ykpiv_fetch_object(state, object_id, data, &data_len))) {
@@ -1740,7 +1754,7 @@ static ykpiv_rc _set_metadata_item(uint8_t *data, size_t *pcb_data, size_t cb_da
   cb_len = _ykpiv_get_length_size(cb_item);
 
   // length would cause buffer overflow, return error
-  if (*pcb_data + cb_len + cb_item > cb_data_max) {
+  if (*pcb_data + 1 + cb_len + cb_item > cb_data_max) {
     return YKPIV_GENERIC_ERROR;
   }
 

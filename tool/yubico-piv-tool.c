@@ -1482,17 +1482,24 @@ selfsign_out:
   return ret;
 }
 
-static bool verify_pin(ykpiv_state *state, const char *pin) {
+static bool verify_pin(ykpiv_state *state, const char *pin, bool bio) {
   int tries = -1;
   ykpiv_rc res;
-  int len;
-  len = strlen(pin);
+  int len = 0;
 
-  if(len > 8) {
-    fprintf(stderr, "Maximum 8 digits of PIN supported.\n");
+  if (pin) {
+      len = strlen(pin);
+
+      if(len > 8) {
+        fprintf(stderr, "Maximum 8 digits of PIN supported.\n");
+      }
   }
 
-  res = ykpiv_verify(state, pin, &tries);
+  if (bio) {
+    res = ykpiv_verify_bio(state, NULL, NULL, &tries, false);
+  } else {
+    res = ykpiv_verify(state, pin, &tries);
+  }
   if(res == YKPIV_OK) {
     return true;
   } else if(res == YKPIV_WRONG_PIN || res == YKPIV_PIN_LOCKED) {
@@ -2480,6 +2487,7 @@ int main(int argc, char *argv[]) {
       case action_arg_changeMINUS_puk:
       case action_arg_unblockMINUS_pin:
       case action_arg_verifyMINUS_pin:
+      case action_arg_verifyMINUS_bio:
       case action_arg_setMINUS_mgmMINUS_key:
       case action_arg_setMINUS_chuid:
       case action_arg_setMINUS_ccc:
@@ -2600,6 +2608,7 @@ int main(int argc, char *argv[]) {
       case action_arg_reset:
       case action_arg_requestMINUS_certificate:
       case action_arg_verifyMINUS_pin:
+      case action_arg_verifyMINUS_bio:
       case action_arg_changeMINUS_pin:
       case action_arg_changeMINUS_puk:
       case action_arg_unblockMINUS_pin:
@@ -2733,10 +2742,18 @@ int main(int argc, char *argv[]) {
           }
           pin = pinbuf;
         }
-        if(verify_pin(state, pin)) {
+        if(verify_pin(state, pin, false)) {
           fprintf(stderr, "Successfully verified PIN.\n");
         } else {
           ret = EXIT_FAILURE;
+        }
+        break;
+      }
+      case action_arg_verifyMINUS_bio: {
+        if(verify_pin(state, NULL, true)) {
+          fprintf(stderr, "Successfully verified (fingerprint match).\n");
+        } else {
+            ret = EXIT_FAILURE;
         }
         break;
       }

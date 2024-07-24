@@ -299,14 +299,16 @@ CK_RV token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF8CHAR_P
 CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK_ULONG pin_len) {
 
   ykpiv_rc res;
+  int tries = 0;
 
-  if (pin_len >= YKPIV_MIN_PIN_LEN && pin_len <= YKPIV_MAX_PIN_LEN) {
+  if (pin_len == 0) {
+    res = ykpiv_verify_bio(state, NULL, NULL, &tries, false);
+  } else if (pin_len >= YKPIV_MIN_PIN_LEN && pin_len <= YKPIV_MAX_PIN_LEN) {
     char term_pin[YKPIV_MAX_PIN_LEN + 1] = {0};
 
     memcpy(term_pin, pin, pin_len);
     term_pin[pin_len] = 0;
 
-    int tries = 0;
     res = ykpiv_verify(state, term_pin, &tries);
 
     OPENSSL_cleanse(term_pin, pin_len);
@@ -415,6 +417,8 @@ CK_RV token_generate_key(ykpiv_state *state, gen_info_t *gen, CK_BYTE key, CK_BY
     case YKPIV_PINPOLICY_ALWAYS:
     case YKPIV_PINPOLICY_ONCE:
     case YKPIV_PINPOLICY_NEVER:
+    case YKPIV_PINPOLICY_MATCH_ONCE:
+    case YKPIV_PINPOLICY_MATCH_ALWAYS:
         break;
     default: 
         return CKR_FUNCTION_FAILED;

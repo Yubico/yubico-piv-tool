@@ -215,6 +215,8 @@ ykpiv_rc _ykpiv_transfer_data(
 ykpiv_rc ykpiv_auth_getchallenge(ykpiv_state *state, ykpiv_metadata *metadata, uint8_t *challenge, unsigned long *challenge_len);
 ykpiv_rc ykpiv_auth_verifyresponse(ykpiv_state *state, ykpiv_metadata *metadata, uint8_t *response, unsigned long response_len);
 ykpiv_rc ykpiv_auth_deauthenticate(ykpiv_state *state);
+ykpiv_rc ykpiv_auth_get_verified(ykpiv_state *state);
+ykpiv_rc ykpiv_auth_verify(ykpiv_state* state, uint8_t* pin, size_t* p_pin_len, int *tries, bool force_select, bool bio, bool verify_spin);
 
 typedef enum _setting_source_t {
   SETTING_SOURCE_USER,
