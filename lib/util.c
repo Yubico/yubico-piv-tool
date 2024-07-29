@@ -880,7 +880,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
   if (YKPIV_OK != (res = _ykpiv_transfer_data(state, templ, in_data, (unsigned long)(in_ptr - in_data), data, &recv_len, &sw))) {
     goto Cleanup;
   }
-  res = ykpiv_translate_sw(sw);
+  res = ykpiv_translate_sw_ex(__FUNCTION__, sw);
   if (res != YKPIV_OK) {
     DBG("Failed to generate new key");
     goto Cleanup;
@@ -1372,7 +1372,7 @@ ykpiv_rc ykpiv_util_reset(ykpiv_state *state) {
   if(res != YKPIV_OK) {
     return res;
   }
-  return ykpiv_translate_sw(sw);
+  return ykpiv_translate_sw_ex(__FUNCTION__, sw);
 }
 
 uint32_t ykpiv_util_slot_object(uint8_t slot) {
