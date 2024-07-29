@@ -449,7 +449,7 @@ CK_RV token_generate_key(ykpiv_state *state, gen_info_t *gen, CK_BYTE key, CK_BY
   if((res = ykpiv_transfer_data(state, templ, in_data, in_ptr - in_data, data, &recv_len, &sw)) != YKPIV_OK) {
     return yrc_to_rv(res);
   }
-  if((res = ykpiv_translate_sw(sw)) != YKPIV_OK) {
+  if((res = ykpiv_translate_sw_ex(__FUNCTION__, sw)) != YKPIV_OK) {
     return yrc_to_rv(res);
   }
 
