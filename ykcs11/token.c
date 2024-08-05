@@ -71,7 +71,9 @@ static const token_mechanism token_mechanisms[] = {
   CKM_SHA_1, {0, 0, CKF_DIGEST},
   CKM_SHA256, {0, 0, CKF_DIGEST},
   CKM_SHA384, {0, 0, CKF_DIGEST},
-  CKM_SHA512, {0, 0, CKF_DIGEST}
+  CKM_SHA512, {0, 0, CKF_DIGEST},
+  CKM_EC_EDWARDS_KEY_PAIR_GEN, {255, 255, CKF_HW | CKF_GENERATE_KEY_PAIR | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS},
+  CKM_EC_MONTGOMERY_KEY_PAIR_GEN, {255, 255, CKF_HW | CKF_GENERATE_KEY_PAIR | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS}
 };
 
 // The commented out objects below are either not supported (PIV_DATA_OBJ_BITGT) or requires authentication.
@@ -396,6 +398,14 @@ CK_RV token_generate_key(ykpiv_state *state, gen_info_t *gen, CK_BYTE key, CK_BY
 
     case YKPIV_ALGO_ECCP256:
     case YKPIV_ALGO_ECCP384:
+      break;
+
+    case YKPIV_ALGO_ED25519:
+    case YKPIV_ALGO_X25519:
+      if (!is_version_compatible(state, 5, 7, 0)) {
+        DBG("ED25519 and X25519 key types are only available with YubiKeys with version number 5.7.0 or later");
+        return CKR_FUNCTION_NOT_SUPPORTED;
+      }
       break;
 
     default:

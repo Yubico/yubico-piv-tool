@@ -29,8 +29,8 @@
  */
 
 #include "../../common/openssl-compat.h"
-#include "ykcs11.h"
-#include "ykcs11-config.h"
+#include "../ykcs11.h"
+#include "../ykcs11-config.h"
 
 #include <string.h>
 
@@ -49,7 +49,7 @@
 #define dprintf(fd, ...) fprintf(stdout, __VA_ARGS__)
 #endif
 
-CK_FUNCTION_LIST_PTR funcs;
+CK_FUNCTION_LIST_3_0_PTR funcs;
 
 #define N_ALL_KEYS      24
 #define N_SELECTED_KEYS 4
@@ -57,6 +57,7 @@ CK_FUNCTION_LIST_PTR funcs;
 #define asrt(c, e, m) _asrt(__FILE__, __LINE__, c, e, m);
 
 CK_BBOOL is_neo = CK_FALSE;
+CK_BBOOL ed25519_supported = CK_FALSE;
 
 static void _asrt(const char *file, int line, CK_ULONG check, CK_ULONG expected, const char *msg) {
 
@@ -71,12 +72,9 @@ static void _asrt(const char *file, int line, CK_ULONG check, CK_ULONG expected,
 }
 
 static void get_functions() {
-
-  if (C_GetFunctionList(&funcs) != CKR_OK) {
-    fprintf(stderr, "Get function list failed\n");
-    exit(EXIT_FAILURE);
-  }
-
+  CK_INTERFACE_PTR interface;
+  asrt(C_GetInterface(NULL,NULL,&interface,0), CKR_OK, "C_GetInterface default");
+  funcs = interface->pFunctionList;
 }
 
 static void test_lib_info() {
@@ -84,8 +82,8 @@ static void test_lib_info() {
 
   const CK_CHAR_PTR MANUFACTURER_ID = (const CK_CHAR_PTR)"Yubico (www.yubico.com)";
   const CK_CHAR_PTR YKCS11_DESCRIPTION = (const CK_CHAR_PTR)"PKCS#11 PIV Library (SP-800-73)";
-  const CK_ULONG CRYPTOKI_VERSION_MAJ = 2;
-  const CK_ULONG CRYPTOKI_VERSION_MIN = 40;
+  const CK_ULONG CRYPTOKI_VERSION_MAJ = CRYPTOKI_VERSION_MAJOR;
+  const CK_ULONG CRYPTOKI_VERSION_MIN = CRYPTOKI_VERSION_MINOR;
 
   CK_INFO info;
   asrt(funcs->C_Initialize(NULL), CKR_OK, "INITIALIZE");
@@ -160,6 +158,10 @@ static int test_token_info() {
 
   asrt(info.hardwareVersion.major, HW.major, "HW_MAJ");
   asrt(info.hardwareVersion.minor, HW.minor, "HW_MIN");
+
+  if(info.firmwareVersion.major > 5 || (info.firmwareVersion.major == 5 && info.firmwareVersion.minor >= 70)) {
+    ed25519_supported = true;
+  }
   
   asrt(strncmp(info.utcTime, TOKEN_TIME, sizeof(info.utcTime)), 0, "TOKEN_TIME");
 
@@ -201,9 +203,11 @@ static void test_mechanism_list_and_info() {
       CKM_SHA_1,
       CKM_SHA256,
       CKM_SHA384,
-      CKM_SHA512};
+      CKM_SHA512,
+      CKM_EC_EDWARDS_KEY_PAIR_GEN,
+      CKM_EC_MONTGOMERY_KEY_PAIR_GEN};
 
-  static const CK_MECHANISM_INFO token_mechanism_infos[] = { // KEEP ALIGNED WITH token_mechanisms
+  static const CK_MECHANISM_INFO token_mechanism_infos_3[] = { // KEEP ALIGNED WITH token_mechanisms
     {1024, 4096, CKF_HW | CKF_GENERATE_KEY_PAIR},
     {1024, 4096, CKF_HW | CKF_ENCRYPT | CKF_DECRYPT | CKF_SIGN | CKF_VERIFY},
     {1024, 4096, CKF_HW | CKF_SIGN | CKF_VERIFY},
@@ -228,8 +232,40 @@ static void test_mechanism_list_and_info() {
     {0, 0, CKF_DIGEST},
     {0, 0, CKF_DIGEST},
     {0, 0, CKF_DIGEST},
-    {0, 0, CKF_DIGEST}
+    {0, 0, CKF_DIGEST},
+    {255, 255, CKF_HW | CKF_GENERATE_KEY_PAIR | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS},
+    {255, 255, CKF_HW | CKF_GENERATE_KEY_PAIR | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS}
 };
+
+  static const CK_MECHANISM_INFO token_mechanism_infos[] = { // KEEP ALIGNED WITH token_mechanisms
+      {1024, 2048, CKF_HW | CKF_GENERATE_KEY_PAIR},
+      {1024, 2048, CKF_HW | CKF_ENCRYPT | CKF_DECRYPT | CKF_SIGN | CKF_VERIFY},
+      {1024, 2048, CKF_HW | CKF_SIGN | CKF_VERIFY},
+      {1024, 2048, CKF_HW | CKF_ENCRYPT | CKF_DECRYPT},
+      {1024, 2048, CKF_HW | CKF_ENCRYPT | CKF_DECRYPT | CKF_SIGN | CKF_VERIFY},
+      {1024, 2048, CKF_HW | CKF_SIGN | CKF_VERIFY},
+      {1024, 2048, CKF_HW | CKF_SIGN | CKF_VERIFY},
+      {1024, 2048, CKF_HW | CKF_SIGN | CKF_VERIFY},
+      {1024, 2048, CKF_HW | CKF_SIGN | CKF_VERIFY},
+      {1024, 2048, CKF_HW | CKF_SIGN | CKF_VERIFY},
+      {1024, 2048, CKF_HW | CKF_SIGN | CKF_VERIFY},
+      {1024, 2048, CKF_HW | CKF_SIGN | CKF_VERIFY},
+      {1024, 2048, CKF_HW | CKF_SIGN | CKF_VERIFY},
+      {256, 384, CKF_HW | CKF_GENERATE_KEY_PAIR | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS},
+      {256, 384, CKF_HW | CKF_SIGN | CKF_VERIFY | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS},
+      {256, 384, CKF_HW | CKF_SIGN | CKF_VERIFY | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS},
+      {256, 384, CKF_HW | CKF_SIGN | CKF_VERIFY | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS},
+      {256, 384, CKF_HW | CKF_SIGN | CKF_VERIFY | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS},
+      {256, 384, CKF_HW | CKF_SIGN | CKF_VERIFY | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS},
+      {256, 384, CKF_HW | CKF_SIGN | CKF_VERIFY | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS},
+      {256, 384, CKF_HW | CKF_DERIVE | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS},
+      {0, 0, CKF_DIGEST},
+      {0, 0, CKF_DIGEST},
+      {0, 0, CKF_DIGEST},
+      {0, 0, CKF_DIGEST},
+      {255, 255, CKF_HW | CKF_GENERATE_KEY_PAIR | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS},
+      {255, 255, CKF_HW | CKF_GENERATE_KEY_PAIR | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS}
+  };
 
   init_connection();
   asrt(funcs->C_GetMechanismList(0, NULL, &n_mechs), CKR_OK, "GetMechanismList");
@@ -237,11 +273,15 @@ static void test_mechanism_list_and_info() {
   mechs = malloc(n_mechs * sizeof(CK_MECHANISM_TYPE));
   asrt(funcs->C_GetMechanismList(0, mechs, &n_mechs), CKR_OK, "GetMechanismList");
 
-  asrt(memcmp(token_mechanisms, mechs, sizeof(token_mechanisms)), 0, "CHECK MECHS");
+  asrt(memcmp(token_mechanisms, mechs, n_mechs * sizeof(CK_MECHANISM_TYPE)), 0, "CHECK MECHS");
 
   for (i = 0; i < n_mechs; i++) {
     asrt(funcs->C_GetMechanismInfo(0, mechs[i], &info), CKR_OK, "GET MECH INFO");
-    asrt(memcmp(token_mechanism_infos + i, &info, sizeof(CK_MECHANISM_INFO)), 0, "CHECK MECH INFO");
+    if(ed25519_supported) {
+      asrt(memcmp(token_mechanism_infos_3 + i, &info, sizeof(CK_MECHANISM_INFO)), 0, "CHECK MECH INFO");
+    } else {
+      asrt(memcmp(token_mechanism_infos + i, &info, sizeof(CK_MECHANISM_INFO)), 0, "CHECK MECH INFO");
+    }
   }
   free(mechs);
   asrt(funcs->C_Finalize(NULL), CKR_OK, "FINALIZE");

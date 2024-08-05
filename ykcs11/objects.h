@@ -58,6 +58,12 @@ CK_RV    get_data_len(ykcs11_slot_t *s, CK_BYTE sub_id, CK_ULONG_PTR len);
 
 CK_RV check_create_cert(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
                         CK_BYTE_PTR *value, CK_ULONG_PTR cert_len);
+CK_RV check_create_x25519_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
+                              CK_BYTE_PTR *value, CK_ULONG_PTR value_len,
+                              CK_BYTE_PTR touch_policy, CK_BYTE_PTR pin_policy);
+CK_RV check_create_ed_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
+                          CK_BYTE_PTR *value, CK_ULONG_PTR value_len,
+                          CK_BYTE_PTR touch_policy, CK_BYTE_PTR pin_policy);
 CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
                           CK_BYTE_PTR *value, CK_ULONG_PTR value_len,
                           CK_BYTE_PTR touch_policy, CK_BYTE_PTR pin_policy);
@@ -68,4 +74,8 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
                            CK_BYTE_PTR *dq, CK_ULONG_PTR dq_len,
                            CK_BYTE_PTR *qinv, CK_ULONG_PTR qinv_len,
                            CK_BYTE_PTR touch_policy, CK_BYTE_PTR pin_policy);
+
+CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTRIBUTE_PTR templ, CK_ULONG n);
+CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTRIBUTE_PTR templ, CK_ULONG n);
+
 #endif
