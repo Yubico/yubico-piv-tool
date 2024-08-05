@@ -42,8 +42,6 @@ CK_RV verify_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULON
 CK_RV verify_mechanism_cleanup(ykcs11_session_t *session);
 
 CK_RV check_generation_mechanism(CK_MECHANISM_PTR m);
-CK_RV check_pubkey_template(gen_info_t *gen_info, CK_MECHANISM_PTR mech, CK_ATTRIBUTE_PTR templ, CK_ULONG n); // TODO: Move to objects.c
-CK_RV check_pvtkey_template(gen_info_t *gen_info, CK_MECHANISM_PTR mech, CK_ATTRIBUTE_PTR templ, CK_ULONG n); // TODO: Move to objects.c
 CK_RV validate_derive_key_attribute(CK_ATTRIBUTE_TYPE type, void *value);
 
 CK_RV digest_mechanism_init(ykcs11_session_t *session, CK_MECHANISM_PTR mech);

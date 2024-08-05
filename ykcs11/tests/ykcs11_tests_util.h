@@ -35,9 +35,20 @@ void test_digest_func(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session,
 
 void destroy_test_objects(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_cert, CK_ULONG n);
 
-EC_KEY* import_ec_key(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_BYTE n_keys,
-                      int curve, CK_ULONG key_len, CK_BYTE* ec_params, CK_ULONG ec_params_len, 
-                      CK_OBJECT_HANDLE_PTR obj_cert, CK_OBJECT_HANDLE_PTR obj_pvtkey);
+
+EVP_PKEY* import_edkey(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_cert,
+                  CK_OBJECT_HANDLE_PTR obj_pvtkey);
+
+void import_x25519key(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_cert,
+                      CK_OBJECT_HANDLE_PTR obj_pvtkey);
+
+EC_KEY* import_ec_key(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_BYTE n_keys, int curve, CK_ULONG key_len,
+                      CK_BYTE* ec_params, CK_ULONG ec_params_len, CK_OBJECT_HANDLE_PTR obj_cert, CK_OBJECT_HANDLE_PTR obj_pvtkey);
+
+void generate_ed_key(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session,
+                     CK_OBJECT_HANDLE_PTR obj_pubkey, CK_OBJECT_HANDLE_PTR obj_pvtkey);
+void generate_ex_key(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session,
+                     CK_OBJECT_HANDLE_PTR obj_pubkey, CK_OBJECT_HANDLE_PTR obj_pvtkey);
 void generate_ec_keys(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_BYTE n_keys,
                       CK_BYTE* ec_params, CK_ULONG ec_params_len, 
                       CK_OBJECT_HANDLE_PTR obj_pubkey, CK_OBJECT_HANDLE_PTR obj_pvtkey);
@@ -58,6 +69,8 @@ void test_ec_sign_simple(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE sessi
 
 void test_ec_ecdh_simple(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey,
                          CK_BYTE n_keys, int curve);
+
+void test_ed_sign_simple(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE obj_pvtkey);
 
 void test_ec_sign_thorough(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_pvtkey,
                            CK_MECHANISM_TYPE mech_type, EC_KEY *eck, CK_ULONG key_len);

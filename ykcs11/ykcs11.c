@@ -1532,22 +1532,19 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     DBG("Importing private key");
 
     // Try to parse the key as EC
-    rv = check_create_ec_key(pTemplate, ulCount, &id,
+    if (check_create_ec_key(pTemplate, ulCount, &id,
                              &ec_data, &ec_data_len,
-                             &touch_policy, &pin_policy);
-    if (rv == CKR_OK) {
+                             &touch_policy, &pin_policy) == CKR_OK) {
       DBG("Key is ECDSA");
       algorithm = ec_data_len <= 32 ? YKPIV_ALGO_ECCP256 : YKPIV_ALGO_ECCP384;
-    } else {
+    } else if (check_create_rsa_key(pTemplate, ulCount, &id,
+                                    &p, &p_len,
+                                    &q, &q_len,
+                                    &dp, &dp_len,
+                                    &dq, &dq_len,
+                                    &qinv, &qinv_len,
+                                    &touch_policy, &pin_policy) == CKR_OK) {
       // Try to parse the key as RSA
-      rv = check_create_rsa_key(pTemplate, ulCount, &id,
-                                &p, &p_len,
-                                &q, &q_len,
-                                &dp, &dp_len,
-                                &dq, &dq_len,
-                                &qinv, &qinv_len,
-                                &touch_policy, &pin_policy);
-      if (rv == CKR_OK) {
         DBG("Key is RSA");
         switch (p_len) {
           case 63:
@@ -1567,10 +1564,17 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
             algorithm = YKPIV_ALGO_RSA4096;
             break;
         }
-      } else {
-        DBG("Private key template not valid");
-        goto create_out;
-      }
+    } else if (check_create_ed_key(pTemplate, ulCount, &id,
+                                   &ec_data, &ec_data_len,
+                                   &touch_policy, &pin_policy) == CKR_OK) {
+      DBG("Key is ED25519");
+      algorithm = YKPIV_ALGO_ED25519;
+
+    } else if (check_create_x25519_key(pTemplate, ulCount, &id,
+                                       &ec_data, &ec_data_len,
+                                       &touch_policy, &pin_policy) == CKR_OK) {
+      DBG("Key is X25519");
+      algorithm = YKPIV_ALGO_X25519;
     }
 
     DBG("Key id is %u", id);
