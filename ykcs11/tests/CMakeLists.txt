@@ -66,4 +66,18 @@ if(NOT DEFINED SKIP_TESTS)
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/ykcs11/tests/
     )
     set_property(TEST test_ykcs11_interfaces APPEND PROPERTY ENVIRONMENT "YKPIV_ENV_HWTESTS_CONFIRMED=${HW_TESTS}")
+
+    set(SOURCE_YKCS11_EDX_TESTS
+            ykcs11_edx_test.c
+            ykcs11_tests_util.c
+            )
+    add_executable(test_ykcs11_edx ${SOURCE_YKCS11_EDX_TESTS})
+    target_link_libraries(test_ykcs11_edx ykcs11_shared ${LIBCRYPTO_LDFLAGS})
+    add_test(
+            NAME test_ykcs11_edx
+            COMMAND test_ykcs11_edx
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/ykcs11/tests/
+    )
+    set_property(TEST test_ykcs11_edx APPEND PROPERTY ENVIRONMENT "YKPIV_ENV_HWTESTS_CONFIRMED=${HW_TESTS}")
+
 endif(NOT DEFINED SKIP_TESTS)

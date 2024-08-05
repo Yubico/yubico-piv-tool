@@ -37,45 +37,14 @@
 #include "utils.h"
 #include "debug.h"
 
-#define PRIME256V1 "\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07"
-#define SECP384R1 "\x06\x05\x2b\x81\x04\x00\x22"
-
 // Supported mechanisms for key pair generation
 static const CK_MECHANISM_TYPE generation_mechanisms[] = {
   CKM_RSA_PKCS_KEY_PAIR_GEN,
   //CKM_ECDSA_KEY_PAIR_GEN, Deperecated
-  CKM_EC_KEY_PAIR_GEN
+  CKM_EC_KEY_PAIR_GEN,
+  CKM_EC_EDWARDS_KEY_PAIR_GEN,
+  CKM_EC_MONTGOMERY_KEY_PAIR_GEN
 };
-
-static CK_BBOOL is_RSA_mechanism(CK_MECHANISM_TYPE m) {
-
-  switch (m) {
-  case CKM_RSA_PKCS_KEY_PAIR_GEN:
-  case CKM_RSA_PKCS:
-//  case CKM_RSA_9796:
-  case CKM_RSA_X_509:
-  case CKM_MD5_RSA_PKCS:
-  case CKM_SHA1_RSA_PKCS:
-  case CKM_SHA256_RSA_PKCS:
-  case CKM_SHA384_RSA_PKCS:
-  case CKM_SHA512_RSA_PKCS:
-//  case CKM_RIPEMD128_RSA_PKCS:
-  case CKM_RIPEMD160_RSA_PKCS:
-//  case CKM_RSA_PKCS_OAEP:
-//  case CKM_RSA_X9_31_KEY_PAIR_GEN:
-//  case CKM_RSA_X9_31:
-//  case CKM_SHA1_RSA_X9_31:
-  case CKM_RSA_PKCS_PSS:
-  case CKM_SHA1_RSA_PKCS_PSS:
-  case CKM_SHA256_RSA_PKCS_PSS:
-  case CKM_SHA512_RSA_PKCS_PSS:
-  case CKM_SHA384_RSA_PKCS_PSS:
-    return CK_TRUE;
-
-  default:
-    return CK_FALSE;
-  }
-}
 
 static const ykcs11_md_t* EVP_MD_by_mechanism(CK_MECHANISM_TYPE m) {
   switch (m) {
@@ -115,6 +84,7 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_MECH
     case CKM_RSA_PKCS:
     case CKM_RSA_PKCS_PSS:
     case CKM_ECDSA:
+    case CKM_EDDSA:
       // No hash required for these mechanisms
       break;
 
@@ -212,7 +182,7 @@ CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_MECH
 
     default:
       if(session->op_info.op.sign.rsa) {
-        DBG("Mechanism %lu requires an ECDSA key", session->op_info.mechanism);
+        DBG("Mechanism %lu requires an ECDSA or EDDSA key", session->op_info.mechanism);
         return CKR_KEY_TYPE_INCONSISTENT;
       }
       session->op_info.op.sign.padding = 0;
@@ -358,8 +328,12 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_ME
   session->op_info.md_ctx = NULL;
   session->op_info.mechanism = mech->mechanism;
   session->op_info.op.verify.pkey_ctx = NULL;
+  bool is_eddsa = false;
 
   switch (session->op_info.mechanism) {
+    case CKM_EDDSA:
+      is_eddsa = true;
+
     case CKM_RSA_X_509:
     case CKM_RSA_PKCS:
     case CKM_RSA_PKCS_PSS:
@@ -451,7 +425,7 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_ME
       session->op_info.op.verify.padding = 0;
   }
 
-  if(md) {
+  if(md || is_eddsa) {
     session->op_info.md_ctx = EVP_MD_CTX_create();
     if (session->op_info.md_ctx == NULL) {
       return CKR_FUNCTION_FAILED;
@@ -516,6 +490,15 @@ CK_RV verify_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULON
 
   int rc;
 
+  if (session->op_info.mechanism == CKM_EDDSA) {
+    rc = EVP_DigestVerify(session->op_info.md_ctx, sig, sig_len, session->op_info.buf, session->op_info.buf_len);
+    if(rc <= 0) {
+      DBG("EVP_PKEY_verify failed");
+      return rc < 0 ? CKR_FUNCTION_FAILED : CKR_SIGNATURE_INVALID;
+    }
+    return CKR_OK;
+  }
+
   CK_BYTE der[1024] = {0};
   if(!session->op_info.op.verify.padding) {
     if(sig_len > sizeof(der)) {
@@ -570,265 +553,6 @@ CK_RV check_generation_mechanism(CK_MECHANISM_PTR m) {
     return CKR_MECHANISM_INVALID;
 
   // TODO: also check that parametes make sense if any? And key size is in [min max]
-
-  return CKR_OK;
-
-}
-
-CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTRIBUTE_PTR templ, CK_ULONG n) {
-
-  CK_BBOOL rsa = is_RSA_mechanism(mechanism->mechanism);
-
-  for (CK_ULONG i = 0; i < n; i++) {
-    switch (templ[i].type) {
-    case CKA_CLASS:
-      if (*((CK_ULONG_PTR) templ[i].pValue) != CKO_PUBLIC_KEY) {
-        DBG("Bad CKA_CLASS");
-        return CKR_TEMPLATE_INCONSISTENT;
-      }
-      break;
-
-    case CKA_KEY_TYPE:
-      if ((rsa == CK_TRUE  && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_RSA) ||
-          (rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_EC)) {
-        DBG("Bad CKA_KEY_TYPE");
-        return CKR_TEMPLATE_INCONSISTENT;
-      }
-
-      break;
-
-    case CKA_PUBLIC_EXPONENT:
-      if (rsa == CK_FALSE) {
-        DBG("Non-RSA key can't have CKA_PUBLIC_EXPONENT");
-        return CKR_TEMPLATE_INCONSISTENT;
-      }
-
-      if(!do_check_public_exponent(templ[i].pValue, templ[i].ulValueLen)) {
-        DBG("Unsupported public exponent");
-        return CKR_ATTRIBUTE_VALUE_INVALID;
-      }
-
-      break;
-
-    case CKA_MODULUS_BITS:
-      if (rsa == CK_FALSE) {
-        DBG("Non-RSA key can't have CKA_MODULUS_BITS");
-        return CKR_TEMPLATE_INCONSISTENT;
-      }
-      switch(*(CK_ULONG_PTR)templ[i].pValue) {
-        case 1024:
-          gen->algorithm = YKPIV_ALGO_RSA1024;
-          break;
-        case 2048:
-          gen->algorithm = YKPIV_ALGO_RSA2048; 
-          break;
-        case 3072:
-          gen->algorithm = YKPIV_ALGO_RSA3072;
-          break;
-        case 4096:
-          gen->algorithm = YKPIV_ALGO_RSA4096;
-          break;
-        default:
-          DBG("Unsupported MODULUS_BITS (key length)");
-          return CKR_ATTRIBUTE_VALUE_INVALID;
-      }
-      break;
-
-    case CKA_EC_PARAMS:
-      if (rsa == CK_TRUE) {
-        DBG("RSA key can't have CKA_EC_PARAMS");
-        return CKR_TEMPLATE_INCONSISTENT;
-      }
-      // Support PRIME256V1 and SECP384R1
-      if (templ[i].ulValueLen == 10 && memcmp((CK_BYTE_PTR)templ[i].pValue, PRIME256V1, 10) == 0)
-        gen->algorithm = YKPIV_ALGO_ECCP256;
-      else if(templ[i].ulValueLen == 7 && memcmp((CK_BYTE_PTR)templ[i].pValue, SECP384R1, 7) == 0)
-        gen->algorithm = YKPIV_ALGO_ECCP384;
-      else {
-        DBG("Bad CKA_EC_PARAMS");
-        return CKR_ATTRIBUTE_VALUE_INVALID;
-      }
-      break;
-
-    case CKA_ID:
-      if (find_pubk_object(*((CK_BYTE_PTR)templ[i].pValue)) == PIV_INVALID_OBJ) {
-        DBG("Bad CKA_ID");
-        return CKR_ATTRIBUTE_VALUE_INVALID;
-      }
-      gen->key_id = *((CK_BYTE_PTR)templ[i].pValue);
-      break;
-
-    case CKA_COPYABLE:
-    case CKA_DESTROYABLE:
-    case CKA_EXTRACTABLE:
-    case CKA_SENSITIVE:
-    case CKA_TOKEN:
-    case CKA_ENCRYPT:
-    case CKA_DECRYPT:
-    case CKA_SIGN:
-    case CKA_SIGN_RECOVER:
-    case CKA_VERIFY:
-    case CKA_VERIFY_RECOVER:
-    case CKA_WRAP:
-    case CKA_UNWRAP:
-    case CKA_DERIVE:
-    case CKA_PRIVATE:
-    case CKA_LABEL:
-    case CKA_ISSUER:
-    case CKA_SUBJECT:
-      // Ignore these attributes for now
-      break;
-
-    default:
-      DBG("Invalid attribute %lx in public key template", templ[i].type);
-      return CKR_ATTRIBUTE_TYPE_INVALID;
-    }
-  }
-
-  return CKR_OK;
-
-}
-
-CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTRIBUTE_PTR templ, CK_ULONG n) {
-
-  CK_BBOOL rsa = is_RSA_mechanism(mechanism->mechanism);
-  CK_BYTE b_tmp = 0;
-
-  for (CK_ULONG i = 0; i < n; i++) {
-    switch (templ[i].type) {
-    case CKA_CLASS:
-      if (*((CK_ULONG_PTR)templ[i].pValue) != CKO_PRIVATE_KEY) {
-        DBG("Bad CKA_CLASS");
-        return CKR_TEMPLATE_INCONSISTENT;
-      }
-      break;
-
-    case CKA_KEY_TYPE:
-      if ((rsa == CK_TRUE  && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_RSA) ||
-          (rsa == CK_FALSE && (*((CK_KEY_TYPE *)templ[i].pValue)) != CKK_EC)) {
-        DBG("Bad CKA_KEY_TYPE");
-        return CKR_TEMPLATE_INCONSISTENT;
-      }
-      break;
-
-    case CKA_ID:
-      if (find_pvtk_object(*((CK_BYTE_PTR)templ[i].pValue)) == PIV_INVALID_OBJ) {
-        DBG("Bad CKA_ID");
-        return CKR_ATTRIBUTE_VALUE_INVALID;
-      }
-      // Check if ID was already specified in the public key template
-      // In that case it has to match
-      if (gen->key_id != 0 &&
-          gen->key_id != *((CK_BYTE_PTR)templ[i].pValue)) {
-        DBG("Inconsistent CKA_ID");
-        return CKR_TEMPLATE_INCONSISTENT;
-      }
-      gen->key_id = *((CK_BYTE_PTR)templ[i].pValue);
-      break;
-
-    case CKA_TOKEN:
-      if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
-        DBG("CKA_TOKEN must be TRUE or omitted");
-        return CKR_ATTRIBUTE_VALUE_INVALID;
-      }
-      break;
-
-    case CKA_PRIVATE:
-      if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
-        DBG("CKA_PRIVATE must be TRUE or omitted");
-        return CKR_ATTRIBUTE_VALUE_INVALID;
-      }
-      break;
-
-    case CKA_SENSITIVE:
-      if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
-        DBG("CKA_SENSITIVE must be TRUE or omitted");
-        return CKR_ATTRIBUTE_VALUE_INVALID;
-      }
-      break;
-
-    case CKA_EXTRACTABLE:
-      if (*((CK_BBOOL *)templ[i].pValue) != CK_FALSE) {
-        DBG("CKA_EXTRACTABLE must be FALSE or omitted");
-        return CKR_ATTRIBUTE_VALUE_INVALID;
-      }
-      break;
-
-    case CKA_ALWAYS_AUTHENTICATE:
-      if (*((CK_BBOOL *)templ[i].pValue) == CK_TRUE) {
-        if (gen->pin_policy != YKPIV_PINPOLICY_DEFAULT &&
-            gen->pin_policy != YKPIV_PINPOLICY_ALWAYS) {
-          DBG("Inconsistent PIN policy");
-          return CKR_TEMPLATE_INCONSISTENT;
-        }
-        gen->pin_policy = YKPIV_PINPOLICY_ALWAYS;
-      } else if (*((CK_BBOOL *)templ[i].pValue) == CK_FALSE) {
-        if (gen->pin_policy != YKPIV_PINPOLICY_DEFAULT) {
-          DBG("Inconsistent PIN policy");
-          return CKR_TEMPLATE_INCONSISTENT;
-        }
-      } else {
-        DBG("CKA_ALWAYS_AUTHENTICATE must be TRUE, FALSE, or omitted");
-        return CKR_ATTRIBUTE_VALUE_INVALID;
-      }
-      break;
-
-    case CKA_YUBICO_TOUCH_POLICY:
-      b_tmp = *((CK_BYTE *)templ[i].pValue);
-      if (b_tmp != YKPIV_TOUCHPOLICY_ALWAYS &&
-          b_tmp != YKPIV_TOUCHPOLICY_CACHED &&
-          b_tmp != YKPIV_TOUCHPOLICY_NEVER &&
-          b_tmp != YKPIV_TOUCHPOLICY_DEFAULT) {
-        DBG("Invalid value for CKA_YUBICO_TOUCH_POLICY");
-        return CKR_ATTRIBUTE_VALUE_INVALID;
-      }
-      if (gen->touch_policy != YKPIV_TOUCHPOLICY_DEFAULT &&
-          gen->touch_policy != b_tmp) {
-        DBG("Inconsistent touch policy");
-        return CKR_TEMPLATE_INCONSISTENT;
-      }
-      gen->touch_policy = b_tmp;
-      break;
-
-    case CKA_YUBICO_PIN_POLICY:
-      b_tmp = *((CK_BYTE *)templ[i].pValue);
-      if (b_tmp != YKPIV_PINPOLICY_ALWAYS &&
-          b_tmp != YKPIV_PINPOLICY_ONCE &&
-          b_tmp != YKPIV_PINPOLICY_NEVER &&
-          b_tmp != YKPIV_PINPOLICY_DEFAULT) {
-        DBG("Invalid value for CKA_YUBICO_PIN_POLICY");
-        return CKR_ATTRIBUTE_VALUE_INVALID;
-      }
-      if (gen->pin_policy != YKPIV_PINPOLICY_DEFAULT &&
-          gen->pin_policy != b_tmp) {
-        DBG("Inconsistent PIN policy");
-        return CKR_TEMPLATE_INCONSISTENT;
-      }
-      gen->pin_policy = b_tmp;
-      break;
-
-    case CKA_COPYABLE:
-    case CKA_DESTROYABLE:
-    case CKA_ENCRYPT:
-    case CKA_DECRYPT:
-    case CKA_WRAP:
-    case CKA_UNWRAP:
-    case CKA_SIGN:
-    case CKA_SIGN_RECOVER:
-    case CKA_VERIFY:
-    case CKA_VERIFY_RECOVER:
-    case CKA_DERIVE:
-    case CKA_LABEL:
-    case CKA_ISSUER:
-    case CKA_SUBJECT:
-      // Ignore these attributes for now
-      break;
-
-    default:
-      DBG("Invalid attribute 0x%lx in private key template", templ[i].type);
-      return CKR_ATTRIBUTE_TYPE_INVALID;
-    }
-  }
 
   return CKR_OK;
 
@@ -921,7 +645,7 @@ CK_RV digest_mechanism_init(ykcs11_session_t *session, CK_MECHANISM_PTR mech) {
 
 CK_RV digest_mechanism_update(ykcs11_session_t *session, CK_BYTE_PTR in, CK_ULONG in_len) {
 
-  if(session->op_info.md_ctx) {
+  if(session->op_info.md_ctx && session->op_info.mechanism != CKM_EDDSA) {
     if (EVP_DigestUpdate(session->op_info.md_ctx, in, in_len) <= 0) {
       DBG("EVP_DigestUpdate failed");
       return CKR_FUNCTION_FAILED;
