@@ -39,6 +39,7 @@
 
 #define PRIME256V1 "\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07" // TODO: already define in mechanisms.c. Move
 #define SECP384R1 "\x06\x05\x2b\x81\x04\x00\x22" // TODO: already define in mechanisms.c. Move
+#define ED25519OID "\x13\x0c\x65\x64\x77\x61\x72\x64\x73\x32\x35\x35\x31\x39"
 
 static CK_RV get_doa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template);
 static CK_RV get_coa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template);
@@ -1690,6 +1691,443 @@ CK_RV check_create_cert(CK_ATTRIBUTE_PTR templ, CK_ULONG n,
   return CKR_OK;
 }
 
+CK_RV check_create_x25519_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
+                          CK_BYTE_PTR *value, CK_ULONG_PTR value_len,
+                          CK_BYTE_PTR touch_policy, CK_BYTE_PTR pin_policy) {
+
+  CK_ULONG i;
+  CK_BBOOL has_id = CK_FALSE;
+  CK_BBOOL has_value = CK_FALSE;
+
+  CK_BYTE b_tmp;
+
+  for (i = 0; i < n; i++) {
+    switch (templ[i].type) {
+      case CKA_CLASS:
+        if (*((CK_ULONG_PTR)templ[i].pValue) != CKO_PRIVATE_KEY) {
+          DBG("CKA_CLASS muste be CKO_PRIVATE_KEY");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_KEY_TYPE:
+        if (*((CK_ULONG_PTR)templ[i].pValue) != CKK_EC_MONTGOMERY) {
+          DBG("CKA_KEY_TYPE muste be CKK_EC_MONTGOMERY");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_ID:
+        has_id = CK_TRUE;
+        if (find_pvtk_object(*((CK_BYTE_PTR)templ[i].pValue)) == PIV_INVALID_OBJ) {
+          DBG("CKA_ID is not a valid PIV object id");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        *id = *((CK_BYTE_PTR)templ[i].pValue);
+        break;
+
+      case CKA_VALUE:
+        has_value = CK_TRUE;
+        *value = (CK_BYTE_PTR)templ[i].pValue;
+        *value_len = templ[i].ulValueLen;
+        break;
+
+//      case CKA_EC_PARAMS:
+//        ec_params = (CK_BYTE_PTR)templ[i].pValue;
+//        ec_params_len = templ[i].ulValueLen;
+//        break;
+
+      case CKA_TOKEN:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
+          DBG("CKA_TOKEN must be TRUE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_PRIVATE:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
+          DBG("CKA_PRIVATE must be TRUE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_SENSITIVE:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
+          DBG("CKA_SENSITIVE must be TRUE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_EXTRACTABLE:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_FALSE) {
+          DBG("CKA_EXTRACTABLE must be FALSE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_COPYABLE:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_FALSE) {
+          DBG("CKA_COPYABLE must be FALSE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_DESTROYABLE:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
+          DBG("CKA_DESTROYABLE must be TRUE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_DECRYPT:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
+          DBG("CKA_ENCRYPT must be FALSE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_ENCRYPT:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_FALSE) {
+          DBG("CKA_ENCRYPT must be FALSE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_SIGN:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_FALSE) {
+          DBG("CKA_SIGN must be TRUE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_SIGN_RECOVER:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_FALSE) {
+          DBG("CKA_SIGN_RECOVER must be FALSE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_VERIFY:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_FALSE) {
+          DBG("CKA_VERIFY must be FALSE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_VERIFY_RECOVER:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_FALSE) {
+          DBG("CKA_VERIFY_RECOVER must be FALSE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_WRAP:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_FALSE) {
+          DBG("CKA_WRAP must be FALSE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_UNWRAP:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_FALSE) {
+          DBG("CKA_UNWRAP must be FALSE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_ALWAYS_AUTHENTICATE:
+        if (*((CK_BBOOL *)templ[i].pValue) == CK_TRUE) {
+          if (*pin_policy != YKPIV_PINPOLICY_DEFAULT &&
+              *pin_policy != YKPIV_PINPOLICY_ALWAYS) {
+            DBG("Inconsistent PIN policy");
+            return CKR_TEMPLATE_INCONSISTENT;
+          }
+          *pin_policy = YKPIV_PINPOLICY_ALWAYS;
+        } else if (*((CK_BBOOL *)templ[i].pValue) == CK_FALSE) {
+          if (*pin_policy != YKPIV_PINPOLICY_DEFAULT) {
+            DBG("Inconsistent PIN policy");
+            return CKR_TEMPLATE_INCONSISTENT;
+          }
+        } else {
+          DBG("CKA_ALWAYS_AUTHENTICATE must be TRUE, FALSE, or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_YUBICO_TOUCH_POLICY:
+        b_tmp = *((CK_BYTE *)templ[i].pValue);
+        if (b_tmp != YKPIV_TOUCHPOLICY_ALWAYS &&
+            b_tmp != YKPIV_TOUCHPOLICY_CACHED &&
+            b_tmp != YKPIV_TOUCHPOLICY_NEVER &&
+            b_tmp != YKPIV_TOUCHPOLICY_DEFAULT) {
+          DBG("Invalid value for CKA_YUBICO_TOUCH_POLICY");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        if (*touch_policy != YKPIV_TOUCHPOLICY_DEFAULT &&
+            *touch_policy != b_tmp) {
+          DBG("Inconsistent touch policy");
+          return CKR_TEMPLATE_INCONSISTENT;
+        }
+        *touch_policy = b_tmp;
+        break;
+
+      case CKA_YUBICO_PIN_POLICY:
+        b_tmp = *((CK_BYTE *)templ[i].pValue);
+        if (b_tmp != YKPIV_PINPOLICY_ALWAYS &&
+            b_tmp != YKPIV_PINPOLICY_ONCE &&
+            b_tmp != YKPIV_PINPOLICY_NEVER &&
+            b_tmp != YKPIV_PINPOLICY_DEFAULT) {
+          DBG("Invalid value for CKA_YUBICO_PIN_POLICY");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        if (*pin_policy != YKPIV_PINPOLICY_DEFAULT &&
+            *pin_policy != b_tmp) {
+          DBG("Inconsistent PIN policy");
+          return CKR_TEMPLATE_INCONSISTENT;
+        }
+        *pin_policy = b_tmp;
+        break;
+
+      case CKA_DERIVE:
+      case CKA_LABEL:
+      case CKA_SUBJECT:
+        // Ignore other attributes
+        break;
+
+      default:
+        DBG("Invalid attribute type 0x%lx", templ[i].type);
+        return CKR_ATTRIBUTE_TYPE_INVALID;
+    }
+  }
+
+  if (has_id == CK_FALSE ||
+      has_value == CK_FALSE) {
+    return CKR_TEMPLATE_INCOMPLETE;
+  }
+
+  return CKR_OK;
+}
+
+CK_RV check_create_ed_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
+                          CK_BYTE_PTR *value, CK_ULONG_PTR value_len,
+                          CK_BYTE_PTR touch_policy, CK_BYTE_PTR pin_policy) {
+
+  CK_ULONG i;
+  CK_BBOOL has_id = CK_FALSE;
+  CK_BBOOL has_value = CK_FALSE;
+  CK_BBOOL has_params = CK_FALSE;
+
+  CK_BYTE_PTR ec_params = NULL;
+  CK_ULONG    ec_params_len = 0;
+  CK_BYTE b_tmp;
+
+  for (i = 0; i < n; i++) {
+    switch (templ[i].type) {
+      case CKA_CLASS:
+        if (*((CK_ULONG_PTR)templ[i].pValue) != CKO_PRIVATE_KEY) {
+          DBG("CKA_CLASS muste be CKO_PRIVATE_KEY");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_KEY_TYPE:
+        if (*((CK_ULONG_PTR)templ[i].pValue) != CKK_EC_EDWARDS) {
+          DBG("CKA_KEY_TYPE muste be CKK_EC_EDWARDS");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_ID:
+        has_id = CK_TRUE;
+        if (find_pvtk_object(*((CK_BYTE_PTR)templ[i].pValue)) == PIV_INVALID_OBJ) {
+          DBG("CKA_ID is not a valid PIV object id");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        *id = *((CK_BYTE_PTR)templ[i].pValue);
+        break;
+
+      case CKA_VALUE:
+        has_value = CK_TRUE;
+        *value = (CK_BYTE_PTR)templ[i].pValue;
+        *value_len = templ[i].ulValueLen;
+        break;
+
+      case CKA_EC_PARAMS:
+        has_params = CK_TRUE;
+        ec_params = (CK_BYTE_PTR)templ[i].pValue;
+        ec_params_len = templ[i].ulValueLen;
+        break;
+
+      case CKA_TOKEN:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
+          DBG("CKA_TOKEN must be TRUE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_PRIVATE:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
+          DBG("CKA_PRIVATE must be TRUE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_SENSITIVE:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
+          DBG("CKA_SENSITIVE must be TRUE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_EXTRACTABLE:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_FALSE) {
+          DBG("CKA_EXTRACTABLE must be FALSE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_COPYABLE:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_FALSE) {
+          DBG("CKA_COPYABLE must be FALSE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_DESTROYABLE:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
+          DBG("CKA_DESTROYABLE must be TRUE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_ENCRYPT:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_FALSE) {
+          DBG("CKA_ENCRYPT must be FALSE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_SIGN:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
+          DBG("CKA_SIGN must be TRUE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_SIGN_RECOVER:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_FALSE) {
+          DBG("CKA_SIGN_RECOVER must be FALSE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_VERIFY:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_FALSE) {
+          DBG("CKA_VERIFY must be FALSE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_VERIFY_RECOVER:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_FALSE) {
+          DBG("CKA_VERIFY_RECOVER must be FALSE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_WRAP:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_FALSE) {
+          DBG("CKA_WRAP must be FALSE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_UNWRAP:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_FALSE) {
+          DBG("CKA_UNWRAP must be FALSE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_ALWAYS_AUTHENTICATE:
+        if (*((CK_BBOOL *)templ[i].pValue) == CK_TRUE) {
+          if (*pin_policy != YKPIV_PINPOLICY_DEFAULT &&
+              *pin_policy != YKPIV_PINPOLICY_ALWAYS) {
+            DBG("Inconsistent PIN policy");
+            return CKR_TEMPLATE_INCONSISTENT;
+          }
+          *pin_policy = YKPIV_PINPOLICY_ALWAYS;
+        } else if (*((CK_BBOOL *)templ[i].pValue) == CK_FALSE) {
+          if (*pin_policy != YKPIV_PINPOLICY_DEFAULT) {
+            DBG("Inconsistent PIN policy");
+            return CKR_TEMPLATE_INCONSISTENT;
+          }
+        } else {
+          DBG("CKA_ALWAYS_AUTHENTICATE must be TRUE, FALSE, or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_YUBICO_TOUCH_POLICY:
+        b_tmp = *((CK_BYTE *)templ[i].pValue);
+        if (b_tmp != YKPIV_TOUCHPOLICY_ALWAYS &&
+            b_tmp != YKPIV_TOUCHPOLICY_CACHED &&
+            b_tmp != YKPIV_TOUCHPOLICY_NEVER &&
+            b_tmp != YKPIV_TOUCHPOLICY_DEFAULT) {
+          DBG("Invalid value for CKA_YUBICO_TOUCH_POLICY");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        if (*touch_policy != YKPIV_TOUCHPOLICY_DEFAULT &&
+            *touch_policy != b_tmp) {
+          DBG("Inconsistent touch policy");
+          return CKR_TEMPLATE_INCONSISTENT;
+        }
+        *touch_policy = b_tmp;
+        break;
+
+      case CKA_YUBICO_PIN_POLICY:
+        b_tmp = *((CK_BYTE *)templ[i].pValue);
+        if (b_tmp != YKPIV_PINPOLICY_ALWAYS &&
+            b_tmp != YKPIV_PINPOLICY_ONCE &&
+            b_tmp != YKPIV_PINPOLICY_NEVER &&
+            b_tmp != YKPIV_PINPOLICY_DEFAULT) {
+          DBG("Invalid value for CKA_YUBICO_PIN_POLICY");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        if (*pin_policy != YKPIV_PINPOLICY_DEFAULT &&
+            *pin_policy != b_tmp) {
+          DBG("Inconsistent PIN policy");
+          return CKR_TEMPLATE_INCONSISTENT;
+        }
+        *pin_policy = b_tmp;
+        break;
+
+      case CKA_DERIVE:
+      case CKA_DECRYPT:
+      case CKA_LABEL:
+      case CKA_SUBJECT:
+        // Ignore other attributes
+        break;
+
+      default:
+        DBG("Invalid attribute type 0x%lx", templ[i].type);
+        return CKR_ATTRIBUTE_TYPE_INVALID;
+    }
+  }
+
+  if (has_id == CK_FALSE ||
+      has_value == CK_FALSE ||
+      has_params == CK_FALSE) {
+    return CKR_TEMPLATE_INCOMPLETE;
+  }
+
+  if (ec_params_len != 14 || memcmp(ec_params, ED25519OID, ec_params_len) != 0) {
+    return CKR_ATTRIBUTE_VALUE_INVALID;
+  }
+
+  return CKR_OK;
+}
+
 CK_RV check_create_ec_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
                           CK_BYTE_PTR *value, CK_ULONG_PTR value_len,
                           CK_BYTE_PTR touch_policy, CK_BYTE_PTR pin_policy) {
@@ -2182,4 +2620,458 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
   }
 
   return CKR_OK;
+}
+
+static CK_RV check_rsa_pubkey_template(gen_info_t *gen, CK_ATTRIBUTE_PTR templ, CK_ULONG n) {
+
+  for (CK_ULONG i = 0; i < n; i++) {
+    switch (templ[i].type) {
+      case CKA_CLASS:
+        if (*((CK_ULONG_PTR) templ[i].pValue) != CKO_PUBLIC_KEY) {
+          DBG("Bad CKA_CLASS");
+          return CKR_TEMPLATE_INCONSISTENT;
+        }
+        break;
+
+      case CKA_KEY_TYPE:
+        if (*((CK_KEY_TYPE *)templ[i].pValue) != CKK_RSA) {
+          DBG("Bad CKA_KEY_TYPE");
+          return CKR_TEMPLATE_INCONSISTENT;
+        }
+
+        break;
+
+      case CKA_PUBLIC_EXPONENT:
+        if(!do_check_public_exponent(templ[i].pValue, templ[i].ulValueLen)) {
+          DBG("Unsupported public exponent");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+
+        break;
+
+      case CKA_MODULUS_BITS:
+        switch(*(CK_ULONG_PTR)templ[i].pValue) {
+          case 1024:
+            gen->algorithm = YKPIV_ALGO_RSA1024;
+            break;
+          case 2048:
+            gen->algorithm = YKPIV_ALGO_RSA2048;
+            break;
+          case 3072:
+            gen->algorithm = YKPIV_ALGO_RSA3072;
+            break;
+          case 4096:
+            gen->algorithm = YKPIV_ALGO_RSA4096;
+            break;
+          default:
+            DBG("Unsupported MODULUS_BITS (key length)");
+            return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_ID:
+        if (find_pubk_object(*((CK_BYTE_PTR)templ[i].pValue)) == PIV_INVALID_OBJ) {
+          DBG("Bad CKA_ID");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        gen->key_id = *((CK_BYTE_PTR)templ[i].pValue);
+        break;
+
+      case CKA_COPYABLE:
+      case CKA_DESTROYABLE:
+      case CKA_EXTRACTABLE:
+      case CKA_SENSITIVE:
+      case CKA_TOKEN:
+      case CKA_ENCRYPT:
+      case CKA_DECRYPT:
+      case CKA_SIGN:
+      case CKA_SIGN_RECOVER:
+      case CKA_VERIFY:
+      case CKA_VERIFY_RECOVER:
+      case CKA_WRAP:
+      case CKA_UNWRAP:
+      case CKA_DERIVE:
+      case CKA_PRIVATE:
+      case CKA_LABEL:
+      case CKA_ISSUER:
+      case CKA_SUBJECT:
+        // Ignore these attributes for now
+        break;
+
+      default:
+        DBG("Invalid attribute %lx in public key template", templ[i].type);
+        return CKR_ATTRIBUTE_TYPE_INVALID;
+    }
+  }
+
+  return CKR_OK;
+}
+
+static CK_RV check_ec_pubkey_template(gen_info_t *gen, CK_ATTRIBUTE_PTR templ, CK_ULONG n) {
+
+  for (CK_ULONG i = 0; i < n; i++) {
+    switch (templ[i].type) {
+      case CKA_CLASS:
+        if (*((CK_ULONG_PTR) templ[i].pValue) != CKO_PUBLIC_KEY) {
+          DBG("Bad CKA_CLASS");
+          return CKR_TEMPLATE_INCONSISTENT;
+        }
+        break;
+
+      case CKA_KEY_TYPE:
+        if (*((CK_KEY_TYPE *)templ[i].pValue) != CKK_EC) {
+          DBG("Bad CKA_KEY_TYPE");
+          return CKR_TEMPLATE_INCONSISTENT;
+        }
+
+        break;
+
+      case CKA_EC_PARAMS:
+        // Support PRIME256V1 and SECP384R1
+        if (templ[i].ulValueLen == 10 && memcmp((CK_BYTE_PTR)templ[i].pValue, PRIME256V1, 10) == 0)
+          gen->algorithm = YKPIV_ALGO_ECCP256;
+        else if(templ[i].ulValueLen == 7 && memcmp((CK_BYTE_PTR)templ[i].pValue, SECP384R1, 7) == 0)
+          gen->algorithm = YKPIV_ALGO_ECCP384;
+        else {
+          DBG("Bad CKA_EC_PARAMS");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_ID:
+        if (find_pubk_object(*((CK_BYTE_PTR)templ[i].pValue)) == PIV_INVALID_OBJ) {
+          DBG("Bad CKA_ID");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        gen->key_id = *((CK_BYTE_PTR)templ[i].pValue);
+        break;
+
+      case CKA_COPYABLE:
+      case CKA_DESTROYABLE:
+      case CKA_EXTRACTABLE:
+      case CKA_SENSITIVE:
+      case CKA_TOKEN:
+      case CKA_ENCRYPT:
+      case CKA_DECRYPT:
+      case CKA_SIGN:
+      case CKA_SIGN_RECOVER:
+      case CKA_VERIFY:
+      case CKA_VERIFY_RECOVER:
+      case CKA_WRAP:
+      case CKA_UNWRAP:
+      case CKA_DERIVE:
+      case CKA_PRIVATE:
+      case CKA_LABEL:
+      case CKA_ISSUER:
+      case CKA_SUBJECT:
+        // Ignore these attributes for now
+        break;
+
+      default:
+        DBG("Invalid attribute %lx in public key template", templ[i].type);
+        return CKR_ATTRIBUTE_TYPE_INVALID;
+    }
+  }
+
+  return CKR_OK;
+
+}
+
+static CK_RV check_ed_pubkey_template(gen_info_t *gen, CK_ATTRIBUTE_PTR templ, CK_ULONG n) {
+  gen->algorithm = YKPIV_ALGO_ED25519;
+
+  for (CK_ULONG i = 0; i < n; i++) {
+    switch (templ[i].type) {
+      case CKA_CLASS:
+        if (*((CK_ULONG_PTR) templ[i].pValue) != CKO_PUBLIC_KEY) {
+          DBG("Bad CKA_CLASS");
+          return CKR_TEMPLATE_INCONSISTENT;
+        }
+        break;
+
+      case CKA_KEY_TYPE:
+        if (*((CK_KEY_TYPE *)templ[i].pValue) != CKK_EC_EDWARDS) {
+          DBG("Bad CKA_KEY_TYPE");
+          return CKR_TEMPLATE_INCONSISTENT;
+        }
+        break;
+
+      case CKA_ID:
+        if (find_pubk_object(*((CK_BYTE_PTR) templ[i].pValue)) == PIV_INVALID_OBJ) {
+          DBG("Bad CKA_ID");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        gen->key_id = *((CK_BYTE_PTR) templ[i].pValue);
+      break;
+
+      case CKA_EC_PARAMS:
+      case CKA_COPYABLE:
+      case CKA_DESTROYABLE:
+      case CKA_EXTRACTABLE:
+      case CKA_SENSITIVE:
+      case CKA_TOKEN:
+      case CKA_ENCRYPT:
+      case CKA_DECRYPT:
+      case CKA_SIGN:
+      case CKA_SIGN_RECOVER:
+      case CKA_VERIFY:
+      case CKA_VERIFY_RECOVER:
+      case CKA_WRAP:
+      case CKA_UNWRAP:
+      case CKA_DERIVE:
+      case CKA_PRIVATE:
+      case CKA_LABEL:
+      case CKA_ISSUER:
+      case CKA_SUBJECT:
+        // Ignore these attributes for now
+        break;
+
+      default:
+        DBG("Invalid attribute %lx in public key template", templ[i].type);
+        return CKR_ATTRIBUTE_TYPE_INVALID;
+    }
+  }
+
+  return CKR_OK;
+}
+
+static CK_RV check_x_pubkey_template(gen_info_t *gen, CK_ATTRIBUTE_PTR templ, CK_ULONG n) {
+  gen->algorithm = YKPIV_ALGO_X25519;
+
+  for (CK_ULONG i = 0; i < n; i++) {
+    switch (templ[i].type) {
+      case CKA_CLASS:
+        if (*((CK_ULONG_PTR) templ[i].pValue) != CKO_PUBLIC_KEY) {
+          DBG("Bad CKA_CLASS");
+          return CKR_TEMPLATE_INCONSISTENT;
+        }
+        break;
+
+      case CKA_KEY_TYPE:
+        if (*((CK_KEY_TYPE *)templ[i].pValue) != CKK_EC_MONTGOMERY) {
+          DBG("Bad CKA_KEY_TYPE");
+          return CKR_TEMPLATE_INCONSISTENT;
+        }
+        break;
+
+      case CKA_ID:
+        if (find_pubk_object(*((CK_BYTE_PTR)templ[i].pValue)) == PIV_INVALID_OBJ) {
+          DBG("Bad CKA_ID");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        gen->key_id = *((CK_BYTE_PTR)templ[i].pValue);
+        break;
+
+      case CKA_EC_PARAMS:
+      case CKA_COPYABLE:
+      case CKA_DESTROYABLE:
+      case CKA_EXTRACTABLE:
+      case CKA_SENSITIVE:
+      case CKA_TOKEN:
+      case CKA_ENCRYPT:
+      case CKA_DECRYPT:
+      case CKA_SIGN:
+      case CKA_SIGN_RECOVER:
+      case CKA_VERIFY:
+      case CKA_VERIFY_RECOVER:
+      case CKA_WRAP:
+      case CKA_UNWRAP:
+      case CKA_DERIVE:
+      case CKA_PRIVATE:
+      case CKA_LABEL:
+      case CKA_ISSUER:
+      case CKA_SUBJECT:
+        // Ignore these attributes for now
+        break;
+
+      default:
+        DBG("Invalid attribute %lx in public key template", templ[i].type);
+        return CKR_ATTRIBUTE_TYPE_INVALID;
+    }
+  }
+
+  return CKR_OK;
+}
+
+CK_RV check_pubkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTRIBUTE_PTR templ, CK_ULONG n) {
+  switch(mechanism->mechanism) {
+    case CKM_RSA_PKCS_KEY_PAIR_GEN:
+      return check_rsa_pubkey_template(gen, templ, n);
+    case CKM_EC_KEY_PAIR_GEN:
+      return check_ec_pubkey_template(gen, templ, n);
+    case CKM_EC_EDWARDS_KEY_PAIR_GEN:
+      return check_ed_pubkey_template(gen, templ, n);
+    case CKM_EC_MONTGOMERY_KEY_PAIR_GEN:
+      return check_x_pubkey_template(gen, templ, n);
+    default:
+      DBG("Unsupported public key mechanism %lx ", mechanism->mechanism);
+      return CKR_MECHANISM_INVALID;
+  }
+}
+
+CK_RV check_pvtkey_template(gen_info_t *gen, CK_MECHANISM_PTR mechanism, CK_ATTRIBUTE_PTR templ, CK_ULONG n) {
+  CK_BYTE b_tmp = 0;
+
+  for (CK_ULONG i = 0; i < n; i++) {
+    switch (templ[i].type) {
+      case CKA_CLASS:
+        if (*((CK_ULONG_PTR)templ[i].pValue) != CKO_PRIVATE_KEY) {
+          DBG("Bad CKA_CLASS");
+          return CKR_TEMPLATE_INCONSISTENT;
+        }
+        break;
+
+      case CKA_KEY_TYPE:
+        switch (mechanism->mechanism) {
+          case CKM_RSA_PKCS_KEY_PAIR_GEN:
+            if (*((CK_KEY_TYPE *) templ[i].pValue) != CKK_RSA) {
+              DBG("Bad CKA_KEY_TYPE");
+              return CKR_TEMPLATE_INCONSISTENT;
+            }
+            break;
+          case CKM_EC_KEY_PAIR_GEN:
+            if (*((CK_KEY_TYPE *) templ[i].pValue) != CKK_EC) {
+              DBG("Bad CKA_KEY_TYPE");
+              return CKR_TEMPLATE_INCONSISTENT;
+            }
+            break;
+          case CKM_EC_EDWARDS_KEY_PAIR_GEN:
+            if (*((CK_KEY_TYPE *) templ[i].pValue) != CKK_EC_EDWARDS) {
+              DBG("Bad CKA_KEY_TYPE");
+              return CKR_TEMPLATE_INCONSISTENT;
+            }
+            break;
+          case CKM_EC_MONTGOMERY_KEY_PAIR_GEN:
+            if (*((CK_KEY_TYPE *) templ[i].pValue) != CKK_EC_MONTGOMERY) {
+              DBG("Bad CKA_KEY_TYPE");
+              return CKR_TEMPLATE_INCONSISTENT;
+            }
+            break;
+          default:
+            DBG("Unsupported CKA_KEY_TYPE");
+            return CKR_TEMPLATE_INCONSISTENT;
+        }
+        break;
+
+      case CKA_ID:
+        if (find_pvtk_object(*((CK_BYTE_PTR)templ[i].pValue)) == PIV_INVALID_OBJ) {
+          DBG("Bad CKA_ID");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        // Check if ID was already specified in the public key template
+        // In that case it has to match
+        if (gen->key_id != 0 &&
+            gen->key_id != *((CK_BYTE_PTR)templ[i].pValue)) {
+          DBG("Inconsistent CKA_ID");
+          return CKR_TEMPLATE_INCONSISTENT;
+        }
+        gen->key_id = *((CK_BYTE_PTR)templ[i].pValue);
+        break;
+
+      case CKA_TOKEN:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
+          DBG("CKA_TOKEN must be TRUE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_PRIVATE:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
+          DBG("CKA_PRIVATE must be TRUE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_SENSITIVE:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
+          DBG("CKA_SENSITIVE must be TRUE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_EXTRACTABLE:
+        if (*((CK_BBOOL *)templ[i].pValue) != CK_FALSE) {
+          DBG("CKA_EXTRACTABLE must be FALSE or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_ALWAYS_AUTHENTICATE:
+        if (*((CK_BBOOL *)templ[i].pValue) == CK_TRUE) {
+          if (gen->pin_policy != YKPIV_PINPOLICY_DEFAULT &&
+              gen->pin_policy != YKPIV_PINPOLICY_ALWAYS) {
+            DBG("Inconsistent PIN policy");
+            return CKR_TEMPLATE_INCONSISTENT;
+          }
+          gen->pin_policy = YKPIV_PINPOLICY_ALWAYS;
+        } else if (*((CK_BBOOL *)templ[i].pValue) == CK_FALSE) {
+          if (gen->pin_policy != YKPIV_PINPOLICY_DEFAULT) {
+            DBG("Inconsistent PIN policy");
+            return CKR_TEMPLATE_INCONSISTENT;
+          }
+        } else {
+          DBG("CKA_ALWAYS_AUTHENTICATE must be TRUE, FALSE, or omitted");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
+      case CKA_YUBICO_TOUCH_POLICY:
+        b_tmp = *((CK_BYTE *)templ[i].pValue);
+        if (b_tmp != YKPIV_TOUCHPOLICY_ALWAYS &&
+            b_tmp != YKPIV_TOUCHPOLICY_CACHED &&
+            b_tmp != YKPIV_TOUCHPOLICY_NEVER &&
+            b_tmp != YKPIV_TOUCHPOLICY_DEFAULT) {
+          DBG("Invalid value for CKA_YUBICO_TOUCH_POLICY");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        if (gen->touch_policy != YKPIV_TOUCHPOLICY_DEFAULT &&
+            gen->touch_policy != b_tmp) {
+          DBG("Inconsistent touch policy");
+          return CKR_TEMPLATE_INCONSISTENT;
+        }
+        gen->touch_policy = b_tmp;
+        break;
+
+      case CKA_YUBICO_PIN_POLICY:
+        b_tmp = *((CK_BYTE *)templ[i].pValue);
+        if (b_tmp != YKPIV_PINPOLICY_ALWAYS &&
+            b_tmp != YKPIV_PINPOLICY_ONCE &&
+            b_tmp != YKPIV_PINPOLICY_NEVER &&
+            b_tmp != YKPIV_PINPOLICY_DEFAULT) {
+          DBG("Invalid value for CKA_YUBICO_PIN_POLICY");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        if (gen->pin_policy != YKPIV_PINPOLICY_DEFAULT &&
+            gen->pin_policy != b_tmp) {
+          DBG("Inconsistent PIN policy");
+          return CKR_TEMPLATE_INCONSISTENT;
+        }
+        gen->pin_policy = b_tmp;
+        break;
+
+      case CKA_COPYABLE:
+      case CKA_DESTROYABLE:
+      case CKA_ENCRYPT:
+      case CKA_DECRYPT:
+      case CKA_WRAP:
+      case CKA_UNWRAP:
+      case CKA_SIGN:
+      case CKA_SIGN_RECOVER:
+      case CKA_VERIFY:
+      case CKA_VERIFY_RECOVER:
+      case CKA_DERIVE:
+      case CKA_LABEL:
+      case CKA_ISSUER:
+      case CKA_SUBJECT:
+        // Ignore these attributes for now
+        break;
+
+      default:
+        DBG("Invalid attribute 0x%lx in private key template", templ[i].type);
+        return CKR_ATTRIBUTE_TYPE_INVALID;
+    }
+  }
+
+  return CKR_OK;
+
 }

@@ -259,11 +259,9 @@ create_rsa_cleanup:
 }
 
 CK_RV do_create_public_key(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm, ykcs11_pkey_t **pkey) {
-  int curve_name = get_curve_name(algorithm);
   CK_BYTE_PTR eob = in + in_len;
   unsigned long offs, len;
-
-  if (curve_name == 0) {
+  if (YKPIV_IS_RSA(algorithm)) {
     if(in >= eob)
       return CKR_GENERAL_ERROR;
 
@@ -293,8 +291,7 @@ CK_RV do_create_public_key(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm, 
 
     in += offs;    
     return do_create_rsa_key(mod, mod_len, in, len, pkey);
-  }
-  else {
+  } else {
     if(in >= eob)
       return CKR_GENERAL_ERROR;
 
@@ -306,14 +303,31 @@ CK_RV do_create_public_key(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm, 
       return CKR_GENERAL_ERROR;
 
     in += offs;
-    return do_create_ec_key(in, len, curve_name, pkey);
+
+    if (YKPIV_IS_EC(algorithm)) {
+      int curve_name = get_curve_name(algorithm);
+      return do_create_ec_key(in, len, curve_name, pkey);
+    } else if (YKPIV_IS_25519(algorithm)) {
+      if (algorithm == YKPIV_ALGO_ED25519) {
+        *pkey = EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, NULL, in, len);
+      } else {
+        *pkey = EVP_PKEY_new_raw_public_key(EVP_PKEY_X25519, NULL, in, len);
+      }
+      if (*pkey == NULL) {
+        return CKR_HOST_MEMORY;
+      }
+      return CKR_OK;
+    }
   }
+  DBG("Unsupported key algorithm");
+  return CKR_DATA_INVALID;
 }
 
 CK_RV do_sign_empty_cert(const char *cn, ykcs11_pkey_t *pubkey, ykcs11_pkey_t *pvtkey, ykcs11_x509_t **cert) {
   *cert = X509_new();
-  if (*cert == NULL)
+  if (*cert == NULL) {
     return CKR_HOST_MEMORY;
+  }
   X509_set_version(*cert, 2); // Version 3
   X509_NAME_add_entry_by_txt(X509_get_issuer_name(*cert), "CN", MBSTRING_ASC, (const unsigned char*)cn, -1, -1, 0);
   X509_NAME_add_entry_by_txt(X509_get_subject_name(*cert), "CN", MBSTRING_ASC, (const unsigned char*)cn, -1, -1, 0);
@@ -515,9 +529,12 @@ CK_KEY_TYPE do_get_key_type(ykcs11_pkey_t *key) {
     switch (EVP_PKEY_base_id(key)) {
     case EVP_PKEY_RSA:
       return CKK_RSA;
-
     case EVP_PKEY_EC:
       return CKK_EC;
+    case EVP_PKEY_ED25519:
+      return CKK_EC_EDWARDS;
+    case EVP_PKEY_X25519:
+      return CKK_EC_MONTGOMERY;
     }
   }
   return CKK_VENDOR_DEFINED; // Actually an error
@@ -538,6 +555,7 @@ CK_ULONG do_get_signature_size(ykcs11_pkey_t *key) {
     case EVP_PKEY_RSA:
       return EVP_PKEY_size(key);
     case EVP_PKEY_EC:
+    case EVP_PKEY_ED25519:
       switch(EVP_PKEY_bits(key)) {
       case 256:
         return 64;
@@ -571,6 +589,10 @@ CK_BYTE do_get_key_algorithm(ykcs11_pkey_t *key) {
       case 384:
         return YKPIV_ALGO_ECCP384;
       }
+    case EVP_PKEY_ED25519:
+      return YKPIV_ALGO_ED25519;
+    case EVP_PKEY_X25519:
+      return YKPIV_ALGO_X25519;
     }
   }
   return 0;

@@ -60,7 +60,14 @@ static void *global_mutex;
 static uint64_t pid;
 int verbose;
 
-static CK_FUNCTION_LIST function_list;
+static const CK_FUNCTION_LIST function_list;
+static const CK_FUNCTION_LIST_3_0 function_list_3;
+
+static const CK_INTERFACE interfaces_list[] = {{(CK_CHAR_PTR) "PKCS 11",
+                                                   (CK_VOID_PTR)&function_list_3, 0},
+                                               {(CK_CHAR_PTR) "PKCS 11",
+                                                   (CK_VOID_PTR)&function_list, 0}};
+
 
 static CK_SESSION_HANDLE get_session_handle(ykcs11_session_t *session) {
   return (CK_SESSION_HANDLE)(session - sessions + 1);
@@ -254,10 +261,7 @@ fin_out:
   return rv;
 }
 
-CK_DEFINE_FUNCTION(CK_RV, C_GetInfo)(
-  CK_INFO_PTR pInfo
-)
-{
+static CK_RV C_GetInfo_Ex(CK_INFO_PTR pInfo, CK_VERSION cryptokiVersion) {
   CK_RV rv;
   DIN;
 
@@ -273,7 +277,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetInfo)(
     goto info_out;
   }
   
-  pInfo->cryptokiVersion = function_list.version;
+  pInfo->cryptokiVersion = cryptokiVersion;
   pInfo->libraryVersion.major = YKCS11_VERSION_MAJOR;
   pInfo->libraryVersion.minor = (YKCS11_VERSION_MINOR * 10) + YKCS11_VERSION_PATCH;
   pInfo->flags = 0;
@@ -283,6 +287,26 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetInfo)(
   rv = CKR_OK;
 
 info_out:
+  DOUT;
+  return rv;
+}
+
+CK_DEFINE_FUNCTION(CK_RV, C_GetInfo)(CK_INFO_PTR pInfo) {
+
+  DIN;
+
+  CK_RV rv = C_GetInfo_Ex(pInfo, function_list.version);
+
+  DOUT;
+  return rv;
+}
+
+static CK_RV C_GetInfo_3_0(CK_INFO_PTR pInfo) {
+
+  DIN;
+
+  CK_RV rv = C_GetInfo_Ex(pInfo, function_list_3.version);
+
   DOUT;
   return rv;
 }
@@ -299,7 +323,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetFunctionList)(
     rv = CKR_ARGUMENTS_BAD;
     goto funclist_out;
   }
-  *ppFunctionList = &function_list;
+  *ppFunctionList = (CK_FUNCTION_LIST_PTR)&function_list;
   rv = CKR_OK;
 
 
@@ -1523,22 +1547,19 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
     DBG("Importing private key");
 
     // Try to parse the key as EC
-    rv = check_create_ec_key(pTemplate, ulCount, &id,
+    if (check_create_ec_key(pTemplate, ulCount, &id,
                              &ec_data, &ec_data_len,
-                             &touch_policy, &pin_policy);
-    if (rv == CKR_OK) {
+                             &touch_policy, &pin_policy) == CKR_OK) {
       DBG("Key is ECDSA");
       algorithm = ec_data_len <= 32 ? YKPIV_ALGO_ECCP256 : YKPIV_ALGO_ECCP384;
-    } else {
+    } else if (check_create_rsa_key(pTemplate, ulCount, &id,
+                                    &p, &p_len,
+                                    &q, &q_len,
+                                    &dp, &dp_len,
+                                    &dq, &dq_len,
+                                    &qinv, &qinv_len,
+                                    &touch_policy, &pin_policy) == CKR_OK) {
       // Try to parse the key as RSA
-      rv = check_create_rsa_key(pTemplate, ulCount, &id,
-                                &p, &p_len,
-                                &q, &q_len,
-                                &dp, &dp_len,
-                                &dq, &dq_len,
-                                &qinv, &qinv_len,
-                                &touch_policy, &pin_policy);
-      if (rv == CKR_OK) {
         DBG("Key is RSA");
         switch (p_len) {
           case 63:
@@ -1558,10 +1579,17 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
             algorithm = YKPIV_ALGO_RSA4096;
             break;
         }
-      } else {
-        DBG("Private key template not valid");
-        goto create_out;
-      }
+    } else if (check_create_ed_key(pTemplate, ulCount, &id,
+                                   &ec_data, &ec_data_len,
+                                   &touch_policy, &pin_policy) == CKR_OK) {
+      DBG("Key is ED25519");
+      algorithm = YKPIV_ALGO_ED25519;
+
+    } else if (check_create_x25519_key(pTemplate, ulCount, &id,
+                                       &ec_data, &ec_data_len,
+                                       &touch_policy, &pin_policy) == CKR_OK) {
+      DBG("Key is X25519");
+      algorithm = YKPIV_ALGO_X25519;
     }
 
     DBG("Key id is %u", id);
@@ -3872,8 +3900,348 @@ CK_DEFINE_FUNCTION(CK_RV, C_CancelFunction)(
   return CKR_FUNCTION_NOT_PARALLEL;
 }
 
-static CK_FUNCTION_LIST function_list = {
-  { 2, 40 },
+/* C_GetInterfaceList returns all the interfaces supported by the module*/
+CK_DEFINE_FUNCTION(CK_RV, C_GetInterfaceList)
+(CK_INTERFACE_PTR pInterfacesList, /* returned interfaces */
+ CK_ULONG_PTR pulCount             /* number of interfaces returned */
+) {
+  DIN;
+  CK_RV rv = CKR_OK;
+  if (!pulCount) {
+    DBG("C_GetInterfaceList called with pulCount = NULL");
+    rv = CKR_ARGUMENTS_BAD;
+    goto out;
+  }
+  if (pInterfacesList) {
+    if (*pulCount < sizeof(interfaces_list) / sizeof(interfaces_list[0])) {
+      DBG("C_GetInterfaceList called with *pulCount = %lu", *pulCount);
+      *pulCount = sizeof(interfaces_list) / sizeof(interfaces_list[0]);
+      rv = CKR_BUFFER_TOO_SMALL;
+      goto out;
+    }
+    memcpy(pInterfacesList, interfaces_list, sizeof(interfaces_list));
+  }
+  *pulCount = sizeof(interfaces_list) / sizeof(interfaces_list[0]);
+out:
+  DOUT;
+  return rv;
+}
+
+/* C_GetInterface returns a specific interface from the module. */
+CK_DEFINE_FUNCTION(CK_RV, C_GetInterface)
+(CK_UTF8CHAR_PTR pInterfaceName,   /* name of the interface */
+ CK_VERSION_PTR pVersion,          /* version of the interface */
+ CK_INTERFACE_PTR_PTR ppInterface, /* returned interface */
+ CK_FLAGS flags                    /* flags controlling the semantics
+                                    * of the interface */
+) {
+  DIN;
+  CK_RV rv = CKR_FUNCTION_FAILED;
+  if (!ppInterface) {
+    DBG("C_GetInterface called with ppInterface = NULL");
+    rv = CKR_ARGUMENTS_BAD;
+    goto out;
+  }
+  size_t i;
+  for (i = 0; i < sizeof(interfaces_list) / sizeof(interfaces_list[0]); i++) {
+    CK_FUNCTION_LIST_PTR func_list =
+      (CK_FUNCTION_LIST_PTR) interfaces_list[i].pFunctionList;
+    if ((flags & interfaces_list[i].flags) != flags) {
+      DBG("C_GetInterface skipped interface %zu (%s %u.%u) because flags "
+               "was %lu",
+               i, interfaces_list[i].pInterfaceName,
+               func_list->version.major, func_list->version.minor,
+               flags);
+      continue;
+    }
+    if (pVersion && (pVersion->major != func_list->version.major ||
+                     pVersion->minor != func_list->version.minor)) {
+      DBG("C_GetInterface skipped interface %zu (%s %u.%u) because "
+               "pVersion was %u.%u",
+               i, interfaces_list[i].pInterfaceName,
+               func_list->version.major, func_list->version.minor,
+               pVersion->major, pVersion->minor);
+      continue;
+    }
+    if (pInterfaceName && strcmp((char *) pInterfaceName,
+                                 (char *) interfaces_list[i].pInterfaceName)) {
+      DBG("C_GetInterface skipped interface %zu (%s %u.%u) because "
+               "pInterfacename was %s",
+               i, interfaces_list[i].pInterfaceName,
+               func_list->version.major, func_list->version.minor,
+               pInterfaceName);
+      continue;
+    }
+    DBG("C_GetInterface selected interface %zu (%s %u.%u)", i,
+             interfaces_list[i].pInterfaceName, func_list->version.major,
+             func_list->version.minor);
+    *ppInterface = (CK_INTERFACE_PTR) &interfaces_list[i];
+    rv = CKR_OK;
+    break;
+  }
+out:
+  DOUT;
+  return rv;
+}
+
+CK_DEFINE_FUNCTION(CK_RV, C_LoginUser)
+(CK_SESSION_HANDLE hSession, /* the session's handle */
+ CK_USER_TYPE userType,      /* the user type */
+ CK_UTF8CHAR_PTR pPin,       /* the user's PIN */
+ CK_ULONG ulPinLen,          /* the length of the PIN */
+ CK_UTF8CHAR_PTR pUsername,  /* the user's name */
+ CK_ULONG ulUsernameLen      /*the length of the user's name */
+) {
+  DIN;
+  DOUT;
+  return CKR_FUNCTION_NOT_SUPPORTED;
+}
+
+CK_DEFINE_FUNCTION(CK_RV, C_SessionCancel)
+(CK_SESSION_HANDLE hSession, /* the session's handle */
+ CK_FLAGS flags              /* flags control which sessions are cancelled */
+) {
+  DIN;
+  DOUT;
+  return CKR_FUNCTION_NOT_SUPPORTED;
+}
+
+CK_DEFINE_FUNCTION(CK_RV, C_MessageEncryptInit)
+(CK_SESSION_HANDLE hSession,  /* the session's handle */
+ CK_MECHANISM_PTR pMechanism, /* the encryption mechanism */
+ CK_OBJECT_HANDLE hKey        /* handle of encryption key */
+) {
+  DIN;
+  DOUT;
+  return CKR_FUNCTION_NOT_SUPPORTED;
+}
+
+CK_DEFINE_FUNCTION(CK_RV, C_EncryptMessage)
+(CK_SESSION_HANDLE hSession,   /* the session's handle */
+ CK_VOID_PTR pParameter,       /* message specific parameter */
+ CK_ULONG ulParameterLen,      /* length of message specific parameter */
+ CK_BYTE_PTR pAssociatedData,  /* AEAD Associated data */
+ CK_ULONG ulAssociatedDataLen, /* AEAD Associated data length */
+ CK_BYTE_PTR pPlaintext,       /* plain text  */
+ CK_ULONG ulPlaintextLen,      /* plain text length */
+ CK_BYTE_PTR pCiphertext,      /* gets cipher text */
+ CK_ULONG_PTR pulCiphertextLen /* gets cipher text length */
+) {
+  DIN;
+  DOUT;
+  return CKR_FUNCTION_NOT_SUPPORTED;
+}
+
+CK_DEFINE_FUNCTION(CK_RV, C_EncryptMessageBegin)
+(CK_SESSION_HANDLE hSession,  /* the session's handle */
+ CK_VOID_PTR pParameter,      /* message specific parameter */
+ CK_ULONG ulParameterLen,     /* length of message specific parameter */
+ CK_BYTE_PTR pAssociatedData, /* AEAD Associated data */
+ CK_ULONG ulAssociatedDataLen /* AEAD Associated data length */
+) {
+  DIN;
+  DOUT;
+  return CKR_FUNCTION_NOT_SUPPORTED;
+}
+
+CK_DEFINE_FUNCTION(CK_RV, C_EncryptMessageNext)
+(CK_SESSION_HANDLE hSession,        /* the session's handle */
+ CK_VOID_PTR pParameter,            /* message specific parameter */
+ CK_ULONG ulParameterLen,           /* length of message specific parameter */
+ CK_BYTE_PTR pPlaintextPart,        /* plain text */
+ CK_ULONG ulPlaintextPartLen,       /* plain text length */
+ CK_BYTE_PTR pCiphertextPart,       /* gets cipher text */
+ CK_ULONG_PTR pulCiphertextPartLen, /* gets cipher text length */
+ CK_FLAGS flags                     /* multi mode flag */
+) {
+  DIN;
+  DOUT;
+  return CKR_FUNCTION_NOT_SUPPORTED;
+}
+
+CK_DEFINE_FUNCTION(CK_RV, C_MessageEncryptFinal)
+(CK_SESSION_HANDLE hSession /* the session's handle */
+) {
+  DIN;
+  DOUT;
+  return CKR_FUNCTION_NOT_SUPPORTED;
+}
+
+CK_DEFINE_FUNCTION(CK_RV, C_MessageDecryptInit)
+(CK_SESSION_HANDLE hSession,  /* the session's handle */
+ CK_MECHANISM_PTR pMechanism, /* the decryption mechanism */
+ CK_OBJECT_HANDLE hKey        /* handle of decryption key */
+) {
+  DIN;
+  DOUT;
+  return CKR_FUNCTION_NOT_SUPPORTED;
+}
+
+CK_DEFINE_FUNCTION(CK_RV, C_DecryptMessage)
+(CK_SESSION_HANDLE hSession,   /* the session's handle */
+ CK_VOID_PTR pParameter,       /* message specific parameter */
+ CK_ULONG ulParameterLen,      /* length of message specific parameter */
+ CK_BYTE_PTR pAssociatedData,  /* AEAD Associated data */
+ CK_ULONG ulAssociatedDataLen, /* AEAD Associated data length */
+ CK_BYTE_PTR pCiphertext,      /* cipher text */
+ CK_ULONG ulCiphertextLen,     /* cipher text length */
+ CK_BYTE_PTR pPlaintext,       /* gets plain text */
+ CK_ULONG_PTR pulPlaintextLen  /* gets plain text length */
+) {
+  DIN;
+  DOUT;
+  return CKR_FUNCTION_NOT_SUPPORTED;
+}
+
+CK_DEFINE_FUNCTION(CK_RV, C_DecryptMessageBegin)
+(CK_SESSION_HANDLE hSession,  /* the session's handle */
+ CK_VOID_PTR pParameter,      /* message specific parameter */
+ CK_ULONG ulParameterLen,     /* length of message specific parameter */
+ CK_BYTE_PTR pAssociatedData, /* AEAD Associated data */
+ CK_ULONG ulAssociatedDataLen /* AEAD Associated data length */
+) {
+  DIN;
+  DOUT;
+  return CKR_FUNCTION_NOT_SUPPORTED;
+}
+
+CK_DEFINE_FUNCTION(CK_RV, C_DecryptMessageNext)
+(CK_SESSION_HANDLE hSession,   /* the session's handle */
+ CK_VOID_PTR pParameter,       /* message specific parameter */
+ CK_ULONG ulParameterLen,      /* length of message specific parameter */
+ CK_BYTE_PTR pCiphertext,      /* cipher text */
+ CK_ULONG ulCiphertextLen,     /* cipher text length */
+ CK_BYTE_PTR pPlaintext,       /* gets plain text */
+ CK_ULONG_PTR pulPlaintextLen, /* gets plain text length */
+ CK_FLAGS flags                /* multi mode flag */
+) {
+  DIN;
+  DOUT;
+  return CKR_FUNCTION_NOT_SUPPORTED;
+}
+
+CK_DEFINE_FUNCTION(CK_RV, C_MessageDecryptFinal)
+(CK_SESSION_HANDLE hSession /* the session's handle */
+) {
+  DIN;
+  DOUT;
+  return CKR_FUNCTION_NOT_SUPPORTED;
+}
+
+CK_DEFINE_FUNCTION(CK_RV, C_MessageSignInit)
+(CK_SESSION_HANDLE hSession,  /* the session's handle */
+ CK_MECHANISM_PTR pMechanism, /* the signing mechanism */
+ CK_OBJECT_HANDLE hKey        /* handle of signing key */
+) {
+  DIN;
+  DOUT;
+  return CKR_FUNCTION_NOT_SUPPORTED;
+}
+
+CK_DEFINE_FUNCTION(CK_RV, C_SignMessage)
+(CK_SESSION_HANDLE hSession,  /* the session's handle */
+ CK_VOID_PTR pParameter,      /* message specific parameter */
+ CK_ULONG ulParameterLen,     /* length of message specific parameter */
+ CK_BYTE_PTR pData,           /* data to sign */
+ CK_ULONG ulDataLen,          /* data to sign length */
+ CK_BYTE_PTR pSignature,      /* gets signature */
+ CK_ULONG_PTR pulSignatureLen /* gets signature length */
+) {
+  DIN;
+  DOUT;
+  return CKR_FUNCTION_NOT_SUPPORTED;
+}
+
+CK_DEFINE_FUNCTION(CK_RV, C_SignMessageBegin)
+(CK_SESSION_HANDLE hSession, /* the session's handle */
+ CK_VOID_PTR pParameter,     /* message specific parameter */
+ CK_ULONG ulParameterLen     /* length of message specific parameter */
+) {
+  DIN;
+  DOUT;
+  return CKR_FUNCTION_NOT_SUPPORTED;
+}
+
+CK_DEFINE_FUNCTION(CK_RV, C_SignMessageNext)
+(CK_SESSION_HANDLE hSession,  /* the session's handle */
+ CK_VOID_PTR pParameter,      /* message specific parameter */
+ CK_ULONG ulParameterLen,     /* length of message specific parameter */
+ CK_BYTE_PTR pData,           /* data to sign */
+ CK_ULONG ulDataLen,          /* data to sign length */
+ CK_BYTE_PTR pSignature,      /* gets signature */
+ CK_ULONG_PTR pulSignatureLen /* gets signature length */
+) {
+  DIN;
+  DOUT;
+  return CKR_FUNCTION_NOT_SUPPORTED;
+}
+
+CK_DEFINE_FUNCTION(CK_RV, C_MessageSignFinal)
+(CK_SESSION_HANDLE hSession /* the session's handle */
+) {
+  DIN;
+  DOUT;
+  return CKR_FUNCTION_NOT_SUPPORTED;
+}
+
+CK_DEFINE_FUNCTION(CK_RV, C_MessageVerifyInit)
+(CK_SESSION_HANDLE hSession,  /* the session's handle */
+ CK_MECHANISM_PTR pMechanism, /* the signing mechanism */
+ CK_OBJECT_HANDLE hKey        /* handle of signing key */
+) {
+  DIN;
+  DOUT;
+  return CKR_FUNCTION_NOT_SUPPORTED;
+}
+
+CK_DEFINE_FUNCTION(CK_RV, C_VerifyMessage)
+(CK_SESSION_HANDLE hSession, /* the session's handle */
+ CK_VOID_PTR pParameter,     /* message specific parameter */
+ CK_ULONG ulParameterLen,    /* length of message specific parameter */
+ CK_BYTE_PTR pData,          /* data to sign */
+ CK_ULONG ulDataLen,         /* data to sign length */
+ CK_BYTE_PTR pSignature,     /* signature */
+ CK_ULONG ulSignatureLen     /* signature length */
+) {
+  DIN;
+  DOUT;
+  return CKR_FUNCTION_NOT_SUPPORTED;
+}
+
+CK_DEFINE_FUNCTION(CK_RV, C_VerifyMessageBegin)
+(CK_SESSION_HANDLE hSession, /* the session's handle */
+ CK_VOID_PTR pParameter,     /* message specific parameter */
+ CK_ULONG ulParameterLen     /* length of message specific parameter */
+) {
+  DIN;
+  DOUT;
+  return CKR_FUNCTION_NOT_SUPPORTED;
+}
+
+CK_DEFINE_FUNCTION(CK_RV, C_VerifyMessageNext)
+(CK_SESSION_HANDLE hSession, /* the session's handle */
+ CK_VOID_PTR pParameter,     /* message specific parameter */
+ CK_ULONG ulParameterLen,    /* length of message specific parameter */
+ CK_BYTE_PTR pData,          /* data to sign */
+ CK_ULONG ulDataLen,         /* data to sign length */
+ CK_BYTE_PTR pSignature,     /* signature */
+ CK_ULONG ulSignatureLen     /* signature length */
+) {
+  DIN;
+  DOUT;
+  return CKR_FUNCTION_NOT_SUPPORTED;
+}
+
+CK_DEFINE_FUNCTION(CK_RV, C_MessageVerifyFinal)
+(CK_SESSION_HANDLE hSession /* the session's handle */
+) {
+  DIN;
+  DOUT;
+  return CKR_FUNCTION_NOT_SUPPORTED;
+}
+
+static const CK_FUNCTION_LIST function_list = {
+  {CRYPTOKI_LEGACY_VERSION_MAJOR, CRYPTOKI_LEGACY_VERSION_MINOR},
   C_Initialize,
   C_Finalize,
   C_GetInfo,
@@ -3942,4 +4310,100 @@ static CK_FUNCTION_LIST function_list = {
   C_GetFunctionStatus,
   C_CancelFunction,
   C_WaitForSlotEvent,
+};
+
+static const CK_FUNCTION_LIST_3_0 function_list_3 = {
+  {CRYPTOKI_VERSION_MAJOR, CRYPTOKI_VERSION_MINOR},
+  C_Initialize,
+  C_Finalize,
+  C_GetInfo_3_0,
+  C_GetFunctionList,
+  C_GetSlotList,
+  C_GetSlotInfo,
+  C_GetTokenInfo,
+  C_GetMechanismList,
+  C_GetMechanismInfo,
+  C_InitToken,
+  C_InitPIN,
+  C_SetPIN,
+  C_OpenSession,
+  C_CloseSession,
+  C_CloseAllSessions,
+  C_GetSessionInfo,
+  C_GetOperationState,
+  C_SetOperationState,
+  C_Login,
+  C_Logout,
+  C_CreateObject,
+  C_CopyObject,
+  C_DestroyObject,
+  C_GetObjectSize,
+  C_GetAttributeValue,
+  C_SetAttributeValue,
+  C_FindObjectsInit,
+  C_FindObjects,
+  C_FindObjectsFinal,
+  C_EncryptInit,
+  C_Encrypt,
+  C_EncryptUpdate,
+  C_EncryptFinal,
+  C_DecryptInit,
+  C_Decrypt,
+  C_DecryptUpdate,
+  C_DecryptFinal,
+  C_DigestInit,
+  C_Digest,
+  C_DigestUpdate,
+  C_DigestKey,
+  C_DigestFinal,
+  C_SignInit,
+  C_Sign,
+  C_SignUpdate,
+  C_SignFinal,
+  C_SignRecoverInit,
+  C_SignRecover,
+  C_VerifyInit,
+  C_Verify,
+  C_VerifyUpdate,
+  C_VerifyFinal,
+  C_VerifyRecoverInit,
+  C_VerifyRecover,
+  C_DigestEncryptUpdate,
+  C_DecryptDigestUpdate,
+  C_SignEncryptUpdate,
+  C_DecryptVerifyUpdate,
+  C_GenerateKey,
+  C_GenerateKeyPair,
+  C_WrapKey,
+  C_UnwrapKey,
+  C_DeriveKey,
+  C_SeedRandom,
+  C_GenerateRandom,
+  C_GetFunctionStatus,
+  C_CancelFunction,
+  C_WaitForSlotEvent,
+  C_GetInterfaceList,
+  C_GetInterface,
+  C_LoginUser,
+  C_SessionCancel,
+  C_MessageEncryptInit,
+  C_EncryptMessage,
+  C_EncryptMessageBegin,
+  C_EncryptMessageNext,
+  C_MessageEncryptFinal,
+  C_MessageDecryptInit,
+  C_DecryptMessage,
+  C_DecryptMessageBegin,
+  C_DecryptMessageNext,
+  C_MessageDecryptFinal,
+  C_MessageSignInit,
+  C_SignMessage,
+  C_SignMessageBegin,
+  C_SignMessageNext,
+  C_MessageSignFinal,
+  C_MessageVerifyInit,
+  C_VerifyMessage,
+  C_VerifyMessageBegin,
+  C_VerifyMessageNext,
+  C_MessageVerifyFinal,
 };
