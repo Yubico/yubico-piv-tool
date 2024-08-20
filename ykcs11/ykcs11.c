@@ -62,7 +62,6 @@ int verbose;
 
 static const CK_FUNCTION_LIST function_list;
 static const CK_FUNCTION_LIST_3_0 function_list_3;
-static struct CK_INTERFACE active_interface;
 
 static const CK_INTERFACE interfaces_list[] = {{(CK_CHAR_PTR) "PKCS 11",
                                                    (CK_VOID_PTR)&function_list_3, 0},
@@ -262,10 +261,7 @@ fin_out:
   return rv;
 }
 
-CK_DEFINE_FUNCTION(CK_RV, C_GetInfo)(
-  CK_INFO_PTR pInfo
-)
-{
+static CK_RV C_GetInfo_Ex(CK_INFO_PTR pInfo, CK_VERSION cryptokiVersion) {
   CK_RV rv;
   DIN;
 
@@ -281,7 +277,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetInfo)(
     goto info_out;
   }
   
-  pInfo->cryptokiVersion = ((CK_FUNCTION_LIST_3_0 *) active_interface.pFunctionList)->version;
+  pInfo->cryptokiVersion = cryptokiVersion;
   pInfo->libraryVersion.major = YKCS11_VERSION_MAJOR;
   pInfo->libraryVersion.minor = (YKCS11_VERSION_MINOR * 10) + YKCS11_VERSION_PATCH;
   pInfo->flags = 0;
@@ -291,6 +287,26 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetInfo)(
   rv = CKR_OK;
 
 info_out:
+  DOUT;
+  return rv;
+}
+
+CK_DEFINE_FUNCTION(CK_RV, C_GetInfo)(CK_INFO_PTR pInfo) {
+
+  DIN;
+
+  CK_RV rv = C_GetInfo_Ex(pInfo, function_list.version);
+
+  DOUT;
+  return rv;
+}
+
+static CK_RV C_GetInfo_3_0(CK_INFO_PTR pInfo) {
+
+  DIN;
+
+  CK_RV rv = C_GetInfo_Ex(pInfo, function_list_3.version);
+
   DOUT;
   return rv;
 }
@@ -308,7 +324,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetFunctionList)(
     goto funclist_out;
   }
   *ppFunctionList = (CK_FUNCTION_LIST_PTR)&function_list;
-  active_interface = interfaces_list[1];
   rv = CKR_OK;
 
 
@@ -3961,7 +3976,6 @@ CK_DEFINE_FUNCTION(CK_RV, C_GetInterface)
              interfaces_list[i].pInterfaceName, func_list->version.major,
              func_list->version.minor);
     *ppInterface = (CK_INTERFACE_PTR) &interfaces_list[i];
-    active_interface = interfaces_list[i];
     rv = CKR_OK;
     break;
   }
@@ -4302,7 +4316,7 @@ static const CK_FUNCTION_LIST_3_0 function_list_3 = {
   {CRYPTOKI_VERSION_MAJOR, CRYPTOKI_VERSION_MINOR},
   C_Initialize,
   C_Finalize,
-  C_GetInfo,
+  C_GetInfo_3_0,
   C_GetFunctionList,
   C_GetSlotList,
   C_GetSlotInfo,
