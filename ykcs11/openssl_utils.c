@@ -307,6 +307,7 @@ CK_RV do_create_public_key(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm, 
     if (YKPIV_IS_EC(algorithm)) {
       int curve_name = get_curve_name(algorithm);
       return do_create_ec_key(in, len, curve_name, pkey);
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
     } else if (YKPIV_IS_25519(algorithm)) {
       if (algorithm == YKPIV_ALGO_ED25519) {
         *pkey = EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, NULL, in, len);
@@ -317,6 +318,7 @@ CK_RV do_create_public_key(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm, 
         return CKR_HOST_MEMORY;
       }
       return CKR_OK;
+#endif
     }
   }
   DBG("Unsupported key algorithm");
@@ -531,10 +533,12 @@ CK_KEY_TYPE do_get_key_type(ykcs11_pkey_t *key) {
       return CKK_RSA;
     case EVP_PKEY_EC:
       return CKK_EC;
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
     case EVP_PKEY_ED25519:
       return CKK_EC_EDWARDS;
     case EVP_PKEY_X25519:
       return CKK_EC_MONTGOMERY;
+#endif
     }
   }
   return CKK_VENDOR_DEFINED; // Actually an error
@@ -555,7 +559,9 @@ CK_ULONG do_get_signature_size(ykcs11_pkey_t *key) {
     case EVP_PKEY_RSA:
       return EVP_PKEY_size(key);
     case EVP_PKEY_EC:
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
     case EVP_PKEY_ED25519:
+#endif
       switch(EVP_PKEY_bits(key)) {
       case 256:
         return 64;
@@ -589,10 +595,12 @@ CK_BYTE do_get_key_algorithm(ykcs11_pkey_t *key) {
       case 384:
         return YKPIV_ALGO_ECCP384;
       }
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
     case EVP_PKEY_ED25519:
       return YKPIV_ALGO_ED25519;
     case EVP_PKEY_X25519:
       return YKPIV_ALGO_X25519;
+#endif
     }
   }
   return 0;
