@@ -1,5 +1,13 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
+* Version 2.6.0 (released 2024-08-21)
+
+** cmd: Add support for biometric verification and match policy
+** ykcs11: Add support for PKCS11 3.0
+** ykpiv: cmd: ykcs11: Improve error traceability
+** ykpiv: cmd: ykcs11: Fix minor bugs
+** build: Make building with zlib optional
+
 * Version 2.5.2 (released 2024-05-07)
 
 ** cmd: Fix signing selfsigned certificate for ED25519 key.
