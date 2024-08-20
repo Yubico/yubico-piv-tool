@@ -489,7 +489,7 @@ CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_ME
 CK_RV verify_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULONG sig_len) {
 
   int rc;
-
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
   if (session->op_info.mechanism == CKM_EDDSA) {
     rc = EVP_DigestVerify(session->op_info.md_ctx, sig, sig_len, session->op_info.buf, session->op_info.buf_len);
     if(rc <= 0) {
@@ -498,6 +498,7 @@ CK_RV verify_mechanism_final(ykcs11_session_t *session, CK_BYTE_PTR sig, CK_ULON
     }
     return CKR_OK;
   }
+#endif
 
   CK_BYTE der[1024] = {0};
   if(!session->op_info.op.verify.padding) {

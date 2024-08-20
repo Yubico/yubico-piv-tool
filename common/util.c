@@ -327,10 +327,12 @@ int get_curve_name(int key_algorithm) {
     return NID_X9_62_prime256v1;
   } else if(key_algorithm == YKPIV_ALGO_ECCP384) {
     return NID_secp384r1;
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
   } else if(key_algorithm == YKPIV_ALGO_ED25519) {
     return NID_ED25519;
   } else if(key_algorithm == YKPIV_ALGO_X25519) {
     return NID_X25519;
+#endif
   }
   return 0;
 }
