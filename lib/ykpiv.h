@@ -305,7 +305,7 @@ extern "C"
     uint8_t touch_policy;
     uint8_t origin;
     size_t pubkey_len;
-    uint8_t pubkey[512];
+    uint8_t pubkey[1024];
   } ykpiv_metadata;
 
   /**

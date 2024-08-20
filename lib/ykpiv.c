@@ -1930,14 +1930,12 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
   unsigned char templ[] = {0, YKPIV_INS_IMPORT_KEY, algorithm, key};
   unsigned char data[256] = {0};
   unsigned long recv_len = sizeof(data);
-  unsigned elem_len = 0;
+  size_t elem_len = 0;
   int sw = 0;
   const unsigned char *params[5] = {0};
   size_t lens[5] = {0};
-  size_t padding;
   unsigned char n_params;
-  int i;
-  int param_tag;
+  unsigned char param_tag;
   ykpiv_rc res;
 
   if (state == NULL)
@@ -1970,10 +1968,6 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
       return YKPIV_NOT_SUPPORTED;
     }
 
-    if (p_len + q_len + dp_len + dq_len + qinv_len >= sizeof(key_data)) {
-      return YKPIV_SIZE_ERROR;
-    }
-
     switch (algorithm) {
       case YKPIV_ALGO_RSA1024:
         elem_len = 64;
@@ -1988,10 +1982,6 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
         elem_len = 256;
         break;
     }
-
-    if (p == NULL || q == NULL || dp == NULL ||
-        dq == NULL || qinv == NULL)
-      return YKPIV_ARGUMENT_ERROR;
 
     params[0] = p;
     lens[0] = p_len;
@@ -2009,18 +1999,10 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
   }
   else if (YKPIV_IS_EC(algorithm)) {
 
-    if ((size_t)ec_data_len >= sizeof(key_data)) {
-      /* This can never be true, but check to be explicit. */
-      return YKPIV_SIZE_ERROR;
-    }
-
     if (algorithm == YKPIV_ALGO_ECCP256)
       elem_len = 32;
     if (algorithm == YKPIV_ALGO_ECCP384)
       elem_len = 48;
-
-    if (ec_data == NULL)
-      return YKPIV_ARGUMENT_ERROR;
 
     params[0] = ec_data;
     lens[0] = ec_data_len;
@@ -2029,8 +2011,6 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
   }
   else if (YKPIV_IS_25519(algorithm)) {
     elem_len = 32;
-    if (ec_data == NULL)
-      return YKPIV_ARGUMENT_ERROR;
 
     params[0] = ec_data;
     lens[0] = ec_data_len;
@@ -2041,19 +2021,18 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
     }
     n_params = 1;
   }
-  else
+  else {
     return YKPIV_ALGORITHM_ERROR;
+  }
 
-  for (i = 0; i < n_params; i++) {
-    size_t remaining;
-    *in_ptr++ = param_tag + i;
-    in_ptr += _ykpiv_set_length(in_ptr, elem_len);
-    padding = elem_len - lens[i];
-    remaining = (uintptr_t)key_data + sizeof(key_data) - (uintptr_t)in_ptr;
-    if (padding > remaining) {
-      res = YKPIV_ALGORITHM_ERROR;
+  for (int i = 0; i < n_params; i++) {
+    if(params[i] == NULL || lens[i] > elem_len) {
+      res = YKPIV_ARGUMENT_ERROR;
       goto Cleanup;
     }
+    size_t padding = elem_len - lens[i];
+    *in_ptr++ = param_tag + i;
+    in_ptr += _ykpiv_set_length(in_ptr, elem_len + padding);
     memset(in_ptr, 0, padding);
     in_ptr += padding;
     memcpy(in_ptr, params[i], lens[i]);
