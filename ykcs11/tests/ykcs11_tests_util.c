@@ -307,7 +307,7 @@ EVP_PKEY* import_edkey(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session
   CK_BYTE     id = 1;
   CK_BYTE     value_c[255] = {0};
   CK_CHAR     pvt[255] = {0};
-  CK_ULONG    pvt_len  = sizeof(pvt);
+  size_t    pvt_len  = sizeof(pvt);
 
 
   CK_ATTRIBUTE privateKeyTemplate[] = {
@@ -375,7 +375,7 @@ void import_x25519key(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session,
   CK_ULONG    kt = CKK_EC_MONTGOMERY;
   CK_BYTE     id = 1;
   CK_CHAR     pvt[255] = {0};
-  CK_ULONG    pvt_len  = sizeof(pvt);
+  size_t    pvt_len  = sizeof(pvt);
 
 
   CK_ATTRIBUTE privateKeyTemplate[] = {
