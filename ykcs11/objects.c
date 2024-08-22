@@ -740,11 +740,15 @@ static CK_RV get_proa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
     ul_tmp = do_get_key_type(s->pkeys[piv_objects[obj].sub_id]); // Getting the info from the pubk
     if (ul_tmp == CKK_VENDOR_DEFINED)
       return CKR_FUNCTION_FAILED;
-    if (ul_tmp != CKK_EC)
+    if (ul_tmp == CKK_EC) {
+      if ((rv = do_get_curve_parameters(s->pkeys[piv_objects[obj].sub_id], b_tmp, &len)) != CKR_OK)
+        return rv;
+    } else if (ul_tmp == CKK_EC_EDWARDS) {
+      len = 14;
+      memcpy(b_tmp, ED25519OID, len);
+    } else {
       return CKR_ATTRIBUTE_TYPE_INVALID;
-
-    if ((rv = do_get_curve_parameters(s->pkeys[piv_objects[obj].sub_id], b_tmp, &len)) != CKR_OK)
-      return rv;
+    }
 
     data = b_tmp;
     break;
@@ -1043,11 +1047,15 @@ static CK_RV get_puoa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
     ul_tmp = do_get_key_type(s->pkeys[piv_objects[obj].sub_id]); // Getting the info from the pubk
     if (ul_tmp == CKK_VENDOR_DEFINED)
       return CKR_FUNCTION_FAILED;
-    if (ul_tmp != CKK_EC)
+    if (ul_tmp == CKK_EC) {
+      if ((rv = do_get_curve_parameters(s->pkeys[piv_objects[obj].sub_id], b_tmp, &len)) != CKR_OK)
+        return rv;
+    } else if (ul_tmp == CKK_EC_EDWARDS) {
+      len = 14;
+      memcpy(b_tmp, ED25519OID, len);
+    } else {
       return CKR_ATTRIBUTE_TYPE_INVALID;
-
-    if ((rv = do_get_curve_parameters(s->pkeys[piv_objects[obj].sub_id], b_tmp, &len)) != CKR_OK)
-      return rv;
+    }
 
     data = b_tmp;
     break;
@@ -2805,6 +2813,14 @@ static CK_RV check_ed_pubkey_template(gen_info_t *gen, CK_ATTRIBUTE_PTR templ, C
       break;
 
       case CKA_EC_PARAMS:
+        if (templ[i].ulValueLen == 14 && memcmp((CK_BYTE_PTR)templ[i].pValue, ED25519OID, 14) == 0)
+          gen->algorithm = YKPIV_ALGO_ED25519;
+        else {
+          DBG("Bad CKA_EC_PARAMS");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
       case CKA_COPYABLE:
       case CKA_DESTROYABLE:
       case CKA_EXTRACTABLE:
