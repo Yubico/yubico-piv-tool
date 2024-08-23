@@ -694,6 +694,12 @@ CK_RV do_get_public_key(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) 
     *len += 2;
 
     break;
+  case EVP_PKEY_ED25519:
+  case EVP_PKEY_X25519:
+    if(EVP_PKEY_get_raw_public_key(key, data, len) != 1) {
+      return CKR_FUNCTION_FAILED;
+    }
+    break;
 
   default:
     return CKR_FUNCTION_FAILED;

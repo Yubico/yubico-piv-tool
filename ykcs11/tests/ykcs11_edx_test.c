@@ -261,12 +261,14 @@ static void test_xkey_attributes() {
   CK_BBOOL obj_token;
   CK_BBOOL obj_private;
   CK_ULONG obj_key_type;
+  CK_BYTE obj_point[64] = {0};
 
   CK_ATTRIBUTE template[] = {
       {CKA_CLASS,    &obj_class,    sizeof(CK_ULONG)},
       {CKA_TOKEN,    &obj_token,    sizeof(CK_BBOOL)},
       {CKA_PRIVATE,  &obj_private,  sizeof(CK_BBOOL)},
       {CKA_KEY_TYPE, &obj_key_type, sizeof(CK_ULONG)},
+      {CKA_EC_POINT, obj_point, sizeof(obj_point)}
   };
 
   init_connection();
@@ -274,17 +276,19 @@ static void test_xkey_attributes() {
 
   generate_ex_key(funcs, session, &pubkey, &privkey);
 
-  asrt(funcs->C_GetAttributeValue(session, pubkey, template, 4), CKR_OK, "GET BASIC ATTRIBUTES");
+  asrt(funcs->C_GetAttributeValue(session, pubkey, template, 5), CKR_OK, "GET BASIC ATTRIBUTES");
   asrt(obj_class, CKO_PUBLIC_KEY, "CLASS");
   asrt(obj_token, CK_TRUE, "TOKEN");
   asrt(obj_private, CK_FALSE, "PRIVATE");
   asrt(obj_key_type, CKK_EC_MONTGOMERY, "KEY_TYPE");
+  asrt(template[4].ulValueLen, 32, "EC_POINT LEN");
 
-  asrt(funcs->C_GetAttributeValue(session, privkey, template, 4), CKR_OK, "GET BASIC ATTRIBUTES");
+  asrt(funcs->C_GetAttributeValue(session, privkey, template, 5), CKR_OK, "GET BASIC ATTRIBUTES");
   asrt(obj_class, CKO_PRIVATE_KEY, "CLASS");
   asrt(obj_token, CK_TRUE, "TOKEN");
   asrt(obj_private, CK_TRUE, "PRIVATE");
   asrt(obj_key_type, CKK_EC_MONTGOMERY, "KEY_TYPE");
+  asrt(template[4].ulValueLen, 32, "EC_POINT LEN");
 
   destroy_test_objects(funcs, session, &privkey, 1);
   asrt(funcs->C_CloseSession(session), CKR_OK, "CloseSession");
