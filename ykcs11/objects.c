@@ -2616,17 +2616,6 @@ CK_RV check_create_rsa_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
     return CKR_TEMPLATE_INCOMPLETE;
   }
 
-  if (*p_len != 64 && *p_len != 128 && *p_len != 192 && *p_len != 256) {
-    DBG("Invalid RSA component lengths");
-    return CKR_ATTRIBUTE_VALUE_INVALID;
-  }
-
-  if (*q_len != *p_len || *dp_len > *p_len ||
-      *dq_len > *p_len || *qinv_len > *p_len) {
-    DBG("Invalid RSA component lengths");
-    return CKR_ATTRIBUTE_VALUE_INVALID;
-  }
-
   return CKR_OK;
 }
 
