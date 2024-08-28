@@ -1591,6 +1591,8 @@ static ykpiv_rc _ykpiv_verify(ykpiv_state *state, char *pin, size_t *p_pin_len, 
     else if (bio) {
       memcpy(apdu.st.data, "\x02\x00", 2);
     }
+  } else {
+    memcpy(apdu.st.data, "\x03\x00", 2);
   }
 
   int sw = 0;
@@ -1643,9 +1645,13 @@ static ykpiv_rc _ykpiv_verify(ykpiv_state *state, char *pin, size_t *p_pin_len, 
 
 static ykpiv_rc _ykpiv_verify_select(ykpiv_state *state, char *pin, size_t* p_pin_len, int *tries, bool force_select, bool bio, bool verify_spin) {
   ykpiv_rc res = YKPIV_OK;
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) {
+    return res;
+  }
   if (force_select) {
-    if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+    if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) {
+      goto Cleanup;
+    }
   }
   res = _ykpiv_verify(state, pin, p_pin_len, bio, verify_spin);
   if(tries) *tries = state->tries;
