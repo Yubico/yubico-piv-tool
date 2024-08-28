@@ -371,6 +371,7 @@ EVP_PKEY* import_edkey(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session
 void import_x25519key(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR obj_cert,
                    CK_OBJECT_HANDLE_PTR obj_pvtkey) {
 
+  CK_BYTE     params[] = {0x13, 0x0b, 0x63, 0x75, 0x72, 0x76, 0x65, 0x32, 0x35, 0x35, 0x31, 0x39};
   CK_ULONG    class_k = CKO_PRIVATE_KEY;
   CK_ULONG    kt = CKK_EC_MONTGOMERY;
   CK_BYTE     id = 1;
@@ -382,6 +383,7 @@ void import_x25519key(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session,
       {CKA_CLASS, &class_k, sizeof(class_k)},
       {CKA_KEY_TYPE, &kt, sizeof(kt)},
       {CKA_ID, &id, sizeof(id)},
+      {CKA_EC_PARAMS, params, sizeof(params)},
       {CKA_VALUE, pvt, pvt_len}
   };
 
@@ -391,11 +393,11 @@ void import_x25519key(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session,
   EVP_PKEY_keygen(ctx, &key);
   EVP_PKEY_CTX_free(ctx);
   asrt(EVP_PKEY_get_raw_private_key(key, pvt, &pvt_len), 1, "EXTRACTING PRIVATE ED25519 KEY");
-  privateKeyTemplate[3].ulValueLen = pvt_len;
+  privateKeyTemplate[4].ulValueLen = pvt_len;
 
   asrt(funcs->C_Login(session, CKU_SO, (CK_CHAR_PTR)"010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
 
-  asrt(funcs->C_CreateObject(session, privateKeyTemplate, 4, obj_pvtkey), CKR_OK, "IMPORT KEY");
+  asrt(funcs->C_CreateObject(session, privateKeyTemplate, 5, obj_pvtkey), CKR_OK, "IMPORT KEY");
   asrt(*obj_pvtkey, 86, "PRIVATE KEY HANDLE");
 
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");

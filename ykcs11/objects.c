@@ -39,7 +39,8 @@
 
 #define PRIME256V1 "\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07" // TODO: already define in mechanisms.c. Move
 #define SECP384R1 "\x06\x05\x2b\x81\x04\x00\x22" // TODO: already define in mechanisms.c. Move
-#define ED25519OID "\x13\x0c\x65\x64\x77\x61\x72\x64\x73\x32\x35\x35\x31\x39"
+#define ED25519 "\x13\x0c\x65\x64\x77\x61\x72\x64\x73\x32\x35\x35\x31\x39"
+#define X25519 "\x13\x0b\x63\x75\x72\x76\x65\x32\x35\x35\x31\x39"
 
 static CK_RV get_doa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template);
 static CK_RV get_coa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template);
@@ -745,7 +746,10 @@ static CK_RV get_proa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
         return rv;
     } else if (ul_tmp == CKK_EC_EDWARDS) {
       len = 14;
-      memcpy(b_tmp, ED25519OID, len);
+      memcpy(b_tmp, ED25519, len);
+    } else if (ul_tmp == CKK_EC_MONTGOMERY) {
+      len = 12;
+      memcpy(b_tmp, X25519, len);
     } else {
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
@@ -1052,7 +1056,10 @@ static CK_RV get_puoa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
         return rv;
     } else if (ul_tmp == CKK_EC_EDWARDS) {
       len = 14;
-      memcpy(b_tmp, ED25519OID, len);
+      memcpy(b_tmp, ED25519, len);
+    } else if (ul_tmp == CKK_EC_MONTGOMERY) {
+      len = 12;
+      memcpy(b_tmp, X25519, len);
     } else {
       return CKR_ATTRIBUTE_TYPE_INVALID;
     }
@@ -1706,7 +1713,10 @@ CK_RV check_create_x25519_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id
   CK_ULONG i;
   CK_BBOOL has_id = CK_FALSE;
   CK_BBOOL has_value = CK_FALSE;
+  CK_BBOOL has_params = CK_FALSE;
 
+  CK_BYTE_PTR ec_params = NULL;
+  CK_ULONG    ec_params_len = 0;
   CK_BYTE b_tmp;
 
   for (i = 0; i < n; i++) {
@@ -1740,10 +1750,11 @@ CK_RV check_create_x25519_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id
         *value_len = templ[i].ulValueLen;
         break;
 
-//      case CKA_EC_PARAMS:
-//        ec_params = (CK_BYTE_PTR)templ[i].pValue;
-//        ec_params_len = templ[i].ulValueLen;
-//        break;
+      case CKA_EC_PARAMS:
+        has_params = CK_TRUE;
+        ec_params = (CK_BYTE_PTR)templ[i].pValue;
+        ec_params_len = templ[i].ulValueLen;
+        break;
 
       case CKA_TOKEN:
         if (*((CK_BBOOL *)templ[i].pValue) != CK_TRUE) {
@@ -1909,8 +1920,13 @@ CK_RV check_create_x25519_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id
   }
 
   if (has_id == CK_FALSE ||
-      has_value == CK_FALSE) {
+      has_value == CK_FALSE ||
+      has_params == CK_FALSE) {
     return CKR_TEMPLATE_INCOMPLETE;
+  }
+
+  if (ec_params_len != 12 || memcmp(ec_params, X25519, ec_params_len) != 0) {
+    return CKR_ATTRIBUTE_VALUE_INVALID;
   }
 
   return CKR_OK;
@@ -2129,7 +2145,7 @@ CK_RV check_create_ed_key(CK_ATTRIBUTE_PTR templ, CK_ULONG n, CK_BYTE_PTR id,
     return CKR_TEMPLATE_INCOMPLETE;
   }
 
-  if (ec_params_len != 14 || memcmp(ec_params, ED25519OID, ec_params_len) != 0) {
+  if (ec_params_len != 14 || memcmp(ec_params, ED25519, ec_params_len) != 0) {
     return CKR_ATTRIBUTE_VALUE_INVALID;
   }
 
@@ -2802,9 +2818,9 @@ static CK_RV check_ed_pubkey_template(gen_info_t *gen, CK_ATTRIBUTE_PTR templ, C
       break;
 
       case CKA_EC_PARAMS:
-        if (templ[i].ulValueLen == 14 && memcmp((CK_BYTE_PTR)templ[i].pValue, ED25519OID, 14) == 0)
+        if (templ[i].ulValueLen == 14 && memcmp((CK_BYTE_PTR)templ[i].pValue, ED25519, 14) == 0) {
           gen->algorithm = YKPIV_ALGO_ED25519;
-        else {
+        } else {
           DBG("Bad CKA_EC_PARAMS");
           return CKR_ATTRIBUTE_VALUE_INVALID;
         }
@@ -2868,6 +2884,14 @@ static CK_RV check_x_pubkey_template(gen_info_t *gen, CK_ATTRIBUTE_PTR templ, CK
         break;
 
       case CKA_EC_PARAMS:
+        if (templ[i].ulValueLen == 12 && memcmp((CK_BYTE_PTR)templ[i].pValue, X25519, 12) == 0) {
+          gen->algorithm = YKPIV_ALGO_X25519;
+        } else {
+          DBG("Bad CKA_EC_PARAMS");
+          return CKR_ATTRIBUTE_VALUE_INVALID;
+        }
+        break;
+
       case CKA_COPYABLE:
       case CKA_DESTROYABLE:
       case CKA_EXTRACTABLE:
