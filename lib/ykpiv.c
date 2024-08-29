@@ -1567,7 +1567,11 @@ static ykpiv_rc _ykpiv_verify(ykpiv_state *state, char *pin, size_t *p_pin_len, 
     return YKPIV_SIZE_ERROR;
   }
 
-  if (bio && verify_spin && (!pin || !p_pin_len || *p_pin_len != 16)) {
+  if(!bio && !pin) {
+    return YKPIV_AUTHENTICATION_ERROR;
+  }
+
+  if (pin && (!p_pin_len || *p_pin_len != 16)) {
     return YKPIV_WRONG_PIN;
   }
 
@@ -1582,17 +1586,23 @@ static ykpiv_rc _ykpiv_verify(ykpiv_state *state, char *pin, size_t *p_pin_len, 
       if (*p_pin_len < CB_PIN_MAX) {
         memset(apdu.st.data + *p_pin_len, 0xff, CB_PIN_MAX - *p_pin_len);
       }
-    }
-    else if (verify_spin && p_pin_len) {
+    } else if (verify_spin && p_pin_len) {
       apdu.st.data[0] = 0x01;
       apdu.st.data[1] = (uint8_t)*p_pin_len;
       memcpy(apdu.st.data + 2, pin, *p_pin_len);
-    }
-    else if (bio) {
+    } else if (bio) {
       memcpy(apdu.st.data, "\x02\x00", 2);
     }
   } else {
-    memcpy(apdu.st.data, "\x03\x00", 2);
+    if(bio) {
+      if (verify_spin) {
+        apdu.st.lc = 0;
+      } else {
+        memcpy(apdu.st.data, "\x03\x00", 2);
+      }
+    } else {
+      return YKPIV_AUTHENTICATION_ERROR;
+    }
   }
 
   int sw = 0;
@@ -1645,13 +1655,9 @@ static ykpiv_rc _ykpiv_verify(ykpiv_state *state, char *pin, size_t *p_pin_len, 
 
 static ykpiv_rc _ykpiv_verify_select(ykpiv_state *state, char *pin, size_t* p_pin_len, int *tries, bool force_select, bool bio, bool verify_spin) {
   ykpiv_rc res = YKPIV_OK;
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) {
-    return res;
-  }
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
   if (force_select) {
-    if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) {
-      goto Cleanup;
-    }
+    if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
   }
   res = _ykpiv_verify(state, pin, p_pin_len, bio, verify_spin);
   if(tries) *tries = state->tries;
