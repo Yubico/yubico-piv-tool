@@ -373,8 +373,10 @@ void import_x25519key(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session,
 
   CK_BYTE     params[] = {0x13, 0x0b, 0x63, 0x75, 0x72, 0x76, 0x65, 0x32, 0x35, 0x35, 0x31, 0x39};
   CK_ULONG    class_k = CKO_PRIVATE_KEY;
+  CK_ULONG    class_c = CKO_CERTIFICATE;
   CK_ULONG    kt = CKK_EC_MONTGOMERY;
   CK_BYTE     id = 1;
+  CK_BYTE     value_c[255] = {0};
   CK_CHAR     pvt[255] = {0};
   size_t    pvt_len  = sizeof(pvt);
 
@@ -387,21 +389,62 @@ void import_x25519key(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session,
       {CKA_VALUE, pvt, pvt_len}
   };
 
-  EVP_PKEY *key = NULL;
+  CK_ATTRIBUTE certTemplate[] = {
+      {CKA_CLASS, &class_c, sizeof(class_c)},
+      {CKA_ID, &id, sizeof(id)},
+      {CKA_VALUE, value_c, sizeof(value_c)}
+  };
+
+  EVP_PKEY *xkey = NULL;
   EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_X25519, NULL);
   EVP_PKEY_keygen_init(ctx);
-  EVP_PKEY_keygen(ctx, &key);
+  EVP_PKEY_keygen(ctx, &xkey);
   EVP_PKEY_CTX_free(ctx);
-  asrt(EVP_PKEY_get_raw_private_key(key, pvt, &pvt_len), 1, "EXTRACTING PRIVATE ED25519 KEY");
+  asrt(EVP_PKEY_get_raw_private_key(xkey, pvt, &pvt_len), 1, "EXTRACTING PRIVATE ED25519 KEY");
   privateKeyTemplate[4].ulValueLen = pvt_len;
+
+
+  // Generate a dummy ED25519 to sign an X509certificate for the X25519 keyt
+  EVP_PKEY *ed_key = NULL;
+  EVP_PKEY_CTX *ed_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_ED25519, NULL);
+  EVP_PKEY_keygen_init(ed_ctx);
+  EVP_PKEY_keygen(ed_ctx, &ed_key);
+  EVP_PKEY_CTX_free(ed_ctx);
+
+  X509 *cert = X509_new();
+  X509_set_version(cert, 2); // Version 3
+  X509_NAME_add_entry_by_txt(X509_get_issuer_name(cert), "CN", MBSTRING_ASC, (unsigned char*)"Test Issuer", -1, -1, 0);
+  X509_NAME_add_entry_by_txt(X509_get_subject_name(cert), "CN", MBSTRING_ASC, (unsigned char*)"Test Subject", -1, -1, 0);
+  ASN1_INTEGER_set(X509_get_serialNumber(cert), 0);
+  X509_gmtime_adj(X509_get_notBefore(cert), 0);
+  X509_gmtime_adj(X509_get_notAfter(cert), 0);
+
+  if (X509_set_pubkey(cert, xkey) == 0) {
+    exit(EXIT_FAILURE);
+  }
+
+  if (X509_sign(cert, ed_key, NULL) == 0) {
+    exit(EXIT_FAILURE);
+  }
+  EVP_PKEY_free(ed_key);
+
+  CK_ULONG cert_len;
+  unsigned char *p = value_c;
+  if ((cert_len = (CK_ULONG) i2d_X509(cert, &p)) == 0 || cert_len > sizeof(value_c))
+    exit(EXIT_FAILURE);
+
+  certTemplate[2].ulValueLen = cert_len;
 
   asrt(funcs->C_Login(session, CKU_SO, (CK_CHAR_PTR)"010203040506070801020304050607080102030405060708", 48), CKR_OK, "Login SO");
 
+  asrt(funcs->C_CreateObject(session, certTemplate, 3, obj_cert), CKR_OK, "IMPORT CERT");
+  asrt(*obj_cert, 37, "CERTIFICATE HANDLE");
   asrt(funcs->C_CreateObject(session, privateKeyTemplate, 5, obj_pvtkey), CKR_OK, "IMPORT KEY");
   asrt(*obj_pvtkey, 86, "PRIVATE KEY HANDLE");
 
   asrt(funcs->C_Logout(session), CKR_OK, "Logout SO");
-  EVP_PKEY_free(key);
+  X509_free(cert);
+  EVP_PKEY_free(xkey);
 }
 
 EC_KEY* import_ec_key(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, CK_BYTE n_keys, int curve, CK_ULONG key_len,
