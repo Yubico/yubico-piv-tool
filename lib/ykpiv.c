@@ -1561,6 +1561,58 @@ static ykpiv_rc _cache_mgm_key(ykpiv_state *state, unsigned const char *key, siz
 #endif
 }
 
+static ykpiv_rc _verify_pin_apdu(char *pin, size_t *p_pin_len, bool verify_spin, APDU *apdu) {
+  if (p_pin_len && (*p_pin_len > CB_PIN_MAX)) {
+    return YKPIV_SIZE_ERROR;
+  }
+
+  apdu->st.ins = YKPIV_INS_VERIFY;
+  apdu->st.p1 = 0x00;
+  apdu->st.p2 = 0x80;
+  apdu->st.lc = pin ? 0x08 : 0x00;
+  if (pin) {
+    if (p_pin_len && (*p_pin_len > 0)) {
+      memcpy(apdu->st.data, pin, *p_pin_len);
+      if (*p_pin_len < CB_PIN_MAX) {
+        memset(apdu->st.data + *p_pin_len, 0xff, CB_PIN_MAX - *p_pin_len);
+      }
+    } else if (verify_spin && p_pin_len) {
+      apdu->st.data[0] = 0x01;
+      apdu->st.data[1] = (uint8_t)*p_pin_len;
+      memcpy(apdu->st.data + 2, pin, *p_pin_len);
+    }
+  }
+  return YKPIV_OK;
+}
+
+static ykpiv_rc _verify_bio_apdu(char *pin, size_t *p_pin_len, bool verify_spin, APDU *apdu) {
+
+  if (verify_spin && (!pin || !p_pin_len || *p_pin_len != 16)) {
+    return YKPIV_WRONG_PIN;
+  }
+
+  apdu->st.ins = YKPIV_INS_VERIFY;
+  apdu->st.p1 = 0x00;
+  apdu->st.p2 = 0x96;
+  apdu->st.lc = verify_spin ? (uint8_t)(*p_pin_len + 2) : 0x02;
+  if (pin) {
+    if (verify_spin && p_pin_len) {
+      apdu->st.data[0] = 0x01;
+      apdu->st.data[1] = (uint8_t) *p_pin_len;
+      memcpy(apdu->st.data + 2, pin, *p_pin_len);
+    } else {
+      memcpy(apdu->st.data, "\x02\x00", 2);
+    }
+  } else {
+    if (verify_spin) {
+      apdu->st.lc = 0;
+    } else {
+      memcpy(apdu->st.data, "\x03\x00", 2);
+    }
+  }
+  return YKPIV_OK;
+}
+
 static ykpiv_rc _ykpiv_verify(ykpiv_state *state, char *pin, size_t *p_pin_len, bool bio, bool verify_spin) {
 
   if (!bio && p_pin_len && (*p_pin_len > CB_PIN_MAX)) {
@@ -1572,25 +1624,10 @@ static ykpiv_rc _ykpiv_verify(ykpiv_state *state, char *pin, size_t *p_pin_len, 
   }
 
   APDU apdu = {0};
-  apdu.st.ins = YKPIV_INS_VERIFY;
-  apdu.st.p1 = 0x00;
-  apdu.st.p2 = bio ? 0x96 : 0x80;
-  apdu.st.lc = bio ? (verify_spin ? (uint8_t)(*p_pin_len + 2) : 0x02) : (pin ? 0x08 : 0x00);
-  if (pin) {
-    if (!bio && p_pin_len && (*p_pin_len > 0)) {
-      memcpy(apdu.st.data, pin, *p_pin_len);
-      if (*p_pin_len < CB_PIN_MAX) {
-        memset(apdu.st.data + *p_pin_len, 0xff, CB_PIN_MAX - *p_pin_len);
-      }
-    }
-    else if (verify_spin && p_pin_len) {
-      apdu.st.data[0] = 0x01;
-      apdu.st.data[1] = (uint8_t)*p_pin_len;
-      memcpy(apdu.st.data + 2, pin, *p_pin_len);
-    }
-    else if (bio) {
-      memcpy(apdu.st.data, "\x02\x00", 2);
-    }
+  if(bio) {
+    _verify_bio_apdu(pin, p_pin_len, verify_spin, &apdu);
+  } else {
+    _verify_pin_apdu(pin, p_pin_len, verify_spin, &apdu);
   }
 
   int sw = 0;
@@ -1643,9 +1680,13 @@ static ykpiv_rc _ykpiv_verify(ykpiv_state *state, char *pin, size_t *p_pin_len, 
 
 static ykpiv_rc _ykpiv_verify_select(ykpiv_state *state, char *pin, size_t* p_pin_len, int *tries, bool force_select, bool bio, bool verify_spin) {
   ykpiv_rc res = YKPIV_OK;
-  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
+  if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) {
+    return res;
+  }
   if (force_select) {
-    if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+    if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) {
+      goto Cleanup;
+    }
   }
   res = _ykpiv_verify(state, pin, p_pin_len, bio, verify_spin);
   if(tries) *tries = state->tries;
