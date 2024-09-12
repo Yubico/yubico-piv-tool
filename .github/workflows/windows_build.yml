@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Install prerequisites
         run: |
@@ -21,13 +21,13 @@ jobs:
           set -x
           ./resources/make_src_dist.sh
           cd ..
-          mkdir artifact
-          mv $GITHUB_WORKSPACE/yubico-piv-tool-.tar.gz artifact/
+          mkdir $GITHUB_WORKSPACE/artifact
+          mv $GITHUB_WORKSPACE/yubico-piv-tool-.tar.gz $GITHUB_WORKSPACE/artifact/
       - name: Upload artifact
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: yubico-piv-tool-src
-          path: ../artifact
+          path: artifact
 
   build:
     name: Build and Test on Windows
@@ -52,14 +52,13 @@ jobs:
 
     steps:
       - name: Download source from source work
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v4
         with:
           name: yubico-piv-tool-src
 
       - name: Extract source
         run: |
           Set-PSDebug -Trace 1
-          cd yubico-piv-tool-src
           tar xf yubico-piv-tool-.tar.gz
 
       - name: install prerequisites
@@ -81,11 +80,11 @@ jobs:
           $env:Path ="C:\vcpkg\packages\openssl_$env:ARCH-windows;$env:Path"
           $env:include ="C:\vcpkg\packages\openssl_$env:ARCH-windows/include;$env:include"
 
-          cd yubico-piv-tool-src/yubico-piv-tool-
+          cd yubico-piv-tool-
           mkdir build; cd build
           cmake -A $env:ARCH_CMAKE -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_$env:ARCH-windows ..
           cmake --build . -v
-          $env:Path +=";C:/vcpkg/packages/check_$env:ARCH-windows/bin;C:/vcpkg/packages/openssl_$env:ARCH-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
+          $env:Path +=";C:/vcpkg/packages/check_$env:ARCH-windows/bin;C:/vcpkg/packages/openssl_$env:ARCH-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-\build\ykcs11\Debug"
           ctest.exe -C Debug
 
       - name: Build with YKCS11_DBG is set
@@ -97,11 +96,11 @@ jobs:
           $env:Path ="C:\vcpkg\packages\openssl_$env:ARCH-windows;$env:Path"
           $env:include ="C:\vcpkg\packages\openssl_$env:ARCH-windows/include;$env:include"
 
-          cd yubico-piv-tool-src/yubico-piv-tool-
+          cd yubico-piv-tool-
           rm -r build; mkdir build; cd build
           cmake -A $env:ARCH_CMAKE -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_$env:ARCH-windows -DYKCS11_DBG=3 ..
           cmake --build . -v
-          $env:Path +=";C:/vcpkg/packages/check_$env:ARCH-windows/bin;C:/vcpkg/packages/openssl_$env:ARCH-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
+          $env:Path +=";C:/vcpkg/packages/check_$env:ARCH-windows/bin;C:/vcpkg/packages/openssl_$env:ARCH-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-\build\ykcs11\Debug"
           ctest.exe -C Debug
 
       - name: Build only library (no CLI and no ykcs11)
@@ -113,11 +112,11 @@ jobs:
           $env:Path ="C:\vcpkg\packages\openssl_$env:ARCH-windows;$env:Path"
           $env:include ="C:\vcpkg\packages\openssl_$env:ARCH-windows/include;$env:include"
 
-          cd yubico-piv-tool-src/yubico-piv-tool-
+          cd yubico-piv-tool-
           rm -r build; mkdir build; cd build
           cmake -A $env:ARCH_CMAKE -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_$env:ARCH-windows -DBUILD_ONLY_LIB=ON ..
           cmake --build . -v
-          $env:Path +=";C:/vcpkg/packages/check_$env:ARCH-windows/bin;C:/vcpkg/packages/openssl_$env:ARCH-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
+          $env:Path +=";C:/vcpkg/packages/check_$env:ARCH-windows/bin;C:/vcpkg/packages/openssl_$env:ARCH-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-\build\ykcs11\Debug"
           ctest.exe -C Debug
 
       - name: Build only dynamic libaries
@@ -129,11 +128,11 @@ jobs:
           $env:Path ="C:\vcpkg\packages\openssl_$env:ARCH-windows;$env:Path"
           $env:include ="C:\vcpkg\packages\openssl_$env:ARCH-windows/include;$env:include"
 
-          cd yubico-piv-tool-src/yubico-piv-tool-
+          cd yubico-piv-tool-
           rm -r build; mkdir build; cd build
           cmake -A $env:ARCH_CMAKE -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_$env:ARCH-windows -DBUILD_STATIC_LIB=OFF ..
           cmake --build . -v
-          $env:Path +=";C:/vcpkg/packages/check_$env:ARCH-windows/bin;C:/vcpkg/packages/openssl_$env:ARCH-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
+          $env:Path +=";C:/vcpkg/packages/check_$env:ARCH-windows/bin;C:/vcpkg/packages/openssl_$env:ARCH-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-\build\ykcs11\Debug"
           ctest.exe -C Debug
 
   build_no_zlib:
@@ -159,14 +158,13 @@ jobs:
 
     steps:
       - name: Download source from source work
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v4
         with:
           name: yubico-piv-tool-src
 
       - name: Extract source
         run: |
           Set-PSDebug -Trace 1
-          cd yubico-piv-tool-src
           tar xf yubico-piv-tool-.tar.gz
 
       - name: install prerequisites
@@ -187,9 +185,9 @@ jobs:
           $env:Path ="C:\vcpkg\packages\openssl_$env:ARCH-windows;$env:Path"
           $env:include ="C:\vcpkg\packages\openssl_$env:ARCH-windows/include;$env:include"
 
-          cd yubico-piv-tool-src/yubico-piv-tool-
+          cd yubico-piv-tool-
           mkdir build; cd build
           cmake -A $env:ARCH_CMAKE -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DENABLE_CERT_COMPRESS=OFF -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_$env:ARCH-windows ..
           cmake --build . -v
-          $env:Path +=";C:/vcpkg/packages/check_$env:ARCH-windows/bin;C:/vcpkg/packages/openssl_$env:ARCH-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-\build\ykcs11\Debug"
+          $env:Path +=";C:/vcpkg/packages/check_$env:ARCH-windows/bin;C:/vcpkg/packages/openssl_$env:ARCH-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-\build\ykcs11\Debug"
           ctest.exe -C Debug
