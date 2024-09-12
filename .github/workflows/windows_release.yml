@@ -15,7 +15,7 @@ jobs:
       RELEASE_VERSION: 2.6.0
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Install prerequisites
         run: |
@@ -27,13 +27,13 @@ jobs:
 
           ./resources/make_src_dist.sh $RELEASE_VERSION
           cd ..
-          mkdir artifact
-          mv $GITHUB_WORKSPACE/yubico-piv-tool-$RELEASE_VERSION.tar.gz artifact/
+          mkdir $GITHUB_WORKSPACE/artifact
+          mv $GITHUB_WORKSPACE/yubico-piv-tool-$RELEASE_VERSION.tar.gz $GITHUB_WORKSPACE/artifact/
       - name: Upload artifact
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: yubico-piv-tool-src
-          path: ../artifact
+          path: artifact
 
   job_2:
     name: Build Windows x86
@@ -43,20 +43,19 @@ jobs:
       RELEASE_VERSION: 2.6.0
     steps:
       - name: Download source from job_1
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v4
         with:
           name: yubico-piv-tool-src
 
       - name: Extract source
         run: |
           Set-PSDebug -Trace 1
-          cd yubico-piv-tool-src
           tar xf yubico-piv-tool-$env:RELEASE_VERSION.tar.gz
 
       - name: Make release binaries
         run: |
           Set-PSDebug -Trace 1
-          $PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION"
+          $PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-$env:RELEASE_VERSION"
 
           cd $PIVTOOL_SRC_DIR/resources/win
           ./make_release_binaries.ps1 $env:RELEASE_VERSION Win32 C:/vcpkg
@@ -71,7 +70,7 @@ jobs:
       - name: Create Windows Installer
         run: |
           Set-PSDebug -Trace 1
-          $PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION"
+          $PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-$env:RELEASE_VERSION"
           $MERGEDPATH = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Redist\MSVC\v143\MergeModules\Microsoft_VC143_CRT_x86.msm"
 
           cd $PIVTOOL_SRC_DIR/resources/win
@@ -81,12 +80,12 @@ jobs:
       - name: Install yubico-piv-tool
         run: |
           Set-PSDebug -Trace 1
-          cd "$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\resources\win"
+          cd "$env:GITHUB_WORKSPACE\yubico-piv-tool-$env:RELEASE_VERSION\resources\win"
           msiexec /i yubico-piv-tool-$env:RELEASE_VERSION-x86.msi /quiet /log $env:GITHUB_WORKSPACE/artifact/log_x86.txt
           Start-Sleep -s 5
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: yubico-piv-tool-win32
           path: artifact
@@ -99,20 +98,19 @@ jobs:
       RELEASE_VERSION: 2.6.0
     steps:
       - name: Download source from job_1
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v4
         with:
           name: yubico-piv-tool-src
 
       - name: Extract source
         run: |
           Set-PSDebug -Trace 1
-          cd yubico-piv-tool-src
           tar xf yubico-piv-tool-$env:RELEASE_VERSION.tar.gz
 
       - name: Make release binaries
         run: |
           Set-PSDebug -Trace 1
-          $PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION"
+          $PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-$env:RELEASE_VERSION"
 
           cd $PIVTOOL_SRC_DIR/resources/win
           ./make_release_binaries.ps1 $env:RELEASE_VERSION x64 C:/vcpkg
@@ -127,7 +125,7 @@ jobs:
       - name: Create Windows Installer for x64 architecture
         run: |
           Set-PSDebug -Trace 1
-          $PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION"
+          $PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-$env:RELEASE_VERSION"
           $MERGEDPATH = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Redist\MSVC\v143\MergeModules\Microsoft_VC143_CRT_x64.msm"
 
           cd $PIVTOOL_SRC_DIR/resources/win
@@ -137,11 +135,11 @@ jobs:
       - name: Install yubico-piv-tool
         run: |
           Set-PSDebug -Trace 1
-          cd "$env:GITHUB_WORKSPACE\yubico-piv-tool-src\yubico-piv-tool-$env:RELEASE_VERSION\resources\win"
+          cd "$env:GITHUB_WORKSPACE\yubico-piv-tool-$env:RELEASE_VERSION\resources\win"
           msiexec /i yubico-piv-tool-$env:RELEASE_VERSION-x64.msi /quiet
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: yubico-piv-tool-win64
           path: artifact

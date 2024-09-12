@@ -382,8 +382,10 @@ int get_slot_hex(enum enum_slot slot_enum) {
   return slot;
 }
 
-bool set_component(unsigned char *in_ptr, const BIGNUM *bn, int element_len) {
-  return BN_bn2binpad(bn, in_ptr, element_len) == element_len;
+bool set_component(unsigned char *in_ptr, const BIGNUM *bn, int *element_len) {
+  if(BN_num_bytes(bn) > *element_len) return false;
+  *element_len = BN_bn2bin(bn, in_ptr);
+  return true;
 }
 
 bool prepare_rsa_signature(const unsigned char *in, unsigned int in_len, unsigned char *out, unsigned int *out_len, int nid) {
@@ -612,26 +614,27 @@ int SSH_write_X509(FILE *fp, X509 *x) {
 
   switch (EVP_PKEY_base_id(pkey)) {
   case EVP_PKEY_RSA: {
-    RSA *rsa;
+    const RSA *rsa;
     unsigned char n[256] = {0};
     const BIGNUM *bn_n;
 
     char rsa_id[] = "\x00\x00\x00\x07ssh-rsa";
     char rsa_f4[] = "\x00\x00\x00\x03\x01\x00\x01";
 
-    rsa = EVP_PKEY_get1_RSA(pkey);
+    rsa = EVP_PKEY_get0_RSA(pkey);
     if(rsa == NULL) {
       break;
     }
     RSA_get0_key(rsa, &bn_n, NULL, NULL);
 
-    if (!set_component(n, bn_n, RSA_size(rsa))) {
+    int len = RSA_size(rsa);
+    if (!set_component(n, bn_n, &len)) {
       break;
     }
 
-    uint32_t bytes = BN_num_bytes(bn_n);
+    uint32_t bytes = len;
     char len_buf[5] = {0};
-    int len = 4;
+    len = 4;
 
     len_buf[0] = (bytes >> 24) & 0x000000ff;
     len_buf[1] = (bytes << 16) & 0x000000ff;
@@ -668,7 +671,7 @@ int SSH_write_X509(FILE *fp, X509 *x) {
       BIO_free_all(b64);
       break;
     }
-    if(BIO_write(b64, n, RSA_size(rsa)) <= 0) {
+    if(BIO_write(b64, n, bytes) <= 0) {
       fprintf(stderr, "Failed to write RSA n component\n");
       BIO_free_all(b64);
       break;

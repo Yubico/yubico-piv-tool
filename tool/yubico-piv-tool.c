@@ -515,13 +515,14 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
 
     if(YKPIV_IS_RSA(algorithm)) {
       RSA *rsa_private_key = EVP_PKEY_get1_RSA(private_key);
-      unsigned char e[4] = {0};
+      unsigned char e[3] = {0};
       unsigned char p[256] = {0};
       unsigned char q[256] = {0};
       unsigned char dmp1[256] = {0};
       unsigned char dmq1[256] = {0};
       unsigned char iqmp[256] = {0};
       const BIGNUM *bn_e, *bn_p, *bn_q, *bn_dmp1, *bn_dmq1, *bn_iqmp;
+      int len_e, len_p, len_q, len_dmp1, len_dmq1, len_iqmp;
 
       int element_len = 0;
       switch(algorithm) {
@@ -545,43 +546,49 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
       RSA_get0_key(rsa_private_key, NULL, &bn_e, NULL);
       RSA_get0_factors(rsa_private_key, &bn_p, &bn_q);
       RSA_get0_crt_params(rsa_private_key, &bn_dmp1, &bn_dmq1, &bn_iqmp);
-      if((set_component(e, bn_e, 3) == false) ||
+      len_e = sizeof(e);
+      if((set_component(e, bn_e, &len_e) == false) ||
          !(e[0] == 0x01 && e[1] == 0x00 && e[2] == 0x01)) {
         fprintf(stderr, "Invalid public exponent for import (only 0x10001 supported)\n");
         goto import_out;
       }
 
-      if(set_component(p, bn_p, element_len) == false) {
+      len_p = element_len;
+      if(set_component(p, bn_p, &len_p) == false) {
         fprintf(stderr, "Failed setting p component.\n");
         goto import_out;
       }
 
-      if(set_component(q, bn_q, element_len) == false) {
+      len_q = element_len;
+      if(set_component(q, bn_q, &len_q) == false) {
         fprintf(stderr, "Failed setting q component.\n");
         goto import_out;
       }
 
-      if(set_component(dmp1, bn_dmp1, element_len) == false) {
+      len_dmp1 = element_len;
+      if(set_component(dmp1, bn_dmp1, &len_dmp1) == false) {
         fprintf(stderr, "Failed setting dmp1 component.\n");
         goto import_out;
       }
 
-      if(set_component(dmq1, bn_dmq1, element_len) == false) {
+      len_dmq1 = element_len;
+      if(set_component(dmq1, bn_dmq1, &len_dmq1) == false) {
         fprintf(stderr, "Failed setting dmq1 component.\n");
         goto import_out;
       }
 
-      if(set_component(iqmp, bn_iqmp, element_len) == false) {
+      len_iqmp = element_len;
+      if(set_component(iqmp, bn_iqmp, &len_iqmp) == false) {
         fprintf(stderr, "Failed setting iqmp component.\n");
         goto import_out;
       }
 
       rc = ykpiv_import_private_key(state, key, algorithm,
-                                    p, element_len,
-                                    q, element_len,
-                                    dmp1, element_len,
-                                    dmq1, element_len,
-                                    iqmp, element_len,
+                                    p, len_p,
+                                    q, len_q,
+                                    dmp1, len_dmp1,
+                                    dmq1, len_dmq1,
+                                    iqmp, len_iqmp,
                                     NULL, 0,
                                     pp, tp);
     }
@@ -595,7 +602,7 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
         element_len = 48;
       }
 
-      if(set_component(s_ptr, s, element_len) == false) {
+      if(set_component(s_ptr, s, &element_len) == false) {
         fprintf(stderr, "Failed setting ec private key.\n");
         goto import_out;
       }

@@ -653,46 +653,54 @@ CK_RV do_get_public_exponent(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR 
 }
 
 CK_RV do_get_public_key(ykcs11_pkey_t *key, CK_BYTE_PTR data, CK_ULONG_PTR len) {
-  const RSA *rsa = NULL;
-  unsigned char *p;
-
-  const EC_KEY *eck = NULL;
-  const EC_GROUP *ecg; // Alternative solution is to get i2d_PUBKEY and manually offset
-  const EC_POINT *ecp;
-  point_conversion_form_t pcf = POINT_CONVERSION_UNCOMPRESSED;
 
   switch(EVP_PKEY_base_id(key)) {
-  case EVP_PKEY_RSA:
+  case EVP_PKEY_RSA: {
+      const RSA *rsa = EVP_PKEY_get0_RSA(key);
 
-    rsa = EVP_PKEY_get0_RSA(key);
+      if (RSA_size(rsa) > *len) {
+        return CKR_BUFFER_TOO_SMALL;
+      }
 
-    if ((CK_ULONG)RSA_size(rsa) > *len) {
-      return CKR_BUFFER_TOO_SMALL;
+      CK_BYTE_PTR p = data;
+      if ((*len = i2d_RSAPublicKey(rsa, &p)) == 0) {
+        return CKR_FUNCTION_FAILED;
+      }
     }
-
-    p = data;
-
-    if ((*len = (CK_ULONG) i2d_RSAPublicKey(rsa, &p)) == 0) {
-      return CKR_FUNCTION_FAILED;
-    }
-
     break;
 
-  case EVP_PKEY_EC:
-    eck = EVP_PKEY_get0_EC_KEY(key);
-    ecg = EC_KEY_get0_group(eck);
-    ecp = EC_KEY_get0_public_key(eck);
+  case EVP_PKEY_EC: {
+      const EC_KEY *eck = EVP_PKEY_get0_EC_KEY(key);
+      const EC_GROUP *ecg = EC_KEY_get0_group(eck);
+      const EC_POINT *ecp = EC_KEY_get0_public_key(eck);
 
-    // Add the DER structure with length after extracting the point
-    data[0] = 0x04;
+      // Add the DER structure with length after extracting the point
+      data[0] = 0x04;
 
-    if ((*len = EC_POINT_point2oct(ecg, ecp, pcf, data + 2, *len - 2, NULL)) == 0) {
-      return CKR_FUNCTION_FAILED;
+      if ((*len = EC_POINT_point2oct(ecg, ecp, POINT_CONVERSION_UNCOMPRESSED, data + 2, *len - 2, NULL)) == 0) {
+        return CKR_FUNCTION_FAILED;
+      }
+
+      data[1] = *len;
+      *len += 2;
     }
-
-    data[1] = *len;
-    *len += 2;
-
+    break;
+  case EVP_PKEY_ED25519:
+  case EVP_PKEY_X25519: {
+      size_t n = *len;
+      if(EVP_PKEY_get_raw_public_key(key, data, &n) != 1) {
+        return CKR_FUNCTION_FAILED;
+      }
+      ASN1_OCTET_STRING *a = ASN1_OCTET_STRING_new();
+      ASN1_OCTET_STRING_set(a, data, n);
+      if(i2d_ASN1_OCTET_STRING(a, NULL) > *len) {
+        ASN1_OCTET_STRING_free(a);
+        return CKR_BUFFER_TOO_SMALL;
+      }
+      CK_BYTE_PTR p = data;
+      *len = i2d_ASN1_OCTET_STRING(a, &p);
+      ASN1_OCTET_STRING_free(a);
+    }
     break;
 
   default:

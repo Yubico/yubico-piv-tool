@@ -324,7 +324,7 @@ static void import_key(unsigned char slot, unsigned char pin_policy) {
     EVP_PKEY *private_key = NULL;
     BIO *bio = NULL;
     RSA *rsa_private_key = NULL;
-    unsigned char e[4] = {0};
+    unsigned char e[3] = {0};
     unsigned char p[256] = {0};
     unsigned char q[256] = {0};
     unsigned char dmp1[256] = {0};
@@ -332,6 +332,7 @@ static void import_key(unsigned char slot, unsigned char pin_policy) {
     unsigned char iqmp[256] = {0};
     int element_len = 256;
     const BIGNUM *bn_e, *bn_p, *bn_q, *bn_dmp1, *bn_dmq1, *bn_iqmp;
+    int e_len, p_len, q_len, dmp1_len, dmq1_len, iqmp_len;
 
     bio = BIO_new_mem_buf(private_key_pem, strlen(private_key_pem));
     private_key = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
@@ -342,22 +343,28 @@ static void import_key(unsigned char slot, unsigned char pin_policy) {
     RSA_get0_key(rsa_private_key, NULL, &bn_e, NULL);
     RSA_get0_factors(rsa_private_key, &bn_p, &bn_q);
     RSA_get0_crt_params(rsa_private_key, &bn_dmp1, &bn_dmq1, &bn_iqmp);
-    ck_assert(set_component(e, bn_e, 3));
-    ck_assert(set_component(p, bn_p, element_len));
-    ck_assert(set_component(q, bn_q, element_len));
-    ck_assert(set_component(dmp1, bn_dmp1, element_len));
-    ck_assert(set_component(dmq1, bn_dmq1, element_len));
-    ck_assert(set_component(iqmp, bn_iqmp, element_len));
+    e_len = sizeof(e);
+    ck_assert(set_component(e, bn_e, &e_len));
+    p_len = element_len;
+    ck_assert(set_component(p, bn_p, &p_len));
+    q_len = element_len;
+    ck_assert(set_component(q, bn_q, &q_len));
+    dmp1_len = element_len;
+    ck_assert(set_component(dmp1, bn_dmp1, &dmp1_len));
+    dmq1_len = element_len;
+    ck_assert(set_component(dmq1, bn_dmq1, &dmq1_len));
+    iqmp_len = element_len;
+    ck_assert(set_component(iqmp, bn_iqmp, &iqmp_len));
 
     // Try wrong algorithm, fail.
     res = ykpiv_import_private_key(g_state,
                                    slot,
                                    YKPIV_ALGO_RSA1024,
-                                   p, element_len,
-                                   q, element_len,
-                                   dmp1, element_len,
-                                   dmq1, element_len,
-                                   iqmp, element_len,
+                                   p, p_len,
+                                   q, q_len,
+                                   dmp1, dmp1_len,
+                                   dmq1, dmq1_len,
+                                   iqmp, iqmp_len,
                                    NULL, 0,
                                    pp, tp);
     ck_assert_int_eq(res, YKPIV_ALGORITHM_ERROR);
@@ -366,11 +373,11 @@ static void import_key(unsigned char slot, unsigned char pin_policy) {
     res = ykpiv_import_private_key(g_state,
                                    slot,
                                    YKPIV_ALGO_RSA4096,
-                                   p, element_len,
-                                   q, element_len,
-                                   dmp1, element_len,
-                                   dmq1, element_len,
-                                   iqmp, element_len,
+                                   p, p_len,
+                                   q, q_len,
+                                   dmp1, dmp1_len,
+                                   dmq1, dmq1_len,
+                                   iqmp, iqmp_len,
                                    NULL, 0,
                                    pp, tp);
     ck_assert_int_eq(res, YKPIV_OK);
