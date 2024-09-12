@@ -1,5 +1,10 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
+* Version 2.6.1 (released 2024-09-12)
+
+** cmd: Fix performing bio verification
+** ykcs11: Fix handling ED25519 and X25519 keys
+
 * Version 2.6.0 (released 2024-08-21)
 
 ** cmd: Add support for biometric verification and match policy

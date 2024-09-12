@@ -1,3 +1,10 @@
+yubico-piv-tool (2.6.1) stable; urgency=medium
+
+  * cmd: Fix performing bio verification
+  * ykcs11: Fix handling ED25519 and X25519 keys
+
+ -- Aveen Ismail <aveen.ismail@yubico.com>  Thu, 12 Sep 2024 12:48:34 +0100
+
 yubico-piv-tool (2.6.0) stable; urgency=medium
 
   * cmd: Add support for biometric verification and match policy
