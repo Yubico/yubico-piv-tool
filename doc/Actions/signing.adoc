@@ -1,5 +1,5 @@
 == Signing
-    $ yubico-piv-tool -a verify-pin --sign -s <slot> [ -H <hash algorithm> -A <key algorithm> -i <input data file> -o <signature file> ]
+    $ yubico-piv-tool -a verify-pin --sign -s <slot> [ -H <hash algorithm> -A <key algorithm> -P <PIN code> -i <input data file> -o <signature file> ]
 
 === Description
 Signs input data
@@ -17,6 +17,7 @@ Use `-a verify-pin` to verify the PIN and `-a verify-bio` for fingerprint verifi
                                                           8a, 8b, 8c, 8d, 8e, 8f, 90, 91, 92, 93, 94, 95, f9 |
 |-A, --algorithm   | | X | Signing key algorithm | RSA1024, RSA2048, RSA3072 (Requires YubiKey 5.7 or higher), RSA4096 (Requires YubiKey 5.7 or higher), ECCP256, ECCP384, ED25519 (Requires YubiKey 5.7 or higher) | RSA2048
 |-H, --hash        | | X | Hash to use for signatures | SHA1, SHA256, SHA384, SHA512 | SHA256
+|-P, --pin         | | X | Pin/puk code for verification, if omitted pin/puk will be asked for | |
 |-i, --input       | | X | Filename to use as input | file name or "-" for stdin | -
 |-o, --output      | | X | Filename to use as output | file name or "-" for stdin | -
 |===================================

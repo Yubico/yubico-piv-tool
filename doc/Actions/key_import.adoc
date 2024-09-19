@@ -1,7 +1,7 @@
 == Key Import
-    $ yubico-piv-tool -a import-key -s <slot> -k [ -i <input file> -p <input file password> -K <input file format> ]
+    $ yubico-piv-tool -a import-key -s <slot> -k [ -P <PIN code> --pin-policy <never|once|always|matchonce|matchalways> --touch-policy <never|always|cached> -i <input file> -p <input file password> -K <input file format> ]
     $ yubico-piv-tool -a import-certificate -s <slot> -k [ -i <input file> -K <input file format> ]
-    $ yubico-piv-tool -a import-key -a import-certificate -s <slot> -k [ -i <input file> -p <input file password> -K <input file format> ]
+    $ yubico-piv-tool -a import-key -a import-certificate -s <slot> -k [ -P <PIN code> --pin-policy <never|once|always|matchonce|matchalways> --touch-policy <never|always|cached> -i <input file> -p <input file password> -K <input file format> ]
 
 === Description
 Imports a key, a certificate or both into the Yubikey PIV interface. The largest
@@ -28,6 +28,9 @@ management key before start using it.]
 |-i, --input        | | X | Filename to use as input | file name or "-" for stdin | -
 |-K, --key-format   | | X | Format of the key/certificate being read/written | PEM, PKCS12, GZIP, DER, SSH | PEM
 |-p, --password     | | X | Password for decryption of private key file, if omitted password will be asked for | |
+|-P, --pin         | | X | Pin/puk code for verification, if omitted pin/puk will be asked for | |
+|--pin-policy      | |   | Set pin policy applicable for the slot containing the key. Only available on YubiKey 4 or newer | never, once, always, matchonce (applicable with bio verification), matchalways (applicable for with verification) | `always` on slot 9c and `once` on slots 9a, 9d and 9e
+|--touch-policy    | |   | Set touch policy applicable for the slot containing the key. Only available on YubiKey 4 or newer | never, always, caches | never
 |===================================
 
 === Examples

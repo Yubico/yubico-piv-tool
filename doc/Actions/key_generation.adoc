@@ -1,7 +1,7 @@
 == Key Generation
     $ yubico-piv-tool -a generate -s <slot> -k [ -A <key algorithm> -o <public key file> ]
-    $ yubico-piv-tool -a verify-pin -a selfsign -s <slot> [ -i <public key file> -S <subject dn> --serial <cert serial number> --valid-days DAYS -o <cert file> ]
-    $ yubico-piv-tool -a verify-pin -a request-certificate -s <slot> [ -i <public key file> -S <subject dn> -o <cert request file> ]
+    $ yubico-piv-tool -a verify-pin -a selfsign -s <slot> -S <subject dn> [ -P <PIN code> --pin-policy <never|once|always|matchonce|matchalways> --touch-policy <never|always|cached> -i <public key file> --serial <cert serial number> --valid-days DAYS -o <cert file> ]
+    $ yubico-piv-tool -a verify-pin -a request-certificate -s <slot> -S <subject dn> [ -P <PIN> -i <public key file> -o <cert request file> ]
     $ yubico-piv-tool -a import-certificate -s <slot> -k [ -o <cert file> ]
 
 === Description
@@ -34,7 +34,10 @@ verify the PIN and `-a verify-bio` for fingerprint verification.
 |-A, --algorithm   | | X | What algorithm to use to generate the key pair | RSA1024, RSA2048, RSA3072 (Requires YubiKey 5.7 or higher), RSA4096 (Requires YubiKey 5.7 or higher), ECCP256, ECCP384, ED25519 (Requires YubiKey 5.7 or higher), X25519 (Requires YubiKey 5.7 or higher) | RSA2048
 |-i, --input       | | X | Filename to use as input | file name or "-" for stdin | -
 |-o, --output      | | X | Filename to use as output | file name or "-" for stdin | -
-|-S, --subject     | | X | The subject to use for the certificate. The subject must be written as: /CN=host.example.com/OU=test/O=example.com/ | |
+|-S, --subject     |X|   | The subject to use for the certificate. The subject must be written as: /CN=host.example.com/OU=test/O=example.com/ | |
+|-P, --pin         | | X | Pin/puk code for verification, if omitted pin/puk will be asked for | |
+|--pin-policy      | |   | Set pin policy applicable for the slot containing the key. Only available on YubiKey 4 or newer | never, once, always, matchonce (applicable with bio verification), matchalways (applicable for with verification) | `always` on slot 9c and `once` on slots 9a, 9d and 9e
+|--touch-policy    | |   | Set touch policy applicable for the slot containing the key. Only available on YubiKey 4 or newer | never, always, caches | never
 |--serial          | | X | Serial number of the self-signed certificate | |
 |--valid-days      | | X | Time (in days) until the self-signed certificate expires | | 365
 |===================================
