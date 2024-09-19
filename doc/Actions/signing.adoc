@@ -4,7 +4,8 @@
 === Description
 Signs input data
 
-The signing operation requires verifying the PIN code, which is done using the "verify-pin" action
+The signing operation requires verifying the PIN code or the fingerprint if the YubiKey supports Bio verification.
+Use `-a verify-pin` to verify the PIN and `-a verify-bio` for fingerprint verification.
 
 === Parameters
 

@@ -5,9 +5,9 @@
 === Description
 Tests signing functions.
 
-"test-signature" and "test-decipher" are actions that require verifying the PIN code,
-which has to be done in an action that must take place before the generation action,
-otherwise the tests will fail.
+`test-signature` and `test-decipher` are actions that require verifying the PIN code or the fingerprint if the YubiKey
+supports Bio verification, which has to be done in an action that must take place before the generation action,
+otherwise the tests will fail. Use `-a verify-pin` to verify the PIN and `-a verify-bio` for fingerprint verification.
 
 Performing the test will require the certificate stored on the slot to test. This is
 done using the "read-certificate" action first.

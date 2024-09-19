@@ -18,9 +18,10 @@ authentication, which is done by providing the management key. If no management 
 is provided, the tool will try to authenticate using the default management key.footnote:[It is strongly recommended to
 change the Yubikey's PIN, PUK and management key before start using it]
 
-While generating the certificate/certificate request does not require authentication,
-it does require verifying the PIN code, which has to be done in an action that must
-take place before the generation action, otherwise the operation will fail.
+While generating the certificate/certificate request does not require authentication, the signing operation does
+require verifying the PIN code or the fingerprint if the YubiKey supports Bio verification, which has to be done in an
+action that must take place before the signing action, otherwise the operation will fail. Use `-a verify-pin` to
+verify the PIN and `-a verify-bio` for fingerprint verification.
 
 === Parameters
 
