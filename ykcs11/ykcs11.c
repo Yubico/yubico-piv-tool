@@ -983,6 +983,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
     for(CK_ULONG i = 0; i < num_ids; i++) {
       ykpiv_rc rc = YKPIV_KEY_ERROR;
       CK_BYTE sub_id = get_sub_id(obj_ids[i]);
+
+      DBG("------ object_id: %d    sub_id: %d", obj_ids[i], sub_id);
+
       piv_obj_id_t cert_id = find_cert_object(sub_id);
       piv_obj_id_t pubk_id = find_pubk_object(sub_id);
       piv_obj_id_t pvtk_id = find_pvtk_object(sub_id);
@@ -1002,11 +1005,14 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
             if ((rv = do_parse_attestation(session->slot->atst[sub_id], &session->slot->pin_policy[sub_id], &session->slot->touch_policy[sub_id])) != CKR_OK) {
               DBG("Failed to parse pin and touch policy from attestation for object %u slot %lx: %lu", pvtk_id, slot, rv);
             }
-            if (atst_id != PIV_INVALID_OBJ)
+            if (atst_id != PIV_INVALID_OBJ) {
               add_object(session->slot, atst_id);
+              DBG("-------- Added attestation. Key type %x", do_get_key_type(session->slot->pkeys[sub_id]));
+            }
             if((rv = do_store_pubk(session->slot->atst[sub_id], &session->slot->pkeys[sub_id])) == CKR_OK) {
               add_object(session->slot, pvtk_id);
               add_object(session->slot, pubk_id);
+              DBG("-------- Added privkey and pubkey. Key type %x", do_get_key_type(session->slot->pkeys[sub_id]));
             } else {
               DBG("Failed to store key objects %u and %u in session: %lu", pubk_id, pvtk_id, rv);
             }
@@ -1027,6 +1033,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
                 if((rv = do_create_public_key(md.pubkey, md.pubkey_len, md.algorithm, &session->slot->pkeys[sub_id])) == CKR_OK) {
                   add_object(session->slot, pvtk_id);
                   add_object(session->slot, pubk_id);
+                  DBG("-------- Added privkey and pubkey through metadata. Key type %x", do_get_key_type(session->slot->pkeys[sub_id]));
                 } else {
                   DBG("Failed to create public key for slot %lx, algorithm %u from metadata: %lu", slot, md.algorithm, rv);
                 }
@@ -1059,6 +1066,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
           continue; // Bail out, can't create key objects without the public key from the cert
         }
         add_object(session->slot, cert_id);
+        DBG("-------- Added cert. Key type %x", do_get_key_type(session->slot->pkeys[sub_id]));
         if(rc != YKPIV_OK && rc != YKPIV_KEY_ERROR) { // Failed to get attestation or metadata, fall back to assuming we have keys for cert objects
           add_object(session->slot, pvtk_id);
           add_object(session->slot, pubk_id);
@@ -1066,6 +1074,23 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
       }
     }
     sort_objects(session->slot);
+  }
+
+  DBG("------ number of objects in slot: %d", session->slot->n_objects);
+  for (CK_ULONG i=0; i< session->slot->n_objects; i++) {
+    DBG("-------- object id: %d", session->slot->objects[i]);
+    CK_BYTE sub_id = get_sub_id(session->slot->objects[i]);
+    if(sub_id > 25) {
+      continue;
+    }
+    DBG("-------- subid: %d", sub_id);
+////    piv_obj_id_t cert_id = find_cert_object(sub_id);
+////    piv_obj_id_t pubk_id = find_pubk_object(sub_id);
+////    piv_obj_id_t pvtk_id = find_pvtk_object(sub_id);
+////    piv_obj_id_t atst_id = find_atst_object(sub_id);
+    DBG("-------- key type: %x", do_get_key_type(session->slot->pkeys[sub_id]));
+    DBG("-------- object len: %d", session->slot->data[sub_id].len);
+
   }
 
   locking.pfnUnlockMutex(session->slot->mutex);
