@@ -32,7 +32,7 @@ set (SOURCE
         ../common/openssl-compat.c
         ../common/util.c)
 
-if(WIN32)
+if(MSVC)
     add_definitions (-DPACKAGE="yubico-piv-tool")
     add_definitions (-DVERSION="${yubico_piv_tool_VERSION_MAJOR}.${yubico_piv_tool_VERSION_MINOR}.${yubico_piv_tool_VERSION_PATCH}")
 
@@ -45,12 +45,12 @@ if(WIN32)
     include_directories(${ZLIB_INCL_DIR})
 
     set(LINK_LIBS_WIN ${GETOPT} ${ZLIB})
-else(WIN32)
+else(MSVC)
     include(${CMAKE_SOURCE_DIR}/cmake/gengetopt.cmake)
     find_gengetopt()
     add_gengetopt_files(cmdline)
     set(SOURCE ${SOURCE} ${GGO_C})
-endif(WIN32)
+endif(MSVC)
 
 include_directories (
         ${CMAKE_SOURCE_DIR}/lib

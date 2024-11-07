@@ -89,7 +89,6 @@ if(MSVC)
 
     set(BUILD_SHARED_LIBS ON)
     set(GENERATE_MAN_PAGES OFF)
-    set(LIBCRYPTO_LIBRARIES ${LIBCRYPTO_LIBRARIES} bcrypt)
 else()
     find_package (PkgConfig REQUIRED)
 
@@ -104,6 +103,10 @@ else()
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g2")
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fno-omit-frame-pointer")
 endif()
+
+if(WIN32)
+    set(LIBCRYPTO_LIBRARIES ${LIBCRYPTO_LIBRARIES} bcrypt)
+endif(WIN32)
 
 # Use -Wshorten-64-to-32 if available.
 check_c_compiler_flag("-Wshorten-64-to-32" HAVE_SHORTEN_64_TO_32)
