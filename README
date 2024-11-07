@@ -90,7 +90,7 @@ it might be needed to update your linked libraries after install
   sudo ldconfig
 
 The backend to use is decided at compile time, see the summary at the
-end of the `cmake` output.  Use `--with-backend=foo` to choose
+end of the `cmake` output.  Use `-DBACKEND=foo` to choose
 backend, replacing `foo` with the backend you want to use.  The backends
 available are "pcsc", "macscard" and "winscard" using the PCSC
 interface, with slightly different shared library linkage and
@@ -101,38 +101,52 @@ backend to use.
 
 === Building on Windows
 
-Building on Windows requires MSBuild or Visual Studio and the MSVC compiler. It also requires
-building the binaries from the https://developers.yubico.com/yubico-piv-tool/Releases/[source release] package
-and not from the source checked out from the repository on GitHub. This is because some files that are part of
-the command line shell are generated but they cannot, currently, be generated on Windows. Those files are, however,
-included in the source release package.
+Traditionally, building on Windows requires MSBuild or Visual Studio
+and the MSVC compiler. Alternatively, you may consider
+https://msys2.org[MSYS2].
 
-On Windows, `getopt` is needed to read command line arguments. The easiest way to install `getopt`
-is with the https://docs.microsoft.com/en-us/cpp/build/vcpkg?view=msvc-160[`vcpkg` package manager]. The
-path to `getopt` DLL library and include file need to be specified as a command line argument to `cmake`.
-Also the path to OpenSSL needs to be specified either as a command line argument to `cmake`
-or by setting the environment variable `OPENSSL_ROOT_DIR`
+==== Using MSVC compiler
 
-The command line examples bellow are for `PowerShell` and the prerequisites were installed from source (using `vcpkg`).
+This scenario requires building the binaries from the
+https://developers.yubico.com/yubico-piv-tool/Releases/[source release] package and not from the source
+checked out from the repository on GitHub. This is because some files that are part of the command line shell
+are generated but they cannot, currently, be generated on Windows. Those files are, however, included in the
+source release package.
 
-    $ env:OPENSSL_ROOT_DIR ="PATH/TO/OPENSSL_DIR"
-    $ mkdir build; cd build
-    $ cmake -A <ARCH> -DGETOPT_LIB_DIR="PATH/TO/GETOPT_DIR/lib" -DGETOPT_INCLUDE_DIR="PATH/TO/GETOPT_DIR/include ..
-    $ cmake --build .
+On Windows, `getopt` is needed to read command line arguments. To install `getopt` along with other
+dependencies, https://learn.microsoft.com/en-us/vcpkg/get_started/overview[`vcpkg` package manager] is
+used. You will need to install vcpkg and set VCPKG_ROOT environment variable. All dependencies will be build
+and installed automatically.
 
-To run the tests, `check` is used. The path to the `check` directory needs to be
-specified as a command line argument to `cmake`. Also the path to `check` binaries,
-`OpenSSL` binaries, `libykpiv.dll` and `libykcs11.dll` need to be in the `PATH`
+If you would like to build against existing OpenSSL installation, you would have to remove that library from
+vcpkg.json manifest and specify the path to OpenSSL either as a command line argument to `cmake` or by setting
+the environment variable `OPENSSL_ROOT_DIR`.
 
-    $ env:OPENSSL_ROOT_DIR ="PATH/TO/OPENSSL_DIR"
-    $ mkdir build; cd build
-    $ cmake -A <ARCH> -DGETOPT_LIB_DIR="PATH/TO/GETOPT_DIR/lib" -DGETOPT_INCLUDE_DIR="PATH/TO/GETOPT_DIR/include -DCHECK_PATH="PATH/TO/CHECK_DIR" ..
-    $ cmake --build .
-    $ $env:Path +=";PATH/TO//CHECK_DIR/bin;PATH/TO/OPENSSL_DIR/bin;PATH/TO/build\lib\Debug;PATH/TO/build\ykcs11\Debug"
-    $ ctest.exe -C Debug
+To run the tests, `check` is used. `libykpiv.dll` and `libykcs11.dll` need to be in the `PATH` as well as
+other dependencies. The command line examples bellow are for `x64 Native Tools Command Prompt for VS 2022`.
 
-For building on 32 bits system, use `Win32` as ARCH. For building on 64 bits systems,
-use `x64` as ARCH.
+    $ cd yubico-piv-tool-x.y.z
+    $ cmake -A x64 -S. -Bbuild
+    $ cmake --build build
+    $ $env:Path +=";$(Resolve-path build\lib\Debug);$(Resolve-Path build\ykcs11\Debug)"
+    $ ctest -C Debug --test-dir build
+
+For building on 32 bits system, use `-A Win32`.
+
+==== MSYS2
+
+The steps are very similar to those for POSIX with the exception for names of dependency packages. Launch your
+preferred https://www.msys2.org/docs/environments/[MSYS2 environment] and make sure dependencies are
+installed. Here is example for UCRT64 environment. Note that `gengetopt` belongs to MSYS (cygwin) environment.
+
+    $ pacman -S mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-cc mingw-w64-ucrt-x86_64-openssl mingw-w64-ucrt-x86_64-zlib mingw-w64-ucrt-x86_64-check gengetopt
+    $ cd yubico-piv-tool
+    $ cmake -GNinja -S. -Bbuild
+    $ cmake --build build
+    $ cmake --build build --target test
+
+Note that you may use git repo and not only the source release when using MSYS2. Furthermore, upon configuring
+the build system, all necessary files for Visual C compiler will be generated.
 
 ==== Coverage
 
