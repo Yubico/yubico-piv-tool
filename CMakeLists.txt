@@ -36,6 +36,11 @@ include(CheckFunctionExists)
 
 set (CMAKE_C_STANDARD 11)
 
+if(NOT DEFINED ENV{MINGW_PREFIX} AND DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+  set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+      CACHE STRING "")
+endif()
+
 project (yubico-piv-tool)
 
 set (yubico_piv_tool_VERSION_MAJOR 2)
@@ -67,11 +72,6 @@ if(WIN32)
 endif()
 
 if(MSVC)
-    if((NOT GETOPT_LIB_DIR) OR (NOT GETOPT_INCLUDE_DIR))
-        message(FATAL_ERROR "please provide definitions for "
-                "GETOPT_LIB_DIR and GETOPT_INCLUDE_DIR when building "
-                "under msvc")
-    endif()
     if(SUPRESS_MSVC_WARNINGS)
         set(MSVC_DISABLED_WARNINGS_LIST
             "C4706" # assignment within conditional expression;

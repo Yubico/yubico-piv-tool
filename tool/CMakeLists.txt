@@ -38,8 +38,7 @@ if(MSVC)
 
     set(SOURCE ${SOURCE} cmdline.c)
 
-    find_library(GETOPT getopt PATHS ${GETOPT_LIB_DIR})
-    include_directories(${GETOPT_INCLUDE_DIR})
+    find_library(GETOPT getopt)
 
     find_library(ZLIB zlib PATHS ${ZLIB_LIB_DIR})
     include_directories(${ZLIB_INCL_DIR})
