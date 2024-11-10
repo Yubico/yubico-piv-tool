@@ -124,6 +124,24 @@ extern "C"
 
 #define CB_PIN_MAX          8
 
+
+#define SCP11B_KID 0x13
+#define SCP11B_KVN 0x1
+#define SCP11_KEY_USAGE 0x3c
+#define SCP11_KEY_TYPE 0x88
+#define SCP11_SESSION_KEY_LEN 16
+#define SCP11_RECEIPT_LEN 16
+#define SCP11_CERTIFICATE_STORE_TAG 0xBF21
+#define SCP11_ePK_SD_ECKA_TAG 0x5F49
+#define SCP11_RECEIPT_TAG 0x86
+#define SCP11_KEY_AGREEMENT_TAG 0xa6
+#define SCP11_SCP_ID_TAG 0x90
+#define SCP11_SCP_ID 0x11
+#define SCP11_SCP11B_ID 0x00
+#define SCP11_KEY_USAGE_TAG 0x95
+#define SCP11_KEY_TYPE_TAG 0x80
+#define SCP11_KEY_LEN_TAG 0x81
+
 typedef enum {
   CIPHER_OK = 0,
   CIPHER_INVALID_PARAMETER = -1,
@@ -148,6 +166,14 @@ typedef struct _ykpiv_version_t {
   uint8_t patch;
 } ykpiv_version_t;
 
+typedef struct _ykpiv_scp11_state {
+  uint8_t security_level;
+  uint8_t senc[SCP11_SESSION_KEY_LEN];
+  uint8_t smac[SCP11_SESSION_KEY_LEN];
+  uint8_t srmac[SCP11_SESSION_KEY_LEN];
+//  uint8_t dek[16];
+} ykpiv_scp11_state;
+
 struct ykpiv_state {
   SCARDCONTEXT context;
   SCARDHANDLE card;
@@ -161,6 +187,7 @@ struct ykpiv_state {
   uint32_t model;
   ykpiv_version_t ver;
   uint32_t serial;
+  ykpiv_scp11_state scp11_state;
 };
 
 union u_APDU {
@@ -192,6 +219,7 @@ ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state);
 ykpiv_rc _ykpiv_end_transaction(ykpiv_state *state);
 ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state);
 ykpiv_rc _ykpiv_select_application(ykpiv_state *state);
+ykpiv_rc _ykpiv_select_gp_application(ykpiv_state *state);
 size_t _ykpiv_get_length_size(size_t length);
 size_t _ykpiv_set_length(unsigned char *buffer, size_t length);
 size_t _ykpiv_get_length(const unsigned char *buffer, const unsigned char* end, size_t *len);
