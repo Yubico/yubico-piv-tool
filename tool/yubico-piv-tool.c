@@ -2521,7 +2521,7 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  if((rc = ykpiv_connect(state, args_info.reader_arg)) != YKPIV_OK) {
+  if((rc = ykpiv_connect_ex(state, args_info.reader_arg, args_info.scp11_given)) != YKPIV_OK) {
     fprintf(stderr, "Failed to connect to yubikey: %s.\n", ykpiv_strerror(rc));
     if (rc == YKPIV_PCSC_SERVICE_ERROR) {
       fprintf(stderr, "Try restarting the PCSC subsystem.\n");

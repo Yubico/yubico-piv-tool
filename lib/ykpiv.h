@@ -91,6 +91,7 @@ extern "C"
   ykpiv_rc ykpiv_done(ykpiv_state *state);
   ykpiv_rc ykpiv_validate(ykpiv_state *state, const char *wanted);
   ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted);
+  ykpiv_rc ykpiv_connect_ex(ykpiv_state *state, const char *wanted, bool scp11);
   ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len);
   ykpiv_rc ykpiv_disconnect(ykpiv_state *state);
   ykpiv_rc ykpiv_translate_sw(int sw);
@@ -722,6 +723,18 @@ extern "C"
 #define YKPIV_INS_MOVE_KEY 0xf6
 #define YKPIV_INS_SELECT_APPLICATION 0xa4
 #define YKPIV_INS_GET_RESPONSE_APDU 0xc0
+
+#define GP_CLA                       0x80
+#define GP_INS_INITIALIZE_UPDATE     0x50
+#define GP_INS_GET_DATA              0xca
+#define GP_CLA_EXTERNAL_AUTHENTICATE 0x84
+#define GP_INS_EXTERNAL_AUTHENTICATE 0x82
+#define GP_INS_INTERNAL_AUTHENTICATE 0x88
+#define GP_HIGHEST_SEC_LEVEL         0x33
+#define GP_INS_PUT_KEY               0xd8
+#define GP_VERSION_FACTORY           0xFF
+#define GP_VERSION_DERIVED           0x01
+#define GP_CHAL_SIZE                 8
 
 /* sw is status words, see NIST special publication 800-73-4, section 5.6 */
 #define SW_SUCCESS 0x9000
