@@ -124,13 +124,16 @@ extern "C"
 
 #define CB_PIN_MAX          8
 
-typedef enum {
-  CIPHER_OK = 0,
-  CIPHER_INVALID_PARAMETER = -1,
-  CIPHER_BUFFER_TOO_SMALL = -2,
-  CIPHER_MEMORY_ERROR = -3,
-  CIPHER_GENERAL_ERROR = -4
-} cipher_rc;
+#define SCP11_SESSION_KEY_LEN 16
+#define SCP11_MAC_LEN 16
+#define SCP11_HALF_MAC_LEN 8
+
+#define SCP11B_KID 0x13
+#define SCP11B_KVN 0x1
+#define SCP11_KEY_USAGE 0x3c
+#define SCP11_KEY_TYPE 0x88
+#define SCP11_CERTIFICATE_STORE_TAG 0xBF21
+#define SCP11_ePK_SD_ECKA_TAG 0x5F49
 
 typedef enum {
     PKCS5_OK = 0,
@@ -148,6 +151,15 @@ typedef struct _ykpiv_version_t {
   uint8_t patch;
 } ykpiv_version_t;
 
+typedef struct _ykpiv_scp11_state {
+  uint8_t security_level;
+  uint32_t enc_counter;
+  uint8_t senc[SCP11_SESSION_KEY_LEN];
+  uint8_t smac[SCP11_SESSION_KEY_LEN];
+  uint8_t srmac[SCP11_SESSION_KEY_LEN];
+  uint8_t mac_chain[SCP11_MAC_LEN];
+} ykpiv_scp11_state;
+
 struct ykpiv_state {
   SCARDCONTEXT context;
   SCARDHANDLE card;
@@ -161,6 +173,7 @@ struct ykpiv_state {
   uint32_t model;
   ykpiv_version_t ver;
   uint32_t serial;
+  ykpiv_scp11_state scp11_state;
 };
 
 union u_APDU {
@@ -170,19 +183,12 @@ union u_APDU {
     unsigned char p1;
     unsigned char p2;
     unsigned char lc;
-    unsigned char data[0x100]; // Max 255 bytes + Le
+    unsigned char data[YKPIV_OBJ_MAX_SIZE - 5]; // Max message bytes - first bytes in apdu - Le
   } st;
-  unsigned char raw[0x100 + 5];
+  unsigned char raw[YKPIV_OBJ_MAX_SIZE]; // Max message size the yubikey can receive
 };
 
 typedef union u_APDU APDU;
-typedef struct _cipher_key *cipher_key;
-
-cipher_rc cipher_import_key(unsigned char algo, const unsigned char *keyraw, uint32_t keyrawlen, cipher_key *key);
-cipher_rc cipher_destroy_key(cipher_key key);
-cipher_rc cipher_encrypt(cipher_key key, const unsigned char *in, uint32_t inlen, unsigned char *out, uint32_t *outlen);
-cipher_rc cipher_decrypt(cipher_key key, const unsigned char *in, uint32_t inlen, unsigned char *out, uint32_t *outlen);
-uint32_t cipher_blocksize(cipher_key key);
 
 pkcs5_rc pkcs5_pbkdf2_sha1(const uint8_t* password, const size_t cb_password, const uint8_t* salt, const size_t cb_salt, uint64_t iterations, const uint8_t* key, const size_t cb_key);
 bool   yk_des_is_weak_key(const unsigned char *key, const size_t cb_key);
@@ -190,8 +196,8 @@ bool   yk_des_is_weak_key(const unsigned char *key, const size_t cb_key);
 prng_rc _ykpiv_prng_generate(unsigned char *buffer, const size_t cb_req);
 ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state);
 ykpiv_rc _ykpiv_end_transaction(ykpiv_state *state);
-ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state);
-ykpiv_rc _ykpiv_select_application(ykpiv_state *state);
+ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state, bool scp11);
+ykpiv_rc _ykpiv_select_application(ykpiv_state *state, bool scp11);
 size_t _ykpiv_get_length_size(size_t length);
 size_t _ykpiv_set_length(unsigned char *buffer, size_t length);
 size_t _ykpiv_get_length(const unsigned char *buffer, const unsigned char* end, size_t *len);

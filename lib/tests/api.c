@@ -31,6 +31,7 @@
 #include "ykpiv.h"
 #include "internal.h"
 #include "util.h"
+#include "../aes_cmac/aes.h"
 #include "../../common/openssl-compat.h"
 #include "test-config.h"
 
@@ -618,8 +619,8 @@ END_TEST
 
 static void test_authenticate_helper(bool full) {
   ykpiv_rc res;
-  cipher_rc crc;
-  cipher_key cipher = 0;
+  int crc;
+  aes_context cipher = {0};
   const char *default_mgm_key = "010203040506070801020304050607080102030405060708";
   const char *mgm_key = "112233445566778811223344556677881122334455667788";
   const char *mgm_key_16 = "11223344556677881122334455667788";
@@ -702,14 +703,14 @@ static void test_authenticate_helper(bool full) {
   res = ykpiv_auth_getchallenge(g_state, &metadata, data, &data_len);
   ck_assert_int_eq(res, YKPIV_OK);
 
-  crc = cipher_import_key(YKPIV_ALGO_3DES, key, key_len, &cipher);
-  ck_assert_int_eq(crc, CIPHER_OK);
+  crc = aes_set_key(key, key_len, YKPIV_ALGO_3DES, &cipher);
+  ck_assert_int_eq(crc, 0);
   uint32_t cipher_len = (uint32_t)data_len;
-  crc = cipher_encrypt(cipher, data, cipher_len, data, &cipher_len);
+  crc = aes_encrypt(data, cipher_len, data, &cipher_len, &cipher);
   data_len = cipher_len;
-  ck_assert_int_eq(crc, CIPHER_OK);
-  crc = cipher_destroy_key(cipher);
-  ck_assert_int_eq(crc, CIPHER_OK);
+  ck_assert_int_eq(crc, 0);
+  crc = aes_destroy(&cipher);
+  ck_assert_int_eq(crc, 0);
 
   res = ykpiv_auth_verifyresponse(g_state, &metadata, data, data_len);
   ck_assert_int_eq(res, YKPIV_OK);

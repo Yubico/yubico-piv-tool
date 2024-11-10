@@ -40,6 +40,10 @@ set(SOURCE
         version.c
         error.c
         internal.c
+        ecdh.c
+        scp11_util.c
+        ../aes_cmac/aes.c
+        ../aes_cmac/aes_cmac.c
         ../common/openssl-compat.c
         ../common/util.c)
 
@@ -59,10 +63,14 @@ if (ENABLE_CERT_COMPRESS)
     set(ZLIB_LIBS "ZLIB::ZLIB")
 endif()
 
+if(WIN32)
+    set(ADDITIONAL_LIBRARY ws2_32)
+endif ()
+
 # static library
 if(BUILD_STATIC_LIB)
     add_library(ykpiv STATIC ${SOURCE})
-    target_link_libraries(ykpiv ${LIBCRYPTO_LIBRARIES} ${PCSC_LIBRARIES} ${ZLIB_LIBS})
+    target_link_libraries(ykpiv ${LIBCRYPTO_LIBRARIES} ${PCSC_LIBRARIES} ${ZLIB_LIBS} ${ADDITIONAL_LIBRARY})
     set_target_properties (ykpiv PROPERTIES COMPILE_FLAGS "-DSTATIC ")
     if(WIN32)
         set_target_properties(ykpiv PROPERTIES OUTPUT_NAME ykpiv_static)
@@ -72,7 +80,7 @@ endif(BUILD_STATIC_LIB)
 
 # dynamic library
 add_library(ykpiv_shared SHARED ${SOURCE})
-target_link_libraries(ykpiv_shared ${LIBCRYPTO_LIBRARIES} ${PCSC_LIBRARIES} ${ZLIB_LIBS})
+target_link_libraries(ykpiv_shared ${LIBCRYPTO_LIBRARIES} ${PCSC_LIBRARIES} ${ZLIB_LIBS} ${ADDITIONAL_LIBRARY})
 set_target_properties(ykpiv_shared PROPERTIES SOVERSION ${SO_VERSION} VERSION ${VERSION})
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     set_target_properties(ykpiv_shared PROPERTIES INSTALL_RPATH "${YKPIV_INSTALL_LIB_DIR}")
