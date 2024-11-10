@@ -435,7 +435,7 @@ static size_t derive_ecdh(EVP_PKEY *private_key, EVP_PKEY *peer_key, unsigned ch
 
     return len;
 }
-
+#if (OPENSSL_VERSION_NUMBER > 0x10100000L)
 static EVP_PKEY* scp11_get_sd_pubkey(ykpiv_state *state) {
     ykpiv_rc res;
 
@@ -627,8 +627,12 @@ cmac_free:
     EVP_MAC_CTX_free(mctx);
     return res;
 }
-
+#endif
 static ykpiv_rc scp11_open_secure_channel(ykpiv_state *state) {
+#if (OPENSSL_VERSION_NUMBER <= 0x10100000L)
+    DBG("SCP11 connection is supported only with OpenSSL 3 or higher");
+    return YKPIV_NOT_SUPPORTED;
+#else
   ykpiv_rc res;
   if ((res = _ykpiv_select_gp_application(state)) != YKPIV_OK) {
     DBG("Failed to select management applet");
@@ -735,6 +739,7 @@ static ykpiv_rc scp11_open_secure_channel(ykpiv_state *state) {
     memcpy(state->scp11_state.srmac, session_keys + (SCP11_SESSION_KEY_LEN * 3), SCP11_SESSION_KEY_LEN);
 
   return YKPIV_OK;
+#endif
 }
 
  ykpiv_rc _ykpiv_select_gp_application(ykpiv_state *state) {
