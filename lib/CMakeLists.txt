@@ -40,6 +40,7 @@ set(SOURCE
         version.c
         error.c
         internal.c
+        aes_util.c
         ../common/openssl-compat.c
         ../common/util.c)
 

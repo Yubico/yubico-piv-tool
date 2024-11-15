@@ -130,7 +130,9 @@ extern "C"
 #define SCP11_KEY_USAGE 0x3c
 #define SCP11_KEY_TYPE 0x88
 #define SCP11_SESSION_KEY_LEN 16
+#define SCP11_BLOCK_SIZE 16
 #define SCP11_RECEIPT_LEN 16
+#define SCP11_HALF_MAC_LEN 8
 #define SCP11_CERTIFICATE_STORE_TAG 0xBF21
 #define SCP11_ePK_SD_ECKA_TAG 0x5F49
 #define SCP11_RECEIPT_TAG 0x86
@@ -168,10 +170,11 @@ typedef struct _ykpiv_version_t {
 
 typedef struct _ykpiv_scp11_state {
   uint8_t security_level;
+    uint8_t enc_counter;
   uint8_t senc[SCP11_SESSION_KEY_LEN];
   uint8_t smac[SCP11_SESSION_KEY_LEN];
   uint8_t srmac[SCP11_SESSION_KEY_LEN];
-//  uint8_t dek[16];
+  uint8_t mac_chain[SCP11_RECEIPT_LEN];
 } ykpiv_scp11_state;
 
 struct ykpiv_state {
