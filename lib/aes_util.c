@@ -251,6 +251,12 @@ ykpiv_rc
 aesecb_decrypt_data(uint8_t *key, uint8_t counter, uint8_t *enc, size_t enc_len, uint8_t *data, size_t *data_len) {
   ykpiv_rc rc = YKPIV_OK;
 #if (OPENSSL_VERSION_NUMBER > 0x10100000L)
+  if(enc_len == 0) {
+    DBG("No data to decrypt");
+    *data_len = 0;
+    return YKPIV_OK;
+  }
+
   uint8_t iv[SCP11_BLOCK_SIZE] = {0};
   if ((rc = scp11_get_iv(key, counter, iv, true)) != YKPIV_OK) {
     DBG("Failed to calculate decryption IV");
