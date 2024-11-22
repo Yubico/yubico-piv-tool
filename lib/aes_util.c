@@ -193,7 +193,7 @@ enc_clean:
 #endif
 
 ykpiv_rc
-aescbc_encrypt_data(uint8_t *key, uint8_t counter, uint8_t *data, size_t data_len, uint8_t *enc, size_t *enc_len) {
+aescbc_encrypt_data(uint8_t *key, uint8_t counter, const uint8_t *data, size_t data_len, uint8_t *enc, size_t *enc_len) {
   ykpiv_rc rc = YKPIV_OK;
 #if (OPENSSL_VERSION_NUMBER > 0x10100000L)
   uint8_t iv[SCP11_BLOCK_SIZE] = {0};
@@ -251,7 +251,7 @@ ykpiv_rc
 aesecb_decrypt_data(uint8_t *key, uint8_t counter, uint8_t *enc, size_t enc_len, uint8_t *data, size_t *data_len) {
   ykpiv_rc rc = YKPIV_OK;
 #if (OPENSSL_VERSION_NUMBER > 0x10100000L)
-  if(enc_len == 0) {
+  if(enc_len <= 0) {
     DBG("No data to decrypt");
     *data_len = 0;
     return YKPIV_OK;
@@ -280,7 +280,7 @@ aesecb_decrypt_data(uint8_t *key, uint8_t counter, uint8_t *enc, size_t enc_len,
   }
 
   if (1 != EVP_DecryptUpdate(ctx, data, &len, enc, enc_len)) {
-    DBG("Failed to encrypt data");
+    DBG("Failed to decrypt data");
     rc = YKPIV_AUTHENTICATION_ERROR;
     goto aes_dec_clean;
   }
