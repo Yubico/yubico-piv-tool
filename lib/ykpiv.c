@@ -1705,7 +1705,7 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
     unsigned char algorithm, unsigned char key, bool decipher) {
   unsigned char indata[YKPIV_OBJ_MAX_SIZE] = {0};
   unsigned char *dataptr = indata;
-  unsigned char data[2048] = {0};
+  unsigned char data[4096] = {0};
   unsigned char templ[] = {0, YKPIV_INS_AUTHENTICATE, algorithm, key};
   unsigned long recv_len = sizeof(data);
   size_t key_len = 0;
@@ -2618,7 +2618,6 @@ Cleanup:
 }
 
 ykpiv_rc ykpiv_attest(ykpiv_state *state, const unsigned char key, unsigned char *data, size_t *data_len) {
-  fprintf(stderr, "------------------------- ykpiv_attest()\n");
   ykpiv_rc res;
   unsigned char templ[] = {0, YKPIV_INS_ATTEST, key, 0};
   int sw = 0;
@@ -2631,14 +2630,11 @@ ykpiv_rc ykpiv_attest(ykpiv_state *state, const unsigned char key, unsigned char
   ul_data_len = (unsigned long)*data_len;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  fprintf(stderr, "------------------------- _ykpiv_begin_transaction() OK\n");
   if (YKPIV_OK != (res = _ykpiv_ensure_application_selected_ex(state, state->scp11_state.security_level == SCP11_KEY_USAGE))) goto Cleanup;
-  fprintf(stderr, "------------------------- _ykpiv_ensure_application_selected() OK\n");
 
   if ((res = _ykpiv_transfer_data(state, templ, NULL, 0, data, &ul_data_len, &sw)) != YKPIV_OK) {
     goto Cleanup;
   }
-  fprintf(stderr, "------------------------- _ykpiv_transfer_data() OK\n");
   res = ykpiv_translate_sw_ex(__FUNCTION__, sw);
   if (res != YKPIV_OK) {
     goto Cleanup;
