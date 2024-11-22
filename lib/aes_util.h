@@ -41,7 +41,7 @@ ykpiv_rc unmac_data(uint8_t *key, uint8_t *mac_chain, uint8_t *data, size_t data
 //ykpiv_rc scp11_get_iv(uint8_t *key, uint8_t counter, uint8_t *iv);
 
 ykpiv_rc
-aescbc_encrypt_data(uint8_t *key, uint8_t counter, uint8_t *data, size_t data_len, uint8_t *enc, size_t *enc_len);
+aescbc_encrypt_data(uint8_t *key, uint8_t counter, const uint8_t *data, size_t data_len, uint8_t *enc, size_t *enc_len);
 
 ykpiv_rc
 aesecb_decrypt_data(uint8_t *key, uint8_t counter, uint8_t *enc, size_t enc_len, uint8_t *data, size_t *data_len);
