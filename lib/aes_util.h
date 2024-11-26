@@ -33,18 +33,15 @@
 
 #include "ykpiv.h"
 
-ykpiv_rc calculate_cmac(uint8_t *key, uint8_t *data, size_t data_len, uint8_t *mac_out, uint8_t *mac_chain,
-                        size_t mac_chain_len);
+ykpiv_rc calculate_cmac(uint8_t *key, uint8_t *mac_chain, uint8_t *data, size_t data_len, uint8_t *mac_out);
 
 ykpiv_rc unmac_data(uint8_t *key, uint8_t *mac_chain, uint8_t *data, size_t data_len, uint16_t sw);
 
-//ykpiv_rc scp11_get_iv(uint8_t *key, uint8_t counter, uint8_t *iv);
+ykpiv_rc
+aescbc_encrypt_data(uint8_t *key, uint32_t counter, const uint8_t *data, size_t data_len, uint8_t *enc, size_t *enc_len);
 
 ykpiv_rc
-aescbc_encrypt_data(uint8_t *key, uint8_t counter, const uint8_t *data, size_t data_len, uint8_t *enc, size_t *enc_len);
-
-ykpiv_rc
-aesecb_decrypt_data(uint8_t *key, uint8_t counter, uint8_t *enc, size_t enc_len, uint8_t *data, size_t *data_len);
+aescbc_decrypt_data(uint8_t *key, uint32_t counter, uint8_t *enc, size_t enc_len, uint8_t *data, size_t *data_len);
 
 
 #endif //YUBICO_PIV_TOOL_AES_UTIL_H

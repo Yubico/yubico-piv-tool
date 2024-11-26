@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2014-2020 Yubico AB
+* Copyright (c) 2024 Yubico AB
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,7 @@
 #include <openssl/core_names.h>
 #include <openssl/x509.h>
 #include <openssl/aes.h>
+#include <arpa/inet.h>
 
 
 //static void dump_byte_array(uint8_t *a, size_t len, const char* label) {
@@ -47,8 +48,7 @@
 //}
 
 
-ykpiv_rc calculate_cmac(uint8_t *key, uint8_t *data, size_t data_len, uint8_t *mac_out, uint8_t *mac_chain,
-                        size_t mac_chain_len) {
+ykpiv_rc calculate_cmac(uint8_t *key, uint8_t *mac_chain, uint8_t *data, size_t data_len, uint8_t *mac_out) {
   ykpiv_rc res = YKPIV_OK;
 #if (OPENSSL_VERSION_NUMBER > 0x10100000L)
   /* Fetch the CMAC implementation */
@@ -81,7 +81,7 @@ ykpiv_rc calculate_cmac(uint8_t *key, uint8_t *data, size_t data_len, uint8_t *m
 
   /* Make one or more calls to process the data to be authenticated */
   if (mac_chain) {
-    if (!EVP_MAC_update(mctx, mac_chain, mac_chain_len)) {
+    if (!EVP_MAC_update(mctx, mac_chain, SCP11_MAC_LEN)) {
       DBG("Failed to set mac chain data");
       res = YKPIV_AUTHENTICATION_ERROR;
       goto cmac_free;
@@ -103,8 +103,8 @@ ykpiv_rc calculate_cmac(uint8_t *key, uint8_t *data, size_t data_len, uint8_t *m
     goto cmac_free;
   }
 
-  if (out_len != (SCP11_HALF_MAC_LEN * 2)) {
-    DBG("Unexpected MAC length. Expected %d. Found %ld\n", (SCP11_HALF_MAC_LEN * 2), out_len);
+  if (out_len != SCP11_MAC_LEN) {
+    DBG("Unexpected MAC length. Expected %d. Found %ld\n", SCP11_MAC_LEN, out_len);
     res = YKPIV_AUTHENTICATION_ERROR;
     goto cmac_free;
   }
@@ -130,9 +130,8 @@ ykpiv_rc unmac_data(uint8_t *key, uint8_t *mac_chain, uint8_t *data, size_t data
   resp[data_len - SCP11_HALF_MAC_LEN] = sw >> 8;
   resp[data_len - SCP11_HALF_MAC_LEN + 1] = sw & 0xff;
 
-  uint8_t rmac[SCP11_HALF_MAC_LEN * 2] = {0};
-  if ((rc = calculate_cmac(key, resp, data_len - SCP11_HALF_MAC_LEN + 2, rmac, mac_chain,
-                           SCP11_HALF_MAC_LEN * 2)) != YKPIV_OK) {
+  uint8_t rmac[SCP11_MAC_LEN] = {0};
+  if ((rc = calculate_cmac(key, mac_chain, resp, data_len - SCP11_HALF_MAC_LEN + 2, rmac)) != YKPIV_OK) {
     DBG("Failed to calculate rmac");
     goto unmac_clean;
   }
@@ -150,13 +149,14 @@ unmac_clean:
 }
 
 #if (OPENSSL_VERSION_NUMBER > 0x10100000L)
-static ykpiv_rc scp11_get_iv(uint8_t *key, uint8_t counter, uint8_t *iv, bool decrypt) {
+static ykpiv_rc scp11_get_iv(uint8_t *key, uint32_t counter, uint8_t *iv, bool decrypt) {
   ykpiv_rc res = YKPIV_OK;
-  uint8_t iv_data[SCP11_BLOCK_SIZE] = {0};
+  uint8_t iv_data[SCP11_AES_BLOCK_SIZE] = {0};
   if (decrypt) {
     iv_data[0] = 0x80;
   }
-  iv_data[SCP11_BLOCK_SIZE - 1] = counter;
+  uint32_t c = htonl(counter);
+  memcpy(iv_data + AES_BLOCK_SIZE - sizeof(int), &c, sizeof(int));
 
   EVP_CIPHER_CTX *ctx;
   if (!(ctx = EVP_CIPHER_CTX_new())) {
@@ -171,7 +171,6 @@ static ykpiv_rc scp11_get_iv(uint8_t *key, uint8_t counter, uint8_t *iv, bool de
     res = YKPIV_AUTHENTICATION_ERROR;
     goto enc_clean;
   }
-
 
   if (1 != EVP_EncryptUpdate(ctx, iv, &len, iv_data, sizeof(iv_data))) {
     DBG("Failed to encrypt data");
@@ -193,16 +192,16 @@ enc_clean:
 #endif
 
 ykpiv_rc
-aescbc_encrypt_data(uint8_t *key, uint8_t counter, const uint8_t *data, size_t data_len, uint8_t *enc, size_t *enc_len) {
+aescbc_encrypt_data(uint8_t *key, uint32_t counter, const uint8_t *data, size_t data_len, uint8_t *enc, size_t *enc_len) {
   ykpiv_rc rc = YKPIV_OK;
 #if (OPENSSL_VERSION_NUMBER > 0x10100000L)
-  uint8_t iv[SCP11_BLOCK_SIZE] = {0};
+  uint8_t iv[SCP11_AES_BLOCK_SIZE] = {0};
   if ((rc = scp11_get_iv(key, counter, iv, false)) != YKPIV_OK) {
     DBG("Failed to calculate encryption IV");
     return rc;
   }
 
-  size_t pad_len = SCP11_BLOCK_SIZE - (data_len % SCP11_BLOCK_SIZE);
+  size_t pad_len = SCP11_AES_BLOCK_SIZE - (data_len % SCP11_AES_BLOCK_SIZE);
   uint8_t *padded = malloc(data_len + pad_len);
   memcpy(padded, data, data_len);
   padded[data_len] = 0x80;
@@ -211,7 +210,8 @@ aescbc_encrypt_data(uint8_t *key, uint8_t counter, const uint8_t *data, size_t d
   EVP_CIPHER_CTX *ctx;
   if (!(ctx = EVP_CIPHER_CTX_new())) {
     DBG("Failed to create cipher context");
-    return YKPIV_AUTHENTICATION_ERROR;
+    rc = YKPIV_AUTHENTICATION_ERROR;
+    goto enc_clean;
   }
 
   EVP_CIPHER_CTX_init(ctx);
@@ -248,7 +248,7 @@ enc_clean:
 }
 
 ykpiv_rc
-aesecb_decrypt_data(uint8_t *key, uint8_t counter, uint8_t *enc, size_t enc_len, uint8_t *data, size_t *data_len) {
+aescbc_decrypt_data(uint8_t *key, uint32_t counter, uint8_t *enc, size_t enc_len, uint8_t *data, size_t *data_len) {
   ykpiv_rc rc = YKPIV_OK;
 #if (OPENSSL_VERSION_NUMBER > 0x10100000L)
   if(enc_len <= 0) {
@@ -257,7 +257,7 @@ aesecb_decrypt_data(uint8_t *key, uint8_t counter, uint8_t *enc, size_t enc_len,
     return YKPIV_OK;
   }
 
-  uint8_t iv[SCP11_BLOCK_SIZE] = {0};
+  uint8_t iv[SCP11_AES_BLOCK_SIZE] = {0};
   if ((rc = scp11_get_iv(key, counter, iv, true)) != YKPIV_OK) {
     DBG("Failed to calculate decryption IV");
     return rc;

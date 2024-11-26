@@ -124,25 +124,18 @@ extern "C"
 
 #define CB_PIN_MAX          8
 
+#define SCP11_SESSION_KEY_LEN 16
+#define SCP11_AES_BLOCK_SIZE 16
+#define SCP11_MAC_LEN 16
+#define SCP11_HALF_MAC_LEN 8
 
 #define SCP11B_KID 0x13
 #define SCP11B_KVN 0x1
 #define SCP11_KEY_USAGE 0x3c
 #define SCP11_KEY_TYPE 0x88
-#define SCP11_SESSION_KEY_LEN 16
-#define SCP11_BLOCK_SIZE 16
-#define SCP11_RECEIPT_LEN 16
-#define SCP11_HALF_MAC_LEN 8
 #define SCP11_CERTIFICATE_STORE_TAG 0xBF21
 #define SCP11_ePK_SD_ECKA_TAG 0x5F49
 #define SCP11_RECEIPT_TAG 0x86
-#define SCP11_KEY_AGREEMENT_TAG 0xa6
-#define SCP11_SCP_ID_TAG 0x90
-#define SCP11_SCP_ID 0x11
-#define SCP11_SCP11B_ID 0x00
-#define SCP11_KEY_USAGE_TAG 0x95
-#define SCP11_KEY_TYPE_TAG 0x80
-#define SCP11_KEY_LEN_TAG 0x81
 
 typedef enum {
   CIPHER_OK = 0,
@@ -170,11 +163,11 @@ typedef struct _ykpiv_version_t {
 
 typedef struct _ykpiv_scp11_state {
   uint8_t security_level;
-    uint8_t enc_counter;
+  uint32_t enc_counter;
   uint8_t senc[SCP11_SESSION_KEY_LEN];
   uint8_t smac[SCP11_SESSION_KEY_LEN];
   uint8_t srmac[SCP11_SESSION_KEY_LEN];
-  uint8_t mac_chain[SCP11_RECEIPT_LEN];
+  uint8_t mac_chain[SCP11_MAC_LEN];
 } ykpiv_scp11_state;
 
 struct ykpiv_state {
@@ -200,7 +193,7 @@ union u_APDU {
     unsigned char p1;
     unsigned char p2;
     unsigned char lc;
-    unsigned char data[YKPIV_OBJ_MAX_SIZE - 6]; // Max message bytes - apdu len - Le
+    unsigned char data[YKPIV_OBJ_MAX_SIZE - 6]; // Max message bytes - first bytes in apdu - Le
   } st;
   unsigned char raw[YKPIV_OBJ_MAX_SIZE]; // Max message size the yubikey can receive
 };
