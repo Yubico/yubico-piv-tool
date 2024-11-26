@@ -99,7 +99,7 @@ encryption(uint8_t *key, uint8_t counter, uint8_t *plaintext, size_t plaintext_l
 static int decryption(uint8_t *key, uint8_t counter, uint8_t *enc, size_t enc_len, uint8_t *dec, size_t dec_len) {
   uint8_t d[255] = {0};
   size_t d_len = sizeof(d);
-  ykpiv_rc rc = aesecb_decrypt_data(key, counter, enc, enc_len, d, &d_len);
+  ykpiv_rc rc = aescbc_decrypt_data(key, counter, enc, enc_len, d, &d_len);
 
   ck_assert(rc == YKPIV_OK);
   ck_assert(d_len == dec_len);
@@ -109,7 +109,7 @@ static int decryption(uint8_t *key, uint8_t counter, uint8_t *enc, size_t enc_le
 
 static int mac(uint8_t *mac_key, uint8_t *mac_chain, uint8_t *data, size_t data_len, uint8_t *mac) {
   uint8_t m[255] = {0};
-  ykpiv_rc rc = calculate_cmac(mac_key, data, data_len, m, mac_chain, 16);
+  ykpiv_rc rc = calculate_cmac(mac_key, mac_chain, data, data_len, m);
 
   ck_assert(rc == YKPIV_OK);
   ck_assert(memcmp(m, mac, 16) == 0);
