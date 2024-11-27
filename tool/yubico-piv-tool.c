@@ -120,7 +120,7 @@ static void print_version(ykpiv_state *state, const char *output_file_name) {
 static bool sign_data(ykpiv_state *state, const unsigned char *in, size_t len, unsigned char *out,
     size_t *out_len, unsigned char algorithm, int key) {
 
-  unsigned char signinput[4096] = {0};
+  unsigned char signinput[YKPIV_OBJ_MAX_SIZE] = {0};
   if(YKPIV_IS_RSA(algorithm)) {
     size_t padlen = 0;
     switch (algorithm) {
@@ -176,7 +176,7 @@ static int yk_rsa_meth_sign(int dtype, const unsigned char *m, unsigned int m_le
   size_t yk_siglen = RSA_size(rsa);
   const RSA_METHOD *meth = RSA_get_method(rsa);
   const struct internal_key *key = RSA_meth_get0_app_data(meth);
-  unsigned char message[2048] = {0};
+  unsigned char message[YKPIV_OBJ_MAX_SIZE] = {0};
 
   if(key->oid_len) {
     memcpy(message, key->oid, key->oid_len);
@@ -1419,7 +1419,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     int tbs_len = i2d_re_X509_tbs(x509, &tbs_data);
 
     // Sign the certificate data using the YubiKey
-    unsigned char yk_sig[64] = {0};
+    unsigned char yk_sig[512] = {0};
     size_t yk_siglen = sizeof(yk_sig);
     if (!sign_data(state, tbs_data, tbs_len, yk_sig, &yk_siglen, algorithm, key)) {
       fprintf(stderr, "Failed signing tbs certificate portion.\n");

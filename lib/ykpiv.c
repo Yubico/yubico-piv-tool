@@ -391,70 +391,101 @@ ykpiv_rc ykpiv_disconnect(ykpiv_state *state) {
 }
 
 static EVP_PKEY *get_ec_pubkey_from_bytes(uint8_t *pubkey, uint8_t pubkey_len) {
-  EC_GROUP *ecg = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
-  EC_POINT *ecp = EC_POINT_new(ecg);
-  if (EC_POINT_oct2point(ecg, ecp, pubkey, pubkey_len, NULL) == 0) {
-    fprintf(stderr, "Failed to parse public key as ec_point.\n");
+  EVP_PKEY *evp_pkey = NULL;
+  EC_GROUP *ecg = NULL;
+  EC_POINT *ecp = NULL;
+  EC_KEY *eckey = NULL;
+
+  ecg = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+  if(!ecg) {
+    DBG("Failed to create EC_GROUP");
     return NULL;
   }
 
-  EC_KEY *eckey = EC_KEY_new();
+  ecp = EC_POINT_new(ecg);
+  if(!ecp) {
+    DBG("Failed to create EC_POINT");
+    goto ec_pubkey_cleanup;
+  }
+
+  if (EC_POINT_oct2point(ecg, ecp, pubkey, pubkey_len, NULL) == 0) {
+    DBG("Failed to parse public key as ec_point");
+    goto ec_pubkey_cleanup;
+  }
+
+  eckey = EC_KEY_new();
   EC_KEY_set_group(eckey, ecg);
   if (EC_KEY_set_public_key(eckey, ecp) == 0) {
-    fprintf(stderr, "Failed to convert sd pubkey point to eckey.\n");
-    return NULL;
+    DBG("Failed to convert sd pubkey point to eckey");
+    goto ec_pubkey_cleanup;
   }
 
-  EVP_PKEY *evp_pkey = EVP_PKEY_new();
+  evp_pkey = EVP_PKEY_new();
   if (!EVP_PKEY_assign_EC_KEY(evp_pkey, eckey)) {
-    fprintf(stderr, "Failed to convert sd pubkey eckey to evp_pkey.\n");
-    return NULL;
+    DBG("Failed to convert sd pubkey eckey to evp_pkey");
+    goto ec_pubkey_cleanup;
   }
 
   return evp_pkey;
+
+ec_pubkey_cleanup:
+  if(ecg) {
+    EC_GROUP_free(ecg);
+  }
+  if(ecp) {
+    EC_POINT_free(ecp);
+  }
+  if(eckey) {
+    EC_KEY_free(eckey);
+  }
+
+  return NULL;
  }
 
-static size_t derive_ecdh(EVP_PKEY *private_key, EVP_PKEY *peer_key, unsigned char **ecdh_key) {
+static ykpiv_rc derive_ecdh(EVP_PKEY *private_key, EVP_PKEY *peer_key, uint8_t *ecdh_key, size_t ecdh_len) {
   /* Create the context for the shared secret derivation */
   EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(private_key, NULL);
   if (!ctx) {
     DBG("Failed to create new openssl context for ECDH derivation");
-    return 0;
+    return YKPIV_MEMORY_ERROR;
   }
+  ykpiv_rc rc = YKPIV_OK;
   size_t len = 0;
   /* Initialize derivation function*/
   if (EVP_PKEY_derive_init(ctx) != 1) {
-    DBG("Failed to initialize openssl contex");
+    DBG("Failed to initialize openssl derive contex");
+    rc = YKPIV_AUTHENTICATION_ERROR;
     goto derive_free;
   }
   /* Set the peer public key */
   if (EVP_PKEY_derive_set_peer(ctx, peer_key) != 1) {
     DBG("Failed to set the peer public key in the openssl context");
+    rc = YKPIV_AUTHENTICATION_ERROR;
     goto derive_free;
   }
   /* Determine buffer length for shared secret */
   if (EVP_PKEY_derive(ctx, NULL, &len) != 1) {
     DBG("Failed to determine derived key expected size with openssl");
+    rc = YKPIV_AUTHENTICATION_ERROR;
     goto derive_free;
   }
-  /* Create the buffer */
-  *ecdh_key = OPENSSL_malloc(len);
-  if (*ecdh_key == NULL) {
-    DBG("Failed to allocate the buffer to hold the ECDH key derived with "
-        "openssl");
-    len = 0;
+
+  if (len != ecdh_len) {
+    DBG("Unexpected EDCH derived key length. Expected %d. Found %d", ecdh_len, len);
+    rc = YKPIV_SIZE_ERROR;
     goto derive_free;
   }
+
   /* Derive the shared secret */
-  if ((EVP_PKEY_derive(ctx, *ecdh_key, &len)) != 1) {
+  if ((EVP_PKEY_derive(ctx, ecdh_key, &len)) != 1) {
     DBG("Failed to derive ECDH key with openssl");
-    len = 0;
+    rc = YKPIV_AUTHENTICATION_ERROR;
     goto derive_free;
   }
 derive_free:
   EVP_PKEY_CTX_free(ctx);
 
-  return len;
+  return rc;
 }
 #if (OPENSSL_VERSION_NUMBER > 0x10100000L)
 static EVP_PKEY* scp11_get_sd_pubkey(ykpiv_state *state) {
@@ -497,41 +528,55 @@ static ykpiv_rc scp11_derive_session_keys(EC_KEY *ekeypair_oce, uint8_t *epubkey
                                           size_t epubkey_sd_len, EVP_PKEY *pubkey_sd, uint8_t *session_keys) {
 
   EVP_PKEY *epubkey_sd = get_ec_pubkey_from_bytes(epubkey_sd_bytes, epubkey_sd_len);
-  if (epubkey_sd == NULL) {
-    fprintf(stderr, "Failed to convert sd pubkey bytes to evp_pkey.\n");
+  if (!epubkey_sd) {
+    DBG("Failed to convert sd pubkey bytes to evp_pkey");
     return YKPIV_MEMORY_ERROR;
   }
 
   EVP_PKEY *eprivkey_oce = EVP_PKEY_new();
+  if(!eprivkey_oce) {
+    DBG("Failed to allocate EVP_PKEY for OCE ephemeral private key (eSK.OCE.ECKA)");
+    return YKPIV_MEMORY_ERROR;
+  }
+
+  ykpiv_rc rc = YKPIV_OK;
   if (!EVP_PKEY_assign_EC_KEY(eprivkey_oce, ekeypair_oce)) {
     DBG("Failed to parse OCE ephemeral private key (eSK.OCE.ECKA)");
-    return YKPIV_AUTHENTICATION_ERROR;
+    rc = YKPIV_AUTHENTICATION_ERROR;
+    goto session_derive_cleanup;
   }
 
-  unsigned char *ecdh1 = NULL, *ecdh2 = NULL;
-  size_t ecdh_len = derive_ecdh(eprivkey_oce, epubkey_sd, &ecdh1);
-  if (ecdh_len != 32) {
+  size_t ecdh_len = SCP11_SESSION_KEY_LEN * 2;
+  uint8_t sh_see[SCP11_SESSION_KEY_LEN * 2] = {0};
+  uint8_t sh_ses[SCP11_SESSION_KEY_LEN * 2] = {0};
+  if ((rc = derive_ecdh(eprivkey_oce, epubkey_sd, sh_see, ecdh_len)) != YKPIV_OK) {
     DBG("Failed to derive ECDH shared key (ShSee)");
-    return YKPIV_KEY_ERROR;
+    goto session_derive_cleanup;
   }
 
-  ecdh_len = derive_ecdh(eprivkey_oce, pubkey_sd, &ecdh2);
-  if (ecdh_len != 32) {
+  if ((rc = derive_ecdh(eprivkey_oce, pubkey_sd, sh_ses, ecdh_len)) != YKPIV_OK) {
     DBG("Failed to derive ECDH shared key (SHSes)");
-    return YKPIV_KEY_ERROR;
+    goto session_derive_cleanup;
   }
 
+  // Hash data: sh_see + sh_ses + 4 bytes counter with initial value 0 + shared_data
   uint8_t shared_data[] = {SCP11_KEY_USAGE, SCP11_KEY_TYPE, SCP11_SESSION_KEY_LEN};
   size_t hash_data_len = (ecdh_len * 2) + 4 + sizeof(shared_data);
-  uint8_t *hash_data = malloc(hash_data_len);
-  memcpy(hash_data, ecdh1, ecdh_len);
-  memcpy(hash_data + ecdh_len, ecdh2, ecdh_len);
-  memset(hash_data + (ecdh_len * 2), 0, 4);
-  memcpy(hash_data + (ecdh_len * 2) + 4, shared_data, sizeof(shared_data));
+  uint8_t hash_data[(SCP11_SESSION_KEY_LEN * 4) + 7] = {0};
+  memcpy(hash_data, sh_see, ecdh_len);
+  memcpy(hash_data + ecdh_len, sh_ses, ecdh_len);
+  memcpy(hash_data + hash_data_len - sizeof(shared_data), shared_data, sizeof(shared_data));
+  // We will only need to increase the counter 3 times (to the value 3) so it will only occupy 1 byte
   size_t counter_index = (ecdh_len * 2) + 3;
+  // We need 5 keys, 16 bytes each. Each iteration produces 32 bytes, so we need to run 3 iteration to get at least 5
   for (int i = 0; i < 3; i++) {
     hash_data[counter_index]++;
-    SHA256(hash_data, hash_data_len, session_keys + (i * 32));
+    SHA256(hash_data, hash_data_len, session_keys + (i * ecdh_len));
+  }
+
+session_derive_cleanup:
+  if(eprivkey_oce) {
+    EVP_PKEY_free(eprivkey_oce);
   }
 
   return YKPIV_OK;
@@ -542,49 +587,84 @@ static ykpiv_rc scp11_internal_authenticate(ykpiv_state *state, uint8_t *data, s
 
   uint8_t apdu[] = {0x80, GP_INS_INTERNAL_AUTHENTICATE, SCP11B_KVN, SCP11B_KID};
 
-  ykpiv_rc res;
+  ykpiv_rc rc;
   uint8_t recv[2048] = {0};
   size_t recv_len = sizeof(recv);
-  memset(recv, 0, recv_len);
   int sw = 0;
-  if ((res = _ykpiv_transfer_data(state, apdu, data, data_len, recv, &recv_len, &sw)) != YKPIV_OK) {
-    return res;
+  if ((rc = _ykpiv_transfer_data(state, apdu, data, data_len, recv, &recv_len, &sw)) != YKPIV_OK) {
+    return rc;
   }
-  res = ykpiv_translate_sw_ex(__FUNCTION__, sw);
-  if (res != YKPIV_OK) {
-    DBG("Failed to get SCP11b public key. res: %d    sw: %08x", res, sw);
-    return res;
-  }
-
-
-  if ((recv[0] == (SCP11_ePK_SD_ECKA_TAG >> 8)) && (recv[1] == (SCP11_ePK_SD_ECKA_TAG & 0xff))) {
-    const unsigned char *ptr = recv + 2;
-
-    if (*ptr > *epubkey_sd_len) {
-      DBG("Buffer size too small. Found key length %d", *ptr);
-      return YKPIV_SIZE_ERROR;
-    }
-
-    *epubkey_sd_len = *ptr;
-    ptr++;
-
-    memcpy(epubkey_sd, ptr, *epubkey_sd_len);
-    ptr += *epubkey_sd_len;
-
-    if (*ptr == SCP11_RECEIPT_TAG) {
-      ptr++;
-      if (*ptr != SCP11_MAC_LEN) {
-        DBG("Wrong receipt length. Expected 16. Found %d\n", (*ptr));
-        return YKPIV_AUTHENTICATION_ERROR;
-      }
-      ptr++;
-
-      memcpy(receipt, ptr, SCP11_MAC_LEN);
-    }
+  rc = ykpiv_translate_sw_ex(__FUNCTION__, sw);
+  if (rc != YKPIV_OK) {
+    DBG("Failed to get SCP11b public key. res: %d    sw: %08x", rc, sw);
+    return rc;
   }
 
-    return YKPIV_OK;
+  if ((recv[0] != (SCP11_ePK_SD_ECKA_TAG >> 8)) || (recv[1] != (SCP11_ePK_SD_ECKA_TAG & 0xff))) {
+    DBG("Received response for INTERNAL AUTHENTICATE command does not start with 0x5F49 (ePK.SD.ECKA)");
+    return YKPIV_AUTHENTICATION_ERROR;
+  }
+
+  uint8_t *ptr = recv + 2;
+  if (*ptr > *epubkey_sd_len) {
+    DBG("Buffer size too small. Found key length %d", *ptr);
+    return YKPIV_SIZE_ERROR;
+  }
+  *epubkey_sd_len = *ptr;
+  ptr++;
+  memcpy(epubkey_sd, ptr, *epubkey_sd_len);
+  ptr += *epubkey_sd_len;
+
+  if (*ptr != 0x86) { // Receipt TLV tag
+    DBG("Received response for INTERNAL AUTHENTICATE command does not contains no receipt");
+    return YKPIV_AUTHENTICATION_ERROR;
+  }
+  ptr++;
+  if (*ptr != SCP11_MAC_LEN) {
+    DBG("Wrong receipt length. Expected 16. Found %d\n", (*ptr));
+    return YKPIV_AUTHENTICATION_ERROR;
+  }
+  ptr++;
+
+  memcpy(receipt, ptr, SCP11_MAC_LEN);
+
+  return YKPIV_OK;
 }
+
+static ykpiv_rc
+scp11_verify_channel(uint8_t *verification_key, uint8_t *receipt, uint8_t *apdu_data, size_t apdu_data_len,
+                     uint8_t *epubkey_sd, size_t epubkey_sd_len) {
+  size_t ka_data_len = apdu_data_len + epubkey_sd_len + 3;
+  uint8_t *ka_data = malloc(ka_data_len);
+  if (!ka_data) {
+    DBG("Failed to allocate memory for key agreement data");
+    return YKPIV_MEMORY_ERROR;
+  }
+  memcpy(ka_data, apdu_data, apdu_data_len);
+  ka_data[apdu_data_len] = SCP11_ePK_SD_ECKA_TAG >> 8;
+  ka_data[apdu_data_len + 1] = SCP11_ePK_SD_ECKA_TAG & 0xff;
+  ka_data[apdu_data_len + 2] = epubkey_sd_len;
+  memcpy(ka_data + apdu_data_len + 3, epubkey_sd, epubkey_sd_len);
+
+  ykpiv_rc rc = YKPIV_OK;
+  uint8_t mac_out[SCP11_MAC_LEN] = {0};
+  if ((rc = calculate_cmac(verification_key, NULL, ka_data, ka_data_len, mac_out)) != YKPIV_OK) {
+    DBG("Failed to calculate CMAC value");
+    goto sc_verify_cleanup;
+  }
+
+  if (memcmp(mac_out, receipt, SCP11_MAC_LEN) != 0) {
+    DBG("Failed to verify SCP11 connection");
+    rc = YKPIV_AUTHENTICATION_ERROR;
+    goto sc_verify_cleanup;
+  }
+
+sc_verify_cleanup:
+  if (ka_data) {
+    free(ka_data);
+  }
+  return rc;
+ }
 
 
 #endif
@@ -593,33 +673,37 @@ static ykpiv_rc scp11_open_secure_channel(ykpiv_state *state) {
   DBG("SCP11 connection is supported only with OpenSSL 3 or higher");
   return YKPIV_NOT_SUPPORTED;
 #else
-  ykpiv_rc res;
-  if ((res = _ykpiv_select_gp_application(state)) != YKPIV_OK) {
+  ykpiv_rc rc = YKPIV_OK;
+  EVP_PKEY *pubkey_sd = NULL;
+  EC_KEY *ekeypair_oce = NULL;
+  uint8_t *data = NULL;
+  if ((rc = _ykpiv_select_gp_application(state)) != YKPIV_OK) {
     DBG("Failed to select management applet");
-    return res;
+    return rc;
   }
 
-  EVP_PKEY *pubkey_sd = scp11_get_sd_pubkey(state);
+  pubkey_sd = scp11_get_sd_pubkey(state);
   if (!pubkey_sd) {
     DBG("Failed to get SD public key (PK.SD.ECKA)");
     return YKPIV_AUTHENTICATION_ERROR;
   }
 
-  if ((res = _ykpiv_select_application(state)) != YKPIV_OK) {
+  if ((rc = _ykpiv_select_application(state)) != YKPIV_OK) {
     DBG("Failed to select PIV application after deriving SCP11 session keys");
-    return res;
+    goto secure_channel_cleanup;
   }
 
-  EC_KEY *ekeypair_oce = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+  ekeypair_oce = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
   if (!ekeypair_oce) {
     DBG("Failed to create EC object from curve.\n");
-    return YKPIV_AUTHENTICATION_ERROR;
+    rc = YKPIV_AUTHENTICATION_ERROR;
+    goto secure_channel_cleanup;
   }
   if (EC_KEY_generate_key(ekeypair_oce) != 1) {
     DBG("Failed to generate OCE ephemeral keypair.\n");
-    return YKPIV_AUTHENTICATION_ERROR;
+    rc = YKPIV_AUTHENTICATION_ERROR;
+    goto secure_channel_cleanup;
   }
-
 
   const EC_GROUP *ecg = EC_KEY_get0_group(ekeypair_oce);
   const EC_POINT *ecp = EC_KEY_get0_public_key(ekeypair_oce);
@@ -628,15 +712,17 @@ static ykpiv_rc scp11_open_secure_channel(ykpiv_state *state) {
   if ((epubkey_oce_len = EC_POINT_point2oct(ecg, ecp, POINT_CONVERSION_UNCOMPRESSED, epubkey_oce, epubkey_oce_len,
                                             NULL)) == 0) {
     DBG("Failed to parse OCE ephemeral public key (ePK.OCE.ECKA).\n");
-    return YKPIV_AUTHENTICATION_ERROR;
+    rc = YKPIV_AUTHENTICATION_ERROR;
+    goto secure_channel_cleanup;
   }
 
   size_t data_len = sizeof(scp11_keyagreement_template) + 1 + epubkey_oce_len;
   if(sizeof(data_len) + 5 > YKPIV_OBJ_MAX_SIZE) { // Total APDU length
     DBG("Message too long");
-    return YKPIV_SIZE_ERROR;
+    rc = YKPIV_SIZE_ERROR;
+    goto secure_channel_cleanup;
   }
-  uint8_t data[YKPIV_OBJ_MAX_SIZE + 5] = {0};
+  data = malloc(data_len);
   memcpy(data, scp11_keyagreement_template, sizeof(scp11_keyagreement_template));
   data[sizeof(scp11_keyagreement_template)] = epubkey_oce_len;
   memcpy(data + sizeof(scp11_keyagreement_template) + 1, epubkey_oce, epubkey_oce_len);
@@ -644,38 +730,22 @@ static ykpiv_rc scp11_open_secure_channel(ykpiv_state *state) {
   uint8_t epubkey_sd[512] = {0};
   size_t epubkey_sd_len = sizeof(epubkey_sd);
   uint8_t receipt[SCP11_MAC_LEN] = {0};
-  if ((res = scp11_internal_authenticate(state, data, data_len, epubkey_sd, &epubkey_sd_len, receipt)) != YKPIV_OK) {
+  if ((rc = scp11_internal_authenticate(state, data, data_len, epubkey_sd, &epubkey_sd_len, receipt)) != YKPIV_OK) {
     DBG("Failed to do SCP11 internal authentication");
-    return res;
+    goto secure_channel_cleanup;
   }
 
   uint8_t session_keys[SCP11_SESSION_KEY_LEN * 6] = {0};
-  if ((res = scp11_derive_session_keys(ekeypair_oce, epubkey_sd, epubkey_sd_len, pubkey_sd, session_keys)) !=
+  if ((rc = scp11_derive_session_keys(ekeypair_oce, epubkey_sd, epubkey_sd_len, pubkey_sd, session_keys)) !=
       YKPIV_OK) {
     DBG("Failed to derive SCP11 session keys");
-    return res;
+    goto secure_channel_cleanup;
   }
 
-  uint8_t *ka_data = malloc(data_len + epubkey_sd_len + 3);
-  memcpy(ka_data, data, data_len);
-  ka_data[data_len] = SCP11_ePK_SD_ECKA_TAG >> 8;
-  ka_data[data_len + 1] = SCP11_ePK_SD_ECKA_TAG & 0xff;
-  ka_data[data_len + 2] = epubkey_sd_len;
-  memcpy(ka_data + data_len + 3, epubkey_sd, epubkey_sd_len);
-
-
-  uint8_t verification_key[SCP11_SESSION_KEY_LEN] = {0};
-  memcpy(verification_key, session_keys, sizeof(verification_key));
-
-  uint8_t mac_out[SCP11_MAC_LEN] = {0};
-  if ((res = calculate_cmac(verification_key, NULL, ka_data, data_len + epubkey_sd_len + 3, mac_out)) != YKPIV_OK) {
-    DBG("Failed to calculate CMAC value");
-    return res;
-  }
-
-  if (memcmp(mac_out, receipt, SCP11_MAC_LEN) != 0) {
-    DBG("Failed to verify SCP11 connection");
-    return res;
+  if ((rc = scp11_verify_channel(session_keys, receipt, data, data_len, epubkey_sd, epubkey_sd_len)) !=
+      YKPIV_OK) {
+    DBG("Failed to verify SCP11 session");
+    goto secure_channel_cleanup;
   }
 
   state->scp11_state.security_level = SCP11_KEY_USAGE;
@@ -687,25 +757,36 @@ static ykpiv_rc scp11_open_secure_channel(ykpiv_state *state) {
 
   DBG("SCardConnect succeeded for 'Yubico YubiKey OTP+FIDO+CCID', protocol=2");
 
-  return YKPIV_OK;
+secure_channel_cleanup:
+  if(pubkey_sd) {
+    EVP_PKEY_free(pubkey_sd);
+  }
+  if(data) {
+    free(data);
+  }
+
+  return rc;
 #endif
 }
 
  ykpiv_rc _ykpiv_select_gp_application(ykpiv_state *state) {
    unsigned char templ[] = {0x00, YKPIV_INS_SELECT_APPLICATION, 0x04, 0x00};
-   unsigned char data[256] = {0};
-
-   unsigned long recv_len = sizeof(data);
+   unsigned long recv_len;
    int sw = 0;
    ykpiv_rc res;
 
-   if ((res = _ykpiv_transfer_data(state, templ, sd_aid, sizeof(sd_aid), data, &recv_len, &sw)) != YKPIV_OK) {
+   if ((res = _ykpiv_transfer_data(state, templ, sd_aid, sizeof(sd_aid), NULL, &recv_len, &sw)) != YKPIV_OK) {
      return res;
    }
    res = ykpiv_translate_sw_ex(__FUNCTION__, sw);
    if (res != YKPIV_OK) {
      DBG("Failed selecting application");
      return res;
+   }
+
+   if(recv_len != 0) {
+     DBG("Expecting no response data. Found %d bytes instead", recv_len);
+     res = YKPIV_PARSE_ERROR;
    }
 
    return res;
@@ -722,12 +803,10 @@ ykpiv_rc _ykpiv_select_application_ex(ykpiv_state *state, bool scp11) {
     res = scp11_open_secure_channel(state);
   } else {
     unsigned char templ[] = {0x00, YKPIV_INS_SELECT_APPLICATION, 0x04, 0x00};
-    unsigned char data[256] = {0};
-    unsigned long recv_len = sizeof(data);
+    unsigned long recv_len;
     int sw = 0;
 
-
-    if ((res = _ykpiv_transfer_data(state, templ, piv_aid, sizeof(piv_aid), data, &recv_len, &sw)) != YKPIV_OK) {
+    if ((res = _ykpiv_transfer_data(state, templ, piv_aid, sizeof(piv_aid), NULL, &recv_len, &sw)) != YKPIV_OK) {
       return res;
     }
     res = ykpiv_translate_sw_ex(__FUNCTION__, sw);
@@ -763,11 +842,8 @@ ykpiv_rc _ykpiv_select_application_ex(ykpiv_state *state, bool scp11) {
 
   return res;
 }
- ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state) {
-  return  _ykpiv_ensure_application_selected_ex(state, false);
-}
 
-ykpiv_rc _ykpiv_ensure_application_selected_ex(ykpiv_state *state, bool scp11) {
+ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state) {
   ykpiv_rc res = YKPIV_OK;
 #if ENABLE_APPLICATION_RESELECTION
   if (NULL == state) {
@@ -778,7 +854,7 @@ ykpiv_rc _ykpiv_ensure_application_selected_ex(ykpiv_state *state, bool scp11) {
 
   if ((YKPIV_OK != res) && (YKPIV_WRONG_PIN != res) && (YKPIV_PIN_LOCKED != res)) {
     DBG("Failed to detect PIV application: '%s'", ykpiv_strerror(res));
-    res = _ykpiv_select_application_ex(state, scp11);
+    res = _ykpiv_select_application_ex(state, state->scp11_state.security_level);
   }
   else {
     res = YKPIV_OK;
@@ -1214,7 +1290,7 @@ static ykpiv_rc _ykpiv_transmit(ykpiv_state *state, const unsigned char *send_da
 
 static ykpiv_rc scp11_prepare_transfer(ykpiv_scp11_state *state, APDU *apdu, const uint8_t *apdu_data, size_t apdu_data_len, size_t *apdu_len) {
   ykpiv_rc rc = YKPIV_OK;
-  uint8_t enc[2048] = {0};
+  uint8_t enc[YKPIV_OBJ_MAX_SIZE] = {0};
   size_t enc_len = sizeof(enc);
 
   if ((rc = aescbc_encrypt_data(state->senc, state->enc_counter++, apdu_data, apdu_data_len, enc, &enc_len)) !=
@@ -1229,22 +1305,21 @@ static ykpiv_rc scp11_prepare_transfer(ykpiv_scp11_state *state, APDU *apdu, con
   maced_apdu.st.data[1] = (enc_len + SCP11_HALF_MAC_LEN) & 0xff;
   memcpy(maced_apdu.st.data + 2, enc, enc_len);
 
-  uint8_t mac[SCP11_HALF_MAC_LEN * 2] = {0};
+  uint8_t mac[SCP11_MAC_LEN] = {0};
   if ((rc = calculate_cmac(state->smac, state->mac_chain, maced_apdu.raw, 7 + enc_len, mac)) != YKPIV_OK) {
     DBG("Failed to calculate APDU mac value");
     return rc;
   }
 
   apdu->st.cla = cla;
+  apdu->st.lc = 0;
   apdu->st.data[0] = (enc_len + SCP11_HALF_MAC_LEN) >> 8;
   apdu->st.data[1] = (enc_len + SCP11_HALF_MAC_LEN) & 0xff;
   memcpy(apdu->st.data + 2, enc, enc_len);
   memcpy(apdu->st.data + 2 + enc_len, mac, SCP11_HALF_MAC_LEN);
-  apdu->st.lc = 0;
   *apdu_len = enc_len + SCP11_HALF_MAC_LEN + 7;
 
-
-  memcpy(state->mac_chain, mac, sizeof(state->mac_chain));
+  memcpy(state->mac_chain, mac, SCP11_MAC_LEN);
   return rc;
 }
 
@@ -1282,13 +1357,13 @@ ykpiv_rc _ykpiv_transfer_data(ykpiv_state *state,
 
   do {
     APDU apdu = {templ[0], templ[1], templ[2], templ[3], 0xff};
-    unsigned char data[2048] = {0};
+    unsigned char data[YKPIV_OBJ_MAX_SIZE] = {0};
 
 
     ykpiv_rc res = YKPIV_OK;
     pcsc_word apdu_len;
-    size_t apdu_length;
     if (state->scp11_state.security_level) {
+      size_t apdu_length;
       if((res = scp11_prepare_transfer(&state->scp11_state, &apdu, in_data, in_len, &apdu_length)) != YKPIV_OK) {
         return res;
       }
@@ -1438,7 +1513,7 @@ ykpiv_rc ykpiv_authenticate2(ykpiv_state *state, unsigned const char *key, size_
   if (NULL == state) return YKPIV_ARGUMENT_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected_ex(state, state->scp11_state.security_level))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   res = _ykpiv_authenticate2(state, key, len);
 
@@ -1586,7 +1661,7 @@ ykpiv_rc ykpiv_set_mgmkey3(ykpiv_state *state, const unsigned char *new_key, siz
   ykpiv_rc res = YKPIV_OK;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected_ex(state, state->scp11_state.security_level))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   if(algo == YKPIV_ALGO_AUTO || touch == YKPIV_TOUCHPOLICY_AUTO) {
     ykpiv_metadata metadata = {YKPIV_ALGO_3DES};
@@ -1687,7 +1762,7 @@ static ykpiv_rc _general_authenticate(ykpiv_state *state,
     unsigned char algorithm, unsigned char key, bool decipher) {
   unsigned char indata[YKPIV_OBJ_MAX_SIZE] = {0};
   unsigned char *dataptr = indata;
-  unsigned char data[4096] = {0};
+  unsigned char data[YKPIV_OBJ_MAX_SIZE] = {0};
   unsigned char templ[] = {0, YKPIV_INS_AUTHENTICATE, algorithm, key};
   unsigned long recv_len = sizeof(data);
   size_t key_len = 0;
@@ -1876,7 +1951,7 @@ ykpiv_rc ykpiv_get_version(ykpiv_state *state, char *version, size_t len) {
   ykpiv_rc res;
 
   if ((res = _ykpiv_begin_transaction(state)) < YKPIV_OK) return res;
-  if ((res = _ykpiv_ensure_application_selected_ex(state, state->scp11_state.security_level)) < YKPIV_OK) goto Cleanup;
+  if ((res = _ykpiv_ensure_application_selected(state)) < YKPIV_OK) goto Cleanup;
 
   if ((res = _ykpiv_get_version(state)) >= YKPIV_OK) {
     int result = snprintf(version, len, "%d.%d.%d", state->ver.major, state->ver.minor, state->ver.patch);
@@ -1983,7 +2058,7 @@ ykpiv_rc ykpiv_get_serial(ykpiv_state *state, uint32_t *p_serial) {
   if (!state || !p_serial) return YKPIV_ARGUMENT_ERROR;
 
   if ((res = _ykpiv_begin_transaction(state)) != YKPIV_OK) return res;
-  if ((res = _ykpiv_ensure_application_selected_ex(state, state->scp11_state.security_level)) != YKPIV_OK) goto Cleanup;
+  if ((res = _ykpiv_ensure_application_selected(state)) != YKPIV_OK) goto Cleanup;
 
   res = _ykpiv_get_serial(state);
   *p_serial = state->serial;
@@ -2174,7 +2249,7 @@ static ykpiv_rc _ykpiv_verify_select(ykpiv_state *state, char *pin, size_t* p_pi
     return res;
   }
   if (force_select) {
-    if (YKPIV_OK != (res = _ykpiv_ensure_application_selected_ex(state, state->scp11_state.security_level))) {
+    if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) {
       goto Cleanup;
     }
   }
@@ -2249,7 +2324,7 @@ ykpiv_rc ykpiv_set_pin_retries(ykpiv_state *state, int pin_tries, int puk_tries)
   templ[3] = (unsigned char)puk_tries;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected_ex(state, state->scp11_state.security_level))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   res = _ykpiv_transfer_data(state, templ, NULL, 0, data, &recv_len, &sw);
   if (res == YKPIV_OK) {
@@ -2311,7 +2386,7 @@ ykpiv_rc ykpiv_change_pin(ykpiv_state *state, const char * current_pin, size_t c
   ykpiv_rc res = YKPIV_GENERIC_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected_ex(state, state->scp11_state.security_level))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   res = _ykpiv_change_pin(state, CHREF_ACT_CHANGE_PIN, current_pin, current_pin_len, new_pin, new_pin_len, tries);
   if (res == YKPIV_OK && new_pin != NULL) {
@@ -2329,7 +2404,7 @@ ykpiv_rc ykpiv_change_puk(ykpiv_state *state, const char * current_puk, size_t c
   ykpiv_rc res = YKPIV_GENERIC_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected_ex(state, state->scp11_state.security_level))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   res = _ykpiv_change_pin(state, CHREF_ACT_CHANGE_PUK, current_puk, current_puk_len, new_puk, new_puk_len, tries);
 
@@ -2342,7 +2417,7 @@ ykpiv_rc ykpiv_unblock_pin(ykpiv_state *state, const char * puk, size_t puk_len,
   ykpiv_rc res = YKPIV_GENERIC_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected_ex(state, state->scp11_state.security_level))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   res = _ykpiv_change_pin(state, CHREF_ACT_UNBLOCK_PIN, puk, puk_len, new_pin, new_pin_len, tries);
 
@@ -2356,7 +2431,7 @@ ykpiv_rc ykpiv_fetch_object(ykpiv_state *state, int object_id,
   ykpiv_rc res;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected_ex(state, state->scp11_state.security_level))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   res = _ykpiv_fetch_object(state, object_id, data, len);
 
@@ -2406,7 +2481,7 @@ ykpiv_rc ykpiv_save_object(ykpiv_state *state, int object_id,
   ykpiv_rc res;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected_ex(state, state->scp11_state.security_level))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   res = _ykpiv_save_object(state, object_id, indata, len);
 
@@ -2583,7 +2658,7 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
   }
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected_ex(state, state->scp11_state.security_level))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   if ((res = _ykpiv_transfer_data(state, templ, key_data, (unsigned long)(in_ptr - key_data), data, &recv_len, &sw)) != YKPIV_OK) {
     goto Cleanup;
@@ -2612,7 +2687,7 @@ ykpiv_rc ykpiv_attest(ykpiv_state *state, const unsigned char key, unsigned char
   ul_data_len = (unsigned long)*data_len;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected_ex(state, state->scp11_state.security_level))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   if ((res = _ykpiv_transfer_data(state, templ, NULL, 0, data, &ul_data_len, &sw)) != YKPIV_OK) {
     goto Cleanup;
@@ -2644,7 +2719,7 @@ ykpiv_rc ykpiv_get_metadata(ykpiv_state *state, const unsigned char key, unsigne
   ul_data_len = (unsigned long)*data_len;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected_ex(state, state->scp11_state.security_level))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   res = _ykpiv_get_metadata(state, key, data, &ul_data_len);
 
@@ -2663,7 +2738,7 @@ ykpiv_rc ykpiv_auth_getchallenge(ykpiv_state *state, ykpiv_metadata *metadata, u
   if (NULL == challenge_len) return YKPIV_ARGUMENT_ERROR;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected_ex(state, state->scp11_state.security_level))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
 
   metadata->algorithm = YKPIV_ALGO_3DES;
 
