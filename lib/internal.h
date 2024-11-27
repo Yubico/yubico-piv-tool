@@ -135,7 +135,6 @@ extern "C"
 #define SCP11_KEY_TYPE 0x88
 #define SCP11_CERTIFICATE_STORE_TAG 0xBF21
 #define SCP11_ePK_SD_ECKA_TAG 0x5F49
-#define SCP11_RECEIPT_TAG 0x86
 
 typedef enum {
   CIPHER_OK = 0,
@@ -213,7 +212,6 @@ bool   yk_des_is_weak_key(const unsigned char *key, const size_t cb_key);
 prng_rc _ykpiv_prng_generate(unsigned char *buffer, const size_t cb_req);
 ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state);
 ykpiv_rc _ykpiv_end_transaction(ykpiv_state *state);
-ykpiv_rc _ykpiv_ensure_application_selected_ex(ykpiv_state *state, bool scp11);
 ykpiv_rc _ykpiv_ensure_application_selected(ykpiv_state *state);
 ykpiv_rc _ykpiv_select_application(ykpiv_state *state);
 ykpiv_rc _ykpiv_select_application_ex(ykpiv_state *state, bool scp11);
