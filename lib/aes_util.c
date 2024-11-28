@@ -33,11 +33,16 @@
 #include "ykpiv.h"
 #include "aes_util.h"
 
+#ifdef _WIN32
+#include <winsock.h>
+#else
+#include <arpa/inet.h>
+#endif
+
 #include <openssl/x509.h>
 #if (OPENSSL_VERSION_NUMBER >= 0x30000000L)
 #include <openssl/core_names.h>
 #include <openssl/aes.h>
-#include <arpa/inet.h>
 #endif
 
 //static void dump_byte_array(uint8_t *a, size_t len, const char* label) {
