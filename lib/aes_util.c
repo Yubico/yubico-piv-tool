@@ -34,7 +34,7 @@
 #include "aes_util.h"
 
 #include <openssl/x509.h>
-#if (OPENSSL_VERSION_NUMBER > 0x10100000L)
+#if (OPENSSL_VERSION_NUMBER >= 0x30000000L)
 #include <openssl/core_names.h>
 #include <openssl/aes.h>
 #include <arpa/inet.h>
@@ -51,7 +51,7 @@
 
 ykpiv_rc calculate_cmac(uint8_t *key, uint8_t *mac_chain, uint8_t *data, size_t data_len, uint8_t *mac_out) {
   ykpiv_rc res = YKPIV_OK;
-#if (OPENSSL_VERSION_NUMBER > 0x10100000L)
+#if (OPENSSL_VERSION_NUMBER >= 0x30000000L)
   /* Fetch the CMAC implementation */
   EVP_MAC *mac = EVP_MAC_fetch(NULL, "CMAC", NULL);
   if (mac == NULL) {
@@ -125,7 +125,7 @@ cmac_free:
 
 ykpiv_rc unmac_data(uint8_t *key, uint8_t *mac_chain, uint8_t *data, size_t data_len, uint16_t sw) {
   ykpiv_rc rc = YKPIV_OK;
-#if (OPENSSL_VERSION_NUMBER > 0x10100000L)
+#if (OPENSSL_VERSION_NUMBER >= 0x30000000L)
   uint8_t *resp = malloc(data_len - SCP11_HALF_MAC_LEN + 2);
   memcpy(resp, data, (data_len - SCP11_HALF_MAC_LEN));
   resp[data_len - SCP11_HALF_MAC_LEN] = sw >> 8;
@@ -149,7 +149,7 @@ unmac_clean:
   return rc;
 }
 
-#if (OPENSSL_VERSION_NUMBER > 0x10100000L)
+#if (OPENSSL_VERSION_NUMBER >= 0x30000000L)
 static ykpiv_rc scp11_get_iv(uint8_t *key, uint32_t counter, uint8_t *iv, bool decrypt) {
   ykpiv_rc res = YKPIV_OK;
   uint8_t iv_data[SCP11_AES_BLOCK_SIZE] = {0};
@@ -195,7 +195,7 @@ enc_clean:
 ykpiv_rc
 aescbc_encrypt_data(uint8_t *key, uint32_t counter, const uint8_t *data, size_t data_len, uint8_t *enc, size_t *enc_len) {
   ykpiv_rc rc = YKPIV_OK;
-#if (OPENSSL_VERSION_NUMBER > 0x10100000L)
+#if (OPENSSL_VERSION_NUMBER >= 0x30000000L)
   uint8_t iv[SCP11_AES_BLOCK_SIZE] = {0};
   if ((rc = scp11_get_iv(key, counter, iv, false)) != YKPIV_OK) {
     DBG("Failed to calculate encryption IV");
@@ -251,7 +251,7 @@ enc_clean:
 ykpiv_rc
 aescbc_decrypt_data(uint8_t *key, uint32_t counter, uint8_t *enc, size_t enc_len, uint8_t *data, size_t *data_len) {
   ykpiv_rc rc = YKPIV_OK;
-#if (OPENSSL_VERSION_NUMBER > 0x10100000L)
+#if (OPENSSL_VERSION_NUMBER >= 0x30000000L)
   if(enc_len <= 0) {
     DBG("No data to decrypt");
     *data_len = 0;
