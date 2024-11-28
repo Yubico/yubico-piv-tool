@@ -33,11 +33,12 @@
 #include "ykpiv.h"
 #include "aes_util.h"
 
-#include <openssl/core_names.h>
 #include <openssl/x509.h>
+#if (OPENSSL_VERSION_NUMBER > 0x10100000L)
+#include <openssl/core_names.h>
 #include <openssl/aes.h>
 #include <arpa/inet.h>
-
+#endif
 
 //static void dump_byte_array(uint8_t *a, size_t len, const char* label) {
 //    fprintf(stderr, "---------------- %s - %ld : ", label, len);
