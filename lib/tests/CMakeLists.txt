@@ -40,17 +40,23 @@ if(NOT DEFINED SKIP_TESTS)
     set(SOURCE_BASIC basic.c)
     set(SOURCE_API api.c)
     set(SOURCE_PARSE_KEY parse_key.c)
-    set(SOURCE_AES aes.c)
+    if(OPENSSL_VERSION VERSION_GREATER_EQUAL 3)
+        set(SOURCE_AES aes.c)
+    endif()
 
     add_executable (test_basic ${SOURCE_BASIC})
     add_executable(test_api ${SOURCE_API})
     add_executable(test_parse_key ${SOURCE_PARSE_KEY})
-    add_executable(test_aes ${SOURCE_AES})
+    if(OPENSSL_VERSION VERSION_GREATER_EQUAL 3)
+        add_executable(test_aes ${SOURCE_AES})
+    endif()
 
     target_link_libraries(test_basic ykpiv_shared ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
     target_link_libraries(test_api ykpiv_shared ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
     target_link_libraries(test_parse_key ykpiv_shared ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
-    target_link_libraries(test_aes ykpiv_shared ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
+    if(OPENSSL_VERSION VERSION_GREATER_EQUAL 3)
+        target_link_libraries(test_aes ykpiv_shared ${LIBCRYPTO_LDFLAGS} ${LIBCHECK_LDFLAGS})
+    endif()
 
     if(${ENABLE_HARDWARE_TESTS})
         set(HW_TESTS 1)
@@ -77,9 +83,11 @@ if(NOT DEFINED SKIP_TESTS)
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/lib/tests/
     )
 
-    add_test(
-            NAME aes
-            COMMAND test_aes
-            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/lib/tests/
-    )
+    if(OPENSSL_VERSION VERSION_GREATER_EQUAL 3)
+        add_test(
+                NAME aes
+                COMMAND test_aes
+                WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/lib/tests/
+        )
+    endif()
 endif(NOT DEFINED SKIP_TESTS)
