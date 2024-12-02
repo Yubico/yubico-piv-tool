@@ -688,8 +688,14 @@ static ykpiv_rc scp11_open_secure_channel(ykpiv_state *state) {
     return YKPIV_AUTHENTICATION_ERROR;
   }
 
-  if ((rc = _ykpiv_select_application(state)) != YKPIV_OK) {
-    DBG("Failed to select PIV application after deriving SCP11 session keys");
+  unsigned char select_templ[] = {0x00, YKPIV_INS_SELECT_APPLICATION, 0x04, 0x00};
+  unsigned long recv_len;
+  int sw = 0;
+  if ((rc = _ykpiv_transfer_data(state, select_templ, piv_aid, sizeof(piv_aid), NULL, &recv_len, &sw)) != YKPIV_OK) {
+    goto secure_channel_cleanup;;
+  }
+  if ((rc = ykpiv_translate_sw_ex(__FUNCTION__, sw)) != YKPIV_OK) {
+    DBG("Failed selecting application");
     goto secure_channel_cleanup;
   }
 
@@ -797,21 +803,23 @@ ykpiv_rc _ykpiv_select_application(ykpiv_state *state) {
 }
 
 ykpiv_rc _ykpiv_select_application_ex(ykpiv_state *state, bool scp11) {
-  ykpiv_rc res = YKPIV_OK;
+
 
   if(scp11) {
-    res = scp11_open_secure_channel(state);
-  } else {
-    unsigned char templ[] = {0x00, YKPIV_INS_SELECT_APPLICATION, 0x04, 0x00};
-    unsigned long recv_len;
-    int sw = 0;
-
-    if ((res = _ykpiv_transfer_data(state, templ, piv_aid, sizeof(piv_aid), NULL, &recv_len, &sw)) != YKPIV_OK) {
-      return res;
-    }
-    res = ykpiv_translate_sw_ex(__FUNCTION__, sw);
+    return scp11_open_secure_channel(state);
   }
-  if(res != YKPIV_OK) {
+
+  ykpiv_rc res = YKPIV_OK;
+  unsigned char templ[] = {0x00, YKPIV_INS_SELECT_APPLICATION, 0x04, 0x00};
+  unsigned long recv_len;
+  int sw = 0;
+
+  if ((res = _ykpiv_transfer_data(state, templ, piv_aid, sizeof(piv_aid), NULL, &recv_len, &sw)) != YKPIV_OK) {
+    return res;
+  }
+  res = ykpiv_translate_sw_ex(__FUNCTION__, sw);
+
+  if (res != YKPIV_OK) {
     DBG("Failed selecting application");
     return res;
   }
