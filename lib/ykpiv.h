@@ -42,6 +42,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <openssl/evp.h>
 
 #include "ykpiv-config.h"
 
@@ -221,6 +222,7 @@ extern "C"
    */
   ykpiv_rc ykpiv_get_serial(ykpiv_state *state, uint32_t* p_serial);
 
+  ykpiv_rc get_ec_pubkey_from_bytes(int curve_name, uint8_t *point, size_t point_len, EVP_PKEY **pkey);
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -611,7 +613,7 @@ extern "C"
   ykpiv_rc ykpiv_util_read_msroots(ykpiv_state  *state, uint8_t **data, size_t *data_len);
   ykpiv_rc ykpiv_util_write_msroots(ykpiv_state *state, uint8_t *data, size_t data_len);
   ykpiv_rc ykpiv_util_parse_metadata(uint8_t *data, size_t data_len, ykpiv_metadata *metadata);
-  
+
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////

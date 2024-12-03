@@ -360,24 +360,8 @@ static bool generate_key(ykpiv_state *state, enum enum_slot slot,
         } else {
           nid = NID_secp384r1;
         }
-        eckey = EC_KEY_new();
-        group = EC_GROUP_new_by_curve_name(nid);
-        EC_GROUP_set_asn1_flag(group, OPENSSL_EC_NAMED_CURVE);
-        if (EC_KEY_set_group(eckey, group) != 1) {
-          fprintf(stderr, "Failed to set EC group.\n");
-          goto generate_out;
-        }
-        ecpoint = EC_POINT_new(group);
-
-        if (!EC_POINT_oct2point(group, ecpoint, point, point_len, NULL)) {
-          fprintf(stderr, "Failed to load public point.\n");
-          goto generate_out;
-        }
-        if (!EC_KEY_set_public_key(eckey, ecpoint)) {
-          fprintf(stderr, "Failed to set the public key.\n");
-          goto generate_out;
-        }
-        if (EVP_PKEY_set1_EC_KEY(public_key, eckey) != 1) {
+        res = get_ec_pubkey_from_bytes(nid, point, point_len, &public_key);
+        if(res != YKPIV_OK) {
           fprintf(stderr, "Failed to set EC public key.\n");
           goto generate_out;
         }
