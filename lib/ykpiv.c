@@ -804,21 +804,19 @@ ykpiv_rc _ykpiv_select_application(ykpiv_state *state) {
 
 ykpiv_rc _ykpiv_select_application_ex(ykpiv_state *state, bool scp11) {
 
-
-  if(scp11) {
-    return scp11_open_secure_channel(state);
-  }
-
   ykpiv_rc res = YKPIV_OK;
-  unsigned char templ[] = {0x00, YKPIV_INS_SELECT_APPLICATION, 0x04, 0x00};
-  unsigned long recv_len;
-  int sw = 0;
+  if(scp11) {
+    res = scp11_open_secure_channel(state);
+  } else {
+    unsigned char templ[] = {0x00, YKPIV_INS_SELECT_APPLICATION, 0x04, 0x00};
+    unsigned long recv_len;
+    int sw = 0;
 
-  if ((res = _ykpiv_transfer_data(state, templ, piv_aid, sizeof(piv_aid), NULL, &recv_len, &sw)) != YKPIV_OK) {
-    return res;
+    if ((res = _ykpiv_transfer_data(state, templ, piv_aid, sizeof(piv_aid), NULL, &recv_len, &sw)) != YKPIV_OK) {
+      return res;
+    }
+    res = ykpiv_translate_sw_ex(__FUNCTION__, sw);
   }
-  res = ykpiv_translate_sw_ex(__FUNCTION__, sw);
-
   if (res != YKPIV_OK) {
     DBG("Failed selecting application");
     return res;
