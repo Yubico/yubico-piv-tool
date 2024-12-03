@@ -31,7 +31,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
-
+#include <openssl/ec.h>
+#include <openssl/evp.h>
+ 
 #ifdef USE_CERT_COMPRESS
 #include <zlib.h>
 #endif
@@ -1859,4 +1861,56 @@ static ykpiv_rc _write_metadata(ykpiv_state *state, uint8_t tag, uint8_t *data, 
   }
 
   return res;
+}
+
+ykpiv_rc get_ec_pubkey_from_bytes(int curve_name, uint8_t *point, size_t point_len, EVP_PKEY **pkey) {
+  ykpiv_rc rc = YKPIV_OK;
+  EC_POINT *ecpoint = NULL;
+  EC_KEY *eckey = NULL;
+  EC_GROUP *group = EC_GROUP_new_by_curve_name(curve_name);
+  if(group == NULL)
+    return YKPIV_MEMORY_ERROR;
+  EC_GROUP_set_asn1_flag(group, OPENSSL_EC_NAMED_CURVE);
+  eckey = EC_KEY_new();
+  if(eckey == NULL) {
+    rc = YKPIV_MEMORY_ERROR;
+    goto create_ec_cleanup;
+  }
+  if(EC_KEY_set_group(eckey, group) <= 0) {
+    rc = YKPIV_GENERIC_ERROR;
+    goto create_ec_cleanup;
+  }
+  ecpoint = EC_POINT_new(group);
+  if(ecpoint == NULL) {
+    rc = YKPIV_MEMORY_ERROR;
+    goto create_ec_cleanup;
+  }
+  if(EC_POINT_oct2point(group, ecpoint, point, point_len, NULL) <= 0) {
+    rc = YKPIV_ARGUMENT_ERROR;
+    goto create_ec_cleanup;
+  }
+  if(EC_KEY_set_public_key(eckey, ecpoint) <= 0) {
+    rc = YKPIV_GENERIC_ERROR;
+    goto create_ec_cleanup;
+  }
+  EVP_PKEY_free(*pkey);
+  *pkey = EVP_PKEY_new();
+  if(*pkey == NULL) {
+    rc = YKPIV_MEMORY_ERROR;
+    goto create_ec_cleanup;
+  }
+  if(EVP_PKEY_assign_EC_KEY(*pkey, eckey) <= 0) {
+    rc = YKPIV_GENERIC_ERROR;
+    goto create_ec_cleanup;
+  }
+
+create_ec_cleanup:
+  EC_GROUP_clear_free(group);
+  if(ecpoint != NULL) {
+    EC_POINT_clear_free(ecpoint);
+  }
+  if(rc != YKPIV_OK && eckey != NULL) {
+    EC_KEY_free(eckey);
+  }
+  return rc;
 }

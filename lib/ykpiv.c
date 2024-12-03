@@ -390,58 +390,7 @@ ykpiv_rc ykpiv_disconnect(ykpiv_state *state) {
   return YKPIV_OK;
 }
 
-static EVP_PKEY *get_ec_pubkey_from_bytes(uint8_t *pubkey, uint8_t pubkey_len) {
-  EVP_PKEY *evp_pkey = NULL;
-  EC_GROUP *ecg = NULL;
-  EC_POINT *ecp = NULL;
-  EC_KEY *eckey = NULL;
-
-  ecg = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
-  if(!ecg) {
-    DBG("Failed to create EC_GROUP");
-    return NULL;
-  }
-
-  ecp = EC_POINT_new(ecg);
-  if(!ecp) {
-    DBG("Failed to create EC_POINT");
-    goto ec_pubkey_cleanup;
-  }
-
-  if (EC_POINT_oct2point(ecg, ecp, pubkey, pubkey_len, NULL) == 0) {
-    DBG("Failed to parse public key as ec_point");
-    goto ec_pubkey_cleanup;
-  }
-
-  eckey = EC_KEY_new();
-  EC_KEY_set_group(eckey, ecg);
-  if (EC_KEY_set_public_key(eckey, ecp) == 0) {
-    DBG("Failed to convert sd pubkey point to eckey");
-    goto ec_pubkey_cleanup;
-  }
-
-  evp_pkey = EVP_PKEY_new();
-  if (!EVP_PKEY_assign_EC_KEY(evp_pkey, eckey)) {
-    DBG("Failed to convert sd pubkey eckey to evp_pkey");
-    goto ec_pubkey_cleanup;
-  }
-
-  return evp_pkey;
-
-ec_pubkey_cleanup:
-  if(ecg) {
-    EC_GROUP_free(ecg);
-  }
-  if(ecp) {
-    EC_POINT_free(ecp);
-  }
-  if(eckey) {
-    EC_KEY_free(eckey);
-  }
-
-  return NULL;
- }
-
+#if (OPENSSL_VERSION_NUMBER > 0x10100000L)
 static ykpiv_rc derive_ecdh(EVP_PKEY *private_key, EVP_PKEY *peer_key, uint8_t *ecdh_key, size_t ecdh_len) {
   /* Create the context for the shared secret derivation */
   EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(private_key, NULL);
@@ -487,7 +436,7 @@ derive_free:
 
   return rc;
 }
-#if (OPENSSL_VERSION_NUMBER > 0x10100000L)
+
 static EVP_PKEY* scp11_get_sd_pubkey(ykpiv_state *state) {
   ykpiv_rc res;
 
@@ -527,10 +476,12 @@ static EVP_PKEY* scp11_get_sd_pubkey(ykpiv_state *state) {
 static ykpiv_rc scp11_derive_session_keys(EC_KEY *ekeypair_oce, uint8_t *epubkey_sd_bytes,
                                           size_t epubkey_sd_len, EVP_PKEY *pubkey_sd, uint8_t *session_keys) {
 
-  EVP_PKEY *epubkey_sd = get_ec_pubkey_from_bytes(epubkey_sd_bytes, epubkey_sd_len);
-  if (!epubkey_sd) {
+  ykpiv_rc rc = YKPIV_OK;
+  EVP_PKEY *epubkey_sd = NULL;
+  rc = get_ec_pubkey_from_bytes(NID_X9_62_prime256v1, epubkey_sd_bytes, epubkey_sd_len, &epubkey_sd);
+  if (rc != YKPIV_OK) {
     DBG("Failed to convert sd pubkey bytes to evp_pkey");
-    return YKPIV_MEMORY_ERROR;
+    return rc;
   }
 
   EVP_PKEY *eprivkey_oce = EVP_PKEY_new();
@@ -539,7 +490,6 @@ static ykpiv_rc scp11_derive_session_keys(EC_KEY *ekeypair_oce, uint8_t *epubkey
     return YKPIV_MEMORY_ERROR;
   }
 
-  ykpiv_rc rc = YKPIV_OK;
   if (!EVP_PKEY_assign_EC_KEY(eprivkey_oce, ekeypair_oce)) {
     DBG("Failed to parse OCE ephemeral private key (eSK.OCE.ECKA)");
     rc = YKPIV_AUTHENTICATION_ERROR;
