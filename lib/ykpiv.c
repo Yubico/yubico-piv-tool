@@ -2900,3 +2900,29 @@ ykpiv_rc ykpiv_auth_get_verified(ykpiv_state* state) {
 ykpiv_rc ykpiv_auth_verify(ykpiv_state* state, uint8_t* pin, size_t* p_pin_len, int *tries, bool force_select, bool bio, bool verify_spin) {
   return _ykpiv_verify_select(state, pin, p_pin_len, tries, force_select, bio, verify_spin);
 }
+
+ykpiv_rc ykpiv_global_reset(ykpiv_state *state) {
+  ykpiv_rc res = YKPIV_OK;
+  unsigned char mgm_templ[] = {0x00, YKPIV_INS_SELECT_APPLICATION, 0x04, 0x00};
+  unsigned char recv[256] = {0};
+  unsigned long recv_len = sizeof(recv);
+  int sw = 0;
+  if ((res = _ykpiv_transfer_data(state, mgm_templ, mgmt_aid, sizeof(mgmt_aid), recv, &recv_len, &sw)) < YKPIV_OK) {
+    return res;
+  }
+  res = ykpiv_translate_sw_ex(__FUNCTION__, sw);
+  if (res != YKPIV_OK) {
+    DBG("Failed selecting mgmt/yk application");
+    return res;
+  }
+
+  unsigned char reset_templ[] = {0, MGM_INS_GLOBAL_RESET, 0, 0};
+  recv_len = 0;
+  sw = 0;
+  res = ykpiv_transfer_data(state, reset_templ, NULL, 0, NULL, &recv_len, &sw);
+  if(res != YKPIV_OK) {
+    return res;
+  }
+  return ykpiv_translate_sw_ex(__FUNCTION__, sw);
+
+}
