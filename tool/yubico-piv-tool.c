@@ -120,7 +120,7 @@ static void print_version(ykpiv_state *state, const char *output_file_name) {
 static bool sign_data(ykpiv_state *state, const unsigned char *in, size_t len, unsigned char *out,
     size_t *out_len, unsigned char algorithm, int key) {
 
-  unsigned char signinput[1024] = {0};
+  unsigned char signinput[YKPIV_OBJ_MAX_SIZE] = {0};
   if(YKPIV_IS_RSA(algorithm)) {
     size_t padlen = 0;
     switch (algorithm) {
@@ -176,7 +176,7 @@ static int yk_rsa_meth_sign(int dtype, const unsigned char *m, unsigned int m_le
   size_t yk_siglen = RSA_size(rsa);
   const RSA_METHOD *meth = RSA_get_method(rsa);
   const struct internal_key *key = RSA_meth_get0_app_data(meth);
-  unsigned char message[256] = {0};
+  unsigned char message[YKPIV_OBJ_MAX_SIZE] = {0};
 
   if(key->oid_len) {
     memcpy(message, key->oid, key->oid_len);
@@ -360,24 +360,8 @@ static bool generate_key(ykpiv_state *state, enum enum_slot slot,
         } else {
           nid = NID_secp384r1;
         }
-        eckey = EC_KEY_new();
-        group = EC_GROUP_new_by_curve_name(nid);
-        EC_GROUP_set_asn1_flag(group, OPENSSL_EC_NAMED_CURVE);
-        if (EC_KEY_set_group(eckey, group) != 1) {
-          fprintf(stderr, "Failed to set EC group.\n");
-          goto generate_out;
-        }
-        ecpoint = EC_POINT_new(group);
-
-        if (!EC_POINT_oct2point(group, ecpoint, point, point_len, NULL)) {
-          fprintf(stderr, "Failed to load public point.\n");
-          goto generate_out;
-        }
-        if (!EC_KEY_set_public_key(eckey, ecpoint)) {
-          fprintf(stderr, "Failed to set the public key.\n");
-          goto generate_out;
-        }
-        if (EVP_PKEY_set1_EC_KEY(public_key, eckey) != 1) {
+        res = get_ec_pubkey_from_bytes(nid, point, point_len, &public_key);
+        if(res != YKPIV_OK) {
           fprintf(stderr, "Failed to set EC public key.\n");
           goto generate_out;
         }
@@ -1419,7 +1403,7 @@ static bool selfsign_certificate(ykpiv_state *state, enum enum_key_format key_fo
     int tbs_len = i2d_re_X509_tbs(x509, &tbs_data);
 
     // Sign the certificate data using the YubiKey
-    unsigned char yk_sig[64] = {0};
+    unsigned char yk_sig[512] = {0};
     size_t yk_siglen = sizeof(yk_sig);
     if (!sign_data(state, tbs_data, tbs_len, yk_sig, &yk_siglen, algorithm, key)) {
       fprintf(stderr, "Failed signing tbs certificate portion.\n");
@@ -2521,7 +2505,7 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  if((rc = ykpiv_connect(state, args_info.reader_arg)) != YKPIV_OK) {
+  if((rc = ykpiv_connect_ex(state, args_info.reader_arg, args_info.scp11_given)) != YKPIV_OK) {
     fprintf(stderr, "Failed to connect to yubikey: %s.\n", ykpiv_strerror(rc));
     if (rc == YKPIV_PCSC_SERVICE_ERROR) {
       fprintf(stderr, "Try restarting the PCSC subsystem.\n");
