@@ -1503,6 +1503,7 @@ static bool verify_pin(ykpiv_state *state, const char *pin, bool bio) {
   }
 
   if (bio) {
+    fprintf(stderr, "Please scan your fingerprint on your YubiKey\n");
     res = ykpiv_verify_bio(state, NULL, NULL, &tries, false);
   } else {
     res = ykpiv_verify(state, pin, &tries);
