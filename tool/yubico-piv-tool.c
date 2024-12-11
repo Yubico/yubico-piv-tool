@@ -2430,6 +2430,11 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Warning, unable to reset locale\n");
   }
 
+  if (argc < 2) {
+    fprintf(stderr, "No actions detected. Use '--help' or '-h' for command manpage\n");
+    return EXIT_FAILURE;
+  }
+
   if(cmdline_parser(argc, argv, &args_info) != 0) {
     return EXIT_FAILURE;
   }
