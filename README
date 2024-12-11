@@ -167,12 +167,12 @@ key on stdout:
 Generate a certificate request with public key from stdin, will print
 the resulting request on stdout:
 
-  $ yubico-piv-tool -s9a -S'/CN=foo/OU=test/O=example.com/' -averify -arequest
+  $ yubico-piv-tool -s9a -S'/CN=foo/OU=test/O=example.com/' -averify-pin -arequest
 
 Generate a self-signed certificate with public key from stdin, will print
 the certificate, for later import, on stdout:
 
-  $ yubico-piv-tool -s9a -S'/CN=bar/OU=test/O=example.com/' -averify -aselfsign
+  $ yubico-piv-tool -s9a -S'/CN=bar/OU=test/O=example.com/' -averify-pin -aselfsign
 
 Import a certificate from stdin:
 
