@@ -20,8 +20,8 @@ done using the "read-certificate" action first.
 |-s, --slot        | X | | What key slot to operate on | 9a, 9c, 9d, 9e, 82, 83, 84, 85, 86, 87, 88, 89,
                                                           8a, 8b, 8c, 8d, 8e, 8f, 90, 91, 92, 93, 94, 95, f9 |
 |-P, --pin         | | X | Pin/puk code for verification, if omitted pin/puk will be asked for | |
-|-i, --input       | | X | Filename to use as input | file name or "-" for stdin | -
-|-o, --output      | | X | Filename to use as output | file name or "-" for stdin | -
+|-i, --input       | | X | Filename to use as input. If left out, input will be read from Stdin | None or file name | Stdin
+|-o, --output      | | X | Filename to use as output. If left out, output will be printed to Stdout | None or file name | Stdout
 |===================================
 
 === Examples
