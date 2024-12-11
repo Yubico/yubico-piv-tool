@@ -3,9 +3,36 @@
 
 === Description
 Erases all keys and certificates stored on the device and sets it to the default PIN,
-PUK and management key. This will only affect the PIV portion of the YubiKey, so any
+PUK and management key. This will only affect the PIV application on the YubiKey, so any
 non-PIV configuration will remain intact. Resetting the device will not erase the
 attestation key and certificate (slot f9) either, but they can be overwritten.
 
 To reset the device, the PIN and the PUK need to be blocked, which happens when entering
 the wrong PIN and PUK more than the number of their retries.
+
+==== Global Reset
+
+Some YubiKeys with firmware version 5.7.0 or higher have support for a global support option. This option will erase
+all data on the YubiKey and is *not* restricted to the PIV application. It also does not require that the PIN and PUK
+to be blocked.
+
+Note that the global reset option cannot be used if SCP11 is activated.
+
+|===================================
+|Parameter          | Required | Description | Default value
+|--global         | | Reset the whole device over all applications, including the PIV application | Off
+|===================================
+
+=== Examples
+
+    $ yubico-piv-tool -averify-pin -P471112
+    $ yubico-piv-tool -averify-pin -P471112
+    $ yubico-piv-tool -averify-pin -P471112
+    $ yubico-piv-tool -averify-pin -P471112
+    $ yubico-piv-tool -achange-puk -P471112 -N6756789
+    $ yubico-piv-tool -achange-puk -P471112 -N6756789
+    $ yubico-piv-tool -achange-puk -P471112 -N6756789
+    $ yubico-piv-tool -achange-puk -P471112 -N6756789
+    $ yubico-piv-tool -areset
+
+    $ yubico-piv-tool -areset --global

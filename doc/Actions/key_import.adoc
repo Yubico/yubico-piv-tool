@@ -25,7 +25,7 @@ management key before start using it.]
 |-s, --slot         | X | | What key slot to operate on | 9a, 9c, 9d, 9e, 82, 83, 84, 85, 86, 87, 88, 89,
                                                           8a, 8b, 8c, 8d, 8e, 8f, 90, 91, 92, 93, 94, 95, f9 |
 |-k, --key          | X | | Management key to use, if no value is specified key will be asked for | | 010203040506070801020304050607080102030405060708
-|-i, --input        | | X | Filename to use as input | file name or "-" for stdin | -
+|-i, --input        | | X | Filename to use as input. If left out, input will be read from Stdin | None or file name | Stdin
 |-K, --key-format   | | X | Format of the key/certificate being read/written | PEM, PKCS12, GZIP, DER, SSH | PEM
 |-p, --password     | | X | Password for decryption of private key file, if omitted password will be asked for | |
 |-P, --pin         | | X | Pin/puk code for verification, if omitted pin/puk will be asked for | |

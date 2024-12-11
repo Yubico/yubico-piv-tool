@@ -58,8 +58,8 @@ footnote:[It is strongly recommended to change the Yubikey's PIN, PUK and manage
 
 |--id               | X | | The ID of the object to write/read according to PIV Specifications  | |
 |-k, --key          | X | | Management key to use, if no value is specified key will be asked for | | 010203040506070801020304050607080102030405060708
-|-i, --input        | | X | Filename to use as input | file name or "-" for stdin | -
-|-o, --output       | | X | Filename to use as output | file name or "-" for stdin | -
+|-i, --input        | | X | Filename to use as input. If left out, input will be read from Stdin | None or file name | Stdin
+|-o, --output       | | X | Filename to use as output. If left out, output will be printed to Stdout | None or file name | Stdout
 |-f, --format       | | X | Format of data for write/read object | hex, base64, binary | hex
 |===================================
 

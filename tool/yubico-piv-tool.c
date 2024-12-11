@@ -443,6 +443,8 @@ static bool reset(ykpiv_state *state, bool global) {
         if (rc == YKPIV_NOT_SUPPORTED) {
           fprintf(stderr,
                   "Global reset not supported on this YubiKey. Please refer to reset commands for specific applications instead\n");
+        } else if(rc == YKPIV_ARGUMENT_ERROR) {
+          fprintf(stderr, "Reset failed, is 'scp11' flag used?\n");
         } else {
           fprintf(stderr, "Reset failed\n");
         }
@@ -2439,6 +2441,11 @@ int main(int argc, char *argv[]) {
 
   if (setlocale(LC_ALL, "") == NULL) {
     fprintf(stderr, "Warning, unable to reset locale\n");
+  }
+
+  if (argc < 2) {
+    fprintf(stderr, "No actions detected. Use '--help' or '-h' for command manpage\n");
+    return EXIT_FAILURE;
   }
 
   if(cmdline_parser(argc, argv, &args_info) != 0) {
