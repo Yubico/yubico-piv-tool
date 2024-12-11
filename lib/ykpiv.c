@@ -40,6 +40,7 @@
 #include "internal.h"
 #include "ykpiv.h"
 #include "aes_util.h"
+#include "../common/util.h"
 
 /**
  * DISABLE_PIN_CACHE - disable in-RAM cache of PIN

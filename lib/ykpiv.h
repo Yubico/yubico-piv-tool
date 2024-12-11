@@ -42,7 +42,6 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <openssl/evp.h>
 
 #include "ykpiv-config.h"
 
@@ -221,8 +220,6 @@ extern "C"
    *
    */
   ykpiv_rc ykpiv_get_serial(ykpiv_state *state, uint32_t* p_serial);
-
-  ykpiv_rc get_ec_pubkey_from_bytes(int curve_name, uint8_t *point, size_t point_len, EVP_PKEY **pkey);
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////

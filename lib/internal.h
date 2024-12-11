@@ -194,7 +194,7 @@ union u_APDU {
     unsigned char lc;
     unsigned char data[YKPIV_OBJ_MAX_SIZE - 6]; // Max message bytes - first bytes in apdu - Le
   } st;
-  unsigned char raw[YKPIV_OBJ_MAX_SIZE]; // Max message size the yubikey can receive
+  unsigned char raw[YKPIV_OBJ_MAX_SIZE - 1]; // Max message size the yubikey can receive
 };
 
 typedef union u_APDU APDU;
