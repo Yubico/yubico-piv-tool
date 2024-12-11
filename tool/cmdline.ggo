@@ -30,7 +30,7 @@ option "reader" r "Only use a matching reader" string optional default="Yubikey"
 option "key" k "Management key to use, if no value is specified key will be asked for" string optional default="010203040506070801020304050607080102030405060708" argoptional
 option "action" a "Action to take" values="version","generate","set-mgm-key",
        "reset","pin-retries","import-key","import-certificate","set-chuid",
-       "request-certificate","verify-pin","verify-bio","change-pin","change-puk","unblock-pin",
+       "request-certificate","verify","verify-pin","verify-bio","change-pin","change-puk","unblock-pin",
        "selfsign-certificate","delete-certificate","read-certificate","status",
        "test-signature","test-decipher","list-readers","set-ccc","write-object",
        "read-object","attest", "move-key", "delete-key" enum multiple
