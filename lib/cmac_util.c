@@ -10,7 +10,6 @@
 #include "internal.h"
 
 
-
 static const uint8_t zero[AES_BLOCK_SIZE] = {0};
 
 static void do_pad(uint8_t *data, uint8_t len) {
@@ -47,6 +46,151 @@ static void cmac_generate_subkey(const uint8_t *key, uint8_t *subkey) {
   subkey[AES_BLOCK_SIZE - 1] ^= 0x87 >> (8 - (carry * 8));
 }
 
+#ifdef _WIN32
+static NTSTATUS init_ctx(cmac_context *ctx) {
+  NTSTATUS status = STATUS_SUCCESS;
+  BCRYPT_ALG_HANDLE hAlgCBC = 0;
+  BCRYPT_ALG_HANDLE hAlgECB = 0;
+  DWORD cbKeyObj = 0;
+  DWORD cbData = 0;
+
+  if (!ctx) {
+    return STATUS_INVALID_PARAMETER;
+  }
+
+  if (ctx->hAlgCBC) {
+    return STATUS_SUCCESS;
+  }
+
+  /* clear the context, to "reset" */
+
+//  insecure_memzero(ctx, sizeof(cmac_context));
+  memset(ctx, 0, sizeof(cmac_context));
+
+  if (!BCRYPT_SUCCESS(status = BCryptOpenAlgorithmProvider(&hAlgCBC,
+                                                           BCRYPT_AES_ALGORITHM,
+                                                           NULL, 0))) {
+    goto cleanup;
+  }
+
+  if (!BCRYPT_SUCCESS(status =
+                        BCryptSetProperty(hAlgCBC, BCRYPT_CHAINING_MODE,
+                                          (PBYTE) BCRYPT_CHAIN_MODE_CBC,
+                                          sizeof(BCRYPT_CHAIN_MODE_CBC), 0))) {
+    goto cleanup;
+  }
+
+  if (!BCRYPT_SUCCESS(status = BCryptOpenAlgorithmProvider(&hAlgECB,
+                                                           BCRYPT_AES_ALGORITHM,
+                                                           NULL, 0))) {
+    goto cleanup;
+  }
+
+  if (!BCRYPT_SUCCESS(status =
+                        BCryptSetProperty(hAlgECB, BCRYPT_CHAINING_MODE,
+                                          (PBYTE) BCRYPT_CHAIN_MODE_ECB,
+                                          sizeof(BCRYPT_CHAIN_MODE_ECB), 0))) {
+    goto cleanup;
+  }
+
+  if (!BCRYPT_SUCCESS(status = BCryptGetProperty(hAlgCBC, BCRYPT_OBJECT_LENGTH,
+                                                 (PBYTE) &cbKeyObj,
+                                                 sizeof(DWORD), &cbData, 0))) {
+    goto cleanup;
+  }
+
+  ctx->hAlgCBC = hAlgCBC;
+  hAlgCBC = 0;
+  ctx->hAlgECB = hAlgECB;
+  hAlgECB = 0;
+  ctx->cbKeyObj = cbKeyObj;
+
+cleanup:
+
+  if (hAlgCBC) {
+    BCryptCloseAlgorithmProvider(hAlgCBC, 0);
+  }
+  if (hAlgECB) {
+    BCryptCloseAlgorithmProvider(hAlgECB, 0);
+  }
+
+  return status;
+}
+
+static NTSTATUS import_key(BCRYPT_ALG_HANDLE hAlg, BCRYPT_KEY_HANDLE *phKey,
+                           PBYTE *ppbKeyObj, DWORD cbKeyObj, const uint8_t *key,
+                           size_t key_len) {
+  NTSTATUS status = STATUS_SUCCESS;
+  PBYTE pbKeyObj = NULL;
+  BCRYPT_KEY_HANDLE hKey = 0;
+  PBYTE pbKeyBlob = NULL;
+  DWORD cbKeyBlob = 0;
+
+  if (!phKey || !ppbKeyObj) {
+    return STATUS_INVALID_PARAMETER;
+  }
+
+  /* close existing key first */
+  if (*phKey) {
+    BCryptDestroyKey(*phKey);
+    *phKey = 0;
+  }
+
+  /* free existing key object */
+  if (*ppbKeyObj) {
+    free(*ppbKeyObj);
+    *ppbKeyObj = NULL;
+  }
+
+  /* allocate new key object */
+  if (!(pbKeyObj = (PBYTE) malloc(cbKeyObj))) {
+    status = STATUS_NO_MEMORY;
+    goto cleanup;
+  }
+
+  cbKeyBlob = (DWORD) (sizeof(BCRYPT_KEY_DATA_BLOB_HEADER) + key_len);
+
+  if (!(pbKeyBlob = (PBYTE) malloc(cbKeyBlob))) {
+    status = STATUS_NO_MEMORY;
+    goto cleanup;
+  }
+
+  /* set up BCrypt Key Blob for import */
+  ((BCRYPT_KEY_DATA_BLOB_HEADER *) pbKeyBlob)->dwMagic =
+    BCRYPT_KEY_DATA_BLOB_MAGIC;
+  ((BCRYPT_KEY_DATA_BLOB_HEADER *) pbKeyBlob)->dwVersion =
+    BCRYPT_KEY_DATA_BLOB_VERSION1;
+  ((BCRYPT_KEY_DATA_BLOB_HEADER *) pbKeyBlob)->cbKeyData = (DWORD) key_len;
+  memcpy(pbKeyBlob + sizeof(BCRYPT_KEY_DATA_BLOB_HEADER), key, key_len);
+
+  if (!BCRYPT_SUCCESS(status = BCryptImportKey(hAlg, NULL, BCRYPT_KEY_DATA_BLOB,
+                                               &hKey, pbKeyObj, cbKeyObj,
+                                               pbKeyBlob, cbKeyBlob, 0))) {
+    goto cleanup;
+  }
+
+  /* set output params */
+  *phKey = hKey;
+  hKey = 0;
+  *ppbKeyObj = pbKeyObj;
+  pbKeyObj = 0;
+
+cleanup:
+
+  if (hKey) {
+    BCryptDestroyKey(hKey);
+  }
+  if (pbKeyObj) {
+    free(pbKeyObj);
+  }
+  if (pbKeyBlob) {
+    free(pbKeyBlob);
+  }
+
+  return !BCRYPT_SUCCESS(status);
+}
+#endif
+
 static int aes_cbc_encrypt(const uint8_t *in, uint16_t in_len, uint8_t *out, uint16_t *out_len,
                     const uint8_t *iv, cmac_context *ctx) {
 #ifdef _WIN32
@@ -62,7 +206,7 @@ static int aes_cbc_encrypt(const uint8_t *in, uint16_t in_len, uint8_t *out, uin
     return -1;
   }
 
-  if (cbResult != len) {
+  if (cbResult != in_len) {
     return -2;
   }
 
@@ -191,7 +335,7 @@ static int aes_cmac_init(cmac_context *cmac_ctx, aes_cmac_context_t *ctx) {
 }
 
 static int aes_set_key(const uint8_t *key, cmac_context *ctx) {
-#ifdef _WIN32_BCRYPT
+#ifdef _WIN32
   NTSTATUS status = STATUS_SUCCESS;
 
   if (!BCRYPT_SUCCESS(status = init_ctx(ctx))) {

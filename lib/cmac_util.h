@@ -37,20 +37,8 @@ typedef struct {
     uint8_t k2[AES_BLOCK_SIZE];
 } aes_cmac_context_t;
 
-#ifndef __WIN32
-#define YH_INTERNAL __attribute__((visibility("hidden")))
-#else
-#define YH_INTERNAL
-#endif
 
-//int YH_INTERNAL aes_cmac_init(cmac_context *aes_ctx, aes_cmac_context_t *ctx);
-//int YH_INTERNAL aes_cmac_encrypt(aes_cmac_context_t *ctx,
-//                                 const uint8_t *message,
-//                                 const uint16_t message_len, uint8_t *mac);
-//void YH_INTERNAL aes_cmac_destroy(aes_cmac_context_t *ctx);
-
-int compute_full_mac(const uint8_t *data, uint16_t data_len,
-                       const uint8_t *key, uint16_t key_len,
-                       uint8_t *mac);
+int
+compute_full_mac(const uint8_t *data, uint16_t data_len, const uint8_t *key, uint16_t key_len, uint8_t *mac);
 
 #endif //YUBICO_PIV_TOOL_CMAC_H
