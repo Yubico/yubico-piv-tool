@@ -13,9 +13,11 @@
 #include <openssl/evp.h>
 #endif
 
-struct _mac_key {
+#define AES_BLOCK_SIZE 16
+
+typedef struct {
 #ifdef _WIN32
-    BCRYPT_ALG_HANDLE hAlgCBC;
+  BCRYPT_ALG_HANDLE hAlgCBC;
   BCRYPT_ALG_HANDLE hAlgECB;
   BCRYPT_KEY_HANDLE hKeyCBC;
   BCRYPT_KEY_HANDLE hKeyECB;
@@ -24,13 +26,13 @@ struct _mac_key {
   size_t cbKeyObj;
 #else
     EVP_CIPHER_CTX *ctx;
-    uint8_t key[SCP11_SESSION_KEY_LEN];
+    uint8_t key[AES_BLOCK_SIZE];
 #endif
-};
+} cmac_context;
 
 
 typedef struct {
-    aes_context *aes_ctx;
+    cmac_context *aes_ctx;
     uint8_t k1[AES_BLOCK_SIZE];
     uint8_t k2[AES_BLOCK_SIZE];
 } aes_cmac_context_t;
@@ -41,11 +43,14 @@ typedef struct {
 #define YH_INTERNAL
 #endif
 
-int YH_INTERNAL aes_cmac_init(aes_context *aes_ctx, aes_cmac_context_t *ctx);
-int YH_INTERNAL aes_cmac_encrypt(aes_cmac_context_t *ctx,
-                                 const uint8_t *message,
-                                 const uint16_t message_len, uint8_t *mac);
-void YH_INTERNAL aes_cmac_destroy(aes_cmac_context_t *ctx);
+//int YH_INTERNAL aes_cmac_init(cmac_context *aes_ctx, aes_cmac_context_t *ctx);
+//int YH_INTERNAL aes_cmac_encrypt(aes_cmac_context_t *ctx,
+//                                 const uint8_t *message,
+//                                 const uint16_t message_len, uint8_t *mac);
+//void YH_INTERNAL aes_cmac_destroy(aes_cmac_context_t *ctx);
 
+int compute_full_mac(const uint8_t *data, uint16_t data_len,
+                       const uint8_t *key, uint16_t key_len,
+                       uint8_t *mac);
 
 #endif //YUBICO_PIV_TOOL_CMAC_H

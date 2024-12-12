@@ -32,6 +32,7 @@
 #include "internal.h"
 #include "ykpiv.h"
 #include "aes_util.h"
+#include "cmac_util.h"
 
 #ifdef _WIN32
 #include <winsock.h>
@@ -43,7 +44,6 @@
 #include <openssl/core_names.h>
 
 //static void dump_byte_array(uint8_t *a, size_t len, const char* label) {
-//    fprintf(stderr, "---------------- %s - %ld : ", label, len);
 //    for(int i=0; i<len; i++) {
 //        fprintf(stderr, "%02x ", a[i]);
 //    }
@@ -52,80 +52,105 @@
 
 
 ykpiv_rc calculate_cmac(uint8_t *key, uint8_t *mac_chain, uint8_t *data, size_t data_len, uint8_t *mac_out) {
-  ykpiv_rc res = YKPIV_OK;
-  /* Fetch the CMAC implementation */
-  EVP_MAC *mac = EVP_MAC_fetch(NULL, "CMAC", NULL);
-  if (mac == NULL) {
-    DBG("Failed to fetch CMAC implementation");
-    return YKPIV_AUTHENTICATION_ERROR;
+
+  int res;
+  if(mac_chain) {
+    uint8_t buf[MAX_BUFFER_SIZE] = {0};
+    memcpy(buf, mac_chain, SCP11_MAC_LEN);
+    memcpy(buf + SCP11_MAC_LEN, data, data_len);
+    size_t buf_len = SCP11_MAC_LEN + data_len;
+    res = compute_full_mac(buf, buf_len, key, AES_BLOCK_SIZE, mac_out);
+  } else {
+    res = compute_full_mac(data, data_len, key, AES_BLOCK_SIZE, mac_out);
   }
+  DBG("Full CMAC calculated. res is %d", res);
 
-  /* Create a context for the CMAC operation */
-  EVP_MAC_CTX *mctx = EVP_MAC_CTX_new(mac);
-  if (mctx == NULL) {
-    DBG("Failed to create CMAC context");
-    return YKPIV_AUTHENTICATION_ERROR;
+  if(res != 0) {
+    return YKPIV_KEY_ERROR;
   }
-
-  OSSL_PARAM params[3];
-  size_t params_n = 0;
-
-  char cipher_name[] = "AES-128-CBC";
-  params[params_n++] = OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_CIPHER, (char *) cipher_name, 0);
-  params[params_n] = OSSL_PARAM_construct_end();
-
-  /* Initialise the CMAC operation */
-  if (!EVP_MAC_init(mctx, key, SCP11_SESSION_KEY_LEN, params)) {
-    DBG("Failed to initiate CMAC function");
-    res = YKPIV_KEY_ERROR;
-    goto cmac_free;
-  }
-
-  /* Make one or more calls to process the data to be authenticated */
-  if (mac_chain) {
-    if (!EVP_MAC_update(mctx, mac_chain, SCP11_MAC_LEN)) {
-      DBG("Failed to set mac chain data");
-      res = YKPIV_AUTHENTICATION_ERROR;
-      goto cmac_free;
-    }
-  }
-
-  if (!EVP_MAC_update(mctx, data, data_len)) {
-    DBG("Failed to set CMAC input data");
-    res = YKPIV_AUTHENTICATION_ERROR;
-    goto cmac_free;
-  }
+  return YKPIV_OK;
 
 
-  /* Make a call to the final with a NULL buffer to get the length of the MAC */
-  size_t out_len = 0;
-  if (!EVP_MAC_final(mctx, NULL, &out_len, 0)) {
-    DBG("Failed to retrieve CMAC length");
-    res = YKPIV_AUTHENTICATION_ERROR;
-    goto cmac_free;
-  }
 
-  if (out_len != SCP11_MAC_LEN) {
-    DBG("Unexpected MAC length. Expected %d. Found %ld\n", SCP11_MAC_LEN, out_len);
-    res = YKPIV_AUTHENTICATION_ERROR;
-    goto cmac_free;
-  }
 
-  /* Make one call to the final to get the MAC */
-  if (!EVP_MAC_final(mctx, mac_out, &out_len, out_len)) {
-    DBG("Failed to calculate CMAC value");
-    res = YKPIV_KEY_ERROR;
-    goto cmac_free;
-  }
 
-cmac_free:
-  EVP_MAC_CTX_free(mctx);
-  return res;
+
+//
+//  ykpiv_rc res = YKPIV_OK;
+//  /* Fetch the CMAC implementation */
+//  EVP_MAC *mac = EVP_MAC_fetch(NULL, "CMAC", NULL);
+//  if (mac == NULL) {
+//    DBG("Failed to fetch CMAC implementation");
+//    return YKPIV_AUTHENTICATION_ERROR;
+//  }
+//
+//  /* Create a context for the CMAC operation */
+//  EVP_MAC_CTX *mctx = EVP_MAC_CTX_new(mac);
+//  if (mctx == NULL) {
+//    DBG("Failed to create CMAC context");
+//    return YKPIV_AUTHENTICATION_ERROR;
+//  }
+//
+//  OSSL_PARAM params[3];
+//  size_t params_n = 0;
+//
+//  char cipher_name[] = "AES-128-CBC";
+//  params[params_n++] = OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_CIPHER, (char *) cipher_name, 0);
+//  params[params_n] = OSSL_PARAM_construct_end();
+//
+//  /* Initialise the CMAC operation */
+//  if (!EVP_MAC_init(mctx, key, SCP11_SESSION_KEY_LEN, params)) {
+//    DBG("Failed to initiate CMAC function");
+//    res = YKPIV_KEY_ERROR;
+//    goto cmac_free;
+//  }
+//
+//  /* Make one or more calls to process the data to be authenticated */
+//  if (mac_chain) {
+//    if (!EVP_MAC_update(mctx, mac_chain, SCP11_MAC_LEN)) {
+//      DBG("Failed to set mac chain data");
+//      res = YKPIV_AUTHENTICATION_ERROR;
+//      goto cmac_free;
+//    }
+//  }
+//
+//  if (!EVP_MAC_update(mctx, data, data_len)) {
+//    DBG("Failed to set CMAC input data");
+//    res = YKPIV_AUTHENTICATION_ERROR;
+//    goto cmac_free;
+//  }
+//
+//
+//  /* Make a call to the final with a NULL buffer to get the length of the MAC */
+//  size_t out_len = 0;
+//  if (!EVP_MAC_final(mctx, NULL, &out_len, 0)) {
+//    DBG("Failed to retrieve CMAC length");
+//    res = YKPIV_AUTHENTICATION_ERROR;
+//    goto cmac_free;
+//  }
+//
+//  if (out_len != SCP11_MAC_LEN) {
+//    DBG("Unexpected MAC length. Expected %d. Found %ld\n", SCP11_MAC_LEN, out_len);
+//    res = YKPIV_AUTHENTICATION_ERROR;
+//    goto cmac_free;
+//  }
+//
+//  /* Make one call to the final to get the MAC */
+//  if (!EVP_MAC_final(mctx, mac_out, &out_len, out_len)) {
+//    DBG("Failed to calculate CMAC value");
+//    res = YKPIV_KEY_ERROR;
+//    goto cmac_free;
+//  }
+//
+//cmac_free:
+//  EVP_MAC_CTX_free(mctx);
+//  return res;
 }
 
 ykpiv_rc unmac_data(uint8_t *key, uint8_t *mac_chain, uint8_t *data, size_t data_len, uint16_t sw) {
+
   ykpiv_rc rc;
-  uint8_t *resp = malloc(data_len - SCP11_HALF_MAC_LEN + 2);
+  uint8_t resp[MAX_BUFFER_SIZE] = {0};
   memcpy(resp, data, (data_len - SCP11_HALF_MAC_LEN));
   resp[data_len - SCP11_HALF_MAC_LEN] = sw >> 8;
   resp[data_len - SCP11_HALF_MAC_LEN + 1] = sw & 0xff;
@@ -143,7 +168,6 @@ ykpiv_rc unmac_data(uint8_t *key, uint8_t *mac_chain, uint8_t *data, size_t data
   }
 
 unmac_clean:
-  free(resp);
   return rc;
 }
 

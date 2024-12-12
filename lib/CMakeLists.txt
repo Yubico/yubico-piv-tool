@@ -41,6 +41,7 @@ set(SOURCE
         error.c
         internal.c
         aes_util.c
+        cmac_util.c
         ../common/openssl-compat.c
         ../common/util.c)
 
