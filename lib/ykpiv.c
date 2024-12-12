@@ -391,7 +391,6 @@ ykpiv_rc ykpiv_disconnect(ykpiv_state *state) {
   return YKPIV_OK;
 }
 
-#if (OPENSSL_VERSION_NUMBER > 0x10100000L)
 static ykpiv_rc derive_ecdh(EVP_PKEY *private_key, EVP_PKEY *peer_key, uint8_t *ecdh_key, size_t ecdh_len) {
   /* Create the context for the shared secret derivation */
   EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(private_key, NULL);
@@ -617,13 +616,7 @@ sc_verify_cleanup:
   return rc;
  }
 
-
-#endif
-static ykpiv_rc scp11_open_secure_channel(ykpiv_state *state) {
-#if (OPENSSL_VERSION_NUMBER <= 0x10100000L)
-  DBG("SCP11 connection is supported only with OpenSSL 3 or higher");
-  return YKPIV_NOT_SUPPORTED;
-#else
+ static ykpiv_rc scp11_open_secure_channel(ykpiv_state *state) {
   ykpiv_rc rc = YKPIV_OK;
   EVP_PKEY *pubkey_sd = NULL;
   EC_KEY *ekeypair_oce = NULL;
@@ -723,7 +716,6 @@ secure_channel_cleanup:
   }
 
   return rc;
-#endif
 }
 
  ykpiv_rc _ykpiv_select_gp_application(ykpiv_state *state) {
@@ -1252,7 +1244,7 @@ static ykpiv_rc scp11_prepare_transfer(ykpiv_scp11_state *state, APDU *apdu, con
 
   if ((rc = aescbc_encrypt_data(state->senc, state->enc_counter++, apdu_data, apdu_data_len, enc, &enc_len)) !=
       YKPIV_OK) {
-    DBG("Failed to perform AES ECD encryption on IV");
+    DBG("Failed to perform AES ECD encryption on APDU");
     return rc;
   }
 
