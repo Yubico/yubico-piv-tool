@@ -42,7 +42,6 @@
 #include <openssl/x509.h>
 #if (OPENSSL_VERSION_NUMBER >= 0x30000000L)
 #include <openssl/core_names.h>
-#include <openssl/aes.h>
 #endif
 
 //static void dump_byte_array(uint8_t *a, size_t len, const char* label) {
@@ -164,37 +163,28 @@ static ykpiv_rc scp11_get_iv(uint8_t *key, uint32_t counter, uint8_t *iv, bool d
     iv_data[0] = 0x80;
   }
   uint32_t c = htonl(counter);
-  memcpy(iv_data + AES_BLOCK_SIZE - sizeof(int), &c, sizeof(int));
+  memcpy(iv_data + SCP11_AES_BLOCK_SIZE - sizeof(int), &c, sizeof(int));
 
-  EVP_CIPHER_CTX *ctx;
-  if (!(ctx = EVP_CIPHER_CTX_new())) {
-    DBG("Failed to create cipher context");
-    return YKPIV_AUTHENTICATION_ERROR;
-  }
-  EVP_CIPHER_CTX_set_padding(ctx, 0);
-
-  int len, tmp_len;
-  if (1 != EVP_EncryptInit_ex(ctx, EVP_aes_128_ecb(), NULL, key, NULL)) {
-    DBG("Failed to initiate cipher operation");
-    res = YKPIV_AUTHENTICATION_ERROR;
+  cipher_key enc_key = NULL;
+  cipher_rc drc = cipher_import_key(YKPIV_ALGO_AES128, key, SCP11_SESSION_KEY_LEN, &enc_key);
+  if (drc != CIPHER_OK) {
+    DBG("%s: cipher_import_key: %d", ykpiv_strerror(YKPIV_ALGORITHM_ERROR), drc);
+    res = YKPIV_ALGORITHM_ERROR;
     goto enc_clean;
   }
 
-  if (1 != EVP_EncryptUpdate(ctx, iv, &len, iv_data, sizeof(iv_data))) {
-    DBG("Failed to encrypt data");
-    res = YKPIV_AUTHENTICATION_ERROR;
-    goto enc_clean;
-  }
-
-  // Finalise the encryption. Further ciphertext bytes may be written at this stage
-  if (1 != EVP_EncryptFinal_ex(ctx, iv + len, &tmp_len)) {
-    DBG("Failed to finalize encryption operation");
-    res = YKPIV_AUTHENTICATION_ERROR;
+  int len = SCP11_AES_BLOCK_SIZE;
+  drc = cipher_encrypt(enc_key, iv_data, sizeof(iv_data), NULL, 0, iv, &len);
+  if (drc != CIPHER_OK) {
+    DBG("%s: cipher_encrypt: %d", ykpiv_strerror(YKPIV_KEY_ERROR), drc);
+    res = YKPIV_KEY_ERROR;
     goto enc_clean;
   }
 
 enc_clean:
-  EVP_CIPHER_CTX_free(ctx);
+  if(enc_key) {
+    cipher_destroy_key(enc_key);
+  }
   return res;
 }
 #endif
@@ -216,41 +206,25 @@ aescbc_encrypt_data(uint8_t *key, uint32_t counter, const uint8_t *data, size_t 
   padded[data_len] = 0x80;
   memset(padded + data_len + 1, 0, pad_len - 1);
 
-  EVP_CIPHER_CTX *ctx;
-  if (!(ctx = EVP_CIPHER_CTX_new())) {
-    DBG("Failed to create cipher context");
-    rc = YKPIV_AUTHENTICATION_ERROR;
+  cipher_key enc_key = NULL;
+  cipher_rc drc = cipher_import_key_cbc(YKPIV_ALGO_AES128, key, SCP11_SESSION_KEY_LEN, &enc_key);
+  if (drc != CIPHER_OK) {
+    DBG("%s: cipher_import_key: %d", ykpiv_strerror(YKPIV_ALGORITHM_ERROR), drc);
+    rc = YKPIV_ALGORITHM_ERROR;
     goto enc_clean;
   }
 
-  EVP_CIPHER_CTX_init(ctx);
-  EVP_CIPHER_CTX_set_padding(ctx, 0);
-
-  int len, tmp_len;
-  if (1 != EVP_EncryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv)) {
-    DBG("Failed to initiate cipher operation");
-    rc = YKPIV_AUTHENTICATION_ERROR;
+  drc = cipher_encrypt(enc_key, padded, data_len + pad_len, iv, SCP11_AES_BLOCK_SIZE, enc, (uint32_t *) enc_len);
+  if (drc != CIPHER_OK) {
+    DBG("%s: cipher_encrypt: %d", ykpiv_strerror(YKPIV_KEY_ERROR), drc);
+    rc = YKPIV_KEY_ERROR;
     goto enc_clean;
   }
-
-  if (1 != EVP_EncryptUpdate(ctx, enc, &len, padded, data_len + pad_len)) {
-    DBG("Failed to encrypt data");
-    rc = YKPIV_AUTHENTICATION_ERROR;
-    goto enc_clean;
-  }
-
-  // Finalise the encryption. Further ciphertext bytes may be written at this stage
-  if (1 != EVP_EncryptFinal_ex(ctx, enc + len, &tmp_len)) {
-    DBG("Failed to finalize encryption operation");
-    rc = YKPIV_AUTHENTICATION_ERROR;
-    goto enc_clean;
-  }
-  *enc_len = len + tmp_len;
 
 enc_clean:
   free(padded);
-  if (ctx) {
-    EVP_CIPHER_CTX_free(ctx);
+  if(enc_key) {
+    cipher_destroy_key(enc_key);
   }
 #endif
   return rc;
@@ -273,35 +247,20 @@ aescbc_decrypt_data(uint8_t *key, uint32_t counter, uint8_t *enc, size_t enc_len
     return rc;
   }
 
-  EVP_CIPHER_CTX *ctx;
-  if (!(ctx = EVP_CIPHER_CTX_new())) {
-    DBG("Failed to create cipher context");
-    return YKPIV_AUTHENTICATION_ERROR;
-  }
-  EVP_CIPHER_CTX_init(ctx);
-  EVP_CIPHER_CTX_set_padding(ctx, 0);
-
-  int len, tmp_len;
-
-  if (1 != EVP_DecryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, iv)) {
-    DBG("Failed to initiate cipher operation");
-    rc = YKPIV_AUTHENTICATION_ERROR;
+  cipher_key dec_key = NULL;
+  cipher_rc drc = cipher_import_key_cbc(YKPIV_ALGO_AES128, key, SCP11_SESSION_KEY_LEN, &dec_key);
+  if (drc != CIPHER_OK) {
+    DBG("%s: cipher_import_key: %d", ykpiv_strerror(YKPIV_ALGORITHM_ERROR), drc);
+    rc = YKPIV_ALGORITHM_ERROR;
     goto aes_dec_clean;
   }
 
-  if (1 != EVP_DecryptUpdate(ctx, data, &len, enc, enc_len)) {
-    DBG("Failed to decrypt data");
-    rc = YKPIV_AUTHENTICATION_ERROR;
+  drc = cipher_decrypt(dec_key, enc, enc_len, iv, SCP11_AES_BLOCK_SIZE, data, (uint32_t *) data_len);
+  if (drc != CIPHER_OK) {
+    DBG("%s: cipher_decrypt: %d", ykpiv_strerror(YKPIV_KEY_ERROR), drc);
+    rc = YKPIV_KEY_ERROR;
     goto aes_dec_clean;
   }
-
-  // Finalise the encryption. Further ciphertext bytes may be written at this stage
-  if (1 != EVP_DecryptFinal_ex(ctx, data + len, &tmp_len)) {
-    DBG("Failed to finalize encryption operation");
-    rc = YKPIV_AUTHENTICATION_ERROR;
-    goto aes_dec_clean;
-  }
-  *data_len = len + tmp_len;
 
   // Remove padding
   while (data[(*data_len) - 1] == 0x00) {
@@ -312,7 +271,9 @@ aescbc_decrypt_data(uint8_t *key, uint32_t counter, uint8_t *enc, size_t enc_len
   }
 
 aes_dec_clean:
-  EVP_CIPHER_CTX_free(ctx);
+  if(dec_key) {
+    cipher_destroy_key(dec_key);
+  }
 #endif
   return rc;
 }

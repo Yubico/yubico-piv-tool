@@ -192,18 +192,19 @@ union u_APDU {
     unsigned char p1;
     unsigned char p2;
     unsigned char lc;
-    unsigned char data[YKPIV_OBJ_MAX_SIZE - 6]; // Max message bytes - first bytes in apdu - Le
+    unsigned char data[YKPIV_OBJ_MAX_SIZE - 5]; // Max message bytes - first bytes in apdu - Le
   } st;
-  unsigned char raw[YKPIV_OBJ_MAX_SIZE - 1]; // Max message size the yubikey can receive
+  unsigned char raw[YKPIV_OBJ_MAX_SIZE]; // Max message size the yubikey can receive
 };
 
 typedef union u_APDU APDU;
 typedef struct _cipher_key *cipher_key;
 
 cipher_rc cipher_import_key(unsigned char algo, const unsigned char *keyraw, uint32_t keyrawlen, cipher_key *key);
+cipher_rc cipher_import_key_cbc(unsigned char algo, const unsigned char *keyraw, uint32_t keyrawlen, cipher_key *key);
 cipher_rc cipher_destroy_key(cipher_key key);
-cipher_rc cipher_encrypt(cipher_key key, const unsigned char *in, uint32_t inlen, unsigned char *out, uint32_t *outlen);
-cipher_rc cipher_decrypt(cipher_key key, const unsigned char *in, uint32_t inlen, unsigned char *out, uint32_t *outlen);
+cipher_rc cipher_encrypt(cipher_key key, const unsigned char *in, uint32_t inlen, const unsigned char *iv, uint32_t iv_len, unsigned char *out, uint32_t *outlen);
+cipher_rc cipher_decrypt(cipher_key key, const unsigned char *in, uint32_t inlen, const unsigned char *iv, uint32_t iv_len, unsigned char *out, uint32_t *outlen);
 uint32_t cipher_blocksize(cipher_key key);
 
 pkcs5_rc pkcs5_pbkdf2_sha1(const uint8_t* password, const size_t cb_password, const uint8_t* salt, const size_t cb_salt, uint64_t iterations, const uint8_t* key, const size_t cb_key);

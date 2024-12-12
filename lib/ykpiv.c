@@ -1551,7 +1551,7 @@ static ykpiv_rc _ykpiv_authenticate2(ykpiv_state *state, unsigned const char *ke
     *dataptr++ = 0x80;
     *dataptr++ = challenge_len;
     uint32_t out_len = challenge_len;
-    drc = cipher_decrypt(mgm_key, challenge, challenge_len, dataptr, &out_len);
+    drc = cipher_decrypt(mgm_key, challenge, challenge_len, NULL, 0, dataptr, &out_len);
     if (drc != CIPHER_OK) {
       DBG("%s: cipher_decrypt: %d", ykpiv_strerror(YKPIV_AUTHENTICATION_ERROR), drc);
       res = YKPIV_AUTHENTICATION_ERROR;
@@ -1579,7 +1579,7 @@ static ykpiv_rc _ykpiv_authenticate2(ykpiv_state *state, unsigned const char *ke
 
     /* compare the response from the card with our challenge */
     out_len = challenge_len;
-    drc = cipher_encrypt(mgm_key, challenge, challenge_len, challenge, &out_len);
+    drc = cipher_encrypt(mgm_key, challenge, challenge_len, NULL, 0, challenge, &out_len);
 
     if (drc != CIPHER_OK) {
       DBG("%s: cipher_encrypt: %d", ykpiv_strerror(YKPIV_AUTHENTICATION_ERROR), drc);
