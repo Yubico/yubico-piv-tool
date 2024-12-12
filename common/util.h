@@ -34,6 +34,8 @@
 #include <stdbool.h>
 
 #include <openssl/x509.h>
+//#include <openssl/evp.h>
+
 
 #include "../tool/cmdline.h"
 
@@ -66,5 +68,6 @@ unsigned char get_touch_policy(enum enum_touch_policy);
 int SSH_write_X509(FILE *fp, X509 *x);
 bool is_rsa_key_algorithm(unsigned char);
 bool is_ec_key_algorithm(unsigned char);
+int get_ec_pubkey_from_bytes(int curve_name, uint8_t *point, size_t point_len, EVP_PKEY **pkey);
 
 #endif

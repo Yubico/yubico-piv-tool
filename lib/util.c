@@ -31,7 +31,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
-
+#include <openssl/ec.h>
+#include <openssl/evp.h>
+ 
 #ifdef USE_CERT_COMPRESS
 #include <zlib.h>
 #endif

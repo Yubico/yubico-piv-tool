@@ -91,6 +91,7 @@ extern "C"
   ykpiv_rc ykpiv_done(ykpiv_state *state);
   ykpiv_rc ykpiv_validate(ykpiv_state *state, const char *wanted);
   ykpiv_rc ykpiv_connect(ykpiv_state *state, const char *wanted);
+  ykpiv_rc ykpiv_connect_ex(ykpiv_state *state, const char *wanted, bool scp11);
   ykpiv_rc ykpiv_list_readers(ykpiv_state *state, char *readers, size_t *len);
   ykpiv_rc ykpiv_disconnect(ykpiv_state *state);
   ykpiv_rc ykpiv_translate_sw(int sw);
@@ -219,7 +220,6 @@ extern "C"
    *
    */
   ykpiv_rc ykpiv_get_serial(ykpiv_state *state, uint32_t* p_serial);
-
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -610,7 +610,7 @@ extern "C"
   ykpiv_rc ykpiv_util_read_msroots(ykpiv_state  *state, uint8_t **data, size_t *data_len);
   ykpiv_rc ykpiv_util_write_msroots(ykpiv_state *state, uint8_t *data, size_t data_len);
   ykpiv_rc ykpiv_util_parse_metadata(uint8_t *data, size_t data_len, ykpiv_metadata *metadata);
-  
+
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -723,17 +723,30 @@ extern "C"
 #define YKPIV_INS_SELECT_APPLICATION 0xa4
 #define YKPIV_INS_GET_RESPONSE_APDU 0xc0
 
+#define GP_INS_GET_DATA              0xca
+#define GP_INS_INTERNAL_AUTHENTICATE 0x88
+
 /* sw is status words, see NIST special publication 800-73-4, section 5.6 */
 #define SW_SUCCESS 0x9000
 #define SW_ERR_SECURITY_STATUS 0x6982
 #define SW_ERR_AUTH_BLOCKED 0x6983
-#define SW_ERR_CONDITIONS_OF_USE 0x6985
+#define SW_ERR_CONDITIONS_OF_USE 0x6985 // CONDITIONS_NOT_SATISFIED
 #define SW_ERR_INCORRECT_PARAM 0x6a80
 #define SW_ERR_FILE_NOT_FOUND 0x6a82
 #define SW_ERR_REFERENCE_NOT_FOUND 0x6a88
 /* this is a custom sw for yubikey */
-#define SW_ERR_INCORRECT_SLOT 0x6b00
-#define SW_ERR_NOT_SUPPORTED 0x6d00
+#define SW_ERR_INCORRECT_SLOT 0x6b00 // WRONG_PARAMETERS_P1P2
+#define SW_ERR_NOT_SUPPORTED 0x6d00 // INVALID_INSTRUCTION
+
+#define SW_ERR_NO_INPUT_DATA 0x6285
+#define SW_ERR_VERIFY_FAIL_NO_RETRY 0x63C0
+#define SW_ERR_MEMORY_ERROR 0x6581
+#define SW_ERR_WRONG_LENGTH 0x6700
+#define SW_ERR_DATA_INVALID 0x6984
+#define SW_ERR_COMMAND_NOT_ALLOWED 0x6986
+#define SW_ERR_NO_SPACE 0x6A84
+#define SW_ERR_CLASS_NOT_SUPPORTED 0x6E00
+#define SW_ERR_COMMAND_ABORTED 0x6F00
 
 /* Yubico vendor specific instructions */
 #define YKPIV_INS_SET_MGMKEY 0xff

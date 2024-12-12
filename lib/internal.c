@@ -121,6 +121,23 @@ cipher_rc cipher_import_key(unsigned char algo, const unsigned char* keyraw, uin
   return 0;
 }
 
+cipher_rc cipher_import_key_cbc(unsigned char algo, const unsigned char* keyraw, uint32_t keyrawlen, cipher_key* key) {
+  *key = calloc(1, sizeof(**key));
+  if (!*key) {
+    return CIPHER_MEMORY_ERROR;
+  }
+  if (!BCRYPT_SUCCESS(BCryptOpenAlgorithmProvider(&(*key)->hAlg, bcrypt_algo(algo), NULL, 0))) {
+    return CIPHER_INVALID_PARAMETER;
+  }
+  if (!BCRYPT_SUCCESS(BCryptSetProperty((*key)->hAlg, BCRYPT_CHAINING_MODE, (PBYTE)BCRYPT_CHAIN_MODE_CBC, sizeof(BCRYPT_CHAIN_MODE_CBC), 0))) {
+    return CIPHER_INVALID_PARAMETER;
+  }
+  if (!BCRYPT_SUCCESS(BCryptGenerateSymmetricKey((*key)->hAlg, &(*key)->hKey, NULL, 0, (PUCHAR)keyraw, keyrawlen, 0))) {
+    return CIPHER_INVALID_PARAMETER;
+  }
+  return 0;
+}
+
 cipher_rc cipher_destroy_key(cipher_key key) {
   if (key == NULL) {
     return CIPHER_MEMORY_ERROR;
@@ -135,21 +152,21 @@ cipher_rc cipher_destroy_key(cipher_key key) {
 	return CIPHER_OK;
 }
 
-cipher_rc cipher_encrypt(cipher_key key, const unsigned char* in, uint32_t inlen, unsigned char* out, uint32_t* outlen) {
-	if (key == NULL) {
+cipher_rc cipher_encrypt(cipher_key key, const unsigned char* in, uint32_t inlen, const unsigned char *iv, uint32_t iv_len, unsigned char* out, uint32_t* outlen) {
+    if (key == NULL) {
     return CIPHER_MEMORY_ERROR;
   }
-	if(!BCRYPT_SUCCESS(BCryptEncrypt(key->hKey, (PUCHAR)in, inlen, NULL, NULL, 0, out, *outlen, (PULONG)outlen, 0))) {
+  if(!BCRYPT_SUCCESS(BCryptEncrypt(key->hKey, (PUCHAR)in, inlen, NULL, iv, iv_len, out, *outlen, (PULONG)outlen, 0))) {
     return CIPHER_INVALID_PARAMETER;
   }
   return CIPHER_OK;
 }
 
-cipher_rc cipher_decrypt(cipher_key key, const unsigned char* in, uint32_t inlen, unsigned char* out, uint32_t* outlen) {
+cipher_rc cipher_decrypt(cipher_key key, const unsigned char* in, uint32_t inlen, const unsigned char *iv, uint32_t iv_len, unsigned char* out, uint32_t* outlen) {
 	if (key == NULL) {
     return CIPHER_MEMORY_ERROR;
   }
-	if(!BCRYPT_SUCCESS(BCryptDecrypt(key->hKey, (PUCHAR)in, inlen, NULL, NULL, 0, out, *outlen, (PULONG)outlen, 0))) {
+  if(!BCRYPT_SUCCESS(BCryptDecrypt(key->hKey, (PUCHAR)in, inlen, NULL, iv, iv_len, out, *outlen, (PULONG)outlen, 0))) {
     return CIPHER_INVALID_PARAMETER;
   }
   return CIPHER_OK;
@@ -169,7 +186,7 @@ uint32_t cipher_blocksize(cipher_key key) {
 
 #else
 
-static int encrypt_ex(const uint8_t *in, uint8_t *out, int len,
+static int encrypt_ex(const uint8_t *in, int in_len, uint8_t *out, int *out_len,
                       const uint8_t *iv, int enc, cipher_key ctx) {
   if (EVP_CipherInit_ex(ctx->ctx, ctx->cipher, NULL, ctx->key, iv, enc) != 1) {
     return -1;
@@ -177,17 +194,18 @@ static int encrypt_ex(const uint8_t *in, uint8_t *out, int len,
   if (EVP_CIPHER_CTX_set_padding(ctx->ctx, 0) != 1) {
     return -2;
   }
-  int update_len = len;
-  if (EVP_CipherUpdate(ctx->ctx, out, &update_len, in, len) != 1) {
+  int update_len = in_len;
+  if (EVP_CipherUpdate(ctx->ctx, out, &update_len, in, in_len) != 1) {
     return -3;
   }
-  int final_len = len - update_len;
+  int final_len = in_len - update_len;
   if (EVP_CipherFinal_ex(ctx->ctx, out + update_len, &final_len) != 1) {
     return -4;
   }
-  if (update_len + final_len != len) {
+  if (update_len + final_len != update_len) {
     return -5;
   }
+  *out_len = update_len;
   return 0;
 }
 
@@ -232,6 +250,38 @@ ERROR_EXIT:
   }
   goto EXIT;
 }
+cipher_rc cipher_import_key_cbc(unsigned char algo, const unsigned char* keyraw, uint32_t keyrawlen, cipher_key* key) {
+  cipher_rc rc = CIPHER_OK;
+
+  *key = calloc(1, sizeof(**key));
+  (*key)->ctx = EVP_CIPHER_CTX_new();
+
+  switch (algo) {
+  case YKPIV_ALGO_AES128:
+    (*key)->cipher = EVP_aes_128_cbc();
+    break;
+  default:
+    rc = CIPHER_INVALID_PARAMETER;
+    goto ERROR_EXIT;
+  }
+
+  if((*key)->cipher == NULL || EVP_CIPHER_key_length((*key)->cipher) != keyrawlen) {
+    rc = CIPHER_INVALID_PARAMETER;
+    goto ERROR_EXIT;
+  }
+
+  memcpy((*key)->key, keyraw, keyrawlen);
+
+EXIT:
+  return rc;
+
+ERROR_EXIT:
+  if (key) {
+    cipher_destroy_key(*key);
+    *key = NULL;
+  }
+  goto EXIT;
+}
 
 cipher_rc cipher_destroy_key(cipher_key key) {
   if (key) {
@@ -242,23 +292,22 @@ cipher_rc cipher_destroy_key(cipher_key key) {
   return CIPHER_OK;
 }
 
-cipher_rc cipher_encrypt(cipher_key key, const unsigned char* in, uint32_t inlen, unsigned char* out, uint32_t* outlen) {
+cipher_rc cipher_encrypt(cipher_key key, const unsigned char* in, uint32_t inlen, const unsigned char *iv, uint32_t iv_len, unsigned char* out, uint32_t* outlen) {
   cipher_rc rc = CIPHER_OK;
 
   if (!key || !outlen || (*outlen < inlen) || !in || !out) { rc = CIPHER_INVALID_PARAMETER; goto EXIT; }
-
-  rc = encrypt_ex(in, out, inlen, NULL, 1, key);
+  rc = encrypt_ex(in, inlen, out, outlen, iv, 1, key);
 
 EXIT:
   return rc;
 }
 
-cipher_rc cipher_decrypt(cipher_key key, const unsigned char* in, uint32_t inlen, unsigned char* out, uint32_t* outlen) {
+cipher_rc cipher_decrypt(cipher_key key, const unsigned char* in, uint32_t inlen, const unsigned char *iv, uint32_t iv_len, unsigned char* out, uint32_t* outlen) {
   cipher_rc rc = CIPHER_OK;
 
   if (!key || !outlen || (*outlen < inlen) || !in || !out) { rc = CIPHER_INVALID_PARAMETER; goto EXIT; }
 
-  rc = encrypt_ex(in, out, inlen, NULL, 0, key);
+  rc = encrypt_ex(in, inlen, out, outlen, iv, 0, key);
 
 EXIT:
   return rc;

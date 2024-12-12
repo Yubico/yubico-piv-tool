@@ -705,7 +705,7 @@ static void test_authenticate_helper(bool full) {
   crc = cipher_import_key(YKPIV_ALGO_3DES, key, key_len, &cipher);
   ck_assert_int_eq(crc, CIPHER_OK);
   uint32_t cipher_len = (uint32_t)data_len;
-  crc = cipher_encrypt(cipher, data, cipher_len, data, &cipher_len);
+  crc = cipher_encrypt(cipher, data, cipher_len, NULL, 0, data, &cipher_len);
   data_len = cipher_len;
   ck_assert_int_eq(crc, CIPHER_OK);
   crc = cipher_destroy_key(cipher);
