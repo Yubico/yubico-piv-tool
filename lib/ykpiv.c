@@ -392,24 +392,99 @@ ykpiv_rc ykpiv_disconnect(ykpiv_state *state) {
   return YKPIV_OK;
 }
 
-static ykpiv_rc skip_tlv(size_t *offset, uint8_t *data, size_t data_len, uint8_t expected_tag, const char *tag_str) {
-  if (data[*offset] != expected_tag) {
-    DBG("Failed to parse data. Expected tag for %s was %x, found %x", tag_str, expected_tag, data[*offset]);
-    return YKPIV_PARSE_ERROR;
+typedef struct {
+    uint8_t tag;
+    size_t length;
+    uint8_t *value;
+} _tlv;
+
+static uint8_t next_tlv(uint8_t *ptr, uint8_t *end, _tlv *tlv) {
+  if(ptr + 1 > end) {
+    DBG("Tag offset is not within range");
+    return 0;
   }
-  size_t len = 0;
-  (*offset)++; // skip the tag byte
-  (*offset) += _ykpiv_get_length(data + (*offset), data + data_len, &len); // skip the length bytes
-  if((*offset) + len > data_len) {
+  tlv->tag = *ptr;
+  size_t len = _ykpiv_get_length(ptr + 1, end, &tlv->length);
+  if(len == 0) {
+    DBG("Length index not within data range");
+    return 0;
+  }
+  if (ptr + 1 + len + tlv->length > end) {
     DBG("Tag value too long for available data");
+    return 0;
+  }
+  tlv->value = ptr + 1 + len;
+  return tlv->tag;
+}
+
+
+static ykpiv_rc skip_next_tlv(uint8_t **ptr, uint8_t *end, uint8_t expected_tag, const char *tag_str) {
+  _tlv tlv = {0};
+  if(next_tlv(*ptr, end, &tlv) != expected_tag) {
+    DBG("Failed to parse data. Expected tag for %s was %x, found %x", tag_str, expected_tag, tlv.tag);
     return YKPIV_PARSE_ERROR;
   }
-  (*offset) += len; // skip the value bytes
+  *ptr = tlv.value + tlv.length;
   return YKPIV_OK;
 }
 
-static ykpiv_rc scp11_get_sd_pubkey(ykpiv_state *state, uint8_t *pubkey, size_t *pubkey_len) {
-  ykpiv_rc rc;
+static uint8_t *
+get_pubkey_offset(uint8_t *cert_ptr, uint8_t *cert_end, size_t pubkey_len, uint8_t *algo, size_t algo_len) {
+  //DER structure:
+  //subjectPublicKeyInfo SubjectPublicKeyInfo SEQUENCE (2 elem)
+  //    algorithm AlgorithmIdentifier SEQUENCE (2 elem)
+  //        algorithm OBJECT IDENTIFIER 1.2.840.10045.2.1 ecPublicKey (ANSI X9.62 public key type)
+  //        parameters ANY OBJECT IDENTIFIER 1.2.840.10045.3.1.7 prime256v1 (ANSI X9.62 named elliptic curve)
+  //    subjectPublicKey BIT STRING (520 bit)
+
+  //subjectPublicKeyInfo SubjectPublicKeyInfo SEQUENCE (2 elem)
+  _tlv pubkey_info = {0};
+  if (next_tlv(cert_ptr, cert_end, &pubkey_info) != 0x30) {
+    DBG("Failed to parse certificate. Expected tag for subjectPublicKeyInfo SEQUENCE was 0x30, found %x",
+        pubkey_info.tag);
+    return 0;
+  }
+
+  //    algorithm AlgorithmIdentifier SEQUENCE (2 elem)
+  //        algorithm OBJECT IDENTIFIER 1.2.840.10045.2.1 ecPublicKey (ANSI X9.62 public key type)
+  //        parameters ANY OBJECT IDENTIFIER 1.2.840.10045.3.1.7 prime256v1 (ANSI X9.62 named elliptic curve)
+  _tlv algo_oid = {0};
+  if (next_tlv(pubkey_info.value, cert_end, &algo_oid) != 0x30) {
+    DBG("Failed to parse certificate. Expected tag for subjectPublicKeyInfo.algorithm SEQUENCE was 0x30, found %x",
+        algo_oid.tag);
+    return NULL;
+  }
+  if (algo_oid.length != algo_len) {
+    DBG("Failed to parse certificate. Unexpected length of public key algorithm data");
+    return 0;
+  }
+  if (memcmp(algo, algo_oid.value, algo_len) != 0) {
+    DBG("Failed to parse certificate. Unexpected public key algorithm data");
+    return 0;
+  }
+
+  //    subjectPublicKey BIT STRING (520 bit)
+  _tlv pubkey = {0};
+  if (next_tlv(algo_oid.value + algo_oid.length, cert_end, &pubkey) != 0x03) {
+    DBG("Failed to parse certificate. Expected tag for subjectPublicKeyInfo.algorithm SEQUENCE was 0x30, found %x",
+        algo_oid.tag);
+    return NULL;
+  }
+  if (*pubkey.value == 0) {
+    pubkey.value++;
+    pubkey.length--;
+  }
+  if (pubkey.length != pubkey_len) {
+    DBG("Failed to parse certificate. Unexpected length of public key data");
+    return 0;
+  }
+
+  return pubkey.value;
+}
+
+static ykpiv_rc
+scp11_get_sd_pubkey(ykpiv_state *state, uint8_t *pubkey, size_t *pubkey_len, uint8_t *algo, size_t algo_len) {
+   ykpiv_rc rc;
 
   // Select the globalplatform application
   unsigned char templ[] = {0x00, YKPIV_INS_SELECT_APPLICATION, 0x04, 0x00};
@@ -447,70 +522,43 @@ static ykpiv_rc scp11_get_sd_pubkey(ykpiv_state *state, uint8_t *pubkey, size_t 
 
   // Find the last certificate in the chain
   // Good resources about parsing certificate data: https://lapo.it/asn1js and https://letsencrypt.org/docs/a-warm-welcome-to-asn1-and-der/
-  size_t offset = 0;
+  uint8_t *ptr = certchain;
+  uint8_t *end = certchain + certchain_len;
   size_t len = 0;
   do {
-    offset += len; // skip the previous certificate
-    if (certchain[offset] != 0x30) {
+    ptr += len; // skip the previous certificate
+    if (*ptr != 0x30) {
       DBG("Failed to parse data as certificate chain. Data does not start with a SEQUENCE in DER format");
       *pubkey_len = 0;
       return YKPIV_PARSE_ERROR;
     }
-    offset++; // skip the next 0x30 tag
-    offset += _ykpiv_get_length(certchain + offset, certchain + certchain_len, &len); // skip the length bytes
-  } while (offset + len < certchain_len); // if we haven't reached the end of the data, skip to the next certificate
+    ptr++; // skip the next 0x30 tag
+    ptr += _ykpiv_get_length(ptr, end, &len); // skip the length bytes
+  } while (ptr + len < end); // if we haven't reached the end of the data, skip to the next certificate
 
   // Now we go into the TBScertificate data
-  if (certchain[offset] != 0x30) {
+  if (*ptr != 0x30) {
     DBG("Failed to parse data as certificate. Data does not start with a SEQUENCE in DER format");
     return YKPIV_PARSE_ERROR;
   }
-  offset++; // skip the 0x30 tag starting the TBSCertificate
-  offset += _ykpiv_get_length(certchain + offset, certchain + certchain_len,
-                              &len); // skip the length bytes for the TBSCertificate
+  ptr++; // skip the 0x30 tag starting the TBSCertificate
+  ptr += _ykpiv_get_length(ptr, end, &len); // skip the length bytes for the TBSCertificate
 
-  if(certchain[offset] == 0xa0) { // If certificate version is present, skip it
-    if ((rc = skip_tlv(&offset, certchain, certchain_len, 0xa0, "Certificate Version")) != YKPIV_OK) { return rc; }
+  if(*ptr == 0xa0) { // If certificate version is present, skip it
+    if ((rc = skip_next_tlv(&ptr, end, 0xa0, "Certificate Version")) != YKPIV_OK) { return rc; }
   }
-  if ((rc = skip_tlv(&offset, certchain, certchain_len, 0x02, "SerialNumber")) != YKPIV_OK) { return rc; }
-  if ((rc = skip_tlv(&offset, certchain, certchain_len, 0x30, "Signature Algorithm SEQUENCE")) !=
-      YKPIV_OK) { return rc; }
-  if ((rc = skip_tlv(&offset, certchain, certchain_len, 0x30, "Issuer SEQUENCE")) != YKPIV_OK) { return rc; }
-  if ((rc = skip_tlv(&offset, certchain, certchain_len, 0x30, "Validity SEQUENCE")) != YKPIV_OK) { return rc; }
-  if ((rc = skip_tlv(&offset, certchain, certchain_len, 0x30, "Subject SEQUENCE")) != YKPIV_OK) { return rc; }
+  if ((rc = skip_next_tlv(&ptr, end, 0x02, "SerialNumber")) != YKPIV_OK) { return rc; }
+  if ((rc = skip_next_tlv(&ptr, end, 0x30, "Signature Algorithm SEQUENCE")) != YKPIV_OK) { return rc; }
+  if ((rc = skip_next_tlv(&ptr, end, 0x30, "Issuer SEQUENCE")) != YKPIV_OK) { return rc; }
+  if ((rc = skip_next_tlv(&ptr, end, 0x30, "Validity SEQUENCE")) != YKPIV_OK) { return rc; }
+  if ((rc = skip_next_tlv(&ptr, end, 0x30, "Subject SEQUENCE")) != YKPIV_OK) { return rc; }
 
-  // Now we go into subjectPublicKeyInfo where the public key will be stored
-  if (certchain[offset] != 0x30) {
-    DBG("Failed to parse certificate data. Expected to find tag 0x30 for subjectPublicKeyInfo SEQUENCE. Found 0x%02x",
-        certchain[offset]);
+  if ((ptr = get_pubkey_offset(ptr, end, *pubkey_len, algo, algo_len)) == 0) {
+    DBG("Failed to find public key in certificate data");
     return YKPIV_PARSE_ERROR;
   }
-  offset++; // skip the subjectPublicKeyInfo tag
-  offset += _ykpiv_get_length(certchain + offset, certchain + certchain_len,
-                              &len); // skip the length bytes for the subjectPublicKeyInfo
 
-  if ((rc = skip_tlv(&offset, certchain, certchain_len, 0x30, "subjectPublicKeyInfo.algorithm SEQUENCE")) != YKPIV_OK) {
-    return rc;
-  }
-
-  if (certchain[offset] != 0x03) {
-    DBG("Failed to parse certificate data. Expected to find tag 0x03 for public key. Found 0x%02x", certchain[offset]);
-    return YKPIV_PARSE_ERROR;
-  }
-  offset++; // skip the BIT STRING tag
-  offset += _ykpiv_get_length(certchain + offset, certchain + certchain_len,
-                              &len); // skip the length bytes for the public key
-
-  if (certchain[offset] == 0) { // skip the first byte if it's 0
-    offset++;
-    len--;
-  }
-  if (*pubkey_len != len) {
-    DBG("Buffer too small. Need at least %d bytes", len);
-    return YKPIV_SIZE_ERROR;
-  }
-
-  memcpy(pubkey, certchain + offset, *pubkey_len);
+  memcpy(pubkey, ptr, *pubkey_len);
   return YKPIV_OK;
 }
 
@@ -637,6 +685,12 @@ sc_verify_cleanup:
 
 static ykpiv_rc scp11_open_secure_channel(ykpiv_state *state) {
   ykpiv_rc rc;
+
+  //DER encode:
+  // 0x06 tag for OID followed by the length the OID (7 bytes) followed by the OID representing EC PublicKey
+  // 0x06 tag for OID followed by the length the OID (8 bytes) followed by the OID representing prime256v1 curve
+  uint8_t sd_pubkey_algo[] = {0x06, 0x07, 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x02, 0x01,
+                              0x06, 0x08, 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07};
   uint8_t oce_privkey[32] = {0};
   size_t oce_privkey_len = sizeof(oce_privkey);
   uint8_t oce_pubkey[65] = {0};
@@ -646,7 +700,7 @@ static ykpiv_rc scp11_open_secure_channel(ykpiv_state *state) {
   uint8_t data[1024] = {0};
   size_t data_len = sizeof(data);
 
-  if ((rc = scp11_get_sd_pubkey(state, sd_pubkey, &sd_pubkey_len)) != YKPIV_OK) {
+  if ((rc = scp11_get_sd_pubkey(state, sd_pubkey, &sd_pubkey_len, sd_pubkey_algo, sizeof(sd_pubkey_algo))) != YKPIV_OK) {
     DBG("Failed to get SD public key (PK.SD.ECKA)");
     return rc;
   }
