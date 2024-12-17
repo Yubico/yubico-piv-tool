@@ -164,58 +164,6 @@ gen_ec_key_cleanup:
   return rv;
 }
 
-CK_RV do_create_ec_key(CK_BYTE_PTR point, CK_ULONG point_len, int curve_name, ykcs11_pkey_t **pkey) {
-  CK_RV rv;
-  EC_POINT *ecpoint = NULL;
-  EC_KEY *eckey = NULL;
-  EC_GROUP *group = EC_GROUP_new_by_curve_name(curve_name);
-  if(group == NULL)
-    return CKR_HOST_MEMORY;
-  EC_GROUP_set_asn1_flag(group, OPENSSL_EC_NAMED_CURVE);
-  eckey = EC_KEY_new();
-  if(eckey == NULL) {
-    rv = CKR_HOST_MEMORY;
-    goto create_ec_cleanup;
-  }
-  if(EC_KEY_set_group(eckey, group) <= 0) {
-    rv = CKR_GENERAL_ERROR;
-    goto create_ec_cleanup;
-  }
-  ecpoint = EC_POINT_new(group);
-  if(ecpoint == NULL) {
-    rv = CKR_HOST_MEMORY;
-    goto create_ec_cleanup;
-  }
-  if(EC_POINT_oct2point(group, ecpoint, point, point_len, NULL) <= 0) {
-    rv = CKR_ARGUMENTS_BAD;
-    goto create_ec_cleanup;
-  }
-  if(EC_KEY_set_public_key(eckey, ecpoint) <= 0) {
-    rv = CKR_GENERAL_ERROR;
-    goto create_ec_cleanup;
-  }
-  EVP_PKEY_free(*pkey);
-  *pkey = EVP_PKEY_new();
-  if(*pkey == NULL) {
-    rv = CKR_HOST_MEMORY;
-    goto create_ec_cleanup;
-  }
-  if(EVP_PKEY_assign_EC_KEY(*pkey, eckey) <= 0) {
-    rv = CKR_GENERAL_ERROR;
-    goto create_ec_cleanup;
-  }
-  rv = CKR_OK;
-create_ec_cleanup:
-  EC_GROUP_clear_free(group);
-  if(ecpoint != NULL) {
-    EC_POINT_clear_free(ecpoint);
-  }
-  if(rv != CKR_OK && eckey != NULL) {
-    EC_KEY_free(eckey);
-  }
-  return rv;
-}
-
 CK_RV do_create_rsa_key(CK_BYTE_PTR mod, CK_ULONG mod_len, CK_BYTE_PTR exp, CK_ULONG exp_len, ykcs11_pkey_t **pkey) {
   CK_RV rv;
   RSA *rsa = NULL;
@@ -306,7 +254,7 @@ CK_RV do_create_public_key(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm, 
 
     if (YKPIV_IS_EC(algorithm)) {
       int curve_name = get_curve_name(algorithm);
-      return do_create_ec_key(in, len, curve_name, pkey);
+      return get_ec_pubkey_from_bytes(curve_name, in, len, pkey);
 #if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
     } else if (YKPIV_IS_25519(algorithm)) {
       if (algorithm == YKPIV_ALGO_ED25519) {

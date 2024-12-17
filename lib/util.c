@@ -31,7 +31,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
-
+#include <openssl/ec.h>
+#include <openssl/evp.h>
+ 
 #ifdef USE_CERT_COMPRESS
 #include <zlib.h>
 #endif
@@ -116,9 +118,10 @@ ykpiv_rc ykpiv_util_get_cardid(ykpiv_state *state, ykpiv_cardid *cardid) {
   uint8_t tag = 0;
 
   if (!cardid) return YKPIV_ARGUMENT_ERROR;
+   uint8_t scp11 = state->scp11_state.security_level;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state, scp11))) goto Cleanup;
 
   if ((res = _ykpiv_fetch_object(state, YKPIV_OBJ_CHUID, buf, &len)) == YKPIV_OK) {
     p_temp = buf;
@@ -166,6 +169,7 @@ ykpiv_rc ykpiv_util_set_cardid(ykpiv_state *state, const ykpiv_cardid *cardid) {
   size_t len = 0;
 
   if (!state) return YKPIV_ARGUMENT_ERROR;
+  uint8_t scp11 = state->scp11_state.security_level;
 
   if (!cardid) {
     if (PRNG_OK != _ykpiv_prng_generate(id, sizeof(id))) {
@@ -177,7 +181,7 @@ ykpiv_rc ykpiv_util_set_cardid(ykpiv_state *state, const ykpiv_cardid *cardid) {
   }
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state, scp11))) goto Cleanup;
 
   memcpy(buf, CHUID_TMPL, sizeof(CHUID_TMPL));
   memcpy(buf + CHUID_GUID_OFFS, id, sizeof(id));
@@ -198,8 +202,9 @@ ykpiv_rc ykpiv_util_get_cccid(ykpiv_state *state, ykpiv_cccid *ccc) {
 
   if (!ccc) return YKPIV_ARGUMENT_ERROR;
 
+  uint8_t scp11 = state->scp11_state.security_level;
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state, scp11))) goto Cleanup;
 
   res = _ykpiv_fetch_object(state, YKPIV_OBJ_CAPABILITY, buf, &len);
   if (YKPIV_OK == res) {
@@ -224,6 +229,7 @@ ykpiv_rc ykpiv_util_set_cccid(ykpiv_state *state, const ykpiv_cccid *ccc) {
   size_t len = 0;
 
   if (!state) return YKPIV_ARGUMENT_ERROR;
+  uint8_t scp11 = state->scp11_state.security_level;
 
   if (!ccc) {
     if (PRNG_OK != _ykpiv_prng_generate(id, sizeof(id))) {
@@ -235,7 +241,7 @@ ykpiv_rc ykpiv_util_set_cccid(ykpiv_state *state, const ykpiv_cccid *ccc) {
   }
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state, scp11))) goto Cleanup;
 
   len = sizeof(CCC_TMPL);
   memcpy(buf, CCC_TMPL, len);
@@ -297,8 +303,9 @@ ykpiv_rc ykpiv_util_list_keys(ykpiv_state *state, uint8_t *key_count, ykpiv_key 
 
   if ((NULL == data) || (NULL == data_len) || (NULL == key_count)) { return YKPIV_ARGUMENT_ERROR; }
 
+  uint8_t scp11 = state->scp11_state.security_level;
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state, scp11))) goto Cleanup;
 
   // init return parameters
   *key_count = 0;
@@ -383,8 +390,9 @@ ykpiv_rc ykpiv_util_read_cert(ykpiv_state *state, uint8_t slot, uint8_t **data, 
 
   if ((NULL == data )|| (NULL == data_len)) return YKPIV_ARGUMENT_ERROR;
 
+  uint8_t scp11 = state->scp11_state.security_level;
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state, scp11))) goto Cleanup;
 
   *data = 0;
   *data_len = 0;
@@ -416,9 +424,9 @@ Cleanup:
 
 ykpiv_rc ykpiv_util_write_cert(ykpiv_state *state, uint8_t slot, uint8_t *data, size_t data_len, uint8_t certinfo) {
   ykpiv_rc res = YKPIV_OK;
-
+  uint8_t scp11 = state->scp11_state.security_level;
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state, scp11))) goto Cleanup;
 
   res = _write_certificate(state, slot, data, data_len, certinfo);
 
@@ -442,10 +450,11 @@ ykpiv_rc ykpiv_util_block_puk(ykpiv_state *state) {
   size_t  cb_item = 0;
   uint8_t flags = 0;
 
-  if (NULL == state) return YKPIV_ARGUMENT_ERROR;
+  if (!state) return YKPIV_ARGUMENT_ERROR;
+  uint8_t scp11 = state->scp11_state.security_level;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state, scp11))) goto Cleanup;
 
   while (tries != 0) {
     if (YKPIV_OK == (res = ykpiv_change_puk(state, (const char*)puk, sizeof(puk), (const char*)puk, sizeof(puk), &tries))) {
@@ -500,8 +509,10 @@ ykpiv_rc ykpiv_util_read_mscmap(ykpiv_state *state, ykpiv_container **containers
   uint8_t *ptr = NULL;
 
   if ((NULL == containers) || (NULL == n_containers)) { res = YKPIV_ARGUMENT_ERROR; goto Cleanup; }
+
+  uint8_t scp11 = state->scp11_state.security_level;
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state, scp11))) goto Cleanup;
 
   *containers = 0;
   *n_containers = 0;
@@ -547,9 +558,10 @@ ykpiv_rc ykpiv_util_write_mscmap(ykpiv_state *state, ykpiv_container *containers
   size_t offset = 0;
   size_t req_len = 0;
   size_t data_len = n_containers * sizeof(ykpiv_container);
+  uint8_t scp11 = state->scp11_state.security_level;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state, scp11))) goto Cleanup;
 
   // check if data and data_len are zero, this means that
   // we intend to delete the object
@@ -607,8 +619,9 @@ ykpiv_rc ykpiv_util_read_msroots(ykpiv_state *state, uint8_t **data, size_t *dat
 
   if (!data || !data_len) return YKPIV_ARGUMENT_ERROR;
 
+  uint8_t scp11 = state->scp11_state.security_level;
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state, scp11))) goto Cleanup;
 
   *data = 0;
   *data_len = 0;
@@ -693,9 +706,10 @@ ykpiv_rc ykpiv_util_write_msroots(ykpiv_state *state, uint8_t *data, size_t data
   size_t n_objs = 0;
   unsigned int i = 0;
   size_t cb_obj_max = _obj_size_max(state);
+  uint8_t scp11 = state->scp11_state.security_level;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state, scp11))) goto Cleanup;
 
   // check if either data and data_len are zero, this means that
   // we intend to delete the object
@@ -780,6 +794,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
     "The default behavior will change in a future Yubico release.";
 
   if (!state) return YKPIV_ARGUMENT_ERROR;
+  uint8_t scp11 = state->scp11_state.security_level;
 
   if ((algorithm == YKPIV_ALGO_RSA3072 || algorithm == YKPIV_ALGO_RSA4096 || YKPIV_IS_25519(algorithm))
        && !is_version_compatible(state, 5, 7, 0)) {
@@ -847,7 +862,7 @@ ykpiv_rc ykpiv_util_generate_key(ykpiv_state *state, uint8_t slot, uint8_t algor
   }
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state, scp11))) goto Cleanup;
 
   templ[3] = slot;
 
@@ -1014,6 +1029,8 @@ ykpiv_rc ykpiv_util_get_config(ykpiv_state *state, ykpiv_config *config) {
   if (NULL == state) return YKPIV_ARGUMENT_ERROR;
   if (NULL == config) return YKPIV_ARGUMENT_ERROR;
 
+  uint8_t scp11 = state->scp11_state.security_level;
+
   // initialize default values
 
   config->puk_blocked = false;
@@ -1022,7 +1039,7 @@ ykpiv_rc ykpiv_util_get_config(ykpiv_state *state, ykpiv_config *config) {
   config->mgm_type = YKPIV_CONFIG_MGM_MANUAL;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state, scp11))) goto Cleanup;
 
   /* recover admin data */
   if (YKPIV_OK == _read_metadata(state, TAG_ADMIN, data, &cb_data)) {
@@ -1095,9 +1112,10 @@ ykpiv_rc ykpiv_util_set_pin_last_changed(ykpiv_state *state) {
   time_t   tnow = 0;
 
   if (NULL == state) return YKPIV_ARGUMENT_ERROR;
+  uint8_t scp11 = state->scp11_state.security_level;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state, scp11))) goto Cleanup;
 
   /* recover admin data */
   if (YKPIV_OK != (ykrc = _read_metadata(state, TAG_ADMIN, data, &cb_data))) {
@@ -1133,8 +1151,9 @@ ykpiv_rc ykpiv_util_get_derived_mgm(ykpiv_state *state, const uint8_t *pin, cons
   if (NULL == state) return YKPIV_ARGUMENT_ERROR;
   if ((NULL == pin) || (0 == pin_len) || (NULL == mgm)) return YKPIV_ARGUMENT_ERROR;
 
+  uint8_t scp11 = state->scp11_state.security_level;
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state, scp11))) goto Cleanup;
 
   /* recover management key */
   if (YKPIV_OK == (res = _read_metadata(state, TAG_ADMIN, data, &cb_data))) {
@@ -1168,9 +1187,10 @@ ykpiv_rc ykpiv_util_get_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
 
   if (NULL == state) return YKPIV_ARGUMENT_ERROR;
   if (NULL == mgm) return YKPIV_ARGUMENT_ERROR;
+  uint8_t scp11 = state->scp11_state.security_level;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) return res;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state, scp11))) goto Cleanup;
 
   if (YKPIV_OK != (res = _read_metadata(state, TAG_PROTECTED, data, &cb_data))) {
     DBG("could not read protected data, err = %d", res);
@@ -1204,9 +1224,10 @@ ykpiv_rc ykpiv_util_update_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
   ykpiv_rc res = YKPIV_OK;
   uint8_t data[CB_BUF_MAX] = {0};
   size_t cb_data = sizeof(data);
+  uint8_t scp11 = state->scp11_state.security_level;
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) goto Cleanup;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state, scp11))) goto Cleanup;
 
   if (YKPIV_OK != (res = _read_metadata(state, TAG_PROTECTED, data, &cb_data))) {
     cb_data = 0; /* set current metadata blob size to zero, we'll add to the blank blob */
@@ -1244,6 +1265,7 @@ ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
   uint8_t  flags_1 = 0;
 
   if (NULL == state) return YKPIV_ARGUMENT_ERROR;
+   uint8_t scp11 = state->scp11_state.security_level;
 
   fGenerate = true;
   if (mgm) {
@@ -1259,7 +1281,7 @@ ykpiv_rc ykpiv_util_set_protected_mgm(ykpiv_state *state, ykpiv_mgm *mgm) {
   }
 
   if (YKPIV_OK != (res = _ykpiv_begin_transaction(state))) goto Cleanup;
-  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state))) goto Cleanup;
+  if (YKPIV_OK != (res = _ykpiv_ensure_application_selected(state, scp11))) goto Cleanup;
 
   /* try to set the mgm key as long as we don't encounter a fatal error */
   do {
