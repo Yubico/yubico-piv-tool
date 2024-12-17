@@ -427,8 +427,34 @@ generate_out:
   return ret;
 }
 
-static bool reset(ykpiv_state *state) {
-  return ykpiv_util_reset(state) == YKPIV_OK;
+static bool reset(ykpiv_state *state, bool global) {
+  if (!global) {
+    if (ykpiv_util_reset(state) != YKPIV_OK) {
+      fprintf(stderr, "Reset failed, are pincodes blocked?\n");
+      return false;
+    }
+  } else {
+    fprintf(stderr,
+            "ALL data, including PIV data, in the YubiKey will be deleted. The action cannot be reversed!\n\nType 'y' to proceed: ");
+    char resp = fgetc(stdin);
+    if (resp == 'y') {
+      ykpiv_rc rc = ykpiv_global_reset(state);
+      if (rc != YKPIV_OK) {
+        if (rc == YKPIV_NOT_SUPPORTED) {
+          fprintf(stderr,
+                  "Global reset not supported on this YubiKey. Please refer to reset commands for specific applications instead\n");
+        } else {
+          fprintf(stderr, "Reset failed\n");
+        }
+        return false;
+      }
+    } else {
+      fprintf(stderr, "Global reset operation aborted\n");
+      return true;
+    }
+  }
+  fprintf(stderr, "Successfully reset the application.\n");
+  return true;
 }
 
 static bool set_pin_retries(ykpiv_state *state, int pin_retries, int puk_retries, int verbose) {
@@ -2671,11 +2697,8 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_reset:
-        if(reset(state) == false) {
-          fprintf(stderr, "Reset failed, are pincodes blocked?\n");
+        if(!reset(state, args_info.global_given)) {
           ret = EXIT_FAILURE;
-        } else {
-          fprintf(stderr, "Successfully reset the application.\n");
         }
         break;
       case action_arg_pinMINUS_retries:

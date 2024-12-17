@@ -143,6 +143,7 @@ extern "C"
 
   bool is_version_compatible(ykpiv_state *state, uint8_t major, uint8_t minor, uint8_t patch);
   ykpiv_rc ykpiv_move_key(ykpiv_state *state, const unsigned char from_slot, const unsigned char to_slot);
+  ykpiv_rc ykpiv_global_reset(ykpiv_state *state);
 
   /**
    * Return the number of PIN attempts remaining before PIN is locked.
@@ -757,6 +758,8 @@ extern "C"
 #define YKPIV_INS_ATTEST 0xf9
 #define YKPIV_INS_GET_SERIAL 0xf8
 #define YKPIV_INS_GET_METADATA 0xf7
+
+#define MGM_INS_GLOBAL_RESET 0x1f
 
 #define YKPIV_PINPOLICY_TAG 0xaa
 #define YKPIV_PINPOLICY_DEFAULT 0
