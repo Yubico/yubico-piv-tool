@@ -428,19 +428,21 @@ generate_out:
 }
 
 static bool reset(ykpiv_state *state, bool global) {
-  if(!global) {
-    if(ykpiv_util_reset(state) != YKPIV_OK) {
+  if (!global) {
+    if (ykpiv_util_reset(state) != YKPIV_OK) {
       fprintf(stderr, "Reset failed, are pincodes blocked?\n");
       return false;
     }
   } else {
-    fprintf(stderr, "ALL of the data, including PIV data, in the YubiKey will be deleted. The action cannot be reversed!\n\nType 'y' to proceed: ");
+    fprintf(stderr,
+            "ALL data, including PIV data, in the YubiKey will be deleted. The action cannot be reversed!\n\nType 'y' to proceed: ");
     char resp = fgetc(stdin);
-    if(resp == 'y') {
+    if (resp == 'y') {
       ykpiv_rc rc = ykpiv_global_reset(state);
-      if(rc != YKPIV_OK) {
-        if(rc == YKPIV_NOT_SUPPORTED) {
-          fprintf(stderr, "Global reset not supported on this YubiKey. Please refer to reset commands for specific applications instead\n");
+      if (rc != YKPIV_OK) {
+        if (rc == YKPIV_NOT_SUPPORTED) {
+          fprintf(stderr,
+                  "Global reset not supported on this YubiKey. Please refer to reset commands for specific applications instead\n");
         } else {
           fprintf(stderr, "Reset failed\n");
         }

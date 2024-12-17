@@ -2920,9 +2920,8 @@ ykpiv_rc ykpiv_global_reset(ykpiv_state *state) {
   recv_len = 0;
   sw = 0;
   res = ykpiv_transfer_data(state, reset_templ, NULL, 0, NULL, &recv_len, &sw);
-  if(res != YKPIV_OK) {
+  if (res != YKPIV_OK) {
     return res;
   }
   return ykpiv_translate_sw_ex(__FUNCTION__, sw);
-
 }
