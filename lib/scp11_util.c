@@ -41,14 +41,6 @@
 #include <arpa/inet.h>
 #endif
 
-//static void dump_byte_array(const uint8_t *a, size_t len, const char* label) {
-//    fprintf(stderr, "---------------- %s - %ld : ", label, len);
-//    for(int i=0; i<len; i++) {
-//        fprintf(stderr, "%02x ", a[i]);
-//    }
-//    fprintf(stderr, "\n");
-//}
-
 static ykpiv_rc compute_full_mac_ex(const uint8_t *data, uint16_t data_len,
                                  aes_context *aes_ctx, uint8_t *mac) {
 

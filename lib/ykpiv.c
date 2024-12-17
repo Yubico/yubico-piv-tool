@@ -212,14 +212,6 @@ size_t _ykpiv_get_length_size(size_t length) {
   }
 }
 
-//static void dump_byte_array(const uint8_t *a, size_t len, const char* label) {
-//    fprintf(stderr, "---------------- %s - %ld : ", label, len);
-//    for(int i=0; i<len; i++) {
-//        fprintf(stderr, "%02x ", a[i]);
-//    }
-//    fprintf(stderr, "\n");
-//}
-
 size_t _ykpiv_set_length(unsigned char *buffer, size_t length) {
   if(length < 0x80) {
     *buffer++ = (unsigned char)length;
