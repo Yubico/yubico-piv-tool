@@ -39,7 +39,7 @@
 
 #include "ykpiv.h"
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 #include <windows.h>
 #include <openssl/applink.c>
 #else

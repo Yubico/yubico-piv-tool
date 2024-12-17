@@ -1,0 +1,8 @@
+{
+  "dependencies": [
+    { "name": "openssl", "features": ["tools"] },
+    "zlib",
+    "getopt",
+    "check"
+  ]
+}
