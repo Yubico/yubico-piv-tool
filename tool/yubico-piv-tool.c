@@ -2504,6 +2504,7 @@ int main(int argc, char *argv[]) {
       case action_arg_changeMINUS_pin:
       case action_arg_changeMINUS_puk:
       case action_arg_unblockMINUS_pin:
+      case action_arg_verify:
       case action_arg_verifyMINUS_pin:
       case action_arg_verifyMINUS_bio:
       case action_arg_setMINUS_mgmMINUS_key:
@@ -2625,6 +2626,7 @@ int main(int argc, char *argv[]) {
       case action_arg_version:
       case action_arg_reset:
       case action_arg_requestMINUS_certificate:
+      case action_arg_verify:
       case action_arg_verifyMINUS_pin:
       case action_arg_verifyMINUS_bio:
       case action_arg_changeMINUS_pin:
@@ -2744,7 +2746,8 @@ int main(int argc, char *argv[]) {
           fprintf(stderr, "Successfully generated a certificate request.\n");
         }
         break;
-      case action_arg_verifyMINUS_pin: {
+      case action_arg_verifyMINUS_pin:
+      case action_arg_verify: {
         char pinbuf[8+2] = {0};
         char *pin = args_info.pin_arg;
 
