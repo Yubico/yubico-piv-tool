@@ -17,7 +17,7 @@ jobs:
           - os: macos-latest-xlarge
             arch: arm
     env:
-      RELEASE_VERSION: 2.6.1
+      RELEASE_VERSION: 2.7.0
       SO_VERSION: 2
     steps:
       - name: checkout
