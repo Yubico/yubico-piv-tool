@@ -1,5 +1,9 @@
 yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
+* Version 2.7.1 (released 2024-12-19)
+
+** ykpiv: Fix type casting issues affecting systems using Big-endian architecture
+
 * Version 2.7.0 (released 2024-12-19)
 
 ** ykpiv: cmd: Add support for communication over a secure channel according to SCP11b specifications
