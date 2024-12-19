@@ -92,8 +92,8 @@ encryption(uint8_t *key, uint8_t counter, uint8_t *plaintext, uint32_t plaintext
   uint32_t e_len = sizeof(e);
   ykpiv_rc rc = scp11_encrypt_data(key, counter, plaintext, plaintext_len, e, &e_len);
 
-  ck_assert(rc == YKPIV_OK);
-  ck_assert(e_len == enc_len);
+  ck_assert_int_eq(rc, YKPIV_OK);
+  ck_assert_int_eq(e_len, enc_len);
   ck_assert(memcmp(e, enc, enc_len) == 0);
   return EXIT_SUCCESS;
 }
@@ -103,8 +103,8 @@ static int decryption(uint8_t *key, uint8_t counter, uint8_t *enc, uint32_t enc_
   uint32_t d_len = sizeof(d);
   ykpiv_rc rc = scp11_decrypt_data(key, counter, enc, enc_len, d, &d_len);
 
-  ck_assert(rc == YKPIV_OK);
-  ck_assert(d_len == dec_len);
+  ck_assert_int_eq(rc, YKPIV_OK);
+  ck_assert_int_eq(d_len, dec_len);
   ck_assert(memcmp(d, dec, dec_len) == 0);
   return EXIT_SUCCESS;
 }
