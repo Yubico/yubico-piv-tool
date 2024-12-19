@@ -71,7 +71,7 @@ typedef struct {
 #define YH_INTERNAL
 #endif
 
-int YH_INTERNAL aes_set_key(const uint8_t *key, uint16_t key_len, unsigned char key_algo,
+int YH_INTERNAL aes_set_key(const uint8_t *key, uint32_t key_len, unsigned char key_algo,
                                   aes_context *ctx);
 
 int YH_INTERNAL
@@ -85,8 +85,8 @@ int YH_INTERNAL aes_cbc_decrypt(const uint8_t *in, uint32_t in_len, uint8_t *out
                                       const uint8_t *iv, uint32_t iv_len, aes_context *ctx);
 
 uint32_t YH_INTERNAL aes_blocksize(aes_context *key);
-int YH_INTERNAL aes_add_padding(uint8_t *in, uint16_t max_len, uint16_t *len);
-void YH_INTERNAL aes_remove_padding(uint8_t *in, uint16_t *len);
+int YH_INTERNAL aes_add_padding(uint8_t *in, uint32_t max_len, uint32_t *len);
+void YH_INTERNAL aes_remove_padding(uint8_t *in, uint32_t *len);
 
 int YH_INTERNAL aes_destroy(aes_context *ctx);
 

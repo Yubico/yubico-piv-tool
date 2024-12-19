@@ -87,9 +87,9 @@ struct mac_test_data {
 
 
 static int
-encryption(uint8_t *key, uint8_t counter, uint8_t *plaintext, size_t plaintext_len, uint8_t *enc, size_t enc_len) {
+encryption(uint8_t *key, uint8_t counter, uint8_t *plaintext, uint16_t plaintext_len, uint8_t *enc, size_t enc_len) {
   uint8_t e[255] = {0};
-  size_t e_len = sizeof(e);
+  uint32_t e_len = sizeof(e);
   ykpiv_rc rc = scp11_encrypt_data(key, counter, plaintext, plaintext_len, e, &e_len);
 
   ck_assert(rc == YKPIV_OK);
@@ -100,7 +100,7 @@ encryption(uint8_t *key, uint8_t counter, uint8_t *plaintext, size_t plaintext_l
 
 static int decryption(uint8_t *key, uint8_t counter, uint8_t *enc, size_t enc_len, uint8_t *dec, size_t dec_len) {
   uint8_t d[255] = {0};
-  size_t d_len = sizeof(d);
+  uint32_t d_len = sizeof(d);
   ykpiv_rc rc = scp11_decrypt_data(key, counter, enc, enc_len, d, &d_len);
 
   ck_assert(rc == YKPIV_OK);
