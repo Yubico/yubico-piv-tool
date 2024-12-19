@@ -33,15 +33,15 @@
 
 #include "ykpiv.h"
 
-ykpiv_rc scp11_mac_data(uint8_t *key, uint8_t *mac_chain, uint8_t *data, size_t data_len, uint8_t *mac_out);
+ykpiv_rc scp11_mac_data(uint8_t *key, uint8_t *mac_chain, uint8_t *data, uint32_t data_len, uint8_t *mac_out);
 
-ykpiv_rc scp11_unmac_data(uint8_t *key, uint8_t *mac_chain, uint8_t *data, size_t data_len, uint16_t sw);
-
-ykpiv_rc
-scp11_encrypt_data(uint8_t *key, uint32_t counter, const uint8_t *data, size_t data_len, uint8_t *enc, size_t *enc_len);
+ykpiv_rc scp11_unmac_data(uint8_t *key, uint8_t *mac_chain, uint8_t *data, uint32_t data_len, uint16_t sw);
 
 ykpiv_rc
-scp11_decrypt_data(uint8_t *key, uint32_t counter, uint8_t *enc, size_t enc_len, uint8_t *data, size_t *data_len);
+scp11_encrypt_data(uint8_t *key, uint32_t counter, const uint8_t *data, uint32_t data_len, uint8_t *enc, uint32_t *enc_len);
+
+ykpiv_rc
+scp11_decrypt_data(uint8_t *key, uint32_t counter, uint8_t *enc, uint32_t enc_len, uint8_t *data, uint32_t *data_len);
 
 
 #endif //YUBICO_PIV_TOOL_AES_UTIL_H

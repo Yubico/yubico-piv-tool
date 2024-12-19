@@ -703,7 +703,7 @@ static void test_authenticate_helper(bool full) {
   res = ykpiv_auth_getchallenge(g_state, &metadata, data, &data_len);
   ck_assert_int_eq(res, YKPIV_OK);
 
-  crc = aes_set_key(key, key_len, YKPIV_ALGO_3DES, &cipher);
+  crc = aes_set_key(key, (uint32_t) key_len, YKPIV_ALGO_3DES, &cipher);
   ck_assert_int_eq(crc, 0);
   uint32_t cipher_len = (uint32_t)data_len;
   crc = aes_encrypt(data, cipher_len, data, &cipher_len, &cipher);
