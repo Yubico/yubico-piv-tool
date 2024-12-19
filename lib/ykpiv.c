@@ -641,9 +641,9 @@ static ykpiv_rc scp11_internal_authenticate(ykpiv_state *state, uint8_t *data, s
 }
 
 static ykpiv_rc
-scp11_verify_channel(uint8_t *verification_key, uint8_t *receipt, uint8_t *apdu_data, size_t apdu_data_len,
+scp11_verify_channel(uint8_t *verification_key, uint8_t *receipt, uint8_t *apdu_data, uint32_t apdu_data_len,
                      uint8_t *epubkey_sd, size_t epubkey_sd_len) {
-  size_t ka_data_len = apdu_data_len + epubkey_sd_len + 3;
+  uint32_t ka_data_len = apdu_data_len + epubkey_sd_len + 3;
   uint8_t *ka_data = malloc(ka_data_len);
   if (!ka_data) {
     DBG("Failed to allocate memory for key agreement data");
@@ -1249,10 +1249,10 @@ static ykpiv_rc _ykpiv_transmit(ykpiv_state *state, const unsigned char *send_da
   return YKPIV_OK;
 }
 
-static ykpiv_rc scp11_prepare_transfer(ykpiv_scp11_state *state, APDU *apdu, const uint8_t *apdu_data, size_t apdu_data_len, size_t *apdu_len) {
+static ykpiv_rc scp11_prepare_transfer(ykpiv_scp11_state *state, APDU *apdu, const uint8_t *apdu_data, uint32_t apdu_data_len, size_t *apdu_len) {
   ykpiv_rc rc = YKPIV_OK;
   uint8_t enc[YKPIV_OBJ_MAX_SIZE] = {0};
-  size_t enc_len = sizeof(enc);
+  uint32_t enc_len = sizeof(enc);
 
   if ((rc = scp11_encrypt_data(state->senc, state->enc_counter++, apdu_data, apdu_data_len, enc, &enc_len)) !=
       YKPIV_OK) {
@@ -1285,7 +1285,7 @@ static ykpiv_rc scp11_prepare_transfer(ykpiv_scp11_state *state, APDU *apdu, con
 }
 
 static ykpiv_rc
-scp11_decrypt_response(ykpiv_scp11_state *state, uint8_t *data, size_t data_len, uint8_t *dec, size_t *dec_len,
+scp11_decrypt_response(ykpiv_scp11_state *state, uint8_t *data, uint32_t data_len, uint8_t *dec, uint32_t *dec_len,
                        int sw) {
   if (data_len == 0) {
     DBG("No response data to decrypt");
@@ -1371,7 +1371,7 @@ ykpiv_rc _ykpiv_transfer_data(ykpiv_state *state,
     if (out_data) {
       if (state->scp11_state.security_level) {
         uint8_t dec[2048] = {0};
-        size_t dec_len = sizeof(dec);
+        uint32_t dec_len = sizeof(dec);
         if ((res = scp11_decrypt_response(&state->scp11_state, data, recv_len, dec, &dec_len, *sw)) != YKPIV_OK) {
           return res;
         }

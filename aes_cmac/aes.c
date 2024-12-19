@@ -254,7 +254,7 @@ static int aes_encrypt_ex(const EVP_CIPHER *cipher, const uint8_t *in, uint32_t 
 
 #endif
 
-int aes_set_key(const uint8_t *key, uint16_t key_len, unsigned char key_algo, aes_context *ctx) {
+int aes_set_key(const uint8_t *key, uint32_t key_len, unsigned char key_algo, aes_context *ctx) {
 #ifdef _WIN32
   NTSTATUS status = STATUS_SUCCESS;
 
@@ -410,8 +410,8 @@ uint32_t aes_blocksize(aes_context *key) {
 #endif
 }
 
-int aes_add_padding(uint8_t *in, uint16_t max_len, uint16_t *len) {
-  uint16_t new_len = *len;
+int aes_add_padding(uint8_t *in, uint32_t max_len, uint32_t *len) {
+  uint32_t new_len = *len;
 
   if (in) {
     if (new_len >= max_len) {
@@ -435,7 +435,7 @@ int aes_add_padding(uint8_t *in, uint16_t max_len, uint16_t *len) {
   return 0;
 }
 
-void aes_remove_padding(uint8_t *in, uint16_t *len) {
+void aes_remove_padding(uint8_t *in, uint32_t *len) {
 
   while ((*len) > 1 && in[(*len) - 1] == 0) {
     (*len)--;

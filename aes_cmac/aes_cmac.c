@@ -74,7 +74,7 @@ static void cmac_generate_subkey(const uint8_t *key, uint8_t *subkey) {
 }
 
 int aes_cmac_encrypt(aes_cmac_context_t *ctx, const uint8_t *message,
-                     const uint16_t message_len, uint8_t *mac) {
+                     const uint32_t message_len, uint8_t *mac) {
 
   uint8_t M[AES_BLOCK_SIZE] = {0};
   const uint8_t *ptr = message;
@@ -87,7 +87,7 @@ int aes_cmac_encrypt(aes_cmac_context_t *ctx, const uint8_t *message,
   else
     n_blocks = (message_len + (AES_BLOCK_SIZE - 1)) / AES_BLOCK_SIZE - 1;
 
-  int out_len = AES_BLOCK_SIZE;
+  uint32_t out_len = AES_BLOCK_SIZE;
   for (uint8_t i = 0; i < n_blocks; i++) {
     int rc = aes_cbc_encrypt(ptr, AES_BLOCK_SIZE, mac, &out_len, mac, AES_BLOCK_SIZE, ctx->aes_ctx);
     if (rc) {
@@ -121,7 +121,7 @@ int aes_cmac_init(aes_context *aes_ctx, aes_cmac_context_t *ctx) {
 
   ctx->aes_ctx = aes_ctx;
 
-  int out_len = AES_BLOCK_SIZE;
+  uint32_t out_len = AES_BLOCK_SIZE;
   int rc = aes_encrypt(zero, AES_BLOCK_SIZE, L, &out_len, ctx->aes_ctx);
   if (rc) {
     return rc;
