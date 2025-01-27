@@ -1931,7 +1931,7 @@ static bool status(ykpiv_state *state, enum enum_hash hash,
   if (ykpiv_get_serial(state, &serial) != YKPIV_OK) {
     fprintf(output_file, "No data available\n");
   } else {
-    fprintf(output_file, "%d\n", serial);
+    fprintf(output_file, "%u\n", serial);
   }
 
   fprintf(output_file, "CHUID:\t");
