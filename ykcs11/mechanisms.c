@@ -692,6 +692,7 @@ CK_RV decrypt_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_M
   session->op_info.op.encrypt.algorithm = do_get_key_algorithm(key);
   session->op_info.op.encrypt.key = key;
   session->op_info.op.encrypt.oaep_label = NULL;
+  session->op_info.op.encrypt.oaep_label_len = 0;
 
   switch (session->op_info.mechanism) {
   case CKM_RSA_X_509:
@@ -717,9 +718,6 @@ CK_RV decrypt_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_M
       }
       memcpy(session->op_info.op.encrypt.oaep_label, oaep->pSourceData, oaep->ulSourceDataLen);
       session->op_info.op.encrypt.oaep_label_len = oaep->ulSourceDataLen;
-    } else {
-      session->op_info.op.encrypt.oaep_label = NULL;
-      session->op_info.op.encrypt.oaep_label_len = 0;
     }
     break;
   default:
