@@ -71,23 +71,28 @@ CK_RV do_rsa_encrypt(ykcs11_pkey_t *key, int padding, const ykcs11_md_t* oaep_md
     }
   }
 
-  if(oaep_md != NULL && oaep_mgf1 != NULL && oaep_label != NULL) {
-    if(EVP_PKEY_CTX_set_rsa_oaep_md(ctx, oaep_md) >= 0) {
-      rv = CKR_FUNCTION_FAILED;
-      goto rsa_enc_cleanup;
-    }
-    
-    if(EVP_PKEY_CTX_set_rsa_mgf1_md(ctx, oaep_mgf1) >= 0) {
-      rv = CKR_FUNCTION_FAILED;
-      goto rsa_enc_cleanup;
-    }
 
-    if(EVP_PKEY_CTX_set0_rsa_oaep_label(ctx, oaep_label, oaep_label_len) >= 0) {
+  if(oaep_md != NULL) {
+    if(EVP_PKEY_CTX_set_rsa_oaep_md(ctx, oaep_md) <= 0) {
       rv = CKR_FUNCTION_FAILED;
       goto rsa_enc_cleanup;
     }
   }
- 
+  
+  if (oaep_mgf1 != NULL) {
+    if(EVP_PKEY_CTX_set_rsa_mgf1_md(ctx, oaep_mgf1) <= 0) {
+      rv = CKR_FUNCTION_FAILED;
+      goto rsa_enc_cleanup;
+    }
+  }
+
+  if (oaep_label != NULL) {
+    if(EVP_PKEY_CTX_set0_rsa_oaep_label(ctx, oaep_label, oaep_label_len) <= 0) {
+      rv = CKR_FUNCTION_FAILED;
+      goto rsa_enc_cleanup;
+    }
+  }
+   
   size_t cbLen = *enc_len;
   if(EVP_PKEY_encrypt(ctx, enc, &cbLen, data, data_len) <= 0) {
     rv = CKR_FUNCTION_FAILED;
