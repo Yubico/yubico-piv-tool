@@ -505,7 +505,7 @@ EC_KEY* import_ec_key(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session,
   if (X509_set_pubkey(cert, evp) == 0)
     exit(EXIT_FAILURE);
 
-  if (X509_sign(cert, evp, EVP_sha1()) == 0)
+  if (X509_sign(cert, evp, EVP_sha256()) == 0)
     exit(EXIT_FAILURE);
 
   CK_ULONG cert_len;
@@ -673,7 +673,7 @@ void import_rsa_key(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, i
   if (X509_set_pubkey(cert, *evp) == 0)
     exit(EXIT_FAILURE);
 
-  if (X509_sign(cert, *evp, EVP_sha1()) == 0)
+  if (X509_sign(cert, *evp, EVP_sha256()) == 0)
     exit(EXIT_FAILURE);
 
   CK_ULONG cert_len;
