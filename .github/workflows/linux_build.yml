@@ -14,7 +14,6 @@ jobs:
         include:
           - os: ubuntu-24.04
           - os: ubuntu-22.04
-          - os: ubuntu-20.04
 
     steps:
       # This action checks-out the repository under $GITHUB_WORKSPACE, so the workflow can access it.
