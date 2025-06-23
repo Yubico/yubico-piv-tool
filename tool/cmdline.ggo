@@ -81,4 +81,4 @@ option "stdin-input" - "Read sensitive values from stdin" flag off hidden
 option "attestation" - "Add attestation cross-signature" flag off
 option "new-key-algo" m "New management key algorithm to use for action set-mgm-key" values="TDES","AES128","AES192","AES256" enum optional default="TDES"
 
-option "scp11" - "Use encrypted communication as specified by Secure Channel Protocol 11 (SCP11b)" flag off
+option "scp11" - "Communicate with the YubiKey over an encrypted channel" flag off
