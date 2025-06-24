@@ -3,8 +3,9 @@ Set-PSDebug -Trace 1
 $RELEASE_VERSION=$args[0]
 $CMAKE_ARCH=$args[1]
 $VCPKG_PATH=$args[2]
-if($args.length -eq 4) {
-    if($args[3] -eq "zip") {
+$SOURCE_DIR=$args[3]
+if($args.length -eq 5) {
+    if($args[4] -eq "zip") {
         $ZIP = "TRUE"
     }
 }
@@ -15,9 +16,9 @@ if($CMAKE_ARCH -eq "Win32") {
     $ARCH="x64"
 }
 
-$SOURCE_DIR="$PSScriptRoot/../.."
-$BUILD_DIR="$SOURCE_DIR/win32_release"
-$RELEASE_DIR="$SOURCE_DIR/yubico-piv-tool-$RELEASE_VERSION-$ARCH"
+$WIN_DIR="$PSScriptRoot/../.."
+$BUILD_DIR="$WIN_DIR/win32_release"
+$RELEASE_DIR="$WIN_DIR/yubico-piv-tool-$RELEASE_VERSION-$ARCH"
 $RELEASE_ARCHIVE="$SOURCE_DIR/yubico-piv-tool-$RELEASE_VERSION-$ARCH.zip"
 $LICENSES_DIR="$RELEASE_DIR/licenses"
 
@@ -33,13 +34,12 @@ $env:Path ="$VCPKG_PATH\packages\zlib_$ARCH-windows\bin;$env:Path"
 # Build for x86 architecture
 cd $SOURCE_DIR
 mkdir $BUILD_DIR; cd $BUILD_DIR
-cmake -A "$CMAKE_ARCH" -DVERBOSE_CMAKE=1 `
+cmake -A "$CMAKE_ARCH" -DVERBOSE_CMAKE=1 -S $SOURCE_DIR -DCMAKE_INSTALL_PREFIX="$RELEASE_DIR" `
         -DGETOPT_LIB_DIR="$VCPKG_PATH/packages/getopt-win32_$ARCH-windows/lib" `
         -DGETOPT_INCLUDE_DIR="$VCPKG_PATH/packages/getopt-win32_$ARCH-windows/include" `
         -DZLIB_LIB_DIR="$VCPKG_PATH/packages/zlib_$ARCH-windows/lib" `
         -DZLIB_INCL_DIR="$VCPKG_PATH/packages/zlib_$ARCH-windows/include" `
         -DZLIB_ROOT="$VCPKG_PATH/packages/zlib_$ARCH-windows" `
-        -DCMAKE_INSTALL_PREFIX="$RELEASE_DIR" ..
         
 cmake --build . -v --config Release
 cmake --install .
@@ -87,5 +87,4 @@ if($ZIP)
 }
 
 # Clean directory
-cd $SOURCE_DIR
 rm -r $BUILD_DIR

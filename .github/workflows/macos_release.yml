@@ -2,7 +2,10 @@ name: MacOS Release
 # This workflow is triggered on pushes to the repository. This is machine tests that everything is set for a release
 # build. The binaries produced here can be used to make the release
 
-on: [push]
+on:
+  schedule:
+    # Run this every wednesday at 3:40. https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule
+    - cron: '40 3 * * 3'
 
 jobs:
   release_built:

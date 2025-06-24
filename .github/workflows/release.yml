@@ -1,0 +1,156 @@
+name: Release binaries
+
+on: [push]
+
+jobs:
+
+  source:
+    name: Build dist with Linux
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_VERSION: 2.7.1
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: Install prerequisites
+        run: |
+          set -x
+          sudo apt install libpcsclite-dev check gengetopt help2man zlib1g-dev
+      - name: Create tar.gz
+        run: |
+          set -x
+          mkdir $GITHUB_WORKSPACE/artifact
+          ./resources/release/make_src_dist.sh $RELEASE_VERSION
+          mv yubico-piv-tool-$RELEASE_VERSION.tar.gz $GITHUB_WORKSPACE/artifact/
+          cp -r resources/release $GITHUB_WORKSPACE/artifact/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: yubico-piv-tool-src
+          path: artifact
+
+  Windowsx-release:
+    name: Build Windows release
+    needs: source
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            arch: x86
+          - os: windows-latest
+            arch: x64
+    env:
+      RELEASE_VERSION: 2.7.1
+    steps:
+      - name: Download source from source job
+        uses: actions/download-artifact@v4
+        with:
+          name: yubico-piv-tool-src
+
+      - name: Extract source
+        run: |
+          Set-PSDebug -Trace 1
+          tar xf yubico-piv-tool-$env:RELEASE_VERSION.tar.gz
+
+      - name: Build release binaries
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          Set-PSDebug -Trace 1
+          #$PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-$env:RELEASE_VERSION"
+
+          cd $env:GITHUB_WORKSPACE/release/win
+          if($env:ARCH -eq "x86")
+          {
+            ./make_release_binaries.ps1 $env:RELEASE_VERSION Win32 C:/vcpkg $env:GITHUB_WORKSPACE\yubico-piv-tool-$env:RELEASE_VERSION
+          }
+          else
+          {
+            ./make_release_binaries.ps1 $env:RELEASE_VERSION x64 C:/vcpkg $env:GITHUB_WORKSPACE\yubico-piv-tool-$env:RELEASE_VERSION
+          }
+          
+          mkdir $env:GITHUB_WORKSPACE/artifact
+          cp -r $env:GITHUB_WORKSPACE/yubico-piv-tool-$env:RELEASE_VERSION-$env:ARCH $env:GITHUB_WORKSPACE/artifact/
+
+      - name: Build Windows Installer
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          Set-PSDebug -Trace 1
+          #$PIVTOOL_SRC_DIR="$env:GITHUB_WORKSPACE\yubico-piv-tool-$env:RELEASE_VERSION"
+          $MERGEDPATH = Get-ChildItem "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Redist\MSVC\v143\MergeModules\Microsoft_VC143_CRT_$env:ARCH.msm"
+
+          cd $env:GITHUB_WORKSPACE/release/win
+          ./make_installer.ps1 $env:GITHUB_WORKSPACE/yubico-piv-tool-$env:RELEASE_VERSION-$env:ARCH $env:RELEASE_VERSION $env:ARCH $env:WIX\bin "$MERGEDPATH"
+          cp yubico-piv-tool-$env:RELEASE_VERSION-$env:ARCH.msi $env:GITHUB_WORKSPACE/artifact/
+
+      - name: Install yubico-piv-tool
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          Set-PSDebug -Trace 1
+          cd $env:GITHUB_WORKSPACE/release/win
+          msiexec /i yubico-piv-tool-$env:RELEASE_VERSION-$env:ARCH.msi /quiet /log $env:GITHUB_WORKSPACE/artifact/log_$env:ARCH.txt
+          Start-Sleep -s 5
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: yubico-piv-tool-${{ matrix.arch }}
+          path: artifact
+
+  macos-release:
+    name: Build MacOS binaries
+    needs: source
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest-large
+            arch: amd
+          - os: macos-latest-xlarge
+            arch: arm
+    env:
+      RELEASE_VERSION: 2.7.1
+      SO_VERSION: 2
+    steps:
+      - name: Download source from source job
+        uses: actions/download-artifact@v4
+        with:
+          name: yubico-piv-tool-src
+
+      - name: Extract source
+        run: |
+          set -x
+          tar xf yubico-piv-tool-$RELEASE_VERSION.tar.gz
+
+      - name: Install prerequisites
+        run: |
+          set -x
+          brew update
+          brew install check gengetopt help2man opensc zlib
+          brew reinstall openssl@3
+
+      - name: Build MacOS binaries
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -x
+          export INSTALL_PREFIX=/usr/local
+
+          cd $GITHUB_WORKSPACE/release/macos
+          chmod +x make_release_binaries.sh
+          ./make_release_binaries.sh $ARCH $RELEASE_VERSION $SO_VERSION $GITHUB_WORKSPACE/yubico-piv-tool-$RELEASE_VERSION $INSTALL_PREFIX
+          mkdir $GITHUB_WORKSPACE/artifact
+          cp -r $GITHUB_WORKSPACE/release/macos/yubico-piv-tool-$RELEASE_VERSION-mac-$ARCH $GITHUB_WORKSPACE/artifact/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: yubico-piv-tool-mac-${{ matrix.arch }}64
+          path: artifact
