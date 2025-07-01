@@ -37,10 +37,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: windows-2019
+          - os: windows-2025
             arch: x86
             arch_cmake: Win32
-          - os: windows-2019
+          - os: windows-2025
             arch: x64
             arch_cmake: x64
           - os: windows-2022
@@ -143,10 +143,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: windows-2019
+          - os: windows-2025
             arch: x86
             arch_cmake: Win32
-          - os: windows-2019
+          - os: windows-2025
             arch: x64
             arch_cmake: x64
           - os: windows-2022
