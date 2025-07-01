@@ -1789,7 +1789,7 @@ static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
 
   slot_name = get_slot_hex(slot);
 
-  fprintf(output, "Slot %x:\t", slot_name);
+  fprintf(output, "Slot %x Certificate:\t", slot_name);
 
   unsigned char certdata[YKPIV_OBJ_MAX_SIZE * 10] = {0};
   size_t certdata_len = sizeof(certdata);
@@ -1901,6 +1901,114 @@ cert_out:
   }
 }
 
+ static void print_key_info(ykpiv_state *state, enum enum_slot slot, FILE *output) {
+   int slot_hex = get_slot_hex(slot);
+   unsigned char data[YKPIV_OBJ_MAX_SIZE] = {0};
+   unsigned long len = sizeof(data);
+   ykpiv_metadata md = {0};
+   ykpiv_rc rc = YKPIV_OK;
+
+   if(ykpiv_get_metadata(state, slot_hex, data, &len) != YKPIV_OK) {
+     return;
+   }
+
+   fprintf(output, "Slot %x Key:\t", slot_hex);
+   if((rc = ykpiv_util_parse_metadata(data, len, &md)) != YKPIV_OK) {
+     fprintf(output, "Failed to parse metadata: %s\n", ykpiv_strerror(rc));
+     return;
+   }
+
+   fprintf(output, "\n\tAlgorithm:\t");
+   switch(md.algorithm) {
+     case YKPIV_ALGO_RSA1024:
+       fprintf(output, "RSA1024\n");
+       break;
+     case YKPIV_ALGO_RSA2048:
+       fprintf(output, "RSA2048\n");
+       break;
+     case YKPIV_ALGO_RSA3072:
+       fprintf(output, "RSA3072\n");
+       break;
+     case YKPIV_ALGO_RSA4096:
+       fprintf(output, "RSA4096\n");
+       break;
+     case YKPIV_ALGO_ECCP256:
+       fprintf(output, "ECCP256\n");
+       break;
+     case YKPIV_ALGO_ECCP384:
+       fprintf(output, "ECCP384\n");
+       break;
+     case YKPIV_ALGO_ED25519:
+       fprintf(output, "ED25519\n");
+       break;
+     case YKPIV_ALGO_X25519:
+       fprintf(output, "X25519\n");
+       break;
+     default:
+       fprintf(output, "Unknown\n");
+   }
+
+   fprintf(output, "\tPin Policy:\t");
+   switch(md.pin_policy) {
+     case YKPIV_PINPOLICY_DEFAULT:
+       fprintf(output, "Default\n");
+       break;
+     case YKPIV_PINPOLICY_NEVER:
+       fprintf(output, "Never\n");
+       break;
+     case YKPIV_PINPOLICY_ONCE:
+       fprintf(output, "Once\n");
+       break;
+     case YKPIV_PINPOLICY_ALWAYS:
+       fprintf(output, "Always\n");
+       break;
+     case YKPIV_PINPOLICY_MATCH_ONCE:
+       fprintf(output, "Match Once\n");
+       break;
+     case YKPIV_PINPOLICY_MATCH_ALWAYS:
+       fprintf(output, "Match Always\n");
+       break;
+     default:
+       fprintf(output, "Unknown\n");
+       break;
+   }
+
+   fprintf(output, "\tTouch Policy:\t");
+   switch(md.touch_policy) {
+     case YKPIV_TOUCHPOLICY_DEFAULT:
+       fprintf(output, "Default\n");
+       break;
+     case YKPIV_TOUCHPOLICY_NEVER:
+       fprintf(output, "Never\n");
+       break;
+     case YKPIV_TOUCHPOLICY_ALWAYS:
+       fprintf(output, "Always\n");
+       break;
+     case YKPIV_TOUCHPOLICY_CACHED:
+       fprintf(output, "Cached\n");
+       break;
+     case YKPIV_TOUCHPOLICY_AUTO:
+       fprintf(output, "Auto\n");
+       break;
+     default:
+       fprintf(output, "Unknown\n");
+       break;
+   }
+
+   fprintf(output, "\tOrigin:\t\t");
+   switch(md.origin) {
+     case YKPIV_METADATA_ORIGIN_GENERATED:
+       fprintf(output, "Generated\n");
+       break;
+     case YKPIV_METADATA_ORIGIN_IMPORTED:
+       fprintf(output, "Imported\n");
+       break;
+     default:
+       fprintf(output, "Unknown\n");
+       break;
+   }
+ }
+
 static bool status(ykpiv_state *state, enum enum_hash hash,
                    enum enum_slot slot,
                    const char *output_file_name) {
@@ -1949,12 +2057,15 @@ static bool status(ykpiv_state *state, enum enum_hash hash,
     dump_data(buf, len, output_file, false, format_arg_hex);
   }
 
-  if (slot == slot__NULL)
+  if (slot == slot__NULL) {
     for (i = 0; i < 24; i++) {
       print_cert_info(state, i, md, output_file);
+      print_key_info(state, i, output_file);
     }
-  else
+  } else {
     print_cert_info(state, slot, md, output_file);
+    print_key_info(state, slot, output_file);
+  }
 
   {
     int tries;
