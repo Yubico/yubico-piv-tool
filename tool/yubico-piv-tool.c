@@ -272,6 +272,58 @@ static bool move_key(ykpiv_state *state, int from_slot, int to_slot) {
   return ret;
 }
 
+static bool get_public_key(ykpiv_state *state, enum enum_slot slot, const char *output_file_name,
+                           enum enum_key_format key_format) {
+  int slot_hex = get_slot_hex(slot);
+  uint8_t data[YKPIV_OBJ_MAX_SIZE] = {0};
+  size_t data_len = sizeof(data);
+  FILE *output_file = NULL;
+  ykpiv_metadata md = {0};
+  EVP_PKEY *public_key = NULL;
+  ykpiv_rc rc = YKPIV_OK;
+  bool ret = false;
+
+  output_file = open_file(output_file_name, key_file_mode(key_format, true));
+  if(!output_file) {
+    return false;
+  }
+
+  if (key_format != key_format_arg_PEM) {
+    fprintf(stderr, "Only PEM is supported as public_key output.\n");
+    goto pubkey_out;
+  }
+
+  if(ykpiv_get_metadata(state, slot_hex, data, &data_len) != YKPIV_OK) {
+    fprintf(stderr, "Metadata object for key was not found\n");
+    goto pubkey_out;
+  }
+  if((rc = ykpiv_util_parse_metadata(data, data_len, &md)) != YKPIV_OK) {
+    fprintf(stderr, "Failed to parse metadata: %s\n", ykpiv_strerror(rc));
+    goto pubkey_out;
+  }
+
+  if((rc = do_create_public_key(md.pubkey, md.pubkey_len, md.algorithm, &public_key)) != YKPIV_OK) {
+    fprintf(stderr, "Failed to create public key: %s\n", ykpiv_strerror(rc));
+    goto pubkey_out;
+  }
+
+  if(PEM_write_PUBKEY(output_file, public_key) == 1) {
+    ret = true;
+  } else {
+    fprintf(stderr, "Failed to write public key in PEM format\n");
+    goto pubkey_out;
+  }
+
+pubkey_out:
+  if (output_file != stdout) {
+    fclose(output_file);
+  }
+  if (public_key) {
+    EVP_PKEY_free(public_key);
+  }
+  return ret;
+}
+
 static bool generate_key(ykpiv_state *state, enum enum_slot slot,
     enum enum_algorithm algorithm, const char *output_file_name,
     enum enum_key_format key_format, enum enum_pin_policy pin_policy,
@@ -283,8 +335,6 @@ static bool generate_key(ykpiv_state *state, enum enum_slot slot,
   EVP_PKEY *public_key = NULL;
   RSA *rsa = NULL;
   EC_KEY *eckey = NULL;
-  EC_GROUP *group = NULL;
-  EC_POINT *ecpoint = NULL;
   uint8_t *mod = NULL;
   uint8_t *exp = NULL;
   uint8_t *point = NULL;
@@ -398,12 +448,6 @@ static bool generate_key(ykpiv_state *state, enum enum_slot slot,
 generate_out:
   if (output_file != stdout) {
     fclose(output_file);
-  }
-  if (group) {
-    EC_GROUP_clear_free(group);
-  }
-  if (ecpoint) {
-    EC_POINT_free(ecpoint);
   }
   if (eckey) {
     EC_KEY_free(eckey);
@@ -2583,6 +2627,7 @@ int main(int argc, char *argv[]) {
       case action_arg_importMINUS_certificate:
       case action_arg_deleteMINUS_certificate:
       case action_arg_readMINUS_certificate:
+      case action_arg_readMINUS_publicMINUS_key:
       case action_arg_testMINUS_signature:
       case action_arg_testMINUS_decipher:
       case action_arg_attest:
@@ -2750,6 +2795,7 @@ int main(int argc, char *argv[]) {
       case action_arg_unblockMINUS_pin:
       case action_arg_selfsignMINUS_certificate:
       case action_arg_readMINUS_certificate:
+      case action_arg_readMINUS_publicMINUS_key:
       case action_arg_status:
       case action_arg_testMINUS_signature:
       case action_arg_testMINUS_decipher:
@@ -2948,6 +2994,11 @@ int main(int argc, char *argv[]) {
       case action_arg_readMINUS_certificate:
         if(read_certificate(state, args_info.slot_arg, args_info.key_format_arg,
               args_info.output_arg) == false) {
+          ret = EXIT_FAILURE;
+        }
+        break;
+      case action_arg_readMINUS_publicMINUS_key:
+        if (get_public_key(state, args_info.slot_arg, args_info.output_arg, args_info.key_format_arg) == false) {
           ret = EXIT_FAILURE;
         }
         break;

@@ -64,8 +64,9 @@ unsigned char get_piv_algorithm(enum enum_algorithm);
 unsigned char get_pin_policy(enum enum_pin_policy);
 unsigned char get_touch_policy(enum enum_touch_policy);
 int SSH_write_X509(FILE *fp, X509 *x);
-bool is_rsa_key_algorithm(unsigned char);
-bool is_ec_key_algorithm(unsigned char);
+//bool is_rsa_key_algorithm(unsigned char);
+//bool is_ec_key_algorithm(unsigned char);
 int get_ec_pubkey_from_bytes(int curve_name, uint8_t *point, size_t point_len, EVP_PKEY **pkey);
+int do_create_public_key(uint8_t *in, size_t in_len, uint8_t algorithm, EVP_PKEY **pkey);
 
 #endif

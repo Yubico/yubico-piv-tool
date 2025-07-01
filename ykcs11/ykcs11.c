@@ -41,6 +41,7 @@
 #include "openssl_types.h"
 #include "openssl_utils.h"
 #include "debug.h"
+#include "../common/util.h"
 
 #include <stdbool.h>
 
@@ -1024,11 +1025,11 @@ CK_DEFINE_FUNCTION(CK_RV, C_OpenSession)(
               session->slot->pin_policy[sub_id] = md.pin_policy;
               session->slot->touch_policy[sub_id] = md.touch_policy;
               if(md.pubkey_len) {
-                if((rv = do_create_public_key(md.pubkey, md.pubkey_len, md.algorithm, &session->slot->pkeys[sub_id])) == CKR_OK) {
+                if((rc = do_create_public_key(md.pubkey, md.pubkey_len, md.algorithm, &session->slot->pkeys[sub_id])) == YKPIV_OK) {
                   add_object(session->slot, pvtk_id);
                   add_object(session->slot, pubk_id);
                 } else {
-                  DBG("Failed to create public key for slot %lx, algorithm %u from metadata: %lu", slot, md.algorithm, rv);
+                  DBG("Failed to create public key for slot %lx, algorithm %u from metadata: %s", slot, md.algorithm, ykpiv_strerror(rc));
                 }
               }
             } else {
@@ -1639,10 +1640,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(
         session->slot->pin_policy[id] = md.pin_policy;
         session->slot->touch_policy[id] = md.touch_policy;
         if(md.pubkey_len) {
-          if((rv = do_create_public_key(md.pubkey, md.pubkey_len, md.algorithm, &session->slot->pkeys[id])) == CKR_OK) {
+          if((rc = do_create_public_key(md.pubkey, md.pubkey_len, md.algorithm, &session->slot->pkeys[id])) == YKPIV_OK) {
             add_object(session->slot, pubk_id);
           } else {
-            DBG("Failed to create public key for slot %lx, algorithm %u from metadata: %lu", slot, md.algorithm, rv);
+            DBG("Failed to create public key for slot %lx, algorithm %u from metadata: %s", slot, md.algorithm, ykpiv_strerror(rc));
           }
         }
       } else {

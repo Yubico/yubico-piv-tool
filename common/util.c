@@ -693,53 +693,162 @@ int SSH_write_X509(FILE *fp, X509 *x) {
 
 }
 
- int get_ec_pubkey_from_bytes(int curve_name, uint8_t *point, size_t point_len, EVP_PKEY **pkey) {
-   int rc = 0;
-   EC_POINT *ecpoint = NULL;
-   EC_KEY *eckey = NULL;
-   EC_GROUP *group = EC_GROUP_new_by_curve_name(curve_name);
-   if(group == NULL)
-     return YKPIV_MEMORY_ERROR;
-   EC_GROUP_set_asn1_flag(group, OPENSSL_EC_NAMED_CURVE);
-   eckey = EC_KEY_new();
-   if(eckey == NULL) {
-     rc = YKPIV_MEMORY_ERROR;
-     goto create_ec_cleanup;
-   }
-   if(EC_KEY_set_group(eckey, group) <= 0) {
-     rc = YKPIV_GENERIC_ERROR;
-     goto create_ec_cleanup;
-   }
-   ecpoint = EC_POINT_new(group);
-   if(ecpoint == NULL) {
-     rc = YKPIV_MEMORY_ERROR;
-     goto create_ec_cleanup;
-   }
-   if(EC_POINT_oct2point(group, ecpoint, point, point_len, NULL) <= 0) {
-     rc = YKPIV_ARGUMENT_ERROR;
-     goto create_ec_cleanup;
-   }
-   if(EC_KEY_set_public_key(eckey, ecpoint) <= 0) {
-     rc = YKPIV_GENERIC_ERROR;
-     goto create_ec_cleanup;
-   }
-   *pkey = EVP_PKEY_new();
-   if(*pkey == NULL) {
-     rc = YKPIV_MEMORY_ERROR;
-     goto create_ec_cleanup;
-   }
-   if(EVP_PKEY_assign_EC_KEY(*pkey, eckey) <= 0) {
-     rc = YKPIV_GENERIC_ERROR;
-     goto create_ec_cleanup;
-   }
+int get_ec_pubkey_from_bytes(int curve_name, uint8_t *point, size_t point_len, EVP_PKEY **pkey) {
+  int rc = 0;
+  EC_POINT *ecpoint = NULL;
+  EC_KEY *eckey = NULL;
+  EC_GROUP *group = EC_GROUP_new_by_curve_name(curve_name);
+  if(group == NULL)
+    return YKPIV_MEMORY_ERROR;
+  EC_GROUP_set_asn1_flag(group, OPENSSL_EC_NAMED_CURVE);
+  eckey = EC_KEY_new();
+  if(eckey == NULL) {
+    rc = YKPIV_MEMORY_ERROR;
+    goto create_ec_cleanup;
+  }
+  if(EC_KEY_set_group(eckey, group) <= 0) {
+    rc = YKPIV_GENERIC_ERROR;
+    goto create_ec_cleanup;
+  }
+  ecpoint = EC_POINT_new(group);
+  if(ecpoint == NULL) {
+    rc = YKPIV_MEMORY_ERROR;
+    goto create_ec_cleanup;
+  }
+  if(EC_POINT_oct2point(group, ecpoint, point, point_len, NULL) <= 0) {
+    rc = YKPIV_ARGUMENT_ERROR;
+    goto create_ec_cleanup;
+  }
+  if(EC_KEY_set_public_key(eckey, ecpoint) <= 0) {
+    rc = YKPIV_GENERIC_ERROR;
+    goto create_ec_cleanup;
+  }
+  *pkey = EVP_PKEY_new();
+  if(*pkey == NULL) {
+    rc = YKPIV_MEMORY_ERROR;
+    goto create_ec_cleanup;
+  }
+  if(EVP_PKEY_assign_EC_KEY(*pkey, eckey) <= 0) {
+    rc = YKPIV_GENERIC_ERROR;
+    goto create_ec_cleanup;
+  }
 
-   create_ec_cleanup:
-   EC_GROUP_clear_free(group);
-   if(ecpoint != NULL) {
-     EC_POINT_clear_free(ecpoint);
-   }
-   if(rc != YKPIV_OK && eckey != NULL) {
-     EC_KEY_free(eckey);
-   }
-   return rc;
- }
+create_ec_cleanup:
+  EC_GROUP_clear_free(group);
+  if(ecpoint != NULL) {
+    EC_POINT_clear_free(ecpoint);
+  }
+  if(rc != YKPIV_OK && eckey != NULL) {
+    EC_KEY_free(eckey);
+  }
+  return rc;
+}
+
+static int do_create_rsa_key(uint8_t *mod, size_t mod_len, uint8_t *exp, size_t exp_len, EVP_PKEY **pkey) {
+  ykpiv_rc rc;
+  RSA *rsa = NULL;
+  BIGNUM *n = BN_bin2bn(mod, mod_len, 0);
+  if(n == NULL)
+    return YKPIV_MEMORY_ERROR;
+  BIGNUM *e = BN_bin2bn(exp, exp_len, 0);
+  if(e == NULL) {
+    rc = YKPIV_MEMORY_ERROR;
+    goto create_rsa_cleanup;
+  }
+  rsa = RSA_new();
+  if(rsa == NULL) {
+    rc = YKPIV_MEMORY_ERROR;
+    goto create_rsa_cleanup;
+  }
+  if(RSA_set0_key(rsa, n, e, NULL) <= 0) {
+    rc = YKPIV_GENERIC_ERROR;
+    goto create_rsa_cleanup;
+  }
+  EVP_PKEY_free(*pkey);
+  *pkey = EVP_PKEY_new();
+  if(*pkey == NULL) {
+    rc = YKPIV_MEMORY_ERROR;
+    goto create_rsa_cleanup;
+  }
+  if(EVP_PKEY_assign_RSA(*pkey, rsa) <= 0) {
+    rc = YKPIV_GENERIC_ERROR;
+    goto create_rsa_cleanup;
+  }
+  return YKPIV_OK;
+create_rsa_cleanup:
+  BN_free(n);
+  if(e != NULL) {
+    BN_free(e);
+  }
+  if(rsa != NULL) {
+    RSA_free(rsa);
+  }
+  return rc;
+}
+
+int do_create_public_key(uint8_t *in, size_t in_len, uint8_t algorithm, EVP_PKEY **pkey) {
+  uint8_t *eob = in + in_len;
+  unsigned long offs, len;
+  if (YKPIV_IS_RSA(algorithm)) {
+    if(in >= eob)
+      return YKPIV_GENERIC_ERROR;
+
+    if (*in++ != 0x81)
+      return YKPIV_GENERIC_ERROR;
+
+    offs = get_length(in, eob, &len);
+    if(!offs)
+      return YKPIV_GENERIC_ERROR;
+
+    in += offs;
+
+    uint8_t *mod = in;
+    size_t mod_len = len;
+
+    in += len;
+
+    if(in >= eob)
+      return YKPIV_GENERIC_ERROR;
+
+    if (*in++ != 0x82)
+      return YKPIV_GENERIC_ERROR;
+
+    offs = get_length(in, eob, &len);
+    if(!offs)
+      return YKPIV_GENERIC_ERROR;
+
+    in += offs;
+    return do_create_rsa_key(mod, mod_len, in, len, pkey);
+  } else {
+    if(in >= eob)
+      return YKPIV_GENERIC_ERROR;
+
+    if(*in++ != 0x86)
+      return YKPIV_GENERIC_ERROR;
+
+    offs = get_length(in, eob, &len);
+    if(!offs)
+      return YKPIV_GENERIC_ERROR;
+
+    in += offs;
+
+    if (YKPIV_IS_EC(algorithm)) {
+      int curve_name = get_curve_name(algorithm);
+      return get_ec_pubkey_from_bytes(curve_name, in, len, pkey);
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+    } else if (YKPIV_IS_25519(algorithm)) {
+      if (algorithm == YKPIV_ALGO_ED25519) {
+        *pkey = EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, NULL, in, len);
+      } else {
+        *pkey = EVP_PKEY_new_raw_public_key(EVP_PKEY_X25519, NULL, in, len);
+      }
+      if (*pkey == NULL) {
+        return YKPIV_MEMORY_ERROR;
+      }
+      return YKPIV_OK;
+#endif
+    }
+  }
+  fprintf(stderr, "Unsupported key algorithm\n");
+  return YKPIV_NOT_SUPPORTED;
+}
