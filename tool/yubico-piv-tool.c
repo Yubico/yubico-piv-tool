@@ -1857,6 +1857,7 @@ static void print_slot_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
   unsigned long metadata_len = sizeof(metadata);
   ykpiv_metadata slot_md = {0};
   X509 *x509 = NULL;
+  EVP_PKEY *key = NULL;
   X509_NAME *subj;
   BIO *bio = NULL;
   bool data_found = false, metadata_found = false;
@@ -1903,7 +1904,7 @@ static void print_slot_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     unsigned int md_len = sizeof(data);
     const ASN1_TIME *not_before, *not_after;
 
-    EVP_PKEY *key = X509_get_pubkey(x509);
+    key = X509_get_pubkey(x509);
     if(!key) {
       fprintf(output, "Parse error.\n");
       goto cert_out;
@@ -1911,7 +1912,6 @@ static void print_slot_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     fprintf(output, "\n\tPublic Key Algorithm:\t");
     print_algorithm_string(get_algorithm(key), output);
     fprintf(output, "\n");
-    EVP_PKEY_free(key);
 
     subj = X509_get_subject_name(x509);
     if(!subj) {
@@ -1962,7 +1962,21 @@ static void print_slot_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
       fprintf(output, "\n");
     }
   }
+
+  if(data_found && metadata_found) {
+    EVP_PKEY *md_key = EVP_PKEY_new();
+    if (do_create_public_key(slot_md.pubkey, slot_md.pubkey_len, slot_md.algorithm, &md_key) == YKPIV_OK) {
+      if (EVP_PKEY_cmp(key, md_key) != 1) {
+        fprintf(stderr, "\tWARNING: Slot private key and certificate do not match\n");
+      }
+    }
+    EVP_PKEY_free(md_key);
+  }
+
 cert_out:
+  if(key) {
+    EVP_PKEY_free(key);
+  }
   if(x509) {
     X509_free(x509);
   }
