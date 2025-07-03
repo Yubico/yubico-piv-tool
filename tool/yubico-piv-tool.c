@@ -1817,124 +1817,150 @@ out:
   return ret;
 }
 
-static void print_cert_info(ykpiv_state *state, enum enum_slot slot, const EVP_MD *md,
-    FILE *output) {
-  int object = (int)ykpiv_util_slot_object(get_slot_hex(slot));
-  int slot_name;
+static void print_algorithm_string(uint8_t algorithm, FILE *output) {
+  switch (algorithm) {
+    case YKPIV_ALGO_RSA1024:
+      fprintf(output, "RSA1024");
+      break;
+    case YKPIV_ALGO_RSA2048:
+      fprintf(output, "RSA2048");
+      break;
+    case YKPIV_ALGO_RSA3072:
+      fprintf(output, "RSA3072");
+      break;
+    case YKPIV_ALGO_RSA4096:
+      fprintf(output, "RSA4096");
+      break;
+    case YKPIV_ALGO_ECCP256:
+      fprintf(output, "ECCP256");
+      break;
+    case YKPIV_ALGO_ECCP384:
+      fprintf(output, "ECCP384");
+      break;
+    case YKPIV_ALGO_ED25519:
+      fprintf(output, "ED25519");
+      break;
+    case YKPIV_ALGO_X25519:
+      fprintf(output, "X25519");
+      break;
+    default:
+      fprintf(output, "Unknown");
+  }
+}
+
+static void print_slot_info(ykpiv_state *state, enum enum_slot slot, const EVP_MD *md, FILE *output) {
+  int slot_name = get_slot_hex(slot);
+  int object = (int) ykpiv_util_slot_object(slot_name);
   unsigned char data[YKPIV_OBJ_MAX_SIZE] = {0};
   unsigned long len = sizeof(data);
+  unsigned char metadata[YKPIV_OBJ_MAX_SIZE] = {0};
+  unsigned long metadata_len = sizeof(metadata);
+  ykpiv_metadata slot_md = {0};
   X509 *x509 = NULL;
   X509_NAME *subj;
   BIO *bio = NULL;
+  bool data_found = false, metadata_found = false;
 
-  if(ykpiv_fetch_object(state, object, data, &len) != YKPIV_OK) {
+  if(ykpiv_fetch_object(state, object, data, &len) == YKPIV_OK) {
+    data_found = true;
+  }
+  if (ykpiv_get_metadata(state, slot_name, metadata, &metadata_len) == YKPIV_OK) {
+    if (ykpiv_util_parse_metadata(metadata, metadata_len, &slot_md) != YKPIV_OK) {
+      fprintf(output, "Failed to parse metadata for slot %x\n", slot_name);
+      return;
+    }
+    metadata_found = true;
+  }
+  if (!data_found && !metadata_found) {
     return;
   }
 
-  slot_name = get_slot_hex(slot);
+  fprintf(output, "Slot %x:\t", slot_name);
 
-  fprintf(output, "Slot %x Certificate:\t", slot_name);
-
-  unsigned char certdata[YKPIV_OBJ_MAX_SIZE * 10] = {0};
-  size_t certdata_len = sizeof(certdata);
-  if(ykpiv_util_get_certdata(data, len, certdata, &certdata_len) != YKPIV_OK) {
-    fprintf(output, "Failed to get certificate data\n");
-    return;
-  }
-
-  const unsigned char *certdata_ptr = certdata;
-  x509 = d2i_X509(NULL, &certdata_ptr, certdata_len);
-  if (x509 == NULL) {
-    fprintf(output, "Parse error.\n");
-    return;
+  if (metadata_found) {
+    fprintf(output, "\n\tPrivate Key Algorithm:\t");
+    print_algorithm_string(slot_md.algorithm, output);
+    if (!data_found) {
+      fprintf(output, "\n");
+    }
   }
 
-  unsigned int md_len = sizeof(data);
-  const ASN1_TIME *not_before, *not_after;
+  if (data_found) {
+    unsigned char certdata[YKPIV_OBJ_MAX_SIZE * 10] = {0};
+    size_t certdata_len = sizeof(certdata);
+    if(ykpiv_util_get_certdata(data, len, certdata, &certdata_len) != YKPIV_OK) {
+      fprintf(output, "Failed to get certificate data\n");
+      return;
+    }
 
-  EVP_PKEY *key = X509_get_pubkey(x509);
-  if(!key) {
-    fprintf(output, "Parse error.\n");
-    goto cert_out;
-  }
-  fprintf(output, "\n\tAlgorithm:\t");
-  switch(get_algorithm(key)) {
-    case YKPIV_ALGO_RSA1024:
-      fprintf(output, "RSA1024\n");
-      break;
-    case YKPIV_ALGO_RSA2048:
-      fprintf(output, "RSA2048\n");
-      break;
-    case YKPIV_ALGO_RSA3072:
-      fprintf(output, "RSA3072\n");
-      break;
-    case YKPIV_ALGO_RSA4096:
-      fprintf(output, "RSA4096\n");
-      break;
-    case YKPIV_ALGO_ECCP256:
-      fprintf(output, "ECCP256\n");
-      break;
-    case YKPIV_ALGO_ECCP384:
-      fprintf(output, "ECCP384\n");
-      break;
-    case YKPIV_ALGO_ED25519:
-      fprintf(output, "ED25519\n");
-      break;
-    case YKPIV_ALGO_X25519:
-      fprintf(output, "X25519\n");
-      break;
-    default:
-      fprintf(output, "Unknown\n");
-  }
-  EVP_PKEY_free(key);
+    const unsigned char *certdata_ptr = certdata;
+    x509 = d2i_X509(NULL, &certdata_ptr, certdata_len);
+    if (x509 == NULL) {
+      fprintf(output, "Parse error.\n");
+      return;
+    }
 
-  subj = X509_get_subject_name(x509);
-  if(!subj) {
-    fprintf(output, "Parse error.\n");
-    goto cert_out;
-  }
-  fprintf(output, "\tSubject DN:\t");
-  if(X509_NAME_print_ex_fp(output, subj, 0, XN_FLAG_COMPAT) != 1) {
-    fprintf(output, "Failed to write Subject DN.\n");
-    goto cert_out;
-  }
-  fprintf(output, "\n");
-  subj = X509_get_issuer_name(x509);
-  if(!subj) {
-    fprintf(output, "Parse error.\n");
-    goto cert_out;
-  }
-  fprintf(output, "\tIssuer DN:\t");
-  if(X509_NAME_print_ex_fp(output, subj, 0, XN_FLAG_COMPAT) != 1) {
-    fprintf(output, "Failed to write Issuer DN.\n");
-    goto cert_out;
-  }
-  fprintf(output, "\n");
-  if(X509_digest(x509, md, data, &md_len) != 1) {
-    fprintf(output, "Failed to digest data.\n");
-    goto cert_out;
-  }
-  fprintf(output, "\tFingerprint:\t");
-  dump_data(data, md_len, output, false, format_arg_hex);
+    unsigned int md_len = sizeof(data);
+    const ASN1_TIME *not_before, *not_after;
 
-  bio = BIO_new_fp(output, BIO_NOCLOSE | BIO_FP_TEXT);
-  not_before = X509_get_notBefore(x509);
-  if(not_before) {
-    fprintf(output, "\tNot Before:\t");
-    if(ASN1_TIME_print(bio, not_before) != 1) {
-      fprintf(output, "Failed to write Not Before time.\n");
+    EVP_PKEY *key = X509_get_pubkey(x509);
+    if(!key) {
+      fprintf(output, "Parse error.\n");
+      goto cert_out;
+    }
+    fprintf(output, "\n\tPublic Key Algorithm:\t");
+    print_algorithm_string(get_algorithm(key), output);
+    fprintf(output, "\n");
+    EVP_PKEY_free(key);
+
+    subj = X509_get_subject_name(x509);
+    if(!subj) {
+      fprintf(output, "Parse error.\n");
+      goto cert_out;
+    }
+    fprintf(output, "\tSubject DN:\t\t");
+    if(X509_NAME_print_ex_fp(output, subj, 0, XN_FLAG_COMPAT) != 1) {
+      fprintf(output, "Failed to write Subject DN.\n");
       goto cert_out;
     }
     fprintf(output, "\n");
-  }
-  not_after = X509_get_notAfter(x509);
-  if(not_after) {
-    fprintf(output, "\tNot After:\t");
-    if(ASN1_TIME_print(bio, not_after) != 1) {
-      fprintf(output, "Failed to write Not After time.\n");
+    subj = X509_get_issuer_name(x509);
+    if(!subj) {
+      fprintf(output, "Parse error.\n");
+      goto cert_out;
+    }
+    fprintf(output, "\tIssuer DN:\t\t");
+    if(X509_NAME_print_ex_fp(output, subj, 0, XN_FLAG_COMPAT) != 1) {
+      fprintf(output, "Failed to write Issuer DN.\n");
       goto cert_out;
     }
     fprintf(output, "\n");
+    if(X509_digest(x509, md, data, &md_len) != 1) {
+      fprintf(output, "Failed to digest data.\n");
+      goto cert_out;
+    }
+    fprintf(output, "\tFingerprint:\t\t");
+    dump_data(data, md_len, output, false, format_arg_hex);
+
+    bio = BIO_new_fp(output, BIO_NOCLOSE | BIO_FP_TEXT);
+    not_before = X509_get_notBefore(x509);
+    if(not_before) {
+      fprintf(output, "\tNot Before:\t\t");
+      if(ASN1_TIME_print(bio, not_before) != 1) {
+        fprintf(output, "Failed to write Not Before time.\n");
+        goto cert_out;
+      }
+      fprintf(output, "\n");
+    }
+    not_after = X509_get_notAfter(x509);
+    if(not_after) {
+      fprintf(output, "\tNot After:\t\t");
+      if(ASN1_TIME_print(bio, not_after) != 1) {
+        fprintf(output, "Failed to write Not After time.\n");
+        goto cert_out;
+      }
+      fprintf(output, "\n");
+    }
   }
 cert_out:
   if(x509) {
@@ -1944,114 +1970,6 @@ cert_out:
     BIO_free(bio);
   }
 }
-
- static void print_key_info(ykpiv_state *state, enum enum_slot slot, FILE *output) {
-   int slot_hex = get_slot_hex(slot);
-   unsigned char data[YKPIV_OBJ_MAX_SIZE] = {0};
-   unsigned long len = sizeof(data);
-   ykpiv_metadata md = {0};
-   ykpiv_rc rc = YKPIV_OK;
-
-   if(ykpiv_get_metadata(state, slot_hex, data, &len) != YKPIV_OK) {
-     return;
-   }
-
-   fprintf(output, "Slot %x Key:\t", slot_hex);
-   if((rc = ykpiv_util_parse_metadata(data, len, &md)) != YKPIV_OK) {
-     fprintf(output, "Failed to parse metadata: %s\n", ykpiv_strerror(rc));
-     return;
-   }
-
-   fprintf(output, "\n\tAlgorithm:\t");
-   switch(md.algorithm) {
-     case YKPIV_ALGO_RSA1024:
-       fprintf(output, "RSA1024\n");
-       break;
-     case YKPIV_ALGO_RSA2048:
-       fprintf(output, "RSA2048\n");
-       break;
-     case YKPIV_ALGO_RSA3072:
-       fprintf(output, "RSA3072\n");
-       break;
-     case YKPIV_ALGO_RSA4096:
-       fprintf(output, "RSA4096\n");
-       break;
-     case YKPIV_ALGO_ECCP256:
-       fprintf(output, "ECCP256\n");
-       break;
-     case YKPIV_ALGO_ECCP384:
-       fprintf(output, "ECCP384\n");
-       break;
-     case YKPIV_ALGO_ED25519:
-       fprintf(output, "ED25519\n");
-       break;
-     case YKPIV_ALGO_X25519:
-       fprintf(output, "X25519\n");
-       break;
-     default:
-       fprintf(output, "Unknown\n");
-   }
-
-   fprintf(output, "\tPin Policy:\t");
-   switch(md.pin_policy) {
-     case YKPIV_PINPOLICY_DEFAULT:
-       fprintf(output, "Default\n");
-       break;
-     case YKPIV_PINPOLICY_NEVER:
-       fprintf(output, "Never\n");
-       break;
-     case YKPIV_PINPOLICY_ONCE:
-       fprintf(output, "Once\n");
-       break;
-     case YKPIV_PINPOLICY_ALWAYS:
-       fprintf(output, "Always\n");
-       break;
-     case YKPIV_PINPOLICY_MATCH_ONCE:
-       fprintf(output, "Match Once\n");
-       break;
-     case YKPIV_PINPOLICY_MATCH_ALWAYS:
-       fprintf(output, "Match Always\n");
-       break;
-     default:
-       fprintf(output, "Unknown\n");
-       break;
-   }
-
-   fprintf(output, "\tTouch Policy:\t");
-   switch(md.touch_policy) {
-     case YKPIV_TOUCHPOLICY_DEFAULT:
-       fprintf(output, "Default\n");
-       break;
-     case YKPIV_TOUCHPOLICY_NEVER:
-       fprintf(output, "Never\n");
-       break;
-     case YKPIV_TOUCHPOLICY_ALWAYS:
-       fprintf(output, "Always\n");
-       break;
-     case YKPIV_TOUCHPOLICY_CACHED:
-       fprintf(output, "Cached\n");
-       break;
-     case YKPIV_TOUCHPOLICY_AUTO:
-       fprintf(output, "Auto\n");
-       break;
-     default:
-       fprintf(output, "Unknown\n");
-       break;
-   }
-
-   fprintf(output, "\tOrigin:\t\t");
-   switch(md.origin) {
-     case YKPIV_METADATA_ORIGIN_GENERATED:
-       fprintf(output, "Generated\n");
-       break;
-     case YKPIV_METADATA_ORIGIN_IMPORTED:
-       fprintf(output, "Imported\n");
-       break;
-     default:
-       fprintf(output, "Unknown\n");
-       break;
-   }
- }
 
 static bool status(ykpiv_state *state, enum enum_hash hash,
                    enum enum_slot slot,
@@ -2103,12 +2021,10 @@ static bool status(ykpiv_state *state, enum enum_hash hash,
 
   if (slot == slot__NULL) {
     for (i = 0; i < 24; i++) {
-      print_cert_info(state, i, md, output_file);
-      print_key_info(state, i, output_file);
+      print_slot_info(state, i, md, output_file);
     }
   } else {
-    print_cert_info(state, slot, md, output_file);
-    print_key_info(state, slot, output_file);
+    print_slot_info(state, slot, md, output_file);
   }
 
   {
