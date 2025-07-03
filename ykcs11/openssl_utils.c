@@ -169,115 +169,6 @@ gen_ec_key_cleanup:
   return rv;
 }
 
-CK_RV do_create_rsa_key(CK_BYTE_PTR mod, CK_ULONG mod_len, CK_BYTE_PTR exp, CK_ULONG exp_len, ykcs11_pkey_t **pkey) {
-  CK_RV rv;
-  RSA *rsa = NULL;
-  BIGNUM *n = BN_bin2bn(mod, mod_len, 0);
-  if(n == NULL)
-    return CKR_HOST_MEMORY;
-  BIGNUM *e = BN_bin2bn(exp, exp_len, 0);
-  if(e == NULL) {
-    rv = CKR_HOST_MEMORY;
-    goto create_rsa_cleanup;
-  }
-  rsa = RSA_new();
-  if(rsa == NULL) {
-    rv = CKR_HOST_MEMORY;
-    goto create_rsa_cleanup;
-  }
-  if(RSA_set0_key(rsa, n, e, NULL) <= 0) {
-    rv = CKR_GENERAL_ERROR;
-    goto create_rsa_cleanup;
-  }
-  EVP_PKEY_free(*pkey);
-  *pkey = EVP_PKEY_new();
-  if(*pkey == NULL) {
-    rv = CKR_HOST_MEMORY;
-    goto create_rsa_cleanup;
-  }
-  if(EVP_PKEY_assign_RSA(*pkey, rsa) <= 0) {
-    rv = CKR_GENERAL_ERROR;
-    goto create_rsa_cleanup;
-  }
-  return CKR_OK;
-create_rsa_cleanup:
-  BN_free(n);
-  if(e != NULL) {
-    BN_free(e);
-  }
-  if(rsa != NULL) {
-    RSA_free(rsa);
-  }
-  return rv;
-}
-
-CK_RV do_create_public_key(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm, ykcs11_pkey_t **pkey) {
-  CK_BYTE_PTR eob = in + in_len;
-  unsigned long offs, len;
-  if (YKPIV_IS_RSA(algorithm)) {
-    if(in >= eob)
-      return CKR_GENERAL_ERROR;
-
-    if (*in++ != 0x81)
-      return CKR_GENERAL_ERROR;
-
-    offs = get_length(in, eob, &len);
-    if(!offs)
-      return CKR_GENERAL_ERROR;
-
-    in += offs;
-
-    CK_BYTE_PTR mod = in;
-    CK_ULONG mod_len = len;
-
-    in += len;
-
-    if(in >= eob)
-      return CKR_GENERAL_ERROR;
-
-    if (*in++ != 0x82)
-      return CKR_GENERAL_ERROR;
-
-    offs = get_length(in, eob, &len);
-    if(!offs)
-      return CKR_GENERAL_ERROR;
-
-    in += offs;    
-    return do_create_rsa_key(mod, mod_len, in, len, pkey);
-  } else {
-    if(in >= eob)
-      return CKR_GENERAL_ERROR;
-
-    if(*in++ != 0x86)
-      return CKR_GENERAL_ERROR;
-
-    offs = get_length(in, eob, &len);
-    if(!offs)
-      return CKR_GENERAL_ERROR;
-
-    in += offs;
-
-    if (YKPIV_IS_EC(algorithm)) {
-      int curve_name = get_curve_name(algorithm);
-      return get_ec_pubkey_from_bytes(curve_name, in, len, pkey);
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
-    } else if (YKPIV_IS_25519(algorithm)) {
-      if (algorithm == YKPIV_ALGO_ED25519) {
-        *pkey = EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, NULL, in, len);
-      } else {
-        *pkey = EVP_PKEY_new_raw_public_key(EVP_PKEY_X25519, NULL, in, len);
-      }
-      if (*pkey == NULL) {
-        return CKR_HOST_MEMORY;
-      }
-      return CKR_OK;
-#endif
-    }
-  }
-  DBG("Unsupported key algorithm");
-  return CKR_DATA_INVALID;
-}
-
 CK_RV do_sign_empty_cert(const char *cn, ykcs11_pkey_t *pubkey, ykcs11_pkey_t *pvtkey, ykcs11_x509_t **cert) {
   *cert = X509_new();
   if (*cert == NULL) {
@@ -304,7 +195,8 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm,
   X509      *cert = NULL;
   CK_RV     rv;
 
-  if((rv = do_create_public_key(in, in_len, algorithm, &pubkey)) != CKR_OK) {
+  if(do_create_public_key(in, in_len, algorithm, &pubkey) != YKPIV_OK) {
+    rv = CKR_FUNCTION_FAILED;
     goto create_empty_cert_cleanup;
   }
 
