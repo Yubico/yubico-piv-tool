@@ -205,7 +205,8 @@ static void test_mechanism_list_and_info() {
       CKM_SHA384,
       CKM_SHA512,
       CKM_EC_EDWARDS_KEY_PAIR_GEN,
-      CKM_EC_MONTGOMERY_KEY_PAIR_GEN};
+      CKM_EC_MONTGOMERY_KEY_PAIR_GEN,
+      CKM_EDDSA,};
 
   static const CK_MECHANISM_INFO token_mechanism_infos_3[] = { // KEEP ALIGNED WITH token_mechanisms
     {1024, 4096, CKF_HW | CKF_GENERATE_KEY_PAIR},
@@ -234,7 +235,8 @@ static void test_mechanism_list_and_info() {
     {0, 0, CKF_DIGEST},
     {0, 0, CKF_DIGEST},
     {255, 255, CKF_HW | CKF_GENERATE_KEY_PAIR | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS},
-    {255, 255, CKF_HW | CKF_GENERATE_KEY_PAIR | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS}
+    {255, 255, CKF_HW | CKF_GENERATE_KEY_PAIR | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS},
+    {255, 255, CKF_HW | CKF_SIGN | CKF_VERIFY | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS}
 };
 
   static const CK_MECHANISM_INFO token_mechanism_infos[] = { // KEEP ALIGNED WITH token_mechanisms
@@ -264,7 +266,8 @@ static void test_mechanism_list_and_info() {
       {0, 0, CKF_DIGEST},
       {0, 0, CKF_DIGEST},
       {255, 255, CKF_HW | CKF_GENERATE_KEY_PAIR | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS},
-      {255, 255, CKF_HW | CKF_GENERATE_KEY_PAIR | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS}
+      {255, 255, CKF_HW | CKF_GENERATE_KEY_PAIR | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS},
+      {255, 255, CKF_HW | CKF_SIGN | CKF_VERIFY | CKF_EC_F_P | CKF_EC_NAMEDCURVE | CKF_EC_UNCOMPRESS}
   };
 
   init_connection();

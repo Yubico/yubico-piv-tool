@@ -87,14 +87,14 @@ $BIN -areset
 
 # Generate key on-board, issue certificate, and verify it
 $BIN -agenerate -s9a -AECCP256 -o key_9a.pub
-$BIN -averify -P123456 -s9a -S'/CN=YubicoTest/OU=YubicoGenerated/O=yubico.com/' -aselfsign -i key_9a.pub -o cert_9a.pem
-$BIN -averify -P123456 -s9a -atest-signature -i cert_9a.pem
+$BIN -averify-pin -P123456 -s9a -S'/CN=YubicoTest/OU=YubicoGenerated/O=yubico.com/' -aselfsign -i key_9a.pub -o cert_9a.pem
+$BIN -averify-pin -P123456 -s9a -atest-signature -i cert_9a.pem
 $BIN -aimport-certificate -P123456 -s9a -i cert_9a.pem
 
 # Import key, generate self-signed certificate, and verify it
 $BIN -aimport-key -P123456 -s9e -iprivate.pem
 $BIN -arequest-certificate -s9e -S"/CN=bar/OU=test/O=example.com/" -i public.pem -o req_9e.pem
-$BIN -averify -P123456 -s9e -S'/CN=bar/OU=test/O=example.com/' -aselfsign -i public.pem -o cert_9e.pem
+$BIN -averify-pin -P123456 -s9e -S'/CN=bar/OU=test/O=example.com/' -aselfsign -i public.pem -o cert_9e.pem
 $BIN -atest-decipher -s9e -i cert_9e.pem
 $BIN -aimport-certificate -P123456 -s9e -i cert.pem
 
@@ -102,30 +102,30 @@ $BIN -aimport-certificate -P123456 -s9e -i cert.pem
 # Read status and validate fields
 STATUS=$($BIN -astatus)
 echo "$STATUS"
-ALGO_9A=$(echo "$STATUS" |grep "Slot 9a" -A 6 |grep "Algorithm" |tr -d "[:blank:]")
-if [[ "x$ALGO_9A" != "xAlgorithm:ECCP256" ]]; then
+ALGO_9A=$(echo "$STATUS" |grep "Slot 9a" -A 6 |grep "Public Key Algorithm" |tr -d "[:blank:]")
+if [[ "x$ALGO_9A" != "xPublicKeyAlgorithm:ECCP256" ]]; then
     echo "$ALGO_9A"
-    echo "Generated algorithm incorrect." >/dev/stderr
+    echo "Generated algorithm incorrect in slot 9a." >/dev/stderr
     exit 1
 fi
 
-ALGO_9E=$(echo "$STATUS" |grep "Slot 9e" -A 6 |grep "Algorithm" |tr -d "[:blank:]")
-if [[ "x$ALGO_9E" != "xAlgorithm:RSA2048" ]]; then
+ALGO_9E=$(echo "$STATUS" |grep "Slot 9e" -A 6 |grep "Public Key Algorithm" |tr -d "[:blank:]")
+if [[ "x$ALGO_9E" != "xPublicKeyAlgorithm:RSA2048" ]]; then
     echo "$ALGO_9E"
-    echo "Generated algorithm incorrect." >/dev/stderr
+    echo "Generated algorithm incorrect in slot 9e." >/dev/stderr
     exit 1
 fi
 
 SUBJECT_9A=$(echo "$STATUS" |grep "Slot 9a" -A 6 |grep "Subject DN" |tr -d "[:blank:]")
 if [[ "x$SUBJECT_9A" != "xSubjectDN:CN=YubicoTest,OU=YubicoGenerated,O=yubico.com" ]]; then
     echo "$SUBJECT_9A"
-    echo "Certificate subject incorrect." >/dev/stderr
+    echo "Certificate subject incorrect in slot 9a." >/dev/stderr
     exit 1
 fi
 
 SUBJECT_9E=$(echo "$STATUS" |grep "Slot 9e" -A 6 |grep "Subject DN" |tr -d "[:blank:]")
 if [[ "x$SUBJECT_9E" != "xSubjectDN:CN=YubicoTest,OU=YubicoTestUnit,O=yubico.com" ]]; then
     echo "$SUBJECT_9E"
-    echo "Certificate subject incorrect." >/dev/stderr
+    echo "Certificate subject incorrect in slot 9e." >/dev/stderr
     exit 1
 fi
