@@ -445,6 +445,13 @@ static bool generate_key(ykpiv_state *state, enum enum_slot slot,
     goto generate_out;
   }
 
+  uint8_t *data = NULL;
+  size_t len = 0;
+  if (ykpiv_util_read_cert(state, key, &data, &len) == YKPIV_OK) {
+    fprintf(stderr, "\nBeware! The private key and the X509Certificate in slot %x do not match\n\n", key);
+    free(data);
+  }
+
 generate_out:
   if (output_file != stdout) {
     fclose(output_file);
@@ -693,9 +700,25 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
     }
 #endif
 
-    ret = true;
-    if(rc != YKPIV_OK) {
-      ret = false;
+    if(rc == YKPIV_OK) {
+      ret = true;
+
+      // Notify user if existing key and certificate do not
+      uint8_t *certdata = NULL;
+      size_t certlen = 0;
+      if (ykpiv_util_read_cert(state, key, &certdata, &certlen) == YKPIV_OK) {
+        const unsigned char *certdata_ptr = certdata;
+        X509 *x509 = d2i_X509(NULL, &certdata_ptr, certlen);
+        if (x509 != NULL) {
+          EVP_PKEY *cert_key = X509_get_pubkey(x509);
+          if (EVP_PKEY_cmp(private_key, cert_key) != 1) {
+            fprintf(stderr, "\nBeware! The private key and the X509Certificate in slot %x do not match\n\n", key);
+          }
+          EVP_PKEY_free(cert_key);
+          X509_free(x509);
+        }
+        free(certdata);
+      }
     }
   }
 
@@ -728,6 +751,7 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format, in
   EVP_PKEY *private_key = NULL;
   int compress = YKPIV_CERTINFO_UNCOMPRESSED;
   int cert_len = -1;
+  int key = get_slot_hex(slot);
 
   input_file = open_file(input_file_name, key_file_mode(cert_format, false));
   if(!input_file) {
@@ -835,10 +859,31 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format, in
       }
     }
 
-    if ((res = ykpiv_util_write_cert(state, get_slot_hex(slot), certdata, (size_t)cert_len, compress)) != YKPIV_OK) {
+    if ((res = ykpiv_util_write_cert(state, key, certdata, (size_t) cert_len, compress)) != YKPIV_OK) {
       fprintf(stderr, "Failed commands with device: %s\n", ykpiv_strerror(res));
+      goto import_cert_out;
     } else {
       ret = true;
+    }
+  }
+
+  // Notify user if private key and certificate do not match
+  unsigned char metadata[YKPIV_OBJ_MAX_SIZE] = {0};
+  unsigned long metadata_len = sizeof(metadata);
+  ykpiv_metadata slot_md = {0};
+  if (ykpiv_get_metadata(state, key, metadata, &metadata_len) == YKPIV_OK &&
+      ykpiv_util_parse_metadata(metadata, metadata_len, &slot_md) == YKPIV_OK) {
+    EVP_PKEY *cert_pubkey = X509_get_pubkey(cert);
+    EVP_PKEY *md_pubkey = EVP_PKEY_new();
+    if (do_create_public_key(slot_md.pubkey, slot_md.pubkey_len, slot_md.algorithm, &md_pubkey) == YKPIV_OK &&
+        EVP_PKEY_cmp(cert_pubkey, md_pubkey) != 1) {
+        fprintf(stderr, "\nBeware! The private key and the X509Certificate in slot %x do not match\n\n", key);
+    }
+    if (cert_pubkey) {
+      EVP_PKEY_free(cert_pubkey);
+    }
+    if (md_pubkey) {
+      EVP_PKEY_free(md_pubkey);
     }
   }
 
@@ -1965,10 +2010,9 @@ static void print_slot_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
 
   if(data_found && metadata_found) {
     EVP_PKEY *md_key = EVP_PKEY_new();
-    if (do_create_public_key(slot_md.pubkey, slot_md.pubkey_len, slot_md.algorithm, &md_key) == YKPIV_OK) {
-      if (EVP_PKEY_cmp(key, md_key) != 1) {
-        fprintf(stderr, "\tWARNING: Slot private key and certificate do not match\n");
-      }
+    if (do_create_public_key(slot_md.pubkey, slot_md.pubkey_len, slot_md.algorithm, &md_key) == YKPIV_OK &&
+        EVP_PKEY_cmp(key, md_key) != 1) {
+        fprintf(output, "\tBeware! Slot private key and certificate do not match\n");
     }
     EVP_PKEY_free(md_key);
   }

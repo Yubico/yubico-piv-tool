@@ -47,15 +47,15 @@ for slot in "${SLOTS[@]}"
 do
   echo "Generating ECCP256 on slot $slot"
   $BIN -agenerate -s $slot -AECCP256 -o key.pub
-  $BIN -averify -P123456 -s$slot -S'/CN=YubicoTestECCP256/OU=YubicoGenerated/O=yubico.com/' --valid-days '5' -aselfsign -i key.pub -o cert.pem
-  $BIN -averify -P123456 -s$slot -atest-signature -i cert.pem
+  $BIN -averify-pin -P123456 -s$slot -S'/CN=YubicoTestECCP256/OU=YubicoGenerated/O=yubico.com/' --valid-days '5' -aselfsign -i key.pub -o cert.pem
+  $BIN -averify-pin -P123456 -s$slot -atest-signature -i cert.pem
   $BIN -aimport-certificate -P123456 -s$slot -i cert.pem
 
   # Read status and validate fields
   STATUS=$($BIN -astatus)
   echo "$STATUS"
-  ALGO=$(echo "$STATUS" |grep "Slot $slot" -A 6 |grep "Algorithm" |tr -d "[:blank:]")
-  if [ "x$ALGO" != "xAlgorithm:ECCP256" ]; then
+  ALGO=$(echo "$STATUS" |grep "Slot $slot" -A 6 |grep "Public Key Algorithm" |tr -d "[:blank:]")
+  if [ "x$ALGO" != "xPublicKeyAlgorithm:ECCP256" ]; then
     echo "$ALGO"
     echo "Generated algorithm incorrect." >/dev/stderr
     exit 1
@@ -78,15 +78,15 @@ for slot in "${SLOTS[@]}"
 do
   # Generate key on-board, issue certificate, and verify it
   $BIN -agenerate -s$slot -AECCP384 -o key.pub
-  $BIN -averify -P123456 -s$slot -S'/CN=YubicoTestECCP384/OU=YubicoGenerated/O=yubico.com/' -aselfsign -i key.pub -o cert.pem
-  $BIN -averify -P123456 -s$slot -atest-signature -i cert.pem
+  $BIN -averify-pin -P123456 -s$slot -S'/CN=YubicoTestECCP384/OU=YubicoGenerated/O=yubico.com/' -aselfsign -i key.pub -o cert.pem
+  $BIN -averify-pin -P123456 -s$slot -atest-signature -i cert.pem
   $BIN -aimport-certificate -P123456 -s$slot -i cert.pem
 
   # Read status and validate fields
   STATUS=$($BIN -astatus)
   echo "$STATUS"
-  ALGO=$(echo "$STATUS" |grep "Slot $slot" -A 6 |grep "Algorithm" |tr -d "[:blank:]")
-  if [ "x$ALGO" != "xAlgorithm:ECCP384" ]; then
+  ALGO=$(echo "$STATUS" |grep "Slot $slot" -A 6 |grep "Public Key Algorithm" |tr -d "[:blank:]")
+  if [ "x$ALGO" != "xPublicKeyAlgorithm:ECCP384" ]; then
     echo "$ALGO"
     echo "Generated algorithm incorrect." >/dev/stderr
     exit 1
@@ -108,15 +108,15 @@ for slot in "${SLOTS[@]}"
 do
   # Generate key on-board, issue certificate, and verify it
   $BIN -agenerate -s$slot -ARSA1024 -o key.pub
-  $BIN -averify -P123456 -s$slot -S'/CN=YubicoTestRSA1024/OU=YubicoGenerated/O=yubico.com/' -aselfsign -i key.pub -o cert.pem
-  $BIN -averify -P123456 -s$slot -atest-signature -i cert.pem
+  $BIN -averify-pin -P123456 -s$slot -S'/CN=YubicoTestRSA1024/OU=YubicoGenerated/O=yubico.com/' -aselfsign -i key.pub -o cert.pem
+  $BIN -averify-pin -P123456 -s$slot -atest-signature -i cert.pem
   $BIN -aimport-certificate -P123456 -s$slot -i cert.pem
 
   # Read status and validate fields
   STATUS=$($BIN -astatus)
   echo "$STATUS"
-  ALGO=$(echo "$STATUS" |grep "Slot $slot" -A 6 |grep "Algorithm" |tr -d "[:blank:]")
-  if [ "x$ALGO" != "xAlgorithm:RSA1024" ]; then
+  ALGO=$(echo "$STATUS" |grep "Slot $slot" -A 6 |grep "Public Key Algorithm" |tr -d "[:blank:]")
+  if [ "x$ALGO" != "xPublicKeyAlgorithm:RSA1024" ]; then
     echo "$ALGO"
     echo "Generated algorithm incorrect." >/dev/stderr
     exit 1
@@ -139,15 +139,15 @@ for slot in "${SLOTS[@]}"
 do
   # Generate key on-board, issue certificate, and verify it
   $BIN -agenerate -s$slot -ARSA2048 -o key.pub
-  $BIN -averify -P123456 -s$slot -S'/CN=YubicoTestRSA2048/OU=YubicoGenerated/O=yubico.com/' -aselfsign -i key.pub -o cert.pem
-  $BIN -averify -P123456 -s$slot -atest-signature -i cert.pem
+  $BIN -averify-pin -P123456 -s$slot -S'/CN=YubicoTestRSA2048/OU=YubicoGenerated/O=yubico.com/' -aselfsign -i key.pub -o cert.pem
+  $BIN -averify-pin -P123456 -s$slot -atest-signature -i cert.pem
   $BIN -aimport-certificate -P123456 -s$slot -i cert.pem
 
   # Read status and validate fields
   STATUS=$($BIN -astatus)
   echo "$STATUS"
-  ALGO=$(echo "$STATUS" |grep "Slot $slot" -A 6 |grep "Algorithm" |tr -d "[:blank:]")
-  if [ "x$ALGO" != "xAlgorithm:RSA2048" ]; then
+  ALGO=$(echo "$STATUS" |grep "Slot $slot" -A 6 |grep "Public Key Algorithm" |tr -d "[:blank:]")
+  if [ "x$ALGO" != "xPublicKeyAlgorithm:RSA2048" ]; then
     echo "$ALGO"
     echo "Generated algorithm incorrect." >/dev/stderr
     exit 1
@@ -170,15 +170,15 @@ for slot in "${SLOTS[@]}"
 do
   # Generate key on-board, issue certificate, and verify it
   $BIN -agenerate -s$slot -ARSA3072 -o key.pub
-  $BIN -averify -P123456 -s$slot -S'/CN=YubicoTestRSA3072/OU=YubicoGenerated/O=yubico.com/' -aselfsign -i key.pub -o cert.pem
-  $BIN -averify -P123456 -s$slot -atest-signature -i cert.pem
+  $BIN -averify-pin -P123456 -s$slot -S'/CN=YubicoTestRSA3072/OU=YubicoGenerated/O=yubico.com/' -aselfsign -i key.pub -o cert.pem
+  $BIN -averify-pin -P123456 -s$slot -atest-signature -i cert.pem
   $BIN -aimport-certificate -P123456 -s$slot -i cert.pem
 
   # Read status and validate fields
   STATUS=$($BIN -astatus)
   echo "$STATUS"
-  ALGO=$(echo "$STATUS" |grep "Slot $slot" -A 6 |grep "Algorithm" |tr -d "[:blank:]")
-  if [ "x$ALGO" != "xAlgorithm:RSA3072" ]; then
+  ALGO=$(echo "$STATUS" |grep "Slot $slot" -A 6 |grep "Public Key Algorithm" |tr -d "[:blank:]")
+  if [ "x$ALGO" != "xPublicKeyAlgorithm:RSA3072" ]; then
     echo "$ALGO"
     echo "Generated algorithm incorrect." >/dev/stderr
     exit 1
@@ -201,15 +201,15 @@ for slot in "${SLOTS[@]}"
 do
   # Generate key on-board, issue certificate, and verify it
   $BIN -agenerate -s$slot -ARSA4096 -o key.pub
-  $BIN -averify -P123456 -s$slot -S'/CN=YubicoTestRSA4096/OU=YubicoGenerated/O=yubico.com/' -aselfsign -i key.pub -o cert.pem
-  $BIN -averify -P123456 -s$slot -atest-signature -i cert.pem
+  $BIN -averify-pin -P123456 -s$slot -S'/CN=YubicoTestRSA4096/OU=YubicoGenerated/O=yubico.com/' -aselfsign -i key.pub -o cert.pem
+  $BIN -averify-pin -P123456 -s$slot -atest-signature -i cert.pem
   $BIN -aimport-certificate -P123456 -s$slot -i cert.pem
 
   # Read status and validate fields
   STATUS=$($BIN -astatus)
   echo "$STATUS"
-  ALGO=$(echo "$STATUS" |grep "Slot $slot" -A 6 |grep "Algorithm" |tr -d "[:blank:]")
-  if [ "x$ALGO" != "xAlgorithm:RSA4096" ]; then
+  ALGO=$(echo "$STATUS" |grep "Slot $slot" -A 6 |grep "Public Key Algorithm" |tr -d "[:blank:]")
+  if [ "x$ALGO" != "xPublicKeyAlgorithm:RSA4096" ]; then
     echo "$ALGO"
     echo "Generated algorithm incorrect." >/dev/stderr
     exit 1
@@ -232,14 +232,14 @@ for slot in "${SLOTS[@]}"
 do
   # Generate key on-board, issue certificate, and verify it
   $BIN -agenerate -s$slot -AED25519 -o key.pub
-  $BIN -averify -P123456 -s$slot -S'/CN=YubicoTestED25519/OU=YubicoGenerated/O=yubico.com/' -aselfsign -i key.pub -o cert.pem
+  $BIN -averify-pin -P123456 -s$slot -S'/CN=YubicoTestED25519/OU=YubicoGenerated/O=yubico.com/' -aselfsign -i key.pub -o cert.pem
   $BIN -aimport-certificate -P123456 -s$slot -i cert.pem
 
   # Read status and validate fields
   STATUS=$($BIN -astatus)
   echo "$STATUS"
-  ALGO=$(echo "$STATUS" |grep "Slot $slot" -A 6 |grep "Algorithm" |tr -d "[:blank:]")
-  if [ "x$ALGO" != "xAlgorithm:ED25519" ]; then
+  ALGO=$(echo "$STATUS" |grep "Slot $slot" -A 6 |grep "Public Key Algorithm" |tr -d "[:blank:]")
+  if [ "x$ALGO" != "xPublicKeyAlgorithm:ED25519" ]; then
     echo "$ALGO"
     echo "Generated algorithm incorrect." >/dev/stderr
     exit 1
