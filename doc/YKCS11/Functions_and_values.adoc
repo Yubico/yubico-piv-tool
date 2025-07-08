@@ -54,7 +54,8 @@ CKM_ECDSA,
 CKM_ECDSA_SHA1, 
 CKM_ECDSA_SHA224, 
 CKM_ECDSA_SHA256, 
-CKM_ECDSA_SHA384|
+CKM_ECDSA_SHA384,
+CKM_EDDSA|
 |C_Sign||
 |C_SignUpdate||
 |C_SignFinal||
@@ -73,11 +74,15 @@ CKM_ECDSA,
 CKM_ECDSA_SHA1, 
 CKM_ECDSA_SHA224, 
 CKM_ECDSA_SHA256, 
-CKM_ECDSA_SHA384| Uses OpenSSL verification functions
+CKM_ECDSA_SHA384,
+CKM_EDDSA| Uses OpenSSL verification functions
 |C_Verify|| Uses OpenSSL verification functions
 |C_VerifyUpdate|| Uses OpenSSL verification functions
 |C_VerifyFinal|| Uses OpenSSL verification functions
-|C_GenerateKeyPair|CKM_RSA_PKCS_KEY_PAIR_GEN, CKM_EC_KEY_PAIR_GEN|
+|C_GenerateKeyPair|CKM_RSA_PKCS_KEY_PAIR_GEN,
+CKM_EC_KEY_PAIR_GEN,
+CKM_EC_EDWARDS_KEY_PAIR_GEN,
+CKM_EC_MONTGOMERY_KEY_PAIR_GEN|
 |=======================
 
 == Supported PKCS#11 Objects
@@ -88,7 +93,9 @@ implemented and what it maps to.
 [options="header"]
 |==============================================================================
 | PKCS#11 | Supported CKK | Comment
-| CKO_PRIVATE_KEY | CKK_RSA, CKK_EC | RSA 1024 and 2048 with e=0x10001, EC with secp256r1, secp384r1
+| CKO_PRIVATE_KEY | CKK_RSA, CKK_EC, CKK_EC_EDWARDS, CKK_EC_MONTGOMERY |
+RSA 1024, 2048, 3072 (Requires YubiKey 5.7 or higher) and 4096 (Requires YubiKey 5.7 or higher) with e=0x10001,
+EC with secp256r1 and secp384r1, ED25519 (Requires YubiKey 5.7 or higher) and X25519 (Requires YubiKey 5.7 or higher)
 | CKO_PUBLIC_KEY | | Stored in X509 Certificates
 | CKO_CERTIFICATE | | X509 Certificates containing either the public key or the attestation certificate
 | CKO_DATA | | 
@@ -107,31 +114,36 @@ implemented and what it maps to.
 |CKA_APPLICATION       | | | |X
 |CKA_OBJECT_ID         | | | |X
 |CKA_MODIFIABLE        |X|X|X|X
+|CKA_COPYABLE          |X|X|X|X
+|CKA_DESTROYABLE       |X|X|X|X
 |CKA_VALUE             | | |X|X
 |CKA_SUBJECT           | | |X|
 |CKA_ISSUER            | | |X|
 |CKA_SERIALNUMBER      | | |X|
 |CKA_CERTIFICATE_TYPE  | | |X|
-|KcA_TRUSTED           | |X|X|
+|CKA_TRUSTED           | |X|X|
 |CKA_KEY_TYPE          |X|X| |
-|CKA_SENSITIVE         |X| | |
-|CKA_ALWAYS_SENSITIVE  |X| | |
-|CKA_EXTRACTABLE       |X| | |
-|CKA_NEVER_EXTRACTABLE |X| | |
+|CKA_SENSITIVE         |X|X| |
+|CKA_ALWAYS_SENSITIVE  |X|X| |
+|CKA_EXTRACTABLE       |X|X| |
+|CKA_NEVER_EXTRACTABLE |X|X| |
 |CKA_LOCAL             |X|X| |
-|CKA_ENCRYPT           | |X| |
-|CKA_DECRYPT           |X| | |
-|CKA_WRAP              | |X| |
-|CKA_UNWRAP            |X| | |
-|CKA_SIGN              |X| | |
-|CKA_VERIFY            | |X| |
+|CKA_ENCRYPT           |X|X| |
+|CKA_DECRYPT           |X|X| |
+|CKA_WRAP              |X|X| |
+|CKA_WRAP_WITH_TRUSTED |X|X| |
+|CKA_UNWRAP            |X|X| |
+|CKA_SIGN              |X|X| |
+|CKA_SIGN_RECOVER      |X|X| |
+|CKA_VERIFY            |X|X| |
+|CKA_VERIFY_RECOVER    |X|X| |
 |CKA_DERIVE            |X|X| |
 |CKA_MODULUS           |X|X| |
 |CKA_EC_POINT          |X|X| |
 |CKA_EC_PARAMS         |X|X| |
 |CKA_MODULUS_BITS      |X|X| |
 |CKA_PUBLIC_EXPONENT   |X|X| |
-|CKA_ALWAYS_AUTHENTICATE |X|||
+|CKA_ALWAYS_AUTHENTICATE |X|X| |
 |=================================
 
 == Key Alias per Slot and Object Type
