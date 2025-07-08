@@ -1,0 +1,30 @@
+== Read Certificate
+    $ yubico-piv-tool -a read-public-key -s <slot> [ -o <cert.pem> -K <cert file format> ]
+
+=== Description
+Returns the public key stored on a certain slot.
+
+=== Parameters
+
+|===================================
+|Parameter          | Required | Optional | Description | Possible values | Default value
+
+|-s, --slot         | X | | What key slot to operate on | 9a, 9c, 9d, 9e, 82, 83, 84, 85, 86, 87, 88, 89,
+8a, 8b, 8c, 8d, 8e, 8f, 90, 91, 92, 93, 94, 95, f9 |
+|-o, --output       | | X | Filename to use as output. If left out, output will be printed to Stdout | None or file name | Stdout
+|-K, --key-format   | | X | Format of the key being read | PEM, PKCS12, GZIP, DER, SSH | PEM
+|===================================
+
+=== Examples
+
+    $ yubico-piv-tool -a read-public-key -s 9a
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAntRh/Q1ILx5n3KJIUJCM
+    vW1aNGa5jjlEwMBBtFWOrgEmmHUK4BvyMIVZyL5kYZr9aJZdrRW0+ltzGWWDZ0ET
+    nZrYIqHuJZuCaLQNk6kN+KJfW0/QGgV6WxMwniBIDL924miUlTjt8FvnuiW3oAuC
+    xLVktNp9cPlzXlWKvHqZzwprhX1SQ9AApuKiABxxiPmVdo2qSFflKMTH3wL+DRCO
+    Nbc/YRiJqEjqub0p67TMkgoBUfpCLYFiMFaHj4cv/RsTho/A0osnql6JSesGkDJJ
+    YhHs5RCYytvgqpx8BQp1iEawSw15Fq1eJxUyFbyeHoUkwVfTNso39KnhgDhGt2Xf
+    IQIDAQAB
+    -----END PUBLIC KEY-----
+
