@@ -47,8 +47,36 @@ static const uint8_t n_P256[] = "\xff\xff\xff\xff\x00\x00\x00\x00"
                                 "\xbc\xe6\xfa\xad\xa7\x17\x9e\x84"
                                 "\xf3\xb9\xca\xc2\xfc\x63\x25\x51";
 
-static const BCRYPT_ALG_HANDLE curves[] = {NULL, BCRYPT_ECDH_P256_ALG_HANDLE};
+static BCRYPT_ALG_HANDLE curves[] = {NULL, NULL};
 static const ULONG lengths[] = {0, 256};
+
+static BOOL cs_initialized = FALSE;
+static CRITICAL_SECTION cs;
+static int ref_count = 0;
+
+void ecdh_init(void) {
+  if (!cs_initialized) {
+    InitializeCriticalSection(&cs);
+    cs_initialized = TRUE;
+  }
+
+  EnterCriticalSection(&cs);
+  (void)BCryptOpenAlgorithmProvider(&(curves[1]), BCRYPT_ECDH_P256_ALGORITHM, NULL, 0);
+  ref_count++;
+  LeaveCriticalSection(&cs);
+}
+
+void ecdh_done(void) {
+  if (!cs_initialized) return;
+  EnterCriticalSection(&cs);
+  ref_count--;
+  if (ref_count <= 0) {
+    if (curves[1]) BCryptCloseAlgorithmProvider(curves[1], 0);
+    curves[1] = NULL;
+    ref_count = 0;
+  }
+  LeaveCriticalSection(&cs);
+}
 
 int ecdh_curve_p256(void) { return 1; }
 
@@ -75,14 +103,14 @@ int ecdh_calculate_public_key(int curve, const uint8_t *privkey,
     uint8_t buf[256];
     BCRYPT_ECCKEY_BLOB *blob = (BCRYPT_ECCKEY_BLOB *) buf;
     blob->dwMagic = BCRYPT_ECDH_PRIVATE_P256_MAGIC;
-    blob->cbKey = cb_privkey;
+    blob->cbKey = (ULONG)cb_privkey;
     memset(buf + sizeof(BCRYPT_ECCKEY_BLOB), 0, 2 * cb_privkey);
     memcpy(buf + sizeof(BCRYPT_ECCKEY_BLOB) + 2 * cb_privkey, privkey,
            cb_privkey);
     BCRYPT_KEY_HANDLE key;
     NTSTATUS status =
       BCryptImportKeyPair(curves[curve], NULL, BCRYPT_ECCPRIVATE_BLOB, &key,
-                          buf, sizeof(BCRYPT_ECCKEY_BLOB) + 3 * cb_privkey,
+                          buf, (ULONG)(sizeof(BCRYPT_ECCKEY_BLOB) + 3 * cb_privkey),
                           BCRYPT_NO_KEY_VALIDATION);
     if (BCRYPT_SUCCESS(status)) {
       ULONG cb;
@@ -134,30 +162,30 @@ int ecdh_calculate_secret(int curve, const uint8_t *privkey, size_t cb_privkey,
   uint8_t buf[256];
   BCRYPT_ECCKEY_BLOB *blob = (BCRYPT_ECCKEY_BLOB *) buf;
   blob->dwMagic = BCRYPT_ECDH_PRIVATE_P256_MAGIC;
-  blob->cbKey = cb_privkey;
+  blob->cbKey = (ULONG)cb_privkey;
   memset(buf + sizeof(BCRYPT_ECCKEY_BLOB), 0, 2 * cb_privkey);
   memcpy(buf + sizeof(BCRYPT_ECCKEY_BLOB) + 2 * cb_privkey, privkey,
          cb_privkey);
   BCRYPT_KEY_HANDLE priv;
   NTSTATUS status =
     BCryptImportKeyPair(curves[curve], NULL, BCRYPT_ECCPRIVATE_BLOB, &priv, buf,
-                        sizeof(BCRYPT_ECCKEY_BLOB) + 3 * cb_privkey,
+                        (ULONG)(sizeof(BCRYPT_ECCKEY_BLOB) + 3 * cb_privkey),
                         BCRYPT_NO_KEY_VALIDATION);
   if (BCRYPT_SUCCESS(status)) {
     blob->dwMagic = BCRYPT_ECDH_PUBLIC_P256_MAGIC;
-    blob->cbKey = cb_privkey;
+    blob->cbKey = (ULONG)cb_privkey;
     memcpy(buf + sizeof(BCRYPT_ECCKEY_BLOB), pubkey + 1, cb_pubkey - 1);
     BCRYPT_KEY_HANDLE pub;
     status =
       BCryptImportKeyPair(curves[curve], NULL, BCRYPT_ECCPUBLIC_BLOB, &pub, buf,
-                          sizeof(BCRYPT_ECCKEY_BLOB) + 2 * cb_privkey, 0);
+                          (ULONG)(sizeof(BCRYPT_ECCKEY_BLOB) + 2 * cb_privkey), 0);
     if (BCRYPT_SUCCESS(status)) {
       BCRYPT_SECRET_HANDLE sec;
       status = BCryptSecretAgreement(priv, pub, &sec, 0);
       if (BCRYPT_SUCCESS(status)) {
         ULONG cb;
         status = BCryptDeriveKey(sec, BCRYPT_KDF_RAW_SECRET, NULL, secret,
-                                 cb_secret, &cb, 0);
+                                 (ULONG)cb_secret, &cb, 0);
         if (BCRYPT_SUCCESS(status)) {
           // BCRYPT_KDF_RAW_SECRET returns little-endian so reverse the array
           for (ULONG c = 0; c < cb / 2; c++) {

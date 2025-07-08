@@ -35,8 +35,6 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#include <bcrypt.h>
-#include <ntstatus.h>
 #else
 #include <openssl/evp.h>
 #endif

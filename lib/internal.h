@@ -192,6 +192,7 @@ typedef union u_APDU APDU;
 
 pkcs5_rc pkcs5_pbkdf2_sha1(const uint8_t* password, const size_t cb_password, const uint8_t* salt, const size_t cb_salt, uint64_t iterations, const uint8_t* key, const size_t cb_key);
 bool   yk_des_is_weak_key(const unsigned char *key, const size_t cb_key);
+unsigned char* hash_sha256(const unsigned char* data, size_t count, unsigned char* md_buf);
 
 prng_rc _ykpiv_prng_generate(unsigned char *buffer, const size_t cb_req);
 ykpiv_rc _ykpiv_begin_transaction(ykpiv_state *state);
@@ -255,7 +256,7 @@ void _ykpiv_debug(const char *file, int line, const char *func, int lvl, const c
 #define DBG3(fmt, ...) _ykpiv_debug(__FILE__, __LINE__, __FUNCTION__, 3, fmt, ##__VA_ARGS__)
 
 #ifdef _WIN32
-#include <windows.h>
+//#include <windows.h>
 #define yc_memzero SecureZeroMemory
 #elif defined(HAVE_EXPLICIT_BZERO)
 #include <strings.h>
