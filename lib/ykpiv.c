@@ -40,7 +40,9 @@
 #include "ykpiv.h"
 #include "scp11_util.h"
 #include "ecdh.h"
+#ifndef _WIN32
 #include "../common/util.h"
+#endif
 #include "../aes_cmac/aes.h"
 
 /**
@@ -337,6 +339,7 @@ ykpiv_rc ykpiv_init_with_allocator(ykpiv_state **state, int verbose, const ykpiv
   s->allocator = *allocator;
   s->context = (SCARDCONTEXT)-1;
   *state = s;
+  ecdh_init();
   return YKPIV_OK;
 }
 
@@ -350,6 +353,7 @@ static ykpiv_rc _ykpiv_done(ykpiv_state *state, bool disconnect) {
   _cache_pin(state, NULL, 0);
   _cache_mgm_key(state, NULL, 0);
   _ykpiv_free(state, state);
+  ecdh_done();
   return YKPIV_OK;
 }
 
@@ -462,7 +466,7 @@ get_pubkey_offset(uint8_t *cert_ptr, uint8_t *cert_end, size_t pubkey_len, uint8
         algo_oid.tag);
     return NULL;
   }
-  if (*pubkey.value == 0) {
+  if (pubkey.value && (*(pubkey.value) == 0)) {
     pubkey.value++;
     pubkey.length--;
   }
@@ -586,7 +590,7 @@ static ykpiv_rc scp11_derive_session_keys(uint8_t *oce_privkey, size_t oce_privk
   // We need 5 keys, 16 bytes each. Each iteration produces 32 bytes, so we need to run 3 iteration to get at least 5
   for (int i = 0; i < 3; i++) {
     hash_data[counter_index]++;
-    SHA256(hash_data, hash_data_len, session_keys + (i * ecdh_len));
+    hash_sha256(hash_data, hash_data_len, session_keys + (i * ecdh_len));
   }
   return YKPIV_OK;
 }
@@ -600,7 +604,7 @@ static ykpiv_rc scp11_internal_authenticate(ykpiv_state *state, uint8_t *data, s
   uint8_t recv[YKPIV_OBJ_MAX_SIZE] = {0};
   unsigned long recv_len = sizeof(recv);
   int sw = 0;
-  if ((rc = _ykpiv_transfer_data(state, apdu, data, data_len, recv, &recv_len, &sw)) != YKPIV_OK) {
+  if ((rc = _ykpiv_transfer_data(state, apdu, data, (unsigned long)data_len, recv, &recv_len, &sw)) != YKPIV_OK) {
     return rc;
   }
   rc = ykpiv_translate_sw_ex(__FUNCTION__, sw);
@@ -643,7 +647,7 @@ static ykpiv_rc scp11_internal_authenticate(ykpiv_state *state, uint8_t *data, s
 static ykpiv_rc
 scp11_verify_channel(uint8_t *verification_key, uint8_t *receipt, uint8_t *apdu_data, uint32_t apdu_data_len,
                      uint8_t *epubkey_sd, size_t epubkey_sd_len) {
-  uint32_t ka_data_len = apdu_data_len + epubkey_sd_len + 3;
+  uint32_t ka_data_len = apdu_data_len + (uint32_t)epubkey_sd_len + 3;
   uint8_t *ka_data = malloc(ka_data_len);
   if (!ka_data) {
     DBG("Failed to allocate memory for key agreement data");
@@ -652,7 +656,7 @@ scp11_verify_channel(uint8_t *verification_key, uint8_t *receipt, uint8_t *apdu_
   memcpy(ka_data, apdu_data, apdu_data_len);
   ka_data[apdu_data_len] = SCP11_ePK_SD_ECKA_TAG >> 8;
   ka_data[apdu_data_len + 1] = SCP11_ePK_SD_ECKA_TAG & 0xff;
-  ka_data[apdu_data_len + 2] = epubkey_sd_len;
+  ka_data[apdu_data_len + 2] = (uint8_t)epubkey_sd_len;
   memcpy(ka_data + apdu_data_len + 3, epubkey_sd, epubkey_sd_len);
 
   ykpiv_rc rc = YKPIV_OK;
@@ -720,7 +724,7 @@ static ykpiv_rc scp11_open_secure_channel(ykpiv_state *state) {
     return YKPIV_SIZE_ERROR;
   }
   memcpy(data, scp11_keyagreement_template, sizeof(scp11_keyagreement_template));
-  data[sizeof(scp11_keyagreement_template)] = oce_pubkey_len;
+  data[sizeof(scp11_keyagreement_template)] = (uint8_t)oce_pubkey_len;
   memcpy(data + sizeof(scp11_keyagreement_template) + 1, oce_pubkey, oce_pubkey_len);
 
   uint8_t sde_pubkey[512] = {0};
@@ -739,7 +743,7 @@ static ykpiv_rc scp11_open_secure_channel(ykpiv_state *state) {
     return rc;
   }
 
-  if ((rc = scp11_verify_channel(session_keys, receipt, data, data_len, sde_pubkey, sde_pubkey_len)) !=
+  if ((rc = scp11_verify_channel(session_keys, receipt, data, (uint32_t)data_len, sde_pubkey, sde_pubkey_len)) !=
       YKPIV_OK) {
     DBG("Failed to verify SCP11 session");
     return rc;
@@ -1329,7 +1333,7 @@ ykpiv_rc _ykpiv_transfer_data(ykpiv_state *state,
         return res;
       }
       in_len = 0;
-      apdu_len = apdu_length;
+      apdu_len = (pcsc_word)apdu_length;
     } else {
       if(in_len > 0xff) {
         apdu.st.cla |= 0x10;

@@ -36,10 +36,15 @@
 #include "../aes_cmac/aes_cmac.h"
 
 #ifdef _WIN32
-#include <winsock.h>
+//#include <winsock.h>
 #else
 #include <arpa/inet.h>
 #endif
+
+#ifndef AES_BLOCK_SIZE // Defined in openssl/aes.h
+#define AES_BLOCK_SIZE 16
+#endif
+
 
 static ykpiv_rc compute_full_mac_ex(const uint8_t *data, uint32_t data_len,
                                  aes_context *aes_ctx, uint8_t *mac) {
@@ -66,7 +71,7 @@ static ykpiv_rc compute_full_mac(const uint8_t *data, uint32_t data_len,
                               const uint8_t *key, uint32_t key_len,
                               uint8_t *mac) {
 
-  aes_context aes_ctx = {0};
+  aes_context aes_ctx;
   int drc = aes_set_key(key, key_len, YKPIV_ALGO_AES128, &aes_ctx);
   if (drc) {
     DBG("%s: aes_set_key: %d", ykpiv_strerror(YKPIV_KEY_ERROR), drc);
@@ -85,7 +90,7 @@ ykpiv_rc scp11_mac_data(uint8_t *key, uint8_t *mac_chain, uint8_t *data, uint32_
     memcpy(buf, mac_chain, SCP11_MAC_LEN);
     memcpy(buf + SCP11_MAC_LEN, data, data_len);
     size_t buf_len = SCP11_MAC_LEN + data_len;
-    res = compute_full_mac(buf, buf_len, key, AES_BLOCK_SIZE, mac_out);
+    res = compute_full_mac(buf, (uint32_t)buf_len, key, AES_BLOCK_SIZE, mac_out);
   } else {
     res = compute_full_mac(data, data_len, key, AES_BLOCK_SIZE, mac_out);
   }
@@ -150,7 +155,7 @@ scp11_encrypt_data(uint8_t *key, uint32_t counter, const uint8_t *data, uint32_t
   size_t pad_len = AES_BLOCK_SIZE - (data_len % AES_BLOCK_SIZE);
   uint8_t padded[YKPIV_OBJ_MAX_SIZE] = {0};
   memcpy(padded, data, data_len);
-  if((drc = aes_add_padding(padded, data_len + pad_len, &data_len)) != 0) {
+  if((drc = aes_add_padding(padded, data_len + (uint32_t)pad_len, &data_len)) != 0) {
     DBG("%s: aes_add_padding: %d", ykpiv_strerror(YKPIV_MEMORY_ERROR), drc);
     rc = YKPIV_MEMORY_ERROR;
     goto enc_clean;

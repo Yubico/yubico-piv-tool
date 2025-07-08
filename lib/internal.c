@@ -30,7 +30,6 @@
 
 #include "internal.h"
 #ifdef _WIN32
-#include <windows.h>
 #include <bcrypt.h>
 #include <strsafe.h>
 #else
@@ -177,8 +176,16 @@ pkcs5_rc pkcs5_pbkdf2_sha1(const uint8_t* password, const size_t cb_password, co
 
     /* suppress const qualifier warning b/c BCrypt doesn't take const input buffers */
 #pragma warning(suppress: 4090)
-  if (!BCRYPT_SUCCESS(BCryptDeriveKeyPBKDF2(BCRYPT_HMAC_SHA1_ALG_HANDLE, (PUCHAR)password, (ULONG)cb_password, (PUCHAR)salt, (ULONG)cb_salt, iterations, key, (ULONG)cb_key, 0)))
-  {
+  BCRYPT_ALG_HANDLE hPrf = NULL;
+
+  if (BCRYPT_SUCCESS(BCryptOpenAlgorithmProvider(&hPrf, BCRYPT_SHA1_ALGORITHM, NULL, BCRYPT_ALG_HANDLE_HMAC_FLAG))) {
+    if (!BCRYPT_SUCCESS(BCryptDeriveKeyPBKDF2(hPrf, (PUCHAR)password, (ULONG)cb_password, (PUCHAR)salt, (ULONG)cb_salt, iterations, (PUCHAR)key, (ULONG)cb_key, 0)))
+    {
+      rc = PKCS5_GENERAL_ERROR;
+    }
+    BCryptCloseAlgorithmProvider(hPrf, 0);
+  }
+  else {
     rc = PKCS5_GENERAL_ERROR;
   }
 
@@ -189,6 +196,39 @@ pkcs5_rc pkcs5_pbkdf2_sha1(const uint8_t* password, const size_t cb_password, co
 
 #endif
 
+  return rc;
+}
+
+unsigned char* hash_sha256(const unsigned char* data, size_t count, unsigned char* md_buf) {
+  unsigned char* rc = 0;
+#ifdef _WIN32
+  BCRYPT_ALG_HANDLE hAlg = NULL;
+  BCRYPT_HASH_HANDLE hHash = NULL;
+
+  if (!BCRYPT_SUCCESS(BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_SHA256_ALGORITHM, NULL, 0))) {
+    goto cleanup;
+  }
+
+  if (!BCRYPT_SUCCESS(BCryptCreateHash(hAlg, &hHash, NULL, 0, NULL, 0, 0))) {
+    goto cleanup;
+  }
+
+  if (!BCRYPT_SUCCESS(BCryptHashData(hHash, (PUCHAR)data, (ULONG)count, 0))) {
+    goto cleanup;
+  }
+
+  if (!BCRYPT_SUCCESS(BCryptFinishHash(hHash, md_buf, 32, 0))) {
+    goto cleanup;
+  }
+
+  rc = md_buf;
+
+cleanup:
+  if (hAlg) BCryptCloseAlgorithmProvider(hAlg, 0);
+
+#else
+  rc = SHA256(data, count, md_buf);
+#endif
   return rc;
 }
 

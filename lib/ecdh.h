@@ -55,6 +55,13 @@ int YH_INTERNAL ecdh_calculate_secret(int curve, const uint8_t *privkey,
                                       size_t cb_privkey, const uint8_t *pubkey,
                                       size_t cb_pubkey, uint8_t *secret,
                                       size_t cb_secret);
+#ifdef _WIN32
+void YH_INTERNAL ecdh_init(void);
+void YH_INTERNAL ecdh_done(void);
+#else
+#define ecdh_init()
+#define ecdh_done()
+#endif
 
 #ifdef __cplusplus
 }
