@@ -107,7 +107,7 @@ static void print_version(ykpiv_state *state, const char *output_file_name) {
   }
 
   if(ykpiv_get_version(state, version, sizeof(version)) == YKPIV_OK) {
-    fprintf(output_file, "Application version %s found.\n", version);
+    fprintf(output_file, "Firmware version %s found.\n", version);
   } else {
     fprintf(stderr, "Failed to retrieve application version.\n");
   }
