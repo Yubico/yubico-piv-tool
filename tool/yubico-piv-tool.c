@@ -109,7 +109,7 @@ static void print_version(ykpiv_state *state, const char *output_file_name) {
   if(ykpiv_get_version(state, version, sizeof(version)) == YKPIV_OK) {
     fprintf(output_file, "Firmware version %s found.\n", version);
   } else {
-    fprintf(stderr, "Failed to retrieve application version.\n");
+    fprintf(stderr, "Failed to retrieve firmware version.\n");
   }
 
   if(output_file != stdout) {
@@ -1921,9 +1921,9 @@ static void print_slot_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
       fprintf(output, "Parse error.\n");
       return;
     }
-
     cert_found = true;
   }
+
   if (ykpiv_get_metadata(state, slot_name, metadata, &metadata_len) == YKPIV_OK) {
     if (ykpiv_util_parse_metadata(metadata, metadata_len, &slot_md) != YKPIV_OK) {
       fprintf(output, "Failed to parse metadata for slot %x\n", slot_name);
