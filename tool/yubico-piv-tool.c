@@ -1935,31 +1935,18 @@ static void print_slot_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     return;
   }
 
-  fprintf(output, "Slot %x:\t", slot_name);
+  fprintf(output, "Slot %x:\n", slot_name);
 
+  fprintf(output, "\tPrivate Key Algorithm:\t");
   if (metadata_found) {
-    fprintf(output, "\n\tPrivate Key Algorithm:\t");
     print_algorithm_string(slot_md.algorithm, output);
-    if (!cert_found) {
-      fprintf(output, "\n");
-    }
+    fprintf(output, "\n");
+  } else {
+    fprintf(output, "EMPTY\n");
   }
 
-  if (cert_found) {
-//    unsigned char certdata[YKPIV_OBJ_MAX_SIZE * 10] = {0};
-//    size_t certdata_len = sizeof(certdata);
-//    if(ykpiv_util_get_certdata(data, len, certdata, &certdata_len) != YKPIV_OK) {
-//      fprintf(output, "Failed to get certificate data\n");
-//      return;
-//    }
-//
-//    const unsigned char *certdata_ptr = certdata;
-//    x509 = d2i_X509(NULL, &certdata_ptr, certdata_len);
-//    if (x509 == NULL) {
-//      fprintf(output, "Parse error.\n");
-//      return;
-//    }
 
+  if (cert_found) {
     unsigned int md_len = sizeof(data);
     const ASN1_TIME *not_before, *not_after;
 
@@ -1968,7 +1955,7 @@ static void print_slot_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
       fprintf(output, "Parse error.\n");
       goto cert_out;
     }
-    fprintf(output, "\n\tPublic Key Algorithm:\t");
+    fprintf(output, "\tPublic Key Algorithm:\t");
     print_algorithm_string(get_algorithm(key), output);
     fprintf(output, "\n");
 
