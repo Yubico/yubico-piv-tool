@@ -1905,33 +1905,9 @@ static void print_slot_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
   EVP_PKEY *key = NULL;
   X509_NAME *subj;
   BIO *bio = NULL;
-  bool data_found = false, metadata_found = false;
+  bool cert_found = false, metadata_found = false;
 
   if(ykpiv_fetch_object(state, object, data, &len) == YKPIV_OK) {
-    data_found = true;
-  }
-  if (ykpiv_get_metadata(state, slot_name, metadata, &metadata_len) == YKPIV_OK) {
-    if (ykpiv_util_parse_metadata(metadata, metadata_len, &slot_md) != YKPIV_OK) {
-      fprintf(output, "Failed to parse metadata for slot %x\n", slot_name);
-      return;
-    }
-    metadata_found = true;
-  }
-  if (!data_found && !metadata_found) {
-    return;
-  }
-
-  fprintf(output, "Slot %x:\t", slot_name);
-
-  if (metadata_found) {
-    fprintf(output, "\n\tPrivate Key Algorithm:\t");
-    print_algorithm_string(slot_md.algorithm, output);
-    if (!data_found) {
-      fprintf(output, "\n");
-    }
-  }
-
-  if (data_found) {
     unsigned char certdata[YKPIV_OBJ_MAX_SIZE * 10] = {0};
     size_t certdata_len = sizeof(certdata);
     if(ykpiv_util_get_certdata(data, len, certdata, &certdata_len) != YKPIV_OK) {
@@ -1945,6 +1921,44 @@ static void print_slot_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
       fprintf(output, "Parse error.\n");
       return;
     }
+
+    cert_found = true;
+  }
+  if (ykpiv_get_metadata(state, slot_name, metadata, &metadata_len) == YKPIV_OK) {
+    if (ykpiv_util_parse_metadata(metadata, metadata_len, &slot_md) != YKPIV_OK) {
+      fprintf(output, "Failed to parse metadata for slot %x\n", slot_name);
+      return;
+    }
+    metadata_found = true;
+  }
+  if (!cert_found && !metadata_found) {
+    return;
+  }
+
+  fprintf(output, "Slot %x:\t", slot_name);
+
+  if (metadata_found) {
+    fprintf(output, "\n\tPrivate Key Algorithm:\t");
+    print_algorithm_string(slot_md.algorithm, output);
+    if (!cert_found) {
+      fprintf(output, "\n");
+    }
+  }
+
+  if (cert_found) {
+//    unsigned char certdata[YKPIV_OBJ_MAX_SIZE * 10] = {0};
+//    size_t certdata_len = sizeof(certdata);
+//    if(ykpiv_util_get_certdata(data, len, certdata, &certdata_len) != YKPIV_OK) {
+//      fprintf(output, "Failed to get certificate data\n");
+//      return;
+//    }
+//
+//    const unsigned char *certdata_ptr = certdata;
+//    x509 = d2i_X509(NULL, &certdata_ptr, certdata_len);
+//    if (x509 == NULL) {
+//      fprintf(output, "Parse error.\n");
+//      return;
+//    }
 
     unsigned int md_len = sizeof(data);
     const ASN1_TIME *not_before, *not_after;
