@@ -61,7 +61,9 @@ void ecdh_init(void) {
   }
 
   EnterCriticalSection(&cs);
-  (void)BCryptOpenAlgorithmProvider(&(curves[1]), BCRYPT_ECDH_P256_ALGORITHM, NULL, 0);
+  if (!curves[1]) {
+    (void)BCryptOpenAlgorithmProvider(&(curves[1]), BCRYPT_ECDH_P256_ALGORITHM, NULL, 0);
+  }
   ref_count++;
   LeaveCriticalSection(&cs);
 }
