@@ -679,7 +679,7 @@ sc_verify_cleanup:
   return rc;
  }
 
-static ykpiv_rc scp11_open_secure_channel(ykpiv_state *state) {
+ykpiv_rc scp11_open_secure_channel(ykpiv_state *state) {
   ykpiv_rc rc;
 
   //DER encode:
@@ -765,6 +765,8 @@ ykpiv_rc _ykpiv_select_application(ykpiv_state *state, bool scp11) {
 
   ykpiv_rc res = YKPIV_OK;
   if(scp11) {
+    // reset scp11 state if previously negotiated security level
+    yc_memzero(&(state->scp11_state), sizeof(ykpiv_scp11_state));
     res = scp11_open_secure_channel(state);
   } else {
     unsigned char templ[] = {0x00, YKPIV_INS_SELECT_APPLICATION, 0x04, 0x00};
@@ -2817,37 +2819,53 @@ ykpiv_rc ykpiv_auth_deauthenticate(ykpiv_state *state) {
   return res;
 }
 
-/* deauthenticates the user pin and mgm key */
+/* deauthenticates the user pin */
 static ykpiv_rc _ykpiv_auth_deauthenticate(ykpiv_state *state) {
   ykpiv_rc res = YKPIV_OK;
-  unsigned char templ[] = {0x00, YKPIV_INS_SELECT_APPLICATION, 0x04, 0x00};
-  unsigned char data[256] = {0};
+  unsigned char data[256] = { 0 };
   unsigned long recv_len = sizeof(data);
-  const unsigned char *aid;
-  unsigned long aid_len;
   int sw = 0;
 
   if (!state) {
     return YKPIV_ARGUMENT_ERROR;
   }
 
-  // Once mgmt_aid is selected on NEO we can't select piv_aid again... So we use yk_aid.
-  // But... YK 5 below 5.3 doesn't allow access to yk_aid, so still use mgmt_aid on non-NEO devices
+  if (is_version_compatible(state, 5, 4, 3)) {
+    unsigned char templ[] = { 0x00, YKPIV_INS_VERIFY, 0xFF, 0x80 };
 
-  if (state->ver.major < 4 && state->ver.major != 0) {
-    aid = yk_aid;
-    aid_len = sizeof(yk_aid);
-  } else {
-    aid = mgmt_aid;
-    aid_len = sizeof(mgmt_aid);
-  }
+    res = _ykpiv_transfer_data(state, templ, data, 0, data, &recv_len, &sw);
 
-  if ((res = _ykpiv_transfer_data(state, templ, aid, aid_len, data, &recv_len, &sw)) < YKPIV_OK) {
-    return res;
+    if (res < YKPIV_OK) {
+      res = ykpiv_translate_sw_ex(__FUNCTION__, sw);
+      if (res != YKPIV_OK) {
+        DBG("Failed deauthenticating pin");
+      }
+    }
   }
-  res = ykpiv_translate_sw_ex(__FUNCTION__, sw);
-  if (res != YKPIV_OK) {
-    DBG("Failed selecting mgmt/yk application");
+  else {
+    unsigned char templ[] = { 0x00, YKPIV_INS_SELECT_APPLICATION, 0x04, 0x00 };
+    const unsigned char* aid;
+    unsigned long aid_len;
+
+    // Once mgmt_aid is selected on NEO we can't select piv_aid again... So we use yk_aid.
+    // But... YK 5 below 5.3 doesn't allow access to yk_aid, so still use mgmt_aid on non-NEO devices
+
+    if (state->ver.major < 4 && state->ver.major != 0) {
+      aid = yk_aid;
+      aid_len = sizeof(yk_aid);
+    }
+    else {
+      aid = mgmt_aid;
+      aid_len = sizeof(mgmt_aid);
+    }
+
+    if ((res = _ykpiv_transfer_data(state, templ, aid, aid_len, data, &recv_len, &sw)) < YKPIV_OK) {
+      return res;
+    }
+    res = ykpiv_translate_sw_ex(__FUNCTION__, sw);
+    if (res != YKPIV_OK) {
+      DBG("Failed selecting mgmt/yk application");
+    }
   }
 
   return res;

@@ -71,7 +71,7 @@ static ykpiv_rc compute_full_mac(const uint8_t *data, uint32_t data_len,
                               const uint8_t *key, uint32_t key_len,
                               uint8_t *mac) {
 
-  aes_context aes_ctx;
+  aes_context aes_ctx = { 0 };
   int drc = aes_set_key(key, key_len, YKPIV_ALGO_AES128, &aes_ctx);
   if (drc) {
     DBG("%s: aes_set_key: %d", ykpiv_strerror(YKPIV_KEY_ERROR), drc);

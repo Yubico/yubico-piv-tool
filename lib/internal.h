@@ -202,6 +202,7 @@ ykpiv_rc _ykpiv_select_application(ykpiv_state *state, bool scp11);
 size_t _ykpiv_get_length_size(size_t length);
 size_t _ykpiv_set_length(unsigned char *buffer, size_t length);
 size_t _ykpiv_get_length(const unsigned char *buffer, const unsigned char* end, size_t *len);
+ykpiv_rc scp11_open_secure_channel(ykpiv_state* state);
 
 void* _ykpiv_alloc(ykpiv_state *state, size_t size);
 void* _ykpiv_realloc(ykpiv_state *state, void *address, size_t size);
