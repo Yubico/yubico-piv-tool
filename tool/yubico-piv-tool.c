@@ -259,19 +259,6 @@ static EVP_PKEY* wrap_public_key(ykpiv_state *state, int algorithm, EVP_PKEY *pu
 }
 #endif
 
-static bool move_key(ykpiv_state *state, int from_slot, int to_slot) {
-  bool ret = false;
-  ykpiv_rc res;
-
-  res = ykpiv_move_key(state, (uint8_t) (from_slot & 0xFF), (uint8_t) (to_slot & 0xFF));
-  if (res != YKPIV_OK) {
-    fprintf(stderr, "Failed to move key.\n");
-  } else {
-    ret = true;
-  }
-  return ret;
-}
-
 static bool get_public_key(ykpiv_state *state, enum enum_slot slot, const char *output_file_name,
                            enum enum_key_format key_format) {
   int slot_hex = get_slot_hex(slot);
@@ -2078,6 +2065,8 @@ static bool status(ykpiv_state *state, enum enum_hash hash,
     dump_data(buf, len, output_file, false, format_arg_hex);
   }
 
+  fprintf(output_file, "All non-listed slots are empty\n");
+
   if (slot == slot__NULL) {
     for (i = 0; i < 24; i++) {
       print_slot_info(state, i, md, output_file);
@@ -3018,22 +3007,26 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_moveMINUS_key: {
-        int from_slot = get_slot_hex(args_info.slot_arg);
-        int to_slot = get_slot_hex((enum enum_slot) args_info.to_slot_arg);
-        if (move_key(state, from_slot, to_slot) == false) {
+        uint8_t from_slot = get_slot_hex(args_info.slot_arg);
+        uint8_t to_slot = get_slot_hex((enum enum_slot) args_info.to_slot_arg);
+        if (ykpiv_move_key(state, from_slot & 0xFF,  to_slot & 0xFF) != YKPIV_OK) {
+          fprintf(stderr, "Failed to moved key.\n");
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully moved key.\n");
         }
         break;
       }
-      case action_arg_deleteMINUS_key:
-        if(move_key(state, get_slot_hex(args_info.slot_arg), 0xFF) == false) {
+      case action_arg_deleteMINUS_key: {
+        uint8_t slot = get_slot_hex(args_info.slot_arg);
+        if (ykpiv_move_key(state, slot & 0xFF, 0xFF) != YKPIV_OK) {
+          fprintf(stderr, "Failed to delete key.\n");
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully deleted key.\n");
         }
         break;
+      }
       case action__NULL:
       default:
         fprintf(stderr, "Wrong action. %d.\n", action);
