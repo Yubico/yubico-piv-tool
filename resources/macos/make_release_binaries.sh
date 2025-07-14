@@ -66,20 +66,25 @@ cp "$BREW_LIB/zlib/lib/libz.1.dylib" "$FINAL_INSTALL_DIR/lib"
 chmod +w "$FINAL_INSTALL_DIR/lib/libz.1.dylib"
 cp -r $BREW_LIB/zlib/include/zlib.h "$FINAL_INSTALL_DIR/include"
 
+rm $FINAL_INSTALL_DIR/lib/libykpiv.$SO_VERSION.dylib
+rm $FINAL_INSTALL_DIR/lib/libykpiv.dylib
+rm $FINAL_INSTALL_DIR/lib/libykcs11.$SO_VERSION.dylib
+rm $FINAL_INSTALL_DIR/lib/libykcs11.dylib
+
 # Fix paths
 install_name_tool -id "@loader_path/../lib/libcrypto.3.dylib" "$FINAL_INSTALL_DIR/lib/libcrypto.3.dylib"
 install_name_tool -id "@loader_path/../lib/libz.1.dylib" "$FINAL_INSTALL_DIR/lib/libz.1.dylib"
 
 install_name_tool -change $BREW_LIB/openssl@3/lib/libcrypto.3.dylib @loader_path/../lib/libcrypto.3.dylib $FINAL_INSTALL_DIR/lib/libykpiv.$VERSION.dylib
-install_name_tool -change $BREW_LIB/openssl@3/lib/libcrypto.3.dylib @loader_path/../lib/libcrypto.3.dylib $FINAL_INSTALL_DIR/lib/libykcs11.$VERSION.dylib
-install_name_tool -change $BREW_LIB/openssl@3/lib/libcrypto.3.dylib @loader_path/../lib/libcrypto.3.dylib $FINAL_INSTALL_DIR/bin/yubico-piv-tool
-
-install_name_tool -change /usr/lib/libz.1.dylib @loader_path/../lib/libz.1.dylib $FINAL_INSTALL_DIR/lib/libykcs11.$VERSION.dylib
 install_name_tool -change /usr/lib/libz.1.dylib @loader_path/../lib/libz.1.dylib $FINAL_INSTALL_DIR/lib/libykpiv.$VERSION.dylib
-install_name_tool -change /usr/lib/libz.1.dylib @loader_path/../lib/libz.1.dylib $FINAL_INSTALL_DIR/bin/yubico-piv-tool
-
-install_name_tool -rpath "/usr/local/lib" "@loader_path/../lib" "$FINAL_INSTALL_DIR/lib/libykcs11.$VERSION.dylib"
 install_name_tool -rpath "/usr/local/lib" "@loader_path/../lib" "$FINAL_INSTALL_DIR/lib/libykpiv.$VERSION.dylib"
+
+install_name_tool -change $BREW_LIB/openssl@3/lib/libcrypto.3.dylib @loader_path/../lib/libcrypto.3.dylib $FINAL_INSTALL_DIR/lib/libykcs11.$VERSION.dylib
+install_name_tool -change /usr/lib/libz.1.dylib @loader_path/../lib/libz.1.dylib $FINAL_INSTALL_DIR/lib/libykcs11.$VERSION.dylib
+install_name_tool -rpath "/usr/local/lib" "@loader_path/../lib" "$FINAL_INSTALL_DIR/lib/libykcs11.$VERSION.dylib"
+
+install_name_tool -change $BREW_LIB/openssl@3/lib/libcrypto.3.dylib @loader_path/../lib/libcrypto.3.dylib $FINAL_INSTALL_DIR/bin/yubico-piv-tool
+install_name_tool -change /usr/lib/libz.1.dylib @loader_path/../lib/libz.1.dylib $FINAL_INSTALL_DIR/bin/yubico-piv-tool
 install_name_tool -rpath "/usr/local/lib" "@loader_path/../lib" "$FINAL_INSTALL_DIR/bin/yubico-piv-tool"
 
 if otool -L $FINAL_INSTALL_DIR/lib/*.dylib $FINAL_INSTALL_DIR/bin/* | grep '$FINAL_INSTALL_DIR' | grep -q compatibility; then
