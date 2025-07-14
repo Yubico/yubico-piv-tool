@@ -1932,7 +1932,6 @@ static void print_slot_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     fprintf(output, "EMPTY\n");
   }
 
-
   if (cert_found) {
     unsigned int md_len = sizeof(data);
     const ASN1_TIME *not_before, *not_after;
@@ -1996,7 +1995,7 @@ static void print_slot_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     }
   }
 
-  if(data_found && metadata_found) {
+  if(cert_found && metadata_found) {
     EVP_PKEY *md_key = EVP_PKEY_new();
     if (do_create_public_key(slot_md.pubkey, slot_md.pubkey_len, slot_md.algorithm, &md_key) == YKPIV_OK &&
         EVP_PKEY_cmp(key, md_key) != 1) {
@@ -3009,8 +3008,9 @@ int main(int argc, char *argv[]) {
       case action_arg_moveMINUS_key: {
         uint8_t from_slot = get_slot_hex(args_info.slot_arg);
         uint8_t to_slot = get_slot_hex((enum enum_slot) args_info.to_slot_arg);
-        if (ykpiv_move_key(state, from_slot & 0xFF,  to_slot & 0xFF) != YKPIV_OK) {
-          fprintf(stderr, "Failed to moved key.\n");
+        ykpiv_rc res = ykpiv_move_key(state, from_slot & 0xFF,  to_slot & 0xFF);
+        if (res != YKPIV_OK) {
+          fprintf(stderr, "Failed to moved key: %s\n", ykpiv_strerror(res));
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully moved key.\n");
@@ -3019,8 +3019,9 @@ int main(int argc, char *argv[]) {
       }
       case action_arg_deleteMINUS_key: {
         uint8_t slot = get_slot_hex(args_info.slot_arg);
-        if (ykpiv_move_key(state, slot & 0xFF, 0xFF) != YKPIV_OK) {
-          fprintf(stderr, "Failed to delete key.\n");
+        ykpiv_rc res = ykpiv_move_key(state, slot & 0xFF, 0xFF);
+        if (res != YKPIV_OK) {
+          fprintf(stderr, "Failed to delete key: %s\n", ykpiv_strerror(res));
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully deleted key.\n");
