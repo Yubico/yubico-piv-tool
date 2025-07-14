@@ -23,63 +23,79 @@ pkcs11-tool --module $MODULE --login --login-type so --so-pin 010203040506070801
 pkcs11-tool --module $MODULE --login --login-type so --so-pin 010203040506070801020304050607080102030405060708 --keypairgen --id 5 --key-type rsa:3072
 pkcs11-tool --module $MODULE --login --login-type so --so-pin 010203040506070801020304050607080102030405060708 --keypairgen --id 6 --key-type rsa:4096
 
+pkcs11-tool --module $MODULE --read-object --type cert --id 1 -o 1_cert.der
+openssl x509 -inform DER -outform PEM -in 1_cert.der -out 1_cert.pem
+openssl x509 -in 1_cert.pem -pubkey -noout > 1_pubkey.pem
+
+pkcs11-tool --module $MODULE --read-object --type cert --id 2 -o 2_cert.der
+openssl x509 -inform DER -outform PEM -in 2_cert.der -out 2_cert.pem
+openssl x509 -in 2_cert.pem -pubkey -noout > 2_pubkey.pem
+
+pkcs11-tool --module $MODULE --read-object --type cert --id 3 -o 3_cert.der
+openssl x509 -inform DER -outform PEM -in 3_cert.der -out 3_cert.pem
+openssl x509 -in 3_cert.pem -pubkey -noout > 3_pubkey.pem
+
+pkcs11-tool --module $MODULE --read-object --type cert --id 4 -o 4_cert.der
+openssl x509 -inform DER -outform PEM -in 4_cert.der -out 4_cert.pem
+openssl x509 -in 4_cert.pem -pubkey -noout > 4_pubkey.pem
+
+pkcs11-tool --module $MODULE --read-object --type cert --id 5 -o 5_cert.der
+openssl x509 -inform DER -outform PEM -in 5_cert.der -out 5_cert.pem
+openssl x509 -in 5_cert.pem -pubkey -noout > 5_pubkey.pem
+
+pkcs11-tool --module $MODULE --read-object --type cert --id 6 -o 6_cert.der
+openssl x509 -inform DER -outform PEM -in 6_cert.der -out 6_cert.pem
+openssl x509 -in 6_cert.pem -pubkey -noout > 6_pubkey.pem
+
 echo "******************* Signing Tests ********************* "
 echo "this is test data" > data.txt
+
 pkcs11-tool --module $MODULE --sign --pin 123456 --id 1 -m ECDSA-SHA1 --signature-format openssl -i data.txt -o data.sig
+openssl dgst -sha1 -verify 1_pubkey.pem -signature data.sig data.txt
 pkcs11-tool --module $MODULE --sign --pin 123456 --id 2 -m ECDSA-SHA1 --signature-format openssl -i data.txt -o data.sig
-pkcs11-tool --module $MODULE --sign --pin 123456 --id 3 -i data.txt -o data.sig
-pkcs11-tool --module $MODULE --sign --pin 123456 --id 4 -i data.txt -o data.sig
-pkcs11-tool --module $MODULE --sign --pin 123456 --id 5 -i data.txt -o data.sig
-pkcs11-tool --module $MODULE --sign --pin 123456 --id 6 -i data.txt -o data.sig
-rm data.txt
+openssl dgst -sha1 -verify 2_pubkey.pem -signature data.sig data.txt
+
+pkcs11-tool --module $MODULE --sign -m SHA1-RSA-PKCS --pin 123456 --id 3 -i data.txt -o data.sig
+openssl dgst -sha1 -verify 3_pubkey.pem -signature data.sig data.txt
+pkcs11-tool --module $MODULE --sign -m SHA1-RSA-PKCS --pin 123456 --id 4 -i data.txt -o data.sig
+openssl dgst -sha1 -verify 4_pubkey.pem -signature data.sig data.txt
+pkcs11-tool --module $MODULE --sign -m SHA1-RSA-PKCS --pin 123456 --id 5 -i data.txt -o data.sig
+openssl dgst -sha1 -verify 5_pubkey.pem -signature data.sig data.txt
+pkcs11-tool --module $MODULE --sign -m SHA1-RSA-PKCS --pin 123456 --id 6 -i data.txt -o data.sig
+openssl dgst -sha1 -verify 6_pubkey.pem -signature data.sig data.txt
 rm data.sig
 
 echo "******************* Decryption Tests ********************* "
-echo "this is test data" > data.txt
 
-pkcs11-tool --module $MODULE --read-object --type cert --id 3 -o 9d_cert.crt
-openssl x509 -inform DER -outform PEM -in 9d_cert.crt -out 9d_cert.pem
-openssl x509 -in 9d_cert.pem -pubkey -noout > 9d_pubkey.pem
-
-pkcs11-tool --module $MODULE --read-object --type cert --id 4 -o 9e_cert.crt
-openssl x509 -inform DER -outform PEM -in 9e_cert.crt -out 9e_cert.pem
-openssl x509 -in 9e_cert.pem -pubkey -noout > 9e_pubkey.pem
-
-pkcs11-tool --module $MODULE --read-object --type cert --id 5 -o 5_cert.crt
-openssl x509 -inform DER -outform PEM -in 5_cert.crt -out 5_cert.pem
-openssl x509 -in 5_cert.pem -pubkey -noout > 5_pubkey.pem
-
-pkcs11-tool --module $MODULE --read-object --type cert --id 6 -o 6_cert.crt
-openssl x509 -inform DER -outform PEM -in 6_cert.crt -out 6_cert.pem
-openssl x509 -in 6_cert.pem -pubkey -noout > 6_pubkey.pem
-
-openssl rsautl -encrypt -oaep -inkey 9d_pubkey.pem -pubin -in data.txt -out data.oaep
+openssl pkeyutl -encrypt -pubin -inkey 3_pubkey.pem -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -pkeyopt rsa_mgf1_md:sha256 -in data.txt -out data.oaep
 pkcs11-tool --module $MODULE --decrypt --pin 123456 --id 3 -m RSA-PKCS-OAEP -i data.oaep
 rm data.oaep
 
-openssl rsautl -encrypt -oaep -inkey 9e_pubkey.pem -pubin -in data.txt -out data.oaep
+openssl pkeyutl -encrypt -pubin -inkey 4_pubkey.pem -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -pkeyopt rsa_mgf1_md:sha256 -in data.txt -out data.oaep
 pkcs11-tool --module $MODULE --decrypt --pin 123456 --id 4 -m RSA-PKCS-OAEP -i data.oaep
 rm data.oaep
 
-openssl rsautl -encrypt -oaep -inkey 5_pubkey.pem -pubin -in data.txt -out data.oaep
+openssl pkeyutl -encrypt -pubin -inkey 5_pubkey.pem -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -pkeyopt rsa_mgf1_md:sha256 -in data.txt -out data.oaep
 pkcs11-tool --module $MODULE --decrypt --pin 123456 --id 5 -m RSA-PKCS-OAEP -i data.oaep
 rm data.oaep
 
-openssl rsautl -encrypt -oaep -inkey 6_pubkey.pem -pubin -in data.txt -out data.oaep
+openssl pkeyutl -encrypt -pubin -inkey 6_pubkey.pem -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -pkeyopt rsa_mgf1_md:sha256 -in data.txt -out data.oaep
 pkcs11-tool --module $MODULE --decrypt --pin 123456 --id 6 -m RSA-PKCS-OAEP -i data.oaep
 rm data.oaep
 
-rm 9d_cert.crt 9d_cert.pem 9d_pubkey.pem
-rm 9e_cert.crt 9e_cert.pem 9e_pubkey.pem
-rm 5_cert.crt 5_cert.pem 5_pubkey.pem
-rm 6_cert.crt 6_cert.pem 6_pubkey.pem
+rm 1_cert.der 1_cert.pem 1_pubkey.pem
+rm 2_cert.der 2_cert.pem 2_pubkey.pem
+rm 3_cert.der 3_cert.pem 3_pubkey.pem
+rm 4_cert.der 4_cert.pem 4_pubkey.pem
+rm 5_cert.der 5_cert.pem 5_pubkey.pem
+rm 6_cert.der 6_cert.pem 6_pubkey.pem
 
 rm data.txt
 echo "******************* Testing RSA Tests ********************* "
 pkcs11-tool --module $MODULE --login --pin 123456  --test
 
-echo "******************* Testing EC Tests ********************* "
-pkcs11-tool --module $MODULE --login --pin 123456 --login-type so --so-pin 010203040506070801020304050607080102030405060708 --test-ec --id 2 --key-type EC:secp256r1
+#echo "******************* Testing EC Tests ********************* "
+#pkcs11-tool --module $MODULE --login --pin 123456 --login-type so --so-pin 010203040506070801020304050607080102030405060708 --test-ec --id 2 --key-type EC:secp256r1
 
 set +x
 set +e

@@ -1688,6 +1688,10 @@ static char hex_translate[] = "0123456789abcdef";
 ykpiv_rc ykpiv_hex_decode(const char *hex_in, size_t in_len,
     unsigned char *hex_out, size_t *out_len) {
 
+  if (hex_in == NULL || hex_out == NULL || out_len == NULL) {
+    return YKPIV_ARGUMENT_ERROR;
+  }
+
   size_t i;
   bool first = true;
   if(*out_len < in_len / 2) {
