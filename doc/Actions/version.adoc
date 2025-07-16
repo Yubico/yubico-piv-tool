@@ -2,7 +2,7 @@
     $ yubico-piv-tool -a version
 
 === Description
-Displays the application version
+Displays the YubiKey's firmware version
 
 === Parameters
 None
@@ -10,4 +10,4 @@ None
 === Examples
 
     $ yubico-piv-tool -a version
-    Application version 4.4.0 found.
+    Firmware version 4.4.0 found.

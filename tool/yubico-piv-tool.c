@@ -61,6 +61,7 @@
 
 #include "cmdline.h"
 #include "../common/util.h"
+#include "internal.h"
 
 #define MAX(a,b) (a) > (b) ? (a) : (b)
 
@@ -107,9 +108,9 @@ static void print_version(ykpiv_state *state, const char *output_file_name) {
   }
 
   if(ykpiv_get_version(state, version, sizeof(version)) == YKPIV_OK) {
-    fprintf(output_file, "Application version %s found.\n", version);
+    fprintf(output_file, "Firmware version %s found.\n", version);
   } else {
-    fprintf(stderr, "Failed to retrieve application version.\n");
+    fprintf(stderr, "Failed to retrieve firmware version.\n");
   }
 
   if(output_file != stdout) {
@@ -258,19 +259,6 @@ static EVP_PKEY* wrap_public_key(ykpiv_state *state, int algorithm, EVP_PKEY *pu
   return pkey;
 }
 #endif
-
-static bool move_key(ykpiv_state *state, int from_slot, int to_slot) {
-  bool ret = false;
-  ykpiv_rc res;
-
-  res = ykpiv_move_key(state, (uint8_t) (from_slot & 0xFF), (uint8_t) (to_slot & 0xFF));
-  if (res != YKPIV_OK) {
-    fprintf(stderr, "Failed to move key.\n");
-  } else {
-    ret = true;
-  }
-  return ret;
-}
 
 static bool get_public_key(ykpiv_state *state, enum enum_slot slot, const char *output_file_name,
                            enum enum_key_format key_format) {
@@ -445,11 +433,13 @@ static bool generate_key(ykpiv_state *state, enum enum_slot slot,
     goto generate_out;
   }
 
+  // Check if there already is a certificate in the slot. If so, and since the private key in this same slot has just
+  // been generated, the certificate and the key inevitably do not match.
   uint8_t *data = NULL;
   size_t len = 0;
   if (ykpiv_util_read_cert(state, key, &data, &len) == YKPIV_OK) {
     fprintf(stderr, "\nBeware! The private key and the X509Certificate in slot %x do not match\n\n", key);
-    free(data);
+    _ykpiv_free(state, data);
   }
 
 generate_out:
@@ -717,7 +707,7 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
           EVP_PKEY_free(cert_key);
           X509_free(x509);
         }
-        free(certdata);
+        _ykpiv_free(state, certdata);
       }
     }
   }
@@ -1905,33 +1895,9 @@ static void print_slot_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
   EVP_PKEY *key = NULL;
   X509_NAME *subj;
   BIO *bio = NULL;
-  bool data_found = false, metadata_found = false;
+  bool cert_found = false, metadata_found = false;
 
   if(ykpiv_fetch_object(state, object, data, &len) == YKPIV_OK) {
-    data_found = true;
-  }
-  if (ykpiv_get_metadata(state, slot_name, metadata, &metadata_len) == YKPIV_OK) {
-    if (ykpiv_util_parse_metadata(metadata, metadata_len, &slot_md) != YKPIV_OK) {
-      fprintf(output, "Failed to parse metadata for slot %x\n", slot_name);
-      return;
-    }
-    metadata_found = true;
-  }
-  if (!data_found && !metadata_found) {
-    return;
-  }
-
-  fprintf(output, "Slot %x:\t", slot_name);
-
-  if (metadata_found) {
-    fprintf(output, "\n\tPrivate Key Algorithm:\t");
-    print_algorithm_string(slot_md.algorithm, output);
-    if (!data_found) {
-      fprintf(output, "\n");
-    }
-  }
-
-  if (data_found) {
     unsigned char certdata[YKPIV_OBJ_MAX_SIZE * 10] = {0};
     size_t certdata_len = sizeof(certdata);
     if(ykpiv_util_get_certdata(data, len, certdata, &certdata_len) != YKPIV_OK) {
@@ -1945,7 +1911,31 @@ static void print_slot_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
       fprintf(output, "Parse error.\n");
       return;
     }
+    cert_found = true;
+  }
 
+  if (ykpiv_get_metadata(state, slot_name, metadata, &metadata_len) == YKPIV_OK) {
+    if (ykpiv_util_parse_metadata(metadata, metadata_len, &slot_md) != YKPIV_OK) {
+      fprintf(output, "Failed to parse metadata for slot %x\n", slot_name);
+      return;
+    }
+    metadata_found = true;
+  }
+  if (!cert_found && !metadata_found) {
+    return;
+  }
+
+  fprintf(output, "Slot %x:\n", slot_name);
+
+  fprintf(output, "\tPrivate Key Algorithm:\t");
+  if (metadata_found) {
+    print_algorithm_string(slot_md.algorithm, output);
+    fprintf(output, "\n");
+  } else {
+    fprintf(output, "EMPTY\n");
+  }
+
+  if (cert_found) {
     unsigned int md_len = sizeof(data);
     const ASN1_TIME *not_before, *not_after;
 
@@ -1954,7 +1944,7 @@ static void print_slot_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
       fprintf(output, "Parse error.\n");
       goto cert_out;
     }
-    fprintf(output, "\n\tPublic Key Algorithm:\t");
+    fprintf(output, "\tPublic Key Algorithm:\t");
     print_algorithm_string(get_algorithm(key), output);
     fprintf(output, "\n");
 
@@ -2008,7 +1998,7 @@ static void print_slot_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
     }
   }
 
-  if(data_found && metadata_found) {
+  if(cert_found && metadata_found) {
     EVP_PKEY *md_key = EVP_PKEY_new();
     if (do_create_public_key(slot_md.pubkey, slot_md.pubkey_len, slot_md.algorithm, &md_key) == YKPIV_OK &&
         EVP_PKEY_cmp(key, md_key) != 1) {
@@ -2076,6 +2066,8 @@ static bool status(ykpiv_state *state, enum enum_hash hash,
   } else {
     dump_data(buf, len, output_file, false, format_arg_hex);
   }
+
+  fprintf(output_file, "All non-listed slots are empty\n");
 
   if (slot == slot__NULL) {
     for (i = 0; i < 24; i++) {
@@ -3017,22 +3009,28 @@ int main(int argc, char *argv[]) {
         }
         break;
       case action_arg_moveMINUS_key: {
-        int from_slot = get_slot_hex(args_info.slot_arg);
-        int to_slot = get_slot_hex((enum enum_slot) args_info.to_slot_arg);
-        if (move_key(state, from_slot, to_slot) == false) {
+        uint8_t from_slot = get_slot_hex(args_info.slot_arg);
+        uint8_t to_slot = get_slot_hex((enum enum_slot) args_info.to_slot_arg);
+        ykpiv_rc res = ykpiv_move_key(state, from_slot & 0xFF,  to_slot & 0xFF);
+        if (res != YKPIV_OK) {
+          fprintf(stderr, "Failed to moved key: %s\n", ykpiv_strerror(res));
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully moved key.\n");
         }
         break;
       }
-      case action_arg_deleteMINUS_key:
-        if(move_key(state, get_slot_hex(args_info.slot_arg), 0xFF) == false) {
+      case action_arg_deleteMINUS_key: {
+        uint8_t slot = get_slot_hex(args_info.slot_arg);
+        ykpiv_rc res = ykpiv_move_key(state, slot & 0xFF, 0xFF);
+        if (res != YKPIV_OK) {
+          fprintf(stderr, "Failed to delete key: %s\n", ykpiv_strerror(res));
           ret = EXIT_FAILURE;
         } else {
           fprintf(stderr, "Successfully deleted key.\n");
         }
         break;
+      }
       case action__NULL:
       default:
         fprintf(stderr, "Wrong action. %d.\n", action);
