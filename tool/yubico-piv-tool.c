@@ -433,6 +433,8 @@ static bool generate_key(ykpiv_state *state, enum enum_slot slot,
     goto generate_out;
   }
 
+  // Check if there already is a certificate in the slot. If so, and since the private key in this same slot has just
+  // been generated, the certificate and the key inevitably do not match.
   uint8_t *data = NULL;
   size_t len = 0;
   if (ykpiv_util_read_cert(state, key, &data, &len) == YKPIV_OK) {
