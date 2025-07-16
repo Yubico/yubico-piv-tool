@@ -36,6 +36,8 @@
 #include "obj_types.h"
 #include "openssl_types.h"
 
+#define YKCS11_VERIFY_BIO "VERIFY_BIO"
+
 typedef enum {
   YKCS11_PUBLIC,
   YKCS11_USER,
