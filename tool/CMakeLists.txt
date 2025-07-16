@@ -27,6 +27,9 @@
 
 message("tool/CMakeList.txt")
 
+include(${CMAKE_SOURCE_DIR}/cmake/pcscd.cmake)
+find_pcscd()
+
 set (SOURCE
         yubico-piv-tool.c
         ../common/openssl-compat.c

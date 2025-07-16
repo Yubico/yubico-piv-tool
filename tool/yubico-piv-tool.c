@@ -61,6 +61,7 @@
 
 #include "cmdline.h"
 #include "../common/util.h"
+#include "internal.h"
 
 #define MAX(a,b) (a) > (b) ? (a) : (b)
 
@@ -436,7 +437,7 @@ static bool generate_key(ykpiv_state *state, enum enum_slot slot,
   size_t len = 0;
   if (ykpiv_util_read_cert(state, key, &data, &len) == YKPIV_OK) {
     fprintf(stderr, "\nBeware! The private key and the X509Certificate in slot %x do not match\n\n", key);
-    free(data);
+    _ykpiv_free(state, data);
   }
 
 generate_out:
@@ -704,7 +705,7 @@ static bool import_key(ykpiv_state *state, enum enum_key_format key_format,
           EVP_PKEY_free(cert_key);
           X509_free(x509);
         }
-        free(certdata);
+        _ykpiv_free(state, certdata);
       }
     }
   }
