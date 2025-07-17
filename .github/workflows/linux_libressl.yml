@@ -1,5 +1,9 @@
 name: Ubuntu with LibreSSL and OpenSSL
-on: [push]
+#on: [push]
+on:
+  schedule:
+    # Run this every wednesday at 3:50. https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule
+    - cron: '50 3 * * 3'
 
 jobs:
 

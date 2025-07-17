@@ -4,7 +4,11 @@ name: Windows Release
 # Since this is where the release binaries are build, make sure to update the 'RELEASE_VERSION' environment variable
 # defined by all 3 jobs
 
-on: [push]
+#on: [push]
+on:
+  schedule:
+    # Run this every wednesday at 3:50. https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule
+    - cron: '50 3 * * 3'
 
 jobs:
 

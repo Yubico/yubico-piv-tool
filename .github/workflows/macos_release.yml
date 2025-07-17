@@ -2,7 +2,11 @@ name: MacOS Release
 # This workflow is triggered on pushes to the repository. This is machine tests that everything is set for a release
 # build. The binaries produced here can be used to make the release
 
-on: [push]
+#on: [push]
+on:
+  schedule:
+    # Run this every wednesday at 3:50. https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule
+    - cron: '50 3 * * 3'
 
 jobs:
   release_built:
@@ -12,12 +16,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14-large
+          - os: macos-latest-large
             arch: amd
           - os: macos-latest-xlarge
             arch: arm
     env:
-      RELEASE_VERSION: 2.7.0
+      RELEASE_VERSION: 2.7.2
       SO_VERSION: 2
     steps:
       - name: checkout
@@ -35,28 +39,13 @@ jobs:
           ARCH: ${{ matrix.arch }}
         run: |
           set -x
-          export INSTALL_PREFIX=/usr/local
 
-          ./resources/macos/make_release_binaries.sh $ARCH $RELEASE_VERSION $SO_VERSION $INSTALL_PREFIX
+          echo "GITHUB_WORKSPACE = $GITHUB_WORKSPACE"
+          ls -l $GITHUB_WORKSPACE
+
+          ./resources/macos/make_release_binaries.sh $ARCH $RELEASE_VERSION $SO_VERSION $GITHUB_WORKSPACE
           mkdir $GITHUB_WORKSPACE/artifact
           mv resources/macos/yubico-piv-tool-$RELEASE_VERSION-mac-$ARCH.zip $GITHUB_WORKSPACE/artifact/
-
-      - name: Create installer
-        env:
-          ARCH: ${{ matrix.arch }}
-        run: |
-          set -x
-          ./resources/macos/make_installer.sh $RELEASE_VERSION $GITHUB_WORKSPACE/artifact/yubico-piv-tool-$RELEASE_VERSION-mac-$ARCH.zip
-
-      - name: Install yubico-piv-tool from installer
-        run: |
-          set -x
-
-          cd resources/macos
-          sudo installer -verbose -store -pkg $PWD/yubico-piv-tool-$RELEASE_VERSION.pkg -target /
-          yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
-
-          cp yubico-piv-tool-$RELEASE_VERSION.pkg $GITHUB_WORKSPACE/artifact/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

@@ -1,6 +1,10 @@
 name: MacOS Build
 # This workflow is triggered on pushes to the repository.
-on: [push]
+#on: [push]
+on:
+  schedule:
+    # Run this every wednesday at 3:50. https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule
+    - cron: '50 3 * * 3'
 
 jobs:
 
