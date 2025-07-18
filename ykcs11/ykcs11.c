@@ -1287,89 +1287,95 @@ CK_DEFINE_FUNCTION(CK_RV, C_Login)(
   }
 
   switch (userType) {
-    case CKU_CONTEXT_SPECIFIC:
-      if (session->op_info.type != YKCS11_SIGN && session->op_info.type != YKCS11_DECRYPT) {
-        DBG("No sign or decrypt operation in progress. Context specific user is forbidden.");
-        rv = CKR_USER_TYPE_INVALID;
-        goto login_out;
-      }
-      // Fall through
-    case CKU_USER:
-      locking.pfnLockMutex(session->slot->mutex);
-
-      // We allow multiple logins for CKU_CONTEXT_SPECIFIC (we allow it regardless of CKA_ALWAYS_AUTHENTICATE because it's based on hardcoded tables and might be wrong)
-      if (session->slot->login_state == YKCS11_USER && userType == CKU_USER) {
-        DBG("Tried to log-in USER to a USER session");
-        locking.pfnUnlockMutex(session->slot->mutex);
-        rv = CKR_USER_ALREADY_LOGGED_IN;
-        goto login_out;
-      }
-
-      // We allow multiple logins for CKU_CONTEXT_SPECIFIC (we allow it regardless of CKA_ALWAYS_AUTHENTICATE because it's based on hardcoded tables and might be wrong)
-      if (session->slot->login_state == YKCS11_SO && userType == CKU_USER) {
-        DBG("Tried to log-in USER to a SO session");
-        locking.pfnUnlockMutex(session->slot->mutex);
-        rv = CKR_USER_ANOTHER_ALREADY_LOGGED_IN;
-        goto login_out;
-      }
-
-      rv = token_login(session->slot->piv_state, CKU_USER, pPin, ulPinLen);
-      if (rv != CKR_OK) {
-        DBG("Unable to login as regular user");
-        locking.pfnUnlockMutex(session->slot->mutex);
-        goto login_out;
-      }
-      // This allows contect-specific login while already logged in as SO, allowing creation of objects AND signing in one session
-      if(session->slot->login_state == YKCS11_PUBLIC)
-        session->slot->login_state = YKCS11_USER;
-      locking.pfnUnlockMutex(session->slot->mutex);
-      break;
-    case CKU_SO:
-      locking.pfnLockMutex(session->slot->mutex);
-
-      if (session->slot->login_state == YKCS11_USER) {
-        DBG("Tried to log-in SO to a USER session");
-        locking.pfnUnlockMutex(session->slot->mutex);
-        rv = CKR_USER_ANOTHER_ALREADY_LOGGED_IN;
-        goto login_out;
-      }
-
-      if (session->slot->login_state == YKCS11_SO) {
-        DBG("Tried to log-in SO to a SO session");
-        locking.pfnUnlockMutex(session->slot->mutex);
-        rv = CKR_USER_ALREADY_LOGGED_IN;
-        goto login_out;
-      }
-
-      for(CK_ULONG i = 0; i < YKCS11_MAX_SESSIONS; i++) {
-        if (sessions[i].slot == session->slot && !(sessions[i].info.flags & CKF_RW_SESSION)) {
-          DBG("Tried to log-in SO with existing RO sessions");
-          locking.pfnUnlockMutex(session->slot->mutex);
-          rv = CKR_SESSION_READ_ONLY_EXISTS;
-          goto login_out;
-        }
-      }
-
-      rv = token_login(session->slot->piv_state, CKU_SO, pPin, ulPinLen);
-      if (rv != CKR_OK) {
-        DBG("Unable to login as SO");
-        locking.pfnUnlockMutex(session->slot->mutex);
-        goto login_out;
-      }
-
-      session->slot->login_state = YKCS11_SO;
-      locking.pfnUnlockMutex(session->slot->mutex);
-      break;
-    default:
+  case CKU_CONTEXT_SPECIFIC:
+    if (session->op_info.type != YKCS11_SIGN && session->op_info.type != YKCS11_DECRYPT) {
+      DBG("No sign or decrypt operation in progress. Context specific user is forbidden.");
       rv = CKR_USER_TYPE_INVALID;
       goto login_out;
+    }
+    // Fall through
+  case CKU_USER:
+    locking.pfnLockMutex(session->slot->mutex);
+
+    // We allow multiple logins for CKU_CONTEXT_SPECIFIC (we allow it regardless of CKA_ALWAYS_AUTHENTICATE because it's based on hardcoded tables and might be wrong)
+    if (session->slot->login_state == YKCS11_USER && userType == CKU_USER) {
+      DBG("Tried to log-in USER to a USER session");
+      locking.pfnUnlockMutex(session->slot->mutex);
+      rv = CKR_USER_ALREADY_LOGGED_IN;
+      goto login_out;
+    }
+
+    // We allow multiple logins for CKU_CONTEXT_SPECIFIC (we allow it regardless of CKA_ALWAYS_AUTHENTICATE because it's based on hardcoded tables and might be wrong)
+    if (session->slot->login_state == YKCS11_SO && userType == CKU_USER) {
+      DBG("Tried to log-in USER to a SO session");
+      locking.pfnUnlockMutex(session->slot->mutex);
+      rv = CKR_USER_ANOTHER_ALREADY_LOGGED_IN;
+      goto login_out;
+    }
+
+    rv = token_login(session->slot->piv_state, CKU_USER, pPin, ulPinLen);
+    if (rv != CKR_OK) {
+      DBG("Unable to login as regular user");
+      locking.pfnUnlockMutex(session->slot->mutex);
+      goto login_out;
+    }
+
+    // This allows contect-specific login while already logged in as SO, allowing creation of objects AND signing in one session
+    if(session->slot->login_state == YKCS11_PUBLIC)
+      session->slot->login_state = YKCS11_USER;
+    locking.pfnUnlockMutex(session->slot->mutex);
+    break;
+
+  case CKU_SO:
+    locking.pfnLockMutex(session->slot->mutex);
+
+    if (session->slot->login_state == YKCS11_USER) {
+      DBG("Tried to log-in SO to a USER session");
+      locking.pfnUnlockMutex(session->slot->mutex);
+      rv = CKR_USER_ANOTHER_ALREADY_LOGGED_IN;
+      goto login_out;
+    }
+
+    if (session->slot->login_state == YKCS11_SO) {
+      DBG("Tried to log-in SO to a SO session");
+      locking.pfnUnlockMutex(session->slot->mutex);
+      rv = CKR_USER_ALREADY_LOGGED_IN;
+      goto login_out;
+    }
+
+    for(CK_ULONG i = 0; i < YKCS11_MAX_SESSIONS; i++) {
+      if (sessions[i].slot == session->slot && !(sessions[i].info.flags & CKF_RW_SESSION)) {
+        DBG("Tried to log-in SO with existing RO sessions");
+        locking.pfnUnlockMutex(session->slot->mutex);
+        rv = CKR_SESSION_READ_ONLY_EXISTS;
+        goto login_out;
+      }
+    }
+
+    rv = token_login(session->slot->piv_state, CKU_SO, pPin, ulPinLen);
+    if (rv != CKR_OK) {
+      DBG("Unable to login as SO");
+      locking.pfnUnlockMutex(session->slot->mutex);
+      goto login_out;
+    }
+
+    session->slot->login_state = YKCS11_SO;
+    locking.pfnUnlockMutex(session->slot->mutex);
+    break;
+
+  default:
+    rv = CKR_USER_TYPE_INVALID;
+    goto login_out;
   }
+
   DBG("Successfully logged in");
   rv = CKR_OK;
-  login_out:
+
+login_out:
   DOUT;
   return rv;
 }
+
 CK_DEFINE_FUNCTION(CK_RV, C_Logout)(
   CK_SESSION_HANDLE hSession
 )
