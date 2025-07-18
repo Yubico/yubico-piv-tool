@@ -299,76 +299,79 @@ CK_RV token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF8CHAR_P
   }
 }
 
-//CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK_ULONG pin_len) {
-//
-//  ykpiv_rc res;
-//  int tries = 0;
-//
-//  if (pin_len == 0 || pin == NULL || strncmp(pin, YKCS11_VERIFY_BIO, strlen(YKCS11_VERIFY_BIO)) == 0) {
-//    res = ykpiv_verify_bio(state, NULL, NULL, &tries, false);
-//    if (res != YKPIV_OK) {
-//      return CKR_PIN_INCORRECT;
-//    }
-//  } else if (pin_len >= YKPIV_MIN_PIN_LEN && pin_len <= YKPIV_MAX_PIN_LEN) {
-//    char term_pin[YKPIV_MAX_PIN_LEN + 1] = {0};
-//
-//    memcpy(term_pin, pin, pin_len);
-//    term_pin[pin_len] = 0;
-//
-//    res = ykpiv_verify(state, term_pin, &tries);
-//
-//    OPENSSL_cleanse(term_pin, pin_len);
-//
-//    if (res != YKPIV_OK) {
-//      DBG("Failed to login: %s, %d tries left", ykpiv_strerror(res), tries);
-//
-//      return yrc_to_rv(res);
-//    }
-//  } else if(pin_len < YKPIV_MIN_MGM_KEY_LEN || pin_len > YKPIV_MAX_MGM_KEY_LEN || user != CKU_SO) {
-//    DBG("PIN is wrong length");
-//    return CKR_ARGUMENTS_BAD;
-//  }
-//
-//  if (user == CKU_SO) {
-//    ykpiv_config cfg = {0};
-//
-//    if (pin_len >= YKPIV_MIN_MGM_KEY_LEN && pin_len <= YKPIV_MAX_MGM_KEY_LEN) {
-//      cfg.mgm_len = sizeof(cfg.mgm_key);
-//      if((res = ykpiv_hex_decode((char *)pin, pin_len, cfg.mgm_key, &cfg.mgm_len)) != YKPIV_OK) {
-//        DBG("Failed decoding key");
-//        OPENSSL_cleanse(cfg.mgm_key, sizeof(cfg.mgm_key));
-//        return yrc_to_rv(res);
-//      }
-//    } else {
-//      res = ykpiv_util_get_config(state, &cfg);
-//      if(res != YKPIV_OK) {
-//        DBG("Failed to get device configuration: %s", ykpiv_strerror(res));
-//        OPENSSL_cleanse(cfg.mgm_key, sizeof(cfg.mgm_key));
-//        return yrc_to_rv(res);
-//      }
-//
-//      if(cfg.mgm_type != YKPIV_CONFIG_MGM_PROTECTED) {
-//        DBG("Device configuration invalid, no PIN-protected MGM key available");
-//        OPENSSL_cleanse(cfg.mgm_key, sizeof(cfg.mgm_key));
-//        return CKR_USER_PIN_NOT_INITIALIZED;
-//      }
-//    }
-//
-//    if((res = ykpiv_authenticate2(state, cfg.mgm_key, cfg.mgm_len)) != YKPIV_OK) {
-//      DBG("Failed to authenticate: %s", ykpiv_strerror(res));
-//      OPENSSL_cleanse(cfg.mgm_key, sizeof(cfg.mgm_key));
-//
-//      if(res == YKPIV_AUTHENTICATION_ERROR)
-//        return CKR_PIN_INCORRECT;
-//
-//      return yrc_to_rv(res);
-//    }
-//
-//    OPENSSL_cleanse(cfg.mgm_key, sizeof(cfg.mgm_key));
-//  }
-//
-//  return CKR_OK;
-//}
+CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK_ULONG pin_len) {
+
+  ykpiv_rc res;
+  int tries = 0;
+
+  if (strcmp(pin, YKCS11_VERIFY_NONE) == 0) {
+    DBG("Skipping PIN verification");
+    return CKR_OK;
+  } else if (pin_len == 0 || pin == NULL || strcmp(pin, YKCS11_VERIFY_BIO) == 0) {
+    res = ykpiv_verify_bio(state, NULL, NULL, &tries, false);
+    if (res != YKPIV_OK) {
+      return CKR_PIN_INCORRECT;
+    }
+  } else if (pin_len >= YKPIV_MIN_PIN_LEN && pin_len <= YKPIV_MAX_PIN_LEN) {
+    char term_pin[YKPIV_MAX_PIN_LEN + 1] = {0};
+
+    memcpy(term_pin, pin, pin_len);
+    term_pin[pin_len] = 0;
+
+    res = ykpiv_verify(state, term_pin, &tries);
+
+    OPENSSL_cleanse(term_pin, pin_len);
+
+    if (res != YKPIV_OK) {
+      DBG("Failed to login: %s, %d tries left", ykpiv_strerror(res), tries);
+
+      return yrc_to_rv(res);
+    }
+  } else if(pin_len < YKPIV_MIN_MGM_KEY_LEN || pin_len > YKPIV_MAX_MGM_KEY_LEN || user != CKU_SO) {
+    DBG("PIN is wrong length");
+    return CKR_ARGUMENTS_BAD;
+  }
+
+  if (user == CKU_SO) {
+    ykpiv_config cfg = {0};
+
+    if (pin_len >= YKPIV_MIN_MGM_KEY_LEN && pin_len <= YKPIV_MAX_MGM_KEY_LEN) {
+      cfg.mgm_len = sizeof(cfg.mgm_key);
+      if((res = ykpiv_hex_decode((char *)pin, pin_len, cfg.mgm_key, &cfg.mgm_len)) != YKPIV_OK) {
+        DBG("Failed decoding key");
+        OPENSSL_cleanse(cfg.mgm_key, sizeof(cfg.mgm_key));
+        return yrc_to_rv(res);
+      }
+    } else {
+      res = ykpiv_util_get_config(state, &cfg);
+      if(res != YKPIV_OK) {
+        DBG("Failed to get device configuration: %s", ykpiv_strerror(res));
+        OPENSSL_cleanse(cfg.mgm_key, sizeof(cfg.mgm_key));
+        return yrc_to_rv(res);
+      }
+
+      if(cfg.mgm_type != YKPIV_CONFIG_MGM_PROTECTED) {
+        DBG("Device configuration invalid, no PIN-protected MGM key available");
+        OPENSSL_cleanse(cfg.mgm_key, sizeof(cfg.mgm_key));
+        return CKR_USER_PIN_NOT_INITIALIZED;
+      }
+    }
+
+    if((res = ykpiv_authenticate2(state, cfg.mgm_key, cfg.mgm_len)) != YKPIV_OK) {
+      DBG("Failed to authenticate: %s", ykpiv_strerror(res));
+      OPENSSL_cleanse(cfg.mgm_key, sizeof(cfg.mgm_key));
+
+      if(res == YKPIV_AUTHENTICATION_ERROR)
+        return CKR_PIN_INCORRECT;
+
+      return yrc_to_rv(res);
+    }
+
+    OPENSSL_cleanse(cfg.mgm_key, sizeof(cfg.mgm_key));
+  }
+
+  return CKR_OK;
+}
 
 CK_RV token_generate_key(ykpiv_state *state, gen_info_t *gen, CK_BYTE key, CK_BYTE_PTR cert_data, CK_ULONG_PTR cert_len) {
   // TODO: make a function in ykpiv for this
