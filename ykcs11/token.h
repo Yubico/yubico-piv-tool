@@ -46,7 +46,7 @@ CK_RV get_token_object_ids(const piv_obj_id_t **obj, CK_ULONG *num);
 CK_RV token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF8CHAR_PTR pOldPin, CK_ULONG ulOldLen,
                               CK_UTF8CHAR_PTR pNewPin, CK_ULONG ulNewLen);
 
-CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK_ULONG pin_len);
+//CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK_ULONG pin_len);
 CK_RV token_generate_key(ykpiv_state *state, gen_info_t*, CK_BYTE key, CK_BYTE_PTR cert_data, CK_ULONG_PTR cert_len);
 CK_RV token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_BYTE_PTR in, CK_ULONG in_len);
 CK_RV token_delete_cert(ykpiv_state *state, CK_ULONG cert_id);
