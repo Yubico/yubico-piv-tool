@@ -60,6 +60,7 @@ static const err_t errors[] = {
   ERR (YKPIV_RANGE_ERROR, "Range error"),
   ERR (YKPIV_NOT_SUPPORTED, "Not supported"),
   ERR (YKPIV_PCSC_SERVICE_ERROR, "PCSC service not available"),
+  ERR (YKPIV_CONDITION_ERROR, "Conditions not met to use command"),
 };
 
 /**

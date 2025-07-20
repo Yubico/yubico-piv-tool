@@ -1191,7 +1191,7 @@ ykpiv_rc ykpiv_translate_sw_ex(const char *whence, int sw) {
       return YKPIV_NOT_SUPPORTED;
     case SW_ERR_CONDITIONS_OF_USE:
       DBG("%s: SW_ERR_CONDITIONS_OF_USE", whence);
-      return YKPIV_GENERIC_ERROR;
+      return YKPIV_CONDITION_ERROR;
     case SW_ERR_NO_INPUT_DATA:
       DBG("%s: SW_ERR_NO_INPUT_DATA", whence);
       return YKPIV_ARGUMENT_ERROR;
@@ -2879,7 +2879,7 @@ bool is_version_compatible(ykpiv_state *state, uint8_t major, uint8_t minor, uin
 #endif
 
   return state->ver.major > major ||
-         (state->ver.major == major && state->ver.minor >= minor) ||
+         (state->ver.major == major && state->ver.minor > minor) ||
          (state->ver.major == major && state->ver.minor == minor && state->ver.patch >= patch);
 }
 
