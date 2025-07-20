@@ -12,7 +12,7 @@ the wrong PIN and PUK more than the number of their retries.
 
 ==== Global Reset
 
-Some YubiKeys with firmware version 5.7.0 or higher have support for a global support option. This option will erase
+The Bio Multi-protocol Edition YubiKey has support for a global reset option. This option will erase
 all data on the YubiKey and is *not* restricted to the PIV application. It also does not require that the PIN and PUK
 to be blocked.
 
