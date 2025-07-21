@@ -300,21 +300,14 @@ CK_RV token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF8CHAR_P
 }
 
 #define YKCS11_VERIFY_BIO "VERIFY_BIO"
-#define YKCS11_VERIFY_NONE "VERIFY_NONE"
 
 CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK_ULONG pin_len) {
 
   ykpiv_rc res;
   int tries = 0;
 
-  if (strcmp(pin, YKCS11_VERIFY_NONE) == 0) {
-    DBG("Skipping PIN verification");
-    return CKR_OK;
-  } else if (pin_len == 0 || pin == NULL || strcmp(pin, YKCS11_VERIFY_BIO) == 0) {
-    if ((res = ykpiv_verify_bio(state, NULL, NULL, &tries, false)) != YKPIV_OK) {
-      DBG("Failed to login: %s, %d tries left", ykpiv_strerror(res), tries);
-      return yrc_to_rv(res);
-    }
+  if (pin_len == 0 || pin == NULL || strcmp(pin, YKCS11_VERIFY_BIO) == 0) {
+    res = ykpiv_verify_bio(state, NULL, NULL, &tries, false);
   } else if (pin_len >= YKPIV_MIN_PIN_LEN && pin_len <= YKPIV_MAX_PIN_LEN) {
     char term_pin[YKPIV_MAX_PIN_LEN + 1] = {0};
 
@@ -327,6 +320,7 @@ CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK
 
     if (res != YKPIV_OK) {
       DBG("Failed to login: %s, %d tries left", ykpiv_strerror(res), tries);
+
       return yrc_to_rv(res);
     }
   } else if(pin_len < YKPIV_MIN_MGM_KEY_LEN || pin_len > YKPIV_MAX_MGM_KEY_LEN || user != CKU_SO) {
