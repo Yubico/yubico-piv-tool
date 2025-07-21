@@ -1001,7 +1001,7 @@ static bool request_certificate(ykpiv_state *state, enum enum_key_format key_for
 
     if((rc = ykpiv_attest(state, key, buf, &buflen)) == YKPIV_OK) {
       STACK_OF(X509_EXTENSION) *exts = sk_X509_EXTENSION_new_null();
-      add_ext(exts, YKPIV_ATTESTATION_OID ".11", "ykpiv attestation", "Yubico PIV X.509 Attestation", buf, buflen);
+      add_ext(exts, YKPIV_ATTESTATION_OID ".1", "ykpiv attestation", "Yubico PIV Attestation", buf, buflen);
 
       unsigned char *pb = 0;
       size_t pblen = 0;
