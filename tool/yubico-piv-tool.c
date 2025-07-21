@@ -1603,12 +1603,16 @@ static bool verify_pin(ykpiv_state *state, const char *pin, bool bio) {
     return true;
   } else if(res == YKPIV_WRONG_PIN || res == YKPIV_PIN_LOCKED) {
     if(tries > 0) {
-      fprintf(stderr, "Pin verification failed, %d tries left before pin is blocked.\n", tries);
+      fprintf(stderr, "Verification failed, %d tries left before PIN or fingerprint is blocked.\n", tries);
     } else {
-      fprintf(stderr, "Pin code blocked, use unblock-pin action to unblock.\n");
+      if (bio) {
+        fprintf(stderr, "Fingerprint blocked, use PIN to unblock.\n");
+      } else {
+        fprintf(stderr, "PIN code blocked, use unblock-pin action to unblock.\n");
+      }
     }
   } else {
-    fprintf(stderr, "Pin code verification failed: '%s'\n", ykpiv_strerror(res));
+    fprintf(stderr, "Verification failed: '%s'\n", ykpiv_strerror(res));
   }
   return false;
 }
@@ -2556,6 +2560,7 @@ int main(int argc, char *argv[]) {
   enum enum_action action;
   unsigned int i;
   int ret = EXIT_SUCCESS;
+  bool bio_verified = false;
   bool authed = false;
   char pwbuf[128] = {0};
   char *password;
@@ -2874,31 +2879,32 @@ int main(int argc, char *argv[]) {
           fprintf(stderr, "Successfully generated a certificate request.\n");
         }
         break;
-      case action_arg_verifyMINUS_pin: {
-        char pinbuf[8+2] = {0};
-        char *pin = args_info.pin_arg;
-
-        if(!pin) {
-          if (!read_pw("PIN", pinbuf, sizeof(pinbuf), false, args_info.stdin_input_flag)) {
-            fprintf(stderr, "Failed to get PIN.\n");
-            ykpiv_done(state);
-            cmdline_parser_free(&args_info);
-            return EXIT_FAILURE;
-          }
-          pin = pinbuf;
-        }
-        if(verify_pin(state, pin, false)) {
-          fprintf(stderr, "Successfully verified PIN.\n");
-        } else {
-          ret = EXIT_FAILURE;
-        }
-        break;
-      }
       case action_arg_verifyMINUS_bio: {
         if(verify_pin(state, NULL, true)) {
           fprintf(stderr, "Successfully verified (fingerprint match).\n");
-        } else {
+          bio_verified = true;
+        }
+      }
+      // If bio verification fails, fall back to PIN verification
+      case action_arg_verifyMINUS_pin: {
+        if(!bio_verified) {
+          char pinbuf[8 + 2] = {0};
+          char *pin = args_info.pin_arg;
+
+          if (!pin) {
+            if (!read_pw("PIN", pinbuf, sizeof(pinbuf), false, args_info.stdin_input_flag)) {
+              fprintf(stderr, "Failed to get PIN.\n");
+              ykpiv_done(state);
+              cmdline_parser_free(&args_info);
+              return EXIT_FAILURE;
+            }
+            pin = pinbuf;
+          }
+          if (verify_pin(state, pin, false)) {
+            fprintf(stderr, "Successfully verified PIN.\n");
+          } else {
             ret = EXIT_FAILURE;
+          }
         }
         break;
       }
