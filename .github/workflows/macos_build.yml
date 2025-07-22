@@ -1,16 +1,22 @@
 name: MacOS Build
 # This workflow is triggered on pushes to the repository.
-#on: [push]
-on:
-  schedule:
-    # Run this every wednesday at 3:50. https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule
-    - cron: '50 3 * * 3'
+on: [push]
 
 jobs:
 
   job1:
     name: MacOS
-    runs-on: macos-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15-large
+          - os: macos-15-xlarge
+          - os: macos-14-large
+          - os: macos-14-xlarge
+          - os: macos-13-large
+          - os: macos-13-xlarge
     steps:
       # This action checks-out the repository under $GITHUB_WORKSPACE, so the workflow can access it.
       - name: checkout
