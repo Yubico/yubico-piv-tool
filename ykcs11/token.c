@@ -299,12 +299,14 @@ CK_RV token_change_pin(ykpiv_state *state, CK_USER_TYPE user_type, CK_UTF8CHAR_P
   }
 }
 
+#define YKCS11_VERIFY_BIO "VERIFY_BIO"
+
 CK_RV token_login(ykpiv_state *state, CK_USER_TYPE user, CK_UTF8CHAR_PTR pin, CK_ULONG pin_len) {
 
   ykpiv_rc res;
   int tries = 0;
 
-  if (pin_len == 0 || pin == NULL) {
+  if (pin_len == 0 || pin == NULL || strcmp(pin, YKCS11_VERIFY_BIO) == 0) {
     res = ykpiv_verify_bio(state, NULL, NULL, &tries, false);
   } else if (pin_len >= YKPIV_MIN_PIN_LEN && pin_len <= YKPIV_MAX_PIN_LEN) {
     char term_pin[YKPIV_MAX_PIN_LEN + 1] = {0};

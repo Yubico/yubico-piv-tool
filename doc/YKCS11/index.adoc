@@ -96,24 +96,28 @@ private key material (PIN-associated operations) and device management
 The default user PIN for the YubiKey is `123456`. +
 The default management key is
 `010203040506070801020304050607080102030405060708`. +
-All the YubiKey personalization (e.g. changing
-management key, resetting PINs, resetting the application) is
-currently done using `yubico-piv-tool`.
 
 In order to perform operations involving the private keys, a regular
-user must be logged in (i.e. using the PIN). However, given the
+user must be logged in (i.e. using the PIN or fingerprint). However, given the
 different PIN policies for different keys, subsequent operations might
 require a new login. This is supported by the module through the `CONTEXT_SPECIFIC`
 user in accordance with the specifications.
 
-==== OpenSSL
+==== Fingerprint Authentication with YubiKey Bio
+
+It is also possible to use the fingerprint reader on the YubiKey Bio to login. Attempting to login with an empty
+PIN will trigger bio verification and the user is expected to scan their fingerprint then. Note that their might
+not be an indication on the screen that a fingerprint scan is expected but the YubiKey will be blinking while it is
+waiting for a fingerprint scan.
+
+=== OpenSSL
 The YubiKey only supports functions that require an asymmetrinc private key. Functions that do not, like encryption,
-signature verification, hashing and generation of a random number, are done by OpenSSL.
+signature verification, hashing and generation of a random number, are done using OpenSSL.
 
 Also, the YubiKey only performs raw decryption and signature. So when padding is used, for example OAEP and PSS padding,
 applying and removing the padding is handled using OpenSSL functions.
 
-==== Testing
+=== Testing
 Apart from the internal tests, the YKCS11 has also been tested with the Pkcs11Interop .NET library
 
 ==== Debugging
