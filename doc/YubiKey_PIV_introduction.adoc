@@ -61,7 +61,7 @@ The PIN and PUK should be changed as well.
 
 Some YubiKeys with firmware version 5.7.0 and higher have support for encrypted communicating over a secure channel. Encryption in Yubico PIV
 Tool is based on the *SCP11b* protocol as specified in https://globalplatform.org/wp-content/uploads/2017/09/GPC_2.2_F_SCP11_v1.0.pdf
-and can be activated by adding the `--scp` flag in the command line tool or open a connection with the encryption boolean set to `true` when
+and can be activated by adding the `--scp11` flag in the command line tool or open a connection with the encryption boolean set to `true` when
 using `libykpiv` during development. Once encryption is activated, all subsequent communication over the same session will
 be encrypted. Note that the SCP11b based implementation entails that the communication is encrypted but the On-Card
 certificate (`CERT.SD.ECKA`) used to setup the encrypted session is not validated. The feature is used mainly to protect
