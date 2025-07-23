@@ -27,12 +27,6 @@ $BUILD_DIR="$WIN_DIR/build_release"
 $RELEASE_DIR="$WIN_DIR/yubico-piv-tool-$ARCH"
 $LICENSES_DIR="$RELEASE_DIR/licenses"
 
-# $SOURCE_DIR="$PSScriptRoot/../.."
-# $BUILD_DIR="$SOURCE_DIR/win32_release"
-# $RELEASE_DIR="$SOURCE_DIR/yubico-piv-tool-$RELEASE_VERSION-$ARCH"
-# $RELEASE_ARCHIVE="$SOURCE_DIR/yubico-piv-tool-$RELEASE_VERSION-$ARCH.zip"
-# $LICENSES_DIR="$RELEASE_DIR/licenses"
-
 Set-PSDebug -Trace 1
 
 
@@ -59,7 +53,7 @@ cmake -S $SOURCE_DIR -A "$CMAKE_ARCH" -DVERBOSE_CMAKE=1 -DCMAKE_INSTALL_PREFIX="
 cmake --build . -v --config Release --target install
 # cmake --install .
 
-# Copy openssl and getopt libraries
+# Copy openssl, getopt and zlib libraries
 cd $RELEASE_DIR/bin
 if($ARCH -eq "x86")
 {
@@ -94,18 +88,6 @@ cp $license $LICENSES_DIR\zlib.txt
 cp -r $VCPKG_PATH\packages\openssl_$ARCH-windows\include\openssl $RELEASE_DIR/include/
 cp -r $VCPKG_PATH\packages\zlib_$ARCH-windows\include\zlib.h $RELEASE_DIR/include/
 
-# if($ZIP)
-# {
-#     # Create a zip with the binaries
-#     Add-Type -Assembly System.IO.Compression.FileSystem
-#     $compressionLevel = [System.IO.Compression.CompressionLevel]::Optimal
-#     [System.IO.Compression.ZipFile]::CreateFromDirectory($RELEASE_DIR, $RELEASE_ARCHIVE, $compressionLevel, $true)
-#     cd $SOURCE_DIR
-#     rm -r $RELEASE_DIR
-# }
-
-# Clean directory
-# cd $SOURCE_DIR
 rm -r $BUILD_DIR
 
 Set-PSDebug -Trace 0
