@@ -19,10 +19,10 @@ jobs:
       - name: Create tar.gz
         run: |
           set -x
-          ./resources/make_src_dist.sh
-          cd ..
           mkdir $GITHUB_WORKSPACE/artifact
+          ./resources/release/make_src_dist.sh
           mv $GITHUB_WORKSPACE/yubico-piv-tool-.tar.gz $GITHUB_WORKSPACE/artifact/
+          
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
