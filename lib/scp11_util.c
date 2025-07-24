@@ -36,7 +36,7 @@
 #include "../aes_cmac/aes_cmac.h"
 
 #ifdef _WIN32
-//#include <winsock.h>
+#include <winsock.h>
 #else
 #include <arpa/inet.h>
 #endif

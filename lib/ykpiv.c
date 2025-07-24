@@ -719,7 +719,7 @@ ykpiv_rc scp11_open_secure_channel(ykpiv_state *state) {
   }
 
   data_len = sizeof(scp11_keyagreement_template) + 1 + oce_pubkey_len;
-  if (sizeof(data_len) + 5 > YKPIV_OBJ_MAX_SIZE) { // Total APDU length
+  if (data_len + 5 > YKPIV_OBJ_MAX_SIZE) { // Total APDU length
     DBG("Message too long");
     return YKPIV_SIZE_ERROR;
   }
@@ -2238,7 +2238,7 @@ ykpiv_rc ykpiv_verify(ykpiv_state *state, const char *pin, int *tries) {
 }
 
 ykpiv_rc ykpiv_verify_bio(ykpiv_state *state, uint8_t *spin, size_t *p_spin_len, int *tries, bool verify_spin) {
-  return _ykpiv_verify_select(state, spin, p_spin_len, tries, false, true, verify_spin);
+  return _ykpiv_verify_select(state, (char*)spin, p_spin_len, tries, false, true, verify_spin);
 }
 
 ykpiv_rc ykpiv_verify_select(ykpiv_state *state, const char *pin, const size_t pin_len, int *tries, bool force_select) {
@@ -2926,7 +2926,7 @@ ykpiv_rc ykpiv_auth_get_verified(ykpiv_state* state) {
 }
 
 ykpiv_rc ykpiv_auth_verify(ykpiv_state* state, uint8_t* pin, size_t* p_pin_len, int *tries, bool force_select, bool bio, bool verify_spin) {
-  return _ykpiv_verify_select(state, pin, p_pin_len, tries, force_select, bio, verify_spin);
+  return _ykpiv_verify_select(state, (char*)pin, p_pin_len, tries, force_select, bio, verify_spin);
 }
 
 ykpiv_rc ykpiv_global_reset(ykpiv_state *state) {
