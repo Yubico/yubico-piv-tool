@@ -37,7 +37,7 @@
 #include <stdlib.h>
 
 #ifdef _WIN32
-#include <ntstatus.h>
+#define STATUS_SUCCESS 0
 #endif
 
 #ifdef _WIN32
@@ -263,13 +263,13 @@ int aes_set_key(const uint8_t *key, uint32_t key_len, unsigned char key_algo, ae
   }
 
   if (!BCRYPT_SUCCESS(status = import_key(ctx->hAlgCBC, &(ctx->hKeyCBC),
-                                          &(ctx->pbKeyCBCObj), ctx->cbKeyObj,
+                                          &(ctx->pbKeyCBCObj), (DWORD)ctx->cbKeyObj,
                                           key, key_len))) {
     return -2;
   }
 
   if (!BCRYPT_SUCCESS(status = import_key(ctx->hAlgECB, &(ctx->hKeyECB),
-                                          &(ctx->pbKeyECBObj), ctx->cbKeyObj,
+                                          &(ctx->pbKeyECBObj), (DWORD)ctx->cbKeyObj,
                                           key, key_len))) {
     return -3;
   }
@@ -347,8 +347,8 @@ int aes_cbc_encrypt(const uint8_t *in, uint32_t in_len, uint8_t *out, uint32_t *
   NTSTATUS status = STATUS_SUCCESS;
   ULONG cbResult = 0;
 
-  if (!BCRYPT_SUCCESS(status = BCryptEncrypt(ctx->hKeyCBC, (PUCHAR) in, in_len,
-                                             NULL, iv, iv_len, out,
+  if (!BCRYPT_SUCCESS(status = BCryptEncrypt(ctx->hKeyCBC, (PUCHAR)in, in_len,
+                                             NULL, (PUCHAR)iv, iv_len, out,
                                              in_len, &cbResult, 0))) {
     return -1;
   }
@@ -373,8 +373,8 @@ int aes_cbc_decrypt(const uint8_t *in, uint32_t in_len, uint8_t *out, uint32_t *
   NTSTATUS status = STATUS_SUCCESS;
   ULONG cbResult = 0;
 
-  if (!BCRYPT_SUCCESS(status = BCryptDecrypt(ctx->hKeyCBC, (PUCHAR) in, in_len,
-                                             NULL, iv, iv_len, out,
+  if (!BCRYPT_SUCCESS(status = BCryptDecrypt(ctx->hKeyCBC, (PUCHAR)in, in_len,
+                                             NULL, (PUCHAR)iv, iv_len, out,
                                              in_len, &cbResult, 0))) {
     return -1;
   }
