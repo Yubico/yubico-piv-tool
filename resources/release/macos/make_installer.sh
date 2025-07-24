@@ -7,8 +7,10 @@ if [ "$#" -ne 5 ]; then
     echo ""
     echo "      Usage: ./make_installer.sh <amd|armn> <SO VERSION> <RELEASE VERSION> <UNSIGNED BINARIES> <LICENSE>"
     echo ""
-    echo "The unsiged binaries are expected to be in a directory containing the structure 'usr/local/...'.\n"
-    echo "The license file is expected to be a plain text file. It is the file 'COPYING' under the main project directory.\n"
+    echo "The unsiged binaries are expected to be in a directory containing the structure 'usr/local/...'"
+    echo ""
+    echo "The license file is expected to be a plain text file. It is the file 'COPYING' under the main project directory"
+    echo ""
     echo "IMPORTANT: distribution.xml file must be in the same location as this script"
     exit 0
 fi
@@ -25,7 +27,7 @@ echo "Binaries: $BIN_DIR"
 echo "Working directory: $PWD"
 read -p "Press Enter to continue"
 
-set -x
+set -e
 
 MAC_DIR=$PWD
 PKG_DIR=$MAC_DIR/pkg_$ARCH
@@ -35,6 +37,7 @@ cp -r $BIN_DIR/* $PKG_DIR/root
 # Fix symbolic links
 echo "Fixing symbolic links"
 cd $PKG_DIR/root/usr/local/lib
+ln -s libcrypto.3.dylib libcrypto.dylib
 ln -s libykpiv.$RELEASE_VERSION.dylib libykpiv.$SO_VERSION.dylib
 ln -s libykpiv.$SO_VERSION.dylib libykpiv.dylib
 ln -s libykcs11.$RELEASE_VERSION.dylib libykcs11.$SO_VERSION.dylib
@@ -53,9 +56,9 @@ echo "\nChecking binary files' paths using 'otool -L FILE' and 'otool -l FILE'\n
 
 otool -L lib/libcrypto.dylib
 read -p "Press Enter to continue"
-otool -L lib/libz.1..dylib
+otool -L lib/libz.1.dylib
 read -p "Press Enter to continue"
-otool -L lib/libcrypto.dylib
+otool -L lib/libykpiv.dylib
 read -p "Press Enter to continue"
 otool -L lib/libykcs11.dylib
 otool -l lib/libykcs11.dylib | grep LC_RPATH -A 3
@@ -67,8 +70,7 @@ read -p "Press Enter to continue"
 # Sign binaries
 read -p "DO NOW: Insert signing key then press Enter to continue"
 codesign -f --timestamp --options runtime --sign 'Application' lib/libcrypto.3.dylib
-codesign -f --timestamp --options runtime --sign 'Application' lib/libusb-1.0.0.dylib
-codesign -f --timestamp --options runtime --sign 'Application' lib/libz-1.dylib
+codesign -f --timestamp --options runtime --sign 'Application' lib/libz.1.dylib
 codesign -f --timestamp --options runtime --sign 'Application' lib/libykpiv.$RELEASE_VERSION.dylib
 codesign -f --timestamp --options runtime --sign 'Application' lib/libykcs11.$RELEASE_VERSION.dylib
 codesign -f --timestamp --options runtime --sign 'Application' bin/yubico-piv-tool
@@ -77,8 +79,6 @@ read -p "Press Enter to continue"
 
 # Verify signature
 codesign -dv --verbose=4 lib/libcrypto.3.dylib
-read -p "Press Enter to continue"
-codesign -dv --verbose=4 lib/libusb-1.0.0.dylib
 read -p "Press Enter to continue"
 codesign -dv --verbose=4 lib/libz.1.dylib
 read -p "Press Enter to continue"
@@ -98,10 +98,12 @@ asciidoctor -o $PKG_DIR/resources/English.lproj/license.html $LICENSE_FILE
 # Made installer
 cd $MAC_DIR
 pkgbuild --root=$PKG_DIR/root --identifier "com.yubico.yubico-piv-tool" $PKG_DIR/comp/yubico-piv-tool.pkg
-productbuild  --package-path $PKG_DIR/comp/yubico-piv-tool.pkg --distribution distribution.xml --resources $PKG_DIR/resources yubico-piv-tool-$RELEASE_VERSION-mac-$ARCH.pkg
+productbuild  --package-path $PKG_DIR/comp --distribution distribution.xml --resources $PKG_DIR/resources yubico-piv-tool-$RELEASE_VERSION-mac-$ARCH.pkg
 
 read -p "DO NOW: Insert signing key then press Enter to continue"
 productsign --sign 'Installer' yubico-piv-tool-$RELEASE_VERSION-mac-$ARCH.pkg yubico-piv-tool-$RELEASE_VERSION-mac-$ARCH-signed.pkg
-echo "\nDO NOW: Remove signing key"
 
-set +x
+echo "\nDO NOW: Remove signing key"
+read -p "Press Enter to continue"
+
+set +e
