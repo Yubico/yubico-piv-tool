@@ -485,7 +485,7 @@ static bool reset(ykpiv_state *state, bool global) {
           fprintf(stderr,
                   "Global reset not supported on this YubiKey. Please refer to reset commands for specific applications instead\n");
         } else if(rc == YKPIV_ARGUMENT_ERROR) {
-          fprintf(stderr, "Reset failed. If 'scp11' flag is used, remove it\n");
+          fprintf(stderr, "Reset failed. If 'enc' flag is used, try to remove it\n");
         } else {
           fprintf(stderr, "Reset failed\n");
         }
@@ -2661,7 +2661,11 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  if((rc = ykpiv_connect_ex(state, args_info.reader_arg, args_info.scp11_given)) != YKPIV_OK) {
+  if(args_info.scp11_given) {
+    fprintf(stderr, "WARNING! '--scp11' flag is deprecated. Please use the '--enc' flag instead to establish communication over an encrypted channel\n");
+  }
+
+  if((rc = ykpiv_connect_ex(state, args_info.reader_arg, (args_info.scp11_given || args_info.enc_given))) != YKPIV_OK) {
     fprintf(stderr, "Failed to connect to yubikey: %s.\n", ykpiv_strerror(rc));
     if (rc == YKPIV_PCSC_SERVICE_ERROR) {
       fprintf(stderr, "Try restarting the PCSC subsystem.\n");
