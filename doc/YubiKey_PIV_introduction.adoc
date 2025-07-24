@@ -57,13 +57,13 @@ The PIN and PUK should be changed as well.
   $ yubico-piv-tool -achange-pin -P123456 -N${pin}
   $ yubico-piv-tool -achange-puk -P12345678 -N${puk}
 
-=== Secure Channel Protocol 11 (SCP11)
+=== Secure Channel Communication
 
-Some YubiKeys with firmware version 5.7.0 and higher have support for communicating over a secure channel. Yubico PIV
-Tool implements the *SCP11b* protocol as specified in https://globalplatform.org/wp-content/uploads/2017/09/GPC_2.2_F_SCP11_v1.0.pdf
-and can be activated by adding the `--scp11` flag in the command line tool or open a connection with `scp11` on when
-using `libykpiv` during development. Once SCP11 is activated, all subsequent communication over the same session will
-be encrypted. Note that the SCP11b implementation entails that the communication is encrypted but the On-Card
+Some YubiKeys with firmware version 5.7.0 and higher have support for encrypted communicating over a secure channel. Encryption in Yubico PIV
+Tool is based on the *SCP11b* protocol as specified in https://globalplatform.org/wp-content/uploads/2017/09/GPC_2.2_F_SCP11_v1.0.pdf
+and can be activated by adding the `--scp11` flag in the command line tool or open a connection with the encryption boolean set to `true` when
+using `libykpiv` during development. Once encryption is activated, all subsequent communication over the same session will
+be encrypted. Note that the SCP11b based implementation entails that the communication is encrypted but the On-Card
 certificate (`CERT.SD.ECKA`) used to setup the encrypted session is not validated. The feature is used mainly to protect
 sensitive communication between the host and the YubiKey against monitoring over a medium which could potentially be
 eavesdropped on, such as NFC.
