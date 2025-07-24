@@ -6,7 +6,7 @@ yubico-piv-tool NEWS -- History of user-visible changes.        -*- outline -*-
 
 * Version 2.7.0 (released 2024-12-19)
 
-** ykpiv: cmd: Add support for communication over a secure channel according to SCP11b specifications
+** ykpiv: cmd: Add support for encrypted communication over a secure channel
 ** ykpiv: cmd: Add support for device global reset
 
 * Version 2.6.1 (released 2024-09-12)

@@ -16,7 +16,7 @@ The Bio Multi-protocol Edition YubiKey has support for a global reset option. Th
 all data on the YubiKey and is *not* restricted to the PIV application. It also does not require that the PIN and PUK
 to be blocked.
 
-Note that the global reset option cannot be used if SCP11 is activated.
+Note that the global reset option cannot be used over an encrypted session.
 
 |===================================
 |Parameter          | Required | Description | Default value
