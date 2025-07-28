@@ -46,17 +46,15 @@ The yubico-piv-tool attest action will fail if there is no key in the slot under
 
 To verify an attestation statement perform the following steps:
 
-1. Retrieve the root Yubico PIV CA certificate and place it in a file. This can be performed at the command line: 
-
-  $ curl https://developers.yubico.com/PIV/Introduction/piv-attestation-ca.pem -o TrustedCAcerts.pem
+1. Retrieve the root Yubico PIV CA certificate and place it in a file, for example `TrustedCAcerts.pem`. See https://developers.yubico.com/PIV/Introduction/PIV_attestation.html for a where to find the root CA certificate relevant to the YubiKey firmware.
 
 2. Extract the intermediate signing certificate from slot f9 on the YubiKey:
 
-  $ yubico-piv-tool --action=read-certificate --slot=f9 > SlotF9Intermediate.pem
+  $ yubico-piv-tool --action=read-certificate --slot=f9 --out SlotF9Intermediate.pem
 
 3. Generate an attestation for the key in the PIV slot. The following command generates an attestation for slot 9a:
 
-  $ yubico-piv-tool --action=attest --slot=9a > Slot9Aattestation.pem
+  $ yubico-piv-tool --action=attest --slot=9a --out Slot9Aattestation.pem
 
 4. Verify the attestation cryptographically. A demonstration of this capability using OpenSSL is below:
 
