@@ -46,22 +46,41 @@ The yubico-piv-tool attest action will fail if there is no key in the slot under
 
 To verify an attestation statement perform the following steps:
 
-1. Retrieve the root Yubico PIV CA certificate and place it in a file, for example `TrustedCAcerts.pem`. See https://developers.yubico.com/PIV/Introduction/PIV_attestation.html for a where to find the root CA certificate relevant to the YubiKey firmware.
+1. Generate an attestation for the key in the PIV slot. The following command generates an attestation for slot 9a:
+
+  $ yubico-piv-tool --action=attest --slot=9a --out Slot9Aattestation.pem
 
 2. Extract the intermediate signing certificate from slot f9 on the YubiKey:
 
   $ yubico-piv-tool --action=read-certificate --slot=f9 --out SlotF9Intermediate.pem
 
-3. Generate an attestation for the key in the PIV slot. The following command generates an attestation for slot 9a:
+3. Retrieve the root Yubico PIV CA certificate and place it in a file. Note that Yubico has updated the root CA in 2025, so YubiKeys with firmware version 5.7.4 and later will be signed by the new root CA. The relevant CA can be downloaded with the command line as follows:
+a. For YubiKeys with firmware version 5.7.4 or later:
 
-  $ yubico-piv-tool --action=attest --slot=9a --out Slot9Aattestation.pem
+  $ curl https://developers.yubico.com/PKI/yubico-ca-1.pem -O TrustedCAcerts.pem
 
-4. Verify the attestation cryptographically. A demonstration of this capability using OpenSSL is below:
+b. For YubiKeys with firmware version 5.7.3 or earlier:
+
+  $ curl https://developers.yubico.com/PKI/yubico-piv-ca-1.pem -O TrustedCAcerts.pem
+
+
+4. For YubiKeys with firmware version 5.7.4 or later, retrieve the intermediate certificates and place them in a file:
+
+    $ curl https://developers.yubico.com/PKI/yubico-intermediate.pem -O AllIntermediateCerts.pem
+
+5. Verify the attestation cryptographically. A demonstration of this capability using OpenSSL is below:
 
 [NOTE]
 ====
 The OpenSSL command below does not work with OpenSSL 1.1.0  when used with YubiKey 4 series products. To verify certificate chains for such devices, see link:https://support.yubico.com/support/solutions/articles/15000013406-piv-attestation-verification-fails-with-openssl-1-1-0[PIV Attestation Verification Fails with OpenSSL 1.1.0].
 ====
 
- $ openssl verify -CAfile TrustedCAcerts.pem -untrusted SlotF9Intermediate.pem Slot9Aattestation.pem
-  attestation.pem: OK
+a. For YubiKeys with firmware version 5.7.4 or later:
+
+  $ openssl verify -CAfile TrustedCAcerts.pem -untrusted SlotF9Intermediate.pem -untrusted AllIntermediateCerts.pem Slot9Aattestation.pem
+  Slot9Aattestation.pem: OK
+
+b. For YubiKeys with firmware version 5.7.3 or earlier:
+
+  $ openssl verify -CAfile TrustedCAcerts.pem -untrusted SlotF9Intermediate.pem Slot9Aattestation.pem
+  Slot9Aattestation.pem: OK
