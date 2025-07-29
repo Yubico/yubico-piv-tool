@@ -9,7 +9,7 @@ jobs:
     name: Build source with Linux
     runs-on: ubuntu-latest
     env:
-      RELEASE_VERSION: 2.7.1
+      RELEASE_VERSION: 2.7.2
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -47,7 +47,7 @@ jobs:
           - os: windows-latest
             arch: x64
     env:
-      RELEASE_VERSION: 2.7.1
+      RELEASE_VERSION: 2.7.2
     steps:
       - name: Download source from source job
         uses: actions/download-artifact@v4
@@ -118,7 +118,7 @@ jobs:
           - os: macos-latest-xlarge
             arch: arm
     env:
-      RELEASE_VERSION: 2.7.1
+      RELEASE_VERSION: 2.7.2
       SO_VERSION: 2
     steps:
       - name: Download source from source job
