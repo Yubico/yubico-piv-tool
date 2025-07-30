@@ -57,16 +57,16 @@ To verify an attestation statement perform the following steps:
 3. Retrieve the root Yubico PIV CA certificate and place it in a file. Note that Yubico has updated the root CA in 2025, so YubiKeys with firmware version 5.7.4 and later will be signed by the new root CA. The relevant CA can be downloaded with the command line as follows:
 a. For YubiKeys with firmware version 5.7.4 or later:
 
-  $ curl https://developers.yubico.com/PKI/yubico-ca-1.pem -O TrustedCAcerts.pem
+  $ curl https://developers.yubico.com/PKI/yubico-ca-1.pem -o TrustedCAcerts.pem
 
 b. For YubiKeys with firmware version 5.7.3 or earlier:
 
-  $ curl https://developers.yubico.com/PKI/yubico-piv-ca-1.pem -O TrustedCAcerts.pem
+  $ curl https://developers.yubico.com/PKI/yubico-piv-ca-1.pem -o TrustedCAcerts.pem
 
 
 4. For YubiKeys with firmware version 5.7.4 or later, retrieve the intermediate certificates and place them in a file:
 
-    $ curl https://developers.yubico.com/PKI/yubico-intermediate.pem -O AllIntermediateCerts.pem
+    $ curl https://developers.yubico.com/PKI/yubico-intermediate.pem -o AllIntermediateCerts.pem
 
 5. Verify the attestation cryptographically. A demonstration of this capability using OpenSSL is below:
 
