@@ -859,7 +859,7 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format, in
 
   // Notify user if private key and certificate do not match
   unsigned char metadata[YKPIV_OBJ_MAX_SIZE] = {0};
-  unsigned long metadata_len = sizeof(metadata);
+  size_t metadata_len = sizeof(metadata);
   ykpiv_metadata slot_md = {0};
   if (ykpiv_get_metadata(state, key, metadata, &metadata_len) == YKPIV_OK &&
       ykpiv_util_parse_metadata(metadata, metadata_len, &slot_md) == YKPIV_OK) {
@@ -1889,7 +1889,7 @@ static void print_slot_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
   unsigned char data[YKPIV_OBJ_MAX_SIZE] = {0};
   unsigned long len = sizeof(data);
   unsigned char metadata[YKPIV_OBJ_MAX_SIZE] = {0};
-  unsigned long metadata_len = sizeof(metadata);
+  size_t metadata_len = sizeof(metadata);
   ykpiv_metadata slot_md = {0};
   X509 *x509 = NULL;
   EVP_PKEY *key = NULL;
