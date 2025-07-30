@@ -1,4 +1,4 @@
-== Read Certificate
+== Read Public Key
     $ yubico-piv-tool -a read-public-key -s <slot> [ -o <cert.pem> -K <cert file format> ]
 
 === Description
