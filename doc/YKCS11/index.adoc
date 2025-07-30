@@ -103,18 +103,22 @@ different PIN policies for different keys, subsequent operations might
 require a new login. This is supported by the module through the `CONTEXT_SPECIFIC`
 user in accordance with the specifications.
 
+==== Keys with PIN policy "never"
+
+It is possible to skip PIN verification when using keys with PIN policy "never" by using `VERIFY_NONE` as a PIN.
+
 ==== Fingerprint Authentication with YubiKey Bio
 
 It is also possible to use the fingerprint reader on the YubiKey Bio to login. Attempting to login with an empty
 PIN will trigger bio verification and the user is expected to scan their fingerprint then. Note that their might
 not be an indication on the screen that a fingerprint scan is expected but the YubiKey will be blinking while it is
-waiting for a fingerprint scan.
+waiting for a fingerprint scan. Bio verification can also be triggered by using `VERIFY_BIO` as a PIN.
 
 === OpenSSL
 The YubiKey only supports functions that require an asymmetrinc private key. Functions that do not, like encryption,
 signature verification, hashing and generation of a random number, are done using OpenSSL.
 
-Also, the YubiKey only performs raw decryption and signature. So when padding is used, for example OAEP and PSS padding,
+Additionally, the YubiKey only performs raw decryption and signature. When padding is used, for example OAEP and PSS padding,
 applying and removing the padding is handled using OpenSSL functions.
 
 === Testing

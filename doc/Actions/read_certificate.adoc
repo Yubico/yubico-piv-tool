@@ -12,7 +12,7 @@ Returns the certificate stored on a certain slot.
 |-s, --slot         | X | | What key slot to operate on | 9a, 9c, 9d, 9e, 82, 83, 84, 85, 86, 87, 88, 89,
                                                           8a, 8b, 8c, 8d, 8e, 8f, 90, 91, 92, 93, 94, 95, f9 |
 |-o, --output       | | X | Filename to use as output. If left out, output will be printed to Stdout | None or file name | Stdout
-|-K, --key-format   | | X | Format of the key/certificate being read/written | PEM, PKCS12, GZIP, DER, SSH | PEM
+|-K, --key-format   | | X | Format of the certificate being read | PEM, DER, SSH | PEM
 |===================================
 
 === Examples
