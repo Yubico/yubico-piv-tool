@@ -4,11 +4,12 @@ set -u
 if [ "$#" -lt 2 ]; then
     echo "This script runs yubico-piv-tool command line tests and requires a YubiKey to be plugged in"
     echo ""
-    echo "      Usage: ./cmdline_test.sh <yubico-piv-tool> <ac|acde|all> [ <enc> ]"
+    echo "      Usage: ./cmdline_test.sh <yubico-piv-tool> <ac|acde|all> [ <path/to/short_rsa.key> <enc> ]"
     echo ""
-    echo "ac|acde|all         Which slots to run tests on: 'ac' runs tests on slots 9a and 9c, 'acde' runs tests on slots 9a, 9c, 9d and 9e, 'all' runs tests on all slots"
-    echo "yubico-piv-tool     Path to yubico-piv-tool commandline tool. If it is on PATH, then 'yubico-piv-tool' would be sufficient"
-    echo "enc                 Optional! Run the tests over en encrypted channel"
+    echo "ac|acde|all             Which slots to run tests on: 'ac' runs tests on slots 9a and 9c, 'acde' runs tests on slots 9a, 9c, 9d and 9e, 'all' runs tests on all slots"
+    echo "yubico-piv-tool         Path to yubico-piv-tool commandline tool. If it is on PATH, then 'yubico-piv-tool' would be sufficient"
+    echo "path/to/short_rsa.key   Optional! Path to a short RSA key to test importing of short keys"
+    echo "enc                     Optional! Run the tests over en encrypted channel"
     exit 0
 fi
 
@@ -64,7 +65,7 @@ if [ $global -ne 0 ]; then
   $BIN -areset
 fi
 
-if [ "$#" -eq 3 ]; then
+if [ "$#" -eq 4 ]; then
   BIN="$BIN --scp11" # Enable encrypted channel
 fi
 
@@ -326,6 +327,41 @@ for k in ${RSA_KEYSIZE[@]}; do
 
   done
 done
+
+if [ "$#" -lt 4 ]; then
+
+  SHORT_RSA_FILE=$3
+
+  echo "****************************************************"
+  echo "         Short RSA Key"
+  echo "****************************************************"
+
+  slot="9a"
+  test "$BIN -aimport-key -s$slot -i $SHORT_RSA_FILE" "Import private key"
+  test "$BIN -aread-public-key -s$slot -o pubkey.pem" "Get public key"
+
+  # Read status and validate fields
+  STATUS=$($BIN -astatus)
+  echo "$STATUS"
+  ALGO=$(echo "$STATUS" |grep "Slot $slot" -A 6 |grep "Private Key Algorithm" |tr -d "[:blank:]")
+  if [ "x$ALGO" != "xPrivateKeyAlgorithm:RSA2048" ]; then
+    echo "$ALGO"
+    echo "Generated algorithm incorrect." >/dev/stderr
+    exit 1
+  fi
+
+  echo "=== Signing with imported key:"
+  for h in ${HASH_SIZES[@]}; do
+    test "$BIN -a verify-pin -P123456 --sign -s $slot -A RSA2048 -H SHA$h -i data.txt -o data.sig" "Sign with SHA$h-RSA-PKCS"
+    test "openssl dgst -sha$h -verify pubkey.pem -signature data.sig data.txt" "Verify signature"
+  done
+
+  if [ $newkey -eq 0 ]; then
+    echo "=== Clean up:"
+    test "$BIN -a delete-key -s $slot" "Delete private key"
+  fi
+
+fi
 
 echo "****************************************************"
 echo "         Compress X509 Certificate"
