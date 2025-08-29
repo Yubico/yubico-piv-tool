@@ -70,7 +70,7 @@ static const ykcs11_md_t* EVP_MD_by_mechanism(CK_MECHANISM_TYPE m) {
 CK_RV sign_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_MECHANISM_PTR mech) {
 
   if(!key) {
-    DBG("No public key avilable, can't determine key type");
+    DBG("No public key available, can't determine key type");
     return CKR_KEY_TYPE_INCONSISTENT;
   }
 
@@ -319,7 +319,7 @@ CK_RV verify_mechanism_cleanup(ykcs11_session_t *session) {
 CK_RV verify_mechanism_init(ykcs11_session_t *session, ykcs11_pkey_t *key, CK_MECHANISM_PTR mech) {
 
   if(!key) {
-    DBG("No public key avilable, can't determine key type");
+    DBG("No public key available, can't determine key type");
     return CKR_KEY_TYPE_INCONSISTENT;
   }
 
