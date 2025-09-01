@@ -55,7 +55,7 @@ $EC_CURVES = @("prime256v1", "secp384r1")
 $RSA_KEYSIZES = @("1024", "2048")
 $HASH_SIZES = @("1", "256", "384", "512")
 if ($newkey -eq 0) {
-    $RSA_KEYSIZE += "3072", "4096"
+    $RSA_KEYSIZES += "3072", "4096"
 }
 foreach ($c in $EC_CURVES) {
     echo "**********************************"
