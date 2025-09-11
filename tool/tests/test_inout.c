@@ -38,7 +38,11 @@
 #include "../../common/util.h"
 
 #ifdef _WIN32
+#ifdef _MSC_VER
 #include <openssl/applink.c>
+#else
+#include <io.h>
+#endif
 #define pipe(fds) _pipe(fds,4096, 0)
 #else
 #include <unistd.h>
