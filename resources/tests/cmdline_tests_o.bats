@@ -8,26 +8,29 @@ load 'test_helper/bats-assert/load'
 
 setup_file() {
 
-  export BIN="${YUBICO_PIV_TOOL:-yubico-piv-tool}"
-  export SLOTS_MODE="${SLOTS_MODE:-ac}"
-  export NEWKEY_SUPPORTED=false
+  
   echo "--- Configuration via Environment Variables ---" >&3
   echo "YUBICO_PIV_TOOL: Path to the yubico-piv-tool executable." >&3
   echo "SLOTS_MODE:      Which slots to test ('ac', 'acde', or 'all'). Defaults to 'ac'" >&3
   echo "ENC_MODE:        Set to 'enc' to run tests over an encrypted channel." >&3
   echo "-----------------------------------------------" >&3
 
-  local winpath=$(uname -m)
-  if [ "x$winpath" = "xx86_64" ]; then
-    BIN="/c/Program Files/Yubico/Yubico PIV Tool/bin/yubico-piv-tool.exe"
+  local default_bin_path="yubico-piv-tool"
+  local winpath
+  winpath=$(uname -o) 
+
+  if [[ "$winpath" == "Msys" ]]; then
+    default_bin_path="/c/Program Files/Yubico/Yubico PIV Tool/bin/yubico-piv-tool.exe"
     export MSYS2_ARG_CONV_EXCL=* # To prevent path conversion by MSYS2
-  elif [ "x$winpath" = "xi686" ]; then
-    BIN=";C:/Program Files (x86)/Yubico/Yubico PIV Tool/bin/yubico-piv-tool.exe"
-    export MSYS2_ARG_CONV_EXCL=* # To prevent path conversion by MSYS2
+
+  elif [[ "$winpath" == "GNU/Linux" || "$winpath" == "Darwin" ]]; then
+    default_bin_path="/usr/local/bin/yubico-piv-tool"
   fi
 
+  export BIN="${YUBICO_PIV_TOOL:-$default_bin_path}"
+  export SLOTS_MODE="${SLOTS_MODE:-ac}"
+  export NEWKEY_SUPPORTED=false
 
-  echo "Using binary: "$BIN"" >&3
   if [ -e BATS_TEST_DIR ]; then
     rm -rf BATS_TEST_DIR
   fi
