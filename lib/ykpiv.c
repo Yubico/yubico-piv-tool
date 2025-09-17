@@ -897,9 +897,9 @@ ykpiv_rc ykpiv_validate(ykpiv_state *state, const char *wanted) {
     pcsc_long rc = SCardStatus(state->card, reader, &reader_len, NULL, NULL, atr, &atr_len);
     if(rc != SCARD_S_SUCCESS) {
       DBG("SCardStatus failed on reader '%s', rc=%lx", wanted, (long)rc);
-      rc = SCardDisconnect(state->card, SCARD_RESET_CARD);
-      if(rc != SCARD_S_SUCCESS) {
-        DBG("SCardDisconnect failed on reader '%s', rc=%lx", wanted, (long)rc);
+      pcsc_long rc2 = SCardDisconnect(state->card, SCARD_RESET_CARD);
+      if(rc2 != SCARD_S_SUCCESS) {
+        DBG("SCardDisconnect failed on reader '%s', rc=%lx", wanted, (long)rc2);
       }
       state->card = 0;
       state->serial = 0;
@@ -911,7 +911,7 @@ ykpiv_rc ykpiv_validate(ykpiv_state *state, const char *wanted) {
       return pcsc_to_yrc(rc);
     }
     if (strcmp(wanted, reader)) {
-      DBG("Disconnecting incorrect reader '%s' (wanted '%s'), rc=%lx", reader, wanted, (long)rc);
+      DBG("Disconnecting incorrect reader '%s' (wanted '%s')", reader, wanted);
       rc = SCardDisconnect(state->card, SCARD_RESET_CARD);
       if(rc != SCARD_S_SUCCESS) {
         DBG("SCardDisconnect failed on reader '%s' (wanted '%s'), rc=%lx", reader, wanted, (long)rc);
