@@ -45,7 +45,7 @@ setup_file() {
   echo "This will reset your YubiKey, press ctrl + c to exit or y + enter to continue" >&3
 
   if ! "$BIN" -areset --global >/dev/null 2>&1; then
-    echo "Global reset failed, attempting recovery..." >&3
+    echo "Attempting manual reset" >&3
 
     "$BIN" -averify-pin -P000000 || true
     "$BIN" -averify-pin -P000000 || true
@@ -74,13 +74,13 @@ set -e
 
   # --- Define Test Parameters ---
   slots_mode_lower=$(echo "$SLOTS_MODE" | tr '[:upper:]' '[:lower:]')
-  SLOTS=('9a' '9c')
+  export SLOTS_STR="9a 9c"
   if [ "x$slots_mode_lower" == "xacde" ]; then
-    SLOTS=('9a' '9c' '9d' '9e')
+    SLOTS_STR="9a 9c 9d 9e"
   elif [ "x$slots_mode_lower" == "xall" ]; then
-    SLOTS=('9a' '9c' '9d' '9e' '82' '83' '84' '85' '86' '87' '88' '89' '8a' '8b' '8c' '8d' '8e' '8f' '90' '91' '92' '93' '94' '95')
+    SLOTS_STR="9a 9c 9d 9e 82 83 84 85 86 87 88 89 8a 8b 8c 8d 8e 8f 90 91 92 93 94 95"
   fi
-  export SLOTS_STR="${SLOTS[*]}" 
+
 
   # Try to generate ED25519 key to see if the YubiKey support 'new' algorithms
   if "$BIN" -a generate -s 9a -A ED25519 > /dev/null 2>&1; then
@@ -88,21 +88,25 @@ set -e
   fi
 
   # Define key types based on support
-  RSA_KEYSIZE=("1024" "2048")
+  export RSA_KEYSIZE_STR="1024 2048"
   if [ "$NEWKEY_SUPPORTED" = true ]; then
-    RSA_KEYSIZE+=("3072" "4096")
+    RSA_KEYSIZE_STR+=" 3072 4096"
   fi
 
-  export RSA_KEYSIZE_STR="${RSA_KEYSIZE[*]}"
+  export EC_ALGOS_STR="ECCP256 ECCP384"
 
-  EC_ALGOS=("ECCP256" "ECCP384")
-  export EC_ALGOS_STR="${EC_ALGOS[*]}"
+  export EC_CURVES_STR="prime256v1 secp384r1"
 
-  EC_CURVES=("prime256v1" "secp384r1")
-  export EC_CURVES_STR="${EC_CURVES[*]}"
+  export HASH_SIZES_STR="1 256 384 512"
 
-  HASH_SIZES=("1" "256" "384" "512")
-  export HASH_SIZES_STR="${HASH_SIZES[*]}"
+  if [ "$enc_mode_lower" == "enc" ] && "$BIN" -a version; then
+    run "$BIN" --enc -a version
+    if [ "$status" -ne 0 ]; then
+      echo "Error: The encrypted channel check failed." >&3
+      echo "This might mean the --enc feature is not supported by the Yubikey." >&3
+      return 1
+    fi
+  fi
 
   echo "-----------------------------------------------" >&3
 }
@@ -126,7 +130,6 @@ set -e
     echo "EC algos: ${EC_ALGOS[*]}" >&3
     echo "RSA Key Sizes to test: ${RSA_KEYSIZE[@]}" >&3
     echo "Slots: ${SLOTS[@]} " >&3
-    echo "Slots Mode: $SLOTS_MODE" >&3
     echo "BIN: "$BIN"" >&3
     echo "Encryption: ${encryption[*]}" >&3
 
