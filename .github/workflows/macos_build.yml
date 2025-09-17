@@ -32,7 +32,7 @@ jobs:
           set -x
           mkdir build
           cd build
-          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_PKG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig
+          cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_PKG_PATH=/usr/local/opt/openssl/lib/pkgconfig
           make
           make test
 
@@ -49,7 +49,7 @@ jobs:
       - name: Build using OpenSSL static link
         run: |
           set -x
-          export PKG_CONFIG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig:PKG_CONFIG_PATH
+          export PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:PKG_CONFIG_PATH
 
           rm -rf build; mkdir build; cd build
           cmake .. -DVERBOSE_CMAKE=ON -DOPENSSL_STATIC_LINK=ON -DBACKEND=macscard
@@ -69,7 +69,7 @@ jobs:
       - name: Build with YKCS11_DBG is set
         run: |
           set -x
-          export PKG_CONFIG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig:PKG_CONFIG_PATH
+          export PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:PKG_CONFIG_PATH
 
           rm -rf build; mkdir build; cd build
           cmake .. -DVERBOSE_CMAKE=ON -DYKCS11_DBG=3
@@ -83,7 +83,7 @@ jobs:
       - name: Build only library (no CLI and no ykcs11)
         run: |
           set -x
-          export PKG_CONFIG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig:PKG_CONFIG_PATH
+          export PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:PKG_CONFIG_PATH
 
           rm -rf build; mkdir build; cd build
           cmake .. -DVERBOSE_CMAKE=ON -DBUILD_ONLY_LIB=ON
@@ -93,7 +93,7 @@ jobs:
       - name: Build only dynamic libaries
         run: |
           set -x
-          export PKG_CONFIG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig:PKG_CONFIG_PATH
+          export PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:PKG_CONFIG_PATH
 
           rm -rf build; mkdir build; cd build
           cmake .. -DVERBOSE_CMAKE=ON -DBUILD_STATIC_LIB=OFF
