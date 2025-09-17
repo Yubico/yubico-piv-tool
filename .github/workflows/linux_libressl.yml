@@ -17,9 +17,9 @@ jobs:
         run: |
           set -x
           cd ..
-          wget -nv http://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-3.6.1.tar.gz
-          tar -xzf libressl-3.6.1.tar.gz
-          cd libressl-3.6.1
+          wget -nv http://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-3.9.2.tar.gz
+          tar -xzf libressl-3.9.2.tar.gz
+          cd libressl-3.9.2
           mkdir build; cd build
           cmake ..
           make
@@ -28,7 +28,7 @@ jobs:
         run: |
           set -x
           mkdir build; cd build
-          PKG_CONFIG_PATH=/home/runner/work/yubico-piv-tool/libressl-3.6.1/build/pkgconfig cmake .. -DVERBOSE_CMAKE=ON
+          PKG_CONFIG_PATH=/home/runner/work/yubico-piv-tool/libressl-3.9.2/build/pkgconfig cmake .. -DVERBOSE_CMAKE=ON
           make
           make test
           ./tool/yubico-piv-tool --help | grep "Usage: yubico-piv-tool"
