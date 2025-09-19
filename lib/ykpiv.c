@@ -2603,9 +2603,9 @@ ykpiv_rc ykpiv_import_private_key(ykpiv_state *state, const unsigned char key, u
       res = YKPIV_ARGUMENT_ERROR;
       goto Cleanup;
     }
-    size_t padding = elem_len - lens[i];
     *in_ptr++ = param_tag + i;
-    in_ptr += _ykpiv_set_length(in_ptr, elem_len + padding);
+    in_ptr += _ykpiv_set_length(in_ptr, elem_len);
+    size_t padding = elem_len - lens[i];
     memset(in_ptr, 0, padding);
     in_ptr += padding;
     memcpy(in_ptr, params[i], lens[i]);
