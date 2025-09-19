@@ -1,3 +1,42 @@
 These scripts are just example usage. They are mostly used by developers to test functionality and they require a YubiKey to be plugged in.
 
 WARNING: Data on the YubiKey will be overwritten.
+
+Running BATS script on Windows through MSYS2:
+In order to run the BATS (bash automated testing system) scripts you need to follow the steps below.
+
+Install MSYS2:
+-   Download the installer through "https://www.msys2.org/" and run the MSYS terminal (default is UCRT64).
+You may need to do a system update with the command "pacman -Syu" and close then reopen the terminal.
+
+Download BATS:
+-   Create a directory in which you will download the bats-core source code.
+-   Clone the repository "git clone https://github.com/bats-core/bats-core.git"
+-   Run the installation script "cd bats-core" and "./install.sh /usr/local"
+-   Verify that BATS was correctly installed with "bats --version"
+
+Install dependencies:
+-   If "diffutils" and "openssl" aren't already installed on your system install them
+-   Can check if installed by "diff --version" and "openssl --version"
+-   If not installed, install with "pacman -S diffutils openssl"
+
+Run the tests:
+-   In the MSYS terminal change directory into (your path)/yubico-piv-tool/resources/tests
+-   Run test with "bats cmdline_tests_o.bats" (which is a temporary test name)
+-   You can modify the test with the following environment variables:
+YUBICO_PIV_TOOL: Path to the yubico-piv-tool executable. (only change this if you encounter errors)
+SLOTS_MODE: Which slots to test ('ac', 'acde', or 'all'). Defaults to 'ac'
+ENC_MODE: Set to 'enc' to run tests over an encrypted channel.
+
+example: "SLOTS_MODE=all bats cmdline_tests_o.bats"
+
+In order to run the ykcs11 tests there are some additional things to do.
+-   Install OpenSC to your system 
+-   In the normal windows command prompt run "where pkcs11-tool"
+-   In the MSYS terminal run "nano ~/.bashrc" or edit in your preferred editor 
+-   Add this line at the end of the file "export PATH=$PATH:"YOUR/PATH/COPIED/EARLIER"
+-   Verify that the pkcs11-tool is recognized simply by running "pkcs11-tool", if "command not found". Please verify that the path earlier was inserted correctly into the bashrc file
+-   Run test with "bats ykcs11_tests.bats"
+-   You can modify the test with the following environment variables:
+SLOTS_MODE: Which slots to run tests on: 'ac' runs tests on slots 9a and 9c, 'acde' runs tests on slots 9a, 9c, 9d and 9e, 'all' runs tests on all slots"
+MODULE: Path to PKCS11 module.
