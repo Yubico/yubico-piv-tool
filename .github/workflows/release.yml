@@ -74,7 +74,7 @@ jobs:
           {
             ./make_release_binaries.ps1 x64 C:/vcpkg $env:GITHUB_WORKSPACE\yubico-piv-tool-$env:RELEASE_VERSION
           }
-
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           mkdir $env:GITHUB_WORKSPACE/artifact
           cp -r $env:GITHUB_WORKSPACE/release/win/yubico-piv-tool-$env:ARCH $env:GITHUB_WORKSPACE/artifact/
           mv $env:GITHUB_WORKSPACE/artifact/yubico-piv-tool-$env:ARCH $env:GITHUB_WORKSPACE/artifact/yubico-piv-tool-$env:RELEASE_VERSION-$env:ARCH
@@ -88,6 +88,7 @@ jobs:
 
           cd $env:GITHUB_WORKSPACE/release/win
           ./make_installer.ps1 $env:GITHUB_WORKSPACE/release/win/yubico-piv-tool-$env:ARCH $env:RELEASE_VERSION $env:ARCH $env:WIX\bin "$MERGEDPATH"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cp $env:GITHUB_WORKSPACE/release/win/yubico-piv-tool-$env:RELEASE_VERSION-$env:ARCH.msi $env:GITHUB_WORKSPACE/artifact/
 
       - name: Install yubico-piv-tool
@@ -98,6 +99,20 @@ jobs:
           cd $env:GITHUB_WORKSPACE/release/win
           msiexec /i yubico-piv-tool-$env:RELEASE_VERSION-$env:ARCH.msi /quiet /log $env:GITHUB_WORKSPACE/artifact/log_$env:ARCH.txt
           Start-Sleep -s 5
+
+          ls "C:\Program Files"
+          
+          if($env:ARCH -eq "x86")
+          {
+            $env:Path+=";C:\Program Files (x86)\Yubico\Yubico PIV Tool\bin"
+          }
+          else
+          {
+            $env:Path+=";C:\Program Files\Yubico\Yubico PIV Tool\bin"
+          }
+          yubico-piv-tool --version
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
