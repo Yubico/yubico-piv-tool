@@ -66,6 +66,7 @@ jobs:
           ARCH: ${{ matrix.arch }}
         run: |
           Set-PSDebug -Trace 1
+          vcpkg update
           vcpkg install openssl:$env:ARCH-windows
           vcpkg install getopt:$env:ARCH-windows
           vcpkg install check:$env:ARCH-windows
@@ -77,15 +78,23 @@ jobs:
           ARCH: ${{ matrix.arch }}
         run: |
           Set-PSDebug -Trace 1
-          $env:Path ="C:\vcpkg\packages\openssl_$env:ARCH-windows;$env:Path"
-          $env:include ="C:\vcpkg\packages\openssl_$env:ARCH-windows/include;$env:include"
+          
+          $env:OPENSSL_ROOT_DIR="C:\vcpkg\packages\openssl_$env:ARCH-windows"
+          $env:Path="C:\vcpkg\packages\zlib_$env:ARCH-windows\bin;$env:Path"
+          #$env:include ="C:\vcpkg\packages\openssl_$env:ARCH-windows/include;$env:include"
 
           cd yubico-piv-tool-
           mkdir build; cd build
-          cmake -A $env:ARCH_CMAKE -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_$env:ARCH-windows ..
+          cmake -A $env:ARCH_CMAKE -DVERBOSE_CMAKE=ON -DBACKEND=winscard `
+                  -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/include `
+                  -DZLIB_LIB_DIR="C:\vcpkg/packages/zlib_$env:ARCH-windows/lib" -DZLIB_INCL_DIR="C:\vcpkg/packages/zlib_$env:ARCH-windows/include" -DZLIB_ROOT="C:\vcpkg/packages/zlib_$env:ARCH-windows" `
+                  -DCHECK_PATH="C:/vcpkg/packages/check_$env:ARCH-windows" ..
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cmake --build . -v
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           $env:Path +=";C:/vcpkg/packages/check_$env:ARCH-windows/bin;C:/vcpkg/packages/openssl_$env:ARCH-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-\build\ykcs11\Debug"
           ctest.exe -C Debug
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
       - name: Build with YKCS11_DBG is set
         env:
@@ -93,15 +102,23 @@ jobs:
           ARCH: ${{ matrix.arch }}
         run: |
           Set-PSDebug -Trace 1
-          $env:Path ="C:\vcpkg\packages\openssl_$env:ARCH-windows;$env:Path"
-          $env:include ="C:\vcpkg\packages\openssl_$env:ARCH-windows/include;$env:include"
+          
+          $env:OPENSSL_ROOT_DIR="C:\vcpkg\packages\openssl_$env:ARCH-windows"          
+          $env:Path ="C:\vcpkg\packages\zlib_$env:ARCH-windows\bin;$env:Path"
+          #$env:include ="C:\vcpkg\packages\openssl_$env:ARCH-windows/include;$env:include"
 
           cd yubico-piv-tool-
           rm -r build; mkdir build; cd build
-          cmake -A $env:ARCH_CMAKE -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_$env:ARCH-windows -DYKCS11_DBG=3 ..
+          cmake .. -A $env:ARCH_CMAKE -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DYKCS11_DBG=3 `
+                  -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/include `
+                  -DZLIB_LIB_DIR="C:\vcpkg/packages/zlib_$env:ARCH-windows/lib" -DZLIB_INCL_DIR="C:\vcpkg/packages/zlib_$env:ARCH-windows/include" -DZLIB_ROOT="C:\vcpkg/packages/zlib_$env:ARCH-windows" `
+                  -DCHECK_PATH=C:/vcpkg/packages/check_$env:ARCH-windows
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cmake --build . -v
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           $env:Path +=";C:/vcpkg/packages/check_$env:ARCH-windows/bin;C:/vcpkg/packages/openssl_$env:ARCH-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-\build\ykcs11\Debug"
           ctest.exe -C Debug
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
       - name: Build only library (no CLI and no ykcs11)
         env:
@@ -109,15 +126,21 @@ jobs:
           ARCH: ${{ matrix.arch }}
         run: |
           Set-PSDebug -Trace 1
-          $env:Path ="C:\vcpkg\packages\openssl_$env:ARCH-windows;$env:Path"
+          $env:Path ="C:\vcpkg\packages\openssl_$env:ARCH-windows;C:\vcpkg\packages\zlib_$env:ARCH-windows\bin;$env:Path"
           $env:include ="C:\vcpkg\packages\openssl_$env:ARCH-windows/include;$env:include"
 
           cd yubico-piv-tool-
           rm -r build; mkdir build; cd build
-          cmake -A $env:ARCH_CMAKE -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_$env:ARCH-windows -DBUILD_ONLY_LIB=ON ..
+          cmake .. -A $env:ARCH_CMAKE -DVERBOSE_CMAKE=ON -DBACKEND=winscard  -DBUILD_ONLY_LIB=ON `
+                -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/include `
+                -DZLIB_LIB_DIR="C:\vcpkg/packages/zlib_$env:ARCH-windows/lib" -DZLIB_INCL_DIR="C:\vcpkg/packages/zlib_$env:ARCH-windows/include" -DZLIB_ROOT="C:\vcpkg/packages/zlib_$env:ARCH-windows" `
+                -DCHECK_PATH=C:/vcpkg/packages/check_$env:ARCH-windows
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cmake --build . -v
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           $env:Path +=";C:/vcpkg/packages/check_$env:ARCH-windows/bin;C:/vcpkg/packages/openssl_$env:ARCH-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-\build\ykcs11\Debug"
           ctest.exe -C Debug
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
       - name: Build only dynamic libaries
         env:
@@ -125,15 +148,21 @@ jobs:
           ARCH: ${{ matrix.arch }}
         run: |
           Set-PSDebug -Trace 1
-          $env:Path ="C:\vcpkg\packages\openssl_$env:ARCH-windows;$env:Path"
+          $env:Path ="C:\vcpkg\packages\openssl_$env:ARCH-windows;C:\vcpkg\packages\zlib_$env:ARCH-windows\bin;$env:Path"
           $env:include ="C:\vcpkg\packages\openssl_$env:ARCH-windows/include;$env:include"
 
           cd yubico-piv-tool-
           rm -r build; mkdir build; cd build
-          cmake -A $env:ARCH_CMAKE -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_$env:ARCH-windows -DBUILD_STATIC_LIB=OFF ..
+          cmake .. -A $env:ARCH_CMAKE -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DBUILD_STATIC_LIB=OFF `
+                -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/include `
+                -DZLIB_LIB_DIR="C:\vcpkg/packages/zlib_$env:ARCH-windows/lib" -DZLIB_INCL_DIR="C:\vcpkg/packages/zlib_$env:ARCH-windows/include" -DZLIB_ROOT="C:\vcpkg/packages/zlib_$env:ARCH-windows" `
+                -DCHECK_PATH=C:/vcpkg/packages/check_$env:ARCH-windows 
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cmake --build . -v
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           $env:Path +=";C:/vcpkg/packages/check_$env:ARCH-windows/bin;C:/vcpkg/packages/openssl_$env:ARCH-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-\build\ykcs11\Debug"
           ctest.exe -C Debug
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
   build_no_zlib:
     name: Build and Test on Windows where zlib is not installed
@@ -187,7 +216,12 @@ jobs:
 
           cd yubico-piv-tool-
           mkdir build; cd build
-          cmake -A $env:ARCH_CMAKE -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DENABLE_CERT_COMPRESS=OFF -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/include -DCHECK_PATH=C:/vcpkg/packages/check_$env:ARCH-windows ..
+          cmake .. -A $env:ARCH_CMAKE -DVERBOSE_CMAKE=ON -DBACKEND=winscard -DENABLE_CERT_COMPRESS=OFF `
+                -DGETOPT_LIB_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/lib -DGETOPT_INCLUDE_DIR=C:/vcpkg/packages/getopt-win32_$env:ARCH-windows/include `
+                -DCHECK_PATH=C:/vcpkg/packages/check_$env:ARCH-windows
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cmake --build . -v
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           $env:Path +=";C:/vcpkg/packages/check_$env:ARCH-windows/bin;C:/vcpkg/packages/openssl_$env:ARCH-windows/bin;$env:GITHUB_WORKSPACE\yubico-piv-tool-\build\lib\Debug;$env:GITHUB_WORKSPACE\yubico-piv-tool-\build\ykcs11\Debug"
           ctest.exe -C Debug
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }

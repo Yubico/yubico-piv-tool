@@ -57,7 +57,9 @@
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/crypto.h>
+#ifdef USE_CERT_COMPRESS
 #include <zlib.h>
+#endif
 
 #include "cmdline.h"
 #include "../common/util.h"
@@ -812,6 +814,7 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format, in
         goto import_cert_out;
       }
     } else if(perform_compress) {
+#ifdef USE_CERT_COMPRESS
       unsigned char uncompressed_certdata[YKPIV_OBJ_MAX_SIZE*10] = {0};
       unsigned char *uncompressed_certptr = uncompressed_certdata;
       if(i2d_X509(cert, &uncompressed_certptr) < 0) {
@@ -842,6 +845,10 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format, in
       }
       cert_len = zs.total_out;
       compress = YKPIV_CERTINFO_GZIP;
+#else
+      fprintf(stderr, "Certificate compression is not supported. Try to compress it manually and import it as GZIP.\n");
+      goto import_cert_out;
+#endif
     } else {
       if(i2d_X509(cert, &certptr) < 0) {
         fprintf(stderr, "Failed to encode X509 certificate\n");
