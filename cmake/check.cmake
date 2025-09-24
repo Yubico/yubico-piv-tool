@@ -26,12 +26,12 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 macro (find_check)
-    if(WIN32)
+    if(MSVC)
 
         if(NOT check_FOUND)
             find_package(check CONFIG PATHS ${CHECK_PATH})
             if(check_FOUND)
-                set(LIBCHECK_LDFLAGS Check::check Check::checkShared)
+                set(LIBCHECK_LDFLAGS $<IF:$<TARGET_EXISTS:Check::check>,Check::check,Check::checkShared>)
                 set(LIBCHECK_INCLUDE_DIRS ${CHECK_INCLUDE_DIR})
                 set(LIBCHECK_VERSION ${CHECK_VERSION})
                 set(LIBCHECK_LIBRARIES ${CHECK_LIBRARIES})
@@ -49,7 +49,7 @@ macro (find_check)
             endif(check_FOUND)
         endif(NOT check_FOUND)
 
-    else(WIN32)
+    else(MSVC)
 
         if(NOT LIBCHECK_FOUND)
             pkg_check_modules(LIBCHECK REQUIRED check)
@@ -73,7 +73,7 @@ macro (find_check)
             endif(LIBCHECK_FOUND)
         endif(NOT LIBCHECK_FOUND)
 
-    endif(WIN32)
+    endif(MSVC)
 
     include_directories(${LIBCHECK_INCLUDE_DIRS})
 

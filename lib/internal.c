@@ -175,9 +175,7 @@ pkcs5_rc pkcs5_pbkdf2_sha1(const uint8_t* password, const size_t cb_password, co
   ** PFN_BCryptDeriveKeyPBKDF2 pbkdf2 = GetProcAddress(hBCrypt, "BCryptDeriveKeyPBKDF2");
   */
 
-    /* suppress const qualifier warning b/c BCrypt doesn't take const input buffers */
-#pragma warning(suppress: 4090)
-  if (!BCRYPT_SUCCESS(BCryptDeriveKeyPBKDF2(BCRYPT_HMAC_SHA1_ALG_HANDLE, (PUCHAR)password, (ULONG)cb_password, (PUCHAR)salt, (ULONG)cb_salt, iterations, key, (ULONG)cb_key, 0)))
+  if (!BCRYPT_SUCCESS(BCryptDeriveKeyPBKDF2(BCRYPT_HMAC_SHA1_ALG_HANDLE, (PUCHAR)password, (ULONG)cb_password, (PUCHAR)salt, (ULONG)cb_salt, iterations, (PUCHAR)key, (ULONG)cb_key, 0)))
   {
     rc = PKCS5_GENERAL_ERROR;
   }
