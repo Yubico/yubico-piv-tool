@@ -56,7 +56,7 @@ typedef struct {
     BCRYPT_KEY_HANDLE hKeyECB;
     PBYTE pbKeyCBCObj;
     PBYTE pbKeyECBObj;
-    size_t cbKeyObj;
+    DWORD cbKeyObj;
 #else
     EVP_CIPHER_CTX *ctx;
     unsigned char key_algo;

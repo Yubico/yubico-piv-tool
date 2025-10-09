@@ -125,7 +125,7 @@ cleanup:
 
 static NTSTATUS import_key(BCRYPT_ALG_HANDLE hAlg, BCRYPT_KEY_HANDLE *phKey,
                            PBYTE *ppbKeyObj, DWORD cbKeyObj, const uint8_t *key,
-                           size_t key_len) {
+                           DWORD key_len) {
   NTSTATUS status = STATUS_SUCCESS;
   PBYTE pbKeyObj = NULL;
   BCRYPT_KEY_HANDLE hKey = 0;
@@ -166,7 +166,7 @@ static NTSTATUS import_key(BCRYPT_ALG_HANDLE hAlg, BCRYPT_KEY_HANDLE *phKey,
     BCRYPT_KEY_DATA_BLOB_MAGIC;
   ((BCRYPT_KEY_DATA_BLOB_HEADER *) pbKeyBlob)->dwVersion =
     BCRYPT_KEY_DATA_BLOB_VERSION1;
-  ((BCRYPT_KEY_DATA_BLOB_HEADER *) pbKeyBlob)->cbKeyData = (DWORD) key_len;
+  ((BCRYPT_KEY_DATA_BLOB_HEADER *) pbKeyBlob)->cbKeyData = key_len;
   memcpy(pbKeyBlob + sizeof(BCRYPT_KEY_DATA_BLOB_HEADER), key, key_len);
 
   if (!BCRYPT_SUCCESS(status = BCryptImportKey(hAlg, NULL, BCRYPT_KEY_DATA_BLOB,
@@ -263,13 +263,13 @@ int aes_set_key(const uint8_t *key, uint32_t key_len, unsigned char key_algo, ae
   }
 
   if (!BCRYPT_SUCCESS(status = import_key(ctx->hAlgCBC, &(ctx->hKeyCBC),
-                                          &(ctx->pbKeyCBCObj), (DWORD)ctx->cbKeyObj,
+                                          &(ctx->pbKeyCBCObj), ctx->cbKeyObj,
                                           key, key_len))) {
     return -2;
   }
 
   if (!BCRYPT_SUCCESS(status = import_key(ctx->hAlgECB, &(ctx->hKeyECB),
-                                          &(ctx->pbKeyECBObj), (DWORD)ctx->cbKeyObj,
+                                          &(ctx->pbKeyECBObj), ctx->cbKeyObj,
                                           key, key_len))) {
     return -3;
   }
