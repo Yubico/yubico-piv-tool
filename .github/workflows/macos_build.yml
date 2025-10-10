@@ -15,8 +15,6 @@ jobs:
           - os: macos-15-xlarge
           - os: macos-14-large
           - os: macos-14-xlarge
-          - os: macos-13-large
-          - os: macos-13-xlarge
     steps:
       # This action checks-out the repository under $GITHUB_WORKSPACE, so the workflow can access it.
       - name: checkout
