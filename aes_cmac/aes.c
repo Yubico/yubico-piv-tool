@@ -37,7 +37,7 @@
 #include <stdlib.h>
 
 #ifdef _WIN32
-#include <ntstatus.h>
+#define STATUS_SUCCESS 0
 #endif
 
 #ifdef _WIN32
@@ -125,7 +125,7 @@ cleanup:
 
 static NTSTATUS import_key(BCRYPT_ALG_HANDLE hAlg, BCRYPT_KEY_HANDLE *phKey,
                            PBYTE *ppbKeyObj, DWORD cbKeyObj, const uint8_t *key,
-                           size_t key_len) {
+                           DWORD key_len) {
   NTSTATUS status = STATUS_SUCCESS;
   PBYTE pbKeyObj = NULL;
   BCRYPT_KEY_HANDLE hKey = 0;
@@ -166,7 +166,7 @@ static NTSTATUS import_key(BCRYPT_ALG_HANDLE hAlg, BCRYPT_KEY_HANDLE *phKey,
     BCRYPT_KEY_DATA_BLOB_MAGIC;
   ((BCRYPT_KEY_DATA_BLOB_HEADER *) pbKeyBlob)->dwVersion =
     BCRYPT_KEY_DATA_BLOB_VERSION1;
-  ((BCRYPT_KEY_DATA_BLOB_HEADER *) pbKeyBlob)->cbKeyData = (DWORD) key_len;
+  ((BCRYPT_KEY_DATA_BLOB_HEADER *) pbKeyBlob)->cbKeyData = key_len;
   memcpy(pbKeyBlob + sizeof(BCRYPT_KEY_DATA_BLOB_HEADER), key, key_len);
 
   if (!BCRYPT_SUCCESS(status = BCryptImportKey(hAlg, NULL, BCRYPT_KEY_DATA_BLOB,
@@ -347,8 +347,8 @@ int aes_cbc_encrypt(const uint8_t *in, uint32_t in_len, uint8_t *out, uint32_t *
   NTSTATUS status = STATUS_SUCCESS;
   ULONG cbResult = 0;
 
-  if (!BCRYPT_SUCCESS(status = BCryptEncrypt(ctx->hKeyCBC, (PUCHAR) in, in_len,
-                                             NULL, iv, iv_len, out,
+  if (!BCRYPT_SUCCESS(status = BCryptEncrypt(ctx->hKeyCBC, (PUCHAR)in, in_len,
+                                             NULL, (PUCHAR)iv, iv_len, out,
                                              in_len, &cbResult, 0))) {
     return -1;
   }
@@ -373,8 +373,8 @@ int aes_cbc_decrypt(const uint8_t *in, uint32_t in_len, uint8_t *out, uint32_t *
   NTSTATUS status = STATUS_SUCCESS;
   ULONG cbResult = 0;
 
-  if (!BCRYPT_SUCCESS(status = BCryptDecrypt(ctx->hKeyCBC, (PUCHAR) in, in_len,
-                                             NULL, iv, iv_len, out,
+  if (!BCRYPT_SUCCESS(status = BCryptDecrypt(ctx->hKeyCBC, (PUCHAR)in, in_len,
+                                             NULL, (PUCHAR)iv, iv_len, out,
                                              in_len, &cbResult, 0))) {
     return -1;
   }
