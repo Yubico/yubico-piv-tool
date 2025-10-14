@@ -50,16 +50,19 @@ static const uint8_t n_P256[] = "\xff\xff\xff\xff\x00\x00\x00\x00"
 static BCRYPT_ALG_HANDLE curves[] = {NULL, NULL};
 static const ULONG lengths[] = {0, 256};
 
-static BOOL cs_initialized = FALSE;
+static INIT_ONCE initOnce = INIT_ONCE_STATIC_INIT;
 static CRITICAL_SECTION cs;
 static int ref_count = 0;
 
-void ecdh_init(void) {
-  if (!cs_initialized) {
-    InitializeCriticalSection(&cs);
-    cs_initialized = TRUE;
-  }
+static BOOL CALLBACK _ecdh_init_once(PINIT_ONCE initOnce, PVOID p1, PVOID p2) {
+  (void)p1;
+  (void)p2;
+  InitializeCriticalSection(&cs);
+  return TRUE;
+}
 
+void ecdh_init(void) {
+  InitOnceExecuteOnce(&initOnce, _ecdh_init_once, NULL, NULL);
   EnterCriticalSection(&cs);
   if (!curves[1]) {
     (void)BCryptOpenAlgorithmProvider(&(curves[1]), BCRYPT_ECDH_P256_ALGORITHM, NULL, 0);
@@ -69,7 +72,7 @@ void ecdh_init(void) {
 }
 
 void ecdh_done(void) {
-  if (!cs_initialized) return;
+  InitOnceExecuteOnce(&initOnce, _ecdh_init_once, NULL, NULL);
   EnterCriticalSection(&cs);
   ref_count--;
   if (ref_count <= 0) {
