@@ -6,23 +6,39 @@ load 'test_helper/bats-support/load'
 load 'test_helper/bats-assert/load'
 
 setup_file(){
+  
   echo "-----------------------------------------------" >&3
   echo "--- Configuration via Environment Variables ---" >&3
   echo "SLOTS_MODE:    Which slots to run tests on: 'ac' runs tests on slots 9a and 9c, 'acde' runs tests on slots 9a, 9c, 9d and 9e, 'all' runs tests on all slots" >&3
   echo "MODULE:        path to PKCS11 module." >&3
+  echo "PKCS11_TOOL:   path to pkcs11-tool binary." >&3
   echo "-----------------------------------------------" >&3
 
   local default_module_path="../../../build/ykcs11/libykcs11.dylib"
-  local winpath=$(uname -o)
-  
-  if [ "x$winpath" = "xMsys" ]; then
-    default_module_path="C:\Program Files\Yubico\Yubico PIV Tool\bin\libykcs11.dll"
-    export MSYS2_ARG_CONV_EXCL=* # To prevent path conversion by MSYS2
-  elif [[ "$winpath" == "GNU/Linux" || "$winpath" == "Darwin" ]]; then
-    default_module_path="/usr/local/lib/libykcs11.dylib"
-  fi
+  local os=$(uname -o)
 
-  export BIN="${pkcs11_tool:-pkcs11-tool}"
+  if [ "x$os" = "xMsys" ]; then
+    echo "This script expects that the pkcs11-tool from OpenSC is installed under "C:\Program Files\OpenSC Project\OpenSC\tools" and that libykcs11 module is installed under "C:\Program Files\Yubico\Yubico PIV Tool\bin" "
+    echo "If that is not the case, please point to the correct locations via the environment variable EDIT_PATH"
+    echo "Example: export EDIT_PATH='C:\Path\To\OpenSC\tools:C:\Path\To\Yubico PIV Tool\bin' "
+    
+    export MSYS2_ARG_CONV_EXCL=* # To prevent path conversion by MSYS2
+    if ! [ -z "$EDIT_PATH" ]; then
+        # Adds specified pkcs11-tool and module path to PATH
+        export PATH="$PATH:"$EDIT_PATH""
+    else
+        # Adds pkcs11-tool to PATH
+        export PATH="$PATH:C:\Program Files\OpenSC Project\OpenSC\tools"
+        default_module_path="C:\Program Files\Yubico\Yubico PIV Tool\bin\libykcs11.dll"
+    fi
+  elif [["$os" == "Darwin" ]]; then
+    default_module_path="/usr/local/lib/libykcs11.dylib"
+
+  elif [["$os" == "GNU/Linux" ]]; then
+    default_module_path="/usr/local/lib/libykcs11.so"
+  fi
+  
+  export BIN="${PKCS11_TOOL:-pkcs11-tool}"
   export SLOTS_MODE="${SLOTS_MODE:-ac}"
   export MODULE="${MODULE:-$default_module_path}"
 
@@ -34,9 +50,10 @@ setup_file(){
   if [ -e BATS_TEST_DIR ]; then
     rm -rf BATS_TEST_DIR
   fi
-    mkdir BATS_TEST_DIR
-    cd BATS_TEST_DIR
-    echo "test signing data" > data.txt
+
+  mkdir BATS_TEST_DIR
+  cd BATS_TEST_DIR
+  echo "test signing data" > data.txt
 
   echo "" >&3
   echo "WARNING! This test script can overwrite any existing YubiKey content" >&3
@@ -44,11 +61,9 @@ setup_file(){
   echo "Press Enter to continue or Ctrl-C to abort" >&3
   read -p ""
 
-  
-
   # --- Define Test Parameters ---
   slots_mode_lower=$(echo "$SLOTS_MODE" | tr '[:upper:]' '[:lower:]')
-  export SLOTS=2
+  SLOTS=2
   if [ "x$slots_mode_lower" == "xacde" ]; then
     SLOTS=4
   elif [ "x$slots_mode_lower" == "xall" ]; then
@@ -59,20 +74,15 @@ setup_file(){
     export NEWKEY_SUPPORTED=true
   fi
 
-  RSA_KEYSIZE=("1024" "2048")
+  RSA_KEYSIZE_STR=("1024 2048")
   if [ "$NEWKEY_SUPPORTED" = true ]; then
-    RSA_KEYSIZE+=("3072" "4096")
+    RSA_KEYSIZE+=" 3072 4096"
   fi
-  export RSA_KEYSIZE_STR="${RSA_KEYSIZE[*]}"
-
-  EC_ALGOS=("ECCP256" "ECCP384")
-  export EC_ALGOS_STR="${EC_ALGOS[*]}"
-
-  EC_CURVES=("prime256v1" "secp384r1")
-  export EC_CURVES_STR="${EC_CURVES[*]}"
-
-  HASH_SIZES=("1" "256" "384" "512")
-  export HASH_SIZES_STR="${HASH_SIZES[*]}"
+  export SLOTS
+  export RSA_KEYSIZE_STR
+  export EC_ALGOS_STR="ECCP256 ECCP384"
+  export EC_CURVES_STR="prime256v1 secp384r1"
+  export HASH_SIZES_STR="1 256 384 512"
 
   echo "-----------------------------------------------" >&3
 }
@@ -99,59 +109,58 @@ setup_file(){
 
 @test "Elliptic Curve Key Tests (prime256v1, secp384r1)" {
 
-    local EC_ALGOS=($EC_ALGOS_STR)
-    local EC_CURVES=($EC_CURVES_STR)
-    local HASH_SIZES=($HASH_SIZES_STR)
+ local EC_CURVES=($EC_CURVES_STR)
+ local HASH_SIZES=($HASH_SIZES_STR)
+
  for c in ${EC_CURVES[@]}; do
   for ((s=1;s<=$SLOTS;s++)); do
     slot=$(printf "%02x" "$s")
-    echo "===== Testing key in slot "$s" with curve "$c"" >&3
+    echo "--- Testing key in slot "$s" with curve "$c" ---" >&3
 
     run "$BIN" --module "$MODULE" --login --login-type so --so-pin 010203040506070801020304050607080102030405060708 --keypairgen --id "$slot" --key-type EC:"$c"
-    assert_success "Generate EC keypair in slot "$s" with curve "$c""
+      assert_success "Generate EC keypair in slot "$s" with curve "$c""
 
     run  "$BIN" --module "$MODULE" --read-object --type cert --id "$slot" -o cert.der 
-    assert_success "Read certificate for slot $s"
-
+      assert_success "Read certificate for slot $s"
 
     run openssl x509 -inform DER -outform PEM -in cert.der -out cert.pem
-    assert_success "Convert certificate to PEM format"
+      assert_success "Convert certificate to PEM format"
 
     run openssl x509 -in cert.pem -pubkey -noout -out pubkey.pem
-    assert_success "Extract public key from certificate"
+      assert_success "Extract public key from certificate"
 
     for h in ${HASH_SIZES[@]}; do
       run "$BIN" --module "$MODULE" --sign --pin 123456 --id "$slot" -m ECDSA-SHA"$h" --signature-format openssl -i data.txt -o data.sig
-      assert_success "Sign data with ECDSA-SHA$h"
+        assert_success "Sign data with ECDSA-SHA$h"
       run openssl dgst -sha"$h" -verify pubkey.pem -signature data.sig data.txt 
-      assert_success "Verify signature"   
+        assert_success "Verify signature"   
     done
 
     run openssl req -new -newkey ec -pkeyopt ec_paramgen_curve:"$c" -x509 -nodes -days 365 -subj "/CN=OpenSSLGeneratedECKey/" -out cert.pem -keyout key.pem
-    assert_success "Generate EC key and self-signed certificate with OpenSSL"
+      assert_success "Generate EC key and self-signed certificate with OpenSSL"
 
     run "$BIN" --module "$MODULE" --login --login-type so --so-pin 010203040506070801020304050607080102030405060708 --write-object key.pem --id "$slot" --type privkey 
-    assert_success "Import private key"
+      assert_success "Import private key"
 
     run "$BIN" --module "$MODULE" --login --login-type so --so-pin 010203040506070801020304050607080102030405060708 --write-object cert.pem --id "$slot" --type cert
-    assert_success "Import certificate"
+      assert_success "Import certificate"
 
     run "$BIN" --module "$MODULE" --read-object --type pubkey --id "$slot" -o pubkey.der
-    assert_success "Read certificate key for slot "$s""
+      assert_success "Read certificate key for slot "$s""
     run openssl pkey -pubin -inform der -in pubkey.der -out pubkey.pem
-    assert_success "Read out public key"
+      assert_success "Read out public key"
     run openssl x509 -in cert.pem -pubkey -noout -out pubkey_from_cert.pem
-    assert_success "Extract public key from certificate"
+      assert_success "Extract public key from certificate"
     run cmp pubkey.pem pubkey_from_cert.pem
-    assert_success "Compare public key read from card with public key extracted from certificate"
+      assert_success "Compare public key read from card with public key extracted from certificate"
     
 
     # Test signing
     for h in ${HASH_SIZES[@]}; do
       run "$BIN" --module "$MODULE" --sign --pin 123456 --id "$slot" -m ECDSA-SHA"$h" --signature-format openssl -i data.txt -o data.sig
-      assert_success "Sign data with ECDSA-SHA$h"
+        assert_success "Sign data with ECDSA-SHA$h"
       run openssl dgst -sha"$h" -verify pubkey.pem -signature data.sig data.txt 
-      assert_success "Verify signature"
+        assert_success "Verify signature"
     done
 
   done
@@ -163,24 +172,24 @@ setup_file(){
   [ "$NEWKEY_SUPPORTED" = true ] || skip "ED25519 not supported on this YubiKey"
     for ((s=1;s<=$SLOTS;s++)); do
         slot=$(printf "%02x" "$s")
-        echo "===== Testing ED25519 key in slot "$s"" >&3
+        echo "--- Testing ED25519 key in slot "$s" ---" >&3
     
         run "$BIN" --module "$MODULE" --login --login-type so --so-pin 010203040506070801020304050607080102030405060708 --keypairgen --id "$slot" --key-type EC:edwards25519
-        assert_success "Generate ED25519 keypair in slot "$s""
+          assert_success "Generate ED25519 keypair in slot "$s""
     
         run "$BIN" --module "$MODULE" --read-object --type cert --id "$slot" -o cert.der 
-        assert_success "Read certificate for slot "$s""
+          assert_success "Read certificate for slot "$s""
 
         run openssl x509 -inform DER -outform PEM -in cert.der -out cert.pem
-        assert_success "Convert certificate to PEM format"
+          assert_success "Convert certificate to PEM format"
 
         run openssl x509 -in cert.pem -pubkey -noout -out pubkey.pem
-        assert_success "Extract public key from certificate"
+          assert_success "Extract public key from certificate"
 
         run "$BIN" --module "$MODULE" --sign --pin 123456 --id "$slot" -m EDDSA --signature-format openssl -i data.txt -o data.sig
-        assert_success "Sign data with EDDSA"
+          assert_success "Sign data with EDDSA"
         run openssl pkeyutl -verify -pubin -inkey pubkey.pem -rawin -in data.txt -sigfile data.sig
-        assert_success "Verify signature with Openssl"
+          assert_success "Verify signature with Openssl"
     done
 }
 
@@ -195,22 +204,22 @@ setup_file(){
         echo "--- Testing RSA${k} in slot ${s} ---" >&3
 
         run "$BIN" --module "$MODULE" --login --login-type so --so-pin 010203040506070801020304050607080102030405060708 --keypairgen --id "$slot" --key-type rsa:"$k"
-        assert_success "Generate keypair"
+          assert_success "Generate keypair"
 
         run "$BIN" --module "$MODULE" --read-object --type cert --id "$slot" -o cert.der 
-        assert_success "Read certificate for slot "$s""
+          assert_success "Read certificate for slot "$s""
 
         run openssl x509 -inform DER -outform PEM -in cert.der -out cert.pem
-        assert_success "Convert certificate to PEM format"
+          assert_success "Convert certificate to PEM format"
 
         run openssl x509 -in cert.pem -pubkey -noout -out pubkey.pem
-        assert_success "Extract public key from certificate"
+          assert_success "Extract public key from certificate"
 
         for h in "${HASH_SIZES[@]}"; do
           run "$BIN" --module "$MODULE" --sign --pin 123456 --id "$slot" -m SHA"$h"-RSA-PKCS --signature-format openssl -i data.txt -o data.sig
-          assert_success "Sign data with SHA"$h"-RSA-PKCS"
+            assert_success "Sign data with SHA"$h"-RSA-PKCS"
           run openssl dgst -sha"$h" -verify pubkey.pem -signature data.sig data.txt 
-          assert_success "Verify signature"   
+            assert_success "Verify signature"   
         done
 
         for md in "${HASH_SIZES[@]}"; do
@@ -223,17 +232,17 @@ setup_file(){
             fi
 
             run openssl pkeyutl -encrypt -pubin -inkey pubkey.pem -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha"$md" -pkeyopt rsa_mgf1_md:sha"$mgf" -in data.txt -out data.oaep
-            assert_success "Encrypt data with OpenSSL using OAEP padding: SHA"$md" and MGF1-SHA$mgf"
+              assert_success "Encrypt data with OpenSSL using OAEP padding: SHA"$md" and MGF1-SHA$mgf"
 
             if [ "x$md" == "x1" ]; then
               run "$BIN" --module "$MODULE" --decrypt --pin 123456 --id "$slot" --hash-algorithm SHA-1 --mgf MGF1-SHA$mgf -m RSA-PKCS-OAEP -i data.oaep -o data.dec
-              assert_success "Decrypt data using YKCS11"
+                assert_success "Decrypt data using YKCS11"
             else
                 run "$BIN" --module "$MODULE" --decrypt --pin 123456 --id "$slot" --hash-algorithm SHA$md --mgf MGF1-SHA$mgf -m RSA-PKCS-OAEP -i data.oaep -o data.dec
-                assert_success "Decrypt data using YKCS11"
+                  assert_success "Decrypt data using YKCS11"
             fi
             run cmp data.txt data.dec
-            assert_success "Compare decrypted data with original"
+              assert_success "Compare decrypted data with original"
           done
         done
     done
@@ -242,8 +251,8 @@ setup_file(){
 
 @test "Testing RSA Tests" {
     run "$BIN" --module "$MODULE" --login --pin 123456 --test
+      assert_success "Final Test"
     echo "$output" >&3
-    assert_success "Final Test"
 }
 
 

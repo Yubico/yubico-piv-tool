@@ -22,7 +22,7 @@ Install dependencies:
 
 Run the tests:
 -   In the MSYS terminal change directory into (your path)/yubico-piv-tool/resources/tests
--   Run test with "bats cmdline_tests_o.bats" (which is a temporary test name)
+-   Run test with "bats cmdline_tests_o.bats"
 -   You can modify the test with the following environment variables:
 YUBICO_PIV_TOOL: Path to the yubico-piv-tool executable. (only change this if you encounter errors)
 SLOTS_MODE: Which slots to test ('ac', 'acde', or 'all'). Defaults to 'ac'
@@ -32,11 +32,9 @@ example: "SLOTS_MODE=all bats cmdline_tests_o.bats"
 
 In order to run the ykcs11 tests there are some additional things to do.
 -   Install OpenSC to your system 
--   In the normal windows command prompt run "where pkcs11-tool"
--   In the MSYS terminal run "nano ~/.bashrc" or edit in your preferred editor 
--   Add this line at the end of the file "export PATH=$PATH:"YOUR/PATH/COPIED/EARLIER"
--   Verify that the pkcs11-tool is recognized simply by running "pkcs11-tool", if "command not found". Please verify that the path earlier was inserted correctly into the bashrc file
 -   Run test with "bats ykcs11_tests.bats"
 -   You can modify the test with the following environment variables:
 SLOTS_MODE: Which slots to run tests on: 'ac' runs tests on slots 9a and 9c, 'acde' runs tests on slots 9a, 9c, 9d and 9e, 'all' runs tests on all slots"
 MODULE: Path to PKCS11 module.
+PKCS11_TOOL:   path to pkcs11-tool binary.
+EDIT_PATH: Adds BOTH the pkcs11-tool binary and libykcs11 module to path, only edit this if they aren't downloaded on default locations

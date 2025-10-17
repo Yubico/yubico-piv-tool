@@ -4,7 +4,6 @@
 
 load 'test_helper/bats-support/load'
 load 'test_helper/bats-assert/load'
-#load 'test_helper/bats-file/load'
 
 setup_file() {
 
@@ -37,12 +36,7 @@ setup_file() {
   mkdir BATS_TEST_DIR
   cd BATS_TEST_DIR
   echo "test signing data" > data.txt
-
-  # --- YubiKey Reset ---
-  #echo "**********************************"
-  #echo "        Resetting YubiKey..."
-  #echo "**********************************"
-  echo "This will reset your YubiKey, press ctrl + c to exit or y + enter to continue" >&3
+  echo "This will reset your YubiKey, press ctrl + c to exit or enter to continue" >&3
 
   if ! "$BIN" -areset --global >/dev/null 2>&1; then
     echo "Attempting manual reset" >&3
@@ -59,9 +53,9 @@ setup_file() {
     "$BIN" -achange-puk -P000000 -N00000000 || true
 
     "$BIN" -areset || true
-fi
+  fi
 
-set -e
+  set -e
 
   # Enable encrypted channel if requested, currently disabled
   args=()
@@ -94,9 +88,7 @@ set -e
   fi
 
   export EC_ALGOS_STR="ECCP256 ECCP384"
-
   export EC_CURVES_STR="prime256v1 secp384r1"
-
   export HASH_SIZES_STR="1 256 384 512"
 
   if [ "$enc_mode_lower" == "enc" ] && "$BIN" -a version; then
@@ -110,11 +102,6 @@ set -e
 
   echo "-----------------------------------------------" >&3
 }
-
-
-####################
-#      TESTS       #
-####################
 
 @test "Variables Check" {
     local RSA_KEYSIZE=($RSA_KEYSIZE_STR)
@@ -137,11 +124,12 @@ set -e
 
 @test "Elliptic Curve Key Tests (ECCP256, ECCP384)" {
     
-    local EC_ALGOS=($EC_ALGOS_STR)
-    local EC_CURVES=($EC_CURVES_STR)
-    local HASH_SIZES=($HASH_SIZES_STR)
-    local SLOTS=($SLOTS_STR)
-    local encryption=($args_string)
+  local EC_ALGOS=($EC_ALGOS_STR)
+  local EC_CURVES=($EC_CURVES_STR)
+  local HASH_SIZES=($HASH_SIZES_STR)
+  local SLOTS=($SLOTS_STR)
+  local encryption=($args_string)
+
   for i in "${!EC_ALGOS[@]}"; do
     local k=${EC_ALGOS[i]}
     local c=${EC_CURVES[i]}
@@ -150,28 +138,28 @@ set -e
       echo "--- Testing $k ($c) in slot $slot ---" >&3
       # --- Generate Key ---
       run "$BIN" "${encryption[@]}" -a generate -s"$slot" -A"$k" -o pubkey.pem
-      assert_success "Generate $k key in slot $slot"
+        assert_success "Generate $k key in slot $slot"
       
       run "$BIN" "${encryption[@]}" -a verify-pin -P123456 -s"$slot" -S"/CN=YubicoTest/OU=YubicoGeneratedECKey/O=yubico.com/" -aselfsign -i pubkey.pem -o cert.pem
-      assert_success "Self-sign certificate"
+        assert_success "Self-sign certificate"
 
       run "$BIN" "${encryption[@]}" -a import-certificate -P123456 -s"$slot" -i cert.pem
-      assert_success "Import certificate"
+        assert_success "Import certificate"
       
       run "$BIN" "${encryption[@]}" -a read-public-key -s"$slot" -o pubkey_gen.pub
-      assert_success "Read back public key"
+        assert_success "Read back public key"
 
       run cmp pubkey.pem pubkey_gen.pub
-      assert_success "Compare generated and retrieved public key"
+        assert_success "Compare generated and retrieved public key"
 
       run "$BIN" "${encryption[@]}" -a verify-pin -P123456 -s"$slot" -a test-signature -i cert.pem
-      assert_success "Test signature"
+        assert_success "Test signature"
 
       run "$BIN" "${encryption[@]}" -a verify-pin -P123456 -s"$slot" -a test-decipher -i cert.pem
-      assert_success "Test decryption"
+        assert_success "Test decryption"
 
       run "$BIN" "${encryption[@]}" -a attest -s"$slot"
-      assert_success "Attest private key"
+        assert_success "Attest private key"
 
       STATUS=$("$BIN" "${encryption[@]}" -a status)
       echo "$STATUS"
@@ -190,29 +178,29 @@ set -e
       # --- Signing with generated key ---
       for h in "${HASH_SIZES[@]}"; do
       run "$BIN" "${encryption[@]}" -a verify-pin -P123456 --sign -s "$slot" -A "$k" -H "SHA$h" -i data.txt -o data.sig
-      assert_success "Sign with SHA${h}-$k"
+        assert_success "Sign with SHA${h}-$k"
 
       run openssl dgst -sha"$h" -verify pubkey.pem -signature data.sig data.txt
-      assert_success "Verify signature with OpenSSL"
+        assert_success "Verify signature with OpenSSL"
       done
       # --- Import key into slot ---
       run openssl req -new -newkey ec -pkeyopt ec_paramgen_curve:$c -x509 -nodes -days 365 -subj "/CN=OpenSSLGeneratedECKey/" -out cert.pem -keyout key.pem
-      assert_success "Generate external key with OpenSSL"
+        assert_success "Generate external key with OpenSSL"
 
       run "$BIN" "${encryption[@]}" -a import-key -s"$slot" -i key.pem
-      assert_success "Import private key"
+        assert_success "Import private key"
 
       run "$BIN" "${encryption[@]}" -a import-certificate -s"$slot" -i cert.pem
-      assert_success "Import certificate for external key"
+        assert_success "Import certificate for external key"
 
       run "$BIN" "${encryption[@]}" -a read-public-key -s"$slot" -o pubkey.pem
-      assert_success "Get public key of imported key"
+        assert_success "Get public key of imported key"
 
       run "$BIN" "${encryption[@]}" -a verify-pin -P123456 -s"$slot" -a test-signature -i cert.pem
-      assert_success "Test signature of imported key"
+        assert_success "Test signature of imported key"
 
       run "$BIN" "${encryption[@]}" -a verify-pin -P123456 -s"$slot" -a test-decipher -i cert.pem
-      assert_success "Test decryption of imported key"
+        assert_success "Test decryption of imported key"
 
       # --- Read status and validate fields for imported key ---
       STATUS=$("$BIN" "${encryption[@]}" -astatus)
@@ -231,15 +219,15 @@ set -e
       # --- Signing with imported key ---
       for h in "${HASH_SIZES[@]}"; do
       run "$BIN" "${encryption[@]}" -a verify-pin -P123456 --sign -s $slot -A $k -H SHA$h -i data.txt -o data.sig 
-      assert_success "Sign with SHA${h}-$k using imported key"
+        assert_success "Sign with SHA${h}-$k using imported key"
 
       run openssl dgst -sha$h -verify pubkey.pem -signature data.sig data.txt
-      assert_success "Verify signature with OpenSSL"
+        assert_success "Verify signature with OpenSSL"
       done 
       # --- Clean up ---
       if [ "$NEWKEY_SUPPORTED" = "true" ]; then
         run "$BIN" "${encryption[@]}" -a delete-key -s"$slot"
-        assert_success "Delete key from slot $slot"
+          assert_success "Delete key from slot $slot"
       fi
     done
   done
@@ -250,32 +238,29 @@ set -e
   local SLOTS=($SLOTS_STR)
   local encryption=($args_string)
 
-
-  
-
   for slot in "${SLOTS[@]}"; do
     echo "--- Testing ED25519 in slot $slot ---" >&3
     # --- Generate Key ---
     run "$BIN" "${encryption[@]}" -a generate -s"$slot" -A ED25519 -o pubkey.pem
-    assert_success "Generate ED25519 key"
+      assert_success "Generate ED25519 key"
 
     run "$BIN" "${encryption[@]}" -a verify-pin -P123456 -s"$slot" -S'/CN=YubicoTest/OU=YubicoGeneratedEDKey/O=yubico.com/' -aselfsign -i pubkey.pem -o cert.pem
-    assert_success "Self-sign ED25519 certificate"
+      assert_success "Self-sign ED25519 certificate"
 
     run "$BIN" "${encryption[@]}" -a import-certificate -P123456 -s"$slot" -i cert.pem
-    assert_success "Import ED25519 certificate"
+      assert_success "Import ED25519 certificate"
     
     run "$BIN" "${encryption[@]}" -a read-public-key -s"$slot" -o pubkey_gen.pub
-    assert_success "Read back ED25519 public key"
+      assert_success "Read back ED25519 public key"
 
     run cmp pubkey.pem pubkey_gen.pub
-    assert_success "Compare generated and retrieved ED25519 public key"
+      assert_success "Compare generated and retrieved ED25519 public key"
 
     run "$BIN" "${encryption[@]}" -a verify-pin -P123456 -s"$slot" -a test-signature -i cert.pem
-    assert_success "Test ED25519 signature"
+      assert_success "Test ED25519 signature"
 
     run "$BIN" "${encryption[@]}" -a attest -s"$slot" -i $slot.pem
-    assert_success "Attest ED25519 private key"
+      assert_success "Attest ED25519 private key"
 
     # --- Read status and validate fields ---
     STATUS=$("$BIN" "${encryption[@]}" -astatus)
@@ -294,33 +279,33 @@ set -e
     fi
     # --- Signing with generated key ---
     run "$BIN" "${encryption[@]}" -a verify-pin -P123456 --sign -s"$slot" -A ED25519 -i data.txt -o data.sig
-    assert_success "Sign with ED25519"
+      assert_success "Sign with ED25519"
 
     run openssl pkeyutl -verify -pubin -inkey pubkey.pem -rawin -in data.txt -sigfile data.sig
-    assert_success "Verify signature with OpenSSL"
+      assert_success "Verify signature with OpenSSL"
 
     rm *.sig
     # --- Import key into slot ---
     run openssl genpkey -algorithm ED25519 -out key.pem
-    assert_success "Generate ED25519 key with OpenSSL"
+      assert_success "Generate ED25519 key with OpenSSL"
 
     run openssl req -new -out csr.pem -key key.pem  -subj "/CN=OpenSSLGeneratedEDKey/"
-    assert_success "Create CSR for OpenSSL ED25519 key"
+      assert_success "Create CSR for OpenSSL ED25519 key"
 
     run openssl x509 -req -days 365 -in csr.pem -signkey key.pem -out cert.pem 
-    assert_success "Sign certificate with OpenSSL"
+      assert_success "Sign certificate with OpenSSL"
 
     run "$BIN" "${encryption[@]}" -a import-key -s"$slot" -i key.pem
-    assert_success "Import ED25519 private key"
+      assert_success "Import ED25519 private key"
 
     run "$BIN" "${encryption[@]}" -a import-certificate -s"$slot" -i cert.pem
-    assert_success "Import ED25519 certificate"
+      assert_success "Import ED25519 certificate"
 
     run "$BIN" "${encryption[@]}" -a read-public-key -s"$slot" -o pubkey.pem
-    assert_success "Get public key"
+      assert_success "Get public key"
 
     run "$BIN" "${encryption[@]}" -a verify-pin -P123456 -s"$slot" -a test-signature -i cert.pem
-    assert_success "Test signature"
+      assert_success "Test signature"
 
     # --- Read status and validate fields ---
     STATUS=$("$BIN" "${encryption[@]}" -astatus)
@@ -341,28 +326,25 @@ set -e
 
     # --- Signing with imported key ---
     run "$BIN" "${encryption[@]}" -averify-pin -P123456 --sign -s"$slot" -A ED25519 -i data.txt -o data.sig
-    assert_success "Sign with ED25519 key"
+      assert_success "Sign with ED25519 key"
 
     run openssl pkeyutl -verify -pubin -inkey pubkey.pem -rawin -in data.txt -sigfile data.sig
-    assert_success "Verify signature with OpenSSL"
+      assert_success "Verify signature with OpenSSL"
 
     # --- Clean up ---
     if [ "$NEWKEY_SUPPORTED" = "true" ]; then
      run "$BIN" "${encryption[@]}" -a delete-key -s"$slot"
-     assert_success "Delete private key"
+      assert_success "Delete private key"
     fi
     
   done
 }
 
 @test "RSA Key Tests" {
-
-  # Rebuild arrays from the exported string variables from setup_file
   local RSA_KEYSIZE=($RSA_KEYSIZE_STR)
   local HASH_SIZES=($HASH_SIZES_STR)
   local SLOTS=($SLOTS_STR)
   local encryption=($args_string)
-
 
   for k in "${RSA_KEYSIZE[@]}"; do
     for slot in "${SLOTS[@]}"; do
@@ -370,32 +352,32 @@ set -e
 
       # === Generate key in slot ===
       run "$BIN" "${encryption[@]}" -a generate -s "$slot" -A "RSA$k" -o pubkey.pem
-      assert_success "Generate RSA${k} key in slot ${slot}"
+        assert_success "Generate RSA${k} key in slot ${slot}"
       
       run "$BIN" "${encryption[@]}" -a verify-pin -P123456 -s "$slot" -S '/CN=YubicoTest/OU=YubicoGeneratedRSAKey/O=yubico.com/' -a selfsign -i pubkey.pem -o cert.pem
-      assert_success "Self-sign certificate for RSA${k}"
+        assert_success "Self-sign certificate for RSA${k}"
       
       run "$BIN" "${encryption[@]}" -a import-certificate -s "$slot" -i cert.pem
-      assert_success "Import certificate for RSA${k}"
+        assert_success "Import certificate for RSA${k}"
+
       run "$BIN" "${encryption[@]}" -a read-public-key -s "$slot" -o pubkey_gen.pem
-      assert_success "Get public key"
+        assert_success "Get public key"
       
       run cmp pubkey.pem pubkey_gen.pem
-      assert_success "Compare generated and retrieved public key"
-        
+        assert_success "Compare generated and retrieved public key"
         
       run "$BIN" "${encryption[@]}" -a verify-pin -P 123456 -s "$slot" -a test-signature -i cert.pem
-      assert_success "Test signature"
+        assert_success "Test signature"
 
       run "$BIN" "${encryption[@]}" -a verify-pin -P 123456 -s "$slot" -a test-decipher -i cert.pem
-      assert_success "Test decryption"
+        assert_success "Test decryption"
       
       run "$BIN" "${encryption[@]}" -a attest -s "$slot" -i "$slot.pem"
-      assert_success "Attest private key"
+        assert_success "Attest private key"
 
       # --- Read status and validate fields ---
       run "$BIN" "${encryption[@]}" -a status
-      assert_success "Read device status"
+        assert_success "Read device status"
 
       local ALGO
       ALGO=$(echo "$output" | grep "Slot $slot" -A 6 | grep "Public Key Algorithm" | tr -d "[:blank:]")
@@ -407,31 +389,31 @@ set -e
       # === Signing with generated key ===
       for h in "${HASH_SIZES[@]}"; do
         run "$BIN" "${encryption[@]}" -a verify-pin -P123456 --sign -s $slot -A RSA$k -H SHA$h -i data.txt -o data.sig
-        assert_success "Sign with SHA${h}-RSA${k}"
+          assert_success "Sign with SHA${h}-RSA${k}"
         run openssl dgst -sha$h -verify pubkey.pem -signature data.sig data.txt
-        assert_success "Verify signature with OpenSSL"
+          assert_success "Verify signature with OpenSSL"
       done
       # === Import key into slot ===
       run openssl req -newkey rsa:"$k" -keyout key.pem -nodes -x509 -days 365 -subj "/CN=OpenSSLGeneratedRSAKey/" -out cert.pem
-      assert_success "Generate external RSA${k} key with OpenSSL"
+        assert_success "Generate external RSA${k} key with OpenSSL"
 
       run "$BIN" "${encryption[@]}" -a import-key -s "$slot" -i key.pem
-      assert_success "Import private key for RSA${k}"
+        assert_success "Import private key for RSA${k}"
       
       run "$BIN" "${encryption[@]}" -a import-certificate -s "$slot" -i cert.pem
-      assert_success "Import certificate for external key"
+        assert_success "Import certificate for external key"
 
       run "$BIN" "${encryption[@]}" -a read-public-key -s "$slot" -o pubkey.pem
-      assert_success "Get public key of imported key"
+        assert_success "Get public key of imported key"
 
       run "$BIN" "${encryption[@]}" -a verify-pin -P 123456 -s "$slot" -a test-signature -i cert.pem
-      assert_success "Test signature of imported key"
+        assert_success "Test signature of imported key"
 
       run "$BIN" "${encryption[@]}" -a verify-pin -P 123456 -s "$slot" -a test-decipher -i cert.pem
-      assert_success "Test decryption of imported key"
+        assert_success "Test decryption of imported key"
       # --- Read status and validate fields for imported key ---
       run "$BIN" "${encryption[@]}" -a status
-      assert_success "Read device status after import"
+        assert_success "Read device status after import"
 
       ALGO=$(echo "$output" | grep "Slot $slot" -A 6 | grep "Public Key Algorithm" | tr -d "[:blank:]")
       assert_equal "$ALGO" "PublicKeyAlgorithm:RSA$k"
@@ -442,15 +424,15 @@ set -e
       # === Signing with imported key ===
       for h in "${HASH_SIZES[@]}"; do
         run "$BIN" "${encryption[@]}" -a verify-pin -P123456 --sign -s "$slot" -A "RSA$k" -H "SHA$h" -i data.txt -o data.sig
-        assert_success "Sign with SHA${h}-RSA${k} using imported key"
+          assert_success "Sign with SHA${h}-RSA${k} using imported key"
         run openssl dgst -sha"$h" -verify pubkey.pem -signature data.sig data.txt
-        assert_success "Verify signature with OpenSSL"
+          assert_success "Verify signature with OpenSSL"
       done
 
       # === Clean up ===
       if [ "$NEWKEY_SUPPORTED" = "true" ]; then
         run "$BIN" "${encryption[@]}" -a delete-key -s "$slot"
-        assert_success "Delete key from slot ${slot}"
+          assert_success "Delete key from slot ${slot}"
       fi
     done
   done
@@ -465,14 +447,14 @@ set -e
   long_subject+="/OU=DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD"
 
   run openssl req -x509 -newkey rsa:2048 -keyout key.pem -out too_large_cert.pem -sha256 -days 3650 -nodes -subj "$long_subject"
-  assert_success "Generate large certificate"
+    assert_success "Generate large certificate"
 
   run "$BIN" "${encryption[@]}" -aimport-certificate -s9a --compress -i too_large_cert.pem
-  assert_success "Import compressed certificate"
+    assert_success "Import compressed certificate"
 
   run "$BIN" "${encryption[@]}" -aread-certificate -s9a -o too_large_cert_out.pem
-  assert_success "Read back compressed certificate"
+    assert_success "Read back compressed certificate"
 
   run cmp too_large_cert.pem too_large_cert_out.pem
-  assert_success "Compare read certificate with the one imported"
+    assert_success "Compare read certificate with the one imported"
 }
