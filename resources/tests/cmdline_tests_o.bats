@@ -15,14 +15,14 @@ setup_file() {
   echo "-----------------------------------------------" >&3
 
   local default_bin_path="yubico-piv-tool"
-  local winpath
-  winpath=$(uname -o) 
+  local os
+  os=$(uname -o) 
 
-  if [[ "$winpath" == "Msys" ]]; then
+  if [[ "$os" == "Msys" ]]; then
     default_bin_path="/c/Program Files/Yubico/Yubico PIV Tool/bin/yubico-piv-tool.exe"
     export MSYS2_ARG_CONV_EXCL=* # To prevent path conversion by MSYS2
 
-  elif [[ "$winpath" == "GNU/Linux" || "$winpath" == "Darwin" ]]; then
+  elif [[ "$os" == "GNU/Linux" || "$os" == "Darwin" ]]; then
     default_bin_path="/usr/local/bin/yubico-piv-tool"
   fi
 
@@ -35,27 +35,6 @@ setup_file() {
   fi
   mkdir BATS_TEST_DIR
   cd BATS_TEST_DIR
-  echo "test signing data" > data.txt
-  echo "This will reset your YubiKey, press ctrl + c to exit or enter to continue" >&3
-
-  if ! "$BIN" -areset --global >/dev/null 2>&1; then
-    echo "Attempting manual reset" >&3
-
-    "$BIN" -averify-pin -P000000 || true
-    "$BIN" -averify-pin -P000000 || true
-    "$BIN" -averify-pin -P000000 || true
-    "$BIN" -averify-pin -P000000 || true
-    "$BIN" -averify-pin -P000000 || true
-    "$BIN" -achange-puk -P000000 -N00000000 || true
-    "$BIN" -achange-puk -P000000 -N00000000 || true
-    "$BIN" -achange-puk -P000000 -N00000000 || true
-    "$BIN" -achange-puk -P000000 -N00000000 || true
-    "$BIN" -achange-puk -P000000 -N00000000 || true
-
-    "$BIN" -areset || true
-  fi
-
-  set -e
 
   # Enable encrypted channel if requested, currently disabled
   args=()
@@ -96,30 +75,42 @@ setup_file() {
     if [ "$status" -ne 0 ]; then
       echo "Error: The encrypted channel check failed." >&3
       echo "This might mean the --enc feature is not supported by the Yubikey." >&3
-      return 1
     fi
   fi
 
+  echo "Variables check" >&3
+  echo "BIN: "$BIN"" >&3
+  echo "Slots: ${SLOTS[@]} " >&3
+  echo "Encryption: ${encryption[*]}" >&3
+  echo "Newkey: $NEWKEY_SUPPORTED" >&3
+  echo "RSA Key Sizes to test: ${RSA_KEYSIZE[@]}" >&3
+  echo "EC curves: ${EC_CURVES[*]}" >&3
+  echo "Hash sizes: ${HASH_SIZES[*]}" >&3
+  echo "EC algos: ${EC_ALGOS[*]}" >&3
+
+  echo "test signing data" > data.txt
+  echo "This will reset your YubiKey, press ctrl + c to exit or enter to continue" >&3
+
+  if ! "$BIN" -areset --global >/dev/null 2>&1; then
+    echo "Attempting manual reset" >&3
+
+    "$BIN" -averify-pin -P000000 || true
+    "$BIN" -averify-pin -P000000 || true
+    "$BIN" -averify-pin -P000000 || true
+    "$BIN" -averify-pin -P000000 || true
+    "$BIN" -averify-pin -P000000 || true
+    "$BIN" -achange-puk -P000000 -N00000000 || true
+    "$BIN" -achange-puk -P000000 -N00000000 || true
+    "$BIN" -achange-puk -P000000 -N00000000 || true
+    "$BIN" -achange-puk -P000000 -N00000000 || true
+    "$BIN" -achange-puk -P000000 -N00000000 || true
+
+    "$BIN" -areset || true
+  fi
+
+  set -e
+
   echo "-----------------------------------------------" >&3
-}
-
-@test "Variables Check" {
-    local RSA_KEYSIZE=($RSA_KEYSIZE_STR)
-    local EC_ALGOS=($EC_ALGOS_STR)
-    local EC_CURVES=($EC_CURVES_STR)
-    local HASH_SIZES=($HASH_SIZES_STR)
-    local SLOTS=($SLOTS_STR)
-    local encryption=($args_string)
-    
-    echo "Newkey: $NEWKEY_SUPPORTED" >&3
-    echo "EC curves: ${EC_CURVES[*]}" >&3
-    echo "Hash sizes: ${HASH_SIZES[*]}" >&3
-    echo "EC algos: ${EC_ALGOS[*]}" >&3
-    echo "RSA Key Sizes to test: ${RSA_KEYSIZE[@]}" >&3
-    echo "Slots: ${SLOTS[@]} " >&3
-    echo "BIN: "$BIN"" >&3
-    echo "Encryption: ${encryption[*]}" >&3
-
 }
 
 @test "Elliptic Curve Key Tests (ECCP256, ECCP384)" {
@@ -146,9 +137,11 @@ setup_file() {
       run "$BIN" "${encryption[@]}" -a import-certificate -P123456 -s"$slot" -i cert.pem
         assert_success "Import certificate"
       
-      run "$BIN" "${encryption[@]}" -a read-public-key -s"$slot" -o pubkey_gen.pub
+      if [[ $("$BIN" "${encryption[@]}" -a status | grep "Version" ) == *"Version:"*"5"* ]]; then
+        run "$BIN" "${encryption[@]}" -a read-public-key -s"$slot" -o pubkey_gen.pub
         assert_success "Read back public key"
-
+      fi
+      
       run cmp pubkey.pem pubkey_gen.pub
         assert_success "Compare generated and retrieved public key"
 
@@ -193,9 +186,11 @@ setup_file() {
       run "$BIN" "${encryption[@]}" -a import-certificate -s"$slot" -i cert.pem
         assert_success "Import certificate for external key"
 
-      run "$BIN" "${encryption[@]}" -a read-public-key -s"$slot" -o pubkey.pem
+      if [[ $("$BIN" "${encryption[@]}" -a status | grep "Version" ) == *"Version:"*"5"* ]]; then
+        run "$BIN" "${encryption[@]}" -a read-public-key -s"$slot" -o pubkey.pem
         assert_success "Get public key of imported key"
-
+      fi
+      
       run "$BIN" "${encryption[@]}" -a verify-pin -P123456 -s"$slot" -a test-signature -i cert.pem
         assert_success "Test signature of imported key"
 
@@ -234,7 +229,7 @@ setup_file() {
 }
 
 @test "ED25519 Key Tests" {
-  [ "$NEWKEY_SUPPORTED" = true ] || skip "ED25519 not supported on this YubiKey $NEWKEY_SUPPORTED"
+  [ "$NEWKEY_SUPPORTED" = true ] || skip "ED25519 not supported on this YubiKey"
   local SLOTS=($SLOTS_STR)
   local encryption=($args_string)
 
@@ -250,9 +245,11 @@ setup_file() {
     run "$BIN" "${encryption[@]}" -a import-certificate -P123456 -s"$slot" -i cert.pem
       assert_success "Import ED25519 certificate"
     
-    run "$BIN" "${encryption[@]}" -a read-public-key -s"$slot" -o pubkey_gen.pub
-      assert_success "Read back ED25519 public key"
-
+    if [[ $("$BIN" "${encryption[@]}" -a status | grep "Version" ) == *"Version:"*"5"* ]]; then
+      run "$BIN" "${encryption[@]}" -a read-public-key -s"$slot" -o pubkey_gen.pub #Funkar bara på 5.0 och uppåt
+        assert_success "Read back ED25519 public key"
+    fi    
+    
     run cmp pubkey.pem pubkey_gen.pub
       assert_success "Compare generated and retrieved ED25519 public key"
 
@@ -301,8 +298,10 @@ setup_file() {
     run "$BIN" "${encryption[@]}" -a import-certificate -s"$slot" -i cert.pem
       assert_success "Import ED25519 certificate"
 
-    run "$BIN" "${encryption[@]}" -a read-public-key -s"$slot" -o pubkey.pem
-      assert_success "Get public key"
+    if [[ $("$BIN" "${encryption[@]}" -a status | grep "Version" ) == *"Version:"*"5"* ]]; then
+      run "$BIN" "${encryption[@]}" -a read-public-key -s"$slot" -o pubkey.pem
+        assert_success "Get public key"
+    fi 
 
     run "$BIN" "${encryption[@]}" -a verify-pin -P123456 -s"$slot" -a test-signature -i cert.pem
       assert_success "Test signature"
@@ -360,8 +359,10 @@ setup_file() {
       run "$BIN" "${encryption[@]}" -a import-certificate -s "$slot" -i cert.pem
         assert_success "Import certificate for RSA${k}"
 
-      run "$BIN" "${encryption[@]}" -a read-public-key -s "$slot" -o pubkey_gen.pem
-        assert_success "Get public key"
+      if [[ $("$BIN" "${encryption[@]}" -a status | grep "Version" ) == *"Version:"*"5"* ]]; then
+        run "$BIN" "${encryption[@]}" -a read-public-key -s "$slot" -o pubkey_gen.pem
+          assert_success "Get public key"
+      fi 
       
       run cmp pubkey.pem pubkey_gen.pem
         assert_success "Compare generated and retrieved public key"
@@ -403,9 +404,11 @@ setup_file() {
       run "$BIN" "${encryption[@]}" -a import-certificate -s "$slot" -i cert.pem
         assert_success "Import certificate for external key"
 
-      run "$BIN" "${encryption[@]}" -a read-public-key -s "$slot" -o pubkey.pem
-        assert_success "Get public key of imported key"
-
+      if [[ $("$BIN" "${encryption[@]}" -a status | grep "Version" ) == *"Version:"*"5"* ]]; then
+        run "$BIN" "${encryption[@]}" -a read-public-key -s "$slot" -o pubkey.pem
+          assert_success "Get public key of imported key"
+      fi 
+      
       run "$BIN" "${encryption[@]}" -a verify-pin -P 123456 -s "$slot" -a test-signature -i cert.pem
         assert_success "Test signature of imported key"
 

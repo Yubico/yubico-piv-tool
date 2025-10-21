@@ -4,6 +4,7 @@ WARNING: Data on the YubiKey will be overwritten.
 
 Running BATS script on Windows through MSYS2:
 In order to run the BATS (bash automated testing system) scripts you need to follow the steps below.
+If you only did "git clone" to get this repository you also need to do "git submodule update --init --recursive" in order for the BATS submodlues to load correctly
 
 Install MSYS2:
 -   Download the installer through "https://www.msys2.org/" and run the MSYS terminal (default is UCRT64).
@@ -37,4 +38,4 @@ In order to run the ykcs11 tests there are some additional things to do.
 SLOTS_MODE: Which slots to run tests on: 'ac' runs tests on slots 9a and 9c, 'acde' runs tests on slots 9a, 9c, 9d and 9e, 'all' runs tests on all slots"
 MODULE: Path to PKCS11 module.
 PKCS11_TOOL:   path to pkcs11-tool binary.
-EDIT_PATH: Adds BOTH the pkcs11-tool binary and libykcs11 module to path, only edit this if they aren't downloaded on default locations
+EDIT_PATH: Adds BOTH the pkcs11-tool binary and libykcs11 module to path, only edit this if they aren't downloaded on default locations, using ":" as delimiter

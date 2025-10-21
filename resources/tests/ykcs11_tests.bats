@@ -12,28 +12,24 @@ setup_file(){
   echo "SLOTS_MODE:    Which slots to run tests on: 'ac' runs tests on slots 9a and 9c, 'acde' runs tests on slots 9a, 9c, 9d and 9e, 'all' runs tests on all slots" >&3
   echo "MODULE:        path to PKCS11 module." >&3
   echo "PKCS11_TOOL:   path to pkcs11-tool binary." >&3
+  echo "EDIT_PATH:     (Windows/msys only) Add BOTH the pkcs11-tool binary and libykcs11 module to path. With a delimiter ":". Example: export EDIT_PATH='C:\Path\To\OpenSC\tools:C:\Path\To\Yubico PIV Tool\bin" >&3
   echo "-----------------------------------------------" >&3
 
-  local default_module_path="../../../build/ykcs11/libykcs11.dylib"
+  local default_module_path
   local os=$(uname -o)
 
-  if [ "x$os" = "xMsys" ]; then
-    echo "This script expects that the pkcs11-tool from OpenSC is installed under "C:\Program Files\OpenSC Project\OpenSC\tools" and that libykcs11 module is installed under "C:\Program Files\Yubico\Yubico PIV Tool\bin" "
-    echo "If that is not the case, please point to the correct locations via the environment variable EDIT_PATH"
-    echo "Example: export EDIT_PATH='C:\Path\To\OpenSC\tools:C:\Path\To\Yubico PIV Tool\bin' "
-    
+  if [ "x$os" = "xMsys" ]; then    
     export MSYS2_ARG_CONV_EXCL=* # To prevent path conversion by MSYS2
     if ! [ -z "$EDIT_PATH" ]; then
-        # Adds specified pkcs11-tool and module path to PATH
-        export PATH="$PATH:"$EDIT_PATH""
+      # Adds specified pkcs11-tool and module path to PATH
+      export PATH="$PATH:"$EDIT_PATH""
     else
-        # Adds pkcs11-tool to PATH
-        export PATH="$PATH:C:\Program Files\OpenSC Project\OpenSC\tools"
-        default_module_path="C:\Program Files\Yubico\Yubico PIV Tool\bin\libykcs11.dll"
+      # Adds pkcs11-tool to PATH
+      export PATH="$PATH:C:\Program Files\OpenSC Project\OpenSC\tools"
+      default_module_path="C:\Program Files\Yubico\Yubico PIV Tool\bin\libykcs11.dll"
     fi
   elif [["$os" == "Darwin" ]]; then
     default_module_path="/usr/local/lib/libykcs11.dylib"
-
   elif [["$os" == "GNU/Linux" ]]; then
     default_module_path="/usr/local/lib/libykcs11.so"
   fi
@@ -41,11 +37,6 @@ setup_file(){
   export BIN="${PKCS11_TOOL:-pkcs11-tool}"
   export SLOTS_MODE="${SLOTS_MODE:-ac}"
   export MODULE="${MODULE:-$default_module_path}"
-
-  if ! "$BIN" --module "$MODULE" --list-slots >/dev/null 2>&1; then
-    echo "Module "$MODULE" not found or not executable" >&3
-    exit 1
-  fi
    
   if [ -e BATS_TEST_DIR ]; then
     rm -rf BATS_TEST_DIR
@@ -54,12 +45,6 @@ setup_file(){
   mkdir BATS_TEST_DIR
   cd BATS_TEST_DIR
   echo "test signing data" > data.txt
-
-  echo "" >&3
-  echo "WARNING! This test script can overwrite any existing YubiKey content" >&3
-  echo "" >&3
-  echo "Press Enter to continue or Ctrl-C to abort" >&3
-  read -p ""
 
   # --- Define Test Parameters ---
   slots_mode_lower=$(echo "$SLOTS_MODE" | tr '[:upper:]' '[:lower:]')
@@ -74,9 +59,9 @@ setup_file(){
     export NEWKEY_SUPPORTED=true
   fi
 
-  RSA_KEYSIZE_STR=("1024 2048")
+  RSA_KEYSIZE_STR="1024 2048"
   if [ "$NEWKEY_SUPPORTED" = true ]; then
-    RSA_KEYSIZE+=" 3072 4096"
+    RSA_KEYSIZE_STR+=" 3072 4096"
   fi
   export SLOTS
   export RSA_KEYSIZE_STR
@@ -84,27 +69,22 @@ setup_file(){
   export EC_CURVES_STR="prime256v1 secp384r1"
   export HASH_SIZES_STR="1 256 384 512"
 
+  echo "Variables Check" >&3
+  echo "pkcs11: "$BIN"" >&3
+  echo "Module: "$MODULE"" >&3
+  echo "Slots: $SLOTS" >&3
+  echo "Newkey: $NEWKEY_SUPPORTED" >&3
+  echo "RSA Key Sizes to test: $RSA_KEYSIZE_STR" >&3
+  echo "EC curves: $EC_CURVES_STR" >&3
+  echo "Hash sizes: $HASH_SIZES_STR" >&3
+  echo "EC algos: $EC_ALGOS_STR" >&3
+  
   echo "-----------------------------------------------" >&3
-}
-
-@test "Variables Check" {
-    local RSA_KEYSIZE=($RSA_KEYSIZE_STR)
-    local EC_ALGOS=($EC_ALGOS_STR)
-    local EC_CURVES=($EC_CURVES_STR)
-    local HASH_SIZES=($HASH_SIZES_STR)
-    
-    echo "Newkey: $NEWKEY_SUPPORTED" >&3
-    echo "EC curves: ${EC_CURVES[*]}" >&3
-    echo "Hash sizes: ${HASH_SIZES[*]}" >&3
-    echo "EC algos: ${EC_ALGOS[*]}" >&3
-    echo "RSA Key Sizes to test: ${RSA_KEYSIZE[@]}" >&3
-    echo "Slots: $SLOTS" >&3
-    echo "Slots Mode: $SLOTS_MODE" >&3
-    echo "BIN: "$BIN"" >&3
-    echo "Module: "$MODULE"" >&3
-
-    echo "-----------------------------------------------" >&3
-
+  echo "" >&3
+  echo "WARNING! This test script can overwrite any existing YubiKey content" >&3
+  echo "" >&3
+  echo "Press Enter to continue or Ctrl-C to abort" >&3
+  read -p ""
 }
 
 @test "Elliptic Curve Key Tests (prime256v1, secp384r1)" {
