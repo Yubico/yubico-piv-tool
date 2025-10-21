@@ -3736,6 +3736,9 @@ CK_DEFINE_FUNCTION(CK_RV, C_DeriveKey)(
     case YKPIV_ALGO_ECCP384:
       size = 97;
       break;
+    case YKPIV_ALGO_X25519:
+      size = 32;
+      break;
     default:
       DBG("Key handle %lu is not an ECDH private key", hBaseKey);
       return CKR_KEY_TYPE_INCONSISTENT;
