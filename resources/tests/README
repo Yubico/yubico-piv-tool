@@ -3,39 +3,28 @@ These scripts are just example usage. They are mostly used by developers to test
 WARNING: Data on the YubiKey will be overwritten.
 
 Running BATS script on Windows through MSYS2:
-In order to run the BATS (bash automated testing system) scripts you need to follow the steps below.
-If you only did "git clone" to get this repository you also need to do "git submodule update --init --recursive" in order for the BATS submodlues to load correctly
+In order to run the BATS (bash automated testing system) scripts, follow the steps below.
+When using it for the first time, run "git submodule update --init --recursive" in order for the BATS submodlues to load correctly
 
-Install MSYS2:
+Installing MSYS2:
 -   Download the installer through "https://www.msys2.org/" and run the MSYS terminal (default is UCRT64).
-You may need to do a system update with the command "pacman -Syu" and close then reopen the terminal.
+A system update may be needed with the command "pacman -Syu". Close then reopen the terminal.
 
 Download BATS:
--   Create a directory in which you will download the bats-core source code.
+-   Create a directory to download the bats-core source code to.
 -   Clone the repository "git clone https://github.com/bats-core/bats-core.git"
 -   Run the installation script "cd bats-core" and "./install.sh /usr/local"
 -   Verify that BATS was correctly installed with "bats --version"
 
 Install dependencies:
--   If "diffutils" and "openssl" aren't already installed on your system install them
--   Can check if installed by "diff --version" and "openssl --version"
+-   If "diffutils" and "openssl" aren't already installed on the system, install them
+-   Verify installation by running "diff --version" and "openssl --version"
 -   If not installed, install with "pacman -S diffutils openssl"
 
 Run the tests:
--   In the MSYS terminal change directory into (your path)/yubico-piv-tool/resources/tests
--   Run test with "bats cmdline_tests.bats"
--   You can modify the test with the following environment variables:
-YUBICO_PIV_TOOL: Path to the yubico-piv-tool executable. (only change this if you encounter errors)
-SLOTS_MODE: Which slots to test ('ac', 'acde', or 'all'). Defaults to 'ac'
-ENC_MODE: Set to 'enc' to run tests over an encrypted channel.
+-   In the MSYS terminal, change directory to /path/to/yubico-piv-tool/resources/tests
+-   Run test with "bats cmdline_tests.bats" or "bats ykcs11_tests.bats"
+-   Test can be modified with environment variables. Help text will be displayed when running the tests
+-   ykcs11_tests require OpenSC to be installed
 
 example: "SLOTS_MODE=all bats cmdline_tests.bats"
-
-In order to run the ykcs11 tests there are some additional things to do.
--   Install OpenSC to your system 
--   Run test with "bats ykcs11_tests.bats"
--   You can modify the test with the following environment variables:
-SLOTS_MODE: Which slots to run tests on: 'ac' runs tests on slots 9a and 9c, 'acde' runs tests on slots 9a, 9c, 9d and 9e, 'all' runs tests on all slots"
-MODULE: Path to PKCS11 module.
-PKCS11_TOOL:   path to pkcs11-tool binary.
-EDIT_PATH: Adds BOTH the pkcs11-tool binary and libykpiv module to path, only edit this if they aren't downloaded on default locations, using ":" as delimiter

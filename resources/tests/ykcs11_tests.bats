@@ -12,7 +12,7 @@ setup_file(){
   echo "SLOTS_MODE:    Which slots to run tests on: 'ac' runs tests on slots 9a and 9c, 'acde' runs tests on slots 9a, 9c, 9d and 9e, 'all' runs tests on all slots" >&3
   echo "MODULE:        path to PKCS11 module." >&3
   echo "PKCS11_TOOL:   path to pkcs11-tool binary." >&3
-  echo "EDIT_PATH:     (Windows/msys only) Add BOTH the pkcs11-tool binary and libykcs11 module to path. With a delimiter ":". Example: export EDIT_PATH='C:\Path\To\OpenSC\tools:C:\Path\To\Yubico PIV Tool\bin" >&3
+  echo "EDIT_PATH:     (Windows/msys only) Add BOTH the pkcs11-tool binary and libykpiv to path. With a delimiter ":". Example: export EDIT_PATH='C:\Path\To\OpenSC\tools:C:\Path\To\Yubico PIV Tool\bin" >&3
   echo "-----------------------------------------------" >&3
 
   local default_module_path
