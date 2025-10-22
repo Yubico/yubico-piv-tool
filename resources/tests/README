@@ -1,3 +1,30 @@
 These scripts are just example usage. They are mostly used by developers to test functionality and they require a YubiKey to be plugged in.
 
 WARNING: Data on the YubiKey will be overwritten.
+
+Running BATS script on Windows through MSYS2:
+In order to run the BATS (bash automated testing system) scripts, follow the steps below.
+When using it for the first time, run "git submodule update --init --recursive" in order for the BATS submodlues to load correctly
+
+Installing MSYS2:
+-   Download the installer through "https://www.msys2.org/" and run the MSYS terminal (default is UCRT64).
+A system update may be needed with the command "pacman -Syu". Close then reopen the terminal.
+
+Download BATS:
+-   Create a directory to download the bats-core source code to.
+-   Clone the repository "git clone https://github.com/bats-core/bats-core.git"
+-   Run the installation script "cd bats-core" and "./install.sh /usr/local"
+-   Verify that BATS was correctly installed with "bats --version"
+
+Install dependencies:
+-   If "diffutils" and "openssl" aren't already installed on the system, install them
+-   Verify installation by running "diff --version" and "openssl --version"
+-   If not installed, install with "pacman -S diffutils openssl"
+
+Run the tests:
+-   In the MSYS terminal, change directory to /path/to/yubico-piv-tool/resources/tests
+-   Run test with "bats cmdline_tests.bats" or "bats ykcs11_tests.bats"
+-   Test can be modified with environment variables. Help text will be displayed when running the tests
+-   ykcs11_tests require OpenSC to be installed
+
+example: "SLOTS_MODE=all bats cmdline_tests.bats"
