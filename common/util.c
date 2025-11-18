@@ -369,6 +369,7 @@ int get_slot_hex(enum enum_slot slot_enum) {
     case slot_arg_93:
     case slot_arg_94:
     case slot_arg_95:
+    case slot_arg_96:
       slot = 0x82 + ((int)slot_enum - (int)slot_arg_82);
       break;
     case slot_arg_f9:

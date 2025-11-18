@@ -37,7 +37,7 @@ option "action" a "Action to take" values="version","generate","set-mgm-key",
 text   "
        Multiple actions may be given at once and will be executed in order
        for example --action=verify-pin --action=request-certificate\n"
-option "slot" s "What key slot to operate on" values="9a","9c","9d","9e","82","83","84","85","86","87","88","89","8a","8b","8c","8d","8e","8f","90","91","92","93","94","95","f9" enum optional
+option "slot" s "What key slot to operate on" values="9a","9c","9d","9e","82","83","84","85","86","87","88","89","8a","8b","8c","8d","8e","8f","90","91","92","93","94","95","96","f9" enum optional
 text   "
        9a is for PIV Authentication
        9c is for Digital Signature (PIN always checked)
@@ -45,7 +45,7 @@ text   "
        9e is for Card Authentication (PIN never checked)
        82-95 is for Retired Key Management
        f9 is for Attestation\n"
-option "to-slot" - "What slot to move an existing key to" values="9a","9c","9d","9e","82","83","84","85","86","87","88","89","8a","8b","8c","8d","8e","8f","90","91","92","93","94","95","f9" enum optional
+option "to-slot" - "What slot to move an existing key to" values="9a","9c","9d","9e","82","83","84","85","86","87","88","89","8a","8b","8c","8d","8e","8f","90","91","92","93","94","95","96","f9" enum optional
 text   "
        9a is for PIV Authentication
        9c is for Digital Signature (PIN always checked)
