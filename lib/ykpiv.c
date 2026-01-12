@@ -2878,6 +2878,11 @@ bool is_version_compatible(ykpiv_state *state, uint8_t major, uint8_t minor, uin
   }
 #endif
 
+  // Beta devices are always assigned version 0.0.1
+  if (state->ver.major == 0 && state->ver.minor == 0 && state->ver.patch == 1) {
+    return true;
+  }
+
   return state->ver.major > major ||
          (state->ver.major == major && state->ver.minor > minor) ||
          (state->ver.major == major && state->ver.minor == minor && state->ver.patch >= patch);
