@@ -1670,6 +1670,10 @@ static bool change_pin(ykpiv_state *state, enum enum_action action, const char *
       }
       return false;
 
+    case YKPIV_CONDITION_ERROR:
+        fprintf(stderr, "ERROR: PIN does not meet complexity requirement.\n");
+        return false;
+
     default:
       fprintf(stderr, "Failed changing/unblocking code, error: %s\n", ykpiv_strerror(res));
       return false;
