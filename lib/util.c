@@ -1485,25 +1485,67 @@ invalid_tlv:
      zs.zalloc = Z_NULL;
      zs.zfree = Z_NULL;
      zs.opaque = Z_NULL;
-     zs.avail_in = (uInt) cert_len;
-     zs.next_in = (Bytef *) certptr;
      zs.avail_out = (uInt) *certdata_len;
      zs.next_out = (Bytef *) certdata;
+     uint16_t expected_len = 0;
 
-     if (inflateInit2(&zs, MAX_WBITS | 16) != Z_OK) {
-       DBG("Failed to initialize certificate decompression");
+     if (cert_len >= 2 && certptr[0] == 0x1f && certptr[1] == 0x8b) { // Gzip most commonly used compression
+       zs.avail_in = (uInt) cert_len;
+       zs.next_in = (Bytef *) certptr;
+
+       if (inflateInit2(&zs, MAX_WBITS | 16) != Z_OK) {
+         DBG("Failed to initialize certificate decompression");
+         *certdata_len = 0;
+         return YKPIV_INVALID_OBJECT;
+       }
+     } else if (cert_len >= 3 &&
+                (certptr[0] == TAG_CERT || (certptr[0] == 0x01 && certptr[1] == 0x00))) { // could be a compressed certificate inside another TLV layer
+
+       if (certptr[0] == TAG_CERT) {
+         certptr++; // skip the cert tag to get to length
+         size_t len = 0;
+         size_t offs = _ykpiv_get_length(certptr, certptr + cert_len, &len);
+         if (!offs) {
+           DBG("Failed to decompress certificate. Found invalid length for tag 0x%02x.", TAG_CERT);
+           *certdata_len = 0;
+           return YKPIV_INVALID_OBJECT;
+         }
+         certptr += offs; // move to after length bytes
+         cert_len = len;
+       }
+
+       if (certptr[0] != 0x01 || certptr[1] != 0x00) {
+         DBG("Failed to decompress certificate. Invalid compression header: 0x%02x 0x%02x", certptr[0], certptr[1]);
+         *certdata_len = 0;
+         return YKPIV_INVALID_OBJECT;
+       }
+
+       // Compression format: 0x01 0x00 + 2-byte little-endian length + zlib compressed data
+       expected_len = (uint16_t) certptr[2] | ((uint16_t) certptr[3] << 8);
+
+       zs.avail_in = (uInt) (cert_len - 4);  // Skip the 4-byte header
+       zs.next_in = (Bytef *) (certptr + 4);
+       if (inflateInit2(&zs, MAX_WBITS) != Z_OK) {
+         DBG("Failed to initialize certificate decompression");
+         *certdata_len = 0;
+         return YKPIV_INVALID_OBJECT;
+       }
+
+     } else {
+       DBG("Unknown compression format. Magic bytes: 0x%02x 0x%02x", certptr[0], certptr[1]);
        *certdata_len = 0;
        return YKPIV_INVALID_OBJECT;
      }
 
      int res = inflate(&zs, Z_FINISH);
      if (res != Z_STREAM_END) {
+       inflateEnd(&zs);
        *certdata_len = 0;
        if (res == Z_BUF_ERROR) {
          DBG("Failed to decompress certificate. Allocated buffer is too small");
          return YKPIV_SIZE_ERROR;
        }
-       DBG("Failed to decompress certificate");
+       DBG("Failed to decompress certificate: %d", res);
        return YKPIV_INVALID_OBJECT;
      }
      if (inflateEnd(&zs) != Z_OK) {
@@ -1511,6 +1553,13 @@ invalid_tlv:
        *certdata_len = 0;
        return YKPIV_INVALID_OBJECT;
      }
+
+     if (expected_len > 0 && zs.total_out != expected_len) {
+       DBG("Decompressed data length mismatch. Expected %u, got %lu", expected_len, zs.total_out);
+       *certdata_len = 0;
+       return YKPIV_INVALID_OBJECT;
+     }
+
      *certdata_len = zs.total_out;
 #else
      DBG("Found compressed certificate. Decompressing certificate not supported");
