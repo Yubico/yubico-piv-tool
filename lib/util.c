@@ -1457,7 +1457,7 @@ decompress_data(const uint8_t *compressed_data, size_t compressed_len, uint8_t *
   // 'MAX_WBITS' is the window bits. '0x20' tells zlib to use gzip or zlib format for decompression
   if (inflateInit2(&zs, (MAX_WBITS | 0x20)) != Z_OK) {
     DBG("Failed to initialize decompression");
-    return YKPIV_INVALID_OBJECT;
+    return YKPIV_GENERIC_ERROR;
   }
 
   int res = inflate(&zs, Z_FINISH);
