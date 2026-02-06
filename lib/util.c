@@ -1432,8 +1432,7 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
 #ifdef USE_CERT_COMPRESS
 
  static ykpiv_rc
- decompress_data(const uint8_t *compressed_data, size_t compressed_len, uint8_t *output_data, size_t *output_len,
-                 int windowbits) {
+ decompress_data(const uint8_t *compressed_data, size_t compressed_len, uint8_t *output_data, size_t *output_len) {
    z_stream zs;
    zs.zalloc = Z_NULL;
    zs.zfree = Z_NULL;
@@ -1443,7 +1442,8 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
    zs.avail_out = (uInt) * output_len;
    zs.next_out = (Bytef *) output_data;
 
-   if (inflateInit2(&zs, windowbits) != Z_OK) {
+   // '0xf' is the window bits. '0x20' tells zlib to use gzip or zlib format for decompression
+   if (inflateInit2(&zs, (0xf + 0x20)) != Z_OK) {
      DBG("Failed to initialize decompression");
      return YKPIV_INVALID_OBJECT;
    }
@@ -1451,7 +1451,6 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
    int res = inflate(&zs, Z_FINISH);
    if (res != Z_STREAM_END) {
      inflateEnd(&zs);
-     *output_len = 0;
      if (res == Z_BUF_ERROR) {
        DBG("Decompression failed: Allocated output buffer too small");
        return YKPIV_SIZE_ERROR;
@@ -1461,7 +1460,6 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
    }
 
    if (inflateEnd(&zs) != Z_OK) {
-     *output_len = 0;
      DBG("Failed to finalize decompression");
      return YKPIV_INVALID_OBJECT;
    }
@@ -1524,25 +1522,21 @@ invalid_tlv:
 
    if (compress_info == YKPIV_CERTINFO_GZIP) {
 #ifdef USE_CERT_COMPRESS
-     if (cert_len < 2) {
+     if (cert_len < 4) {
        DBG("Compressed certificate data is too short to contain compression format bytes");
        *certdata_len = 0;
        return YKPIV_INVALID_OBJECT;
      }
 
-     uint16_t expected_len = 0;
+     size_t expected_len = 0;
      if (certptr[0] == 0x01 && certptr[1] == 0x00) { // NETiD zlib compression
        // Compression format: 0x01 0x00 + 2-byte little-endian length + zlib compressed data
-       expected_len = (uint16_t) certptr[2] | ((uint16_t) certptr[3] << 8);
+       expected_len = certptr[2] | (certptr[3] << 8);
        certptr += 4; // Skip the 4-byte header
        cert_len -= 4;
      }
 
-     ykpiv_rc res = decompress_data(certptr, cert_len, certdata, certdata_len, MAX_WBITS);
-     if (res != YKPIV_OK) {
-       res = decompress_data(certptr, cert_len, certdata, certdata_len, MAX_WBITS | 16);
-     }
-
+     ykpiv_rc res = decompress_data(certptr, cert_len, certdata, certdata_len);
      if (res == YKPIV_OK) {
        if (expected_len > 0 && *certdata_len != expected_len) {
          DBG("Decompressed data length mismatch. Expected %u, got %lu", expected_len, *certdata_len);
