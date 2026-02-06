@@ -1426,8 +1426,51 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
     break;
   }
 
-  return (uint32_t)object_id;
+  return (uint32_t) object_id;
 }
+
+#ifdef USE_CERT_COMPRESS
+
+ static ykpiv_rc
+ decompress_data(const uint8_t *compressed_data, size_t compressed_len, uint8_t *output_data, size_t *output_len,
+                 int bitmask) {
+   z_stream zs;
+   zs.zalloc = Z_NULL;
+   zs.zfree = Z_NULL;
+   zs.opaque = Z_NULL;
+   zs.avail_in = (uInt) compressed_len;
+   zs.next_in = (Bytef *) compressed_data;
+   zs.avail_out = (uInt) * output_len;
+   zs.next_out = (Bytef *) output_data;
+
+   if (inflateInit2(&zs, MAX_WBITS | bitmask) != Z_OK) {
+     DBG("Failed to initialize decompression");
+     return YKPIV_INVALID_OBJECT;
+   }
+
+   int res = inflate(&zs, Z_FINISH);
+   if (res != Z_STREAM_END) {
+     inflateEnd(&zs);
+     *output_len = 0;
+     if (res == Z_BUF_ERROR) {
+       DBG("Decompression failed: Allocated output buffer too small");
+       return YKPIV_SIZE_ERROR;
+     }
+     DBG("Decompression failed with error code: %d", res);
+     return YKPIV_INVALID_OBJECT;
+   }
+
+   if (inflateEnd(&zs) != Z_OK) {
+     *output_len = 0;
+     DBG("Failed to finalize decompression");
+     return YKPIV_INVALID_OBJECT;
+   }
+
+   *output_len = zs.total_out;
+   return YKPIV_OK;
+ }
+
+#endif
 
  ykpiv_rc ykpiv_util_get_certdata(uint8_t *buf, size_t buf_len, uint8_t* certdata, size_t *certdata_len) {
    uint8_t compress_info = YKPIV_CERTINFO_UNCOMPRESSED;
@@ -1487,61 +1530,30 @@ invalid_tlv:
        return YKPIV_INVALID_OBJECT;
      }
 
-     z_stream zs;
-     zs.zalloc = Z_NULL;
-     zs.zfree = Z_NULL;
-     zs.opaque = Z_NULL;
-     zs.avail_out = (uInt) *certdata_len;
-     zs.next_out = (Bytef *) certdata;
      uint16_t expected_len = 0;
-
      if (certptr[0] == 0x01 && certptr[1] == 0x00) { // NETiD zlib compression
        // Compression format: 0x01 0x00 + 2-byte little-endian length + zlib compressed data
        expected_len = (uint16_t) certptr[2] | ((uint16_t) certptr[3] << 8);
-       zs.avail_in = (uInt) (cert_len - 4);  // Skip the 4-byte header
-       zs.next_in = (Bytef *) (certptr + 4);
+       certptr += 4; // Skip the 4-byte header
+       cert_len -= 4;
+     }
 
-       if (inflateInit2(&zs, MAX_WBITS) != Z_OK) {
-         DBG("Failed to initialize certificate decompression");
+     ykpiv_rc res = decompress_data(certptr, cert_len, certdata, certdata_len, 0);
+     if (res != YKPIV_OK) {
+       res = decompress_data(certptr, cert_len, certdata, certdata_len, 16);
+     }
+
+     if (res == YKPIV_OK) {
+       if (expected_len > 0 && *certdata_len != expected_len) {
+         DBG("Decompressed data length mismatch. Expected %u, got %lu", expected_len, *certdata_len);
          *certdata_len = 0;
          return YKPIV_INVALID_OBJECT;
        }
-
      } else {
-       zs.avail_in = (uInt) cert_len;
-       zs.next_in = (Bytef *) certptr;
-
-       if (inflateInit2(&zs, MAX_WBITS | 16) != Z_OK) {
-         DBG("Failed to initialize certificate decompression");
-         *certdata_len = 0;
-         return YKPIV_INVALID_OBJECT;
-       }
-     }
-
-     int res = inflate(&zs, Z_FINISH);
-     if (res != Z_STREAM_END) {
-       inflateEnd(&zs);
+       DBG("Failed to decompress certificate data");
        *certdata_len = 0;
-       if (res == Z_BUF_ERROR) {
-         DBG("Failed to decompress certificate. Allocated buffer is too small");
-         return YKPIV_SIZE_ERROR;
-       }
-       DBG("Failed to decompress certificate: %d", res);
-       return YKPIV_INVALID_OBJECT;
+       return res;
      }
-     if (inflateEnd(&zs) != Z_OK) {
-       DBG("Failed to finish certificate decompression");
-       *certdata_len = 0;
-       return YKPIV_INVALID_OBJECT;
-     }
-
-     if (expected_len > 0 && zs.total_out != expected_len) {
-       DBG("Decompressed data length mismatch. Expected %u, got %lu", expected_len, zs.total_out);
-       *certdata_len = 0;
-       return YKPIV_INVALID_OBJECT;
-     }
-
-     *certdata_len = zs.total_out;
 #else
      DBG("Found compressed certificate. Decompressing certificate not supported");
      *certdata_len = 0;
