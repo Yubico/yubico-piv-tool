@@ -1429,46 +1429,66 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
   return (uint32_t) object_id;
 }
 
+static ykpiv_rc
+decompress_data(const uint8_t *compressed_data, size_t compressed_len, uint8_t *output_data, size_t *output_len) {
 #ifdef USE_CERT_COMPRESS
+  if (compressed_len < 4) {
+    DBG("Compressed certificate data is too short to contain compression format bytes");
+    return YKPIV_INVALID_OBJECT;
+  }
 
- static ykpiv_rc
- decompress_data(const uint8_t *compressed_data, size_t compressed_len, uint8_t *output_data, size_t *output_len) {
-   z_stream zs;
-   zs.zalloc = Z_NULL;
-   zs.zfree = Z_NULL;
-   zs.opaque = Z_NULL;
-   zs.avail_in = (uInt) compressed_len;
-   zs.next_in = (Bytef *) compressed_data;
-   zs.avail_out = (uInt) * output_len;
-   zs.next_out = (Bytef *) output_data;
+  size_t expected_len = 0;
+  if (compressed_data[0] == 0x01 && compressed_data[1] == 0x00) { // NETiD zlib compression
+    // Compression format: 0x01 0x00 + 2-byte little-endian length + zlib compressed data
+    expected_len = compressed_data[2] | (compressed_data[3] << 8);
+    compressed_data += 4; // Skip the 4-byte header
+    compressed_len -= 4;
+  }
 
-   // '0xf' is the window bits. '0x20' tells zlib to use gzip or zlib format for decompression
-   if (inflateInit2(&zs, (0xf + 0x20)) != Z_OK) {
-     DBG("Failed to initialize decompression");
-     return YKPIV_INVALID_OBJECT;
-   }
+  z_stream zs;
+  zs.zalloc = Z_NULL;
+  zs.zfree = Z_NULL;
+  zs.opaque = Z_NULL;
+  zs.avail_in = (uInt) compressed_len;
+  zs.next_in = (Bytef *) compressed_data;
+  zs.avail_out = (uInt) * output_len;
+  zs.next_out = (Bytef *) output_data;
 
-   int res = inflate(&zs, Z_FINISH);
-   if (res != Z_STREAM_END) {
-     inflateEnd(&zs);
-     if (res == Z_BUF_ERROR) {
-       DBG("Decompression failed: Allocated output buffer too small");
-       return YKPIV_SIZE_ERROR;
-     }
-     DBG("Decompression failed with error code: %d", res);
-     return YKPIV_INVALID_OBJECT;
-   }
+  // 'MAX_WBITS' is the window bits. '0x20' tells zlib to use gzip or zlib format for decompression
+  if (inflateInit2(&zs, (MAX_WBITS | 0x20)) != Z_OK) {
+    DBG("Failed to initialize decompression");
+    return YKPIV_INVALID_OBJECT;
+  }
 
-   if (inflateEnd(&zs) != Z_OK) {
-     DBG("Failed to finalize decompression");
-     return YKPIV_INVALID_OBJECT;
-   }
+  int res = inflate(&zs, Z_FINISH);
+  if (res != Z_STREAM_END) {
+   inflateEnd(&zs);
+    if (res == Z_BUF_ERROR) {
+      DBG("Decompression failed: Allocated output buffer too small");
+      return YKPIV_SIZE_ERROR;
+    }
+    DBG("Decompression failed with error code: %d", res);
+    return YKPIV_INVALID_OBJECT;
+  }
 
-   *output_len = zs.total_out;
-   return YKPIV_OK;
- }
+  if (inflateEnd(&zs) != Z_OK) {
+    DBG("Failed to finalize decompression");
+    return YKPIV_INVALID_OBJECT;
+  }
 
+  if (expected_len > 0 && zs.total_out != expected_len) {
+    DBG("Decompressed data length mismatch. Expected %u, got %lu", expected_len, zs.total_out);
+    return YKPIV_INVALID_OBJECT;
+  }
+
+  *output_len = zs.total_out;
+  return YKPIV_OK;
+#else
+  DBG("Decompressing certificate not supported");
+  return YKPIV_NOT_SUPPORTED;
 #endif
+}
+
 
  ykpiv_rc ykpiv_util_get_certdata(uint8_t *buf, size_t buf_len, uint8_t* certdata, size_t *certdata_len) {
    uint8_t compress_info = YKPIV_CERTINFO_UNCOMPRESSED;
@@ -1521,38 +1541,13 @@ invalid_tlv:
    }
 
    if (compress_info == YKPIV_CERTINFO_GZIP) {
-#ifdef USE_CERT_COMPRESS
-     if (cert_len < 4) {
-       DBG("Compressed certificate data is too short to contain compression format bytes");
-       *certdata_len = 0;
-       return YKPIV_INVALID_OBJECT;
-     }
-
-     size_t expected_len = 0;
-     if (certptr[0] == 0x01 && certptr[1] == 0x00) { // NETiD zlib compression
-       // Compression format: 0x01 0x00 + 2-byte little-endian length + zlib compressed data
-       expected_len = certptr[2] | (certptr[3] << 8);
-       certptr += 4; // Skip the 4-byte header
-       cert_len -= 4;
-     }
-
+     DBG("Found compressed certificate");
      ykpiv_rc res = decompress_data(certptr, cert_len, certdata, certdata_len);
-     if (res == YKPIV_OK) {
-       if (expected_len > 0 && *certdata_len != expected_len) {
-         DBG("Decompressed data length mismatch. Expected %u, got %lu", expected_len, *certdata_len);
-         *certdata_len = 0;
-         return YKPIV_INVALID_OBJECT;
-       }
-     } else {
+     if (res != YKPIV_OK) {
        DBG("Failed to decompress certificate data");
        *certdata_len = 0;
        return res;
      }
-#else
-     DBG("Found compressed certificate. Decompressing certificate not supported");
-     *certdata_len = 0;
-     return YKPIV_PARSE_ERROR;
-#endif
    } else {
      if (*certdata_len < cert_len) {
        DBG("Buffer too small");
