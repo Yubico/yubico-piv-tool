@@ -1433,7 +1433,7 @@ static ykpiv_rc
 decompress_data(const uint8_t *compressed_data, size_t compressed_len, uint8_t *output_data, size_t *output_len) {
 #ifdef USE_CERT_COMPRESS
   if (compressed_len < 4) {
-    DBG("Compressed certificate data is too short to contain compression format bytes");
+    DBG("Data is too short to contain a compressed certificate");
     return YKPIV_INVALID_OBJECT;
   }
 
