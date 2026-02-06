@@ -1481,6 +1481,12 @@ invalid_tlv:
 
    if (compress_info == YKPIV_CERTINFO_GZIP) {
 #ifdef USE_CERT_COMPRESS
+     if (cert_len < 2) {
+       DBG("Compressed certificate data is too short to contain compression format bytes");
+       *certdata_len = 0;
+       return YKPIV_INVALID_OBJECT;
+     }
+
      z_stream zs;
      zs.zalloc = Z_NULL;
      zs.zfree = Z_NULL;
@@ -1489,7 +1495,7 @@ invalid_tlv:
      zs.next_out = (Bytef *) certdata;
      uint16_t expected_len = 0;
 
-     if (cert_len >= 2 && certptr[0] == 0x1f && certptr[1] == 0x8b) { // Gzip most commonly used compression
+     if (certptr[0] == 0x1f && certptr[1] == 0x8b) { // Gzip most commonly used compression
        zs.avail_in = (uInt) cert_len;
        zs.next_in = (Bytef *) certptr;
 
@@ -1498,27 +1504,7 @@ invalid_tlv:
          *certdata_len = 0;
          return YKPIV_INVALID_OBJECT;
        }
-     } else if (cert_len >= 3 &&
-                (certptr[0] == TAG_CERT || (certptr[0] == 0x01 && certptr[1] == 0x00))) { // could be a compressed certificate inside another TLV layer
-
-       if (certptr[0] == TAG_CERT) {
-         certptr++; // skip the cert tag to get to length
-         size_t len = 0;
-         size_t offs = _ykpiv_get_length(certptr, certptr + cert_len, &len);
-         if (!offs) {
-           DBG("Failed to decompress certificate. Found invalid length for tag 0x%02x.", TAG_CERT);
-           *certdata_len = 0;
-           return YKPIV_INVALID_OBJECT;
-         }
-         certptr += offs; // move to after length bytes
-         cert_len = len;
-       }
-
-       if (certptr[0] != 0x01 || certptr[1] != 0x00) {
-         DBG("Failed to decompress certificate. Invalid compression header: 0x%02x 0x%02x", certptr[0], certptr[1]);
-         *certdata_len = 0;
-         return YKPIV_INVALID_OBJECT;
-       }
+     } else if (certptr[0] == 0x01 && certptr[1] == 0x00) { // NETiD zlib compression
 
        // Compression format: 0x01 0x00 + 2-byte little-endian length + zlib compressed data
        expected_len = (uint16_t) certptr[2] | ((uint16_t) certptr[3] << 8);
