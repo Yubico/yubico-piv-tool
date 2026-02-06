@@ -1433,7 +1433,7 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
 
  static ykpiv_rc
  decompress_data(const uint8_t *compressed_data, size_t compressed_len, uint8_t *output_data, size_t *output_len,
-                 int bitmask) {
+                 int windowbits) {
    z_stream zs;
    zs.zalloc = Z_NULL;
    zs.zfree = Z_NULL;
@@ -1443,7 +1443,7 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
    zs.avail_out = (uInt) * output_len;
    zs.next_out = (Bytef *) output_data;
 
-   if (inflateInit2(&zs, MAX_WBITS | bitmask) != Z_OK) {
+   if (inflateInit2(&zs, windowbits) != Z_OK) {
      DBG("Failed to initialize decompression");
      return YKPIV_INVALID_OBJECT;
    }
@@ -1538,9 +1538,9 @@ invalid_tlv:
        cert_len -= 4;
      }
 
-     ykpiv_rc res = decompress_data(certptr, cert_len, certdata, certdata_len, 0);
+     ykpiv_rc res = decompress_data(certptr, cert_len, certdata, certdata_len, MAX_WBITS);
      if (res != YKPIV_OK) {
-       res = decompress_data(certptr, cert_len, certdata, certdata_len, 16);
+       res = decompress_data(certptr, cert_len, certdata, certdata_len, MAX_WBITS | 16);
      }
 
      if (res == YKPIV_OK) {
