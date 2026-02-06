@@ -1495,7 +1495,19 @@ invalid_tlv:
      zs.next_out = (Bytef *) certdata;
      uint16_t expected_len = 0;
 
-     if (certptr[0] == 0x1f && certptr[1] == 0x8b) { // Gzip most commonly used compression
+     if (certptr[0] == 0x01 && certptr[1] == 0x00) { // NETiD zlib compression
+       // Compression format: 0x01 0x00 + 2-byte little-endian length + zlib compressed data
+       expected_len = (uint16_t) certptr[2] | ((uint16_t) certptr[3] << 8);
+       zs.avail_in = (uInt) (cert_len - 4);  // Skip the 4-byte header
+       zs.next_in = (Bytef *) (certptr + 4);
+
+       if (inflateInit2(&zs, MAX_WBITS) != Z_OK) {
+         DBG("Failed to initialize certificate decompression");
+         *certdata_len = 0;
+         return YKPIV_INVALID_OBJECT;
+       }
+
+     } else {
        zs.avail_in = (uInt) cert_len;
        zs.next_in = (Bytef *) certptr;
 
@@ -1504,23 +1516,6 @@ invalid_tlv:
          *certdata_len = 0;
          return YKPIV_INVALID_OBJECT;
        }
-     } else if (certptr[0] == 0x01 && certptr[1] == 0x00) { // NETiD zlib compression
-
-       // Compression format: 0x01 0x00 + 2-byte little-endian length + zlib compressed data
-       expected_len = (uint16_t) certptr[2] | ((uint16_t) certptr[3] << 8);
-
-       zs.avail_in = (uInt) (cert_len - 4);  // Skip the 4-byte header
-       zs.next_in = (Bytef *) (certptr + 4);
-       if (inflateInit2(&zs, MAX_WBITS) != Z_OK) {
-         DBG("Failed to initialize certificate decompression");
-         *certdata_len = 0;
-         return YKPIV_INVALID_OBJECT;
-       }
-
-     } else {
-       DBG("Unknown compression format. Magic bytes: 0x%02x 0x%02x", certptr[0], certptr[1]);
-       *certdata_len = 0;
-       return YKPIV_INVALID_OBJECT;
      }
 
      int res = inflate(&zs, Z_FINISH);
