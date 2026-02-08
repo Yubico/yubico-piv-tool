@@ -1432,13 +1432,9 @@ uint32_t ykpiv_util_slot_object(uint8_t slot) {
 static ykpiv_rc
 decompress_data(const uint8_t *compressed_data, size_t compressed_len, uint8_t *output_data, size_t *output_len) {
 #ifdef USE_CERT_COMPRESS
-  if (compressed_len < 4) {
-    DBG("Data is too short to contain a compressed certificate");
-    return YKPIV_INVALID_OBJECT;
-  }
+  size_t expected_len = SIZE_MAX; // Safe since it is out of range of a 16 bit unsigned integer
 
-  size_t expected_len = 0;
-  if (compressed_data[0] == 0x01 && compressed_data[1] == 0x00) { // NETiD zlib compression
+  if (compressed_len >= 4 && compressed_data[0] == 0x01 && compressed_data[1] == 0x00) { // NETiD zlib compression
     // Compression format: 0x01 0x00 + 2-byte little-endian length + zlib compressed data
     expected_len = compressed_data[2] | (compressed_data[3] << 8);
     compressed_data += 4; // Skip the 4-byte header
@@ -1476,8 +1472,8 @@ decompress_data(const uint8_t *compressed_data, size_t compressed_len, uint8_t *
     return YKPIV_INVALID_OBJECT;
   }
 
-  if (expected_len > 0 && zs.total_out != expected_len) {
-    DBG("Decompressed data length mismatch. Expected %u, got %lu", expected_len, zs.total_out);
+  if (expected_len != SIZE_MAX && zs.total_out != expected_len) {
+    DBG("Decompressed data length mismatch. Expected %zu, got %lu", expected_len, zs.total_out);
     return YKPIV_INVALID_OBJECT;
   }
 
@@ -1489,8 +1485,7 @@ decompress_data(const uint8_t *compressed_data, size_t compressed_len, uint8_t *
 #endif
 }
 
-
- ykpiv_rc ykpiv_util_get_certdata(uint8_t *buf, size_t buf_len, uint8_t* certdata, size_t *certdata_len) {
+ykpiv_rc ykpiv_util_get_certdata(uint8_t *buf, size_t buf_len, uint8_t* certdata, size_t *certdata_len) {
    uint8_t compress_info = YKPIV_CERTINFO_UNCOMPRESSED;
    uint8_t *certptr = 0;
    size_t cert_len = 0;
@@ -1560,7 +1555,7 @@ invalid_tlv:
    return YKPIV_OK;
 }
 
- ykpiv_rc ykpiv_util_write_certdata(uint8_t *rawdata, size_t rawdata_len, uint8_t compress_info, uint8_t* certdata, size_t *certdata_len) {
+ykpiv_rc ykpiv_util_write_certdata(uint8_t *rawdata, size_t rawdata_len, uint8_t compress_info, uint8_t* certdata, size_t *certdata_len) {
   size_t offset = 0;
   size_t buf_len = 0;
 
@@ -1590,7 +1585,7 @@ invalid_tlv:
   return YKPIV_OK;
 }
 
- static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf, size_t *buf_len) {
+static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf, size_t *buf_len) {
   ykpiv_rc res = YKPIV_OK;
   int object_id = (int)ykpiv_util_slot_object(slot);
 
