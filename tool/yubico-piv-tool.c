@@ -831,6 +831,7 @@ static bool import_cert(ykpiv_state *state, enum enum_key_format cert_format, in
       zs.avail_out = (uInt) sizeof(certdata);
       zs.next_out = (Bytef *)certdata;
 
+      // 'MAX_WBITS' is the window bits. '0x10' tells zlib to use gzip format for compression
       if(deflateInit2(&zs, Z_BEST_COMPRESSION, Z_DEFLATED, MAX_WBITS | 0x10, 9, Z_DEFAULT_STRATEGY) != Z_OK) {
         fprintf(stderr, "Failed to compress certificate\n");
         goto import_cert_out;
