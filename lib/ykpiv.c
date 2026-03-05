@@ -2872,12 +2872,6 @@ static ykpiv_rc _ykpiv_auth_deauthenticate(ykpiv_state *state) {
 }
 
 bool is_version_compatible(ykpiv_state *state, uint8_t major, uint8_t minor, uint8_t patch) {
-#ifdef DEBUG_YK
-  if (state->ver.major == 0) {
-    return true;
-  }
-#endif
-
   // Beta devices are always assigned version 0.0.1
   if (state->ver.major == 0 && state->ver.minor == 0 && state->ver.patch == 1) {
     return true;
