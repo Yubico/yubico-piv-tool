@@ -1905,7 +1905,7 @@ static void print_slot_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
   ykpiv_metadata slot_md = {0};
   X509 *x509 = NULL;
   EVP_PKEY *key = NULL;
-  X509_NAME *subj;
+  const X509_NAME *subj;
   BIO *bio = NULL;
   bool cert_found = false, metadata_found = false;
 

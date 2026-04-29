@@ -46,7 +46,7 @@ CK_RV do_create_empty_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG algorithm,
                            const char *cn, CK_BYTE_PTR out, CK_ULONG_PTR out_len);
 CK_RV do_check_cert(CK_BYTE_PTR in, CK_ULONG in_len, CK_ULONG_PTR cert_len);
 CK_RV do_get_raw_cert(ykcs11_x509_t *cert, CK_BYTE_PTR out, CK_ULONG_PTR out_len);
-CK_RV do_get_raw_name(ykcs11_x509_name_t *name, CK_BYTE_PTR out, CK_ULONG_PTR out_len);
+CK_RV do_get_raw_name(const ykcs11_x509_name_t *name, CK_BYTE_PTR out, CK_ULONG_PTR out_len);
 CK_RV do_get_raw_integer(ykcs11_asn1_integer_t *serial, CK_BYTE_PTR out, CK_ULONG_PTR out_len);
 CK_RV do_delete_cert(ykcs11_x509_t **cert);
 
