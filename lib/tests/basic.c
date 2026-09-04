@@ -70,6 +70,27 @@ START_TEST(test_strerror) {
 }
 END_TEST
 
+START_TEST(test_import_key_rejects_oversized_components) {
+  ykpiv_state *state = NULL;
+  unsigned char component[256] = {0};
+
+  ck_assert_int_eq(ykpiv_init(&state, false), YKPIV_OK);
+  ck_assert_int_eq(
+    ykpiv_import_private_key(state, YKPIV_KEY_AUTHENTICATION,
+                             YKPIV_ALGO_RSA1024,
+                             component, sizeof(component),
+                             component, sizeof(component),
+                             component, sizeof(component),
+                             component, sizeof(component),
+                             component, sizeof(component),
+                             NULL, 0,
+                             YKPIV_PINPOLICY_DEFAULT,
+                             YKPIV_TOUCHPOLICY_DEFAULT),
+    YKPIV_ARGUMENT_ERROR);
+  ck_assert_int_eq(ykpiv_done(state), YKPIV_OK);
+}
+END_TEST
+
 static Suite *basic_suite(void) {
   Suite *s;
   TCase *tc;
@@ -78,6 +99,7 @@ static Suite *basic_suite(void) {
   tc = tcase_create("basic");
   tcase_add_test(tc, test_version_string);
   tcase_add_test(tc, test_strerror);
+  tcase_add_test(tc, test_import_key_rejects_oversized_components);
   suite_add_tcase(s, tc);
 
   return s;
