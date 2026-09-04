@@ -523,7 +523,7 @@ START_TEST(test_pin_policy_always) {
     unsigned char rand[128] = {0};
 
     size_t sig_len = sizeof(signature);
-    size_t padlen = 256;
+    size_t padlen = 512;
     unsigned int enc_len;
     unsigned int data_len;
 
@@ -1018,8 +1018,8 @@ END_TEST
 START_TEST(test_pin_cache) {
   ykpiv_rc res;
   ykpiv_state *local_state;
-  unsigned char data[256] = {0};
-  unsigned char data_in[256] = {0};
+  unsigned char data[512] = {0};
+  unsigned char data_in[512] = {0};
   int len = sizeof(data);
   size_t len2 = sizeof(data);
 
@@ -1037,17 +1037,17 @@ START_TEST(test_pin_cache) {
   ck_assert_int_eq(res, YKPIV_OK);
 
   // Verify decryption does not work without auth
-  res = ykpiv_decipher_data(g_state, data_in, (size_t)len, data, &len2, YKPIV_ALGO_RSA2048, 0x9a);
+  res = ykpiv_decipher_data(g_state, data_in, (size_t)len, data, &len2, YKPIV_ALGO_RSA4096, 0x9a);
   ck_assert_int_eq(res, YKPIV_AUTHENTICATION_ERROR);
 
   // Verify decryption does work when authed
   res = ykpiv_verify_select(g_state, "123456", 6, NULL, true);
   ck_assert_int_eq(res, YKPIV_OK);
-  res = ykpiv_decipher_data(g_state, data_in, (size_t)len, data, &len2, YKPIV_ALGO_RSA2048, 0x9a);
+  res = ykpiv_decipher_data(g_state, data_in, (size_t)len, data, &len2, YKPIV_ALGO_RSA4096, 0x9a);
   ck_assert_int_eq(res, YKPIV_OK);
 
   // Verify PIN policy allows continuing to decrypt without re-verifying
-  res = ykpiv_decipher_data(g_state, data_in, (size_t)len, data, &len2, YKPIV_ALGO_RSA2048, 0x9a);
+  res = ykpiv_decipher_data(g_state, data_in, (size_t)len, data, &len2, YKPIV_ALGO_RSA4096, 0x9a);
   ck_assert_int_eq(res, YKPIV_OK);
 
   // Create a new ykpiv state, connect, and close it.
@@ -1068,7 +1068,7 @@ START_TEST(test_pin_cache) {
   //
   // Note that you can verify that this fails by rebuilding with
   // DISABLE_PIN_CACHE set to 1.
-  res = ykpiv_decipher_data(g_state, data_in, (size_t)len, data, &len2, YKPIV_ALGO_RSA2048, 0x9a);
+  res = ykpiv_decipher_data(g_state, data_in, (size_t)len, data, &len2, YKPIV_ALGO_RSA4096, 0x9a);
   ck_assert_int_eq(res, YKPIV_OK);
 }
 END_TEST
