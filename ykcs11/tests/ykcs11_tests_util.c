@@ -334,8 +334,8 @@ EVP_PKEY* import_edkey(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session
 
   X509 *cert = X509_new();
   X509_set_version(cert, 2); // Version 3
-  X509_NAME_add_entry_by_txt(X509_get_issuer_name(cert), "CN", MBSTRING_ASC, (unsigned char*)"Test Issuer", -1, -1, 0);
-  X509_NAME_add_entry_by_txt(X509_get_subject_name(cert), "CN", MBSTRING_ASC, (unsigned char*)"Test Subject", -1, -1, 0);
+  X509_NAME_add_entry_by_txt((X509_NAME *)X509_get_issuer_name(cert), "CN", MBSTRING_ASC, (unsigned char*)"Test Issuer", -1, -1, 0);
+  X509_NAME_add_entry_by_txt((X509_NAME *)X509_get_subject_name(cert), "CN", MBSTRING_ASC, (unsigned char*)"Test Subject", -1, -1, 0);
   ASN1_INTEGER_set(X509_get_serialNumber(cert), 0);
   X509_gmtime_adj(X509_get_notBefore(cert), 0);
   X509_gmtime_adj(X509_get_notAfter(cert), 0);
@@ -413,8 +413,8 @@ void import_x25519key(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session,
 
   X509 *cert = X509_new();
   X509_set_version(cert, 2); // Version 3
-  X509_NAME_add_entry_by_txt(X509_get_issuer_name(cert), "CN", MBSTRING_ASC, (unsigned char*)"Test Issuer", -1, -1, 0);
-  X509_NAME_add_entry_by_txt(X509_get_subject_name(cert), "CN", MBSTRING_ASC, (unsigned char*)"Test Subject", -1, -1, 0);
+  X509_NAME_add_entry_by_txt((X509_NAME *)X509_get_issuer_name(cert), "CN", MBSTRING_ASC, (unsigned char*)"Test Issuer", -1, -1, 0);
+  X509_NAME_add_entry_by_txt((X509_NAME *)X509_get_subject_name(cert), "CN", MBSTRING_ASC, (unsigned char*)"Test Subject", -1, -1, 0);
   ASN1_INTEGER_set(X509_get_serialNumber(cert), 0);
   X509_gmtime_adj(X509_get_notBefore(cert), 0);
   X509_gmtime_adj(X509_get_notAfter(cert), 0);
@@ -496,8 +496,8 @@ EC_KEY* import_ec_key(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session,
     exit(EXIT_FAILURE);
 
   X509_set_version(cert, 2); // Version 3
-  X509_NAME_add_entry_by_txt(X509_get_issuer_name(cert), "CN", MBSTRING_ASC, (unsigned char*)"Test Issuer", -1, -1, 0);
-  X509_NAME_add_entry_by_txt(X509_get_subject_name(cert), "CN", MBSTRING_ASC, (unsigned char*)"Test Subject", -1, -1, 0);
+  X509_NAME_add_entry_by_txt((X509_NAME *)X509_get_issuer_name(cert), "CN", MBSTRING_ASC, (unsigned char*)"Test Issuer", -1, -1, 0);
+  X509_NAME_add_entry_by_txt((X509_NAME *)X509_get_subject_name(cert), "CN", MBSTRING_ASC, (unsigned char*)"Test Subject", -1, -1, 0);
   ASN1_INTEGER_set(X509_get_serialNumber(cert), 0);
   X509_gmtime_adj(X509_get_notBefore(cert), 0);
   X509_gmtime_adj(X509_get_notAfter(cert), 0);
@@ -664,8 +664,8 @@ void import_rsa_key(CK_FUNCTION_LIST_3_0_PTR funcs, CK_SESSION_HANDLE session, i
     exit(EXIT_FAILURE);
 
   X509_set_version(cert, 2); // Version 3
-  X509_NAME_add_entry_by_txt(X509_get_issuer_name(cert), "CN", MBSTRING_ASC, (unsigned char*)"Test Issuer", -1, -1, 0);
-  X509_NAME_add_entry_by_txt(X509_get_subject_name(cert), "CN", MBSTRING_ASC, (unsigned char*)"Test Subject", -1, -1, 0);
+  X509_NAME_add_entry_by_txt((X509_NAME *)X509_get_issuer_name(cert), "CN", MBSTRING_ASC, (unsigned char*)"Test Issuer", -1, -1, 0);
+  X509_NAME_add_entry_by_txt((X509_NAME *)X509_get_subject_name(cert), "CN", MBSTRING_ASC, (unsigned char*)"Test Subject", -1, -1, 0);
   ASN1_INTEGER_set(X509_get_serialNumber(cert), 0);
   X509_gmtime_adj(X509_get_notBefore(cert), 0);
   X509_gmtime_adj(X509_get_notAfter(cert), 0);

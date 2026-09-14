@@ -175,8 +175,8 @@ CK_RV do_sign_empty_cert(const char *cn, ykcs11_pkey_t *pubkey, ykcs11_pkey_t *p
     return CKR_HOST_MEMORY;
   }
   X509_set_version(*cert, 2); // Version 3
-  X509_NAME_add_entry_by_txt(X509_get_issuer_name(*cert), "CN", MBSTRING_ASC, (const unsigned char*)cn, -1, -1, 0);
-  X509_NAME_add_entry_by_txt(X509_get_subject_name(*cert), "CN", MBSTRING_ASC, (const unsigned char*)cn, -1, -1, 0);
+  X509_NAME_add_entry_by_txt((X509_NAME *)X509_get_issuer_name(*cert), "CN", MBSTRING_ASC, (const unsigned char*)cn, -1, -1, 0);
+  X509_NAME_add_entry_by_txt((X509_NAME *)X509_get_subject_name(*cert), "CN", MBSTRING_ASC, (const unsigned char*)cn, -1, -1, 0);
   ASN1_INTEGER_set(X509_get_serialNumber(*cert), 0);
   X509_gmtime_adj(X509_get_notBefore(*cert), 0);
   X509_gmtime_adj(X509_get_notAfter(*cert), 0);
@@ -272,7 +272,7 @@ CK_RV do_get_raw_cert(ykcs11_x509_t *cert, CK_BYTE_PTR out, CK_ULONG_PTR out_len
   return CKR_OK;
 }
 
-CK_RV do_get_raw_name(ykcs11_x509_name_t *name, CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
+CK_RV do_get_raw_name(const ykcs11_x509_name_t *name, CK_BYTE_PTR out, CK_ULONG_PTR out_len) {
 
   CK_BYTE_PTR p;
   int         len;
@@ -355,11 +355,11 @@ CK_RV do_parse_attestation(ykcs11_x509_t *cert, CK_BYTE_PTR pin_policy, CK_BYTE_
   if (pos < 0)
     return CKR_FUNCTION_FAILED;
 
-  X509_EXTENSION *ext = X509_get_ext(cert, pos);
+  X509_EXTENSION *ext = (X509_EXTENSION *)X509_get_ext(cert, pos);
   if (ext == NULL)
     return CKR_FUNCTION_FAILED;
 
-  ASN1_OCTET_STRING *oct = X509_EXTENSION_get_data(ext);
+  ASN1_OCTET_STRING *oct = (ASN1_OCTET_STRING *)X509_EXTENSION_get_data(ext);
   if (oct == NULL)
     return CKR_FUNCTION_FAILED;
 
