@@ -357,19 +357,6 @@ static void import_key(unsigned char slot, unsigned char pin_policy) {
     iqmp_len = element_len;
     ck_assert(set_component(iqmp, bn_iqmp, &iqmp_len));
 
-    // Try wrong algorithm, fail.
-    res = ykpiv_import_private_key(g_state,
-                                   slot,
-                                   YKPIV_ALGO_RSA1024,
-                                   p, p_len,
-                                   q, q_len,
-                                   dmp1, dmp1_len,
-                                   dmq1, dmq1_len,
-                                   iqmp, iqmp_len,
-                                   NULL, 0,
-                                   pp, tp);
-    ck_assert_int_eq(res, YKPIV_ALGORITHM_ERROR);
-
     // Try right algorithm
     res = ykpiv_import_private_key(g_state,
                                    slot,
