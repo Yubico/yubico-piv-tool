@@ -1259,7 +1259,7 @@ static ykpiv_rc _ykpiv_transmit(ykpiv_state *state, const unsigned char *send_da
 
 static ykpiv_rc scp11_prepare_transfer(ykpiv_scp11_state *state, APDU *apdu, const uint8_t *apdu_data, uint32_t apdu_data_len, size_t *apdu_len) {
   ykpiv_rc rc = YKPIV_OK;
-  uint8_t enc[YKPIV_OBJ_MAX_SIZE] = {0};
+  uint8_t enc[YKPIV_OBJ_MAX_SIZE];
   uint32_t enc_len = sizeof(enc);
 
   if ((rc = scp11_encrypt_data(state->senc, state->enc_counter++, apdu_data, apdu_data_len, enc, &enc_len)) !=
@@ -1326,7 +1326,7 @@ ykpiv_rc _ykpiv_transfer_data(ykpiv_state *state,
 
   do {
     APDU apdu = {templ[0], templ[1], templ[2], templ[3], 0xff};
-    unsigned char data[YKPIV_OBJ_MAX_SIZE] = {0};
+    unsigned char data[YKPIV_OBJ_MAX_SIZE];
 
 
     ykpiv_rc res = YKPIV_OK;
@@ -1378,7 +1378,7 @@ ykpiv_rc _ykpiv_transfer_data(ykpiv_state *state,
 
     if (out_data) {
       if (state->scp11_state.security_level) {
-        uint8_t dec[2048] = {0};
+        uint8_t dec[2048];
         uint32_t dec_len = sizeof(dec);
         if ((res = scp11_decrypt_response(&state->scp11_state, data, recv_len, dec, &dec_len, *sw)) != YKPIV_OK) {
           return res;
@@ -1404,7 +1404,7 @@ ykpiv_rc _ykpiv_transfer_data(ykpiv_state *state,
   } while (in_len);
   while((*sw & 0xff00) == 0x6100) {
     unsigned char apdu[] = {0, YKPIV_INS_GET_RESPONSE_APDU, 0, 0, *sw & 0xff};
-    unsigned char data[258] = {0};
+    unsigned char data[258];
 
     DBG3("The card indicates there is %u bytes more data for us.", apdu[4] ? apdu[4] : 0x100);
 

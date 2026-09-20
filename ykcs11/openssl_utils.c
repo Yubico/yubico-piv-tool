@@ -112,7 +112,7 @@ rsa_enc_cleanup:
 
 CK_RV do_store_cert(CK_BYTE_PTR data, CK_ULONG len, ykcs11_x509_t **cert) {
 
-  unsigned char certdata[YKPIV_OBJ_MAX_SIZE * 10] = {0};
+  unsigned char certdata[YKPIV_OBJ_MAX_SIZE * 10];
   size_t certdata_len = sizeof (certdata);
 
   if(ykpiv_util_get_certdata(data, len, certdata, &certdata_len) != YKPIV_OK) {
@@ -347,9 +347,16 @@ static int OBJ_get_nid(const char *oid, const char *name, const char *descr) {
 
 CK_RV do_parse_attestation(ykcs11_x509_t *cert, CK_BYTE_PTR pin_policy, CK_BYTE_PTR touch_policy) {
 
-  int nid = OBJ_get_nid(YKPIV_OID_USAGE_POLICY, "KeyUsagePolicy", "Yubico PIV key usage policy");
-  if(nid < 0)
-    return CKR_FUNCTION_FAILED;
+  // The Yubico key usage policy OID is constant, so resolve (and, on the first
+  // call, register) it once instead of doing it for every attestation parsed.
+  static int policy_nid = NID_undef;
+  int nid = policy_nid;
+  if (nid == NID_undef) {
+    nid = OBJ_get_nid(YKPIV_OID_USAGE_POLICY, "KeyUsagePolicy", "Yubico PIV key usage policy");
+    if (nid <= 0)
+      return CKR_FUNCTION_FAILED;
+    policy_nid = nid;
+  }
 
   int pos = X509_get_ext_by_NID(cert, nid, -1);
   if (pos < 0)

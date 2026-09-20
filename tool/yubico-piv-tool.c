@@ -1811,9 +1811,9 @@ static bool sign_file(ykpiv_state *state, const char *input, const char *output,
         fprintf(stderr, "Failed to initialize digest operation\n");
         goto out;
       }
-      while (!feof(input_file)) {
-        char buf[8192] = {0};
-        size_t len = fread(buf, 1, sizeof(buf), input_file);
+      char buf[8192];
+      size_t len;
+      while ((len = fread(buf, 1, sizeof(buf), input_file)) > 0) {
         if (EVP_DigestUpdate(mdctx, buf, len) != 1) {
           fprintf(stderr, "Failed to update digest data\n");
           goto out;
@@ -1910,7 +1910,7 @@ static void print_slot_info(ykpiv_state *state, enum enum_slot slot, const EVP_M
   bool cert_found = false, metadata_found = false;
 
   if(ykpiv_fetch_object(state, object, data, &len) == YKPIV_OK) {
-    unsigned char certdata[YKPIV_OBJ_MAX_SIZE * 10] = {0};
+    unsigned char certdata[YKPIV_OBJ_MAX_SIZE * 10];
     size_t certdata_len = sizeof(certdata);
     if(ykpiv_util_get_certdata(data, len, certdata, &certdata_len) != YKPIV_OK) {
       fprintf(output, "Failed to get certificate data\n");

@@ -381,7 +381,7 @@ CK_RV token_generate_key(ykpiv_state *state, gen_info_t *gen, CK_BYTE key, CK_BY
   unsigned char *in_ptr = in_data;
   unsigned char data[1024] = {0};
   unsigned char templ[] = {0, YKPIV_INS_GENERATE_ASYMMETRIC, 0, 0};
-  uint8_t certdata[YKPIV_OBJ_MAX_SIZE + 16] = {0};
+  uint8_t certdata[YKPIV_OBJ_MAX_SIZE + 16];
   size_t certdata_len = sizeof(certdata);
   unsigned long len, offs, recv_len = sizeof(data);
   char label[32] = {0};
@@ -506,7 +506,7 @@ CK_RV token_generate_key(ykpiv_state *state, gen_info_t *gen, CK_BYTE key, CK_BY
 
 CK_RV token_import_cert(ykpiv_state *state, CK_ULONG cert_id, CK_BYTE_PTR in, CK_ULONG in_len) {
 
-  unsigned char certdata[YKPIV_OBJ_MAX_SIZE + 16] = {0};
+  unsigned char certdata[YKPIV_OBJ_MAX_SIZE + 16];
   size_t certdata_len = sizeof(certdata);
   CK_ULONG cert_len;
   ykpiv_rc res;

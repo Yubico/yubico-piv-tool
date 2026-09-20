@@ -405,7 +405,7 @@ static CK_RV get_doa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templa
 /* Get certificate object attribute */
 static CK_RV _get_coa(ykcs11_x509_t **certs, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template, CK_BBOOL token) {
   CK_BYTE_PTR data;
-  CK_BYTE     b_tmp[YKPIV_OBJ_MAX_SIZE] = {0}; // Max cert value for ykpiv
+  CK_BYTE     b_tmp[YKPIV_OBJ_MAX_SIZE]; // Max cert value for ykpiv
   CK_ULONG    ul_tmp;
   CK_ULONG    len = 0;
   CK_RV       rv;
@@ -545,7 +545,7 @@ static CK_RV get_atst(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
 /* Get private key object attribute */
 static CK_RV get_proa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
-  CK_BYTE     b_tmp[1024] = {0};
+  CK_BYTE     b_tmp[1024];
   CK_ULONG    ul_tmp = 0;
   CK_ULONG    len = 0;
   CK_RV       rv;
@@ -843,7 +843,7 @@ static CK_RV get_proa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templ
 /* Get public key object attribute */
 static CK_RV get_puoa(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR template) {
   CK_BYTE_PTR data;
-  CK_BYTE     b_tmp[1024] = {0};
+  CK_BYTE     b_tmp[1024];
   CK_ULONG    ul_tmp;
   CK_ULONG    len = 0;
   CK_RV       rv;
@@ -1513,7 +1513,7 @@ CK_RV get_attribute(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR templat
 
 CK_BBOOL attribute_match(ykcs11_slot_t *s, piv_obj_id_t obj, CK_ATTRIBUTE_PTR attribute) {
 
-  CK_BYTE data[4096] = {0};
+  CK_BYTE data[4096];
   CK_ATTRIBUTE to_match = { attribute->type, data, sizeof(data) };
 
   if (get_attribute(s, obj, &to_match) != CKR_OK)

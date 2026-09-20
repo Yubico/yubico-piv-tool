@@ -1591,7 +1591,7 @@ static ykpiv_rc _read_certificate(ykpiv_state *state, uint8_t slot, uint8_t *buf
 
   if (-1 == object_id) return YKPIV_INVALID_OBJECT;
 
-   unsigned char data[YKPIV_OBJ_MAX_SIZE] = {0};
+   unsigned char data[YKPIV_OBJ_MAX_SIZE];
    unsigned long data_len = sizeof (data);
 
   if (YKPIV_OK == (res = _ykpiv_fetch_object(state, object_id, data, &data_len))) {
