@@ -1,0 +1,219 @@
+name: Windows ARM64
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/windows-arm64.yml"
+      - "CMakeLists.txt"
+      - "cmake/**"
+      - "common/**"
+      - "lib/**"
+      - "ykcs11/**"
+      - "tool/**"
+      - "aes_cmac/**"
+      - "resources/release/**"
+  push:
+    branches: [master]
+    tags: ["v*"]
+    paths:
+      - ".github/workflows/windows-arm64.yml"
+      - "CMakeLists.txt"
+      - "cmake/**"
+      - "common/**"
+      - "lib/**"
+      - "ykcs11/**"
+      - "tool/**"
+      - "aes_cmac/**"
+      - "resources/release/**"
+
+permissions:
+  contents: read
+
+jobs:
+  source-dist:
+    name: Create Windows-compatible source distribution
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install source distribution prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake make gcc libpcsclite-dev check gengetopt help2man zlib1g-dev
+
+      - name: Create source archive
+        shell: bash
+        run: |
+          set -euxo pipefail
+          version="$(sed -n 's/^set (yubico_piv_tool_VERSION_MAJOR \([0-9]*\))/\1/p' CMakeLists.txt).$(sed -n 's/^set (yubico_piv_tool_VERSION_MINOR \([0-9]*\))/\1/p' CMakeLists.txt).$(sed -n 's/^set (yubico_piv_tool_VERSION_PATCH \([0-9]*\))/\1/p' CMakeLists.txt)"
+          ./resources/release/make_src_dist.sh "$version"
+          mkdir -p dist
+          mv "yubico-piv-tool-$version.tar.gz" dist/
+
+      - name: Upload source archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: yubico-piv-tool-source
+          path: dist/yubico-piv-tool-*.tar.gz
+          if-no-files-found: error
+          retention-days: 3
+
+  build-arm64:
+    name: Build native Windows ARM64
+    needs: source-dist
+    runs-on: windows-11-vs2026-arm
+    steps:
+      - name: Download source archive
+        uses: actions/download-artifact@v4
+        with:
+          name: yubico-piv-tool-source
+          path: source
+
+      - name: Extract source
+        shell: pwsh
+        run: |
+          $archive = Get-ChildItem source -Filter *.tar.gz | Select-Object -First 1
+          if (-not $archive) { throw "Source archive was not downloaded" }
+          tar -xzf $archive.FullName
+          $sourceDir = Get-ChildItem -Directory | Where-Object { $_.Name -like "yubico-piv-tool-*" } | Select-Object -First 1
+          if (-not $sourceDir) { throw "Could not find extracted source directory" }
+          "SOURCE_DIR=$($sourceDir.FullName)" >> $env:GITHUB_ENV
+
+      - name: Install ARM64 dependencies with vcpkg
+        shell: pwsh
+        run: |
+          $vcpkgCommand = Get-Command vcpkg -ErrorAction Stop
+          $vcpkgRoot = Split-Path $vcpkgCommand.Source
+          "VCPKG_ROOT=$vcpkgRoot" >> $env:GITHUB_ENV
+          & $vcpkgCommand.Source install openssl getopt check zlib --triplet arm64-windows
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Configure and build
+        shell: pwsh
+        run: |
+          $tripletRoot = Join-Path $env:VCPKG_ROOT "installed\arm64-windows"
+          $env:OPENSSL_ROOT_DIR = $tripletRoot
+          $env:Path = "$(Join-Path $tripletRoot 'bin');$env:Path"
+
+          # vcpkg zlib port versions use different Windows library names:
+          # zlib 1.3.x provides z.lib, while newer ports may provide libz.lib.
+          $zlibLibrary = @("z.lib", "libz.lib", "zlib.lib") |
+            ForEach-Object { Join-Path $tripletRoot "lib\$_" } |
+            Where-Object { Test-Path $_ } |
+            Select-Object -First 1
+          if (-not $zlibLibrary) {
+            Write-Host "Available zlib-like libraries:"
+            Get-ChildItem (Join-Path $tripletRoot "lib") -Filter "*z*.lib" |
+              Select-Object -ExpandProperty FullName
+            throw "Could not locate the ARM64 zlib library"
+          }
+          Write-Host "Using ARM64 zlib library: $zlibLibrary"
+
+          $cmakeArgs = @(
+            "-S", $env:SOURCE_DIR,
+            "-B", "build",
+            "-A", "ARM64",
+            "-DCMAKE_BUILD_TYPE=Release",
+            "-DCMAKE_INSTALL_PREFIX=$env:GITHUB_WORKSPACE\stage",
+            "-DBACKEND=winscard",
+            "-DGETOPT_LIB_DIR=$(Join-Path $tripletRoot 'lib')",
+            "-DGETOPT_INCLUDE_DIR=$(Join-Path $tripletRoot 'include')",
+            "-DCHECK_PATH=$tripletRoot",
+            "-DZLIB_LIB_DIR=$(Join-Path $tripletRoot 'lib')",
+            "-DZLIB_INCL_DIR=$(Join-Path $tripletRoot 'include')",
+            "-DZLIB_ROOT=$tripletRoot",
+            "-DZLIB=$zlibLibrary",
+            "-DSUPRESS_MSVC_WARNINGS=ON",
+            "-DGENERATE_MAN_PAGES=OFF"
+          )
+          & cmake @cmakeArgs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          cmake --build build --config Release --parallel
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run unit tests
+        shell: pwsh
+        run: |
+          $tripletRoot = Join-Path $env:VCPKG_ROOT "installed\arm64-windows"
+          $env:Path = "$(Join-Path $tripletRoot 'bin');$env:GITHUB_WORKSPACE\build\lib\Release;$env:GITHUB_WORKSPACE\build\ykcs11\Release;$env:Path"
+          ctest --test-dir build -C Release --output-on-failure
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Install and assemble portable package
+        shell: pwsh
+        run: |
+          $tripletRoot = Join-Path $env:VCPKG_ROOT "installed\arm64-windows"
+          cmake --install build --config Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          New-Item -ItemType Directory -Force package | Out-Null
+          Copy-Item -Path "stage\bin\*" -Destination package -Recurse -Force -ErrorAction SilentlyContinue
+          Copy-Item -Path "stage\lib\*" -Destination package -Recurse -Force -ErrorAction SilentlyContinue
+          Copy-Item -Path (Join-Path $tripletRoot "bin\*.dll") -Destination package -Force -ErrorAction SilentlyContinue
+          Copy-Item -Path "$env:SOURCE_DIR\COPYING" -Destination package\LICENSE -Force
+
+          @"
+          Yubico PIV Tool - Windows ARM64
+          Built from the Yubico PIV Tool source distribution by GitHub Actions.
+          Backend: Windows WinSCard.
+          Architecture: ARM64.
+
+          Place this directory on PATH to use yubico-piv-tool.exe.
+          For OpenSSH PKCS#11 use the absolute path to libykcs11.dll as PKCS11Provider.
+          "@ | Set-Content package\README.txt
+
+          # Validate PE machine type without relying on dumpbin being in PATH.
+          function Get-PeMachine([string]$FilePath) {
+            $stream = [System.IO.File]::Open(
+              $FilePath,
+              [System.IO.FileMode]::Open,
+              [System.IO.FileAccess]::Read,
+              [System.IO.FileShare]::Read
+            )
+            try {
+              $reader = [System.IO.BinaryReader]::new($stream)
+              $stream.Position = 0x3C
+              $peOffset = $reader.ReadInt32()
+              if ($peOffset -lt 0 -or $peOffset -gt ($stream.Length - 6)) {
+                throw "Invalid PE header offset: $FilePath"
+              }
+              $stream.Position = $peOffset
+              if ($reader.ReadUInt32() -ne 0x00004550) {
+                throw "Invalid PE signature: $FilePath"
+              }
+              return $reader.ReadUInt16()
+            }
+            finally {
+              if ($reader) { $reader.Dispose() } else { $stream.Dispose() }
+            }
+          }
+
+          foreach ($binary in Get-ChildItem package -File | Where-Object { $_.Extension -in '.dll', '.exe' }) {
+            $machine = Get-PeMachine $binary.FullName
+            if ($machine -ne 0xAA64) {
+              throw "Non-ARM64 PE detected: $($binary.Name) (machine=0x$('{0:X4}' -f $machine))"
+            }
+            Write-Host ("Verified ARM64: {0}" -f $binary.Name)
+          }
+
+          foreach ($required in 'libykcs11.dll', 'libykpiv.dll', 'yubico-piv-tool.exe') {
+            if (-not (Test-Path (Join-Path package $required))) {
+              throw "Required runtime file missing: $required"
+            }
+          }
+
+          Get-ChildItem package -File | Get-FileHash -Algorithm SHA256 |
+            ForEach-Object { "$($_.Hash.ToLower())  $([IO.Path]::GetFileName($_.Path))" } |
+            Set-Content package\SHA256SUMS
+
+      - name: Upload ARM64 package
+        uses: actions/upload-artifact@v4
+        with:
+          name: yubico-piv-tool-windows-arm64
+          path: package/
+          if-no-files-found: error
+          retention-days: 30
